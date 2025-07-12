@@ -1,0 +1,52 @@
+build:
+  maxIssues: 50
+  excludeCorrectable: false
+
+config:
+  validation: true
+  warningsAsErrors: false
+
+complexity:
+  active: true
+  TooManyFunctions:
+    active: true
+    thresholdInFiles: 20
+    thresholdInClasses: 20
+    thresholdInInterfaces: 20
+    thresholdInObjects: 20
+  LongMethod:
+    active: true
+    threshold: 100
+  LongParameterList:
+    active: true
+    functionThreshold: 8
+    constructorThreshold: 8
+    ignoreDefaultParameters: true
+    ignoreDataClasses: true
+
+naming:
+  active: true
+  FunctionNaming:
+    active: false  # Disable for Compose functions
+
+style:
+  active: true
+  NewLineAtEndOfFile:
+    active: false  # Disable for simplicity
+  MagicNumber:
+    active: false  # Disable for simplicity
+  UnusedPrivateMember:
+    active: false  # Disable for Preview functions
+  UnusedParameter:
+    active: false  # Disable for Compose
+
+potential-bugs:
+  active: true
+
+exceptions:
+  active: true
+  TooGenericExceptionCaught:
+    active: false
+
+comments:
+  active: true 
