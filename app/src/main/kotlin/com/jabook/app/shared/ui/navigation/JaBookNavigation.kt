@@ -1,5 +1,13 @@
 package com.jabook.app.shared.ui.navigation
 
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Download
@@ -7,91 +15,130 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.navigation.NavController
+import androidx.compose.ui.res.stringResource
+import androidx.navigation.NavDestination.Companion.hierarchy
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
+import com.jabook.app.R
 import com.jabook.app.features.discovery.presentation.DiscoveryScreen
 import com.jabook.app.features.downloads.presentation.DownloadsScreen
+import com.jabook.app.features.library.presentation.LibraryScreen
 import com.jabook.app.features.player.presentation.PlayerScreen
+import com.jabook.app.shared.ui.theme.JaBookAnimations
 
-/** Main navigation destinations for JaBook application. */
-sealed class JaBookDestination(val route: String, val icon: ImageVector, val title: String) {
-    object Library : JaBookDestination("library", Icons.Default.Home, "Library")
+/** Navigation destinations for the app */
+sealed class Screen(val route: String) {
+    object Library : Screen("library")
 
-    object Discovery : JaBookDestination("discovery", Icons.Default.Search, "Discover")
+    object Discovery : Screen("discovery")
 
-    object Player : JaBookDestination("player", Icons.Default.PlayArrow, "Player")
+    object Downloads : Screen("downloads")
 
-    object Downloads : JaBookDestination("downloads", Icons.Default.Download, "Downloads")
+    object Player : Screen("player")
 }
 
-private val bottomNavDestinations =
-    listOf(JaBookDestination.Library, JaBookDestination.Discovery, JaBookDestination.Player, JaBookDestination.Downloads)
-
-/** Main navigation component for JaBook. Provides bottom navigation and screen routing. */
+/** Main navigation composable with bottom navigation and animated transitions */
 @Composable
-fun JaBookNavigation(navController: NavHostController, modifier: Modifier = Modifier) {
-    Scaffold(
-        modifier = modifier,
-        bottomBar = { JaBookBottomNavigation(navController = navController, destinations = bottomNavDestinations) },
-    ) { paddingValues ->
-        NavHost(
-            navController = navController,
-            startDestination = JaBookDestination.Library.route,
-            modifier = Modifier.padding(paddingValues),
-        ) {
-            composable(JaBookDestination.Library.route) {
-                com.jabook.app.features.library.presentation.LibraryScreen(
-                    onAudiobookClick = { audiobook -> navController.navigate(JaBookDestination.Player.route) }
-                )
-            }
-            composable(JaBookDestination.Discovery.route) {
-                DiscoveryScreen(onNavigateToAudiobook = { /* navigate maybe to player or details later */ })
-            }
-            composable(JaBookDestination.Player.route) { PlayerScreen() }
-            composable(JaBookDestination.Downloads.route) { DownloadsScreen() }
-        }
-    }
-}
-
-@Composable
-private fun JaBookBottomNavigation(navController: NavController, destinations: List<JaBookDestination>) {
+fun JaBookNavigation(navController: NavHostController = rememberNavController(), modifier: Modifier = Modifier) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
-    val currentRoute = navBackStackEntry?.destination?.route
+    val currentDestination = navBackStackEntry?.destination
 
-    NavigationBar {
-        for (destination in destinations) {
-            NavigationBarItem(
-                icon = { Icon(imageVector = destination.icon, contentDescription = destination.title) },
-                label = { Text(destination.title) },
-                selected = currentRoute == destination.route,
-                onClick = {
-                    if (currentRoute != destination.route) {
-                        navController.navigate(destination.route) {
-                            // Pop up to the start destination of the graph to
-                            // avoid building up a large stack of destinations
-                            popUpTo(navController.graph.startDestinationId) { saveState = true }
-                            // Avoid multiple copies of the same destination when
-                            // reselecting the same item
-                            launchSingleTop = true
-                            // Restore state when reselecting a previously selected item
-                            restoreState = true
-                        }
-                    }
-                },
-            )
+    Scaffold(
+        modifier = modifier.fillMaxSize(),
+        bottomBar = {
+            NavigationBar(containerColor = MaterialTheme.colorScheme.surfaceContainer, contentColor = MaterialTheme.colorScheme.onSurface) {
+                val items =
+                    listOf(
+                        Triple(Screen.Library, Icons.Default.Home, R.string.library_title),
+                        Triple(Screen.Discovery, Icons.Default.Search, R.string.discovery_title),
+                        Triple(Screen.Downloads, Icons.Default.Download, R.string.downloads_title),
+                        Triple(Screen.Player, Icons.Default.PlayArrow, R.string.player_title),
+                    )
+
+                items.forEach { (screen, icon, titleRes) ->
+                    NavigationBarItem(
+                        icon = { Icon(icon, contentDescription = null) },
+                        label = { Text(stringResource(titleRes)) },
+                        selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true,
+                        onClick = {
+                            navController.navigate(screen.route) {
+                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        },
+                    )
+                }
+            }
+        },
+    ) { innerPadding ->
+        Surface(modifier = Modifier.fillMaxSize().padding(innerPadding), color = MaterialTheme.colorScheme.background) {
+            NavHost(
+                navController = navController,
+                startDestination = Screen.Library.route,
+                modifier = Modifier.fillMaxSize(),
+                enterTransition = { getEnterTransition() },
+                exitTransition = { getExitTransition() },
+                popEnterTransition = { getPopEnterTransition() },
+                popExitTransition = { getPopExitTransition() },
+            ) {
+                composable(Screen.Library.route) {
+                    LibraryScreen(onAudiobookClick = { audiobook -> navController.navigate(Screen.Player.route) })
+                }
+
+                composable(Screen.Discovery.route) {
+                    DiscoveryScreen(onNavigateToAudiobook = { audiobook -> navController.navigate(Screen.Player.route) })
+                }
+
+                composable(Screen.Downloads.route) { DownloadsScreen() }
+
+                composable(Screen.Player.route) { PlayerScreen() }
+            }
         }
     }
 }
 
-// Placeholder composable removed – real screens are used now
+/** Get enter transition for forward navigation */
+private fun getEnterTransition(): EnterTransition {
+    return slideInHorizontally(
+        animationSpec = tween(durationMillis = JaBookAnimations.DURATION_MEDIUM, easing = JaBookAnimations.EMPHASIZED_EASING),
+        initialOffsetX = { it },
+    ) + fadeIn(animationSpec = tween(durationMillis = JaBookAnimations.DURATION_MEDIUM, easing = JaBookAnimations.STANDARD_EASING))
+}
+
+/** Get exit transition for forward navigation */
+private fun getExitTransition(): ExitTransition {
+    return slideOutHorizontally(
+        animationSpec = tween(durationMillis = JaBookAnimations.DURATION_SHORT, easing = JaBookAnimations.STANDARD_EASING),
+        targetOffsetX = { -it / 3 },
+    ) + fadeOut(animationSpec = tween(durationMillis = JaBookAnimations.DURATION_SHORT, easing = JaBookAnimations.STANDARD_EASING))
+}
+
+/** Get enter transition for back navigation */
+private fun getPopEnterTransition(): EnterTransition {
+    return slideInHorizontally(
+        animationSpec = tween(durationMillis = JaBookAnimations.DURATION_MEDIUM, easing = JaBookAnimations.EMPHASIZED_EASING),
+        initialOffsetX = { -it / 3 },
+    ) + fadeIn(animationSpec = tween(durationMillis = JaBookAnimations.DURATION_MEDIUM, easing = JaBookAnimations.STANDARD_EASING))
+}
+
+/** Get exit transition for back navigation */
+private fun getPopExitTransition(): ExitTransition {
+    return slideOutHorizontally(
+        animationSpec = tween(durationMillis = JaBookAnimations.DURATION_SHORT, easing = JaBookAnimations.STANDARD_EASING),
+        targetOffsetX = { it },
+    ) + fadeOut(animationSpec = tween(durationMillis = JaBookAnimations.DURATION_SHORT, easing = JaBookAnimations.STANDARD_EASING))
+}
