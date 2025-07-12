@@ -1,22 +1,26 @@
 package com.jabook.app.core.di
 
-import android.content.Context
-import com.jabook.app.core.storage.StorageManager
-import com.jabook.app.core.storage.StorageManagerImpl
+import com.jabook.app.core.storage.FileManager
+import com.jabook.app.core.storage.FileManagerImpl
+import com.jabook.app.shared.debug.IDebugLogger
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
-import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 
-/** Hilt module for storage dependencies */
+/** Hilt module for storage system dependencies */
 @Module
 @InstallIn(SingletonComponent::class)
 object StorageModule {
+
+    /** Provides file manager for audiobook storage */
     @Provides
     @Singleton
-    fun provideStorageManager(@ApplicationContext context: Context): StorageManager {
-        return StorageManagerImpl(context)
+    fun provideFileManager(
+        @dagger.hilt.android.qualifiers.ApplicationContext context: android.content.Context,
+        debugLogger: IDebugLogger,
+    ): FileManager {
+        return FileManagerImpl(context, debugLogger)
     }
 }
