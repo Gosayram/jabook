@@ -12,6 +12,67 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
+/** Interface for debug logging to avoid DI issues with object singleton */
+interface IDebugLogger {
+    fun logInfo(message: String, tag: String = "JaBook")
+
+    fun logDebug(message: String, tag: String = "JaBook")
+
+    fun logWarning(message: String, tag: String = "JaBook")
+
+    fun logError(message: String, error: Throwable? = null, tag: String = "JaBook")
+
+    fun logNetworkRequest(url: String, method: String, headers: Map<String, String> = emptyMap())
+
+    fun logNetworkResponse(url: String, statusCode: Int, responseTime: Long, size: Long = 0)
+
+    fun logTorrentEvent(event: TorrentEvent)
+
+    fun logPlaybackEvent(event: PlaybackEvent)
+
+    fun logUserAction(action: String, context: String = "")
+
+    fun logPerformance(operation: String, duration: Long, additionalInfo: String = "")
+
+    fun exportLogs(): File?
+
+    fun clearLogs()
+}
+
+/** Debug logger implementation that delegates to the singleton */
+class DebugLoggerImpl(context: Context) : IDebugLogger {
+    init {
+        DebugLogger.initialize(context)
+    }
+
+    override fun logInfo(message: String, tag: String) = DebugLogger.logInfo(message, tag)
+
+    override fun logDebug(message: String, tag: String) = DebugLogger.logDebug(message, tag)
+
+    override fun logWarning(message: String, tag: String) = DebugLogger.logWarning(message, tag)
+
+    override fun logError(message: String, error: Throwable?, tag: String) = DebugLogger.logError(message, error, tag)
+
+    override fun logNetworkRequest(url: String, method: String, headers: Map<String, String>) =
+        DebugLogger.logNetworkRequest(url, method, headers)
+
+    override fun logNetworkResponse(url: String, statusCode: Int, responseTime: Long, size: Long) =
+        DebugLogger.logNetworkResponse(url, statusCode, responseTime, size)
+
+    override fun logTorrentEvent(event: TorrentEvent) = DebugLogger.logTorrentEvent(event)
+
+    override fun logPlaybackEvent(event: PlaybackEvent) = DebugLogger.logPlaybackEvent(event)
+
+    override fun logUserAction(action: String, context: String) = DebugLogger.logUserAction(action, context)
+
+    override fun logPerformance(operation: String, duration: Long, additionalInfo: String) =
+        DebugLogger.logPerformance(operation, duration, additionalInfo)
+
+    override fun exportLogs(): File? = DebugLogger.exportLogs()
+
+    override fun clearLogs() = DebugLogger.clearLogs()
+}
+
 /** Debug logger for comprehensive logging Based on IDEA.md architecture specification */
 object DebugLogger {
     private const val TAG = "JaBook"

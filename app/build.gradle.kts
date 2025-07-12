@@ -88,9 +88,9 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
 
     // Dependency Injection
-    implementation("com.google.dagger:hilt-android:2.53.1")
+    implementation("com.google.dagger:hilt-android:2.56.2")
     implementation("javax.inject:javax.inject:1")
-    ksp("com.google.dagger:hilt-compiler:2.53.1")
+    ksp("com.google.dagger:hilt-compiler:2.56.2")
 
     // Database & Storage
     implementation("androidx.room:room-runtime:2.6.1")
@@ -103,6 +103,9 @@ dependencies {
     implementation("androidx.media3:media3-exoplayer-dash:1.3.1")
     implementation("androidx.media3:media3-ui:1.3.1")
     implementation("androidx.media3:media3-session:1.3.1")
+
+    // Media compatibility for notifications
+    implementation("androidx.media:media:1.6.0")
 
     // Networking
     implementation("com.squareup.retrofit2:retrofit:2.11.0")

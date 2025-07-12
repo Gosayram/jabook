@@ -1,9 +1,12 @@
 package com.jabook.app.core.domain.model
 
+import android.os.Parcelable
 import java.util.Date
 import java.util.Locale
+import kotlinx.parcelize.Parcelize
 
 /** Domain model representing an audiobook. This is the business logic representation, independent of data source. */
+@Parcelize
 data class Audiobook(
     val id: String,
     val title: String,
@@ -39,7 +42,7 @@ data class Audiobook(
     val userRating: Float? = null,
     val playbackSpeed: Float = 1.0f,
     val chapterCount: Int = 0,
-) {
+) : Parcelable {
     /** Check if the audiobook is currently downloaded. */
     val isDownloaded: Boolean
         get() = downloadStatus == DownloadStatus.COMPLETED
