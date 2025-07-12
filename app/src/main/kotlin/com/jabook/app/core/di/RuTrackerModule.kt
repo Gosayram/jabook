@@ -4,32 +4,29 @@ import com.jabook.app.core.data.network.MockRuTrackerApiService
 import com.jabook.app.core.data.network.RuTrackerApiService
 import com.jabook.app.core.data.repository.RuTrackerRepositoryImpl
 import com.jabook.app.core.domain.repository.RuTrackerRepository
+import com.jabook.app.shared.debug.IDebugLogger
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 
-/** Hilt module for RuTracker integration dependencies Provides API service and repository implementations */
 @Module
 @InstallIn(SingletonComponent::class)
 object RuTrackerModule {
 
-    /**
-     * Provides RuTracker API service For now, returns mock implementation
-     *
-     * FIXME: Replace with actual Retrofit implementation
-     */
     @Provides
     @Singleton
     fun provideRuTrackerApiService(): RuTrackerApiService {
         return MockRuTrackerApiService()
     }
 
-    /** Provides RuTracker repository */
     @Provides
     @Singleton
-    fun provideRuTrackerRepository(debugLogger: com.jabook.app.shared.debug.IDebugLogger): RuTrackerRepository {
-        return RuTrackerRepositoryImpl(debugLogger)
+    fun provideRuTrackerRepository(apiService: RuTrackerApiService, debugLogger: IDebugLogger): RuTrackerRepository {
+        return RuTrackerRepositoryImpl(apiService, debugLogger)
     }
+
+    // Real RuTracker API implementation will be added later
+    // This module currently provides mock implementation for development
 }

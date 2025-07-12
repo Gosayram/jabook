@@ -3,9 +3,13 @@ package com.jabook.app.core.torrent
 import com.jabook.app.core.domain.model.DownloadProgress
 import com.jabook.app.core.domain.model.TorrentHandle
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.StateFlow
 
 /** Torrent manager interface for audiobook downloads Based on IDEA.md architecture specification */
 interface TorrentManager {
+    /** Map of torrentId to current DownloadProgress for all torrents. */
+    val downloadStates: StateFlow<Map<String, DownloadProgress>>
+
     suspend fun addTorrent(magnetUri: String): TorrentHandle
 
     suspend fun addTorrentFile(torrentFilePath: String): TorrentHandle

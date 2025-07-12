@@ -56,7 +56,7 @@ class PlayerManagerImpl @Inject constructor(@ApplicationContext private val cont
             currentAudiobook = audiobook
 
             // For now, create a single chapter from the audiobook
-            // TODO: Load actual chapters from repository
+            // Actual chapter loading from repository will be implemented later
             chapters =
                 if (audiobook.localAudioPath != null) {
                     listOf(

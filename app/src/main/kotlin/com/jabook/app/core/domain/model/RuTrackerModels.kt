@@ -72,6 +72,8 @@ enum class TorrentStatus {
     ERROR,
     SEEDING,
     STOPPED,
+    /** Torrent is added but currently inactive / waiting */
+    IDLE,
 }
 
 /** Download progress information */

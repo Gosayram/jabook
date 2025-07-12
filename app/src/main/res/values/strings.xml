@@ -46,6 +46,18 @@
     <string name="discovery_search_hint">Search for audiobooks</string>
     <string name="discovery_popular">Popular</string>
     <string name="discovery_new">New Releases</string>
+    <string name="categories">Categories</string>
+    <string name="all_categories">All Categories</string>
+    <string name="trending_audiobooks">Trending Audiobooks</string>
+    <string name="recently_added">Recently Added</string>
+    <string name="no_search_results">No results found</string>
+    <string name="try_different_search_terms">Try different search terms or adjust filters</string>
+    <string name="no_content_available">No content available</string>
+    <string name="check_internet_connection">Check your internet connection and try again</string>
+    <string name="clear_search">Clear search</string>
+    <string name="audiobook_cover">Audiobook cover</string>
+    <string name="search">Search</string>
+    <string name="refresh">Refresh</string>
     
     <!-- Player Screen -->
     <string name="player_title">Now Playing</string>
@@ -67,6 +79,35 @@
     <string name="downloads_resume">Resume</string>
     <string name="downloads_cancel">Cancel</string>
     <string name="downloads_retry">Retry</string>
+    
+    <!-- Downloads UI -->
+    <string name="clear_completed">Clear completed</string>
+    <string name="active_downloads">Active (%d)</string>
+    <string name="completed_downloads">Completed (%d)</string>
+    <string name="failed_downloads">Failed (%d)</string>
+    <string name="no_active_downloads">No active downloads</string>
+    <string name="start_downloading_discovery">Start downloading from Discovery</string>
+    <string name="no_completed_downloads">No completed downloads</string>
+    <string name="completed_downloads_appear_here">Completed downloads will appear here</string>
+    <string name="no_failed_downloads">No failed downloads</string>
+    <string name="great_no_download_errors">Great! No download errors</string>
+    
+    <!-- Download Actions -->
+    <string name="pause_download">Pause download</string>
+    <string name="resume_download">Resume download</string>
+    <string name="cancel_download">Cancel download</string>
+    <string name="retry_download">Retry download</string>
+    <string name="seeders_leechers">%1$d seeders, %2$d leechers</string>
+    
+    <!-- Download Status -->
+    <string name="status_downloading">Downloading</string>
+    <string name="status_completed">Completed</string>
+    <string name="status_paused">Paused</string>
+    <string name="status_seeding">Seeding</string>
+    <string name="status_error">Error</string>
+    <string name="status_stopped">Stopped</string>
+    <string name="status_idle">Idle</string>
+    <string name="status_pending">Pending</string>
     
     <!-- Categories -->
     <string name="category_fiction">Fiction</string>
@@ -94,12 +135,10 @@
     <string name="action_retry">Retry</string>
     
     <!-- Status Messages -->
-    <string name="status_downloading">Downloading…</string>
     <string name="status_download_complete">Download complete</string>
     <string name="status_download_failed">Download failed</string>
     <string name="status_loading">Loading…</string>
     <string name="status_no_internet">No internet connection</string>
-    <string name="status_error">Something went wrong</string>
     
     <!-- Permissions -->
     <string name="permission_storage_title">Storage Permission</string>

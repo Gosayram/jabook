@@ -4,6 +4,7 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.graphics.BitmapFactory
@@ -127,7 +128,7 @@ class PlayerService : MediaSessionService() {
     /** Initialize MediaSession for media controls */
     private fun initializeMediaSession() {
         try {
-            // TODO: Create MediaSession with proper player integration
+            // MediaSession integration will be implemented when ExoPlayer is fully integrated
             // mediaSession = MediaSession.Builder(this, playerManager.getExoPlayer())
             //     .setCallback(MediaSessionCallback())
             //     .build()
@@ -191,7 +192,7 @@ class PlayerService : MediaSessionService() {
     /** Create notification for playback controls */
     private fun createNotification(): Notification {
         val audiobook = currentAudiobook
-        val playbackState = PlaybackState() // TODO: Get actual playback state from flow
+        val playbackState = PlaybackState() // Mock playback state for now
 
         // Create notification actions
         val playPauseAction =
@@ -216,7 +217,7 @@ class PlayerService : MediaSessionService() {
             .addAction(nextAction)
             .setStyle(
                 MediaNotificationCompat.MediaStyle().setShowActionsInCompactView(0, 1, 2)
-                // TODO: Set media session token when MediaSession is properly implemented
+                // Media session token will be set when MediaSession is properly implemented
             )
             .setContentIntent(createContentIntent())
             .setDeleteIntent(createDeleteIntent())
@@ -254,7 +255,7 @@ class PlayerService : MediaSessionService() {
     /** Stop the service */
     private fun stopService() {
         debugLogger.logInfo("PlayerService.stopService")
-        stopForeground(true)
+        stopForeground(Service.STOP_FOREGROUND_REMOVE)
         stopSelf()
     }
 }

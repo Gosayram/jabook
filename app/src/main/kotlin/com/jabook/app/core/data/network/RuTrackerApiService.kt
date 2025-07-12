@@ -1,173 +1,175 @@
 package com.jabook.app.core.data.network
 
-import com.jabook.app.core.domain.model.RuTrackerAudiobook
-import com.jabook.app.core.domain.model.RuTrackerCategory
-import com.jabook.app.core.domain.model.RuTrackerSearchResult
-import com.jabook.app.core.domain.model.RuTrackerStats
-import retrofit2.Response
-import retrofit2.http.GET
-import retrofit2.http.Path
-import retrofit2.http.Query
+import com.jabook.app.core.data.network.model.AudiobookSearchResult
+import com.jabook.app.core.data.network.model.RuTrackerTorrent
+import kotlinx.coroutines.delay
 
-/** API service for RuTracker integration Handles HTTP requests to RuTracker endpoints */
 interface RuTrackerApiService {
+    suspend fun searchAudiobooks(query: String, page: Int = 1): Result<List<AudiobookSearchResult>>
 
-    /**
-     * Get categories from RuTracker
-     *
-     * @return List of categories
-     */
-    @GET("api/categories") suspend fun getCategories(): Response<List<RuTrackerCategory>>
+    suspend fun getTorrentDetails(torrentId: String): Result<RuTrackerTorrent>
 
-    /**
-     * Get audiobooks from specific category
-     *
-     * @param categoryId Category ID
-     * @param page Page number
-     * @param sortBy Sort criteria
-     * @return List of audiobooks
-     */
-    @GET("api/category/{categoryId}/audiobooks")
-    suspend fun getAudiobooks(
-        @Path("categoryId") categoryId: String,
-        @Query("page") page: Int = 1,
-        @Query("sort") sortBy: String = "seeders",
-    ): Response<List<RuTrackerAudiobook>>
+    suspend fun getTopAudiobooks(limit: Int = 20): Result<List<AudiobookSearchResult>>
 
-    /**
-     * Search audiobooks
-     *
-     * @param query Search query
-     * @param categoryId Optional category filter
-     * @param page Page number
-     * @return Search results
-     */
-    @GET("api/search")
-    suspend fun searchAudiobooks(
-        @Query("q") query: String,
-        @Query("category") categoryId: String? = null,
-        @Query("page") page: Int = 1,
-    ): Response<RuTrackerSearchResult>
+    suspend fun getNewAudiobooks(limit: Int = 20): Result<List<AudiobookSearchResult>>
 
-    /**
-     * Get detailed information about audiobook
-     *
-     * @param audiobookId Audiobook ID
-     * @return Audiobook details
-     */
-    @GET("api/audiobook/{audiobookId}")
-    suspend fun getAudiobookDetails(@Path("audiobookId") audiobookId: String): Response<RuTrackerAudiobook>
+    suspend fun getAudiobooksByCategory(category: String, limit: Int = 20): Result<List<AudiobookSearchResult>>
 
-    /**
-     * Get RuTracker statistics
-     *
-     * @return Statistics
-     */
-    @GET("api/stats") suspend fun getStats(): Response<RuTrackerStats>
+    suspend fun getAudiobooksByAuthor(author: String, limit: Int = 20): Result<List<AudiobookSearchResult>>
 
-    /**
-     * Check if RuTracker is available
-     *
-     * @return Availability status
-     */
-    @GET("api/status") suspend fun checkAvailability(): Response<Map<String, Boolean>>
-
-    /**
-     * Get trending audiobooks
-     *
-     * @param limit Number of results
-     * @return List of trending audiobooks
-     */
-    @GET("api/trending") suspend fun getTrendingAudiobooks(@Query("limit") limit: Int = 20): Response<List<RuTrackerAudiobook>>
-
-    /**
-     * Get recently added audiobooks
-     *
-     * @param limit Number of results
-     * @return List of recently added audiobooks
-     */
-    @GET("api/recent") suspend fun getRecentlyAdded(@Query("limit") limit: Int = 20): Response<List<RuTrackerAudiobook>>
-
-    /**
-     * Get popular audiobooks by category
-     *
-     * @param categoryId Category ID
-     * @param limit Number of results
-     * @return List of popular audiobooks
-     */
-    @GET("api/category/{categoryId}/popular")
-    suspend fun getPopularByCategory(
-        @Path("categoryId") categoryId: String,
-        @Query("limit") limit: Int = 20,
-    ): Response<List<RuTrackerAudiobook>>
-
-    /**
-     * Download torrent file
-     *
-     * @param torrentId Torrent ID
-     * @return Torrent file data
-     */
-    @GET("api/torrent/{torrentId}/download") suspend fun downloadTorrent(@Path("torrentId") torrentId: String): Response<ByteArray>
+    suspend fun checkAvailability(): Result<Boolean>
 }
 
-/**
- * Mock implementation of RuTracker API service for testing
- *
- * FIXME: Replace with actual HTTP client implementation
- */
 class MockRuTrackerApiService : RuTrackerApiService {
 
-    override suspend fun getCategories(): Response<List<RuTrackerCategory>> {
-        // Return mock response
-        return Response.success(emptyList())
+    override suspend fun searchAudiobooks(query: String, page: Int): Result<List<AudiobookSearchResult>> {
+        delay(1000) // Simulate network delay
+
+        val mockResults =
+            (1..10).map { index ->
+                AudiobookSearchResult(
+                    id = "search_${query.hashCode()}_$index",
+                    title = "Mock Search Result #$index for '$query'",
+                    author = "Mock Author #$index",
+                    narrator = "Mock Narrator #$index",
+                    duration = "${(6..15).random()} hours",
+                    size = "${(200..800).random()} MB",
+                    seeds = (5..100).random(),
+                    leeches = (1..25).random(),
+                    category = "Audiobooks",
+                    subcategory = listOf("Fiction", "Non-Fiction", "Biography", "Science", "History").random(),
+                    uploadDate = System.currentTimeMillis() - (1..365).random() * 24 * 60 * 60 * 1000,
+                    magnetLink = "magnet:?xt=urn:btih:mock_search_${query.hashCode()}_$index",
+                )
+            }
+
+        return Result.success(mockResults)
     }
 
-    override suspend fun getAudiobooks(categoryId: String, page: Int, sortBy: String): Response<List<RuTrackerAudiobook>> {
-        // Return mock response
-        return Response.success(emptyList())
+    override suspend fun getTorrentDetails(torrentId: String): Result<RuTrackerTorrent> {
+        delay(500) // Simulate network delay
+
+        val mockTorrent =
+            RuTrackerTorrent(
+                id = torrentId,
+                title = "Mock Torrent Details",
+                author = "Mock Author",
+                narrator = "Mock Narrator",
+                description = "Mock torrent description for testing",
+                duration = "12 hours 30 minutes",
+                size = "500 MB",
+                seeds = 25,
+                leeches = 5,
+                category = "Audiobooks",
+                subcategory = "Fiction",
+                uploadDate = System.currentTimeMillis() - (24 * 60 * 60 * 1000), // 1 day ago
+                magnetLink = "magnet:?xt=urn:btih:mock_hash_$torrentId",
+                language = "Russian",
+                year = 2023,
+                coverImageUrl = null,
+            )
+
+        return Result.success(mockTorrent)
     }
 
-    override suspend fun searchAudiobooks(query: String, categoryId: String?, page: Int): Response<RuTrackerSearchResult> {
-        // Return mock response
-        return Response.success(
-            RuTrackerSearchResult(query = query, totalResults = 0, currentPage = page, totalPages = 0, results = emptyList())
-        )
+    override suspend fun getTopAudiobooks(limit: Int): Result<List<AudiobookSearchResult>> {
+        delay(800) // Simulate network delay
+
+        val mockResults =
+            (1..limit).map { index ->
+                AudiobookSearchResult(
+                    id = "top_$index",
+                    title = "Top Audiobook #$index",
+                    author = "Popular Author #$index",
+                    narrator = "Popular Narrator #$index",
+                    duration = "${(8..20).random()} hours",
+                    size = "${(300..800).random()} MB",
+                    seeds = (50..200).random(),
+                    leeches = (5..30).random(),
+                    category = "Audiobooks",
+                    subcategory = if (index % 2 == 0) "Fiction" else "Non-Fiction",
+                    uploadDate = System.currentTimeMillis() - (1..30).random() * 24 * 60 * 60 * 1000,
+                    magnetLink = "magnet:?xt=urn:btih:mock_top_$index",
+                )
+            }
+
+        return Result.success(mockResults)
     }
 
-    override suspend fun getAudiobookDetails(audiobookId: String): Response<RuTrackerAudiobook> {
-        // Return mock response
-        throw NotImplementedError("Mock implementation")
+    override suspend fun getNewAudiobooks(limit: Int): Result<List<AudiobookSearchResult>> {
+        delay(600) // Simulate network delay
+
+        val mockResults =
+            (1..limit).map { index ->
+                AudiobookSearchResult(
+                    id = "new_$index",
+                    title = "New Audiobook #$index",
+                    author = "New Author #$index",
+                    narrator = "New Narrator #$index",
+                    duration = "${(5..12).random()} hours",
+                    size = "${(200..600).random()} MB",
+                    seeds = (10..50).random(),
+                    leeches = (1..15).random(),
+                    category = "Audiobooks",
+                    subcategory = listOf("Fiction", "Non-Fiction", "Biography", "Science").random(),
+                    uploadDate = System.currentTimeMillis() - (1..7).random() * 24 * 60 * 60 * 1000, // Last 7 days
+                    magnetLink = "magnet:?xt=urn:btih:mock_new_$index",
+                )
+            }
+
+        return Result.success(mockResults)
     }
 
-    override suspend fun getStats(): Response<RuTrackerStats> {
-        // Return mock response
-        return Response.success(
-            RuTrackerStats(totalAudiobooks = 0, totalCategories = 0, activeUsers = 0, totalSize = "0 MB", lastUpdate = "Never")
-        )
+    override suspend fun getAudiobooksByCategory(category: String, limit: Int): Result<List<AudiobookSearchResult>> {
+        delay(700) // Simulate network delay
+
+        val mockResults =
+            (1..limit).map { index ->
+                AudiobookSearchResult(
+                    id = "${category.lowercase()}_$index",
+                    title = "$category Audiobook #$index",
+                    author = "$category Author #$index",
+                    narrator = "$category Narrator #$index",
+                    duration = "${(7..16).random()} hours",
+                    size = "${(250..700).random()} MB",
+                    seeds = (15..80).random(),
+                    leeches = (2..20).random(),
+                    category = "Audiobooks",
+                    subcategory = category,
+                    uploadDate = System.currentTimeMillis() - (1..60).random() * 24 * 60 * 60 * 1000,
+                    magnetLink = "magnet:?xt=urn:btih:mock_${category.lowercase()}_$index",
+                )
+            }
+
+        return Result.success(mockResults)
     }
 
-    override suspend fun checkAvailability(): Response<Map<String, Boolean>> {
-        // Return mock response
-        return Response.success(mapOf("available" to true))
+    override suspend fun getAudiobooksByAuthor(author: String, limit: Int): Result<List<AudiobookSearchResult>> {
+        delay(650) // Simulate network delay
+
+        val mockResults =
+            (1..limit).map { index ->
+                AudiobookSearchResult(
+                    id = "${author.hashCode()}_$index",
+                    title = "Book #$index by $author",
+                    author = author,
+                    narrator = "Narrator for $author #$index",
+                    duration = "${(6..14).random()} hours",
+                    size = "${(300..600).random()} MB",
+                    seeds = (20..60).random(),
+                    leeches = (3..18).random(),
+                    category = "Audiobooks",
+                    subcategory = listOf("Fiction", "Non-Fiction", "Biography").random(),
+                    uploadDate = System.currentTimeMillis() - (1..180).random() * 24 * 60 * 60 * 1000,
+                    magnetLink = "magnet:?xt=urn:btih:mock_author_${author.hashCode()}_$index",
+                )
+            }
+
+        return Result.success(mockResults)
     }
 
-    override suspend fun getTrendingAudiobooks(limit: Int): Response<List<RuTrackerAudiobook>> {
-        // Return mock response
-        return Response.success(emptyList())
-    }
-
-    override suspend fun getRecentlyAdded(limit: Int): Response<List<RuTrackerAudiobook>> {
-        // Return mock response
-        return Response.success(emptyList())
-    }
-
-    override suspend fun getPopularByCategory(categoryId: String, limit: Int): Response<List<RuTrackerAudiobook>> {
-        // Return mock response
-        return Response.success(emptyList())
-    }
-
-    override suspend fun downloadTorrent(torrentId: String): Response<ByteArray> {
-        // Return mock response
-        return Response.success(ByteArray(0))
+    override suspend fun checkAvailability(): Result<Boolean> {
+        delay(200) // Simulate network delay
+        return Result.success(true)
     }
 }

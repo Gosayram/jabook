@@ -198,6 +198,11 @@ object TextUtils {
     }
 }
 
+/** File size formatting utility function */
+fun formatFileSize(sizeBytes: Long): String {
+    return sizeBytes.formatAsSize()
+}
+
 /** Math utilities */
 object MathUtils {
     fun clamp(value: Int, min: Int, max: Int): Int {

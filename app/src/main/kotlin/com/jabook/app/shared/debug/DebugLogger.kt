@@ -2,6 +2,7 @@ package com.jabook.app.shared.debug
 
 import android.content.Context
 import android.util.Log
+import com.jabook.app.BuildConfig
 import com.jabook.app.core.torrent.TorrentEvent
 import java.io.File
 import java.io.FileWriter
@@ -103,7 +104,7 @@ object DebugLogger {
     }
 
     fun logDebug(message: String, tag: String = TAG) {
-        if (com.jabook.app.BuildConfig.DEBUG) {
+        if (BuildConfig.DEBUG) {
             Log.d(tag, message)
             writeToFile(LogLevel.DEBUG, tag, message)
         }
@@ -294,7 +295,7 @@ data class NetworkInfo(val connectionType: String, val isConnected: Boolean, val
 object PerformanceTracker {
     private val metrics = mutableMapOf<String, MutableList<Long>>()
 
-    fun startMeasurement(operation: String): Long {
+    fun startMeasurement(@Suppress("UNUSED_PARAMETER") operation: String): Long {
         return System.currentTimeMillis()
     }
 

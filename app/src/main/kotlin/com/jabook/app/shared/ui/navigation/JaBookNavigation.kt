@@ -59,7 +59,7 @@ fun JaBookNavigation(navController: NavHostController, modifier: Modifier = Modi
                 )
             }
             composable(JaBookDestination.Discovery.route) { DiscoveryScreen() }
-            composable(JaBookDestination.Player.route) { PlayerScreen() }
+            composable(JaBookDestination.Player.route) { com.jabook.app.features.player.presentation.PlayerScreen() }
             composable(JaBookDestination.Downloads.route) { DownloadsScreen() }
         }
     }
