@@ -20,10 +20,7 @@ import androidx.compose.ui.unit.dp
 import com.jabook.app.R
 import com.jabook.app.features.library.presentation.LibraryFilter
 
-/**
- * Component displaying filter chips for the library view.
- * Allows users to filter audiobooks by different criteria.
- */
+/** Component displaying filter chips for the library view. Allows users to filter audiobooks by different criteria. */
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun LibraryFilterChips(
@@ -80,17 +77,10 @@ fun LibraryFilterChips(
             FilterChip(
                 selected = currentFilter == LibraryFilter.CATEGORY,
                 onClick = { showCategoryDropdown = true },
-                label = {
-                    Text(
-                        text = selectedCategory ?: stringResource(R.string.discovery_categories),
-                    )
-                },
+                label = { Text(text = selectedCategory ?: stringResource(R.string.discovery_categories)) },
             )
 
-            DropdownMenu(
-                expanded = showCategoryDropdown,
-                onDismissRequest = { showCategoryDropdown = false },
-            ) {
+            DropdownMenu(expanded = showCategoryDropdown, onDismissRequest = { showCategoryDropdown = false }) {
                 for (category in categories) {
                     DropdownMenuItem(
                         text = { Text(category) },

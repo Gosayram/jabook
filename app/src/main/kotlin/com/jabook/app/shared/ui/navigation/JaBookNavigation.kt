@@ -25,14 +25,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 
-/**
- * Main navigation destinations for JaBook application.
- */
-sealed class JaBookDestination(
-    val route: String,
-    val icon: ImageVector,
-    val title: String,
-) {
+/** Main navigation destinations for JaBook application. */
+sealed class JaBookDestination(val route: String, val icon: ImageVector, val title: String) {
     object Library : JaBookDestination("library", Icons.Default.Home, "Library")
 
     object Discovery : JaBookDestination("discovery", Icons.Default.Search, "Discover")
@@ -43,30 +37,14 @@ sealed class JaBookDestination(
 }
 
 private val bottomNavDestinations =
-    listOf(
-        JaBookDestination.Library,
-        JaBookDestination.Discovery,
-        JaBookDestination.Player,
-        JaBookDestination.Downloads,
-    )
+    listOf(JaBookDestination.Library, JaBookDestination.Discovery, JaBookDestination.Player, JaBookDestination.Downloads)
 
-/**
- * Main navigation component for JaBook.
- * Provides bottom navigation and screen routing.
- */
+/** Main navigation component for JaBook. Provides bottom navigation and screen routing. */
 @Composable
-fun JaBookNavigation(
-    navController: NavHostController,
-    modifier: Modifier = Modifier,
-) {
+fun JaBookNavigation(navController: NavHostController, modifier: Modifier = Modifier) {
     Scaffold(
         modifier = modifier,
-        bottomBar = {
-            JaBookBottomNavigation(
-                navController = navController,
-                destinations = bottomNavDestinations,
-            )
-        },
+        bottomBar = { JaBookBottomNavigation(navController = navController, destinations = bottomNavDestinations) },
     ) { paddingValues ->
         NavHost(
             navController = navController,
@@ -77,39 +55,25 @@ fun JaBookNavigation(
                 com.jabook.app.features.library.presentation.LibraryScreen(
                     onAudiobookClick = { audiobook ->
                         // TODO: Navigate to player screen
-                    },
+                    }
                 )
             }
-            composable(JaBookDestination.Discovery.route) {
-                DiscoveryScreen()
-            }
-            composable(JaBookDestination.Player.route) {
-                PlayerScreen()
-            }
-            composable(JaBookDestination.Downloads.route) {
-                DownloadsScreen()
-            }
+            composable(JaBookDestination.Discovery.route) { DiscoveryScreen() }
+            composable(JaBookDestination.Player.route) { PlayerScreen() }
+            composable(JaBookDestination.Downloads.route) { DownloadsScreen() }
         }
     }
 }
 
 @Composable
-private fun JaBookBottomNavigation(
-    navController: NavController,
-    destinations: List<JaBookDestination>,
-) {
+private fun JaBookBottomNavigation(navController: NavController, destinations: List<JaBookDestination>) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
     NavigationBar {
         for (destination in destinations) {
             NavigationBarItem(
-                icon = {
-                    Icon(
-                        imageVector = destination.icon,
-                        contentDescription = destination.title,
-                    )
-                },
+                icon = { Icon(imageVector = destination.icon, contentDescription = destination.title) },
                 label = { Text(destination.title) },
                 selected = currentRoute == destination.route,
                 onClick = {
@@ -117,9 +81,7 @@ private fun JaBookBottomNavigation(
                         navController.navigate(destination.route) {
                             // Pop up to the start destination of the graph to
                             // avoid building up a large stack of destinations
-                            popUpTo(navController.graph.startDestinationId) {
-                                saveState = true
-                            }
+                            popUpTo(navController.graph.startDestinationId) { saveState = true }
                             // Avoid multiple copies of the same destination when
                             // reselecting the same item
                             launchSingleTop = true
@@ -152,13 +114,7 @@ private fun DownloadsScreen() {
 
 @Composable
 private fun PlaceholderScreen(title: String) {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.headlineMedium,
-        )
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Text(text = title, style = MaterialTheme.typography.headlineMedium)
     }
 }

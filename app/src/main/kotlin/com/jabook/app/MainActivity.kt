@@ -17,21 +17,14 @@ import com.jabook.app.shared.ui.navigation.JaBookNavigation
 import com.jabook.app.shared.ui.theme.JaBookTheme
 import dagger.hilt.android.AndroidEntryPoint
 
-/**
- * Main activity for JaBook application.
- * Entry point for the user interface using Jetpack Compose.
- */
+/** Main activity for JaBook application. Entry point for the user interface using Jetpack Compose. */
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        setContent {
-            JaBookTheme {
-                JaBookApp()
-            }
-        }
+        setContent { JaBookTheme { JaBookApp() } }
     }
 }
 
@@ -39,23 +32,13 @@ class MainActivity : ComponentActivity() {
 fun JaBookApp() {
     val navController = rememberNavController()
 
-    Surface(
-        modifier = Modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background,
-    ) {
-        Scaffold { paddingValues ->
-            JaBookNavigation(
-                navController = navController,
-                modifier = Modifier.padding(paddingValues),
-            )
-        }
+    Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+        Scaffold { paddingValues -> JaBookNavigation(navController = navController, modifier = Modifier.padding(paddingValues)) }
     }
 }
 
 @Preview(showBackground = true)
 @Composable
 fun JaBookAppPreview() {
-    JaBookTheme {
-        JaBookApp()
-    }
+    JaBookTheme { JaBookApp() }
 }

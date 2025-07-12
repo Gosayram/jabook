@@ -3,11 +3,7 @@ package com.jabook.app
 import android.app.Application
 import dagger.hilt.android.HiltAndroidApp
 
-/**
- * JaBook Application class.
- * Main entry point for the audiobook player application.
- * Configured with Hilt for dependency injection.
- */
+/** JaBook Application class. Main entry point for the audiobook player application. Configured with Hilt for dependency injection. */
 @HiltAndroidApp
 class JaBookApplication : Application() {
     override fun onCreate() {

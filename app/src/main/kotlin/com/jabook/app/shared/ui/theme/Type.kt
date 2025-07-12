@@ -6,10 +6,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 
-/**
- * JaBook typography following Material Design 3 guidelines.
- * Optimized for audiobook content display with good readability.
- */
+/** JaBook typography following Material Design 3 guidelines. Optimized for audiobook content display with good readability. */
 val Typography =
     Typography(
         // Display styles for large titles

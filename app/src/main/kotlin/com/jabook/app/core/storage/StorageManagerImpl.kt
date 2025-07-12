@@ -5,227 +5,230 @@ import com.jabook.app.core.compat.StorageCompat
 import com.jabook.app.shared.debug.DebugLogger
 import com.jabook.app.shared.utils.FileUtils
 import com.jabook.app.shared.utils.ValidationUtils
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
-import java.io.IOException
 import java.net.URL
 import java.util.zip.ZipFile
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
-/**
- * Implementation of StorageManager for audiobook file management
- */
+/** Implementation of StorageManager for audiobook file management */
 @Singleton
-class StorageManagerImpl @Inject constructor(
-    private val context: Context
-) : StorageManager {
-    
+class StorageManagerImpl @Inject constructor(private val context: Context) : StorageManager {
     private val baseDirectory = File(StorageCompat.getExternalStorageDirectory(context), "JaBook")
-    
-    override suspend fun getAudiobooksDirectory(): File = withContext(Dispatchers.IO) {
-        val dir = File(baseDirectory, "audiobooks")
-        if (!dir.exists()) {
-            dir.mkdirs()
-        }
-        dir
-    }
-    
-    override suspend fun getTempDirectory(): File = withContext(Dispatchers.IO) {
-        val dir = File(baseDirectory, "temp")
-        if (!dir.exists()) {
-            dir.mkdirs()
-        }
-        dir
-    }
-    
-    override suspend fun getCacheDirectory(): File = withContext(Dispatchers.IO) {
-        val dir = File(baseDirectory, "cache")
-        if (!dir.exists()) {
-            dir.mkdirs()
-        }
-        dir
-    }
-    
-    override suspend fun getLogsDirectory(): File = withContext(Dispatchers.IO) {
-        val dir = File(baseDirectory, "logs")
-        if (!dir.exists()) {
-            dir.mkdirs()
-        }
-        dir
-    }
-    
-    override suspend fun createAudiobookDirectory(author: String, title: String): File = withContext(Dispatchers.IO) {
-        val sanitizedAuthor = FileUtils.sanitizeFileName(author)
-        val sanitizedTitle = FileUtils.sanitizeFileName(title)
-        
-        val authorDir = File(getAudiobooksDirectory(), sanitizedAuthor)
-        val audiobookDir = File(authorDir, sanitizedTitle)
-        
-        if (!audiobookDir.exists()) {
-            audiobookDir.mkdirs()
-        }
-        
-        DebugLogger.logInfo("Created audiobook directory: ${audiobookDir.absolutePath}", "StorageManager")
-        audiobookDir
-    }
-    
-    override suspend fun extractAudiobookFiles(archivePath: String, destination: File): List<AudioFile> = withContext(Dispatchers.IO) {
-        val audioFiles = mutableListOf<AudioFile>()
-        
-        try {
-            val archiveFile = File(archivePath)
-            if (!archiveFile.exists()) {
-                DebugLogger.logError("Archive file not found: $archivePath", null, "StorageManager")
-                return@withContext audioFiles
+
+    override suspend fun getAudiobooksDirectory(): File =
+        withContext(Dispatchers.IO) {
+            val dir = File(baseDirectory, "audiobooks")
+            if (!dir.exists()) {
+                dir.mkdirs()
             }
-            
-            if (!destination.exists()) {
-                destination.mkdirs()
-            }
-            
-            when (FileUtils.getFileExtension(archivePath)) {
-                "zip" -> extractZipFile(archiveFile, destination, audioFiles)
-                "rar" -> extractRarFile(archiveFile, destination, audioFiles)
-                "7z" -> extract7zFile(archiveFile, destination, audioFiles)
-                else -> {
-                    DebugLogger.logWarning("Unsupported archive format: $archivePath", "StorageManager")
-                }
-            }
-            
-            DebugLogger.logInfo("Extracted ${audioFiles.size} audio files from $archivePath", "StorageManager")
-        } catch (e: Exception) {
-            DebugLogger.logError("Failed to extract archive: $archivePath", e, "StorageManager")
+            dir
         }
-        
-        audioFiles
-    }
-    
-    override suspend fun detectAudioFiles(directory: File): List<AudioFile> = withContext(Dispatchers.IO) {
-        val audioFiles = mutableListOf<AudioFile>()
-        
-        try {
-            if (!directory.exists() || !directory.isDirectory) {
-                return@withContext audioFiles
+
+    override suspend fun getTempDirectory(): File =
+        withContext(Dispatchers.IO) {
+            val dir = File(baseDirectory, "temp")
+            if (!dir.exists()) {
+                dir.mkdirs()
             }
-            
-            directory.listFiles()?.forEach { file ->
-                if (file.isFile && ValidationUtils.isValidAudioFile(file.name)) {
-                    val audioFile = createAudioFile(file)
-                    if (audioFile != null) {
-                        audioFiles.add(audioFile)
-                    }
-                } else if (file.isDirectory) {
-                    // Recursively search subdirectories
-                    audioFiles.addAll(detectAudioFiles(file))
-                }
-            }
-            
-            // Sort by filename for consistent ordering
-            audioFiles.sortBy { it.name }
-            
-            DebugLogger.logInfo("Detected ${audioFiles.size} audio files in ${directory.absolutePath}", "StorageManager")
-        } catch (e: Exception) {
-            DebugLogger.logError("Failed to detect audio files in directory: ${directory.absolutePath}", e, "StorageManager")
+            dir
         }
-        
-        audioFiles
-    }
-    
-    override suspend fun deleteAudiobook(author: String, title: String): Boolean = withContext(Dispatchers.IO) {
-        return@withContext try {
+
+    override suspend fun getCacheDirectory(): File =
+        withContext(Dispatchers.IO) {
+            val dir = File(baseDirectory, "cache")
+            if (!dir.exists()) {
+                dir.mkdirs()
+            }
+            dir
+        }
+
+    override suspend fun getLogsDirectory(): File =
+        withContext(Dispatchers.IO) {
+            val dir = File(baseDirectory, "logs")
+            if (!dir.exists()) {
+                dir.mkdirs()
+            }
+            dir
+        }
+
+    override suspend fun createAudiobookDirectory(author: String, title: String): File =
+        withContext(Dispatchers.IO) {
             val sanitizedAuthor = FileUtils.sanitizeFileName(author)
             val sanitizedTitle = FileUtils.sanitizeFileName(title)
-            
+
             val authorDir = File(getAudiobooksDirectory(), sanitizedAuthor)
             val audiobookDir = File(authorDir, sanitizedTitle)
-            
-            if (audiobookDir.exists()) {
-                val deleted = audiobookDir.deleteRecursively()
-                
-                // Clean up empty author directory
-                if (deleted && authorDir.exists() && authorDir.listFiles().isNullOrEmpty()) {
-                    authorDir.delete()
+
+            if (!audiobookDir.exists()) {
+                audiobookDir.mkdirs()
+            }
+
+            DebugLogger.logInfo("Created audiobook directory: ${audiobookDir.absolutePath}", "StorageManager")
+            audiobookDir
+        }
+
+    override suspend fun extractAudiobookFiles(archivePath: String, destination: File): List<AudioFile> =
+        withContext(Dispatchers.IO) {
+            val audioFiles = mutableListOf<AudioFile>()
+
+            try {
+                val archiveFile = File(archivePath)
+                if (!archiveFile.exists()) {
+                    DebugLogger.logError("Archive file not found: $archivePath", null, "StorageManager")
+                    return@withContext audioFiles
                 }
-                
-                DebugLogger.logInfo("Deleted audiobook directory: ${audiobookDir.absolutePath}", "StorageManager")
-                deleted
-            } else {
-                DebugLogger.logWarning("Audiobook directory not found: ${audiobookDir.absolutePath}", "StorageManager")
+
+                if (!destination.exists()) {
+                    destination.mkdirs()
+                }
+
+                when (FileUtils.getFileExtension(archivePath)) {
+                    "zip" -> extractZipFile(archiveFile, destination, audioFiles)
+                    "rar" -> extractRarFile(archiveFile, destination, audioFiles)
+                    "7z" -> extract7zFile(archiveFile, destination, audioFiles)
+                    else -> {
+                        DebugLogger.logWarning("Unsupported archive format: $archivePath", "StorageManager")
+                    }
+                }
+
+                DebugLogger.logInfo("Extracted ${audioFiles.size} audio files from $archivePath", "StorageManager")
+            } catch (e: Exception) {
+                DebugLogger.logError("Failed to extract archive: $archivePath", e, "StorageManager")
+            }
+
+            audioFiles
+        }
+
+    override suspend fun detectAudioFiles(directory: File): List<AudioFile> =
+        withContext(Dispatchers.IO) {
+            val audioFiles = mutableListOf<AudioFile>()
+
+            try {
+                if (!directory.exists() || !directory.isDirectory) {
+                    return@withContext audioFiles
+                }
+
+                directory.listFiles()?.forEach { file ->
+                    if (file.isFile && ValidationUtils.isValidAudioFile(file.name)) {
+                        val audioFile = createAudioFile(file)
+                        if (audioFile != null) {
+                            audioFiles.add(audioFile)
+                        }
+                    } else if (file.isDirectory) {
+                        // Recursively search subdirectories
+                        audioFiles.addAll(detectAudioFiles(file))
+                    }
+                }
+
+                // Sort by filename for consistent ordering
+                audioFiles.sortBy { it.name }
+
+                DebugLogger.logInfo("Detected ${audioFiles.size} audio files in ${directory.absolutePath}", "StorageManager")
+            } catch (e: Exception) {
+                DebugLogger.logError("Failed to detect audio files in directory: ${directory.absolutePath}", e, "StorageManager")
+            }
+
+            audioFiles
+        }
+
+    override suspend fun deleteAudiobook(author: String, title: String): Boolean =
+        withContext(Dispatchers.IO) {
+            return@withContext try {
+                val sanitizedAuthor = FileUtils.sanitizeFileName(author)
+                val sanitizedTitle = FileUtils.sanitizeFileName(title)
+
+                val authorDir = File(getAudiobooksDirectory(), sanitizedAuthor)
+                val audiobookDir = File(authorDir, sanitizedTitle)
+
+                if (audiobookDir.exists()) {
+                    val deleted = audiobookDir.deleteRecursively()
+
+                    // Clean up empty author directory
+                    if (deleted && authorDir.exists() && authorDir.listFiles().isNullOrEmpty()) {
+                        authorDir.delete()
+                    }
+
+                    DebugLogger.logInfo("Deleted audiobook directory: ${audiobookDir.absolutePath}", "StorageManager")
+                    deleted
+                } else {
+                    DebugLogger.logWarning("Audiobook directory not found: ${audiobookDir.absolutePath}", "StorageManager")
+                    false
+                }
+            } catch (e: Exception) {
+                DebugLogger.logError("Failed to delete audiobook: $author - $title", e, "StorageManager")
                 false
             }
-        } catch (e: Exception) {
-            DebugLogger.logError("Failed to delete audiobook: $author - $title", e, "StorageManager")
-            false
         }
-    }
-    
-    override suspend fun getStorageInfo(): StorageInfo = withContext(Dispatchers.IO) {
-        return@withContext try {
-            val totalSpace = baseDirectory.totalSpace
-            val usableSpace = baseDirectory.usableSpace
-            val freeSpace = baseDirectory.freeSpace
-            
-            val audiobooksSize = calculateDirectorySize(getAudiobooksDirectory())
-            val tempSize = calculateDirectorySize(getTempDirectory())
-            val cacheSize = calculateDirectorySize(getCacheDirectory())
-            val logsSize = calculateDirectorySize(getLogsDirectory())
-            
-            StorageInfo(
-                totalSpace = totalSpace,
-                availableSpace = freeSpace,
-                usedSpace = totalSpace - freeSpace,
-                audiobooksSize = audiobooksSize,
-                tempSize = tempSize,
-                cacheSize = cacheSize,
-                logsSize = logsSize
-            )
-        } catch (e: Exception) {
-            DebugLogger.logError("Failed to get storage info", e, "StorageManager")
-            StorageInfo(0, 0, 0, 0, 0, 0, 0)
-        }
-    }
-    
-    override suspend fun cleanupTempFiles(): Long = withContext(Dispatchers.IO) {
-        return@withContext try {
-            val tempDir = getTempDirectory()
-            val sizeBeforeCleanup = calculateDirectorySize(tempDir)
-            
-            tempDir.listFiles()?.forEach { file ->
-                file.deleteRecursively()
+
+    override suspend fun getStorageInfo(): StorageInfo =
+        withContext(Dispatchers.IO) {
+            return@withContext try {
+                val totalSpace = baseDirectory.totalSpace
+                val usableSpace = baseDirectory.usableSpace
+                val freeSpace = baseDirectory.freeSpace
+
+                val audiobooksSize = calculateDirectorySize(getAudiobooksDirectory())
+                val tempSize = calculateDirectorySize(getTempDirectory())
+                val cacheSize = calculateDirectorySize(getCacheDirectory())
+                val logsSize = calculateDirectorySize(getLogsDirectory())
+
+                StorageInfo(
+                    totalSpace = totalSpace,
+                    availableSpace = freeSpace,
+                    usedSpace = totalSpace - freeSpace,
+                    audiobooksSize = audiobooksSize,
+                    tempSize = tempSize,
+                    cacheSize = cacheSize,
+                    logsSize = logsSize,
+                )
+            } catch (e: Exception) {
+                DebugLogger.logError("Failed to get storage info", e, "StorageManager")
+                StorageInfo(0, 0, 0, 0, 0, 0, 0)
             }
-            
-            DebugLogger.logInfo("Cleaned up temp files, freed ${sizeBeforeCleanup} bytes", "StorageManager")
-            sizeBeforeCleanup
-        } catch (e: Exception) {
-            DebugLogger.logError("Failed to cleanup temp files", e, "StorageManager")
-            0
         }
-    }
-    
-    override suspend fun cleanupOldLogs(daysOld: Int): Long = withContext(Dispatchers.IO) {
-        return@withContext try {
-            val logsDir = getLogsDirectory()
-            val cutoffTime = System.currentTimeMillis() - (daysOld * 24 * 60 * 60 * 1000L)
-            var freedSpace = 0L
-            
-            logsDir.listFiles()?.forEach { file ->
-                if (file.lastModified() < cutoffTime) {
-                    freedSpace += file.length()
-                    file.delete()
+
+    override suspend fun cleanupTempFiles(): Long =
+        withContext(Dispatchers.IO) {
+            return@withContext try {
+                val tempDir = getTempDirectory()
+                val sizeBeforeCleanup = calculateDirectorySize(tempDir)
+
+                tempDir.listFiles()?.forEach { file -> file.deleteRecursively() }
+
+                DebugLogger.logInfo("Cleaned up temp files, freed $sizeBeforeCleanup bytes", "StorageManager")
+                sizeBeforeCleanup
+            } catch (e: Exception) {
+                DebugLogger.logError("Failed to cleanup temp files", e, "StorageManager")
+                0
+            }
+        }
+
+    override suspend fun cleanupOldLogs(daysOld: Int): Long =
+        withContext(Dispatchers.IO) {
+            return@withContext try {
+                val logsDir = getLogsDirectory()
+                val cutoffTime = System.currentTimeMillis() - (daysOld * 24 * 60 * 60 * 1000L)
+                var freedSpace = 0L
+
+                logsDir.listFiles()?.forEach { file ->
+                    if (file.lastModified() < cutoffTime) {
+                        freedSpace += file.length()
+                        file.delete()
+                    }
                 }
+
+                DebugLogger.logInfo("Cleaned up old logs, freed $freedSpace bytes", "StorageManager")
+                freedSpace
+            } catch (e: Exception) {
+                DebugLogger.logError("Failed to cleanup old logs", e, "StorageManager")
+                0
             }
-            
-            DebugLogger.logInfo("Cleaned up old logs, freed ${freedSpace} bytes", "StorageManager")
-            freedSpace
-        } catch (e: Exception) {
-            DebugLogger.logError("Failed to cleanup old logs", e, "StorageManager")
-            0
         }
-    }
-    
+
     override fun getAudiobookMetadata(audiobookDirectory: File): AudiobookMetadata? {
         return try {
             val metadataFile = File(audiobookDirectory, "metadata.json")
@@ -241,57 +244,51 @@ class StorageManagerImpl @Inject constructor(
             null
         }
     }
-    
-    override suspend fun saveAudiobookMetadata(directory: File, metadata: AudiobookMetadata) = withContext(Dispatchers.IO) {
-        try {
-            val metadataFile = File(directory, "metadata.json")
-            // Save metadata as JSON
-            // This would use a JSON serializer like Gson or kotlinx.serialization
-            // TODO: Implement JSON serialization
-            DebugLogger.logInfo("Saved audiobook metadata to ${metadataFile.absolutePath}", "StorageManager")
-        } catch (e: Exception) {
-            DebugLogger.logError("Failed to save audiobook metadata", e, "StorageManager")
-        }
-    }
-    
-    override suspend fun downloadCoverImage(url: String, destination: File): Boolean = withContext(Dispatchers.IO) {
-        return@withContext try {
-            val connection = URL(url).openConnection()
-            connection.connect()
-            
-            connection.getInputStream().use { input ->
-                FileOutputStream(destination).use { output ->
-                    input.copyTo(output)
-                }
+
+    override suspend fun saveAudiobookMetadata(directory: File, metadata: AudiobookMetadata) =
+        withContext(Dispatchers.IO) {
+            try {
+                val metadataFile = File(directory, "metadata.json")
+                // Save metadata as JSON
+                // This would use a JSON serializer like Gson or kotlinx.serialization
+                // TODO: Implement JSON serialization
+                DebugLogger.logInfo("Saved audiobook metadata to ${metadataFile.absolutePath}", "StorageManager")
+            } catch (e: Exception) {
+                DebugLogger.logError("Failed to save audiobook metadata", e, "StorageManager")
             }
-            
-            DebugLogger.logInfo("Downloaded cover image to ${destination.absolutePath}", "StorageManager")
-            true
-        } catch (e: Exception) {
-            DebugLogger.logError("Failed to download cover image: $url", e, "StorageManager")
-            false
         }
-    }
-    
+
+    override suspend fun downloadCoverImage(url: String, destination: File): Boolean =
+        withContext(Dispatchers.IO) {
+            return@withContext try {
+                val connection = URL(url).openConnection()
+                connection.connect()
+
+                connection.getInputStream().use { input -> FileOutputStream(destination).use { output -> input.copyTo(output) } }
+
+                DebugLogger.logInfo("Downloaded cover image to ${destination.absolutePath}", "StorageManager")
+                true
+            } catch (e: Exception) {
+                DebugLogger.logError("Failed to download cover image: $url", e, "StorageManager")
+                false
+            }
+        }
+
     // Private helper methods
-    
+
     private fun extractZipFile(archiveFile: File, destination: File, audioFiles: MutableList<AudioFile>) {
         try {
             ZipFile(archiveFile).use { zipFile ->
                 zipFile.entries().asSequence().forEach { entry ->
                     val entryFile = File(destination, entry.name)
-                    
+
                     if (entry.isDirectory) {
                         entryFile.mkdirs()
                     } else {
                         entryFile.parentFile?.mkdirs()
-                        
-                        zipFile.getInputStream(entry).use { input ->
-                            FileOutputStream(entryFile).use { output ->
-                                input.copyTo(output)
-                            }
-                        }
-                        
+
+                        zipFile.getInputStream(entry).use { input -> FileOutputStream(entryFile).use { output -> input.copyTo(output) } }
+
                         if (ValidationUtils.isValidAudioFile(entryFile.name)) {
                             val audioFile = createAudioFile(entryFile)
                             if (audioFile != null) {
@@ -305,39 +302,39 @@ class StorageManagerImpl @Inject constructor(
             DebugLogger.logError("Failed to extract ZIP file", e, "StorageManager")
         }
     }
-    
+
     private fun extractRarFile(archiveFile: File, destination: File, audioFiles: MutableList<AudioFile>) {
         // TODO: Implement RAR extraction using a library like junrar
         DebugLogger.logWarning("RAR extraction not implemented yet", "StorageManager")
     }
-    
+
     private fun extract7zFile(archiveFile: File, destination: File, audioFiles: MutableList<AudioFile>) {
         // TODO: Implement 7z extraction using a library like Apache Commons Compress
         DebugLogger.logWarning("7z extraction not implemented yet", "StorageManager")
     }
-    
+
     private fun createAudioFile(file: File): AudioFile? {
         return try {
             if (!file.exists() || !file.isFile) {
                 return null
             }
-            
+
             val format = AudioFormat.fromExtension(FileUtils.getFileExtension(file.name))
-            
+
             // TODO: Extract audio metadata (duration, bitrate, etc.) using a library like JAudioTagger
             AudioFile(
                 path = file.absolutePath,
                 name = file.name,
                 size = file.length(),
                 format = format,
-                chapterNumber = extractChapterNumber(file.name)
+                chapterNumber = extractChapterNumber(file.name),
             )
         } catch (e: Exception) {
             DebugLogger.logError("Failed to create AudioFile for ${file.name}", e, "StorageManager")
             null
         }
     }
-    
+
     private fun extractChapterNumber(fileName: String): Int? {
         return try {
             val numbers = fileName.filter { it.isDigit() }
@@ -350,20 +347,17 @@ class StorageManagerImpl @Inject constructor(
             null
         }
     }
-    
+
     private fun calculateDirectorySize(directory: File): Long {
         return try {
             if (!directory.exists() || !directory.isDirectory) {
                 return 0
             }
-            
-            directory.walkTopDown()
-                .filter { it.isFile }
-                .map { it.length() }
-                .sum()
+
+            directory.walkTopDown().filter { it.isFile }.map { it.length() }.sum()
         } catch (e: Exception) {
             DebugLogger.logError("Failed to calculate directory size", e, "StorageManager")
             0
         }
     }
-} 
+}

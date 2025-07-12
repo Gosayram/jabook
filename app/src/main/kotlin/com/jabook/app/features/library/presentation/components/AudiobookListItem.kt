@@ -47,10 +47,7 @@ import com.jabook.app.core.domain.model.DownloadStatus
 import com.jabook.app.shared.ui.theme.JaBookTheme
 import java.util.Date
 
-/**
- * List item component for displaying an audiobook in the library.
- * Shows cover, title, author, progress, and action buttons.
- */
+/** List item component for displaying an audiobook in the library. Shows cover, title, author, progress, and action buttons. */
 @Composable
 fun AudiobookListItem(
     audiobook: Audiobook,
@@ -64,23 +61,11 @@ fun AudiobookListItem(
     var showMenu by remember { mutableStateOf(false) }
 
     Card(
-        modifier =
-            modifier
-                .fillMaxWidth()
-                .clickable { onClick() },
+        modifier = modifier.fillMaxWidth().clickable { onClick() },
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        colors =
-            CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface,
-            ),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
     ) {
-        Row(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(12.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
+        Row(modifier = Modifier.fillMaxWidth().padding(12.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             // Cover Image
             AudiobookCover(
                 coverUrl = audiobook.coverUrl,
@@ -90,10 +75,7 @@ fun AudiobookListItem(
             )
 
             // Content
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 // Title
                 Text(
                     text = audiobook.title,
@@ -127,11 +109,7 @@ fun AudiobookListItem(
                 if (audiobook.progressPercentage > 0) {
                     LinearProgressIndicator(
                         progress = { audiobook.progressPercentage },
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .height(4.dp)
-                                .clip(RoundedCornerShape(2.dp)),
+                        modifier = Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp)),
                         color = MaterialTheme.colorScheme.primary,
                         trackColor = MaterialTheme.colorScheme.surfaceVariant,
                     )
@@ -157,19 +135,13 @@ fun AudiobookListItem(
 
                     // Download Status Badge
                     if (audiobook.downloadStatus != DownloadStatus.NOT_DOWNLOADED) {
-                        DownloadStatusBadge(
-                            status = audiobook.downloadStatus,
-                            progress = audiobook.downloadProgress,
-                        )
+                        DownloadStatusBadge(status = audiobook.downloadStatus, progress = audiobook.downloadProgress)
                     }
                 }
             }
 
             // Action Buttons
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 // Favorite Button
                 IconButton(onClick = onFavoriteClick) {
                     Icon(
@@ -197,16 +169,10 @@ fun AudiobookListItem(
                 // More Options Menu
                 Box {
                     IconButton(onClick = { showMenu = true }) {
-                        Icon(
-                            imageVector = Icons.Default.MoreVert,
-                            contentDescription = "More options",
-                        )
+                        Icon(imageVector = Icons.Default.MoreVert, contentDescription = "More options")
                     }
 
-                    DropdownMenu(
-                        expanded = showMenu,
-                        onDismissRequest = { showMenu = false },
-                    ) {
+                    DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
                         if (!audiobook.isCompleted) {
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.mark_as_completed)) },
@@ -233,22 +199,11 @@ fun AudiobookListItem(
     }
 }
 
-/**
- * Component for displaying audiobook cover image.
- */
+/** Component for displaying audiobook cover image. */
 @Composable
-private fun AudiobookCover(
-    coverUrl: String?,
-    localCoverPath: String?,
-    title: String,
-    modifier: Modifier = Modifier,
-) {
+private fun AudiobookCover(coverUrl: String?, localCoverPath: String?, title: String, modifier: Modifier = Modifier) {
     Box(
-        modifier =
-            modifier
-                .aspectRatio(1f)
-                .clip(RoundedCornerShape(8.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant),
+        modifier = modifier.aspectRatio(1f).clip(RoundedCornerShape(8.dp)).background(MaterialTheme.colorScheme.surfaceVariant),
         contentAlignment = Alignment.Center,
     ) {
         val imageUrl = localCoverPath ?: coverUrl
@@ -271,14 +226,9 @@ private fun AudiobookCover(
     }
 }
 
-/**
- * Component for displaying download status badge.
- */
+/** Component for displaying download status badge. */
 @Composable
-private fun DownloadStatusBadge(
-    status: DownloadStatus,
-    progress: Float,
-) {
+private fun DownloadStatusBadge(status: DownloadStatus, progress: Float) {
     val (text, color) =
         when (status) {
             DownloadStatus.QUEUED -> "Queued" to MaterialTheme.colorScheme.secondary
@@ -301,11 +251,7 @@ private fun DownloadStatusBadge(
             style = MaterialTheme.typography.labelSmall,
             color = color,
             modifier =
-                Modifier
-                    .background(
-                        color = color.copy(alpha = 0.1f),
-                        shape = RoundedCornerShape(4.dp),
-                    )
+                Modifier.background(color = color.copy(alpha = 0.1f), shape = RoundedCornerShape(4.dp))
                     .padding(horizontal = 6.dp, vertical = 2.dp),
         )
     }
@@ -333,11 +279,11 @@ private fun AudiobookListItemPreview() {
 
         AudiobookListItem(
             audiobook = sampleAudiobook,
-            onClick = { },
-            onFavoriteClick = { },
-            onRatingChange = { },
-            onMarkCompleted = { },
-            onResetPlayback = { },
+            onClick = {},
+            onFavoriteClick = {},
+            onRatingChange = {},
+            onMarkCompleted = {},
+            onResetPlayback = {},
             modifier = Modifier.padding(16.dp),
         )
     }

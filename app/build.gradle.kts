@@ -3,10 +3,11 @@ plugins {
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
     id("com.google.devtools.ksp")
-    id("org.jlleitschuh.gradle.ktlint")
+    // id("org.jlleitschuh.gradle.ktlint") // Disabled to avoid conflicts with ktfmt
     id("io.gitlab.arturbosch.detekt")
     id("com.google.dagger.hilt.android")
     id("org.jetbrains.kotlin.plugin.parcelize")
+    id("com.ncorti.ktfmt.gradle") version "0.23.0"
     jacoco
 }
 
@@ -31,10 +32,7 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = false
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro",
-            )
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
         debug {
             isDebuggable = true
@@ -49,24 +47,16 @@ android {
         buildConfig = true
     }
 
-    composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.15"
-    }
+    composeOptions { kotlinCompilerExtensionVersion = "1.5.15" }
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlin {
-        jvmToolchain(17)
-    }
+    kotlin { jvmToolchain(17) }
 
-    packaging {
-        resources {
-            excludes += "/META-INF/{AL2.0,LGPL2.1}"
-        }
-    }
+    packaging { resources { excludes += "/META-INF/{AL2.0,LGPL2.1}" } }
 
     lint {
         baseline = file("lint-baseline.xml")
@@ -136,6 +126,9 @@ dependencies {
     // Torrent (placeholder for now)
     // implementation("org.libtorrent4j:libtorrent4j:2.0.9-1")
 
+    // Code quality plugins
+    detektPlugins("io.gitlab.arturbosch.detekt:detekt-formatting:1.23.8")
+
     // Testing dependencies
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.0")
@@ -152,9 +145,7 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 }
 
-tasks.register("check-all") {
-    dependsOn("ktlintCheck", "detekt", "testDebugUnitTest", "assembleDebug", "jacocoTestReport")
-}
+tasks.register("check-all") { dependsOn("ktfmtCheck", "detekt", "testDebugUnitTest", "assembleDebug", "jacocoTestReport") }
 
 // Configure test task for Android
 android.testOptions {
@@ -175,7 +166,7 @@ tasks.register("jacocoTestReport", JacocoReport::class) {
 
     sourceDirectories.setFrom(files(mainSrc))
     classDirectories.setFrom(
-        files("${project.layout.buildDirectory.asFile.get()}/intermediates/javac/debug/compileDebugJavaWithJavac/classes"),
+        files("${project.layout.buildDirectory.asFile.get()}/intermediates/javac/debug/compileDebugJavaWithJavac/classes")
     )
     executionData.setFrom(fileTree(project.layout.buildDirectory.asFile.get()).include("**/*.exec", "**/*.ec"))
 }
@@ -187,19 +178,42 @@ ksp {
     arg("room.expandProjection", "true")
 }
 
-// Ktlint configuration
-ktlint {
-    android.set(true)
-    ignoreFailures.set(false)
-    reporters {
-        reporter(org.jlleitschuh.gradle.ktlint.reporter.ReporterType.PLAIN)
-        reporter(org.jlleitschuh.gradle.ktlint.reporter.ReporterType.CHECKSTYLE)
-    }
-}
+// Ktlint configuration (disabled to avoid conflicts with ktfmt)
+// ktlint {
+//     android.set(true)
+//     ignoreFailures.set(false)
+//     reporters {
+//         reporter(org.jlleitschuh.gradle.ktlint.reporter.ReporterType.PLAIN)
+//         reporter(org.jlleitschuh.gradle.ktlint.reporter.ReporterType.CHECKSTYLE)
+//     }
+// }
 
 // Detekt configuration
 detekt {
-    toolVersion = "1.23.4"
+    toolVersion = "1.23.8"
     config.setFrom("$rootDir/detekt.yml")
     buildUponDefaultConfig = true
+    allRules = false // Don't activate all rules (many are unstable)
+    baseline = file("$rootDir/detekt-baseline.xml")
+}
+
+// Configure detekt reports
+tasks.withType<io.gitlab.arturbosch.detekt.Detekt>().configureEach {
+    jvmTarget = "17"
+    reports {
+        html.required.set(true) // HTML report for browser viewing
+        xml.required.set(true) // XML report for CI integration
+        sarif.required.set(true) // SARIF format for GitHub integration
+        md.required.set(true) // Markdown format for documentation
+    }
+}
+
+tasks.withType<io.gitlab.arturbosch.detekt.DetektCreateBaselineTask>().configureEach { jvmTarget = "17" }
+
+// Ktfmt configuration
+ktfmt {
+    kotlinLangStyle() // Use 4 spaces indentation as per .editorconfig
+    maxWidth.set(140)
+    removeUnusedImports.set(true)
+    manageTrailingCommas.set(true) // Automatically add/remove trailing commas
 }

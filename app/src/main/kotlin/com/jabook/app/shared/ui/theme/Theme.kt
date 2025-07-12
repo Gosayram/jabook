@@ -49,11 +49,7 @@ private val LightColorScheme =
  * @param content The composable content
  */
 @Composable
-fun JaBookTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = true,
-    content: @Composable () -> Unit,
-) {
+fun JaBookTheme(darkTheme: Boolean = isSystemInDarkTheme(), dynamicColor: Boolean = true, content: @Composable () -> Unit) {
     val colorScheme =
         when {
             dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
@@ -74,9 +70,5 @@ fun JaBookTheme(
         }
     }
 
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = Typography,
-        content = content,
-    )
+    MaterialTheme(colorScheme = colorScheme, typography = Typography, content = content)
 }

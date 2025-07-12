@@ -10,18 +10,13 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 
-/**
- * Hilt module for storage dependencies
- */
+/** Hilt module for storage dependencies */
 @Module
 @InstallIn(SingletonComponent::class)
 object StorageModule {
-    
     @Provides
     @Singleton
-    fun provideStorageManager(
-        @ApplicationContext context: Context
-    ): StorageManager {
+    fun provideStorageManager(@ApplicationContext context: Context): StorageManager {
         return StorageManagerImpl(context)
     }
-} 
+}

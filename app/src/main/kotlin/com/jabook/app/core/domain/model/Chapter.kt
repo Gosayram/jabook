@@ -2,9 +2,7 @@ package com.jabook.app.core.domain.model
 
 import java.util.Locale
 
-/**
- * Domain model representing a chapter within an audiobook.
- */
+/** Domain model representing a chapter within an audiobook. */
 data class Chapter(
     val id: String,
     val audiobookId: String,
@@ -18,28 +16,20 @@ data class Chapter(
     val isDownloaded: Boolean = false,
     val downloadProgress: Float = 0f,
 ) {
-    /**
-     * Get human-readable duration string.
-     */
+    /** Get human-readable duration string. */
     val durationFormatted: String
         get() = formatDuration(durationMs)
 
-    /**
-     * Get human-readable file size string.
-     */
+    /** Get human-readable file size string. */
     val fileSizeFormatted: String
         get() = formatFileSize(fileSize)
 
-    /**
-     * Check if chapter is currently downloading.
-     */
+    /** Check if chapter is currently downloading. */
     val isDownloading: Boolean
         get() = downloadProgress > 0f && downloadProgress < 1f && !isDownloaded
 
     companion object {
-        /**
-         * Format duration from milliseconds to human-readable string.
-         */
+        /** Format duration from milliseconds to human-readable string. */
         private fun formatDuration(durationMs: Long): String {
             val totalSeconds = durationMs / 1000
             val hours = totalSeconds / 3600
@@ -52,9 +42,7 @@ data class Chapter(
             }
         }
 
-        /**
-         * Format file size from bytes to human-readable string.
-         */
+        /** Format file size from bytes to human-readable string. */
         private fun formatFileSize(bytes: Long): String {
             val units = arrayOf("B", "KB", "MB", "GB", "TB")
             var size = bytes.toDouble()

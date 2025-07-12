@@ -135,3 +135,6 @@ dev/
 
 # Lint baseline
 **/**/lint-baseline.xml
+
+# detekt
+detekt-baseline.xml

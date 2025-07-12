@@ -7,37 +7,33 @@ import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
+import java.util.concurrent.TimeUnit
+import javax.inject.Singleton
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.scalars.ScalarsConverterFactory
-import java.util.concurrent.TimeUnit
-import javax.inject.Singleton
 
-/**
- * Hilt module for network dependencies
- */
+/** Hilt module for network dependencies */
 @Module
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
-    
     @Provides
     @Singleton
     fun provideHttpLoggingInterceptor(): HttpLoggingInterceptor {
         return HttpLoggingInterceptor().apply {
-            level = if (com.jabook.app.BuildConfig.DEBUG) {
-                HttpLoggingInterceptor.Level.BODY
-            } else {
-                HttpLoggingInterceptor.Level.NONE
-            }
+            level =
+                if (com.jabook.app.BuildConfig.DEBUG) {
+                    HttpLoggingInterceptor.Level.BODY
+                } else {
+                    HttpLoggingInterceptor.Level.NONE
+                }
         }
     }
-    
+
     @Provides
     @Singleton
-    fun provideOkHttpClient(
-        loggingInterceptor: HttpLoggingInterceptor
-    ): OkHttpClient {
+    fun provideOkHttpClient(loggingInterceptor: HttpLoggingInterceptor): OkHttpClient {
         return OkHttpClient.Builder()
             .addInterceptor(loggingInterceptor)
             .connectTimeout(30, TimeUnit.SECONDS)
@@ -45,7 +41,7 @@ object NetworkModule {
             .writeTimeout(30, TimeUnit.SECONDS)
             .build()
     }
-    
+
     @Provides
     @Singleton
     fun provideRetrofit(okHttpClient: OkHttpClient): Retrofit {
@@ -55,16 +51,16 @@ object NetworkModule {
             .addConverterFactory(ScalarsConverterFactory.create())
             .build()
     }
-    
+
     @Provides
     @Singleton
     fun provideRuTrackerApi(retrofit: Retrofit): RuTrackerApi {
         return retrofit.create(RuTrackerApi::class.java)
     }
-    
+
     @Provides
     @Singleton
     fun provideRuTrackerParser(): RuTrackerParser {
         return RuTrackerParserImpl()
     }
-} 
+}

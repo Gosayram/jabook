@@ -3,10 +3,7 @@ package com.jabook.app.core.domain.model
 import java.util.Date
 import java.util.Locale
 
-/**
- * Domain model representing an audiobook.
- * This is the business logic representation, independent of data source.
- */
+/** Domain model representing an audiobook. This is the business logic representation, independent of data source. */
 data class Audiobook(
     val id: String,
     val title: String,
@@ -43,63 +40,40 @@ data class Audiobook(
     val playbackSpeed: Float = 1.0f,
     val chapterCount: Int = 0,
 ) {
-    /**
-     * Check if the audiobook is currently downloaded.
-     */
+    /** Check if the audiobook is currently downloaded. */
     val isDownloaded: Boolean
         get() = downloadStatus == DownloadStatus.COMPLETED
 
-    /**
-     * Check if the audiobook is currently downloading.
-     */
+    /** Check if the audiobook is currently downloading. */
     val isDownloading: Boolean
-        get() =
-            downloadStatus in
-                listOf(
-                    DownloadStatus.QUEUED,
-                    DownloadStatus.DOWNLOADING,
-                )
+        get() = downloadStatus in listOf(DownloadStatus.QUEUED, DownloadStatus.DOWNLOADING)
 
-    /**
-     * Get human-readable duration string.
-     */
+    /** Get human-readable duration string. */
     val durationFormatted: String
         get() = formatDuration(durationMs)
 
-    /**
-     * Get human-readable current position string.
-     */
+    /** Get human-readable current position string. */
     val currentPositionFormatted: String
         get() = formatDuration(currentPositionMs)
 
-    /**
-     * Get progress percentage (0.0 to 1.0).
-     */
+    /** Get progress percentage (0.0 to 1.0). */
     val progressPercentage: Float
         get() = if (durationMs > 0) currentPositionMs.toFloat() / durationMs else 0f
 
-    /**
-     * Get remaining time in milliseconds.
-     */
+    /** Get remaining time in milliseconds. */
     val remainingTimeMs: Long
         get() = maxOf(0, durationMs - currentPositionMs)
 
-    /**
-     * Get human-readable remaining time string.
-     */
+    /** Get human-readable remaining time string. */
     val remainingTimeFormatted: String
         get() = formatDuration(remainingTimeMs)
 
-    /**
-     * Get human-readable file size string.
-     */
+    /** Get human-readable file size string. */
     val fileSizeFormatted: String
         get() = formatFileSize(fileSize)
 
     companion object {
-        /**
-         * Format duration from milliseconds to human-readable string.
-         */
+        /** Format duration from milliseconds to human-readable string. */
         private fun formatDuration(durationMs: Long): String {
             val totalSeconds = durationMs / 1000
             val hours = totalSeconds / 3600
@@ -112,9 +86,7 @@ data class Audiobook(
             }
         }
 
-        /**
-         * Format file size from bytes to human-readable string.
-         */
+        /** Format file size from bytes to human-readable string. */
         private fun formatFileSize(bytes: Long): String {
             val units = arrayOf("B", "KB", "MB", "GB", "TB")
             var size = bytes.toDouble()

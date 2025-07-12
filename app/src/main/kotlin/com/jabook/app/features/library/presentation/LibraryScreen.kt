@@ -37,17 +37,10 @@ import com.jabook.app.features.library.presentation.components.AudiobookListItem
 import com.jabook.app.features.library.presentation.components.LibraryFilterChips
 import com.jabook.app.shared.ui.theme.JaBookTheme
 
-/**
- * Main Library screen showing the user's audiobook collection.
- * Supports filtering, searching, and basic audiobook management.
- */
+/** Main Library screen showing the user's audiobook collection. Supports filtering, searching, and basic audiobook management. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LibraryScreen(
-    onAudiobookClick: (Audiobook) -> Unit,
-    modifier: Modifier = Modifier,
-    viewModel: LibraryViewModel = hiltViewModel(),
-) {
+fun LibraryScreen(onAudiobookClick: (Audiobook) -> Unit, modifier: Modifier = Modifier, viewModel: LibraryViewModel = hiltViewModel()) {
     val uiState by viewModel.uiState.collectAsState()
     val audiobooks by viewModel.audiobooks.collectAsState()
     val categories by viewModel.categories.collectAsState()
@@ -64,19 +57,12 @@ fun LibraryScreen(
         }
     }
 
-    Column(
-        modifier = modifier.fillMaxSize(),
-    ) {
+    Column(modifier = modifier.fillMaxSize()) {
         TopAppBar(
             title = { Text(stringResource(R.string.library_title)) },
             actions = {
-                IconButton(
-                    onClick = { isSearchActive = !isSearchActive },
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Search,
-                        contentDescription = stringResource(R.string.search_audiobooks),
-                    )
+                IconButton(onClick = { isSearchActive = !isSearchActive }) {
+                    Icon(imageVector = Icons.Default.Search, contentDescription = stringResource(R.string.search_audiobooks))
                 }
             },
         )
@@ -109,15 +95,10 @@ fun LibraryScreen(
         Box(modifier = Modifier.weight(1f)) {
             when {
                 uiState.isLoading -> {
-                    CircularProgressIndicator(
-                        modifier = Modifier.align(Alignment.Center),
-                    )
+                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
                 }
                 audiobooks.isEmpty() -> {
-                    EmptyLibraryMessage(
-                        filter = uiState.currentFilter,
-                        modifier = Modifier.align(Alignment.Center),
-                    )
+                    EmptyLibraryMessage(filter = uiState.currentFilter, modifier = Modifier.align(Alignment.Center))
                 }
                 else -> {
                     LazyColumn {
@@ -138,17 +119,11 @@ fun LibraryScreen(
         }
     }
 
-    SnackbarHost(
-        hostState = snackbarHostState,
-        modifier = Modifier.padding(16.dp),
-    )
+    SnackbarHost(hostState = snackbarHostState, modifier = Modifier.padding(16.dp))
 }
 
 @Composable
-private fun EmptyLibraryMessage(
-    filter: LibraryFilter,
-    modifier: Modifier = Modifier,
-) {
+private fun EmptyLibraryMessage(filter: LibraryFilter, modifier: Modifier = Modifier) {
     val messageResId =
         when (filter) {
             LibraryFilter.ALL -> R.string.empty_library_message
@@ -170,9 +145,5 @@ private fun EmptyLibraryMessage(
 @Preview(showBackground = true)
 @Composable
 private fun LibraryScreenPreview() {
-    JaBookTheme {
-        LibraryScreen(
-            onAudiobookClick = { },
-        )
-    }
+    JaBookTheme { LibraryScreen(onAudiobookClick = {}) }
 }

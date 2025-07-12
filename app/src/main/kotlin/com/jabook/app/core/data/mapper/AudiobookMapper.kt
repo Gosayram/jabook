@@ -3,19 +3,15 @@ package com.jabook.app.core.data.mapper
 import com.jabook.app.core.database.entities.AudiobookEntity
 import com.jabook.app.core.database.entities.BookmarkEntity
 import com.jabook.app.core.database.entities.ChapterEntity
+import com.jabook.app.core.database.entities.DownloadStatus as EntityDownloadStatus
 import com.jabook.app.core.domain.model.Audiobook
 import com.jabook.app.core.domain.model.Bookmark
 import com.jabook.app.core.domain.model.Chapter
-import com.jabook.app.core.database.entities.DownloadStatus as EntityDownloadStatus
 import com.jabook.app.core.domain.model.DownloadStatus as DomainDownloadStatus
 
-/**
- * Mappers for converting between database entities and domain models.
- */
+/** Mappers for converting between database entities and domain models. */
 object AudiobookMapper {
-    /**
-     * Convert AudiobookEntity to Audiobook domain model.
-     */
+    /** Convert AudiobookEntity to Audiobook domain model. */
     fun AudiobookEntity.toDomain(): Audiobook {
         return Audiobook(
             id = id,
@@ -51,9 +47,7 @@ object AudiobookMapper {
         )
     }
 
-    /**
-     * Convert Audiobook domain model to AudiobookEntity.
-     */
+    /** Convert Audiobook domain model to AudiobookEntity. */
     fun Audiobook.toEntity(): AudiobookEntity {
         return AudiobookEntity(
             id = id,
@@ -89,9 +83,7 @@ object AudiobookMapper {
         )
     }
 
-    /**
-     * Convert ChapterEntity to Chapter domain model.
-     */
+    /** Convert ChapterEntity to Chapter domain model. */
     fun ChapterEntity.toDomain(): Chapter {
         return Chapter(
             id = id,
@@ -108,9 +100,7 @@ object AudiobookMapper {
         )
     }
 
-    /**
-     * Convert Chapter domain model to ChapterEntity.
-     */
+    /** Convert Chapter domain model to ChapterEntity. */
     fun Chapter.toEntity(): ChapterEntity {
         return ChapterEntity(
             id = id,
@@ -127,9 +117,7 @@ object AudiobookMapper {
         )
     }
 
-    /**
-     * Convert BookmarkEntity to Bookmark domain model.
-     */
+    /** Convert BookmarkEntity to Bookmark domain model. */
     fun BookmarkEntity.toDomain(): Bookmark {
         return Bookmark(
             id = id,
@@ -143,9 +131,7 @@ object AudiobookMapper {
         )
     }
 
-    /**
-     * Convert Bookmark domain model to BookmarkEntity.
-     */
+    /** Convert Bookmark domain model to BookmarkEntity. */
     fun Bookmark.toEntity(): BookmarkEntity {
         return BookmarkEntity(
             id = id,
@@ -159,9 +145,7 @@ object AudiobookMapper {
         )
     }
 
-    /**
-     * Convert EntityDownloadStatus to DomainDownloadStatus.
-     */
+    /** Convert EntityDownloadStatus to DomainDownloadStatus. */
     private fun EntityDownloadStatus.toDomain(): DomainDownloadStatus {
         return when (this) {
             EntityDownloadStatus.NOT_DOWNLOADED -> DomainDownloadStatus.NOT_DOWNLOADED
@@ -174,9 +158,7 @@ object AudiobookMapper {
         }
     }
 
-    /**
-     * Convert DomainDownloadStatus to EntityDownloadStatus.
-     */
+    /** Convert DomainDownloadStatus to EntityDownloadStatus. */
     private fun DomainDownloadStatus.toEntity(): EntityDownloadStatus {
         return when (this) {
             DomainDownloadStatus.NOT_DOWNLOADED -> EntityDownloadStatus.NOT_DOWNLOADED
@@ -189,23 +171,17 @@ object AudiobookMapper {
         }
     }
 
-    /**
-     * Convert list of AudiobookEntity to list of Audiobook.
-     */
+    /** Convert list of AudiobookEntity to list of Audiobook. */
     fun List<AudiobookEntity>.toDomainList(): List<Audiobook> {
         return map { it.toDomain() }
     }
 
-    /**
-     * Convert list of ChapterEntity to list of Chapter.
-     */
+    /** Convert list of ChapterEntity to list of Chapter. */
     fun List<ChapterEntity>.toChapterDomainList(): List<Chapter> {
         return map { it.toDomain() }
     }
 
-    /**
-     * Convert list of BookmarkEntity to list of Bookmark.
-     */
+    /** Convert list of BookmarkEntity to list of Bookmark. */
     fun List<BookmarkEntity>.toBookmarkDomainList(): List<Bookmark> {
         return map { it.toDomain() }
     }
