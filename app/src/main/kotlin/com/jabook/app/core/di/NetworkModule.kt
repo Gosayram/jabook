@@ -1,5 +1,6 @@
 package com.jabook.app.core.di
 
+import com.jabook.app.BuildConfig
 import com.jabook.app.core.network.RuTrackerApi
 import com.jabook.app.core.network.RuTrackerParser
 import com.jabook.app.core.network.RuTrackerParserImpl
@@ -23,7 +24,7 @@ object NetworkModule {
     fun provideHttpLoggingInterceptor(): HttpLoggingInterceptor {
         return HttpLoggingInterceptor().apply {
             level =
-                if (com.jabook.app.BuildConfig.DEBUG) {
+                if (BuildConfig.DEBUG) {
                     HttpLoggingInterceptor.Level.BODY
                 } else {
                     HttpLoggingInterceptor.Level.NONE

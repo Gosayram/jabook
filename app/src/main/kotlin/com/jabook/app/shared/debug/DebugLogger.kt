@@ -140,11 +140,27 @@ object DebugLogger {
         val message =
             when (event) {
                 is TorrentEvent.TorrentAdded -> "Torrent added: ${event.name} (${event.torrentId})"
-                is TorrentEvent.TorrentCompleted -> "Torrent completed: ${event.torrentId}"
-                is TorrentEvent.TorrentError -> "Torrent error: ${event.torrentId} - ${event.error}"
-                is TorrentEvent.TorrentPaused -> "Torrent paused: ${event.torrentId}"
-                is TorrentEvent.TorrentResumed -> "Torrent resumed: ${event.torrentId}"
-                is TorrentEvent.TorrentRemoved -> "Torrent removed: ${event.torrentId} (files deleted: ${event.filesDeleted})"
+                is TorrentEvent.TorrentStarted -> "Torrent started: ${event.name} (${event.torrentId})"
+                is TorrentEvent.TorrentCompleted -> "Torrent completed: ${event.name} (${event.torrentId})"
+                is TorrentEvent.TorrentError -> "Torrent error: ${event.name} (${event.torrentId}) - ${event.error}"
+                is TorrentEvent.TorrentPaused -> "Torrent paused: ${event.name} (${event.torrentId})"
+                is TorrentEvent.TorrentResumed -> "Torrent resumed: ${event.name} (${event.torrentId})"
+                is TorrentEvent.TorrentRemoved -> "Torrent removed: ${event.name} (${event.torrentId}) files deleted: ${event.filesDeleted}"
+                is TorrentEvent.TorrentStatusChanged ->
+                    "Torrent status changed: ${event.name} (${event.torrentId}) ${event.oldStatus} -> ${event.newStatus}"
+                is TorrentEvent.TorrentProgressUpdated ->
+                    "Torrent progress: ${event.name} (${event.torrentId}) ${(event.progress * 100).toInt()}% ${event.downloadSpeed}B/s"
+                is TorrentEvent.TorrentMetadataReceived ->
+                    "Torrent metadata: ${event.name} (${event.torrentId}) ${event.totalSize}B ${event.audioFileCount} audio files"
+                is TorrentEvent.AudioFilesExtracted ->
+                    "Audio files extracted: ${event.audiobookId} (${event.torrentId}) ${event.audioFiles.size} files"
+                is TorrentEvent.TorrentSeeding ->
+                    "Torrent seeding: ${event.name} (${event.torrentId}) ${event.uploadSpeed}B/s ratio: ${event.ratio}"
+                is TorrentEvent.TorrentStatsUpdated ->
+                    "Torrent stats: ${event.activeTorrents} active, ${event.totalDownloaded}B downloaded, ${event.totalUploaded}B uploaded"
+                is TorrentEvent.TorrentEngineInitialized -> "Torrent engine initialized"
+                is TorrentEvent.TorrentEngineShutdown -> "Torrent engine shutdown"
+                is TorrentEvent.TorrentEngineError -> "Torrent engine error: ${event.error}"
             }
         logInfo(message, "Torrent")
     }
