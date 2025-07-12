@@ -82,6 +82,7 @@
     
     <!-- Downloads UI -->
     <string name="clear_completed">Clear completed</string>
+    <string name="clear_failed">Clear failed</string>
     <string name="active_downloads">Active (%d)</string>
     <string name="completed_downloads">Completed (%d)</string>
     <string name="failed_downloads">Failed (%d)</string>
@@ -98,6 +99,10 @@
     <string name="cancel_download">Cancel download</string>
     <string name="retry_download">Retry download</string>
     <string name="seeders_leechers">%1$d seeders, %2$d leechers</string>
+    <!-- Bookmarks -->
+    <string name="bookmarks">Bookmarks</string>
+    <string name="no_bookmarks">No bookmarks yet</string>
+    <string name="remove_bookmark">Remove bookmark</string>
     
     <!-- Download Status -->
     <string name="status_downloading">Downloading</string>

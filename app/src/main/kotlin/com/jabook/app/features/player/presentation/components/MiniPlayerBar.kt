@@ -14,6 +14,9 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -34,6 +37,16 @@ fun MiniPlayerBar(
     modifier: Modifier = Modifier,
 ) {
     if (audiobook == null) return
+
+    // Memoize computed values
+    val playPauseIcon by remember(isPlaying) { derivedStateOf { if (isPlaying) R.drawable.ic_pause_24 else R.drawable.ic_play_arrow_24 } }
+
+    val playPauseContentDescription by remember(isPlaying) { derivedStateOf { if (isPlaying) "Pause" else "Play" } }
+
+    val progress by
+        remember(currentPosition, duration) {
+            derivedStateOf { if (duration > 0) (currentPosition.toFloat() / duration.toFloat()).coerceIn(0f, 1f) else 0f }
+        }
 
     Column(
         modifier =
@@ -77,17 +90,16 @@ fun MiniPlayerBar(
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
-                    painter = painterResource(if (isPlaying) R.drawable.ic_pause_24 else R.drawable.ic_play_arrow_24),
-                    contentDescription = if (isPlaying) "Pause" else "Play",
+                    painter = painterResource(playPauseIcon),
+                    contentDescription = playPauseContentDescription,
                     tint = MaterialTheme.colorScheme.onPrimaryContainer,
                 )
             }
         }
 
         // Progress bar
-        val progress = if (duration > 0) currentPosition.toFloat() / duration.toFloat() else 0f
         LinearProgressIndicator(
-            progress = progress.coerceIn(0f, 1f),
+            progress = { progress },
             modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
             color = MaterialTheme.colorScheme.primary,
             trackColor = MaterialTheme.colorScheme.outline,

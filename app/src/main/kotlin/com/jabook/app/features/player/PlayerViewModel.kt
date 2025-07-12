@@ -1,12 +1,16 @@
 package com.jabook.app.features.player
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jabook.app.core.domain.model.Audiobook
+import com.jabook.app.core.domain.model.Bookmark
 import com.jabook.app.core.domain.repository.AudiobookRepository
 import com.jabook.app.shared.debug.IDebugLogger
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import java.util.Locale
+import java.util.UUID
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -19,6 +23,7 @@ import kotlinx.coroutines.launch
 class PlayerViewModel
 @Inject
 constructor(
+    @ApplicationContext private val context: Context,
     private val playerManager: PlayerManager,
     private val audiobookRepository: AudiobookRepository,
     private val debugLogger: IDebugLogger,
@@ -30,22 +35,43 @@ constructor(
     private val _isSpeedDialogVisible = MutableStateFlow(false)
     private val _isSleepTimerDialogVisible = MutableStateFlow(false)
 
+    private val _bookmarks = MutableStateFlow<List<Bookmark>>(emptyList())
+    private val _isBookmarksSheetVisible = MutableStateFlow(false)
+
     private val playbackState = playerManager.getPlaybackState()
 
     val uiState: StateFlow<PlayerUiState> =
-        combine(_currentAudiobook, playbackState, _playbackSpeed, _sleepTimerMinutes, _isSpeedDialogVisible, _isSleepTimerDialogVisible) {
-                states ->
-                val currentPlaybackState = states[1] as PlaybackState
+        combine(
+                _currentAudiobook,
+                playbackState,
+                _playbackSpeed,
+                _sleepTimerMinutes,
+                _isSpeedDialogVisible,
+                _isSleepTimerDialogVisible,
+                _bookmarks,
+                _isBookmarksSheetVisible,
+            ) { flows ->
+                val currentAudiobook = flows[0] as Audiobook?
+                val playbackState = flows[1] as PlaybackState
+                val playbackSpeed = flows[2] as Float
+                val sleepTimerMinutes = flows[3] as Int
+                val isSpeedDialogVisible = flows[4] as Boolean
+                val isSleepTimerDialogVisible = flows[5] as Boolean
+                val bookmarks = flows[6] as List<Bookmark>
+                val isBookmarksSheetVisible = flows[7] as Boolean
+
                 PlayerUiState(
-                    currentAudiobook = states[0] as? Audiobook,
-                    playbackState = currentPlaybackState,
-                    currentPosition = currentPlaybackState.currentPosition,
-                    duration = currentPlaybackState.duration,
-                    isPlaying = currentPlaybackState.isPlaying,
-                    playbackSpeed = states[2] as Float,
-                    sleepTimerMinutes = states[3] as Int,
-                    isSpeedDialogVisible = states[4] as Boolean,
-                    isSleepTimerDialogVisible = states[5] as Boolean,
+                    currentAudiobook = currentAudiobook,
+                    playbackState = playbackState,
+                    currentPosition = playbackState.currentPosition,
+                    duration = playbackState.duration,
+                    isPlaying = playbackState.isPlaying,
+                    playbackSpeed = playbackSpeed,
+                    sleepTimerMinutes = sleepTimerMinutes,
+                    isSpeedDialogVisible = isSpeedDialogVisible,
+                    isSleepTimerDialogVisible = isSleepTimerDialogVisible,
+                    bookmarks = bookmarks,
+                    isBookmarksSheetVisible = isBookmarksSheetVisible,
                 )
             }
             .stateIn(scope = viewModelScope, started = SharingStarted.WhileSubscribed(5000), initialValue = PlayerUiState())
@@ -55,9 +81,22 @@ constructor(
             try {
                 _currentAudiobook.value = audiobook
                 playerManager.initializePlayer(audiobook)
+
+                // Start PlayerService for background playback
+                PlayerService.startService(context, audiobook)
+
                 debugLogger.logInfo("Audiobook loaded: ${audiobook.title}")
             } catch (e: Exception) {
                 debugLogger.logError("Error loading audiobook", e)
+            }
+        }
+
+        // Observe bookmarks flow in separate launch to avoid blocking
+        viewModelScope.launch {
+            try {
+                audiobookRepository.getBookmarksByAudiobookId(audiobook.id).collect { list -> _bookmarks.value = list }
+            } catch (e: Exception) {
+                debugLogger.logError("Error observing bookmarks", e)
             }
         }
     }
@@ -132,6 +171,42 @@ constructor(
                 savePlaybackPosition()
             } catch (e: Exception) {
                 debugLogger.logError("Error moving to previous chapter", e)
+            }
+        }
+    }
+
+    fun showBookmarksSheet() {
+        _isBookmarksSheetVisible.value = true
+    }
+
+    fun hideBookmarksSheet() {
+        _isBookmarksSheetVisible.value = false
+    }
+
+    fun deleteBookmark(bookmark: Bookmark) {
+        viewModelScope.launch {
+            try {
+                audiobookRepository.deleteBookmark(bookmark.id)
+                debugLogger.logInfo("Deleted bookmark ${bookmark.id}")
+            } catch (e: Exception) {
+                debugLogger.logError("Error deleting bookmark", e)
+            }
+        }
+    }
+
+    /** Create a bookmark at the current playback position with autogenerated title. */
+    fun addBookmark() {
+        val audiobook = _currentAudiobook.value ?: return
+        val position = playerManager.getCurrentPosition()
+
+        viewModelScope.launch {
+            try {
+                val title = "Bookmark ${formatTime(position)}"
+                val bookmark = Bookmark(id = UUID.randomUUID().toString(), audiobookId = audiobook.id, title = title, positionMs = position)
+                audiobookRepository.upsertBookmark(bookmark)
+                debugLogger.logInfo("Bookmark added at $position ms for audiobook ${audiobook.title}")
+            } catch (e: Exception) {
+                debugLogger.logError("Error adding bookmark", e)
             }
         }
     }
@@ -216,6 +291,13 @@ constructor(
             ""
         }
     }
+
+    override fun onCleared() {
+        super.onCleared()
+        // Stop PlayerService when ViewModel is cleared
+        PlayerService.stopService(context)
+        debugLogger.logInfo("PlayerViewModel cleared, PlayerService stopped")
+    }
 }
 
 data class PlayerUiState(
@@ -228,4 +310,6 @@ data class PlayerUiState(
     val sleepTimerMinutes: Int = 0,
     val isSpeedDialogVisible: Boolean = false,
     val isSleepTimerDialogVisible: Boolean = false,
+    val bookmarks: List<Bookmark> = emptyList(),
+    val isBookmarksSheetVisible: Boolean = false,
 )

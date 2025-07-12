@@ -203,6 +203,18 @@ constructor(
         }
     }
 
+    fun clearFailed() {
+        viewModelScope.launch {
+            try {
+                debugLogger.logInfo("Clearing failed downloads")
+                _failedDownloads.value.forEach { download -> torrentRepository.removeTorrent(download.torrentId, deleteFiles = false) }
+            } catch (e: Exception) {
+                debugLogger.logError("Failed to clear failed downloads", e)
+                _errorMessage.value = "Failed to clear failed: ${e.message}"
+            }
+        }
+    }
+
     fun refreshDownloads() {
         loadDownloads()
     }

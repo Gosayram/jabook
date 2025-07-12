@@ -1,5 +1,6 @@
 package com.jabook.app.features.player
 
+import androidx.media3.exoplayer.ExoPlayer
 import com.jabook.app.core.domain.model.Audiobook
 import com.jabook.app.core.domain.model.Chapter
 import kotlinx.coroutines.flow.Flow
@@ -41,6 +42,9 @@ interface PlayerManager {
     fun getSleepTimerRemaining(): Long
 
     fun release()
+
+    /** Return underlying ExoPlayer instance, or null if not initialized */
+    fun getExoPlayer(): ExoPlayer?
 }
 
 /** Playback state information */

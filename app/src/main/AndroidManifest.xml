@@ -22,6 +22,9 @@
     <!-- For handling audio focus -->
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     
+    <!-- For notifications on Android 13+ -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    
     <!-- Optional: for detecting network changes -->
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
 

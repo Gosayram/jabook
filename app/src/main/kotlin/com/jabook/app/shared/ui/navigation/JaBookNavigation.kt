@@ -1,7 +1,5 @@
 package com.jabook.app.shared.ui.navigation
 
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Download
@@ -9,14 +7,12 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.navigation.NavController
@@ -24,6 +20,9 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
+import com.jabook.app.features.discovery.presentation.DiscoveryScreen
+import com.jabook.app.features.downloads.presentation.DownloadsScreen
+import com.jabook.app.features.player.presentation.PlayerScreen
 
 /** Main navigation destinations for JaBook application. */
 sealed class JaBookDestination(val route: String, val icon: ImageVector, val title: String) {
@@ -53,13 +52,13 @@ fun JaBookNavigation(navController: NavHostController, modifier: Modifier = Modi
         ) {
             composable(JaBookDestination.Library.route) {
                 com.jabook.app.features.library.presentation.LibraryScreen(
-                    onAudiobookClick = { audiobook ->
-                        // TODO: Navigate to player screen
-                    }
+                    onAudiobookClick = { audiobook -> navController.navigate(JaBookDestination.Player.route) }
                 )
             }
-            composable(JaBookDestination.Discovery.route) { DiscoveryScreen() }
-            composable(JaBookDestination.Player.route) { com.jabook.app.features.player.presentation.PlayerScreen() }
+            composable(JaBookDestination.Discovery.route) {
+                DiscoveryScreen(onNavigateToAudiobook = { /* navigate maybe to player or details later */ })
+            }
+            composable(JaBookDestination.Player.route) { PlayerScreen() }
             composable(JaBookDestination.Downloads.route) { DownloadsScreen() }
         }
     }
@@ -95,26 +94,4 @@ private fun JaBookBottomNavigation(navController: NavController, destinations: L
     }
 }
 
-// Placeholder screens - will be implemented in respective feature modules
-
-@Composable
-private fun DiscoveryScreen() {
-    PlaceholderScreen("Discovery Screen")
-}
-
-@Composable
-private fun PlayerScreen() {
-    PlaceholderScreen("Player Screen")
-}
-
-@Composable
-private fun DownloadsScreen() {
-    PlaceholderScreen("Downloads Screen")
-}
-
-@Composable
-private fun PlaceholderScreen(title: String) {
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Text(text = title, style = MaterialTheme.typography.headlineMedium)
-    }
-}
+// Placeholder composable removed – real screens are used now

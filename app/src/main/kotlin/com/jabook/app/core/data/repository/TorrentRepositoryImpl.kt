@@ -10,6 +10,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 
 @Singleton
 class TorrentRepositoryImpl @Inject constructor(private val torrentManager: TorrentManager, private val debugLogger: IDebugLogger) :
@@ -40,19 +41,23 @@ class TorrentRepositoryImpl @Inject constructor(private val torrentManager: Torr
     }
 
     override fun getActiveDownloads(): Flow<List<DownloadProgress>> {
-        return flowOf(emptyList())
+        // Map TorrentManager downloadStates to list
+        return torrentManager.downloadStates.map { it.values.toList() }
     }
 
     override suspend fun stopTorrent(torrentId: String) {
         debugLogger.logInfo("Stopping torrent: $torrentId")
+        torrentManager.removeTorrent(torrentId, deleteFiles = false)
     }
 
     override suspend fun pauseTorrent(torrentId: String) {
         debugLogger.logInfo("Pausing torrent: $torrentId")
+        torrentManager.pauseTorrent(torrentId)
     }
 
     override suspend fun resumeTorrent(torrentId: String) {
         debugLogger.logInfo("Resuming torrent: $torrentId")
+        torrentManager.resumeTorrent(torrentId)
     }
 
     override suspend fun removeTorrent(torrentId: String, deleteFiles: Boolean) {

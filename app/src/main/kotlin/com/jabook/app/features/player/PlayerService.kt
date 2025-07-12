@@ -40,6 +40,7 @@ class PlayerService : MediaSessionService() {
 
     private var mediaSession: MediaSession? = null
     private var currentAudiobook: Audiobook? = null
+    private var currentPlaybackState: PlaybackState = PlaybackState()
     private var playbackStateJob: Job? = null
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
@@ -99,7 +100,12 @@ class PlayerService : MediaSessionService() {
             ACTION_SEEK_BACKWARD -> playerManager.seekTo(playerManager.getCurrentPosition() - 15000)
             else -> {
                 // Handle initial service start with audiobook
-                intent?.getParcelableExtra<Audiobook>(EXTRA_AUDIOBOOK)?.let { audiobook -> initializePlayer(audiobook) }
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    intent?.getParcelableExtra(EXTRA_AUDIOBOOK, Audiobook::class.java)?.let { audiobook -> initializePlayer(audiobook) }
+                } else {
+                    @Suppress("DEPRECATION")
+                    intent?.getParcelableExtra<Audiobook>(EXTRA_AUDIOBOOK)?.let { audiobook -> initializePlayer(audiobook) }
+                }
             }
         }
 
@@ -128,12 +134,10 @@ class PlayerService : MediaSessionService() {
     /** Initialize MediaSession for media controls */
     private fun initializeMediaSession() {
         try {
-            // MediaSession integration will be implemented when ExoPlayer is fully integrated
-            // mediaSession = MediaSession.Builder(this, playerManager.getExoPlayer())
-            //     .setCallback(MediaSessionCallback())
-            //     .build()
-
-            debugLogger.logInfo("MediaSession initialized")
+            playerManager.getExoPlayer()?.let { exo ->
+                mediaSession = MediaSession.Builder(this, exo).build()
+                debugLogger.logInfo("MediaSession initialized")
+            } ?: debugLogger.logError("ExoPlayer not ready for MediaSession", null)
         } catch (e: Exception) {
             debugLogger.logError("Failed to initialize MediaSession", e)
         }
@@ -157,6 +161,7 @@ class PlayerService : MediaSessionService() {
                 .getPlaybackState()
                 .onEach { playbackState ->
                     debugLogger.logDebug("PlayerService received playback state: ${playbackState.isPlaying}")
+                    currentPlaybackState = playbackState
                     updateNotification()
                 }
                 .launchIn(serviceScope)
@@ -192,7 +197,7 @@ class PlayerService : MediaSessionService() {
     /** Create notification for playback controls */
     private fun createNotification(): Notification {
         val audiobook = currentAudiobook
-        val playbackState = PlaybackState() // Mock playback state for now
+        val playbackState = currentPlaybackState
 
         // Create notification actions
         val playPauseAction =
@@ -216,8 +221,7 @@ class PlayerService : MediaSessionService() {
             .addAction(playPauseAction)
             .addAction(nextAction)
             .setStyle(
-                MediaNotificationCompat.MediaStyle().setShowActionsInCompactView(0, 1, 2)
-                // Media session token will be set when MediaSession is properly implemented
+                MediaNotificationCompat.MediaStyle().setShowActionsInCompactView(0, 1, 2).setMediaSession(mediaSession?.sessionCompatToken)
             )
             .setContentIntent(createContentIntent())
             .setDeleteIntent(createDeleteIntent())

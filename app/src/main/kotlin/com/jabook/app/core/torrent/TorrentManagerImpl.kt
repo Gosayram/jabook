@@ -40,14 +40,17 @@ class TorrentManagerImpl @Inject constructor(private val fileManager: FileManage
 
     override suspend fun pauseTorrent(torrentId: String) {
         debugLogger.logInfo("Pausing torrent: $torrentId")
+        updateStatus(torrentId, com.jabook.app.core.domain.model.TorrentStatus.PAUSED)
     }
 
     override suspend fun resumeTorrent(torrentId: String) {
         debugLogger.logInfo("Resuming torrent: $torrentId")
+        updateStatus(torrentId, com.jabook.app.core.domain.model.TorrentStatus.DOWNLOADING)
     }
 
     override suspend fun removeTorrent(torrentId: String, deleteFiles: Boolean) {
         debugLogger.logInfo("Removing torrent: $torrentId, deleteFiles: $deleteFiles")
+        _downloadStates.value = _downloadStates.value - torrentId
     }
 
     override fun getTorrentProgress(torrentId: String): Flow<DownloadProgress> {
@@ -78,5 +81,10 @@ class TorrentManagerImpl @Inject constructor(private val fileManager: FileManage
 
     override suspend fun setDownloadLimits(downloadLimit: Long, uploadLimit: Long) {
         debugLogger.logInfo("Setting download limits: down=$downloadLimit, up=$uploadLimit")
+    }
+
+    private fun updateStatus(torrentId: String, status: com.jabook.app.core.domain.model.TorrentStatus) {
+        val current = _downloadStates.value[torrentId] ?: return
+        _downloadStates.value = _downloadStates.value + (torrentId to current.copy(status = status))
     }
 }

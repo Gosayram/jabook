@@ -1,5 +1,8 @@
+@file:OptIn(androidx.compose.material.ExperimentalMaterialApi::class)
+
 package com.jabook.app.features.downloads.presentation
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,9 +12,17 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.DismissDirection
+import androidx.compose.material.DismissValue
+import androidx.compose.material.ExperimentalMaterialApi
+import androidx.compose.material.SwipeToDismiss
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.rememberDismissState
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -66,6 +77,10 @@ fun DownloadsScreen(modifier: Modifier = Modifier, viewModel: DownloadsViewModel
                     if (uiState.selectedTab == DownloadsTab.Completed && uiState.completedDownloads.isNotEmpty()) {
                         IconButton(onClick = { viewModel.clearCompleted() }) {
                             Icon(imageVector = Icons.Default.Clear, contentDescription = stringResource(R.string.clear_completed))
+                        }
+                    } else if (uiState.selectedTab == DownloadsTab.Failed && uiState.failedDownloads.isNotEmpty()) {
+                        IconButton(onClick = { viewModel.clearFailed() }) {
+                            Icon(imageVector = Icons.Default.Clear, contentDescription = stringResource(R.string.clear_failed))
                         }
                     }
                     IconButton(onClick = { viewModel.refreshDownloads() }) {
@@ -205,15 +220,64 @@ private fun DownloadsList(
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                items(downloads) { download ->
-                    DownloadItemCard(
-                        download = download,
-                        onPause = { onPauseDownload(download.torrentId) },
-                        onResume = { onResumeDownload(download.torrentId) },
-                        onCancel = { onCancelDownload(download.torrentId) },
-                        onRetry = { onRetryDownload(download) },
-                        modifier = Modifier.fillMaxWidth(),
-                    )
+                items(downloads, key = { it.torrentId }) { download ->
+                    val dismissState =
+                        rememberDismissState(
+                            confirmStateChange = { value ->
+                                when (value) {
+                                    DismissValue.DismissedToEnd -> {
+                                        if (download.status == com.jabook.app.core.domain.model.TorrentStatus.DOWNLOADING) {
+                                            onPauseDownload(download.torrentId)
+                                        } else if (download.status == com.jabook.app.core.domain.model.TorrentStatus.PAUSED) {
+                                            onResumeDownload(download.torrentId)
+                                        }
+                                        false
+                                    }
+                                    DismissValue.DismissedToStart -> {
+                                        onCancelDownload(download.torrentId)
+                                        false
+                                    }
+                                    else -> false
+                                }
+                            }
+                        )
+
+                    SwipeToDismiss(
+                        state = dismissState,
+                        background = {
+                            val direction = dismissState.dismissDirection ?: return@SwipeToDismiss
+                            val color =
+                                if (direction == DismissDirection.StartToEnd) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.error
+                            val icon =
+                                if (direction == DismissDirection.StartToEnd) {
+                                    if (download.status == com.jabook.app.core.domain.model.TorrentStatus.PAUSED) Icons.Default.PlayArrow
+                                    else Icons.Default.Pause
+                                } else {
+                                    Icons.Default.Clear
+                                }
+                            val contentTint =
+                                if (direction == DismissDirection.StartToEnd) MaterialTheme.colorScheme.onPrimary
+                                else MaterialTheme.colorScheme.onError
+                            Box(
+                                modifier = Modifier.fillMaxSize().background(color, RoundedCornerShape(8.dp)).padding(24.dp),
+                                contentAlignment =
+                                    if (direction == DismissDirection.StartToEnd) Alignment.CenterStart else Alignment.CenterEnd,
+                            ) {
+                                Icon(imageVector = icon, contentDescription = null, tint = contentTint)
+                            }
+                        },
+                        directions = setOf(DismissDirection.StartToEnd, DismissDirection.EndToStart),
+                    ) {
+                        DownloadItemCard(
+                            download = download,
+                            onPause = { onPauseDownload(download.torrentId) },
+                            onResume = { onResumeDownload(download.torrentId) },
+                            onCancel = { onCancelDownload(download.torrentId) },
+                            onRetry = { onRetryDownload(download) },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
                 }
             }
         }
