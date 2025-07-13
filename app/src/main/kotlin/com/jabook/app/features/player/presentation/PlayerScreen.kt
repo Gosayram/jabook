@@ -42,11 +42,12 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.jabook.app.features.player.PlayerViewModel
 import com.jabook.app.features.player.presentation.components.PlayerControls
+import com.jabook.app.features.player.presentation.components.PlayerControlsParams
 import com.jabook.app.features.player.presentation.components.PlayerProgressBar
 import com.jabook.app.features.player.presentation.components.SleepTimerDialog
 import com.jabook.app.features.player.presentation.components.SpeedDialog
-import java.util.Locale
 import kotlinx.coroutines.launch
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -57,160 +58,244 @@ fun PlayerScreen(viewModel: PlayerViewModel = hiltViewModel()) {
 
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-            // Show player content if audiobook is loaded
             if (uiState.currentAudiobook != null) {
                 val audiobook = uiState.currentAudiobook!!
-
-                // Cover art placeholder
-                Card(
-                    modifier = Modifier.size(250.dp).align(Alignment.CenterHorizontally),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                    shape = RoundedCornerShape(12.dp),
-                ) {
-                    Box(modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) {
-                        androidx.compose.material3.Icon(
-                            imageVector = Icons.Default.Book,
-                            contentDescription = "Cover art",
-                            modifier = Modifier.size(100.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-
+                PlayerCoverSection()
                 Spacer(modifier = Modifier.height(32.dp))
-
-                // Title and author
-                Text(
-                    text = audiobook.title,
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Text(
-                    text = audiobook.author,
-                    style = MaterialTheme.typography.bodyLarge,
-                    textAlign = TextAlign.Center,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.fillMaxWidth(),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-
+                PlayerTitleSection(audiobook)
                 Spacer(modifier = Modifier.height(32.dp))
-
-                // Progress bar
-                PlayerProgressBar(
+                PlayerProgressSection(
                     currentPosition = uiState.currentPosition,
                     duration = uiState.duration,
-                    bookmarkPositions = uiState.bookmarks.map { it.positionMs },
-                    onSeekTo = { position -> viewModel.seekTo(position) },
-                    modifier = Modifier.fillMaxWidth(),
+                    bookmarks = uiState.bookmarks.map { it.positionMs },
+                    onSeekTo = { viewModel.seekTo(it) }
                 )
-
                 Spacer(modifier = Modifier.height(32.dp))
-
-                // Player controls
-                PlayerControls(
-                    isPlaying = uiState.isPlaying,
-                    onPlayPause = { viewModel.playPause() },
-                    onSeekForward = { viewModel.seekForward() },
-                    onSeekBackward = { viewModel.seekBackward() },
-                    onNextChapter = { viewModel.nextChapter() },
-                    onPreviousChapter = { viewModel.previousChapter() },
-                    onSpeedClick = { viewModel.showSpeedDialog() },
-                    onSleepTimerClick = { viewModel.showSleepTimerDialog() },
-                    onBookmarkClick = { viewModel.addBookmark() },
-                    onShowBookmarksClick = {
-                        viewModel.showBookmarksSheet()
-                        coroutineScope.launch { sheetState.show() }
-                    },
-                    playbackSpeed = uiState.playbackSpeed,
-                    sleepTimerMinutes = uiState.sleepTimerMinutes,
-                    modifier = Modifier.fillMaxWidth(),
+                PlayerControlsSection(
+                    params = PlayerControlsSectionParams(
+                        uiState = uiState,
+                        onPlayPause = { viewModel.playPause() },
+                        onSeekForward = { viewModel.seekForward() },
+                        onSeekBackward = { viewModel.seekBackward() },
+                        onNextChapter = { viewModel.nextChapter() },
+                        onPreviousChapter = { viewModel.previousChapter() },
+                        onSpeedClick = { viewModel.showSpeedDialog() },
+                        onSleepTimerClick = { viewModel.showSleepTimerDialog() },
+                        onBookmarkClick = { viewModel.addBookmark() },
+                        onShowBookmarksClick = {
+                            viewModel.showBookmarksSheet()
+                            coroutineScope.launch { sheetState.show() }
+                        }
+                    )
                 )
             } else {
-                // Empty state
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(
-                        text = "No audiobook loaded",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
+                PlayerEmptyState()
             }
         }
     }
-
-    // Speed dialog
     if (uiState.isSpeedDialogVisible) {
-        SpeedDialog(
+        SpeedDialogSection(
             currentSpeed = uiState.playbackSpeed,
-            onSpeedSelected = { speed ->
-                viewModel.setPlaybackSpeed(speed)
+            onSpeedSelected = {
+                viewModel.setPlaybackSpeed(it)
                 viewModel.hideSpeedDialog()
             },
-            onDismiss = { viewModel.hideSpeedDialog() },
+            onDismiss = { viewModel.hideSpeedDialog() }
         )
     }
-
-    // Sleep timer dialog
     if (uiState.isSleepTimerDialogVisible) {
-        SleepTimerDialog(
+        SleepTimerDialogSection(
             currentMinutes = uiState.sleepTimerMinutes,
-            onTimerSet = { minutes ->
-                viewModel.setSleepTimer(minutes)
+            onTimerSet = {
+                viewModel.setSleepTimer(it)
                 viewModel.hideSleepTimerDialog()
             },
-            onDismiss = { viewModel.hideSleepTimerDialog() },
+            onDismiss = { viewModel.hideSleepTimerDialog() }
         )
     }
-
-    // Bookmarks sheet
     if (uiState.isBookmarksSheetVisible) {
-        ModalBottomSheet(onDismissRequest = { viewModel.hideBookmarksSheet() }, sheetState = sheetState) {
-            Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
-                Text(
-                    text = stringResource(id = com.jabook.app.R.string.bookmarks),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                if (uiState.bookmarks.isEmpty()) {
-                    Text(text = stringResource(id = com.jabook.app.R.string.no_bookmarks))
-                } else {
-                    LazyColumn {
-                        items(uiState.bookmarks, key = { it.id }) { bookmark ->
-                            Row(
-                                modifier =
-                                    Modifier.fillMaxWidth().padding(vertical = 8.dp).clickable {
-                                        // seek to position and close sheet
-                                        viewModel.seekTo(bookmark.positionMs)
-                                        viewModel.hideBookmarksSheet()
-                                        coroutineScope.launch { sheetState.hide() }
-                                    },
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Column {
-                                    Text(text = bookmark.title, style = MaterialTheme.typography.bodyLarge)
-                                    Text(
-                                        text = viewModel.formatTime(bookmark.positionMs),
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                }
-                                IconButton(onClick = { viewModel.deleteBookmark(bookmark) }) {
-                                    Icon(
-                                        imageVector = Icons.Default.Clear,
-                                        contentDescription = stringResource(id = com.jabook.app.R.string.remove_bookmark),
-                                    )
-                                }
+        BookmarksSheetSection(
+            bookmarks = uiState.bookmarks,
+            onBookmarkClick = { position ->
+                viewModel.seekTo(position)
+                viewModel.hideBookmarksSheet()
+                coroutineScope.launch { sheetState.hide() }
+            },
+            onDismiss = { viewModel.hideBookmarksSheet() },
+            sheetState = sheetState
+        )
+    }
+}
+
+@Composable
+private fun PlayerCoverSection() {
+    Card(
+        modifier = Modifier.size(250.dp).align(Alignment.CenterHorizontally),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        shape = RoundedCornerShape(12.dp),
+    ) {
+        Box(modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) {
+            Icon(
+                imageVector = Icons.Default.Book,
+                contentDescription = "Cover art",
+                modifier = Modifier.size(100.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
+private fun PlayerTitleSection(audiobook: com.jabook.app.core.domain.model.Audiobook) {
+    Text(
+        text = audiobook.title,
+        style = MaterialTheme.typography.headlineSmall,
+        fontWeight = FontWeight.Bold,
+        textAlign = TextAlign.Center,
+        maxLines = 2,
+        overflow = TextOverflow.Ellipsis,
+        modifier = Modifier.fillMaxWidth(),
+    )
+    Spacer(modifier = Modifier.height(8.dp))
+    Text(
+        text = audiobook.author,
+        style = MaterialTheme.typography.bodyLarge,
+        textAlign = TextAlign.Center,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        modifier = Modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+}
+
+@Composable
+private fun PlayerProgressSection(
+    currentPosition: Long,
+    duration: Long,
+    bookmarks: List<Long>,
+    onSeekTo: (Long) -> Unit
+) {
+    PlayerProgressBar(
+        currentPosition = currentPosition,
+        duration = duration,
+        bookmarkPositions = bookmarks,
+        onSeekTo = onSeekTo,
+        modifier = Modifier.fillMaxWidth(),
+    )
+}
+
+data class PlayerControlsSectionParams(
+    val uiState: com.jabook.app.features.player.PlayerUiState,
+    val onPlayPause: () -> Unit,
+    val onSeekForward: () -> Unit,
+    val onSeekBackward: () -> Unit,
+    val onNextChapter: () -> Unit,
+    val onPreviousChapter: () -> Unit,
+    val onSpeedClick: () -> Unit,
+    val onSleepTimerClick: () -> Unit,
+    val onBookmarkClick: () -> Unit,
+    val onShowBookmarksClick: () -> Unit
+)
+
+@Composable
+private fun PlayerControlsSection(params: PlayerControlsSectionParams) {
+    val playerParams = PlayerControlsParams(
+        isPlaying = params.uiState.isPlaying,
+        playbackSpeed = params.uiState.playbackSpeed,
+        sleepTimerMinutes = params.uiState.sleepTimerMinutes,
+        onPlayPause = params.onPlayPause,
+        onSeekForward = params.onSeekForward,
+        onSeekBackward = params.onSeekBackward,
+        onNextChapter = params.onNextChapter,
+        onPreviousChapter = params.onPreviousChapter,
+        onSpeedClick = params.onSpeedClick,
+        onSleepTimerClick = params.onSleepTimerClick,
+        onBookmarkClick = params.onBookmarkClick,
+        onShowBookmarksClick = params.onShowBookmarksClick,
+        modifier = Modifier.fillMaxWidth()
+    )
+    PlayerControls(params = playerParams)
+}
+
+@Composable
+private fun PlayerEmptyState() {
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Text(
+            text = "No audiobook loaded",
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
+private fun SpeedDialogSection(
+    currentSpeed: Float,
+    onSpeedSelected: (Float) -> Unit,
+    onDismiss: () -> Unit
+) {
+    SpeedDialog(
+        currentSpeed = currentSpeed,
+        onSpeedSelected = onSpeedSelected,
+        onDismiss = onDismiss,
+    )
+}
+
+@Composable
+private fun SleepTimerDialogSection(
+    currentMinutes: Int,
+    onTimerSet: (Int) -> Unit,
+    onDismiss: () -> Unit
+) {
+    SleepTimerDialog(
+        currentMinutes = currentMinutes,
+        onTimerSet = onTimerSet,
+        onDismiss = onDismiss,
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun BookmarksSheetSection(
+    bookmarks: List<com.jabook.app.core.domain.model.Bookmark>,
+    onBookmarkClick: (Long) -> Unit,
+    onDismiss: () -> Unit,
+    sheetState: androidx.compose.material3.SheetState
+) {
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+        Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+            Text(
+                text = stringResource(id = com.jabook.app.R.string.bookmarks),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            if (bookmarks.isEmpty()) {
+                Text(text = stringResource(id = com.jabook.app.R.string.no_bookmarks))
+            } else {
+                LazyColumn {
+                    items(bookmarks, key = { it.id }) { bookmark ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp).clickable {
+                                onBookmarkClick(bookmark.positionMs)
+                            },
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column {
+                                Text(
+                                    text = bookmark.title,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = FontWeight.SemiBold,
+                                )
+                                Text(
+                                    text = formatBookmarkTime(bookmark.positionMs),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            IconButton(onClick = { /* Bookmark removal not implemented yet */ }) {
+                                Icon(imageVector = Icons.Default.Clear, contentDescription = "Remove bookmark")
                             }
                         }
                     }
@@ -218,6 +303,13 @@ fun PlayerScreen(viewModel: PlayerViewModel = hiltViewModel()) {
             }
         }
     }
+}
+
+private fun formatBookmarkTime(positionMs: Long): String {
+    val totalSeconds = positionMs / 1000
+    val minutes = totalSeconds / 60
+    val seconds = totalSeconds % 60
+    return String.format(Locale.US, "%d:%02d", minutes, seconds)
 }
 
 // Helper function to format time for display

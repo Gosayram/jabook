@@ -10,14 +10,14 @@ import androidx.room.PrimaryKey
 @Entity(
     tableName = "chapters",
     foreignKeys =
-        [
-            ForeignKey(
-                entity = AudiobookEntity::class,
-                parentColumns = ["id"],
-                childColumns = ["audiobook_id"],
-                onDelete = ForeignKey.CASCADE,
-            )
-        ],
+    [
+        ForeignKey(
+            entity = AudiobookEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["audiobook_id"],
+            onDelete = ForeignKey.CASCADE,
+        )
+    ],
     indices = [Index(value = ["audiobook_id"]), Index(value = ["chapter_number"])],
 )
 data class ChapterEntity(

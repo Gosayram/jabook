@@ -45,7 +45,8 @@ object JaBookAnimations {
 
     val longAnimationSpec = tween<Float>(durationMillis = DURATION_LONG, easing = EMPHASIZED_EASING)
 
-    val springAnimationSpec = spring<Float>(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow)
+    val springAnimationSpec =
+        spring<Float>(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow)
 
     // Enter/Exit transitions for screen navigation
     val screenEnterTransition: EnterTransition =

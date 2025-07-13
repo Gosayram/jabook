@@ -9,15 +9,15 @@ import com.jabook.app.core.domain.repository.AudiobookRepository
 import com.jabook.app.shared.debug.IDebugLogger
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
-import java.util.Locale
-import java.util.UUID
-import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.util.Locale
+import java.util.UUID
+import javax.inject.Inject
 
 @HiltViewModel
 class PlayerViewModel
@@ -42,38 +42,38 @@ constructor(
 
     val uiState: StateFlow<PlayerUiState> =
         combine(
-                _currentAudiobook,
-                playbackState,
-                _playbackSpeed,
-                _sleepTimerMinutes,
-                _isSpeedDialogVisible,
-                _isSleepTimerDialogVisible,
-                _bookmarks,
-                _isBookmarksSheetVisible,
-            ) { flows ->
-                val currentAudiobook = flows[0] as Audiobook?
-                val playbackState = flows[1] as PlaybackState
-                val playbackSpeed = flows[2] as Float
-                val sleepTimerMinutes = flows[3] as Int
-                val isSpeedDialogVisible = flows[4] as Boolean
-                val isSleepTimerDialogVisible = flows[5] as Boolean
-                val bookmarks = flows[6] as List<Bookmark>
-                val isBookmarksSheetVisible = flows[7] as Boolean
+            _currentAudiobook,
+            playbackState,
+            _playbackSpeed,
+            _sleepTimerMinutes,
+            _isSpeedDialogVisible,
+            _isSleepTimerDialogVisible,
+            _bookmarks,
+            _isBookmarksSheetVisible,
+        ) { flows ->
+            val currentAudiobook = flows[0] as Audiobook?
+            val playbackState = flows[1] as PlaybackState
+            val playbackSpeed = flows[2] as Float
+            val sleepTimerMinutes = flows[3] as Int
+            val isSpeedDialogVisible = flows[4] as Boolean
+            val isSleepTimerDialogVisible = flows[5] as Boolean
+            val bookmarks = flows[6] as List<Bookmark>
+            val isBookmarksSheetVisible = flows[7] as Boolean
 
-                PlayerUiState(
-                    currentAudiobook = currentAudiobook,
-                    playbackState = playbackState,
-                    currentPosition = playbackState.currentPosition,
-                    duration = playbackState.duration,
-                    isPlaying = playbackState.isPlaying,
-                    playbackSpeed = playbackSpeed,
-                    sleepTimerMinutes = sleepTimerMinutes,
-                    isSpeedDialogVisible = isSpeedDialogVisible,
-                    isSleepTimerDialogVisible = isSleepTimerDialogVisible,
-                    bookmarks = bookmarks,
-                    isBookmarksSheetVisible = isBookmarksSheetVisible,
-                )
-            }
+            PlayerUiState(
+                currentAudiobook = currentAudiobook,
+                playbackState = playbackState,
+                currentPosition = playbackState.currentPosition,
+                duration = playbackState.duration,
+                isPlaying = playbackState.isPlaying,
+                playbackSpeed = playbackSpeed,
+                sleepTimerMinutes = sleepTimerMinutes,
+                isSpeedDialogVisible = isSpeedDialogVisible,
+                isSleepTimerDialogVisible = isSleepTimerDialogVisible,
+                bookmarks = bookmarks,
+                isBookmarksSheetVisible = isBookmarksSheetVisible,
+            )
+        }
             .stateIn(scope = viewModelScope, started = SharingStarted.WhileSubscribed(5000), initialValue = PlayerUiState())
 
     fun loadAudiobook(audiobook: Audiobook) {
@@ -202,7 +202,8 @@ constructor(
         viewModelScope.launch {
             try {
                 val title = "Bookmark ${formatTime(position)}"
-                val bookmark = Bookmark(id = UUID.randomUUID().toString(), audiobookId = audiobook.id, title = title, positionMs = position)
+                val bookmark =
+                    Bookmark(id = UUID.randomUUID().toString(), audiobookId = audiobook.id, title = title, positionMs = position)
                 audiobookRepository.upsertBookmark(bookmark)
                 debugLogger.logInfo("Bookmark added at $position ms for audiobook ${audiobook.title}")
             } catch (e: Exception) {

@@ -7,7 +7,6 @@ import com.jabook.app.core.domain.model.RuTrackerCategory
 import com.jabook.app.core.domain.repository.RuTrackerRepository
 import com.jabook.app.shared.debug.IDebugLogger
 import dagger.hilt.android.lifecycle.HiltViewModel
-import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -16,6 +15,7 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 @HiltViewModel
 class DiscoveryViewModel @Inject constructor(private val ruTrackerRepository: RuTrackerRepository, private val debugLogger: IDebugLogger) :
@@ -56,32 +56,32 @@ class DiscoveryViewModel @Inject constructor(private val ruTrackerRepository: Ru
 
     val uiState: StateFlow<DiscoveryUiState> =
         combine(
-                searchQuery,
-                selectedCategory,
-                currentPage,
-                isLoading,
-                searchResults,
-                totalPages,
-                categories,
-                trendingAudiobooks,
-                recentlyAdded,
-                errorMessage,
-                isSearchActive,
-            ) { states ->
-                DiscoveryUiState(
-                    searchQuery = states[0] as String,
-                    selectedCategory = states[1] as String?,
-                    currentPage = states[2] as Int,
-                    isLoading = states[3] as Boolean,
-                    searchResults = states[4] as List<RuTrackerAudiobook>,
-                    totalPages = states[5] as Int,
-                    categories = states[6] as List<RuTrackerCategory>,
-                    trendingAudiobooks = states[7] as List<RuTrackerAudiobook>,
-                    recentlyAdded = states[8] as List<RuTrackerAudiobook>,
-                    errorMessage = states[9] as String?,
-                    isSearchActive = states[10] as Boolean,
-                )
-            }
+            searchQuery,
+            selectedCategory,
+            currentPage,
+            isLoading,
+            searchResults,
+            totalPages,
+            categories,
+            trendingAudiobooks,
+            recentlyAdded,
+            errorMessage,
+            isSearchActive,
+        ) { states ->
+            DiscoveryUiState(
+                searchQuery = states[0] as String,
+                selectedCategory = states[1] as String?,
+                currentPage = states[2] as Int,
+                isLoading = states[3] as Boolean,
+                searchResults = states[4] as List<RuTrackerAudiobook>,
+                totalPages = states[5] as Int,
+                categories = states[6] as List<RuTrackerCategory>,
+                trendingAudiobooks = states[7] as List<RuTrackerAudiobook>,
+                recentlyAdded = states[8] as List<RuTrackerAudiobook>,
+                errorMessage = states[9] as String?,
+                isSearchActive = states[10] as Boolean,
+            )
+        }
             .stateIn(scope = viewModelScope, started = SharingStarted.WhileSubscribed(5000), initialValue = DiscoveryUiState())
 
     init {

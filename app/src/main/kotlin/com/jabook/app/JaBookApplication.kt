@@ -11,6 +11,7 @@ import javax.inject.Inject
 class JaBookApplication : Application() {
 
     @Inject lateinit var debugLogger: IDebugLogger
+
     @Inject lateinit var performanceProfiler: PerformanceProfiler
 
     override fun onCreate() {

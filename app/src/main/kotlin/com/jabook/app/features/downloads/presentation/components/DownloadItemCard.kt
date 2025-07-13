@@ -46,161 +46,168 @@ fun DownloadItemCard(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
     ) {
         Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            // Header with title and actions
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                // Title (using audiobookId as title for now)
-                Text(
-                    text = download.audiobookId,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f),
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
+            DownloadItemHeader(download, onPause, onResume, onCancel, onRetry)
+            DownloadItemStatus(download)
+            DownloadItemProgress(download)
+            DownloadItemInfo(download)
+            DownloadItemPeers(download)
+        }
+    }
+}
 
-                // Action buttons
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    when (download.status) {
-                        TorrentStatus.DOWNLOADING -> {
-                            IconButton(onClick = onPause) {
-                                Icon(
-                                    imageVector = Icons.Default.Pause,
-                                    contentDescription = stringResource(R.string.pause_download),
-                                    tint = MaterialTheme.colorScheme.primary,
-                                )
-                            }
-                        }
-                        TorrentStatus.PAUSED -> {
-                            IconButton(onClick = onResume) {
-                                Icon(
-                                    imageVector = Icons.Default.PlayArrow,
-                                    contentDescription = stringResource(R.string.resume_download),
-                                    tint = Color(0xFF4CAF50),
-                                )
-                            }
-                        }
-                        TorrentStatus.ERROR,
-                        TorrentStatus.STOPPED -> {
-                            IconButton(onClick = onRetry) {
-                                Icon(
-                                    imageVector = Icons.Default.Refresh,
-                                    contentDescription = stringResource(R.string.retry_download),
-                                    tint = MaterialTheme.colorScheme.primary,
-                                )
-                            }
-                        }
-                        else -> {
-                            // For completed or other statuses, no action button
-                        }
-                    }
-
-                    // Cancel button (always available except for completed)
-                    if (download.status != TorrentStatus.COMPLETED) {
-                        IconButton(onClick = onCancel) {
-                            Icon(
-                                imageVector = Icons.Default.Cancel,
-                                contentDescription = stringResource(R.string.cancel_download),
-                                tint = Color(0xFFF44336),
-                                modifier = Modifier.size(20.dp),
-                            )
-                        }
+@Composable
+private fun DownloadItemHeader(
+    download: DownloadProgress,
+    onPause: () -> Unit,
+    onResume: () -> Unit,
+    onCancel: () -> Unit,
+    onRetry: () -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = download.audiobookId,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            when (download.status) {
+                TorrentStatus.DOWNLOADING -> {
+                    IconButton(onClick = onPause) {
+                        Icon(
+                            imageVector = Icons.Default.Pause,
+                            contentDescription = stringResource(R.string.pause_download),
+                            tint = MaterialTheme.colorScheme.primary,
+                        )
                     }
                 }
+                TorrentStatus.PAUSED -> {
+                    IconButton(onClick = onResume) {
+                        Icon(
+                            imageVector = Icons.Default.PlayArrow,
+                            contentDescription = stringResource(R.string.resume_download),
+                            tint = Color(0xFF4CAF50),
+                        )
+                    }
+                }
+                TorrentStatus.ERROR, TorrentStatus.STOPPED -> {
+                    IconButton(onClick = onRetry) {
+                        Icon(
+                            imageVector = Icons.Default.Refresh,
+                            contentDescription = stringResource(R.string.retry_download),
+                            tint = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                }
+                else -> {}
             }
+            if (download.status != TorrentStatus.COMPLETED) {
+                IconButton(onClick = onCancel) {
+                    Icon(
+                        imageVector = Icons.Default.Cancel,
+                        contentDescription = stringResource(R.string.cancel_download),
+                        tint = Color(0xFFF44336),
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
+            }
+        }
+    }
+}
 
-            // Status and progress info
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                // Status
+@Composable
+private fun DownloadItemStatus(download: DownloadProgress) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = getStatusText(download.status),
+            style = MaterialTheme.typography.bodySmall,
+            color = getStatusColor(download.status),
+        )
+        if (
+            download.status == TorrentStatus.DOWNLOADING ||
+            download.status == TorrentStatus.PAUSED ||
+            download.status == TorrentStatus.SEEDING
+        ) {
+            Text(
+                text = "${(download.progress * 100).toInt()}%",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
+private fun DownloadItemProgress(download: DownloadProgress) {
+    if (
+        download.status == TorrentStatus.DOWNLOADING ||
+        download.status == TorrentStatus.PAUSED ||
+        download.status == TorrentStatus.SEEDING
+    ) {
+        LinearProgressIndicator(
+            progress = { download.progress },
+            modifier = Modifier.fillMaxWidth(),
+            color = getProgressColor(download.status),
+            trackColor = MaterialTheme.colorScheme.surfaceVariant,
+        )
+    }
+}
+
+@Composable
+private fun DownloadItemInfo(download: DownloadProgress) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = if (download.total > 0) {
+                "${formatFileSize(download.downloaded)} / ${formatFileSize(download.total)}"
+            } else {
+                formatFileSize(download.downloaded)
+            },
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        if (download.status == TorrentStatus.DOWNLOADING && download.downloadSpeed > 0) {
+            Column(horizontalAlignment = Alignment.End) {
                 Text(
-                    text = getStatusText(download.status),
+                    text = "${formatFileSize(download.downloadSpeed)}/s",
                     style = MaterialTheme.typography.bodySmall,
-                    color = getStatusColor(download.status),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-
-                // Progress percentage
-                if (
-                    download.status == TorrentStatus.DOWNLOADING ||
-                        download.status == TorrentStatus.PAUSED ||
-                        download.status == TorrentStatus.SEEDING
-                ) {
+                if (download.eta > 0) {
+                    val etaText = formatETA(download.eta)
                     Text(
-                        text = "${(download.progress * 100).toInt()}%",
+                        text = etaText,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
-
-            // Progress bar
-            if (
-                download.status == TorrentStatus.DOWNLOADING ||
-                    download.status == TorrentStatus.PAUSED ||
-                    download.status == TorrentStatus.SEEDING
-            ) {
-                LinearProgressIndicator(
-                    progress = { download.progress },
-                    modifier = Modifier.fillMaxWidth(),
-                    color = getProgressColor(download.status),
-                    trackColor = MaterialTheme.colorScheme.surfaceVariant,
-                )
-            }
-
-            // Download info row
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                // File size info
-                Text(
-                    text =
-                        if (download.total > 0) {
-                            "${formatFileSize(download.downloaded)} / ${formatFileSize(download.total)}"
-                        } else {
-                            formatFileSize(download.downloaded)
-                        },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-
-                // Speed and ETA info
-                if (download.status == TorrentStatus.DOWNLOADING && download.downloadSpeed > 0) {
-                    Column(horizontalAlignment = Alignment.End) {
-                        Text(
-                            text = "${formatFileSize(download.downloadSpeed)}/s",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        if (download.eta > 0) {
-                            val etaText = formatETA(download.eta)
-                            Text(
-                                text = etaText,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    }
-                }
-            }
-
-            // Seeders/Leechers info for active torrents
-            if (download.status == TorrentStatus.DOWNLOADING || download.status == TorrentStatus.SEEDING) {
-                Text(
-                    text = stringResource(R.string.seeders_leechers, download.seeders, download.leechers),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
         }
+    }
+}
+
+@Composable
+private fun DownloadItemPeers(download: DownloadProgress) {
+    if (download.status == TorrentStatus.DOWNLOADING || download.status == TorrentStatus.SEEDING) {
+        Text(
+            text = stringResource(R.string.seeders_leechers, download.seeders, download.leechers),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 

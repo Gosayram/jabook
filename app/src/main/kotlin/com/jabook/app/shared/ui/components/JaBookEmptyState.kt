@@ -158,10 +158,10 @@ fun JaBookErrorState(
         title = title,
         subtitle = subtitle,
         actionButton =
-            if (onRetry != null) {
-                { JaBookButton(text = "Попробовать снова", onClick = onRetry, variant = ButtonVariant.Primary) }
-            } else {
-                null
-            },
+        if (onRetry != null) {
+            { JaBookButton(text = "Попробовать снова", onClick = onRetry, variant = ButtonVariant.Primary) }
+        } else {
+            null
+        },
     )
 }

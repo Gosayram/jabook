@@ -8,16 +8,16 @@ import com.jabook.app.core.data.mapper.AudiobookMapper.toEntity
 import com.jabook.app.core.database.dao.AudiobookDao
 import com.jabook.app.core.database.dao.BookmarkDao
 import com.jabook.app.core.database.dao.ChapterDao
-import com.jabook.app.core.database.entities.DownloadStatus as EntityDownloadStatus
 import com.jabook.app.core.domain.model.Audiobook
 import com.jabook.app.core.domain.model.Bookmark
 import com.jabook.app.core.domain.model.Chapter
-import com.jabook.app.core.domain.model.DownloadStatus as DomainDownloadStatus
 import com.jabook.app.core.domain.repository.AudiobookRepository
-import javax.inject.Inject
-import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import javax.inject.Inject
+import javax.inject.Singleton
+import com.jabook.app.core.database.entities.DownloadStatus as EntityDownloadStatus
+import com.jabook.app.core.domain.model.DownloadStatus as DomainDownloadStatus
 
 /** Implementation of AudiobookRepository using Room database. Provides concrete data access operations for audiobooks. */
 @Singleton

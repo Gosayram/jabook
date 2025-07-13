@@ -6,11 +6,11 @@ import com.jabook.app.core.domain.model.TorrentStatus
 import com.jabook.app.core.domain.repository.TorrentRepository
 import com.jabook.app.core.torrent.TorrentManager
 import com.jabook.app.shared.debug.IDebugLogger
-import javax.inject.Inject
-import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
+import javax.inject.Inject
+import javax.inject.Singleton
 
 @Singleton
 class TorrentRepositoryImpl @Inject constructor(private val torrentManager: TorrentManager, private val debugLogger: IDebugLogger) :

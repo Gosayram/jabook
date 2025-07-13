@@ -3,11 +3,11 @@ package com.jabook.app.core.storage
 import android.content.Context
 import com.jabook.app.core.domain.model.Audiobook
 import com.jabook.app.shared.debug.IDebugLogger
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flowOf
 
 @Singleton
 class FileManagerImpl @Inject constructor(private val context: Context, private val debugLogger: IDebugLogger) : FileManager {
@@ -134,10 +134,11 @@ class FileManagerImpl @Inject constructor(private val context: Context, private 
             totalSpace = totalSpace,
             freeSpace = freeSpace,
             usedSpace = usedSpace,
-            audiobooksSize =
-                if (audiobooksDir.exists()) {
-                    audiobooksDir.walkTopDown().sumOf { file -> if (file.isFile) file.length() else 0L }
-                } else 0L,
+            audiobooksSize = if (audiobooksDir.exists()) {
+                audiobooksDir.walkTopDown().sumOf { file -> if (file.isFile) file.length() else 0L }
+            } else {
+                0L
+            },
             tempSize = getTempDirectory().walkTopDown().sumOf { file -> if (file.isFile) file.length() else 0L },
             cacheSize = getCacheDirectory().walkTopDown().sumOf { file -> if (file.isFile) file.length() else 0L },
             logsSize = getLogsDirectory().walkTopDown().sumOf { file -> if (file.isFile) file.length() else 0L },

@@ -42,7 +42,9 @@ fun PlayerProgressBar(
             derivedStateOf {
                 if (duration > 0) {
                     if (isUserDragging) dragPosition else currentPosition.toFloat() / duration.toFloat()
-                } else 0f
+                } else {
+                    0f
+                }
             }
         }
 
@@ -51,11 +53,11 @@ fun PlayerProgressBar(
         animateFloatAsState(
             targetValue = progress,
             animationSpec =
-                if (isUserDragging) {
-                    tween(0) // No animation during dragging
-                } else {
-                    tween(durationMillis = JaBookAnimations.DURATION_SHORT, easing = JaBookAnimations.STANDARD_EASING)
-                },
+            if (isUserDragging) {
+                tween(0) // No animation during dragging
+            } else {
+                tween(durationMillis = JaBookAnimations.DURATION_SHORT, easing = JaBookAnimations.STANDARD_EASING)
+            },
             label = "progressAnimation",
         )
 

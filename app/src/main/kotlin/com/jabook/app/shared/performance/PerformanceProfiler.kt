@@ -1,14 +1,14 @@
 package com.jabook.app.shared.performance
 
 import com.jabook.app.shared.debug.IDebugLogger
-import javax.inject.Inject
-import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import javax.inject.Inject
+import javax.inject.Singleton
 
 /** Performance profiler for monitoring app performance Tracks memory usage, recomposition counts, and performance metrics */
 @Singleton
@@ -51,12 +51,12 @@ class PerformanceProfiler @Inject constructor(private val debugLogger: IDebugLog
         val memoryUsagePercent = (usedMemory.toFloat() / maxMemory.toFloat() * 100).toInt()
 
         debugLogger.logInfo(
-            "PerformanceProfiler: Memory: ${usedMemory}MB/${maxMemory}MB (${memoryUsagePercent}%), " + "Recompositions: $recompositionCount"
+            "PerformanceProfiler: Memory: ${usedMemory}MB/${maxMemory}MB ($memoryUsagePercent%), " + "Recompositions: $recompositionCount"
         )
 
         // Warn if memory usage is high
         if (memoryUsagePercent > 80) {
-            debugLogger.logError("PerformanceProfiler: High memory usage detected: ${memoryUsagePercent}%", null)
+            debugLogger.logError("PerformanceProfiler: High memory usage detected: $memoryUsagePercent%", null)
         }
 
         lastMemoryCheck = usedMemory

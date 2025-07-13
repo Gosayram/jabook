@@ -58,7 +58,7 @@ private fun SpeedDialogItem(speed: Float, isSelected: Boolean, onSpeedSelected: 
     val backgroundColor by
         animateColorAsState(
             targetValue =
-                if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f) else MaterialTheme.colorScheme.surface,
+            if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f) else MaterialTheme.colorScheme.surface,
             animationSpec = tween(durationMillis = JaBookAnimations.DURATION_MEDIUM, easing = JaBookAnimations.EMPHASIZED_EASING),
             label = "speedItemBackground",
         )
@@ -72,12 +72,12 @@ private fun SpeedDialogItem(speed: Float, isSelected: Boolean, onSpeedSelected: 
 
     Row(
         modifier =
-            Modifier.fillMaxWidth()
-                .scale(scale)
-                .clip(RoundedCornerShape(8.dp))
-                .background(backgroundColor)
-                .clickable { onSpeedSelected(speed) }
-                .padding(vertical = 8.dp, horizontal = 4.dp),
+        Modifier.fillMaxWidth()
+            .scale(scale)
+            .clip(RoundedCornerShape(8.dp))
+            .background(backgroundColor)
+            .clickable { onSpeedSelected(speed) }
+            .padding(vertical = 8.dp, horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Start,
     ) {

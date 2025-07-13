@@ -1,9 +1,9 @@
 package com.jabook.app.core.domain.model
 
 import android.os.Parcelable
+import kotlinx.parcelize.Parcelize
 import java.util.Date
 import java.util.Locale
-import kotlinx.parcelize.Parcelize
 
 /** Domain model representing an audiobook. This is the business logic representation, independent of data source. */
 @Parcelize

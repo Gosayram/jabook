@@ -124,11 +124,11 @@ fun AudiobookListItem(
                     // Duration and Progress
                     Text(
                         text =
-                            if (audiobook.progressPercentage > 0) {
-                                "${audiobook.currentPositionFormatted} / ${audiobook.durationFormatted}"
-                            } else {
-                                audiobook.durationFormatted
-                            },
+                        if (audiobook.progressPercentage > 0) {
+                            "${audiobook.currentPositionFormatted} / ${audiobook.durationFormatted}"
+                        } else {
+                            audiobook.durationFormatted
+                        },
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -146,23 +146,23 @@ fun AudiobookListItem(
                 IconButton(onClick = onFavoriteClick) {
                     Icon(
                         imageVector =
-                            if (audiobook.isFavorite) {
-                                Icons.Default.Favorite
-                            } else {
-                                Icons.Default.FavoriteBorder
-                            },
+                        if (audiobook.isFavorite) {
+                            Icons.Default.Favorite
+                        } else {
+                            Icons.Default.FavoriteBorder
+                        },
                         contentDescription =
-                            if (audiobook.isFavorite) {
-                                stringResource(R.string.remove_from_favorites)
-                            } else {
-                                stringResource(R.string.add_to_favorites)
-                            },
+                        if (audiobook.isFavorite) {
+                            stringResource(R.string.remove_from_favorites)
+                        } else {
+                            stringResource(R.string.add_to_favorites)
+                        },
                         tint =
-                            if (audiobook.isFavorite) {
-                                MaterialTheme.colorScheme.error
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            },
+                        if (audiobook.isFavorite) {
+                            MaterialTheme.colorScheme.error
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
                     )
                 }
 
@@ -243,16 +243,16 @@ private fun DownloadStatusBadge(status: DownloadStatus, progress: Float) {
     if (text.isNotEmpty()) {
         Text(
             text =
-                if (status == DownloadStatus.DOWNLOADING) {
-                    "$text ${(progress * 100).toInt()}%"
-                } else {
-                    text
-                },
+            if (status == DownloadStatus.DOWNLOADING) {
+                "$text ${(progress * 100).toInt()}%"
+            } else {
+                text
+            },
             style = MaterialTheme.typography.labelSmall,
             color = color,
             modifier =
-                Modifier.background(color = color.copy(alpha = 0.1f), shape = RoundedCornerShape(4.dp))
-                    .padding(horizontal = 6.dp, vertical = 2.dp),
+            Modifier.background(color = color.copy(alpha = 0.1f), shape = RoundedCornerShape(4.dp))
+                .padding(horizontal = 6.dp, vertical = 2.dp),
         )
     }
 }

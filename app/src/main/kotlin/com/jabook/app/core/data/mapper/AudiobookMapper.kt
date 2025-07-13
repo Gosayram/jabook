@@ -3,10 +3,10 @@ package com.jabook.app.core.data.mapper
 import com.jabook.app.core.database.entities.AudiobookEntity
 import com.jabook.app.core.database.entities.BookmarkEntity
 import com.jabook.app.core.database.entities.ChapterEntity
-import com.jabook.app.core.database.entities.DownloadStatus as EntityDownloadStatus
 import com.jabook.app.core.domain.model.Audiobook
 import com.jabook.app.core.domain.model.Bookmark
 import com.jabook.app.core.domain.model.Chapter
+import com.jabook.app.core.database.entities.DownloadStatus as EntityDownloadStatus
 import com.jabook.app.core.domain.model.DownloadStatus as DomainDownloadStatus
 
 /** Mappers for converting between database entities and domain models. */

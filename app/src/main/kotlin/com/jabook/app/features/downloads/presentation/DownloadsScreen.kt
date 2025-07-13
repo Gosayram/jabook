@@ -54,6 +54,14 @@ import com.jabook.app.features.downloads.presentation.components.DownloadItemCar
 import com.jabook.app.shared.ui.components.EmptyStateType
 import com.jabook.app.shared.ui.components.JaBookEmptyState
 
+data class DownloadsEmptyState(val type: EmptyStateType, val title: String, val subtitle: String)
+data class DownloadsActions(
+    val onPause: (String) -> Unit,
+    val onResume: (String) -> Unit,
+    val onCancel: (String) -> Unit,
+    val onRetry: (com.jabook.app.core.domain.model.DownloadProgress) -> Unit
+)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DownloadsScreen(modifier: Modifier = Modifier, viewModel: DownloadsViewModel = hiltViewModel()) {
@@ -110,13 +118,14 @@ fun DownloadsScreen(modifier: Modifier = Modifier, viewModel: DownloadsViewModel
                         DownloadsList(
                             downloads = uiState.activeDownloads,
                             isLoading = uiState.isLoading,
-                            emptyStateType = EmptyStateType.EmptyDownloads,
-                            emptyTitle = stringResource(R.string.no_active_downloads),
-                            emptySubtitle = stringResource(R.string.start_downloading_discovery),
-                            onPauseDownload = viewModel::pauseDownload,
-                            onResumeDownload = viewModel::resumeDownload,
-                            onCancelDownload = viewModel::cancelDownload,
-                            onRetryDownload = viewModel::retryDownload,
+                            emptyState = DownloadsEmptyState(
+                                EmptyStateType.EmptyDownloads,
+                                stringResource(R.string.no_active_downloads),
+                                stringResource(R.string.start_downloading_discovery)
+                            ),
+                            actions = DownloadsActions({
+                                viewModel.pauseDownload(it)
+                            }, { viewModel.resumeDownload(it) }, { viewModel.cancelDownload(it) }, { viewModel.retryDownload(it) }),
                             modifier = Modifier.fillMaxSize(),
                         )
                     }
@@ -124,13 +133,14 @@ fun DownloadsScreen(modifier: Modifier = Modifier, viewModel: DownloadsViewModel
                         DownloadsList(
                             downloads = uiState.completedDownloads,
                             isLoading = uiState.isLoading,
-                            emptyStateType = EmptyStateType.EmptyDownloads,
-                            emptyTitle = stringResource(R.string.no_completed_downloads),
-                            emptySubtitle = stringResource(R.string.completed_downloads_appear_here),
-                            onPauseDownload = viewModel::pauseDownload,
-                            onResumeDownload = viewModel::resumeDownload,
-                            onCancelDownload = viewModel::cancelDownload,
-                            onRetryDownload = viewModel::retryDownload,
+                            emptyState = DownloadsEmptyState(
+                                EmptyStateType.EmptyDownloads,
+                                stringResource(R.string.no_completed_downloads),
+                                stringResource(R.string.completed_downloads_appear_here)
+                            ),
+                            actions = DownloadsActions({
+                                viewModel.pauseDownload(it)
+                            }, { viewModel.resumeDownload(it) }, { viewModel.cancelDownload(it) }, { viewModel.retryDownload(it) }),
                             modifier = Modifier.fillMaxSize(),
                         )
                     }
@@ -138,13 +148,14 @@ fun DownloadsScreen(modifier: Modifier = Modifier, viewModel: DownloadsViewModel
                         DownloadsList(
                             downloads = uiState.failedDownloads,
                             isLoading = uiState.isLoading,
-                            emptyStateType = EmptyStateType.GeneralError,
-                            emptyTitle = stringResource(R.string.no_failed_downloads),
-                            emptySubtitle = stringResource(R.string.great_no_download_errors),
-                            onPauseDownload = viewModel::pauseDownload,
-                            onResumeDownload = viewModel::resumeDownload,
-                            onCancelDownload = viewModel::cancelDownload,
-                            onRetryDownload = viewModel::retryDownload,
+                            emptyState = DownloadsEmptyState(
+                                EmptyStateType.GeneralError,
+                                stringResource(R.string.no_failed_downloads),
+                                stringResource(R.string.great_no_download_errors)
+                            ),
+                            actions = DownloadsActions({
+                                viewModel.pauseDownload(it)
+                            }, { viewModel.resumeDownload(it) }, { viewModel.cancelDownload(it) }, { viewModel.retryDownload(it) }),
                             modifier = Modifier.fillMaxSize(),
                         )
                     }
@@ -192,94 +203,101 @@ private fun DownloadsTabRow(
 private fun DownloadsList(
     downloads: List<com.jabook.app.core.domain.model.DownloadProgress>,
     isLoading: Boolean,
-    emptyStateType: EmptyStateType,
-    emptyTitle: String,
-    emptySubtitle: String,
-    onPauseDownload: (String) -> Unit,
-    onResumeDownload: (String) -> Unit,
-    onCancelDownload: (String) -> Unit,
-    onRetryDownload: (com.jabook.app.core.domain.model.DownloadProgress) -> Unit,
+    emptyState: DownloadsEmptyState,
+    actions: DownloadsActions,
     modifier: Modifier = Modifier,
 ) {
     Box(modifier = modifier) {
         if (isLoading && downloads.isEmpty()) {
-            // Loading state
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
         } else if (downloads.isEmpty()) {
-            // Empty state
             JaBookEmptyState(
-                state = emptyStateType,
-                title = emptyTitle,
-                subtitle = emptySubtitle,
+                state = emptyState.type,
+                title = emptyState.title,
+                subtitle = emptyState.subtitle,
                 modifier = Modifier.fillMaxSize().padding(32.dp),
             )
         } else {
-            // Downloads list
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 items(downloads, key = { it.torrentId }) { download ->
-                    val dismissState =
-                        rememberDismissState(
-                            confirmStateChange = { value ->
-                                when (value) {
-                                    DismissValue.DismissedToEnd -> {
-                                        if (download.status == com.jabook.app.core.domain.model.TorrentStatus.DOWNLOADING) {
-                                            onPauseDownload(download.torrentId)
-                                        } else if (download.status == com.jabook.app.core.domain.model.TorrentStatus.PAUSED) {
-                                            onResumeDownload(download.torrentId)
-                                        }
-                                        false
-                                    }
-                                    DismissValue.DismissedToStart -> {
-                                        onCancelDownload(download.torrentId)
-                                        false
-                                    }
-                                    else -> false
-                                }
-                            }
-                        )
-
-                    SwipeToDismiss(
-                        state = dismissState,
-                        background = {
-                            val direction = dismissState.dismissDirection ?: return@SwipeToDismiss
-                            val color =
-                                if (direction == DismissDirection.StartToEnd) MaterialTheme.colorScheme.primary
-                                else MaterialTheme.colorScheme.error
-                            val icon =
-                                if (direction == DismissDirection.StartToEnd) {
-                                    if (download.status == com.jabook.app.core.domain.model.TorrentStatus.PAUSED) Icons.Default.PlayArrow
-                                    else Icons.Default.Pause
-                                } else {
-                                    Icons.Default.Clear
-                                }
-                            val contentTint =
-                                if (direction == DismissDirection.StartToEnd) MaterialTheme.colorScheme.onPrimary
-                                else MaterialTheme.colorScheme.onError
-                            Box(
-                                modifier = Modifier.fillMaxSize().background(color, RoundedCornerShape(8.dp)).padding(24.dp),
-                                contentAlignment =
-                                    if (direction == DismissDirection.StartToEnd) Alignment.CenterStart else Alignment.CenterEnd,
-                            ) {
-                                Icon(imageVector = icon, contentDescription = null, tint = contentTint)
-                            }
-                        },
-                        directions = setOf(DismissDirection.StartToEnd, DismissDirection.EndToStart),
-                    ) {
-                        DownloadItemCard(
-                            download = download,
-                            onPause = { onPauseDownload(download.torrentId) },
-                            onResume = { onResumeDownload(download.torrentId) },
-                            onCancel = { onCancelDownload(download.torrentId) },
-                            onRetry = { onRetryDownload(download) },
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                    }
+                    DownloadListItem(download, actions)
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun DownloadListItem(
+    download: com.jabook.app.core.domain.model.DownloadProgress,
+    actions: DownloadsActions
+) {
+    val dismissState = rememberDismissState(
+        confirmStateChange = { value ->
+            when (value) {
+                DismissValue.DismissedToEnd -> {
+                    if (download.status == com.jabook.app.core.domain.model.TorrentStatus.DOWNLOADING) {
+                        actions.onPause(download.torrentId)
+                    } else if (download.status == com.jabook.app.core.domain.model.TorrentStatus.PAUSED) {
+                        actions.onResume(download.torrentId)
+                    }
+                    false
+                }
+                DismissValue.DismissedToStart -> {
+                    actions.onCancel(download.torrentId)
+                    false
+                }
+                else -> false
+            }
+        }
+    )
+    SwipeToDismiss(
+        state = dismissState,
+        background = {
+            val direction = dismissState.dismissDirection ?: return@SwipeToDismiss
+            val color =
+                if (direction == DismissDirection.StartToEnd) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.error
+                }
+            val icon =
+                if (direction == DismissDirection.StartToEnd) {
+                    if (download.status == com.jabook.app.core.domain.model.TorrentStatus.PAUSED) {
+                        Icons.Default.PlayArrow
+                    } else {
+                        Icons.Default.Pause
+                    }
+                } else {
+                    Icons.Default.Clear
+                }
+            val contentTint =
+                if (direction == DismissDirection.StartToEnd) {
+                    MaterialTheme.colorScheme.onPrimary
+                } else {
+                    MaterialTheme.colorScheme.onError
+                }
+            Box(
+                modifier = Modifier.fillMaxSize().background(color, RoundedCornerShape(8.dp)).padding(24.dp),
+                contentAlignment =
+                if (direction == DismissDirection.StartToEnd) Alignment.CenterStart else Alignment.CenterEnd,
+            ) {
+                Icon(imageVector = icon, contentDescription = null, tint = contentTint)
+            }
+        },
+        directions = setOf(DismissDirection.StartToEnd, DismissDirection.EndToStart),
+    ) {
+        DownloadItemCard(
+            download = download,
+            onPause = { actions.onPause(download.torrentId) },
+            onResume = { actions.onResume(download.torrentId) },
+            onCancel = { actions.onCancel(download.torrentId) },
+            onRetry = { actions.onRetry(download) },
+            modifier = Modifier.fillMaxWidth(),
+        )
     }
 }

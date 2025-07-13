@@ -1,20 +1,17 @@
 package com.jabook.app.core.data.repository
 
-import com.jabook.app.core.data.network.RuTrackerApiService
 import com.jabook.app.core.domain.model.RuTrackerAudiobook
 import com.jabook.app.core.domain.model.RuTrackerCategory
 import com.jabook.app.core.domain.model.RuTrackerSearchResult
 import com.jabook.app.core.domain.model.RuTrackerStats
 import com.jabook.app.core.domain.repository.RuTrackerRepository
-import com.jabook.app.shared.debug.IDebugLogger
-import javax.inject.Inject
-import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
+import javax.inject.Inject
+import javax.inject.Singleton
 
 @Singleton
-class RuTrackerRepositoryImpl @Inject constructor(private val apiService: RuTrackerApiService, private val debugLogger: IDebugLogger) :
-    RuTrackerRepository {
+class RuTrackerRepositoryImpl @Inject constructor() : RuTrackerRepository {
 
     override fun searchAudiobooks(query: String, categoryId: String?, page: Int): Flow<RuTrackerSearchResult> {
         return flowOf(RuTrackerSearchResult(query = query, totalResults = 0, currentPage = page, totalPages = 1, results = emptyList()))

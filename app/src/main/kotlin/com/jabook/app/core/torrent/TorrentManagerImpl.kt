@@ -2,18 +2,17 @@ package com.jabook.app.core.torrent
 
 import com.jabook.app.core.domain.model.DownloadProgress
 import com.jabook.app.core.domain.model.TorrentHandle
-import com.jabook.app.core.storage.FileManager
 import com.jabook.app.shared.debug.IDebugLogger
-import javax.inject.Inject
-import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flowOf
+import javax.inject.Inject
+import javax.inject.Singleton
 
 @Singleton
-class TorrentManagerImpl @Inject constructor(private val fileManager: FileManager, private val debugLogger: IDebugLogger) : TorrentManager {
+class TorrentManagerImpl @Inject constructor(private val debugLogger: IDebugLogger) : TorrentManager {
 
     private val _downloadStates = MutableStateFlow<Map<String, DownloadProgress>>(emptyMap())
     override val downloadStates: StateFlow<Map<String, DownloadProgress>> = _downloadStates.asStateFlow()

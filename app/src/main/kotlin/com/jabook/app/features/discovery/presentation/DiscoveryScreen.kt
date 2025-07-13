@@ -34,7 +34,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -62,17 +61,13 @@ fun DiscoveryScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val keyboardController = LocalSoftwareKeyboardController.current
-    val coroutineScope = rememberCoroutineScope()
-
     val lazyListState = rememberLazyListState()
 
-    // Handle infinite scroll
     val shouldLoadNextPage by remember {
         derivedStateOf {
             val layoutInfo = lazyListState.layoutInfo
             val totalItemsNumber = layoutInfo.totalItemsCount
             val lastVisibleItemIndex = (layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0) + 1
-
             lastVisibleItemIndex > (totalItemsNumber - 5) &&
                 uiState.isSearchActive &&
                 !uiState.isLoading &&
@@ -81,12 +76,8 @@ fun DiscoveryScreen(
     }
 
     LaunchedEffect(shouldLoadNextPage) {
-        if (shouldLoadNextPage) {
-            viewModel.loadNextPage()
-        }
+        if (shouldLoadNextPage) viewModel.loadNextPage()
     }
-
-    // Handle error messages
     LaunchedEffect(uiState.errorMessage) {
         uiState.errorMessage?.let { message ->
             snackbarHostState.showSnackbar(message)
@@ -116,7 +107,6 @@ fun DiscoveryScreen(
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                // Search Bar
                 item {
                     SearchBar(
                         query = uiState.searchQuery,
@@ -129,8 +119,6 @@ fun DiscoveryScreen(
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
-
-                // Category Filters
                 if (uiState.categories.isNotEmpty()) {
                     item {
                         CategoryFilters(
@@ -141,81 +129,42 @@ fun DiscoveryScreen(
                         )
                     }
                 }
-
-                // Search Results
-                if (uiState.isSearchActive) {
-                    if (uiState.searchResults.isEmpty() && !uiState.isLoading) {
-                        item {
-                            JaBookEmptyState(
-                                state = EmptyStateType.EmptySearch,
-                                title = stringResource(R.string.no_search_results),
-                                subtitle = stringResource(R.string.try_different_search_terms),
-                                modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp),
-                            )
-                        }
-                    } else {
-                        items(uiState.searchResults) { audiobook ->
-                            AudiobookSearchResultCard(
-                                audiobook = audiobook,
-                                onClick = { onNavigateToAudiobook(audiobook) },
-                                modifier = Modifier.fillMaxWidth(),
-                            )
-                        }
-                    }
-                } else {
-                    // Trending Section
-                    if (uiState.trendingAudiobooks.isNotEmpty()) {
-                        item {
-                            AudiobookSection(
-                                title = stringResource(R.string.trending_audiobooks),
-                                audiobooks = uiState.trendingAudiobooks,
-                                onAudiobookClick = onNavigateToAudiobook,
-                                modifier = Modifier.fillMaxWidth(),
-                            )
-                        }
-                    }
-
-                    // Recently Added Section
-                    if (uiState.recentlyAdded.isNotEmpty()) {
-                        item {
-                            AudiobookSection(
-                                title = stringResource(R.string.recently_added),
-                                audiobooks = uiState.recentlyAdded,
-                                onAudiobookClick = onNavigateToAudiobook,
-                                modifier = Modifier.fillMaxWidth(),
-                            )
-                        }
-                    }
-
-                    // Empty state when no data is available
-                    if (uiState.trendingAudiobooks.isEmpty() && uiState.recentlyAdded.isEmpty() && !uiState.isLoading) {
-                        item {
-                            JaBookEmptyState(
-                                state = EmptyStateType.NetworkError,
-                                title = stringResource(R.string.no_content_available),
-                                subtitle = stringResource(R.string.check_internet_connection),
-                                modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp),
-                            )
-                        }
-                    }
+                item {
+                    SearchResultsSection(
+                        uiState = uiState,
+                        onNavigateToAudiobook = onNavigateToAudiobook
+                    )
                 }
-
-                // Loading indicator for pagination
-                if (uiState.isLoading && uiState.isSearchActive && uiState.searchResults.isNotEmpty()) {
-                    item {
-                        Box(modifier = Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator()
-                        }
-                    }
+                item {
+                    TrendingSection(
+                        trendingAudiobooks = uiState.trendingAudiobooks,
+                        onAudiobookClick = onNavigateToAudiobook
+                    )
+                }
+                item {
+                    RecentlyAddedSection(
+                        recentlyAdded = uiState.recentlyAdded,
+                        onAudiobookClick = onNavigateToAudiobook
+                    )
+                }
+                item {
+                    EmptyStateSection(
+                        uiState = uiState
+                    )
+                }
+                item {
+                    PaginationLoader(
+                        isLoading = uiState.isLoading,
+                        isSearchActive = uiState.isSearchActive,
+                        hasResults = uiState.searchResults.isNotEmpty()
+                    )
                 }
             }
-
-            // Main loading indicator
-            if (uiState.isLoading && (!uiState.isSearchActive || uiState.searchResults.isEmpty())) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
-            }
-
-            // Refresh functionality handled through top bar button
+            MainLoader(
+                isLoading = uiState.isLoading,
+                isSearchActive = uiState.isSearchActive,
+                hasResults = uiState.searchResults.isNotEmpty()
+            )
         }
     }
 }
@@ -299,8 +248,100 @@ private fun AudiobookSection(
 
         LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp), contentPadding = PaddingValues(horizontal = 4.dp)) {
             items(audiobooks) { audiobook ->
-                AudiobookSectionCard(audiobook = audiobook, onClick = { onAudiobookClick(audiobook) }, modifier = Modifier.width(180.dp))
+                AudiobookSectionCard(audiobook = audiobook, onClick = {
+                    onAudiobookClick(audiobook)
+                }, modifier = Modifier.width(180.dp))
             }
         }
+    }
+}
+
+@Composable
+private fun SearchResultsSection(
+    uiState: DiscoveryUiState,
+    onNavigateToAudiobook: (RuTrackerAudiobook) -> Unit
+) {
+    if (uiState.isSearchActive) {
+        if (uiState.searchResults.isEmpty() && !uiState.isLoading) {
+            JaBookEmptyState(
+                state = EmptyStateType.EmptySearch,
+                title = stringResource(R.string.no_search_results),
+                subtitle = stringResource(R.string.try_different_search_terms),
+                modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp),
+            )
+        } else {
+            Column {
+                uiState.searchResults.forEach { audiobook ->
+                    AudiobookSearchResultCard(
+                        audiobook = audiobook,
+                        onClick = { onNavigateToAudiobook(audiobook) },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TrendingSection(
+    trendingAudiobooks: List<RuTrackerAudiobook>,
+    onAudiobookClick: (RuTrackerAudiobook) -> Unit
+) {
+    if (trendingAudiobooks.isNotEmpty()) {
+        AudiobookSection(
+            title = stringResource(R.string.trending_audiobooks),
+            audiobooks = trendingAudiobooks,
+            onAudiobookClick = onAudiobookClick,
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+}
+
+@Composable
+private fun RecentlyAddedSection(
+    recentlyAdded: List<RuTrackerAudiobook>,
+    onAudiobookClick: (RuTrackerAudiobook) -> Unit
+) {
+    if (recentlyAdded.isNotEmpty()) {
+        AudiobookSection(
+            title = stringResource(R.string.recently_added),
+            audiobooks = recentlyAdded,
+            onAudiobookClick = onAudiobookClick,
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+}
+
+@Composable
+private fun EmptyStateSection(uiState: DiscoveryUiState) {
+    val shouldShowEmptyState = !uiState.isSearchActive &&
+        uiState.trendingAudiobooks.isEmpty() &&
+        uiState.recentlyAdded.isEmpty() &&
+        !uiState.isLoading
+
+    if (shouldShowEmptyState) {
+        JaBookEmptyState(
+            state = EmptyStateType.NetworkError,
+            title = stringResource(R.string.no_content_available),
+            subtitle = stringResource(R.string.check_internet_connection),
+            modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp),
+        )
+    }
+}
+
+@Composable
+private fun PaginationLoader(isLoading: Boolean, isSearchActive: Boolean, hasResults: Boolean) {
+    if (isLoading && isSearchActive && hasResults) {
+        Box(modifier = Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator()
+        }
+    }
+}
+
+@Composable
+private fun MainLoader(isLoading: Boolean, isSearchActive: Boolean, hasResults: Boolean) {
+    if (isLoading && (!isSearchActive || !hasResults)) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
     }
 }

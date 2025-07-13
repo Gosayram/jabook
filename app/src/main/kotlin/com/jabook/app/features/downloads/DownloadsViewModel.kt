@@ -8,7 +8,6 @@ import com.jabook.app.core.domain.repository.TorrentRepository
 import com.jabook.app.core.torrent.TorrentManager
 import com.jabook.app.shared.debug.IDebugLogger
 import dagger.hilt.android.lifecycle.HiltViewModel
-import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -17,6 +16,7 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 @HiltViewModel
 class DownloadsViewModel
@@ -47,15 +47,15 @@ constructor(
 
     val uiState: StateFlow<DownloadsUiState> =
         combine(activeDownloads, completedDownloads, failedDownloads, isLoading, errorMessage, selectedTab) { states ->
-                DownloadsUiState(
-                    activeDownloads = states[0] as List<DownloadProgress>,
-                    completedDownloads = states[1] as List<DownloadProgress>,
-                    failedDownloads = states[2] as List<DownloadProgress>,
-                    isLoading = states[3] as Boolean,
-                    errorMessage = states[4] as String?,
-                    selectedTab = states[5] as DownloadsTab,
-                )
-            }
+            DownloadsUiState(
+                activeDownloads = states[0] as List<DownloadProgress>,
+                completedDownloads = states[1] as List<DownloadProgress>,
+                failedDownloads = states[2] as List<DownloadProgress>,
+                isLoading = states[3] as Boolean,
+                errorMessage = states[4] as String?,
+                selectedTab = states[5] as DownloadsTab,
+            )
+        }
             .stateIn(scope = viewModelScope, started = SharingStarted.WhileSubscribed(5000), initialValue = DownloadsUiState())
 
     init {

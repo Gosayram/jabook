@@ -11,14 +11,14 @@ import java.util.Date
 @Entity(
     tableName = "bookmarks",
     foreignKeys =
-        [
-            ForeignKey(
-                entity = AudiobookEntity::class,
-                parentColumns = ["id"],
-                childColumns = ["audiobook_id"],
-                onDelete = ForeignKey.CASCADE,
-            )
-        ],
+    [
+        ForeignKey(
+            entity = AudiobookEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["audiobook_id"],
+            onDelete = ForeignKey.CASCADE,
+        )
+    ],
     indices = [Index(value = ["audiobook_id"]), Index(value = ["position_ms"])],
 )
 data class BookmarkEntity(

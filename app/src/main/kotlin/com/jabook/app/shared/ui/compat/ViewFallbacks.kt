@@ -55,21 +55,21 @@ object ViewFallbacks {
                             title = title,
                             subtitle = subtitle,
                             actionButton =
-                                if (actionButton != null) {
-                                    {
-                                        JaBookButton(
-                                            text =
-                                                when (state) {
-                                                    EmptyStateType.NetworkError -> "Повторить"
-                                                    EmptyStateType.GeneralError -> "Попробовать снова"
-                                                    else -> "Обновить"
-                                                },
-                                            onClick = actionButton,
-                                        )
-                                    }
-                                } else {
-                                    null
-                                },
+                            if (actionButton != null) {
+                                {
+                                    JaBookButton(
+                                        text =
+                                        when (state) {
+                                            EmptyStateType.NetworkError -> "Повторить"
+                                            EmptyStateType.GeneralError -> "Попробовать снова"
+                                            else -> "Обновить"
+                                        },
+                                        onClick = actionButton,
+                                    )
+                                }
+                            } else {
+                                null
+                            },
                         )
                     }
                 }
