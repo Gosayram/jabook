@@ -1,29 +1,46 @@
 # JaBook
 
-Modern audiobook player for Android devices, designed as a successor to discontinued audiobook applications. Built with Kotlin 2.2.x and featuring seamless RuTracker.net integration for discovering and downloading audiobooks via torrent protocol.
+[![Kotlin](https://img.shields.io/badge/Kotlin-2.2.0-blue.svg)](https://kotlinlang.org/)
+[![Android](https://img.shields.io/badge/Android-6.0%2B-green.svg)](https://developer.android.com/)
+[![License](https://img.shields.io/badge/License-Apache%202.0-green.svg)](LICENSE)
+
+Modern audiobook player for Android devices with RuTracker.net integration. Built with Kotlin 2.2.x, Jetpack Compose, and Material Design 3. Supports Android 6.0+ (API 23-34) with comprehensive offline-first architecture.
 
 ## Table of Contents
 
-- [Features](#features)
-- [Getting Started](#getting-started)
-- [Usage](#usage)
-- [Gradle Tasks](#gradle-tasks)
-- [Testing & Quality](#testing--quality)
-- [Architecture](#architecture)
-- [Contributing](#contributing)
-- [License](#license)
-- [Changelog](#changelog)
+- [JaBook](#jabook)
+  - [Table of Contents](#table-of-contents)
+  - [Features](#features)
+  - [Getting Started](#getting-started)
+    - [Prerequisites](#prerequisites)
+    - [Quick Install](#quick-install)
+  - [Usage](#usage)
+    - [Basic Operations](#basic-operations)
+    - [Main Features](#main-features)
+  - [Gradle Tasks](#gradle-tasks)
+    - [APK Build Tasks](#apk-build-tasks)
+  - [Testing \& Quality](#testing--quality)
+  - [Architecture](#architecture)
+    - [Technology Stack](#technology-stack)
+    - [Module Structure](#module-structure)
+    - [Supported Android Versions](#supported-android-versions)
+  - [Contributing](#contributing)
+    - [Code Style](#code-style)
+  - [License](#license)
+  - [Changelog](#changelog)
 
 ## Features
 
-- **Modern Material Design 3** user interface with dynamic theming
+- **Modern Material Design 3** with dynamic theming (light/dark/auto)
 - **RuTracker.net integration** for audiobook discovery and downloading
-- **Torrent-based downloading** with smart file extraction
-- **ExoPlayer integration** for high-quality audio playback
+- **Torrent-based downloading** with smart file extraction and progress tracking
+- **ExoPlayer integration** for high-quality audio playback with chapter navigation
 - **Offline-first architecture** for uninterrupted listening experience
-- **Smart library management** with automatic metadata extraction
+- **Smart library management** with automatic metadata extraction and organization
 - **Universal Android support** - works on all devices (API 23-34)
 - **Privacy-focused** - no analytics or external tracking
+- **Advanced player features** - sleep timer, playback speed control, bookmarks
+- **Comprehensive download management** with pause/resume capabilities
 
 ## Getting Started
 
@@ -37,7 +54,7 @@ Modern audiobook player for Android devices, designed as a successor to disconti
 
 ```bash
 # Clone the repository
-git clone <repository-url>
+git clone https://github.com/Gosayram/jabook.git
 cd jabook
 
 # Build the application
@@ -54,40 +71,43 @@ cd jabook
 
 ### Basic Operations
 
-```kotlin
-// Launch the application
+```bash
+# Launch the application
 adb shell am start -n com.jabook.app/.MainActivity
 
-// Install APK directly
+# Install APK directly
 adb install app/build/outputs/apk/debug/app-debug.apk
+
+# Build APK with timestamp
+./gradlew buildApk
 ```
 
 ### Main Features
 
-1. **Library Management**: Organize and browse your audiobook collection
-2. **Discovery**: Search and download audiobooks from RuTracker.net
-3. **Player**: Advanced audio playback with chapter navigation
-4. **Downloads**: Monitor and manage torrent downloads
+1. **Library Management**: Organize and browse your audiobook collection with smart filtering
+2. **Discovery**: Search and download audiobooks from RuTracker.net with real-time updates
+3. **Player**: Advanced audio playback with chapter navigation, sleep timer, and speed control
+4. **Downloads**: Monitor and manage torrent downloads with pause/resume functionality
 
 ## Gradle Tasks
 
-| Task | Description |
-|------|-------------|
-| `./gradlew build` | Build the application |
-| `./gradlew test` | Run unit tests |
-| `./gradlew check-all` | Run all quality checks (lint, detekt, tests) |
-| `./gradlew ktlintCheck` | Check Kotlin code style |
-| `./gradlew detekt` | Run static code analysis |
-| `./gradlew installDebug` | Install debug APK on device |
-| `./gradlew clean` | Clean build artifacts |
+| Task                     | Description                                  |
+| ------------------------ | -------------------------------------------- |
+| `./gradlew build`        | Build the application                        |
+| `./gradlew test`         | Run unit tests                               |
+| `./gradlew check-all`    | Run all quality checks (lint, detekt, tests) |
+| `./gradlew ktlintCheck`  | Check Kotlin code style                      |
+| `./gradlew detekt`       | Run static code analysis                     |
+| `./gradlew installDebug` | Install debug APK on device                  |
+| `./gradlew clean`        | Clean build artifacts                        |
 
 ### APK Build Tasks
 
-| Task | Description |
-|------|-------------|
-| `./gradlew buildApk` | Build debug APK to `bin/` |
+| Task                        | Description                 |
+| --------------------------- | --------------------------- |
+| `./gradlew buildApk`        | Build debug APK to `bin/`   |
 | `./gradlew buildReleaseApk` | Build release APK to `bin/` |
-| `./gradlew cleanBin` | Clean `bin/` directory |
+| `./gradlew cleanBin`        | Clean `bin/` directory      |
 
 APK files are saved to `bin/` directory with timestamps in filenames.
 
@@ -127,6 +147,7 @@ Quality tools configured:
 - **Audio**: ExoPlayer (Media3)
 - **Networking**: Retrofit2 + OkHttp3
 - **Image Loading**: Coil
+- **State Management**: Kotlin Flow and StateFlow
 
 ### Module Structure
 
