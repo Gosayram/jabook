@@ -13,7 +13,7 @@ import javax.inject.Singleton
 @Singleton
 class AudioFocusManager @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val debugLogger: IDebugLogger
+    private val debugLogger: IDebugLogger,
 ) {
     private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
     private var audioFocusRequest: AudioFocusRequest? = null
@@ -42,7 +42,7 @@ class AudioFocusManager @Inject constructor(
             audioManager.requestAudioFocus(
                 listener,
                 AudioManager.STREAM_MUSIC,
-                AudioManager.AUDIOFOCUS_GAIN
+                AudioManager.AUDIOFOCUS_GAIN,
             )
         }
 

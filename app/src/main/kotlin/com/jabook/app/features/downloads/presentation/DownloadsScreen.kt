@@ -57,13 +57,14 @@ import com.jabook.app.shared.ui.ThemeViewModel
 import com.jabook.app.shared.ui.components.EmptyStateType
 import com.jabook.app.shared.ui.components.JaBookEmptyState
 import com.jabook.app.shared.ui.components.ThemeToggleButton
+import com.jabook.app.shared.ui.components.getDynamicVerticalPadding
 
 data class DownloadsEmptyState(val type: EmptyStateType, val title: String, val subtitle: String)
 data class DownloadsActions(
     val onPause: (String) -> Unit,
     val onResume: (String) -> Unit,
     val onCancel: (String) -> Unit,
-    val onRetry: (com.jabook.app.core.domain.model.DownloadProgress) -> Unit
+    val onRetry: (com.jabook.app.core.domain.model.DownloadProgress) -> Unit,
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -72,7 +73,7 @@ fun DownloadsScreen(
     modifier: Modifier = Modifier,
     viewModel: DownloadsViewModel = hiltViewModel(),
     themeViewModel: ThemeViewModel,
-    themeMode: AppThemeMode
+    themeMode: AppThemeMode,
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -110,7 +111,7 @@ fun DownloadsScreen(
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { paddingValues ->
-        Column(modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 20.dp)) {
+        Column(modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = getDynamicVerticalPadding())) {
             // Tab Row
             DownloadsTabRow(
                 selectedTab = uiState.selectedTab,
@@ -133,7 +134,7 @@ fun DownloadsScreen(
                             emptyState = DownloadsEmptyState(
                                 EmptyStateType.EmptyDownloads,
                                 stringResource(R.string.no_active_downloads),
-                                stringResource(R.string.start_downloading_discovery)
+                                stringResource(R.string.start_downloading_discovery),
                             ),
                             actions = DownloadsActions({
                                 viewModel.pauseDownload(it)
@@ -148,7 +149,7 @@ fun DownloadsScreen(
                             emptyState = DownloadsEmptyState(
                                 EmptyStateType.EmptyDownloads,
                                 stringResource(R.string.no_completed_downloads),
-                                stringResource(R.string.completed_downloads_appear_here)
+                                stringResource(R.string.completed_downloads_appear_here),
                             ),
                             actions = DownloadsActions({
                                 viewModel.pauseDownload(it)
@@ -163,7 +164,7 @@ fun DownloadsScreen(
                             emptyState = DownloadsEmptyState(
                                 EmptyStateType.GeneralError,
                                 stringResource(R.string.no_failed_downloads),
-                                stringResource(R.string.great_no_download_errors)
+                                stringResource(R.string.great_no_download_errors),
                             ),
                             actions = DownloadsActions({
                                 viewModel.pauseDownload(it)
@@ -246,7 +247,7 @@ private fun DownloadsList(
 @Composable
 private fun DownloadListItem(
     download: com.jabook.app.core.domain.model.DownloadProgress,
-    actions: DownloadsActions
+    actions: DownloadsActions,
 ) {
     val dismissState = rememberDismissState(
         confirmStateChange = { value ->
@@ -265,7 +266,7 @@ private fun DownloadListItem(
                 }
                 else -> false
             }
-        }
+        },
     )
     SwipeToDismiss(
         state = dismissState,

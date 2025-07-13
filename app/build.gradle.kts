@@ -44,7 +44,7 @@ android {
             if (keystorePropertiesFile.exists()) {
                 keyAlias = keystoreProperties["keyAlias"]?.toString()
                 keyPassword = keystoreProperties["keyPassword"]?.toString()
-                storeFile = file(keystoreProperties["storeFile"]?.toString())
+                storeFile = keystoreProperties["storeFile"]?.toString()?.let { file(it) }
                 storePassword = keystoreProperties["storePassword"]?.toString()
             }
         }
@@ -146,6 +146,9 @@ dependencies {
     // JSON processing
     implementation("com.google.code.gson:gson:2.11.0")
 
+    // HTML parsing
+    implementation("org.jsoup:jsoup:1.17.2")
+
     // File processing and compression
     implementation("org.apache.commons:commons-compress:1.27.1")
 
@@ -172,7 +175,9 @@ dependencies {
     implementation("androidx.datastore:datastore-preferences:1.1.1")
 }
 
-tasks.register("check-all") { dependsOn("detekt", "testDebugUnitTest", "assembleDebug", "jacocoTestReport") }
+tasks.register("check-all") {
+    dependsOn("detekt", "testDebugUnitTest", "assembleDebug", "jacocoTestReport", "lint")
+}
 
 // Configure test task for Android
 android.testOptions {

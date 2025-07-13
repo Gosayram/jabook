@@ -51,7 +51,7 @@ class PerformanceProfiler @Inject constructor(private val debugLogger: IDebugLog
         val memoryUsagePercent = (usedMemory.toFloat() / maxMemory.toFloat() * 100).toInt()
 
         debugLogger.logInfo(
-            "PerformanceProfiler: Memory: ${usedMemory}MB/${maxMemory}MB ($memoryUsagePercent%), " + "Recompositions: $recompositionCount"
+            "PerformanceProfiler: Memory: ${usedMemory}MB/${maxMemory}MB ($memoryUsagePercent%), " + "Recompositions: $recompositionCount",
         )
 
         // Warn if memory usage is high

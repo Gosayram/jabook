@@ -66,7 +66,7 @@ class TorrentManagerImpl @Inject constructor(private val debugLogger: IDebugLogg
                 status = com.jabook.app.core.domain.model.TorrentStatus.DOWNLOADING,
                 seeders = 5,
                 leechers = 2,
-            )
+            ),
         )
     }
 

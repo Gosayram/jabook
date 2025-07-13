@@ -1,17 +1,12 @@
 package com.jabook.app.core.di
 
 import com.jabook.app.BuildConfig
-import com.jabook.app.core.network.RuTrackerApi
-import com.jabook.app.core.network.RuTrackerParser
-import com.jabook.app.core.network.RuTrackerParserImpl
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
-import retrofit2.Retrofit
-import retrofit2.converter.scalars.ScalarsConverterFactory
 import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
 
@@ -41,27 +36,5 @@ object NetworkModule {
             .readTimeout(30, TimeUnit.SECONDS)
             .writeTimeout(30, TimeUnit.SECONDS)
             .build()
-    }
-
-    @Provides
-    @Singleton
-    fun provideRetrofit(okHttpClient: OkHttpClient): Retrofit {
-        return Retrofit.Builder()
-            .baseUrl("https://rutracker.org/")
-            .client(okHttpClient)
-            .addConverterFactory(ScalarsConverterFactory.create())
-            .build()
-    }
-
-    @Provides
-    @Singleton
-    fun provideRuTrackerApi(retrofit: Retrofit): RuTrackerApi {
-        return retrofit.create(RuTrackerApi::class.java)
-    }
-
-    @Provides
-    @Singleton
-    fun provideRuTrackerParser(): RuTrackerParser {
-        return RuTrackerParserImpl()
     }
 }

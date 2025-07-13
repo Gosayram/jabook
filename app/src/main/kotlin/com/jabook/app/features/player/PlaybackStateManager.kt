@@ -11,7 +11,7 @@ class PlaybackStateManager @Inject constructor() {
     fun createPlaybackState(
         player: ExoPlayer?,
         sleepTimerRemaining: Long,
-        error: String? = null
+        error: String? = null,
     ): PlaybackState {
         return if (player != null) {
             PlaybackState(

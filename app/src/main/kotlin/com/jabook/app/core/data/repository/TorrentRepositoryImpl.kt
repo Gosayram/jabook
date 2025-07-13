@@ -18,7 +18,7 @@ class TorrentRepositoryImpl @Inject constructor(private val torrentManager: Torr
 
     override suspend fun addTorrent(magnetUri: String, audiobookId: String, downloadPath: String): Flow<TorrentHandle> {
         return flowOf(
-            TorrentHandle(torrentId = "mock_torrent_id", magnetUri = magnetUri, title = "Mock Torrent", status = TorrentStatus.DOWNLOADING)
+            TorrentHandle(torrentId = "mock_torrent_id", magnetUri = magnetUri, title = "Mock Torrent", status = TorrentStatus.DOWNLOADING),
         )
     }
 
@@ -36,7 +36,7 @@ class TorrentRepositoryImpl @Inject constructor(private val torrentManager: Torr
                 status = TorrentStatus.DOWNLOADING,
                 seeders = 5,
                 leechers = 2,
-            )
+            ),
         )
     }
 

@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.jabook.app.core.domain.model.RuTrackerAudiobook
 import com.jabook.app.core.domain.model.RuTrackerCategory
 import com.jabook.app.core.domain.repository.RuTrackerRepository
+import com.jabook.app.core.network.RuTrackerPreferences
 import com.jabook.app.shared.debug.IDebugLogger
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -18,8 +19,11 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
-class DiscoveryViewModel @Inject constructor(private val ruTrackerRepository: RuTrackerRepository, private val debugLogger: IDebugLogger) :
-    ViewModel() {
+class DiscoveryViewModel @Inject constructor(
+    private val ruTrackerRepository: RuTrackerRepository,
+    private val debugLogger: IDebugLogger,
+    private val ruTrackerPreferences: RuTrackerPreferences,
+) : ViewModel() {
 
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
@@ -54,6 +58,12 @@ class DiscoveryViewModel @Inject constructor(private val ruTrackerRepository: Ru
     private val _isSearchActive = MutableStateFlow(false)
     val isSearchActive: StateFlow<Boolean> = _isSearchActive.asStateFlow()
 
+    val isGuestMode: StateFlow<Boolean> = ruTrackerPreferences.getGuestModeFlow().stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = true,
+    )
+
     val uiState: StateFlow<DiscoveryUiState> =
         combine(
             searchQuery,
@@ -67,6 +77,7 @@ class DiscoveryViewModel @Inject constructor(private val ruTrackerRepository: Ru
             recentlyAdded,
             errorMessage,
             isSearchActive,
+            isGuestMode, // добавляем
         ) { states ->
             DiscoveryUiState(
                 searchQuery = states[0] as String,
@@ -80,6 +91,7 @@ class DiscoveryViewModel @Inject constructor(private val ruTrackerRepository: Ru
                 recentlyAdded = states[8] as List<RuTrackerAudiobook>,
                 errorMessage = states[9] as String?,
                 isSearchActive = states[10] as Boolean,
+                isGuestMode = states[11] as Boolean,
             )
         }
             .stateIn(scope = viewModelScope, started = SharingStarted.WhileSubscribed(5000), initialValue = DiscoveryUiState())
@@ -255,4 +267,5 @@ data class DiscoveryUiState(
     val recentlyAdded: List<RuTrackerAudiobook> = emptyList(),
     val errorMessage: String? = null,
     val isSearchActive: Boolean = false,
+    val isGuestMode: Boolean = true,
 )

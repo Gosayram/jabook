@@ -21,7 +21,7 @@ class MediaItemManager @Inject constructor() {
                         .setTitle(chapter.title)
                         .setTrackNumber(index + 1)
                         .setTotalTrackCount(chapters.size)
-                        .build()
+                        .build(),
                 )
                 .build()
         }

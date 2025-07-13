@@ -28,8 +28,8 @@ class ThemeViewModel(app: Application) : AndroidViewModel(app) {
             val prefs = app.dataStore.data.first()
             _themeMode.value = when {
                 prefs[useSystemKey] == true -> AppThemeMode.SYSTEM
-                prefs[themeModeKey] == true -> AppThemeMode.DARK
-                else -> AppThemeMode.LIGHT
+                prefs.contains(themeModeKey) -> if (prefs[themeModeKey] == true) AppThemeMode.DARK else AppThemeMode.LIGHT
+                else -> AppThemeMode.SYSTEM
             }
         }
     }

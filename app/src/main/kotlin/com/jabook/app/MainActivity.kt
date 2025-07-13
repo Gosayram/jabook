@@ -39,11 +39,11 @@ class MainActivity : ComponentActivity() {
                     AppThemeMode.SYSTEM -> isSystemInDarkTheme()
                     AppThemeMode.DARK -> true
                     AppThemeMode.LIGHT -> false
-                }
+                },
             ) {
                 JaBookApp(
                     themeViewModel = themeViewModel,
-                    themeMode = themeMode
+                    themeMode = themeMode,
                 )
             }
         }
@@ -53,20 +53,20 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun JaBookApp(
     themeViewModel: ThemeViewModel,
-    themeMode: AppThemeMode
+    themeMode: AppThemeMode,
 ) {
     val navController = rememberNavController()
 
     Surface(
         modifier = Modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background
+        color = MaterialTheme.colorScheme.background,
     ) {
         Scaffold { paddingValues ->
             JaBookNavigation(
                 navController = navController,
                 modifier = Modifier.padding(paddingValues),
                 themeViewModel = themeViewModel,
-                themeMode = themeMode
+                themeMode = themeMode,
             )
         }
     }
@@ -77,12 +77,12 @@ fun JaBookApp(
 fun JaBookAppPreview() {
     val context = LocalContext.current
     val previewThemeViewModel = viewModel<ThemeViewModel>(
-        factory = ViewModelProvider.AndroidViewModelFactory(context.applicationContext as android.app.Application)
+        factory = ViewModelProvider.AndroidViewModelFactory(context.applicationContext as android.app.Application),
     )
     JaBookTheme {
         JaBookApp(
             themeViewModel = previewThemeViewModel,
-            themeMode = AppThemeMode.SYSTEM
+            themeMode = AppThemeMode.SYSTEM,
         )
     }
 }

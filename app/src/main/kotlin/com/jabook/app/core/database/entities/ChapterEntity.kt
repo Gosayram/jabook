@@ -16,7 +16,7 @@ import androidx.room.PrimaryKey
             parentColumns = ["id"],
             childColumns = ["audiobook_id"],
             onDelete = ForeignKey.CASCADE,
-        )
+        ),
     ],
     indices = [Index(value = ["audiobook_id"]), Index(value = ["chapter_number"])],
 )

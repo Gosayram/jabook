@@ -94,7 +94,7 @@ fun PlayerProgressBar(
             if (bookmarkPositions.isNotEmpty() && duration > 0) {
                 val bookmarkColor = MaterialTheme.colorScheme.secondary
                 Canvas(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp) // Account for slider thumb
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp), // Account for slider thumb
                 ) {
                     drawBookmarkMarkers(
                         bookmarkPositions = bookmarkPositions,

@@ -51,7 +51,7 @@ interface ChapterDao {
         SET is_downloaded = :isDownloaded,
             download_progress = :progress
         WHERE id = :id
-    """
+    """,
     )
     suspend fun updateDownloadStatus(id: String, isDownloaded: Boolean, progress: Float)
 

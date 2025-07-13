@@ -18,6 +18,24 @@ import kotlinx.coroutines.flow.sample
 import javax.inject.Inject
 import javax.inject.Singleton
 
+private class SleepTimerDelegate(
+    private val sleepTimerManager: SleepTimerManager,
+    private val onTimerFinished: () -> Unit,
+    private val onStateChanged: () -> Unit,
+) {
+    fun setSleepTimer(minutes: Int) {
+        sleepTimerManager.setSleepTimer(minutes) {
+            onTimerFinished()
+            onStateChanged()
+        }
+    }
+    fun cancelSleepTimer() {
+        sleepTimerManager.cancelSleepTimer()
+        onStateChanged()
+    }
+    fun getSleepTimerRemaining(): Long = sleepTimerManager.getSleepTimerRemaining()
+}
+
 /** ExoPlayer implementation of PlayerManager interface Handles audiobook playback with Media3 ExoPlayer */
 @UnstableApi
 @Singleton
@@ -25,9 +43,9 @@ class PlayerManagerImpl @Inject constructor(
     @ApplicationContext private val context: Context,
     private val debugLogger: IDebugLogger,
     private val audioFocusManager: AudioFocusManager,
-    private val sleepTimerManager: SleepTimerManager,
+    sleepTimerManager: SleepTimerManager,
     private val mediaItemManager: MediaItemManager,
-    private val playbackStateManager: PlaybackStateManager
+    private val playbackStateManager: PlaybackStateManager,
 ) : PlayerManager, Player.Listener, AudioManager.OnAudioFocusChangeListener {
 
     private var exoPlayer: ExoPlayer? = null
@@ -36,6 +54,12 @@ class PlayerManagerImpl @Inject constructor(
     private var playWhenReady = false
 
     private val _playbackState = MutableStateFlow(PlaybackState())
+
+    private val sleepTimerDelegate = SleepTimerDelegate(
+        sleepTimerManager = sleepTimerManager,
+        onTimerFinished = { pause() },
+        onStateChanged = { updatePlaybackState() },
+    )
 
     override fun getExoPlayer(): ExoPlayer? = exoPlayer
 
@@ -71,7 +95,7 @@ class PlayerManagerImpl @Inject constructor(
                             filePath = audiobook.localAudioPath,
                             durationMs = audiobook.durationMs,
                             isDownloaded = audiobook.isDownloaded,
-                        )
+                        ),
                     )
                 } else {
                     emptyList()
@@ -113,7 +137,7 @@ class PlayerManagerImpl @Inject constructor(
     override fun stop() {
         debugLogger.logDebug("PlayerManagerImpl.stop called")
         exoPlayer?.stop()
-        sleepTimerManager.cancelSleepTimer()
+        sleepTimerDelegate.cancelSleepTimer()
         updatePlaybackState()
     }
 
@@ -145,19 +169,9 @@ class PlayerManagerImpl @Inject constructor(
         updatePlaybackState()
     }
 
-    override fun setSleepTimer(minutes: Int) {
-        debugLogger.logDebug("PlayerManagerImpl.setSleepTimer: $minutes minutes")
-        sleepTimerManager.setSleepTimer(minutes) {
-            pause()
-            updatePlaybackState()
-        }
-    }
-
-    override fun cancelSleepTimer() {
-        debugLogger.logDebug("PlayerManagerImpl.cancelSleepTimer called")
-        sleepTimerManager.cancelSleepTimer()
-        updatePlaybackState()
-    }
+    override fun setSleepTimer(minutes: Int) = sleepTimerDelegate.setSleepTimer(minutes)
+    override fun cancelSleepTimer() = sleepTimerDelegate.cancelSleepTimer()
+    override fun getSleepTimerRemaining(): Long = sleepTimerDelegate.getSleepTimerRemaining()
 
     override fun getPlaybackState(): Flow<PlaybackState> {
         return _playbackState
@@ -195,14 +209,10 @@ class PlayerManagerImpl @Inject constructor(
         return exoPlayer?.playbackParameters?.speed ?: 1.0f
     }
 
-    override fun getSleepTimerRemaining(): Long {
-        return sleepTimerManager.getSleepTimerRemaining()
-    }
-
     override fun release() {
         debugLogger.logDebug("PlayerManagerImpl.release called")
 
-        sleepTimerManager.cancelSleepTimer()
+        sleepTimerDelegate.cancelSleepTimer()
         audioFocusManager.abandonAudioFocus()
         exoPlayer?.removeListener(this)
         exoPlayer?.release()
@@ -235,7 +245,7 @@ class PlayerManagerImpl @Inject constructor(
         updatePlaybackState()
     }
 
-    /** Handle audio focus changes */
+    // AudioManager.OnAudioFocusChangeListener implementation
     override fun onAudioFocusChange(focusChange: Int) {
         debugLogger.logDebug("Audio focus change: $focusChange")
 
@@ -272,7 +282,7 @@ class PlayerManagerImpl @Inject constructor(
         val state = playbackStateManager.createPlaybackState(
             player = exoPlayer,
             sleepTimerRemaining = getSleepTimerRemaining(),
-            error = error
+            error = error,
         )
         _playbackState.value = state
     }

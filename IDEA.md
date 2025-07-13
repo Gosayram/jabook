@@ -1,55 +1,62 @@
-# JaBook - Modern Audiobook Player for Android
+# JaBook - Android Audiobook Player
 
 ## Project Overview
 
-JaBook is a modern Android application for audiobook listening, designed as a successor to the discontinued "аудиокниги-торрент" application. Built with Kotlin 2.2.x and targeting Android devices, it provides seamless integration with RuTracker.net for discovering and downloading audiobooks via torrent protocol.
-
-## Table of Contents
-
-1. [Project Overview](#project-overview)
-2. [Core Features](#core-features)
-3. [Technical Architecture](#technical-architecture)
-4. [User Interface Design](#user-interface-design)
-5. [RuTracker Integration](#rutracker-integration)
-6. [Torrent Module](#torrent-module)
-7. [File Management](#file-management)
-8. [Debug & Logging](#debug--logging)
-9. [Development Roadmap](#development-roadmap)
+JaBook is a modern Android audiobook player designed as a successor to discontinued audiobook applications. The app provides seamless integration with RuTracker.net for discovering and downloading audiobooks via torrent protocol.
 
 ## Core Features
 
-### Primary Features
-- **Modern audiobook player** with intuitive controls
-- **RuTracker.net integration** for audiobook discovery
-- **Torrent-based downloading** with proper file extraction
-- **Smart library management** with metadata support
-- **Offline-first architecture** for uninterrupted listening
-- **Beautiful Material Design 3** user interface
+### 1. Audio Playback
+- **ExoPlayer Integration**: High-quality audio playback with Media3
+- **Chapter Navigation**: Seamless chapter-to-chapter playback
+- **Playback Controls**: Play, pause, seek, speed control (0.5x - 3.0x)
+- **Sleep Timer**: Automatic playback stop after specified time
+- **Background Playback**: MediaSession integration for system controls
+- **Audio Focus Management**: Proper handling of audio interruptions
 
-### Secondary Features
-- **Bookmarks and progress tracking**
-- **Sleep timer and playback speed control**
-- **Background playback** with notification controls
-- **Search and filtering** within library
-- **Categories and genre organization**
-- **Download queue management**
+### 2. Library Management
+- **Local Storage**: Organized audiobook collection with metadata
+- **Smart Filtering**: By author, category, download status, completion
+- **Search Functionality**: Full-text search across titles and authors
+- **Favorites System**: Mark and filter favorite audiobooks
+- **Progress Tracking**: Resume playback from last position
+
+### 3. RuTracker Integration
+- **Dual Mode Support**: Guest browsing + authenticated downloads
+- **Guest Mode**: Browse and view magnet links without registration
+- **Authenticated Mode**: Full access with user credentials
+- **Search & Discovery**: Advanced search with filters and sorting
+- **Category Browsing**: Navigate through audiobook categories
+- **Real-time Updates**: Live seeder/leecher information
+
+### 4. Download Management
+- **Torrent Engine**: LibTorrent4j integration for downloads
+- **Progress Tracking**: Real-time download progress and speed
+- **Queue Management**: Pause, resume, prioritize downloads
+- **File Extraction**: Automatic archive extraction and organization
+- **Storage Management**: Smart space allocation and cleanup
+
+### 5. User Interface
+- **Material Design 3**: Modern, adaptive UI with dynamic theming
+- **Dark/Light/Auto Themes**: System theme following with manual override
+- **Responsive Design**: Optimized for phones and tablets
+- **Accessibility**: Screen reader support and high contrast modes
+- **Animations**: Smooth transitions and micro-interactions
 
 ## Technical Architecture
 
 ### Technology Stack
-- **Language**: Kotlin 2.2.x
-- **Target SDK**: Android 14 (API 34)
-- **Minimum SDK**: Android 6.0 (API 23) - covers ~98% of devices
-- **Compile SDK**: Android 14 (API 34)
-- **Architecture**: MVVM with Clean Architecture
-- **DI**: Hilt/Dagger (with compatibility layer for older versions)
-- **Database**: Room with SQLite
-- **Networking**: Retrofit2 + OkHttp3
-- **UI**: Jetpack Compose with View fallbacks for older devices
-- **Coroutines**: kotlinx.coroutines for async operations
-- **Services**: Basic GMS/HMS compatibility for device support
+- **Language**: Kotlin 2.2.x targeting JVM 17
+- **UI Framework**: Jetpack Compose with Material Design 3
+- **Architecture**: MVVM with Clean Architecture principles
+- **Dependency Injection**: Hilt/Dagger
+- **Database**: Room with SQLite for local storage
+- **Audio**: ExoPlayer (Media3) for playback
+- **Networking**: Retrofit2 + OkHttp3 for API calls
+- **Image Loading**: Coil for cover art
+- **Torrent**: LibTorrent4j for download management
 
-### Core Modules
+### Module Structure
 ```
 app/
 ├── core/
@@ -57,7 +64,7 @@ app/
 │   ├── database/         # Room database entities
 │   ├── torrent/          # Torrent download engine
 │   ├── storage/          # File management
-│   └── compat/           # Compatibility layer for different Android versions
+│   └── compat/           # Android version compatibility
 ├── features/
 │   ├── library/          # Book library & organization
 │   ├── player/           # Audio player functionality
@@ -69,388 +76,275 @@ app/
     └── debug/            # Debug tools & logging
 ```
 
+### Data Flow
+1. **Discovery**: RuTracker API → Domain Models → UI
+2. **Download**: Torrent Engine → File Manager → Database
+3. **Playback**: Database → ExoPlayer → Audio Focus
+4. **Library**: Database → Repository → UI
 
+## RuTracker API Integration Plan
 
-### Gradle Configuration
+### Current Issues
+- Не работает получение данных с rutracker.net
+- Отсутствует поддержка аутентификации пользователей
+- Нет возможности просматривать magnet ссылки в гостевом режиме
+- Ограниченная функциональность поиска и фильтрации
+
+### Proposed Solution
+
+#### 1. Dual Mode Architecture
+- **Guest Mode**: Без регистрации, только просмотр и magnet ссылки
+- **Authenticated Mode**: Полный доступ с учетными данными пользователя
+
+#### 2. API Client Redesign
 ```kotlin
-android {
-    compileSdk 34
+interface RuTrackerApiClient {
+    // Guest mode operations
+    suspend fun searchGuest(query: String, category: String? = null): List<RuTrackerAudiobook>
+    suspend fun getCategoriesGuest(): List<RuTrackerCategory>
+    suspend fun getAudiobookDetailsGuest(topicId: String): RuTrackerAudiobook?
+    suspend fun getMagnetLinkGuest(topicId: String): String?
     
-    defaultConfig {
-        minSdk 23                    // Android 6.0 - wide device coverage
-        targetSdk 34                 // Latest stable Android
-        versionCode 1
-        versionName "0.1.0"
-        
-        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
-        vectorDrawables.useSupportLibrary = true
-    }
+    // Authenticated mode operations
+    suspend fun login(username: String, password: String): Boolean
+    suspend fun searchAuthenticated(query: String, sort: String = "seeds", order: String = "desc"): List<RuTrackerAudiobook>
+    suspend fun downloadTorrent(topicId: String): InputStream?
+    suspend fun getMagnetLinkAuthenticated(topicId: String): String?
+    suspend fun logout()
     
-    buildFeatures {
-        compose = true
-        viewBinding = true           // For legacy View fallbacks
-        buildConfig = true
-    }
-    
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
-    }
-    
-    kotlinOptions {
-        jvmTarget = "17"
-        freeCompilerArgs += listOf(
-            "-opt-in=kotlin.RequiresOptIn",
-            "-opt-in=kotlinx.coroutines.ExperimentalCoroutinesApi"
-        )
-    }
-}
-
-dependencies {
-    // Core Android dependencies
-    implementation("androidx.core:core-ktx:1.12.0")
-    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
-    implementation("androidx.activity:activity-compose:1.8.2")
-    implementation("androidx.compose.ui:ui:$compose_version")
-    implementation("androidx.compose.material3:material3:1.1.2")
-    
-    // Navigation & Architecture
-    implementation("androidx.navigation:navigation-compose:2.7.6")
-    implementation("androidx.hilt:hilt-navigation-compose:1.1.0")
-    implementation("com.google.dagger:hilt-android:2.48")
-    
-    // Database & Storage
-    implementation("androidx.room:room-runtime:2.6.1")
-    implementation("androidx.room:room-ktx:2.6.1")
-    
-    // Media & Audio
-    implementation("androidx.media3:media3-exoplayer:1.2.1")
-    implementation("androidx.media3:media3-ui:1.2.1")
-    
-    // Networking
-    implementation("com.squareup.retrofit2:retrofit:2.9.0")
-    implementation("com.squareup.okhttp3:okhttp:4.12.0")
-    
-    // Image loading
-    implementation("io.coil-kt:coil-compose:2.5.0")
+    // Common operations
+    fun isAuthenticated(): Boolean
+    fun getCurrentUser(): String?
 }
 ```
 
-## User Interface Design
-
-### Main Screens (Based on Reference App)
-
-#### 1. Library Screen
-- **Grid/List view** of audiobooks with covers
-- **Categories**: Фантастика, Детективы, Классика, etc.
-- **Search bar** for quick filtering
-- **Sort options**: by title, author, date added, progress
-
-#### 2. Player Screen
-- **Large cover art** display
-- **Playback controls**: play/pause, next/previous chapter
-- **Progress bar** with time indicators
-- **Chapter navigation**
-- **Speed control** (0.5x to 3.0x)
-- **Sleep timer** functionality
-
-#### 3. Discovery Screen (RuTracker Integration)
-- **Category browser** mirroring RuTracker structure
-- **Search functionality**
-- **Book details** with description, size, quality info
-- **Download button** with progress indicator
-
-#### 4. Downloads Screen
-- **Active downloads** with progress bars
-- **Download queue** management
-- **Completed downloads** status
-- **Storage usage** information
-
-## RuTracker Integration
-
-### Target Categories Analysis
-Based on RuTracker structure (https://rutracker.net/forum/index.php?c=33):
-
-#### Primary Categories:
-- **Художественная литература** (Fiction)
-  - Фантастика, фэнтези, мистика, ужасы, фанфики
-  - Детективы, триллеры, боевики
-  - Исторические романы
-  - Классическая литература
-  - Современная литература
-
-- **Познавательная литература** (Educational)
-  - Научно-популярная литература
-  - История, биографии
-  - Психология, философия
-
-- **Детская литература** (Children's Books)
-  - Сказки и детские книги
-  - Подростковая литература
-
-### Parser Implementation Strategy
-
+#### 3. User Preferences Management
 ```kotlin
-data class AudiobookInfo(
+interface RuTrackerPreferences {
+    suspend fun setCredentials(username: String, password: String)
+    suspend fun getCredentials(): Pair<String, String>?
+    suspend fun clearCredentials()
+    suspend fun setGuestMode(enabled: Boolean)
+    suspend fun isGuestMode(): Boolean
+}
+```
+
+#### 4. Enhanced Domain Models
+```kotlin
+data class RuTrackerAudiobook(
     val id: String,
     val title: String,
     val author: String,
-    val narrator: String?,
+    val narrator: String? = null,
     val description: String,
     val category: String,
-    val size: Long,
-    val duration: String?,
-    val quality: String,
-    val torrentUrl: String,
-    val coverUrl: String?,
+    val categoryId: String,
+    val year: Int? = null,
+    val quality: String? = null,
+    val duration: String? = null,
+    val size: String,
+    val sizeBytes: Long,
+    val magnetUri: String? = null, // Available in guest mode
+    val torrentUrl: String? = null, // Available in authenticated mode
     val seeders: Int,
-    val leechers: Int
+    val leechers: Int,
+    val completed: Int,
+    val addedDate: String,
+    val lastUpdate: String? = null,
+    val coverUrl: String? = null,
+    val rating: Float? = null,
+    val genreList: List<String> = emptyList(),
+    val tags: List<String> = emptyList(),
+    val isVerified: Boolean = false,
+    val state: TorrentState = TorrentState.APPROVED,
+    val downloads: Int = 0,
+    val registered: Date? = null
 )
 
+enum class TorrentState {
+    APPROVED,        // проверено
+    NOT_APPROVED,    // не проверено
+    NEED_EDIT,       // недооформлено
+    DUBIOUSLY,       // сомнительно
+    CONSUMED,        // поглощена
+    TEMPORARY        // временная
+}
+```
+
+#### 5. UI Components for Authentication
+- **Settings Screen**: Переключатель режимов и поля для учетных данных
+- **Login Dialog**: Модальное окно для ввода логина/пароля
+- **Mode Indicator**: Индикатор текущего режима в UI
+- **Authentication Status**: Отображение статуса авторизации
+
+#### 6. Implementation Phases
+
+**Phase 1: Guest Mode Implementation**
+- Реализовать базовый API клиент для гостевого режима
+- Добавить парсинг HTML страниц rutracker.net
+- Реализовать поиск и получение magnet ссылок
+- Добавить UI для переключения режимов
+
+**Phase 2: Authentication System**
+- Реализовать систему аутентификации с сохранением сессии
+- Добавить безопасное хранение учетных данных
+- Реализовать полный API для аутентифицированного режима
+- Добавить обработку ошибок авторизации
+
+**Phase 3: Enhanced Features**
+- Добавить расширенный поиск с фильтрами
+- Реализовать категории и подкатегории
+- Добавить статистику и рейтинги
+- Улучшить UI/UX для обоих режимов
+
+#### 7. Security Considerations
+- Шифрование сохраненных учетных данных
+- Безопасная передача данных через HTTPS
+- Обработка ошибок авторизации
+- Автоматический logout при ошибках
+
+#### 8. Error Handling
+- Network connectivity issues
+- Authentication failures
+- Rate limiting protection
+- Malformed response handling
+- User-friendly error messages
+
+### Implementation Details
+
+#### HTML Parsing Strategy
+```kotlin
 interface RuTrackerParser {
-    suspend fun getCategories(): List<Category>
-    suspend fun getAudiobooks(categoryId: String, page: Int): List<AudiobookInfo>
-    suspend fun searchAudiobooks(query: String): List<AudiobookInfo>
-    suspend fun getAudiobookDetails(id: String): AudiobookInfo
+    suspend fun parseSearchResults(html: String): List<RuTrackerAudiobook>
+    suspend fun parseAudiobookDetails(html: String): RuTrackerAudiobook?
+    suspend fun parseCategories(html: String): List<RuTrackerCategory>
+    suspend fun extractMagnetLink(html: String): String?
+    suspend fun extractTorrentLink(html: String): String?
+    suspend fun parseTorrentState(html: String): TorrentState
 }
 ```
 
-## Torrent Module
-
-### Core Functionality
-- **LibTorrent integration** for torrent downloading
-- **Smart file detection** (identify audio files from archives)
-- **Automatic extraction** of compressed audiobooks
-- **Download progress tracking**
-- **Bandwidth limiting** and scheduling
-
-### Implementation Approach
+#### Network Configuration
 ```kotlin
-interface TorrentManager {
-    suspend fun addTorrent(magnetUri: String): TorrentHandle
-    suspend fun pauseTorrent(torrentId: String)
-    suspend fun resumeTorrent(torrentId: String)
-    suspend fun removeTorrent(torrentId: String, deleteFiles: Boolean)
-    fun getTorrentProgress(torrentId: String): Flow<DownloadProgress>
-}
-
-data class DownloadProgress(
-    val torrentId: String,
-    val progress: Float,
-    val downloadSpeed: Long,
-    val uploadSpeed: Long,
-    val eta: Long,
-    val status: TorrentStatus
-)
-```
-
-## File Management
-
-### Storage Organization
-```
-/Android/data/com.jabook.app/files/
-├── audiobooks/
-│   ├── [AuthorName]/
-│   │   └── [BookTitle]/
-│   │       ├── metadata.json
-│   │       ├── cover.jpg
-│   │       └── audio/
-│   │           ├── chapter_01.mp3
-│   │           ├── chapter_02.mp3
-│   │           └── ...
-├── temp/                 # Temporary download files
-├── cache/               # Cached covers and metadata
-└── logs/                # Debug logs
-```
-
-### Metadata Management
-- **Automatic metadata extraction** from audio files
-- **Cover art downloading** and caching
-- **Progress persistence** across app restarts
-- **Bookmark synchronization**
-
-## Debug & Logging
-
-### Debug Features
-- **Comprehensive logging** with different log levels
-- **Network request/response logging**
-- **Torrent download debugging**
-- **Performance metrics** tracking
-- **Local crash logging** without external services
-
-### Debug Tools
-```kotlin
-object DebugLogger {
-    fun logNetworkRequest(request: String, response: String)
-    fun logTorrentEvent(event: TorrentEvent)
-    fun logPlaybackEvent(event: PlaybackEvent)
-    fun logError(error: Throwable, context: String)
-}
-
-// Debug panel for development
-interface DebugPanel {
-    fun showNetworkLogs()
-    fun showTorrentStats()
-    fun clearCache()
-    fun exportLogs()
+@Module
+@InstallIn(SingletonComponent::class)
+object RuTrackerNetworkModule {
+    @Provides
+    @Singleton
+    fun provideRuTrackerOkHttpClient(): OkHttpClient {
+        return OkHttpClient.Builder()
+            .addInterceptor(UserAgentInterceptor("JaBook/1.0"))
+            .addInterceptor(RateLimitInterceptor())
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .build()
+    }
 }
 ```
 
-## Development Roadmap
+This comprehensive plan addresses all current limitations and provides a robust foundation for RuTracker integration with both guest and authenticated modes.
 
-### Phase 1: Foundation
-- [ ] Project setup with Kotlin 2.2.x and multi-API support (23-34)
-- [ ] Basic MVVM architecture implementation
-- [ ] Room database setup for audiobook metadata
-- [ ] Basic UI components with Jetpack Compose + View fallbacks
-- [ ] Compatibility layer setup for older Android versions
+## Development Phases
 
-### Phase 2: Core Features
-- [ ] Audio player implementation with ExoPlayer
-- [ ] File storage and organization system
-- [ ] Basic library management (add/remove/organize)
-- [ ] Simple torrent integration
+### Phase 1: Foundation (Completed)
+- ✅ Project setup with Kotlin 2.2.x
+- ✅ Clean Architecture implementation
+- ✅ Basic UI with Jetpack Compose
+- ✅ Database setup with Room
+- ✅ Dependency injection with Hilt
 
-### Phase 3: RuTracker Integration
-- [ ] RuTracker parser implementation
-- [ ] Category browsing and search
-- [ ] Audiobook discovery interface
-- [ ] Download queue management
+### Phase 2: Core Features (Completed)
+- ✅ Audio playback with ExoPlayer
+- ✅ Library management
+- ✅ Basic RuTracker integration
+- ✅ Download system foundation
+- ✅ UI/UX improvements
 
-### Phase 4: Advanced Features
-- [ ] Advanced player features (speed control, sleep timer)
-- [ ] Bookmark and progress tracking
-- [ ] Background playback with notifications
-- [ ] Performance optimization
+### Phase 3: Advanced Features (In Progress)
+- 🔄 Enhanced RuTracker API integration
+- 🔄 Dual mode authentication system
+- 🔄 Advanced download management
+- 🔄 Performance optimizations
+- 🔄 Comprehensive testing
 
-### Phase 5: Polish & Release
-- [ ] UI/UX improvements and animations
-- [ ] Comprehensive testing on multiple Android versions (API 23-34)
-- [ ] Device compatibility testing (phones, tablets, different screen sizes)
-- [ ] Cross-device testing (Samsung, Xiaomi, OnePlus, Huawei, etc.)
-- [ ] Debug tools refinement
-- [ ] Documentation and release preparation
-- [ ] APK preparation for sideloading distribution
+### Phase 4: Polish & Release
+- ⏳ Final UI/UX refinements
+- ⏳ Performance optimization
+- ⏳ Comprehensive testing
+- ⏳ Documentation completion
+- ⏳ Release preparation
 
-## Technical Considerations
+## Testing Strategy
 
-### Android Version Compatibility
-- **API 23-34 Support** - Wide device coverage from Android 6.0 to Android 14
-- **Adaptive UI** - Different layouts for various screen sizes and densities
-- **Feature detection** - Graceful degradation for missing APIs
-- **Backward compatibility** - Polyfills and compatibility libraries where needed
-- **Permission handling** - Runtime permissions (API 23+) with fallbacks
-- **Background restrictions** - Doze mode and App Standby handling
-- **Notification channels** - Android 8.0+ with fallback for older versions
+### Unit Tests
+- Repository layer testing
+- Use case testing
+- Domain model validation
+- API client testing
 
-### Device Compatibility
-- **Universal Android support** - works on all Android devices (Samsung, Xiaomi, OnePlus, Huawei, etc.)
-- **No external services dependency** - fully offline application
-- **Local storage only** - all data stored on device
-- **No analytics or tracking** - privacy-focused approach
+### Integration Tests
+- Database operations
+- Network API calls
+- File system operations
+- Audio playback integration
 
-### Version-Specific Features
-#### Android 6.0+ (API 23)
-- **Runtime Permissions** for storage and network access
-- **Doze Mode optimizations** for background downloading
-- **App Data backup** for user preferences
+### UI Tests
+- Navigation testing
+- User interaction testing
+- Theme switching
+- Accessibility testing
 
-#### Android 8.0+ (API 26)
-- **Notification channels** for organized notifications
-- **Background service limits** - use foreground services for downloads
-- **Adaptive icons** support
+## Performance Considerations
 
-#### Android 10+ (API 29)
-- **Scoped storage** compatibility
-- **Dark theme** system integration
-- **Gesture navigation** support
+### Memory Management
+- Efficient image loading with Coil
+- Proper lifecycle management
+- Background task optimization
+- Memory leak prevention
 
-#### Android 12+ (API 31)
-- **Material You** dynamic theming
-- **Notification trampolines** restrictions
-- **Approximate location** permissions
+### Network Optimization
+- Request caching
+- Rate limiting
+- Connection pooling
+- Error retry logic
 
-#### Android 13+ (API 33)
-- **Notification runtime permission**
-- **Themed app icons**
-- **Per-app language preferences**
+### Storage Optimization
+- Efficient database queries
+- File compression
+- Cache management
+- Storage cleanup
 
+## Security Considerations
 
+### Data Protection
+- Encrypted storage for credentials
+- Secure network communication
+- Input validation
+- Error message sanitization
 
-### Security & Legal
-- **No direct torrent hosting** - only indexing from public trackers
-- **User responsibility** for content legality
-- **Optional VPN integration** suggestions
-- **Clear disclaimers** about content usage
-- **Privacy-first approach** - no data collection or external analytics
+### Privacy
+- No analytics or tracking
+- Local data storage only
+- User consent for features
+- Data deletion options
 
-### Performance Optimization
-- **Lazy loading** for large audiobook lists
-- **Image caching** with Glide/Coil
-- **Background processing** for file operations
-- **Memory management** for audio playback
-- **API-level optimizations** - use newer APIs when available
+## Future Enhancements
 
-### Accessibility
-- **Screen reader support** (TalkBack compatibility)
-- **Large text options** for visually impaired users
-- **High contrast themes** for better visibility
-- **Voice control integration** with Android accessibility services
+### Planned Features
+- Cloud sync support
+- Multiple audio format support
+- Advanced audio effects
+- Social features (ratings, reviews)
+- Offline mode improvements
 
-## Device Profiles & UI Adaptation
+### Technical Improvements
+- Kotlin Multiplatform support
+- Performance monitoring
+- Advanced caching strategies
+- Enhanced error handling
 
-### Target Device Profiles
+## Conclusion
 
-The application UI is optimized for a wide range of Android devices, with special attention to popular models and modern flagships. Below are reference device profiles for layout and density testing:
+JaBook represents a modern approach to audiobook management on Android, combining powerful playback capabilities with seamless content discovery. The dual-mode RuTracker integration ensures accessibility while providing enhanced features for registered users.
 
-#### Samsung Galaxy S23 FE (Exynos)
-- **Display:** 6.4" Dynamic AMOLED 2X, FHD+ (1080x2340), 401 ppi, 19.5:9 aspect ratio, 120Hz adaptive
-- **Dimensions:** 158.0 x 76.5 x 8.2 mm
-- **Density bucket:** xxhdpi (~401 ppi)
-- **OS:** Android 13/14, One UI 5.1+
-- **Notes:** Rounded corners, punch-hole camera, high brightness, always-on display
-
-#### Other Common Profiles
-- **Google Pixel 7:** 6.3" FHD+ (1080x2400), 416 ppi, 20:9, Android 13/14, xxhdpi
-- **Xiaomi Redmi Note 12:** 6.67" FHD+ (1080x2400), 395 ppi, 20:9, Android 13/14, xxhdpi
-- **OnePlus 11:** 6.7" QHD+ (1440x3216), 525 ppi, 20:9, Android 13/14, xxxhdpi
-- **Samsung Galaxy Tab S8:** 11" WQXGA (2560x1600), 274 ppi, 16:10, Android 13/14, xhdpi
-
-### UI/UX Adaptation Guidelines
-- **Spacing:** Use minimum 16dp horizontal/vertical padding for all screen edges. Increase to 24dp+ on tablets.
-- **Buttons:** Height ≥ 48dp, width ≥ 88dp, with 12-16dp spacing between buttons.
-- **Typography:** Use scalable sp units. Main titles: 22-28sp, subtitles: 16-20sp, body: 14-16sp.
-- **Touch targets:** Minimum 48x48dp for all interactive elements.
-- **Empty states:** Centered, with clear iconography and concise text. Add extra vertical space for visual comfort.
-- **Navigation bar:** Height 56dp, icons 24-28dp, labels 12-14sp.
-- **Adaptive layouts:** Use ConstraintLayout or Compose Box/Column/Row with Modifier.padding(WindowInsets) for cutouts and rounded corners.
-- **Dark/Light theme:** All screens must support both themes with proper contrast and color roles.
-- **Density buckets:** Test on at least mdpi, xhdpi, xxhdpi, xxxhdpi.
-
-### Device Testing Recommendations
-- Use Android Studio emulators for the above profiles.
-- Validate on at least one Samsung flagship (S23 FE or newer), one Pixel, and one Xiaomi/OnePlus device.
-- Check for cutout/punch-hole overlap, navigation bar overlap, and correct scaling of icons/text.
-
-## Theme Switcher (Light/Dark Mode)
-
-### Requirements
-- The app must provide a visible toggle for switching between light and dark themes.
-- Recommended placement: top-right corner of the main screens or in the app settings.
-- The toggle should use a recognizable icon (e.g., sun/moon or system theme icon).
-- User choice must be persisted (e.g., SharedPreferences or DataStore).
-- Theme change must apply instantly without app restart.
-- Default: follow system theme unless user overrides.
-
-### Implementation Notes
-- Use MaterialTheme (Compose) or AppCompatDelegate (View) for theme switching.
-- All custom colors must be defined in colors.xml and support both light/dark palettes.
-- Test for color contrast and accessibility in both modes.
-- Provide KDoc and usage example for the theme switcher component.
-
----
-
-**Target Platforms**: Android 6.0+ (API 23-34, covers ~98% of devices)  
-**Target Devices**: All Android devices (Samsung, Xiaomi, OnePlus, Huawei, Honor, etc.)  
-**Distribution**: Direct APK (sideloading)  
-**License**: Apache 2.0 
+The project follows Android best practices and modern development patterns, ensuring maintainability, scalability, and user satisfaction. 

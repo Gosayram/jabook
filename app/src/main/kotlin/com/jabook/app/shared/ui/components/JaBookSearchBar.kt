@@ -97,7 +97,7 @@ fun JaBookSearchBar(
                             internalQuery = ""
                             onQueryChange("")
                             focusManager.clearFocus()
-                        }
+                        },
                     ) {
                         Icon(
                             imageVector = Icons.Default.Clear,
@@ -126,7 +126,7 @@ fun JaBookSearchBar(
                     onSearch(internalQuery)
                     keyboardController?.hide()
                     focusManager.clearFocus()
-                }
+                },
             ),
         )
     }
@@ -164,7 +164,7 @@ fun JaBookSearchField(
                     onClick = {
                         onQueryChange("")
                         focusManager.clearFocus()
-                    }
+                    },
                 ) {
                     Icon(
                         imageVector = Icons.Default.Clear,
@@ -193,7 +193,7 @@ fun JaBookSearchField(
                 onSearch(query)
                 keyboardController?.hide()
                 focusManager.clearFocus()
-            }
+            },
         ),
     )
 }

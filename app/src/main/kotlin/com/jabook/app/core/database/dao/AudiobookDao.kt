@@ -35,7 +35,7 @@ interface AudiobookDao {
         SELECT * FROM audiobooks 
         WHERE current_position_ms > 0 AND is_completed = 0 
         ORDER BY last_played_at DESC
-    """
+    """,
     )
     fun getCurrentlyPlayingAudiobooks(): Flow<List<AudiobookEntity>>
 
@@ -59,7 +59,7 @@ interface AudiobookDao {
         OR author LIKE '%' || :query || '%'
         OR narrator LIKE '%' || :query || '%'
         ORDER BY title ASC
-    """
+    """,
     )
     fun searchAudiobooks(query: String): Flow<List<AudiobookEntity>>
 
@@ -83,7 +83,7 @@ interface AudiobookDao {
             last_played_at = datetime('now'),
             updated_at = datetime('now')
         WHERE id = :id
-    """
+    """,
     )
     suspend fun updatePlaybackPosition(id: String, positionMs: Long)
 
@@ -96,7 +96,7 @@ interface AudiobookDao {
             download_error = :error,
             updated_at = datetime('now')
         WHERE id = :id
-    """
+    """,
     )
     suspend fun updateDownloadStatus(id: String, status: DownloadStatus, progress: Float, error: String? = null)
 
@@ -107,7 +107,7 @@ interface AudiobookDao {
         SET is_favorite = :isFavorite,
             updated_at = datetime('now')
         WHERE id = :id
-    """
+    """,
     )
     suspend fun updateFavoriteStatus(id: String, isFavorite: Boolean)
 
@@ -119,7 +119,7 @@ interface AudiobookDao {
             current_position_ms = CASE WHEN :isCompleted = 1 THEN duration_ms ELSE current_position_ms END,
             updated_at = datetime('now')
         WHERE id = :id
-    """
+    """,
     )
     suspend fun updateCompletionStatus(id: String, isCompleted: Boolean)
 
@@ -130,7 +130,7 @@ interface AudiobookDao {
         SET user_rating = :rating,
             updated_at = datetime('now')
         WHERE id = :id
-    """
+    """,
     )
     suspend fun updateUserRating(id: String, rating: Float?)
 
@@ -141,7 +141,7 @@ interface AudiobookDao {
         SET playback_speed = :speed,
             updated_at = datetime('now')
         WHERE id = :id
-    """
+    """,
     )
     suspend fun updatePlaybackSpeed(id: String, speed: Float)
 
@@ -167,7 +167,7 @@ interface AudiobookDao {
         SET current_position_ms = 0, 
             is_completed = 0,
             updated_at = datetime('now')
-    """
+    """,
     )
     suspend fun resetAllPlaybackPositions()
 }

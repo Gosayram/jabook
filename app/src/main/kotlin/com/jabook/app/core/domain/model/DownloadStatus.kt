@@ -21,7 +21,9 @@ enum class DownloadStatus {
     FAILED,
 
     /** Download was cancelled by user. */
-    CANCELLED;
+    CANCELLED,
+
+    ;
 
     /** Check if status indicates active download. */
     val isActiveDownload: Boolean

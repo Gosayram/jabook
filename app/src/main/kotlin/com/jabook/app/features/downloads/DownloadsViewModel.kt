@@ -114,14 +114,16 @@ constructor(
                 TorrentStatus.DOWNLOADING,
                 TorrentStatus.SEEDING,
                 TorrentStatus.PAUSED,
-                TorrentStatus.PENDING -> {
+                TorrentStatus.PENDING,
+                -> {
                     active.add(download)
                 }
                 TorrentStatus.COMPLETED -> {
                     completed.add(download)
                 }
                 TorrentStatus.ERROR,
-                TorrentStatus.STOPPED -> {
+                TorrentStatus.STOPPED,
+                -> {
                     failed.add(download)
                 }
                 TorrentStatus.IDLE -> {

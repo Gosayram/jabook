@@ -40,6 +40,7 @@ import com.jabook.app.features.library.presentation.components.LibraryFilterChip
 import com.jabook.app.shared.ui.AppThemeMode
 import com.jabook.app.shared.ui.ThemeViewModel
 import com.jabook.app.shared.ui.components.ThemeToggleButton
+import com.jabook.app.shared.ui.components.getDynamicVerticalPadding
 import com.jabook.app.shared.ui.theme.JaBookTheme
 
 /** Main Library screen showing the user's audiobook collection. Supports filtering, searching, and basic audiobook management. */
@@ -50,7 +51,7 @@ fun LibraryScreen(
     modifier: Modifier = Modifier,
     viewModel: LibraryViewModel = hiltViewModel(),
     themeViewModel: ThemeViewModel,
-    themeMode: AppThemeMode
+    themeMode: AppThemeMode,
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val audiobooks by viewModel.audiobooks.collectAsState()
@@ -68,7 +69,7 @@ fun LibraryScreen(
         }
     }
 
-    Column(modifier = modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 16.dp)) {
+    Column(modifier = modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = getDynamicVerticalPadding())) {
         TopAppBar(
             title = { Text(stringResource(R.string.library_title)) },
             actions = {
@@ -117,7 +118,7 @@ fun LibraryScreen(
                 else -> {
                     LazyColumn(
                         contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 8.dp),
-                        verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(12.dp)
+                        verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(12.dp),
                     ) {
                         items(audiobooks) { audiobook ->
                             AudiobookListItem(
@@ -167,7 +168,7 @@ private fun LibraryScreenPreview() {
         LibraryScreen(
             onAudiobookClick = {},
             themeViewModel = TODO("Preview does not provide ThemeViewModel"),
-            themeMode = AppThemeMode.SYSTEM
+            themeMode = AppThemeMode.SYSTEM,
         )
     }
 }

@@ -29,8 +29,8 @@ data class RuTrackerAudiobook(
     val duration: String? = null,
     val size: String,
     val sizeBytes: Long,
-    val magnetUri: String,
-    val torrentUrl: String,
+    val magnetUri: String? = null,
+    val torrentUrl: String? = null,
     val seeders: Int,
     val leechers: Int,
     val completed: Int,
@@ -41,7 +41,42 @@ data class RuTrackerAudiobook(
     val genreList: List<String> = emptyList(),
     val tags: List<String> = emptyList(),
     val isVerified: Boolean = false,
-) : Parcelable
+    val state: TorrentState = TorrentState.APPROVED,
+    val downloads: Int = 0,
+    val registered: java.util.Date? = null,
+) : Parcelable {
+    companion object {
+        fun empty() = RuTrackerAudiobook(
+            id = "",
+            title = "",
+            author = "",
+            narrator = null,
+            description = "",
+            category = "",
+            categoryId = "",
+            year = null,
+            quality = null,
+            duration = null,
+            size = "",
+            sizeBytes = 0L,
+            magnetUri = null,
+            torrentUrl = null,
+            seeders = 0,
+            leechers = 0,
+            completed = 0,
+            addedDate = "",
+            lastUpdate = null,
+            coverUrl = null,
+            rating = null,
+            genreList = emptyList(),
+            tags = emptyList(),
+            isVerified = false,
+            state = TorrentState.APPROVED,
+            downloads = 0,
+            registered = null,
+        )
+    }
+}
 
 /** Search result from RuTracker */
 @Parcelize
@@ -51,7 +86,17 @@ data class RuTrackerSearchResult(
     val currentPage: Int,
     val totalPages: Int,
     val results: List<RuTrackerAudiobook>,
-) : Parcelable
+) : Parcelable {
+    companion object {
+        fun empty(query: String) = RuTrackerSearchResult(
+            query = query,
+            totalResults = 0,
+            currentPage = 1,
+            totalPages = 1,
+            results = emptyList(),
+        )
+    }
+}
 
 /** RuTracker statistics */
 @Parcelize
@@ -75,6 +120,16 @@ enum class TorrentStatus {
 
     /** Torrent is added but currently inactive / waiting */
     IDLE,
+}
+
+/** Torrent state on RuTracker */
+enum class TorrentState {
+    APPROVED, // проверено
+    NOT_APPROVED, // не проверено
+    NEED_EDIT, // недооформлено
+    DUBIOUSLY, // сомнительно
+    CONSUMED, // поглощена
+    TEMPORARY, // временная
 }
 
 /** Download progress information */

@@ -54,6 +54,7 @@ import com.jabook.app.shared.ui.ThemeViewModel
 import com.jabook.app.shared.ui.components.EmptyStateType
 import com.jabook.app.shared.ui.components.JaBookEmptyState
 import com.jabook.app.shared.ui.components.ThemeToggleButton
+import com.jabook.app.shared.ui.components.getDynamicVerticalPadding
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -62,7 +63,7 @@ fun DiscoveryScreen(
     modifier: Modifier = Modifier,
     viewModel: DiscoveryViewModel = hiltViewModel(),
     themeViewModel: ThemeViewModel,
-    themeMode: AppThemeMode
+    themeMode: AppThemeMode,
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -111,7 +112,7 @@ fun DiscoveryScreen(
             LazyColumn(
                 state = lazyListState,
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 20.dp),
+                contentPadding = PaddingValues(horizontal = 20.dp, vertical = getDynamicVerticalPadding()),
                 verticalArrangement = Arrangement.spacedBy(20.dp),
             ) {
                 item {
@@ -139,38 +140,38 @@ fun DiscoveryScreen(
                 item {
                     SearchResultsSection(
                         uiState = uiState,
-                        onNavigateToAudiobook = onNavigateToAudiobook
+                        onNavigateToAudiobook = onNavigateToAudiobook,
                     )
                 }
                 item {
                     TrendingSection(
                         trendingAudiobooks = uiState.trendingAudiobooks,
-                        onAudiobookClick = onNavigateToAudiobook
+                        onAudiobookClick = onNavigateToAudiobook,
                     )
                 }
                 item {
                     RecentlyAddedSection(
                         recentlyAdded = uiState.recentlyAdded,
-                        onAudiobookClick = onNavigateToAudiobook
+                        onAudiobookClick = onNavigateToAudiobook,
                     )
                 }
                 item {
                     EmptyStateSection(
-                        uiState = uiState
+                        uiState = uiState,
                     )
                 }
                 item {
                     PaginationLoader(
                         isLoading = uiState.isLoading,
                         isSearchActive = uiState.isSearchActive,
-                        hasResults = uiState.searchResults.isNotEmpty()
+                        hasResults = uiState.searchResults.isNotEmpty(),
                     )
                 }
             }
             MainLoader(
                 isLoading = uiState.isLoading,
                 isSearchActive = uiState.isSearchActive,
-                hasResults = uiState.searchResults.isNotEmpty()
+                hasResults = uiState.searchResults.isNotEmpty(),
             )
         }
     }
@@ -266,7 +267,7 @@ private fun AudiobookSection(
 @Composable
 private fun SearchResultsSection(
     uiState: DiscoveryUiState,
-    onNavigateToAudiobook: (RuTrackerAudiobook) -> Unit
+    onNavigateToAudiobook: (RuTrackerAudiobook) -> Unit,
 ) {
     if (uiState.isSearchActive) {
         if (uiState.searchResults.isEmpty() && !uiState.isLoading) {
@@ -282,6 +283,7 @@ private fun SearchResultsSection(
                     AudiobookSearchResultCard(
                         audiobook = audiobook,
                         onClick = { onNavigateToAudiobook(audiobook) },
+                        isGuestMode = uiState.isGuestMode,
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
@@ -293,7 +295,7 @@ private fun SearchResultsSection(
 @Composable
 private fun TrendingSection(
     trendingAudiobooks: List<RuTrackerAudiobook>,
-    onAudiobookClick: (RuTrackerAudiobook) -> Unit
+    onAudiobookClick: (RuTrackerAudiobook) -> Unit,
 ) {
     if (trendingAudiobooks.isNotEmpty()) {
         AudiobookSection(
@@ -308,7 +310,7 @@ private fun TrendingSection(
 @Composable
 private fun RecentlyAddedSection(
     recentlyAdded: List<RuTrackerAudiobook>,
-    onAudiobookClick: (RuTrackerAudiobook) -> Unit
+    onAudiobookClick: (RuTrackerAudiobook) -> Unit,
 ) {
     if (recentlyAdded.isNotEmpty()) {
         AudiobookSection(

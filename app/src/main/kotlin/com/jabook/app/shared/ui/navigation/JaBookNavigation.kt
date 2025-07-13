@@ -14,6 +14,7 @@ import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings // Added Settings icon
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -37,6 +38,7 @@ import com.jabook.app.features.discovery.presentation.DiscoveryScreen
 import com.jabook.app.features.downloads.presentation.DownloadsScreen
 import com.jabook.app.features.library.presentation.LibraryScreen
 import com.jabook.app.features.player.presentation.PlayerScreen
+import com.jabook.app.features.settings.presentation.RuTrackerSettingsScreen // Added import for RuTrackerSettingsScreen
 import com.jabook.app.shared.ui.AppThemeMode
 import com.jabook.app.shared.ui.ThemeViewModel
 import com.jabook.app.shared.ui.theme.JaBookAnimations
@@ -50,6 +52,8 @@ sealed class Screen(val route: String) {
     object Downloads : Screen("downloads")
 
     object Player : Screen("player")
+
+    object Settings : Screen("settings") // New screen for settings
 }
 
 /** Main navigation composable with bottom navigation and animated transitions */
@@ -58,7 +62,7 @@ fun JaBookNavigation(
     navController: NavHostController = rememberNavController(),
     modifier: Modifier = Modifier,
     themeViewModel: ThemeViewModel,
-    themeMode: AppThemeMode
+    themeMode: AppThemeMode,
 ) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
@@ -73,6 +77,7 @@ fun JaBookNavigation(
                         Triple(Screen.Discovery, Icons.Default.Search, R.string.discovery_title),
                         Triple(Screen.Downloads, Icons.Default.Download, R.string.downloads_title),
                         Triple(Screen.Player, Icons.Default.PlayArrow, R.string.player_title),
+                        Triple(Screen.Settings, Icons.Default.Settings, R.string.settings_title), // Added Settings icon
                     )
 
                 items.forEach { (screen, icon, titleRes) ->
@@ -106,7 +111,7 @@ fun JaBookNavigation(
                     LibraryScreen(
                         onAudiobookClick = { audiobook -> navController.navigate(Screen.Player.route) },
                         themeViewModel = themeViewModel,
-                        themeMode = themeMode
+                        themeMode = themeMode,
                     )
                 }
 
@@ -114,22 +119,26 @@ fun JaBookNavigation(
                     DiscoveryScreen(
                         onNavigateToAudiobook = { audiobook -> navController.navigate(Screen.Player.route) },
                         themeViewModel = themeViewModel,
-                        themeMode = themeMode
+                        themeMode = themeMode,
                     )
                 }
 
                 composable(Screen.Downloads.route) {
                     DownloadsScreen(
                         themeViewModel = themeViewModel,
-                        themeMode = themeMode
+                        themeMode = themeMode,
                     )
                 }
 
                 composable(Screen.Player.route) {
                     PlayerScreen(
                         themeViewModel = themeViewModel,
-                        themeMode = themeMode
+                        themeMode = themeMode,
                     )
+                }
+
+                composable(Screen.Settings.route) {
+                    RuTrackerSettingsScreen() // New settings screen
                 }
             }
         }

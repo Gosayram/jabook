@@ -80,7 +80,8 @@ enum class AudioFormat(val extension: String, val mimeType: String) {
     OGG("ogg", "audio/ogg"),
     FLAC("flac", "audio/flac"),
     WAV("wav", "audio/wav"),
-    UNKNOWN("", "audio/*");
+    UNKNOWN("", "audio/*"),
+    ;
 
     companion object {
         fun fromExtension(extension: String): AudioFormat {

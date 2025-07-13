@@ -5,13 +5,18 @@ import com.jabook.app.core.torrent.TorrentEvent
 object TorrentEventFormatter {
 
     fun formatTorrentEventMessage(event: TorrentEvent): String {
+        return formatEventInternal(event)
+    }
+
+    private fun formatEventInternal(event: TorrentEvent): String {
         return when (event) {
-            is TorrentEvent.TorrentAdded -> formatBasicEvent("Torrent added", event.name, event.torrentId)
-            is TorrentEvent.TorrentStarted -> formatBasicEvent("Torrent started", event.name, event.torrentId)
-            is TorrentEvent.TorrentCompleted -> formatBasicEvent("Torrent completed", event.name, event.torrentId)
+            is TorrentEvent.TorrentAdded,
+            is TorrentEvent.TorrentStarted,
+            is TorrentEvent.TorrentCompleted,
+            is TorrentEvent.TorrentPaused,
+            is TorrentEvent.TorrentResumed,
+            -> formatBasicTorrentEvent(event)
             is TorrentEvent.TorrentError -> formatErrorEvent(event)
-            is TorrentEvent.TorrentPaused -> formatBasicEvent("Torrent paused", event.name, event.torrentId)
-            is TorrentEvent.TorrentResumed -> formatBasicEvent("Torrent resumed", event.name, event.torrentId)
             is TorrentEvent.TorrentRemoved -> formatRemovedEvent(event)
             is TorrentEvent.TorrentStatusChanged -> formatStatusChangedEvent(event)
             is TorrentEvent.TorrentProgressUpdated -> formatProgressEvent(event)
@@ -19,9 +24,30 @@ object TorrentEventFormatter {
             is TorrentEvent.AudioFilesExtracted -> formatAudioFilesEvent(event)
             is TorrentEvent.TorrentSeeding -> formatSeedingEvent(event)
             is TorrentEvent.TorrentStatsUpdated -> formatStatsEvent(event)
+            is TorrentEvent.TorrentEngineInitialized,
+            is TorrentEvent.TorrentEngineShutdown,
+            is TorrentEvent.TorrentEngineError,
+            -> formatEngineEvent(event)
+        }
+    }
+
+    private fun formatBasicTorrentEvent(event: TorrentEvent): String {
+        return when (event) {
+            is TorrentEvent.TorrentAdded -> formatBasicEvent("Torrent added", event.name, event.torrentId)
+            is TorrentEvent.TorrentStarted -> formatBasicEvent("Torrent started", event.name, event.torrentId)
+            is TorrentEvent.TorrentCompleted -> formatBasicEvent("Torrent completed", event.name, event.torrentId)
+            is TorrentEvent.TorrentPaused -> formatBasicEvent("Torrent paused", event.name, event.torrentId)
+            is TorrentEvent.TorrentResumed -> formatBasicEvent("Torrent resumed", event.name, event.torrentId)
+            else -> "Unknown event"
+        }
+    }
+
+    private fun formatEngineEvent(event: TorrentEvent): String {
+        return when (event) {
             is TorrentEvent.TorrentEngineInitialized -> "Torrent engine initialized"
             is TorrentEvent.TorrentEngineShutdown -> "Torrent engine shutdown"
             is TorrentEvent.TorrentEngineError -> "Torrent engine error: ${event.error}"
+            else -> "Unknown engine event"
         }
     }
 

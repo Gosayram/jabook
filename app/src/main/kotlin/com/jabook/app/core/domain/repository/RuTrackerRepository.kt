@@ -82,4 +82,34 @@ interface RuTrackerRepository {
      * @return Flow of popular audiobooks
      */
     fun getPopularByCategory(categoryId: String, limit: Int = 20): Flow<List<RuTrackerAudiobook>>
+
+    /**
+     * Authorization of the user on RuTracker
+     */
+    suspend fun login(username: String, password: String): Boolean
+
+    /**
+     * Logout of the user from RuTracker
+     */
+    suspend fun logout(): Boolean
+
+    /**
+     * Check the status of authorization
+     */
+    fun isAuthenticated(): Boolean
+
+    /**
+     * Get the name of the current user (or null)
+     */
+    fun getCurrentUser(): String?
+
+    /**
+     * Get the state of authorization (guest/authorized/error)
+     */
+    fun getAuthenticationState(): Flow<com.jabook.app.core.network.AuthenticationState>
+
+    /**
+     * Get the magnet link for the audiobook
+     */
+    suspend fun getMagnetLink(audiobookId: String): String?
 }

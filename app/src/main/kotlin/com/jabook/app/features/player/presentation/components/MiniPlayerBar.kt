@@ -98,7 +98,7 @@ fun MiniPlayerBar(
             .background(MaterialTheme.colorScheme.surface)
             .clickable { onBarClick() }
             .padding(horizontal = 16.dp, vertical = 8.dp)
-            .graphicsLayer { shadowElevation = barElevation }
+            .graphicsLayer { shadowElevation = barElevation },
     ) {
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             // Book icon placeholder with subtle animation
@@ -121,7 +121,7 @@ fun MiniPlayerBar(
             Column(
                 modifier = Modifier.weight(1f).padding(horizontal = 12.dp).graphicsLayer {
                     alpha = if (isPlaying) 1.0f else 0.8f
-                }
+                },
             ) {
                 Text(
                     text = audiobook.title,

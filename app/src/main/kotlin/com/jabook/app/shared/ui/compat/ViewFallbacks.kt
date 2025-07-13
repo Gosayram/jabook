@@ -130,7 +130,7 @@ object ViewFallbacks {
                     ProgressBar(context).apply {
                         layoutParams = LinearLayout.LayoutParams(120, 120)
                         isIndeterminate = true
-                    }
+                    },
                 )
             } else {
                 addView(
@@ -138,7 +138,7 @@ object ViewFallbacks {
                         layoutParams = LinearLayout.LayoutParams(160, 160)
                         // Here you can add icons for different states
                         setImageResource(android.R.drawable.ic_dialog_info)
-                    }
+                    },
                 )
             }
 
@@ -150,7 +150,7 @@ object ViewFallbacks {
                     typeface = android.graphics.Typeface.DEFAULT_BOLD
                     gravity = android.view.Gravity.CENTER
                     setPadding(0, 32, 0, 16)
-                }
+                },
             )
 
             // Subtitle
@@ -160,7 +160,7 @@ object ViewFallbacks {
                     textSize = 14f
                     gravity = android.view.Gravity.CENTER
                     setPadding(0, 0, 0, 32)
-                }
+                },
             )
 
             // Action button
@@ -175,7 +175,7 @@ object ViewFallbacks {
                         },
                         actionButton,
                         ButtonVariant.Primary,
-                    )
+                    ),
                 )
             }
         }

@@ -17,7 +17,7 @@ import java.util.Date
             parentColumns = ["id"],
             childColumns = ["audiobook_id"],
             onDelete = ForeignKey.CASCADE,
-        )
+        ),
     ],
     indices = [Index(value = ["audiobook_id"]), Index(value = ["position_ms"])],
 )

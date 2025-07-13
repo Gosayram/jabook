@@ -62,7 +62,7 @@ private fun GridCardContent(audiobook: Audiobook, showProgress: Boolean) {
         // Обложка книги
         Box(
             modifier =
-            Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(8.dp)).background(MaterialTheme.colorScheme.surfaceVariant)
+            Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(8.dp)).background(MaterialTheme.colorScheme.surfaceVariant),
         ) {
             AsyncImage(
                 model = audiobook.coverUrl,

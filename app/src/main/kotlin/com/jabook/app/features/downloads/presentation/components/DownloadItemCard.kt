@@ -61,7 +61,7 @@ private fun DownloadItemHeader(
     onPause: () -> Unit,
     onResume: () -> Unit,
     onCancel: () -> Unit,
-    onRetry: () -> Unit
+    onRetry: () -> Unit,
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),

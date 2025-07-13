@@ -12,11 +12,14 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CloudDownload
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -25,8 +28,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -36,124 +41,239 @@ import com.jabook.app.core.domain.model.RuTrackerAudiobook
 import com.jabook.app.shared.utils.formatFileSize
 
 @Composable
-fun AudiobookSearchResultCard(audiobook: RuTrackerAudiobook, onClick: () -> Unit, modifier: Modifier = Modifier) {
+fun AudiobookCover(
+    modifier: Modifier = Modifier,
+) {
+    AsyncImage(
+        model = null, // coverImageUrl not available in RuTrackerAudiobook
+        contentDescription = stringResource(R.string.audiobook_cover),
+        modifier = modifier.size(80.dp).clip(RoundedCornerShape(8.dp)),
+        contentScale = ContentScale.Crop,
+        placeholder = painterResource(R.drawable.ic_book_24),
+        error = painterResource(R.drawable.ic_book_24),
+    )
+}
+
+@Composable
+fun AudiobookInfo(
+    title: String,
+    author: String,
+    category: String,
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+
+        Text(
+            text = author,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+
+        Text(
+            text = category,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.primary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+@Composable
+fun ActionButtons(
+    magnetUri: String?,
+    torrentUrl: String?,
+    isGuestMode: Boolean,
+) {
+    val clipboardManager = LocalClipboardManager.current
+
+    Row(
+        modifier = Modifier.padding(top = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        if (magnetUri != null) {
+            IconButton(
+                onClick = {
+                    clipboardManager.setText(AnnotatedString(magnetUri))
+                },
+            ) {
+                Icon(
+                    Icons.Default.ContentCopy,
+                    contentDescription = "Copy magnet link",
+                )
+            }
+        }
+        if (!isGuestMode && torrentUrl != null) {
+            IconButton(
+                onClick = {
+                    // Torrent download will be implemented later
+                },
+            ) {
+                Icon(
+                    Icons.Default.Download,
+                    contentDescription = "Download .torrent",
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun MetadataRow(
+    sizeBytes: Long,
+    seeders: Int,
+    leechers: Int,
+    rating: Float?,
+) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        // Size
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Icon(
+                imageVector = Icons.Default.CloudDownload,
+                contentDescription = null,
+                modifier = Modifier.size(16.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                text = formatFileSize(sizeBytes),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+
+        // Seeds/Leechers
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Icon(
+                imageVector = Icons.Default.People,
+                contentDescription = null,
+                modifier = Modifier.size(16.dp),
+                tint = if (seeders > 0) Color(0xFF4CAF50) else MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                text = "$seeders/$leechers",
+                style = MaterialTheme.typography.bodySmall,
+                color = if (seeders > 0) Color(0xFF4CAF50) else MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+
+        // Rating
+        if ((rating ?: 0f) > 0f) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Star,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp),
+                    tint = Color(0xFFFFC107),
+                )
+                Text(
+                    text = "%.1f".format(rating),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun AdditionalInfo(
+    duration: String?,
+    quality: String?,
+) {
+    if (!duration.isNullOrEmpty() || !quality.isNullOrEmpty()) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.padding(top = 4.dp),
+        ) {
+            if (!duration.isNullOrEmpty()) {
+                Text(
+                    text = duration,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            if (!quality.isNullOrEmpty()) {
+                Text(
+                    text = "• $quality",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun AudiobookSearchResultCard(
+    audiobook: RuTrackerAudiobook,
+    onClick: () -> Unit,
+    isGuestMode: Boolean,
+    modifier: Modifier = Modifier,
+) {
     Card(
         modifier = modifier.fillMaxWidth().clickable { onClick() },
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
     ) {
-        Row(modifier = Modifier.fillMaxWidth().padding(12.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            // Cover image
-            AsyncImage(
-                model = null, // coverImageUrl not available in RuTrackerAudiobook
-                contentDescription = stringResource(R.string.audiobook_cover),
-                modifier = Modifier.size(80.dp).clip(RoundedCornerShape(8.dp)),
-                contentScale = ContentScale.Crop,
-                placeholder = painterResource(R.drawable.ic_book_24),
-                error = painterResource(R.drawable.ic_book_24),
-            )
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            AudiobookCover()
 
-            // Content
-            Column(modifier = Modifier.weight(1f).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                // Title
-                Text(
-                    text = audiobook.title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
-
-                // Author
-                Text(
-                    text = audiobook.author,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-
-                // Category
-                Text(
-                    text = audiobook.category,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.primary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                AudiobookInfo(
+                    title = audiobook.title,
+                    author = audiobook.author,
+                    category = audiobook.category,
                 )
 
                 Spacer(modifier = Modifier.height(4.dp))
 
-                // Metadata row
-                Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                    // Size
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Icon(
-                            imageVector = Icons.Default.CloudDownload,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Text(
-                            text = formatFileSize(audiobook.sizeBytes),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
+                ActionButtons(
+                    magnetUri = audiobook.magnetUri,
+                    torrentUrl = audiobook.torrentUrl,
+                    isGuestMode = isGuestMode,
+                )
 
-                    // Seeds/Leechers
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Icon(
-                            imageVector = Icons.Default.People,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp),
-                            tint = if (audiobook.seeders > 0) Color(0xFF4CAF50) else MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Text(
-                            text = "${audiobook.seeders}/${audiobook.leechers}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = if (audiobook.seeders > 0) Color(0xFF4CAF50) else MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
+                MetadataRow(
+                    sizeBytes = audiobook.sizeBytes,
+                    seeders = audiobook.seeders,
+                    leechers = audiobook.leechers,
+                    rating = audiobook.rating,
+                )
 
-                    // Rating
-                    if ((audiobook.rating ?: 0f) > 0f) {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Icon(
-                                imageVector = Icons.Default.Star,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp),
-                                tint = Color(0xFFFFC107),
-                            )
-                            Text(
-                                text = "%.1f".format(audiobook.rating),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    }
-                }
-
-                // Duration and quality
-                if (!audiobook.duration.isNullOrEmpty() || !audiobook.quality.isNullOrEmpty()) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 4.dp)) {
-                        if (!audiobook.duration.isNullOrEmpty()) {
-                            Text(
-                                text = audiobook.duration,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                        if (!audiobook.quality.isNullOrEmpty()) {
-                            Text(
-                                text = "• ${audiobook.quality}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    }
-                }
+                AdditionalInfo(
+                    duration = audiobook.duration,
+                    quality = audiobook.quality,
+                )
             }
         }
     }

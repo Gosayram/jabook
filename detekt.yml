@@ -145,6 +145,6 @@ formatting:
   StringTemplate:
     active: true
   TrailingCommaOnCallSite:
-    active: false  # Managed by ktfmt
+    active: true
   TrailingCommaOnDeclarationSite:
-    active: false  # Managed by ktfmt 
+    active: true

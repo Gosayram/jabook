@@ -58,7 +58,7 @@ import java.util.Locale
 fun PlayerScreen(
     viewModel: PlayerViewModel = hiltViewModel(),
     themeViewModel: ThemeViewModel,
-    themeMode: AppThemeMode
+    themeMode: AppThemeMode,
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -69,7 +69,7 @@ fun PlayerScreen(
             title = { Text("Now Playing") },
             actions = {
                 ThemeToggleButton(themeMode = themeMode, onToggle = { themeViewModel.toggleTheme() })
-            }
+            },
         )
         Column(modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 24.dp)) {
             if (uiState.currentAudiobook != null) {
@@ -82,7 +82,7 @@ fun PlayerScreen(
                     currentPosition = uiState.currentPosition,
                     duration = uiState.duration,
                     bookmarks = uiState.bookmarks.map { it.positionMs },
-                    onSeekTo = { viewModel.seekTo(it) }
+                    onSeekTo = { viewModel.seekTo(it) },
                 )
                 Spacer(modifier = Modifier.height(28.dp))
                 PlayerControlsSection(
@@ -99,8 +99,8 @@ fun PlayerScreen(
                         onShowBookmarksClick = {
                             viewModel.showBookmarksSheet()
                             coroutineScope.launch { sheetState.show() }
-                        }
-                    )
+                        },
+                    ),
                 )
             } else {
                 PlayerEmptyState()
@@ -114,7 +114,7 @@ fun PlayerScreen(
                 viewModel.setPlaybackSpeed(it)
                 viewModel.hideSpeedDialog()
             },
-            onDismiss = { viewModel.hideSpeedDialog() }
+            onDismiss = { viewModel.hideSpeedDialog() },
         )
     }
     if (uiState.isSleepTimerDialogVisible) {
@@ -124,7 +124,7 @@ fun PlayerScreen(
                 viewModel.setSleepTimer(it)
                 viewModel.hideSleepTimerDialog()
             },
-            onDismiss = { viewModel.hideSleepTimerDialog() }
+            onDismiss = { viewModel.hideSleepTimerDialog() },
         )
     }
     if (uiState.isBookmarksSheetVisible) {
@@ -136,7 +136,7 @@ fun PlayerScreen(
                 coroutineScope.launch { sheetState.hide() }
             },
             onDismiss = { viewModel.hideBookmarksSheet() },
-            sheetState = sheetState
+            sheetState = sheetState,
         )
     }
 }
@@ -189,7 +189,7 @@ private fun PlayerProgressSection(
     currentPosition: Long,
     duration: Long,
     bookmarks: List<Long>,
-    onSeekTo: (Long) -> Unit
+    onSeekTo: (Long) -> Unit,
 ) {
     PlayerProgressBar(
         currentPosition = currentPosition,
@@ -210,7 +210,7 @@ data class PlayerControlsSectionParams(
     val onSpeedClick: () -> Unit,
     val onSleepTimerClick: () -> Unit,
     val onBookmarkClick: () -> Unit,
-    val onShowBookmarksClick: () -> Unit
+    val onShowBookmarksClick: () -> Unit,
 )
 
 @Composable
@@ -228,7 +228,7 @@ private fun PlayerControlsSection(params: PlayerControlsSectionParams) {
         onSleepTimerClick = params.onSleepTimerClick,
         onBookmarkClick = params.onBookmarkClick,
         onShowBookmarksClick = params.onShowBookmarksClick,
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth(),
     )
     PlayerControls(params = playerParams)
 }
@@ -248,7 +248,7 @@ private fun PlayerEmptyState() {
 private fun SpeedDialogSection(
     currentSpeed: Float,
     onSpeedSelected: (Float) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     SpeedDialog(
         currentSpeed = currentSpeed,
@@ -261,7 +261,7 @@ private fun SpeedDialogSection(
 private fun SleepTimerDialogSection(
     currentMinutes: Int,
     onTimerSet: (Int) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     SleepTimerDialog(
         currentMinutes = currentMinutes,
@@ -276,7 +276,7 @@ private fun BookmarksSheetSection(
     bookmarks: List<com.jabook.app.core.domain.model.Bookmark>,
     onBookmarkClick: (Long) -> Unit,
     onDismiss: () -> Unit,
-    sheetState: androidx.compose.material3.SheetState
+    sheetState: androidx.compose.material3.SheetState,
 ) {
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {

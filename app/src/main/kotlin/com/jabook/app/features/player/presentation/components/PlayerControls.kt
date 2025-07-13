@@ -44,7 +44,7 @@ data class PlayerControlsState(
     val fabContentColor: Color,
     val speedButtonScale: Float,
     val timerButtonScale: Float,
-    val timerButtonColor: Color
+    val timerButtonColor: Color,
 )
 
 data class PlayerControlsParams(
@@ -60,7 +60,7 @@ data class PlayerControlsParams(
     val onSleepTimerClick: () -> Unit,
     val onBookmarkClick: () -> Unit,
     val onShowBookmarksClick: () -> Unit,
-    val modifier: Modifier = Modifier
+    val modifier: Modifier = Modifier,
 )
 
 @Composable
@@ -73,14 +73,14 @@ fun PlayerControls(params: PlayerControlsParams) {
         onSeekBackward = params.onSeekBackward,
         onNextChapter = params.onNextChapter,
         onPreviousChapter = params.onPreviousChapter,
-        modifier = params.modifier
+        modifier = params.modifier,
     )
     PlayerSecondaryControls(
         state = state,
         onSpeedClick = params.onSpeedClick,
         onSleepTimerClick = params.onSleepTimerClick,
         onBookmarkClick = params.onBookmarkClick,
-        onShowBookmarksClick = params.onShowBookmarksClick
+        onShowBookmarksClick = params.onShowBookmarksClick,
     )
 }
 
@@ -88,7 +88,7 @@ fun PlayerControls(params: PlayerControlsParams) {
 private fun rememberPlayerControlsState(
     isPlaying: Boolean,
     playbackSpeed: Float,
-    sleepTimerMinutes: Int
+    sleepTimerMinutes: Int,
 ): PlayerControlsState {
     val playPauseIcon by remember(isPlaying) {
         derivedStateOf { if (isPlaying) R.drawable.ic_pause_24 else R.drawable.ic_play_arrow_24 }
@@ -135,7 +135,7 @@ private fun rememberPlayerControlsState(
         fabContentColor = fabContentColor,
         speedButtonScale = speedButtonScale,
         timerButtonScale = timerButtonScale,
-        timerButtonColor = timerButtonColor
+        timerButtonColor = timerButtonColor,
     )
 }
 
@@ -147,7 +147,7 @@ private fun PlayerMainControls(
     onSeekBackward: () -> Unit,
     onNextChapter: () -> Unit,
     onPreviousChapter: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Row(
         modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp),
@@ -216,18 +216,18 @@ private fun PlayerSecondaryControls(
     onSpeedClick: () -> Unit,
     onSleepTimerClick: () -> Unit,
     onBookmarkClick: () -> Unit,
-    onShowBookmarksClick: () -> Unit
+    onShowBookmarksClick: () -> Unit,
 ) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 32.dp, vertical = 16.dp),
-        horizontalArrangement = Arrangement.SpaceEvenly
+        horizontalArrangement = Arrangement.SpaceEvenly,
     ) {
         IconButton(
             onClick = onSpeedClick,
             modifier = Modifier.scale(state.speedButtonScale)
                 .clip(CircleShape)
                 .background(
-                    if (state.speedText != "1.0x") MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f) else Color.Transparent
+                    if (state.speedText != "1.0x") MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f) else Color.Transparent,
                 ),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -248,7 +248,7 @@ private fun PlayerSecondaryControls(
             modifier = Modifier.scale(state.timerButtonScale)
                 .clip(CircleShape)
                 .background(
-                    if (state.sleepTimerText != null) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f) else Color.Transparent
+                    if (state.sleepTimerText != null) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f) else Color.Transparent,
                 ),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -257,7 +257,7 @@ private fun PlayerSecondaryControls(
                     Text(
                         text = text,
                         style = MaterialTheme.typography.bodySmall,
-                        color = state.timerButtonColor
+                        color = state.timerButtonColor,
                     )
                 }
             }

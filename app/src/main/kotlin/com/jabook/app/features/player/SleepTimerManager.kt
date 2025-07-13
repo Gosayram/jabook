@@ -8,7 +8,7 @@ import javax.inject.Singleton
 
 @Singleton
 class SleepTimerManager @Inject constructor(
-    private val debugLogger: IDebugLogger
+    private val debugLogger: IDebugLogger,
 ) {
     private val handler = Handler(Looper.getMainLooper())
     private var sleepTimerRunnable: Runnable? = null
