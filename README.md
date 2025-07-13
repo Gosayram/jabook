@@ -81,6 +81,16 @@ adb install app/build/outputs/apk/debug/app-debug.apk
 | `./gradlew installDebug` | Install debug APK on device |
 | `./gradlew clean` | Clean build artifacts |
 
+### APK Build Tasks
+
+| Task | Description |
+|------|-------------|
+| `./gradlew buildApk` | Build debug APK to `bin/` |
+| `./gradlew buildReleaseApk` | Build release APK to `bin/` |
+| `./gradlew cleanBin` | Clean `bin/` directory |
+
+APK files are saved to `bin/` directory with timestamps in filenames.
+
 ## Testing & Quality
 
 Run comprehensive tests across multiple Android versions:

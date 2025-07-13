@@ -45,11 +45,15 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.jabook.app.R
 import com.jabook.app.core.domain.model.RuTrackerAudiobook
 import com.jabook.app.core.domain.model.RuTrackerCategory
+import com.jabook.app.features.discovery.DiscoveryUiState
 import com.jabook.app.features.discovery.DiscoveryViewModel
 import com.jabook.app.features.discovery.presentation.components.AudiobookSearchResultCard
 import com.jabook.app.features.discovery.presentation.components.AudiobookSectionCard
+import com.jabook.app.shared.ui.AppThemeMode
+import com.jabook.app.shared.ui.ThemeViewModel
 import com.jabook.app.shared.ui.components.EmptyStateType
 import com.jabook.app.shared.ui.components.JaBookEmptyState
+import com.jabook.app.shared.ui.components.ThemeToggleButton
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -57,6 +61,8 @@ fun DiscoveryScreen(
     onNavigateToAudiobook: (RuTrackerAudiobook) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: DiscoveryViewModel = hiltViewModel(),
+    themeViewModel: ThemeViewModel,
+    themeMode: AppThemeMode
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -94,6 +100,7 @@ fun DiscoveryScreen(
                     IconButton(onClick = { viewModel.refreshData() }) {
                         Icon(imageVector = Icons.Default.Refresh, contentDescription = stringResource(R.string.refresh))
                     }
+                    ThemeToggleButton(themeMode = themeMode, onToggle = { themeViewModel.toggleTheme() })
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
             )
@@ -104,8 +111,8 @@ fun DiscoveryScreen(
             LazyColumn(
                 state = lazyListState,
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
+                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 20.dp),
+                verticalArrangement = Arrangement.spacedBy(20.dp),
             ) {
                 item {
                     SearchBar(
@@ -116,7 +123,7 @@ fun DiscoveryScreen(
                             viewModel.performSearch()
                         },
                         onClear = viewModel::clearSearch,
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
                     )
                 }
                 if (uiState.categories.isNotEmpty()) {
@@ -125,7 +132,7 @@ fun DiscoveryScreen(
                             categories = uiState.categories,
                             selectedCategory = uiState.selectedCategory,
                             onCategorySelected = viewModel::selectCategory,
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
                         )
                     }
                 }

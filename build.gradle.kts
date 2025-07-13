@@ -18,4 +18,56 @@ tasks.register("check-all") {
     description = "Run all checks including linting, static analysis, and tests"
     group = "verification"
     dependsOn(":app:check-all")
+}
+
+tasks.register("buildApk") {
+    dependsOn(":app:assembleDebug")
+    doLast {
+        val apkFile = file("app/build/outputs/apk/debug/app-debug.apk")
+        val binDir = file("bin")
+        val timestamp = java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"))
+        val outputFile = file("bin/JaBook_${timestamp}.apk")
+        
+        if (apkFile.exists()) {
+            copy {
+                from(apkFile)
+                into(binDir)
+                rename { "JaBook_${timestamp}.apk" }
+            }
+            println("✅ APK successfully built: ${outputFile.absolutePath}")
+        } else {
+            throw GradleException("APK file not found: ${apkFile.absolutePath}")
+        }
+    }
+}
+
+tasks.register("buildReleaseApk") {
+    dependsOn(":app:assembleRelease")
+    doLast {
+        val apkFile = file("app/build/outputs/apk/release/app-release.apk")
+        val binDir = file("bin")
+        val timestamp = java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"))
+        val outputFile = file("bin/JaBook_Release_${timestamp}.apk")
+        
+        if (apkFile.exists()) {
+            copy {
+                from(apkFile)
+                into(binDir)
+                rename { "JaBook_Release_${timestamp}.apk" }
+            }
+            println("✅ Release APK successfully built: ${outputFile.absolutePath}")
+        } else {
+            throw GradleException("Release APK file not found: ${apkFile.absolutePath}")
+        }
+    }
+}
+
+tasks.register("cleanBin") {
+    doLast {
+        val binDir = file("bin")
+        if (binDir.exists()) {
+            binDir.deleteRecursively()
+            println("🗑️ bin/ folder cleaned")
+        }
+    }
 } 

@@ -26,6 +26,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -46,31 +47,44 @@ import com.jabook.app.features.player.presentation.components.PlayerControlsPara
 import com.jabook.app.features.player.presentation.components.PlayerProgressBar
 import com.jabook.app.features.player.presentation.components.SleepTimerDialog
 import com.jabook.app.features.player.presentation.components.SpeedDialog
+import com.jabook.app.shared.ui.AppThemeMode
+import com.jabook.app.shared.ui.ThemeViewModel
+import com.jabook.app.shared.ui.components.ThemeToggleButton
 import kotlinx.coroutines.launch
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PlayerScreen(viewModel: PlayerViewModel = hiltViewModel()) {
+fun PlayerScreen(
+    viewModel: PlayerViewModel = hiltViewModel(),
+    themeViewModel: ThemeViewModel,
+    themeMode: AppThemeMode
+) {
     val uiState by viewModel.uiState.collectAsState()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val coroutineScope = rememberCoroutineScope()
 
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-        Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+        TopAppBar(
+            title = { Text("Now Playing") },
+            actions = {
+                ThemeToggleButton(themeMode = themeMode, onToggle = { themeViewModel.toggleTheme() })
+            }
+        )
+        Column(modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 24.dp)) {
             if (uiState.currentAudiobook != null) {
                 val audiobook = uiState.currentAudiobook!!
                 PlayerCoverSection()
-                Spacer(modifier = Modifier.height(32.dp))
+                Spacer(modifier = Modifier.height(28.dp))
                 PlayerTitleSection(audiobook)
-                Spacer(modifier = Modifier.height(32.dp))
+                Spacer(modifier = Modifier.height(24.dp))
                 PlayerProgressSection(
                     currentPosition = uiState.currentPosition,
                     duration = uiState.duration,
                     bookmarks = uiState.bookmarks.map { it.positionMs },
                     onSeekTo = { viewModel.seekTo(it) }
                 )
-                Spacer(modifier = Modifier.height(32.dp))
+                Spacer(modifier = Modifier.height(28.dp))
                 PlayerControlsSection(
                     params = PlayerControlsSectionParams(
                         uiState = uiState,
@@ -129,18 +143,20 @@ fun PlayerScreen(viewModel: PlayerViewModel = hiltViewModel()) {
 
 @Composable
 private fun PlayerCoverSection() {
-    Card(
-        modifier = Modifier.size(250.dp).align(Alignment.CenterHorizontally),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-        shape = RoundedCornerShape(12.dp),
-    ) {
-        Box(modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) {
-            Icon(
-                imageVector = Icons.Default.Book,
-                contentDescription = "Cover art",
-                modifier = Modifier.size(100.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+        Card(
+            modifier = Modifier.size(250.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+            shape = RoundedCornerShape(12.dp),
+        ) {
+            Box(modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) {
+                Icon(
+                    imageVector = Icons.Default.Book,
+                    contentDescription = "Cover art",
+                    modifier = Modifier.size(100.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
     }
 }

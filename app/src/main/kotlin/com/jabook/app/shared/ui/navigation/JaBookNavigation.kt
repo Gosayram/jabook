@@ -37,6 +37,8 @@ import com.jabook.app.features.discovery.presentation.DiscoveryScreen
 import com.jabook.app.features.downloads.presentation.DownloadsScreen
 import com.jabook.app.features.library.presentation.LibraryScreen
 import com.jabook.app.features.player.presentation.PlayerScreen
+import com.jabook.app.shared.ui.AppThemeMode
+import com.jabook.app.shared.ui.ThemeViewModel
 import com.jabook.app.shared.ui.theme.JaBookAnimations
 
 /** Navigation destinations for the app */
@@ -52,7 +54,12 @@ sealed class Screen(val route: String) {
 
 /** Main navigation composable with bottom navigation and animated transitions */
 @Composable
-fun JaBookNavigation(navController: NavHostController = rememberNavController(), modifier: Modifier = Modifier) {
+fun JaBookNavigation(
+    navController: NavHostController = rememberNavController(),
+    modifier: Modifier = Modifier,
+    themeViewModel: ThemeViewModel,
+    themeMode: AppThemeMode
+) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
 
@@ -96,16 +103,34 @@ fun JaBookNavigation(navController: NavHostController = rememberNavController(),
                 popExitTransition = { getPopExitTransition() },
             ) {
                 composable(Screen.Library.route) {
-                    LibraryScreen(onAudiobookClick = { audiobook -> navController.navigate(Screen.Player.route) })
+                    LibraryScreen(
+                        onAudiobookClick = { audiobook -> navController.navigate(Screen.Player.route) },
+                        themeViewModel = themeViewModel,
+                        themeMode = themeMode
+                    )
                 }
 
                 composable(Screen.Discovery.route) {
-                    DiscoveryScreen(onNavigateToAudiobook = { audiobook -> navController.navigate(Screen.Player.route) })
+                    DiscoveryScreen(
+                        onNavigateToAudiobook = { audiobook -> navController.navigate(Screen.Player.route) },
+                        themeViewModel = themeViewModel,
+                        themeMode = themeMode
+                    )
                 }
 
-                composable(Screen.Downloads.route) { DownloadsScreen() }
+                composable(Screen.Downloads.route) {
+                    DownloadsScreen(
+                        themeViewModel = themeViewModel,
+                        themeMode = themeMode
+                    )
+                }
 
-                composable(Screen.Player.route) { PlayerScreen() }
+                composable(Screen.Player.route) {
+                    PlayerScreen(
+                        themeViewModel = themeViewModel,
+                        themeMode = themeMode
+                    )
+                }
             }
         }
     }

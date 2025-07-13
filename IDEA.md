@@ -397,6 +397,57 @@ interface DebugPanel {
 - **High contrast themes** for better visibility
 - **Voice control integration** with Android accessibility services
 
+## Device Profiles & UI Adaptation
+
+### Target Device Profiles
+
+The application UI is optimized for a wide range of Android devices, with special attention to popular models and modern flagships. Below are reference device profiles for layout and density testing:
+
+#### Samsung Galaxy S23 FE (Exynos)
+- **Display:** 6.4" Dynamic AMOLED 2X, FHD+ (1080x2340), 401 ppi, 19.5:9 aspect ratio, 120Hz adaptive
+- **Dimensions:** 158.0 x 76.5 x 8.2 mm
+- **Density bucket:** xxhdpi (~401 ppi)
+- **OS:** Android 13/14, One UI 5.1+
+- **Notes:** Rounded corners, punch-hole camera, high brightness, always-on display
+
+#### Other Common Profiles
+- **Google Pixel 7:** 6.3" FHD+ (1080x2400), 416 ppi, 20:9, Android 13/14, xxhdpi
+- **Xiaomi Redmi Note 12:** 6.67" FHD+ (1080x2400), 395 ppi, 20:9, Android 13/14, xxhdpi
+- **OnePlus 11:** 6.7" QHD+ (1440x3216), 525 ppi, 20:9, Android 13/14, xxxhdpi
+- **Samsung Galaxy Tab S8:** 11" WQXGA (2560x1600), 274 ppi, 16:10, Android 13/14, xhdpi
+
+### UI/UX Adaptation Guidelines
+- **Spacing:** Use minimum 16dp horizontal/vertical padding for all screen edges. Increase to 24dp+ on tablets.
+- **Buttons:** Height ≥ 48dp, width ≥ 88dp, with 12-16dp spacing between buttons.
+- **Typography:** Use scalable sp units. Main titles: 22-28sp, subtitles: 16-20sp, body: 14-16sp.
+- **Touch targets:** Minimum 48x48dp for all interactive elements.
+- **Empty states:** Centered, with clear iconography and concise text. Add extra vertical space for visual comfort.
+- **Navigation bar:** Height 56dp, icons 24-28dp, labels 12-14sp.
+- **Adaptive layouts:** Use ConstraintLayout or Compose Box/Column/Row with Modifier.padding(WindowInsets) for cutouts and rounded corners.
+- **Dark/Light theme:** All screens must support both themes with proper contrast and color roles.
+- **Density buckets:** Test on at least mdpi, xhdpi, xxhdpi, xxxhdpi.
+
+### Device Testing Recommendations
+- Use Android Studio emulators for the above profiles.
+- Validate on at least one Samsung flagship (S23 FE or newer), one Pixel, and one Xiaomi/OnePlus device.
+- Check for cutout/punch-hole overlap, navigation bar overlap, and correct scaling of icons/text.
+
+## Theme Switcher (Light/Dark Mode)
+
+### Requirements
+- The app must provide a visible toggle for switching between light and dark themes.
+- Recommended placement: top-right corner of the main screens or in the app settings.
+- The toggle should use a recognizable icon (e.g., sun/moon or system theme icon).
+- User choice must be persisted (e.g., SharedPreferences or DataStore).
+- Theme change must apply instantly without app restart.
+- Default: follow system theme unless user overrides.
+
+### Implementation Notes
+- Use MaterialTheme (Compose) or AppCompatDelegate (View) for theme switching.
+- All custom colors must be defined in colors.xml and support both light/dark palettes.
+- Test for color contrast and accessibility in both modes.
+- Provide KDoc and usage example for the theme switcher component.
+
 ---
 
 **Target Platforms**: Android 6.0+ (API 23-34, covers ~98% of devices)  

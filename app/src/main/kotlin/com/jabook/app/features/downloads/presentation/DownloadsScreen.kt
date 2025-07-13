@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -51,8 +52,11 @@ import com.jabook.app.R
 import com.jabook.app.features.downloads.DownloadsTab
 import com.jabook.app.features.downloads.DownloadsViewModel
 import com.jabook.app.features.downloads.presentation.components.DownloadItemCard
+import com.jabook.app.shared.ui.AppThemeMode
+import com.jabook.app.shared.ui.ThemeViewModel
 import com.jabook.app.shared.ui.components.EmptyStateType
 import com.jabook.app.shared.ui.components.JaBookEmptyState
+import com.jabook.app.shared.ui.components.ThemeToggleButton
 
 data class DownloadsEmptyState(val type: EmptyStateType, val title: String, val subtitle: String)
 data class DownloadsActions(
@@ -64,7 +68,12 @@ data class DownloadsActions(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DownloadsScreen(modifier: Modifier = Modifier, viewModel: DownloadsViewModel = hiltViewModel()) {
+fun DownloadsScreen(
+    modifier: Modifier = Modifier,
+    viewModel: DownloadsViewModel = hiltViewModel(),
+    themeViewModel: ThemeViewModel,
+    themeMode: AppThemeMode
+) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -94,13 +103,14 @@ fun DownloadsScreen(modifier: Modifier = Modifier, viewModel: DownloadsViewModel
                     IconButton(onClick = { viewModel.refreshDownloads() }) {
                         Icon(imageVector = Icons.Default.Refresh, contentDescription = stringResource(R.string.refresh))
                     }
+                    ThemeToggleButton(themeMode = themeMode, onToggle = { themeViewModel.toggleTheme() })
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { paddingValues ->
-        Column(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
+        Column(modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 20.dp)) {
             // Tab Row
             DownloadsTabRow(
                 selectedTab = uiState.selectedTab,
@@ -110,6 +120,8 @@ fun DownloadsScreen(modifier: Modifier = Modifier, viewModel: DownloadsViewModel
                 failedCount = uiState.failedDownloads.size,
                 modifier = Modifier.fillMaxWidth(),
             )
+
+            androidx.compose.foundation.layout.Spacer(modifier = Modifier.height(16.dp))
 
             // Content based on selected tab
             Box(modifier = Modifier.fillMaxSize().weight(1f)) {
@@ -126,7 +138,7 @@ fun DownloadsScreen(modifier: Modifier = Modifier, viewModel: DownloadsViewModel
                             actions = DownloadsActions({
                                 viewModel.pauseDownload(it)
                             }, { viewModel.resumeDownload(it) }, { viewModel.cancelDownload(it) }, { viewModel.retryDownload(it) }),
-                            modifier = Modifier.fillMaxSize(),
+                            modifier = Modifier.fillMaxSize().padding(top = 8.dp),
                         )
                     }
                     DownloadsTab.Completed -> {
@@ -141,7 +153,7 @@ fun DownloadsScreen(modifier: Modifier = Modifier, viewModel: DownloadsViewModel
                             actions = DownloadsActions({
                                 viewModel.pauseDownload(it)
                             }, { viewModel.resumeDownload(it) }, { viewModel.cancelDownload(it) }, { viewModel.retryDownload(it) }),
-                            modifier = Modifier.fillMaxSize(),
+                            modifier = Modifier.fillMaxSize().padding(top = 8.dp),
                         )
                     }
                     DownloadsTab.Failed -> {
@@ -156,7 +168,7 @@ fun DownloadsScreen(modifier: Modifier = Modifier, viewModel: DownloadsViewModel
                             actions = DownloadsActions({
                                 viewModel.pauseDownload(it)
                             }, { viewModel.resumeDownload(it) }, { viewModel.cancelDownload(it) }, { viewModel.retryDownload(it) }),
-                            modifier = Modifier.fillMaxSize(),
+                            modifier = Modifier.fillMaxSize().padding(top = 8.dp),
                         )
                     }
                 }
@@ -220,8 +232,8 @@ private fun DownloadsList(
         } else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
+                contentPadding = PaddingValues(vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 items(downloads, key = { it.torrentId }) { download ->
                     DownloadListItem(download, actions)

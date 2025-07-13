@@ -4,7 +4,6 @@ import com.jabook.app.core.data.network.MockRuTrackerApiService
 import com.jabook.app.core.data.network.RuTrackerApiService
 import com.jabook.app.core.data.repository.RuTrackerRepositoryImpl
 import com.jabook.app.core.domain.repository.RuTrackerRepository
-import com.jabook.app.shared.debug.IDebugLogger
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -23,8 +22,8 @@ object RuTrackerModule {
 
     @Provides
     @Singleton
-    fun provideRuTrackerRepository(apiService: RuTrackerApiService, debugLogger: IDebugLogger): RuTrackerRepository {
-        return RuTrackerRepositoryImpl(apiService, debugLogger)
+    fun provideRuTrackerRepository(): RuTrackerRepository {
+        return RuTrackerRepositoryImpl()
     }
 
     // Real RuTracker API implementation will be added later

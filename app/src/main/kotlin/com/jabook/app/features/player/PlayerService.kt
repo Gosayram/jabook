@@ -100,12 +100,13 @@ class PlayerService : MediaSessionService() {
             ACTION_SEEK_BACKWARD -> playerManager.seekTo(playerManager.getCurrentPosition() - 15000)
             else -> {
                 // Handle initial service start with audiobook
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    intent?.getParcelableExtra(EXTRA_AUDIOBOOK, Audiobook::class.java)?.let { audiobook -> initializePlayer(audiobook) }
+                val audiobook = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    intent?.getParcelableExtra(EXTRA_AUDIOBOOK, Audiobook::class.java)
                 } else {
-                    @Suppress("DEPRECATION")
-                    intent?.getParcelableExtra<Audiobook>(EXTRA_AUDIOBOOK)?.let { audiobook -> initializePlayer(audiobook) }
+                    // For Android 6.0-12 we use the old API without @Suppress
+                    intent?.getParcelableExtra(EXTRA_AUDIOBOOK)
                 }
+                audiobook?.let { initializePlayer(it) }
             }
         }
 

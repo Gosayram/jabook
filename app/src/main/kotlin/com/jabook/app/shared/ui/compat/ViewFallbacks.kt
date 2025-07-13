@@ -195,7 +195,8 @@ object ViewFallbacks {
             return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 context.getColor(colorRes)
             } else {
-                @Suppress("DEPRECATION") context.resources.getColor(colorRes)
+                // For Android 6.0 we use the old API without @Suppress
+                context.resources.getColor(colorRes)
             }
         }
 

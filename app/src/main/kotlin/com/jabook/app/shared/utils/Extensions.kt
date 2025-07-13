@@ -76,7 +76,8 @@ fun Context.isNetworkAvailable(): Boolean {
             capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) ||
             capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)
     } else {
-        @Suppress("DEPRECATION") val networkInfo = connectivityManager.activeNetworkInfo
+        // For Android 6.0 we use the old API without @Suppress
+        val networkInfo = connectivityManager.activeNetworkInfo
         networkInfo?.isConnected == true
     }
 }
@@ -89,7 +90,8 @@ fun Context.isWifiConnected(): Boolean {
         val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
         capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
     } else {
-        @Suppress("DEPRECATION") val networkInfo = connectivityManager.activeNetworkInfo
+        // For Android 6.0 we use the old API without @Suppress
+        val networkInfo = connectivityManager.activeNetworkInfo
         networkInfo?.type == ConnectivityManager.TYPE_WIFI && networkInfo.isConnected
     }
 }
