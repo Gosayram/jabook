@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.jabook.app.core.domain.model.Audiobook
 import com.jabook.app.features.library.domain.usecase.GetLibraryAudiobooksUseCase
 import com.jabook.app.features.library.domain.usecase.UpdateAudiobookUseCase
+import com.jabook.app.shared.debug.IDebugLogger
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -20,6 +21,7 @@ class LibraryViewModel
 constructor(
     private val getLibraryAudiobooksUseCase: GetLibraryAudiobooksUseCase,
     private val updateAudiobookUseCase: UpdateAudiobookUseCase,
+    private val debugLogger: IDebugLogger,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(LibraryUiState())
     val uiState: StateFlow<LibraryUiState> = _uiState.asStateFlow()
@@ -31,6 +33,7 @@ constructor(
     val categories: StateFlow<List<String>> = _categories.asStateFlow()
 
     init {
+        debugLogger.logInfo("LibraryViewModel initialized")
         loadAudiobooks()
         loadCategories()
     }

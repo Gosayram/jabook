@@ -69,7 +69,12 @@ fun LibraryScreen(
         }
     }
 
-    Column(modifier = modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = getDynamicVerticalPadding())) {
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(horizontal = 16.dp, vertical = 8.dp), // Reduced vertical padding
+        verticalArrangement = androidx.compose.foundation.layout.Arrangement.Top
+    ) {
         TopAppBar(
             title = { Text(stringResource(R.string.library_title)) },
             actions = {
@@ -91,7 +96,7 @@ fun LibraryScreen(
                 active = isSearchActive,
                 onActiveChange = { isSearchActive = it },
                 placeholder = { Text(stringResource(R.string.search_placeholder)) },
-                modifier = Modifier.padding(top = 16.dp, bottom = 8.dp),
+                modifier = Modifier.padding(top = 8.dp, bottom = 4.dp), // Reduced padding
             ) {
                 // Search suggestions can be added here
             }
@@ -102,10 +107,10 @@ fun LibraryScreen(
             categories = categories,
             selectedCategory = uiState.selectedCategory,
             onFilterChange = viewModel::changeFilter,
-            modifier = Modifier.padding(vertical = 12.dp),
+            modifier = Modifier.padding(vertical = 4.dp), // Reduced vertical padding
         )
 
-        Spacer(modifier = Modifier.height(12.dp))
+        // Removed unnecessary Spacer
 
         Box(modifier = Modifier.weight(1f)) {
             when {

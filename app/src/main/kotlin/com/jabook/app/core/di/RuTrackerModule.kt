@@ -2,10 +2,9 @@ package com.jabook.app.core.di
 
 import com.jabook.app.core.data.repository.RuTrackerRepositoryImpl
 import com.jabook.app.core.domain.repository.RuTrackerRepository
-import com.jabook.app.core.network.RealRuTrackerApiService
 import com.jabook.app.core.network.RuTrackerApiClient
 import com.jabook.app.core.network.RuTrackerApiClientImpl
-import com.jabook.app.core.network.RuTrackerApiService
+import com.jabook.app.core.network.RuTrackerAvailabilityChecker
 import com.jabook.app.core.network.RuTrackerParser
 import com.jabook.app.core.network.RuTrackerParserImpl
 import com.jabook.app.core.network.RuTrackerPreferences
@@ -22,10 +21,6 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 abstract class RuTrackerModule {
-    @Binds
-    @Singleton
-    abstract fun bindRuTrackerApiService(impl: RealRuTrackerApiService): RuTrackerApiService
-
     @Binds
     @Singleton
     abstract fun bindRuTrackerParser(impl: RuTrackerParserImpl): RuTrackerParser

@@ -97,6 +97,7 @@ class DiscoveryViewModel @Inject constructor(
             .stateIn(scope = viewModelScope, started = SharingStarted.WhileSubscribed(5000), initialValue = DiscoveryUiState())
 
     init {
+        debugLogger.logInfo("DiscoveryViewModel initialized")
         loadInitialData()
     }
 

@@ -1,6 +1,11 @@
 package com.jabook.app.shared.debug
 
+import android.content.ContentResolver
+import android.content.ContentValues
 import android.content.Context
+import android.content.SharedPreferences
+import android.net.Uri
+import android.provider.DocumentsContract
 import android.util.Log
 import com.jabook.app.BuildConfig
 import com.jabook.app.core.torrent.TorrentEvent
@@ -12,6 +17,7 @@ import java.io.FileWriter
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import android.os.Environment
 
 /** Interface for debug logging to avoid DI issues with object singleton */
 interface IDebugLogger {
@@ -77,25 +83,34 @@ class DebugLoggerImpl(context: Context) : IDebugLogger {
 /** Debug logger for comprehensive logging Based on IDEA.md architecture specification */
 object DebugLogger {
     private const val TAG = "JaBook"
-    private const val LOG_FILE_NAME = "jabook_debug.log"
+    private const val LOG_FOLDER_NAME = "JabookLogs"
+    private const val LOG_FILE_NAME = "debug_log.txt"
     private const val MAX_LOG_SIZE = 10 * 1024 * 1024 // 10MB
 
     private var logFile: File? = null
     private var isInitialized = false
     private val logScope = CoroutineScope(Dispatchers.IO)
+    private var appContext: Context? = null
 
     fun initialize(context: Context) {
         if (isInitialized) return
 
-        val logsDir = File(context.filesDir, "logs")
-        if (!logsDir.exists()) {
-            logsDir.mkdirs()
+        appContext = context.applicationContext
+        try {
+            val externalStorage = Environment.getExternalStorageDirectory()
+            val version = BuildConfig.VERSION_NAME
+            val logDir = File(externalStorage, "$LOG_FOLDER_NAME/$version")
+            if (!logDir.exists()) {
+                logDir.mkdirs()
+            }
+            logFile = File(logDir, LOG_FILE_NAME)
+            logInfo("DebugLogger initialized (public external storage, versioned)")
+        } catch (e: Exception) {
+            // Fallback: use internal storage if external is not available
+            logFile = File(context.filesDir, LOG_FILE_NAME)
+            logInfo("DebugLogger fallback to internal storage: ${e.message}")
         }
-
-        logFile = File(logsDir, LOG_FILE_NAME)
         isInitialized = true
-
-        logInfo("DebugLogger initialized")
     }
 
     fun logInfo(message: String, tag: String = TAG) {
@@ -104,10 +119,8 @@ object DebugLogger {
     }
 
     fun logDebug(message: String, tag: String = TAG) {
-        if (BuildConfig.DEBUG) {
-            Log.d(tag, message)
-            writeToFile(LogLevel.DEBUG, tag, message)
-        }
+        Log.d(tag, message)
+        writeToFile(LogLevel.DEBUG, tag, message)
     }
 
     fun logWarning(message: String, tag: String = TAG) {
@@ -176,13 +189,40 @@ object DebugLogger {
     }
 
     private fun writeToFile(level: LogLevel, tag: String, message: String) {
-        if (!isInitialized || logFile == null) return
+        if (!isInitialized) return
 
+        val context = appContext ?: return
+        val prefs: SharedPreferences = context.getSharedPreferences("jabook_prefs", Context.MODE_PRIVATE)
+        val logFolderUriString = prefs.getString("log_folder_uri", null)
+        val timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.US).format(Date())
+        val logEntry = "$timestamp [${level.name}] [$tag] $message\n"
+
+        if (logFolderUriString != null) {
+            try {
+                val logFolderUri = Uri.parse(logFolderUriString)
+                val contentResolver = context.contentResolver
+                val logFileName = LOG_FILE_NAME
+
+                // Find or create the log file in the selected folder
+                val logFileUri = findOrCreateLogFile(contentResolver, logFolderUri, logFileName)
+                if (logFileUri != null) {
+                    // Append log entry to the file
+                    contentResolver.openOutputStream(logFileUri, "wa")?.use { outputStream ->
+                        outputStream.write(logEntry.toByteArray())
+                        outputStream.flush()
+                    }
+                    return
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to write log to SAF folder", e)
+            }
+        }
+
+        // Fallback: write to file in public or internal storage
+        val file = logFile ?: return
         logScope.launch {
             try {
-                val currentFile = logFile!!
-
-                // Check file size and rotate if needed
+                val currentFile = file
                 if (currentFile.exists() && currentFile.length() > MAX_LOG_SIZE) {
                     val backupFile = File(currentFile.parentFile, "${LOG_FILE_NAME}.bak")
                     if (backupFile.exists()) {
@@ -190,10 +230,6 @@ object DebugLogger {
                     }
                     currentFile.renameTo(backupFile)
                 }
-
-                val timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.US).format(Date())
-                val logEntry = "$timestamp [${level.name}] [$tag] $message\n"
-
                 FileWriter(currentFile, true).use { writer ->
                     writer.write(logEntry)
                     writer.flush()
@@ -202,6 +238,30 @@ object DebugLogger {
                 Log.e(TAG, "Failed to write to log file", e)
             }
         }
+    }
+
+    /**
+     * Find or create a log file in the SAF folder. Returns the file Uri.
+     */
+    private fun findOrCreateLogFile(contentResolver: ContentResolver, folderUri: Uri, fileName: String): Uri? {
+        // Try to find the file first
+        val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(folderUri, DocumentsContract.getTreeDocumentId(folderUri))
+        val cursor = contentResolver.query(childrenUri, arrayOf(DocumentsContract.Document.COLUMN_DOCUMENT_ID, DocumentsContract.Document.COLUMN_DISPLAY_NAME), null, null, null)
+        cursor?.use {
+            while (it.moveToNext()) {
+                val name = it.getString(1)
+                if (name == fileName) {
+                    val documentId = it.getString(0)
+                    return DocumentsContract.buildDocumentUriUsingTree(folderUri, documentId)
+                }
+            }
+        }
+        // If not found, create the file
+        val values = ContentValues().apply {
+            put(DocumentsContract.Document.COLUMN_DISPLAY_NAME, fileName)
+            put(DocumentsContract.Document.COLUMN_MIME_TYPE, "text/plain")
+        }
+        return DocumentsContract.createDocument(contentResolver, folderUri, "text/plain", fileName)
     }
 
     enum class LogLevel {

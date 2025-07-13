@@ -150,3 +150,6 @@ bin/
 **/**/keystore/
 certs/
 keystore.properties
+
+# Special docs
+.*-docs.md

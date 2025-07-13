@@ -348,3 +348,36 @@ This comprehensive plan addresses all current limitations and provides a robust 
 JaBook represents a modern approach to audiobook management on Android, combining powerful playback capabilities with seamless content discovery. The dual-mode RuTracker integration ensures accessibility while providing enhanced features for registered users.
 
 The project follows Android best practices and modern development patterns, ensuring maintainability, scalability, and user satisfaction. 
+
+# UI/UX and Functional Improvements Plan (Samsung S23 FE)
+
+## 1. Guest Mode: Real-Time Content Search
+- [ ] Implement real-time search and display of audiobook topics in guest mode (no login required)
+- [ ] Ensure guest mode fetches and displays top books and categories from RuTracker API
+- [ ] Show clear error messages if network is unavailable or API fails
+
+## 2. Status and Feedback
+- [ ] Localize all status messages (e.g., "Success", "Switched to guest mode") to match app language
+- [ ] Use consistent, user-friendly phrasing for all feedback and error states
+- [ ] Visually distinguish between success and error states (color, icon)
+
+## 3. Forms and Controls
+- [ ] Improve input field contrast and placeholder text for better readability
+- [ ] Enable login button only when both fields are non-empty
+- [ ] Add password visibility toggle to password field
+- [ ] Add loading indicator to login button during authentication
+
+## 4. Navigation and Empty States
+- [ ] Add onboarding or tooltip for first-time users in empty library/downloads
+- [ ] Improve empty state illustrations and messages (e.g., "No content available", "No active downloads")
+- [ ] Add retry button for failed content loads
+
+## 5. Visual Consistency
+- [ ] Unify card and button corner radius, padding, and elevation across all screens
+- [ ] Fix alignment and spacing in settings and forms
+- [ ] Ensure all icons and text are visually balanced and accessible
+
+## 6. General
+- [ ] Audit all screens for dark mode compliance and color contrast
+- [ ] Add accessibility labels for all interactive elements
+- [ ] Update all English/Russian strings for clarity and consistency

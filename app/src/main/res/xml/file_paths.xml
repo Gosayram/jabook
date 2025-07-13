@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<paths xmlns:android="http://schemas.android.com/apk/res/android">
-    <external-files-path name="audiobooks" path="audiobooks/"/>
-    <external-files-path name="downloads" path="downloads/"/>
-    <external-cache-path name="cache" path="cache/"/>
-    <files-path name="files" path="."/>
+<paths>
+    <!-- Grant access to the logs directory in internal storage -->
+    <files-path name="logs" path="logs/" />
+    <!-- Grant access to all files in external storage (getExternalFilesDir) -->
+    <external-files-path name="external_files" path="." />
 </paths> 

@@ -175,4 +175,50 @@
     <string name="cd_menu_button">Menu button</string>
     <string name="cd_search_button">Search button</string>
     
+    <!-- RuTracker Settings -->
+    <string name="rutracker_settings_title">RuTracker Settings</string>
+    <string name="rutracker_mode_title">Operating Mode</string>
+    <string name="rutracker_guest_mode">Guest Mode</string>
+    <string name="rutracker_authenticated_mode">Authenticated Mode</string>
+    <string name="rutracker_guest_mode_description">View magnet links without registration</string>
+    <string name="rutracker_authenticated_mode_description">Full access with user credentials</string>
+    <string name="rutracker_credentials_title">User Credentials</string>
+    <string name="rutracker_username_hint">Username</string>
+    <string name="rutracker_password_hint">Password</string>
+    <string name="rutracker_login_button">Login</string>
+    <string name="rutracker_logout_button">Logout</string>
+    <string name="rutracker_authorized_as">Authorized as: %s</string>
+    <string name="rutracker_enter_credentials">Enter login and password</string>
+    <string name="rutracker_invalid_credentials">Invalid login or password</string>
+    <string name="rutracker_auth_error">Authorization error: %s</string>
+    <string name="rutracker_auth_success">Successful authorization</string>
+    <string name="rutracker_logout_success">Logout completed</string>
+    <string name="rutracker_switched_to_guest">Switched to guest mode</string>
+    <string name="rutracker_switched_to_auth">Switched to authorization mode</string>
+    
+    <!-- RuTracker Availability Check -->
+    <string name="rutracker_check_availability">Check RuTracker availability</string>
+    <string name="rutracker_available">RuTracker is available and responding</string>
+    <string name="rutracker_not_available">RuTracker is not available</string>
+    <string name="rutracker_availability_check_failed">Availability check failed: %s</string>
+    <string name="rutracker_availability_error">Availability check error: %s</string>
+    
+    <!-- Debug Logs -->
+    <string name="export_debug_logs">Export debug logs</string>
+    <string name="export_logs_success">Log file exported successfully</string>
+    <string name="export_logs_failed">Failed to export log file: %s</string>
+    <string name="log_file_not_found">Log file not found</string>
+    <string name="export_logs_from_saf">Export log from SAF folder</string>
+    <string name="export_logs_from_saf_success">Log file exported from SAF folder</string>
+    <string name="export_logs_from_saf_failed">Failed to export log from SAF: %s</string>
+    <string name="log_file_not_found_saf">Log file not found in SAF folder</string>
+    <string name="select_log_folder">Select log folder</string>
+    <string name="log_folder_selected">Log folder selected: %s</string>
+    <string name="write_test_log_entry">Write test log entry</string>
+    <string name="test_log_written">Test log entry written. Check log file.</string>
+    <string name="write_test_log_failed">Failed to write test log: %s</string>
+    <string name="log_folder_saf">Log folder (SAF): %s\nFile: %s</string>
+    <string name="log_file_will_appear">Log file will appear after the first log entry.</string>
+    <string name="log_file_path">Log file path: %s</string>
+    
 </resources> 

@@ -6,6 +6,7 @@ import com.jabook.app.core.domain.model.RuTrackerSearchResult
 import com.jabook.app.core.domain.repository.RuTrackerRepository
 import com.jabook.app.core.network.AuthenticationState
 import com.jabook.app.core.network.RuTrackerApiClient
+import com.jabook.app.core.network.RuTrackerApiService
 import com.jabook.app.shared.debug.IDebugLogger
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -14,10 +15,14 @@ import javax.inject.Singleton
 
 /**
  * RuTracker Repository implementation with dual mode support
+ *
+ * Uses new RuTrackerApiService for guest mode operations
+ * Falls back to RuTrackerApiClient for authenticated operations
  */
 @Singleton
 class RuTrackerRepositoryImpl @Inject constructor(
     private val ruTrackerApiClient: RuTrackerApiClient,
+    private val ruTrackerApiService: RuTrackerApiService,
     private val debugLogger: IDebugLogger,
 ) : RuTrackerRepository {
 
@@ -25,13 +30,8 @@ class RuTrackerRepositoryImpl @Inject constructor(
         try {
             debugLogger.logDebug("RuTrackerRepository: Getting categories")
 
-            val result = ruTrackerApiClient.getCategoriesGuest()
-            if (result.isSuccess) {
-                emit(result.getOrNull() ?: emptyList())
-            } else {
-                debugLogger.logError("RuTrackerRepository: Failed to get categories", result.exceptionOrNull())
-                emit(emptyList())
-            }
+            val categories = ruTrackerApiService.getCategories()
+            emit(categories)
         } catch (e: Exception) {
             debugLogger.logError("RuTrackerRepository: Error getting categories", e)
             emit(emptyList())
@@ -42,19 +42,19 @@ class RuTrackerRepositoryImpl @Inject constructor(
         try {
             debugLogger.logDebug("RuTrackerRepository: Getting audiobooks for category: $categoryId, page: $page, sort: $sortBy")
 
-            val result = if (ruTrackerApiClient.isAuthenticated()) {
-                ruTrackerApiClient.searchAuthenticated("", sortBy, "desc", page)
+            val audiobooks = if (ruTrackerApiClient.isAuthenticated()) {
+                val result = ruTrackerApiClient.searchAuthenticated("", sortBy, "desc", page)
+                if (result.isSuccess) {
+                    result.getOrNull()?.results ?: emptyList()
+                } else {
+                    emptyList()
+                }
             } else {
-                ruTrackerApiClient.searchGuest("", categoryId, page)
+                // Use guest mode with empty query to get category audiobooks
+                ruTrackerApiService.searchAudiobooks("")
             }
 
-            if (result.isSuccess) {
-                val searchResult = result.getOrNull()
-                emit(searchResult?.results ?: emptyList())
-            } else {
-                debugLogger.logError("RuTrackerRepository: Failed to get audiobooks", result.exceptionOrNull())
-                emit(emptyList())
-            }
+            emit(audiobooks)
         } catch (e: Exception) {
             debugLogger.logError("RuTrackerRepository: Error getting audiobooks", e)
             emit(emptyList())
@@ -65,18 +65,26 @@ class RuTrackerRepositoryImpl @Inject constructor(
         try {
             debugLogger.logDebug("RuTrackerRepository: Searching audiobooks - query: $query, category: $categoryId, page: $page")
 
-            val result = if (ruTrackerApiClient.isAuthenticated()) {
-                ruTrackerApiClient.searchAuthenticated(query, "seeds", "desc", page)
+            val searchResult = if (ruTrackerApiClient.isAuthenticated()) {
+                val result = ruTrackerApiClient.searchAuthenticated(query, "seeds", "desc", page)
+                if (result.isSuccess) {
+                    result.getOrNull() ?: RuTrackerSearchResult.empty(query)
+                } else {
+                    RuTrackerSearchResult.empty(query)
+                }
             } else {
-                ruTrackerApiClient.searchGuest(query, categoryId, page)
+                // Use guest mode search
+                val audiobooks = ruTrackerApiService.searchAudiobooks(query)
+                RuTrackerSearchResult(
+                    query = query,
+                    totalResults = audiobooks.size,
+                    currentPage = page,
+                    totalPages = 1,
+                    results = audiobooks,
+                )
             }
 
-            if (result.isSuccess) {
-                emit(result.getOrNull() ?: RuTrackerSearchResult.empty(query))
-            } else {
-                debugLogger.logError("RuTrackerRepository: Failed to search audiobooks", result.exceptionOrNull())
-                emit(RuTrackerSearchResult.empty(query))
-            }
+            emit(searchResult)
         } catch (e: Exception) {
             debugLogger.logError("RuTrackerRepository: Error searching audiobooks", e)
             emit(RuTrackerSearchResult.empty(query))
@@ -87,22 +95,22 @@ class RuTrackerRepositoryImpl @Inject constructor(
         try {
             debugLogger.logDebug("RuTrackerRepository: Getting audiobook details - id: $audiobookId")
 
-            val result = if (ruTrackerApiClient.isAuthenticated()) {
-                ruTrackerApiClient.getTorrentDetailsAuthenticated(audiobookId)
-            } else {
-                ruTrackerApiClient.getAudiobookDetailsGuest(audiobookId)
-            }
-
-            if (result.isSuccess) {
-                val audiobook = result.getOrNull()
-                if (audiobook != null) {
-                    emit(audiobook)
+            val audiobook = if (ruTrackerApiClient.isAuthenticated()) {
+                val result = ruTrackerApiClient.getTorrentDetailsAuthenticated(audiobookId)
+                if (result.isSuccess) {
+                    result.getOrNull()
                 } else {
-                    debugLogger.logWarning("RuTrackerRepository: Audiobook not found - id: $audiobookId")
-                    emit(RuTrackerAudiobook.empty())
+                    null
                 }
             } else {
-                debugLogger.logError("RuTrackerRepository: Failed to get audiobook details", result.exceptionOrNull())
+                // Use guest mode details
+                ruTrackerApiService.getAudiobookDetails(audiobookId)
+            }
+
+            if (audiobook != null) {
+                emit(audiobook)
+            } else {
+                debugLogger.logWarning("RuTrackerRepository: Audiobook not found - id: $audiobookId")
                 emit(RuTrackerAudiobook.empty())
             }
         } catch (e: Exception) {
@@ -254,13 +262,16 @@ class RuTrackerRepositoryImpl @Inject constructor(
         return try {
             debugLogger.logDebug("RuTrackerRepository: Getting magnet link for audiobook: $audiobookId")
 
-            val result = if (ruTrackerApiClient.isAuthenticated()) {
-                ruTrackerApiClient.getMagnetLinkAuthenticated(audiobookId)
+            val magnetLink = if (ruTrackerApiClient.isAuthenticated()) {
+                val result = ruTrackerApiClient.getMagnetLinkAuthenticated(audiobookId)
+                result.getOrNull()
             } else {
-                ruTrackerApiClient.getMagnetLinkGuest(audiobookId)
+                // For guest mode, we need to get the HTML first and extract magnet link
+                val audiobook = ruTrackerApiService.getAudiobookDetails(audiobookId)
+                audiobook?.magnetUri
             }
 
-            result.getOrNull()
+            magnetLink
         } catch (e: Exception) {
             debugLogger.logError("RuTrackerRepository: Error getting magnet link", e)
             null

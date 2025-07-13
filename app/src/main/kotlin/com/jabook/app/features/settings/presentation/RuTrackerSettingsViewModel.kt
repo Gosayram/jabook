@@ -1,9 +1,16 @@
 package com.jabook.app.features.settings.presentation
 
+import android.app.Application
+import android.content.Context
+import android.content.SharedPreferences
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jabook.app.core.domain.repository.RuTrackerRepository
+import com.jabook.app.core.network.RuTrackerAvailabilityChecker
 import com.jabook.app.core.network.RuTrackerPreferences
+import com.jabook.app.R
+import com.jabook.app.shared.debug.IDebugLogger
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -11,6 +18,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import android.provider.DocumentsContract
 
 data class RuTrackerSettingsState(
     val isGuestMode: Boolean = true,
@@ -36,7 +44,12 @@ sealed class RuTrackerSettingsEvent {
 class RuTrackerSettingsViewModel @Inject constructor(
     private val ruTrackerRepository: RuTrackerRepository,
     private val ruTrackerPreferences: RuTrackerPreferences,
+    private val ruTrackerAvailabilityChecker: RuTrackerAvailabilityChecker,
+    private val debugLogger: IDebugLogger, // Inject logger for log export
+    application: Application,
 ) : ViewModel() {
+    private val appContext = application.applicationContext
+    private val prefs: SharedPreferences = appContext.getSharedPreferences("jabook_prefs", Context.MODE_PRIVATE)
 
     private val _state = MutableStateFlow(RuTrackerSettingsState())
     val state: StateFlow<RuTrackerSettingsState> = _state.asStateFlow()
@@ -86,7 +99,7 @@ class RuTrackerSettingsViewModel @Inject constructor(
     fun login() {
         val currentState = _state.value
         if (currentState.username.isBlank() || currentState.password.isBlank()) {
-            _state.update { it.copy(error = "Enter login and password") }
+            _state.update { it.copy(error = appContext.getString(R.string.rutracker_enter_credentials)) }
             return
         }
 
@@ -108,14 +121,14 @@ class RuTrackerSettingsViewModel @Inject constructor(
                         currentState.copy(
                             isAuthorized = true,
                             isLoading = false,
-                            successMessage = "Successful authorization",
+                            successMessage = appContext.getString(R.string.rutracker_auth_success),
                         )
                     }
                 } else {
                     _state.update { currentState ->
                         currentState.copy(
                             isLoading = false,
-                            error = "Invalid login or password",
+                            error = appContext.getString(R.string.rutracker_invalid_credentials),
                         )
                     }
                 }
@@ -123,7 +136,7 @@ class RuTrackerSettingsViewModel @Inject constructor(
                 _state.update { currentState ->
                     currentState.copy(
                         isLoading = false,
-                        error = "Authorization error: ${e.message}",
+                        error = appContext.getString(R.string.rutracker_auth_error, e.message ?: ""),
                     )
                 }
             }
@@ -140,7 +153,7 @@ class RuTrackerSettingsViewModel @Inject constructor(
                     isAuthorized = false,
                     username = "",
                     password = "",
-                    successMessage = "Logout completed",
+                    successMessage = appContext.getString(R.string.rutracker_logout_success),
                 )
             }
         }
@@ -175,14 +188,14 @@ class RuTrackerSettingsViewModel @Inject constructor(
                         isAuthorized = false,
                         username = "",
                         password = "",
-                        successMessage = "Switched to guest mode",
+                        successMessage = appContext.getString(R.string.rutracker_switched_to_guest),
                     )
                 }
             } else {
                 _state.update { currentState ->
                     currentState.copy(
                         isGuestMode = false,
-                        successMessage = "Switched to authorization mode",
+                        successMessage = appContext.getString(R.string.rutracker_switched_to_auth),
                     )
                 }
             }
@@ -207,5 +220,98 @@ class RuTrackerSettingsViewModel @Inject constructor(
 
     private fun clearSuccess() {
         _state.update { it.copy(successMessage = null) }
+    }
+
+    /**
+     * Export debug logs as a file for sharing or diagnostics.
+     * Returns the log file or null if not available.
+     */
+    fun exportLogs(): java.io.File? {
+        return debugLogger.exportLogs()
+    }
+
+    /**
+     * Save the selected log folder Uri in SharedPreferences for SAF logging.
+     */
+    fun setLogFolderUri(uri: String) {
+        prefs.edit().putString("log_folder_uri", uri).apply()
+    }
+
+    /**
+     * Get the SAF log folder Uri as a string, or null if not set.
+     */
+    fun getLogFolderUri(): String? {
+        return prefs.getString("log_folder_uri", null)
+    }
+
+    /**
+     * Get the Uri of the log file in the SAF folder, or null if not found.
+     */
+    fun getLogFileUriFromSaf(fileName: String): Uri? {
+        val logFolderUriString = getLogFolderUri() ?: return null
+        val logFolderUri = Uri.parse(logFolderUriString)
+        val contentResolver = appContext.contentResolver
+        // Find the file in the SAF folder
+        val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(logFolderUri, DocumentsContract.getTreeDocumentId(logFolderUri))
+        val cursor = contentResolver.query(childrenUri, arrayOf(DocumentsContract.Document.COLUMN_DOCUMENT_ID, DocumentsContract.Document.COLUMN_DISPLAY_NAME), null, null, null)
+        cursor?.use {
+            while (it.moveToNext()) {
+                val name = it.getString(1)
+                if (name == fileName) {
+                    val documentId = it.getString(0)
+                    return DocumentsContract.buildDocumentUriUsingTree(logFolderUri, documentId)
+                }
+            }
+        }
+        return null
+    }
+
+    /**
+     * Write a test log entry to ensure the log file is created in the selected folder.
+     */
+    fun writeTestLogEntry() {
+        debugLogger.logInfo("Test log entry: SAF folder selected and log file created.")
+    }
+
+    /**
+     * Perform manual RuTracker availability check and show result to user.
+     */
+    fun checkRuTrackerAvailability() {
+        viewModelScope.launch {
+            _state.update { it.copy(isLoading = true, error = null, successMessage = null) }
+
+            try {
+                val result = ruTrackerAvailabilityChecker.performManualCheck()
+                
+                when {
+                    result.isSuccess -> {
+                        val isAvailable = result.getOrNull() ?: false
+                        if (isAvailable) {
+                            _state.update { it.copy(
+                                isLoading = false,
+                                successMessage = appContext.getString(R.string.rutracker_available)
+                            ) }
+                        } else {
+                            _state.update { it.copy(
+                                isLoading = false,
+                                error = appContext.getString(R.string.rutracker_not_available)
+                            ) }
+                        }
+                    }
+                    result.isFailure -> {
+                        val exception = result.exceptionOrNull()
+                        _state.update { it.copy(
+                            isLoading = false,
+                            error = appContext.getString(R.string.rutracker_availability_check_failed, exception?.message ?: "Unknown error")
+                        ) }
+                    }
+                }
+            } catch (e: Exception) {
+                _state.update { it.copy(
+                    isLoading = false,
+                    error = appContext.getString(R.string.rutracker_availability_error, e.message ?: "")
+                ) }
+            }
+        }
     }
 }
