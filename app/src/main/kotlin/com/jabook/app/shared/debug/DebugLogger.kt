@@ -103,8 +103,8 @@ object DebugLogger {
             if (!logDir.exists()) {
                 logDir.mkdirs()
             }
-            logFile = File(logDir, LOG_FILE_NAME)
             logInfo("DebugLogger initialized (public external storage, versioned)")
+            logFile = File(logDir, LOG_FILE_NAME)
         } catch (e: Exception) {
             // Fallback: use internal storage if external is not available
             logFile = File(context.filesDir, LOG_FILE_NAME)
@@ -117,7 +117,7 @@ object DebugLogger {
             } else {
                 "external"
             }
-        logInfo("DebugLogger init complete. Using $storageType storage", TAG)
+        logInfo("DebugLogger init complete - using $storageType storage", tag = TAG)
     }
 
     fun logInfo(message: String, tag: String = TAG) {
@@ -283,8 +283,6 @@ object DebugLogger {
         WARNING,
         ERROR,
     }
-
-    private val values: List<String> = emptyList() // Unused property
 }
 
 /** Playback events for debugging */
@@ -360,7 +358,7 @@ object PerformanceTracker {
         DebugLogger.logPerformance(operation, duration, additionalInfo)
     }
 
-    fun getAverageTime(operation: String): Long {
+    fun getAverageTime(operation: String): Long) {
         return metrics[operation]?.average()?.toLong() ?: 0
     }
 
@@ -374,7 +372,7 @@ object PerformanceTracker {
 }
 
 /** Inline function for easy performance measurement */
-inline fun <T> measurePerformance(operation: String, additionalInfo: String = "", block: () -> T): T {
+inline fun  measurePerformance(operation: String, additionalInfo: String = "", block: () -> T): T {
     val startTime = PerformanceTracker.startMeasurement(operation)
     return try {
         block()
