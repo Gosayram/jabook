@@ -27,8 +27,33 @@ jobs:
       - name: Build APK
         run: ./gradlew assembleRelease
 
+      - name: Extract version from tag
+        if: github.ref_type == 'tag'
+        run: |
+          VERSION=$(echo "${GITHUB_REF_NAME}" | sed 's/^v//')
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+
+      - name: Set version variables
+        if: github.ref_type == 'tag'
+        run: |
+          VERSION_NAME="${{ env.VERSION }}"
+          VERSION_CODE=$(echo "$VERSION_NAME" | awk -F. '{printf "%d%02d%02d", $1, $2, $3}')
+          echo "VERSION_NAME=$VERSION_NAME" >> $GITHUB_ENV
+          echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_ENV
+
+      - name: Update app version in build.gradle.kts
+        if: github.ref_type == 'tag'
+        run: |
+          sed -i "s/versionName = \"0.1.0\"/versionName = \"${{ env.VERSION_NAME }}\"/g" app/build.gradle.kts
+          sed -i "s/versionCode = 1/versionCode = ${{ env.VERSION_CODE }}/g" app/build.gradle.kts
+
+      - name: Build APK
+        if: github.ref_type == 'tag'
+        run: ./gradlew assembleRelease
+
       - name: Upload APK
+        if: github.ref_type == 'tag'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: app-release.apk
+          name: jabook-release-${{ env.VERSION_NAME }}.apk
           path: app/build/outputs/apk/release/app-release.apk
