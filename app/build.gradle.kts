@@ -84,6 +84,11 @@ android {
         baseline = file("lint-baseline.xml")
         abortOnError = false
     }
+
+    packagingOptions {
+        doNotStrip "*/libandroidx.graphics.path.so"
+        doNotStrip "*/libdatastore_shared_counter.so"
+    }
 }
 
 dependencies {
