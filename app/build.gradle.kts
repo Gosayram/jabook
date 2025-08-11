@@ -85,9 +85,15 @@ android {
         abortOnError = false
     }
 
-    packagingOptions {
-        doNotStrip "*/libandroidx.graphics.path.so"
-        doNotStrip "*/libdatastore_shared_counter.so"
+    packaging {
+        jniLibs {
+            keepDebugSymbols.addAll(
+                listOf(
+                    "*/libandroidx.graphics.path.so",
+                    "*/libdatastore_shared_counter.so"
+                )
+            )
+        }
     }
 }
 
