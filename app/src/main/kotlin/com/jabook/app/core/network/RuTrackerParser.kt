@@ -622,7 +622,7 @@ object CategoryParser {
                                 parentId = parentId,
                                 isActive = true,
                                 topicCount = 0,
-                            )
+                            ),
                         )
                         parentId = id
                     }
@@ -649,37 +649,41 @@ object CategoryParser {
                             parentId = parentId,
                             isActive = true,
                             topicCount = 0,
-                        )
+                        ),
                     )
                 }
             }
 
             // 3. Fallback: old parsing (by rows)
             if (categories.isEmpty()) {
-            val categoryElements = doc.select("tr[id^=tr-]")
+                val categoryElements = doc.select("tr[id^=tr-]")
                 categoryElements.mapNotNullTo(categories) { element ->
                     try {
-                val idElement = element.selectFirst("td.tCenter a")
-                val nameElement = element.selectFirst("td.tLeft a")
-                if (idElement != null && nameElement != null) {
+                        val idElement = element.selectFirst("td.tCenter a")
+                        val nameElement = element.selectFirst("td.tLeft a")
+                        if (idElement != null && nameElement != null) {
                             val href = idElement.attr("href")
                             val id = href.substringAfter("c=").substringBefore("&").takeIf { it.isNotBlank() } ?: ""
-                    val name = nameElement.text().trim()
-                    val description = nameElement.attr("title").takeIf { it.isNotEmpty() }
+                            val name = nameElement.text().trim()
+                            val description = nameElement.attr("title").takeIf { it.isNotEmpty() }
                             if (id.isNotBlank() && name.isNotBlank()) {
-                    RuTrackerCategory(
-                        id = id,
-                        name = name,
-                        description = description,
-                        parentId = null,
-                        isActive = true,
+                                RuTrackerCategory(
+                                    id = id,
+                                    name = name,
+                                    description = description,
+                                    parentId = null,
+                                    isActive = true,
                                     topicCount = 0,
-                    )
-                            } else null
-                        } else null
+                                )
+                            } else {
+                                null
+                            }
+                        } else {
+                            null
+                        }
                     } catch (e: Exception) {
                         debugLogger.logError("RuTrackerParser: Failed to parse category element", e)
-                    null
+                        null
                     }
                 }
             }

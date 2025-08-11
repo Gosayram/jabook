@@ -40,22 +40,22 @@ class RuTrackerAvailabilityChecker @Inject constructor(
         isActive = true
         availabilityJob = scope.launch {
             debugLogger.logInfo("RuTrackerAvailabilityChecker: Starting periodic availability checks")
-            
+
             // Initial delay before first check
             delay(INITIAL_DELAY_MS)
-            
+
             while (isActive) {
                 try {
                     performAvailabilityCheck()
                 } catch (e: Exception) {
                     debugLogger.logError("RuTrackerAvailabilityChecker: Error during availability check", e)
                 }
-                
+
                 // Wait for next check
                 delay(CHECK_INTERVAL_MS)
             }
         }
-        
+
         debugLogger.logDebug("RuTrackerAvailabilityChecker: Availability checks started")
     }
 
@@ -71,7 +71,7 @@ class RuTrackerAvailabilityChecker @Inject constructor(
         isActive = false
         availabilityJob?.cancel()
         availabilityJob = null
-        
+
         debugLogger.logInfo("RuTrackerAvailabilityChecker: Stopped periodic availability checks")
     }
 
@@ -81,24 +81,29 @@ class RuTrackerAvailabilityChecker @Inject constructor(
     private suspend fun performAvailabilityCheck() {
         try {
             debugLogger.logDebug("RuTrackerAvailabilityChecker: Performing availability check")
-            
+
             val startTime = System.currentTimeMillis()
             val result = ruTrackerApiClient.checkAvailability()
             val endTime = System.currentTimeMillis()
             val responseTime = endTime - startTime
-            
+
             when {
                 result.isSuccess -> {
                     val isAvailable = result.getOrNull() ?: false
                     if (isAvailable) {
                         debugLogger.logInfo("RuTrackerAvailabilityChecker: RuTracker is available (response time: ${responseTime}ms)")
                     } else {
-                        debugLogger.logWarning("RuTrackerAvailabilityChecker: RuTracker is not available (response time: ${responseTime}ms)")
+                        debugLogger.logWarning(
+                            "RuTrackerAvailabilityChecker: RuTracker is not available (response time: ${responseTime}ms)",
+                        )
                     }
                 }
                 result.isFailure -> {
                     val exception = result.exceptionOrNull()
-                    debugLogger.logError("RuTrackerAvailabilityChecker: Availability check failed (response time: ${responseTime}ms)", exception)
+                    debugLogger.logError(
+                        "RuTrackerAvailabilityChecker: Availability check failed (response time: ${responseTime}ms)",
+                        exception,
+                    )
                 }
             }
         } catch (e: Exception) {
@@ -123,4 +128,4 @@ class RuTrackerAvailabilityChecker @Inject constructor(
      * Check if availability checks are currently active
      */
     fun isAvailabilityChecksActive(): Boolean = isActive
-} 
+}

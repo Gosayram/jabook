@@ -1,7 +1,9 @@
 package com.jabook.app.features.settings.presentation
 
-import android.content.Context
 import android.content.Intent
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -20,24 +22,18 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.core.content.FileProvider
-import java.io.File
-import android.widget.Toast
-import androidx.compose.ui.platform.LocalClipboardManager
-import androidx.compose.ui.text.AnnotatedString
-import android.app.Activity
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.jabook.app.R
+import java.io.File
 
 data class LoginCardState(
     val username: String,
@@ -71,7 +67,13 @@ fun ModeToggleCard(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    text = if (isGuestMode) stringResource(R.string.rutracker_guest_mode) else stringResource(R.string.rutracker_authenticated_mode),
+                    text = if (isGuestMode) {
+                        stringResource(
+                            R.string.rutracker_guest_mode,
+                        )
+                    } else {
+                        stringResource(R.string.rutracker_authenticated_mode)
+                    },
                     color = MaterialTheme.colorScheme.onSurface,
                 )
 
@@ -269,7 +271,7 @@ fun RuTrackerSettingsScreen(
                         val uri = FileProvider.getUriForFile(
                             context,
                             context.packageName + ".provider",
-                            logFile
+                            logFile,
                         )
                         val shareIntent = Intent(Intent.ACTION_SEND).apply {
                             type = "text/plain"
@@ -285,7 +287,7 @@ fun RuTrackerSettingsScreen(
                     Toast.makeText(context, context.getString(R.string.log_file_not_found), Toast.LENGTH_SHORT).show()
                 }
             },
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
         ) {
             Text(stringResource(R.string.export_debug_logs))
         }
@@ -298,7 +300,7 @@ fun RuTrackerSettingsScreen(
             Text(
                 text = stringResource(R.string.log_folder_saf, logFolderUriString, logFileName),
                 style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+                modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
             )
             // Show a hint if log file is not found
             if (viewModel.getLogFileUriFromSaf(logFileName) == null) {
@@ -306,7 +308,7 @@ fun RuTrackerSettingsScreen(
                     text = stringResource(R.string.log_file_will_appear),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.padding(bottom = 4.dp)
+                    modifier = Modifier.padding(bottom = 4.dp),
                 )
             }
         } else {
@@ -315,7 +317,7 @@ fun RuTrackerSettingsScreen(
             Text(
                 text = stringResource(R.string.log_file_path, logFilePath),
                 style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+                modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
             )
         }
 
@@ -334,16 +336,20 @@ fun RuTrackerSettingsScreen(
                             context.startActivity(Intent.createChooser(shareIntent, "Share debug log file (SAF)"))
                             Toast.makeText(context, context.getString(R.string.export_logs_from_saf_success), Toast.LENGTH_SHORT).show()
                         } catch (e: Exception) {
-                            Toast.makeText(context, context.getString(R.string.export_logs_from_saf_failed, e.message), Toast.LENGTH_LONG).show()
+                            Toast.makeText(
+                                context,
+                                context.getString(R.string.export_logs_from_saf_failed, e.message),
+                                Toast.LENGTH_LONG,
+                            ).show()
                         }
                     } else {
                         Toast.makeText(context, context.getString(R.string.log_file_not_found_saf), Toast.LENGTH_SHORT).show()
                     }
                 },
-                modifier = Modifier.fillMaxWidth()
-                    ) {
-            Text(stringResource(R.string.export_logs_from_saf))
-        }
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(stringResource(R.string.export_logs_from_saf))
+            }
         }
 
         // SAF launcher for selecting log folder
@@ -364,7 +370,7 @@ fun RuTrackerSettingsScreen(
             onClick = {
                 logFolderLauncher.launch(null)
             },
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
         ) {
             Text(stringResource(R.string.select_log_folder))
         }
@@ -379,7 +385,7 @@ fun RuTrackerSettingsScreen(
                     Toast.makeText(context, context.getString(R.string.write_test_log_failed, e.message), Toast.LENGTH_LONG).show()
                 }
             },
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
         ) {
             Text(stringResource(R.string.write_test_log_entry))
         }
@@ -389,7 +395,7 @@ fun RuTrackerSettingsScreen(
             onClick = {
                 viewModel.checkRuTrackerAvailability()
             },
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
         ) {
             Text(stringResource(R.string.rutracker_check_availability))
         }

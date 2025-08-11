@@ -2,9 +2,7 @@ package com.jabook.app.features.library.presentation
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -40,7 +38,6 @@ import com.jabook.app.features.library.presentation.components.LibraryFilterChip
 import com.jabook.app.shared.ui.AppThemeMode
 import com.jabook.app.shared.ui.ThemeViewModel
 import com.jabook.app.shared.ui.components.ThemeToggleButton
-import com.jabook.app.shared.ui.components.getDynamicVerticalPadding
 import com.jabook.app.shared.ui.theme.JaBookTheme
 
 /** Main Library screen showing the user's audiobook collection. Supports filtering, searching, and basic audiobook management. */
@@ -73,7 +70,7 @@ fun LibraryScreen(
         modifier = modifier
             .fillMaxSize()
             .padding(horizontal = 16.dp, vertical = 8.dp), // Reduced vertical padding
-        verticalArrangement = androidx.compose.foundation.layout.Arrangement.Top
+        verticalArrangement = androidx.compose.foundation.layout.Arrangement.Top,
     ) {
         TopAppBar(
             title = { Text(stringResource(R.string.library_title)) },

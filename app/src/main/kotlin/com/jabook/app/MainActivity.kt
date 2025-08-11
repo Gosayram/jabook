@@ -19,11 +19,11 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.rememberNavController
 import com.jabook.app.core.network.RuTrackerAvailabilityChecker
+import com.jabook.app.shared.debug.IDebugLogger
 import com.jabook.app.shared.ui.AppThemeMode
 import com.jabook.app.shared.ui.ThemeViewModel
 import com.jabook.app.shared.ui.navigation.JaBookNavigation
 import com.jabook.app.shared.ui.theme.JaBookTheme
-import com.jabook.app.shared.debug.IDebugLogger
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -34,6 +34,7 @@ import javax.inject.Inject
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     @Inject lateinit var debugLogger: IDebugLogger
+
     @Inject lateinit var ruTrackerAvailabilityChecker: RuTrackerAvailabilityChecker
 
     private val activityScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)

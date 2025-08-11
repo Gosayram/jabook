@@ -4,12 +4,13 @@ import android.app.Application
 import android.content.Context
 import android.content.SharedPreferences
 import android.net.Uri
+import android.provider.DocumentsContract
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.jabook.app.R
 import com.jabook.app.core.domain.repository.RuTrackerRepository
 import com.jabook.app.core.network.RuTrackerAvailabilityChecker
 import com.jabook.app.core.network.RuTrackerPreferences
-import com.jabook.app.R
 import com.jabook.app.shared.debug.IDebugLogger
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -18,7 +19,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
-import android.provider.DocumentsContract
 
 data class RuTrackerSettingsState(
     val isGuestMode: Boolean = true,
@@ -253,7 +253,13 @@ class RuTrackerSettingsViewModel @Inject constructor(
         val contentResolver = appContext.contentResolver
         // Find the file in the SAF folder
         val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(logFolderUri, DocumentsContract.getTreeDocumentId(logFolderUri))
-        val cursor = contentResolver.query(childrenUri, arrayOf(DocumentsContract.Document.COLUMN_DOCUMENT_ID, DocumentsContract.Document.COLUMN_DISPLAY_NAME), null, null, null)
+        val cursor = contentResolver.query(
+            childrenUri,
+            arrayOf(DocumentsContract.Document.COLUMN_DOCUMENT_ID, DocumentsContract.Document.COLUMN_DISPLAY_NAME),
+            null,
+            null,
+            null,
+        )
         cursor?.use {
             while (it.moveToNext()) {
                 val name = it.getString(1)
@@ -282,35 +288,46 @@ class RuTrackerSettingsViewModel @Inject constructor(
 
             try {
                 val result = ruTrackerAvailabilityChecker.performManualCheck()
-                
+
                 when {
                     result.isSuccess -> {
                         val isAvailable = result.getOrNull() ?: false
                         if (isAvailable) {
-                            _state.update { it.copy(
-                                isLoading = false,
-                                successMessage = appContext.getString(R.string.rutracker_available)
-                            ) }
+                            _state.update {
+                                it.copy(
+                                    isLoading = false,
+                                    successMessage = appContext.getString(R.string.rutracker_available),
+                                )
+                            }
                         } else {
-                            _state.update { it.copy(
-                                isLoading = false,
-                                error = appContext.getString(R.string.rutracker_not_available)
-                            ) }
+                            _state.update {
+                                it.copy(
+                                    isLoading = false,
+                                    error = appContext.getString(R.string.rutracker_not_available),
+                                )
+                            }
                         }
                     }
                     result.isFailure -> {
                         val exception = result.exceptionOrNull()
-                        _state.update { it.copy(
-                            isLoading = false,
-                            error = appContext.getString(R.string.rutracker_availability_check_failed, exception?.message ?: "Unknown error")
-                        ) }
+                        _state.update {
+                            it.copy(
+                                isLoading = false,
+                                error = appContext.getString(
+                                    R.string.rutracker_availability_check_failed,
+                                    exception?.message ?: "Unknown error",
+                                ),
+                            )
+                        }
                     }
                 }
             } catch (e: Exception) {
-                _state.update { it.copy(
-                    isLoading = false,
-                    error = appContext.getString(R.string.rutracker_availability_error, e.message ?: "")
-                ) }
+                _state.update {
+                    it.copy(
+                        isLoading = false,
+                        error = appContext.getString(R.string.rutracker_availability_error, e.message ?: ""),
+                    )
+                }
             }
         }
     }

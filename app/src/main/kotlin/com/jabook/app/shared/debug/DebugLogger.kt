@@ -5,6 +5,7 @@ import android.content.ContentValues
 import android.content.Context
 import android.content.SharedPreferences
 import android.net.Uri
+import android.os.Environment
 import android.provider.DocumentsContract
 import android.util.Log
 import com.jabook.app.BuildConfig
@@ -17,7 +18,6 @@ import java.io.FileWriter
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import android.os.Environment
 
 /** Interface for debug logging to avoid DI issues with object singleton */
 interface IDebugLogger {
@@ -246,7 +246,13 @@ object DebugLogger {
     private fun findOrCreateLogFile(contentResolver: ContentResolver, folderUri: Uri, fileName: String): Uri? {
         // Try to find the file first
         val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(folderUri, DocumentsContract.getTreeDocumentId(folderUri))
-        val cursor = contentResolver.query(childrenUri, arrayOf(DocumentsContract.Document.COLUMN_DOCUMENT_ID, DocumentsContract.Document.COLUMN_DISPLAY_NAME), null, null, null)
+        val cursor = contentResolver.query(
+            childrenUri,
+            arrayOf(DocumentsContract.Document.COLUMN_DOCUMENT_ID, DocumentsContract.Document.COLUMN_DISPLAY_NAME),
+            null,
+            null,
+            null,
+        )
         cursor?.use {
             while (it.moveToNext()) {
                 val name = it.getString(1)

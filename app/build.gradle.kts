@@ -152,8 +152,9 @@ dependencies {
     // File processing and compression
     implementation("org.apache.commons:commons-compress:1.27.1")
 
-    // Torrent (placeholder for now)
+    // Torrent support (temporarily disabled due to dependency issues)
     // implementation("org.libtorrent4j:libtorrent4j:2.0.9-1")
+    // TODO: Find correct version or alternative torrent library
 
     // Code quality plugins
     detektPlugins("io.gitlab.arturbosch.detekt:detekt-formatting:1.23.8")

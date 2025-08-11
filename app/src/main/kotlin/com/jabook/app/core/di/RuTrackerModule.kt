@@ -4,9 +4,8 @@ import com.jabook.app.core.data.repository.RuTrackerRepositoryImpl
 import com.jabook.app.core.domain.repository.RuTrackerRepository
 import com.jabook.app.core.network.RuTrackerApiClient
 import com.jabook.app.core.network.RuTrackerApiClientImpl
-import com.jabook.app.core.network.RuTrackerAvailabilityChecker
 import com.jabook.app.core.network.RuTrackerParser
-import com.jabook.app.core.network.RuTrackerParserImpl
+import com.jabook.app.core.network.RuTrackerParserImproved
 import com.jabook.app.core.network.RuTrackerPreferences
 import com.jabook.app.core.network.RuTrackerPreferencesImpl
 import dagger.Binds
@@ -23,7 +22,7 @@ import javax.inject.Singleton
 abstract class RuTrackerModule {
     @Binds
     @Singleton
-    abstract fun bindRuTrackerParser(impl: RuTrackerParserImpl): RuTrackerParser
+    abstract fun bindRuTrackerParser(impl: RuTrackerParserImproved): RuTrackerParser
 
     @Binds
     @Singleton
