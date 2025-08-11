@@ -10,6 +10,7 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import java.io.IOException
 import java.io.InputStream
 import java.net.URLEncoder
 import javax.inject.Inject
@@ -33,12 +34,21 @@ class RuTrackerApiService @Inject constructor(
         private const val CATEGORIES_URL = "$BASE_URL/forum/index.php"
     }
 
+    private var searchAttempts = 0
+
     /**
      * Search for audiobooks using guest mode
      */
     suspend fun searchAudiobooks(query: String): List<RuTrackerAudiobook> = withContext(Dispatchers.IO) {
         try {
             debugLogger.logDebug("RuTrackerApiService: Searching for '$query' in guest mode")
+
+            // Simulate network error for testing
+            if (searchAttempts < 2) {
+                searchAttempts++
+                debugLogger.logError("RuTrackerApiService: Simulating network error, attempt $searchAttempts")
+                throw IOException("Simulated network error")
+            }
 
             val encodedQuery = URLEncoder.encode(query, "UTF-8")
             val url = "$SEARCH_URL?nm=$encodedQuery"
@@ -53,6 +63,7 @@ class RuTrackerApiService @Inject constructor(
                 .addHeader("Upgrade-Insecure-Requests", "1")
                 .build()
 
+            debugLogger.logDebug("RuTrackerApiService: Request URL: ${request.url}")
             val response = httpClient.newCall(request).execute()
             val responseCode = response.code
             val responseBody = response.body?.string() ?: ""
@@ -68,6 +79,7 @@ class RuTrackerApiService @Inject constructor(
 
             if (responseBody.isBlank()) {
                 debugLogger.logWarning("RuTrackerApiService: Empty response body")
+                debugLogger.logWarning("RuTrackerApiService: Empty response body. Request URL: ${request.url}")
                 return@withContext emptyList()
             }
 

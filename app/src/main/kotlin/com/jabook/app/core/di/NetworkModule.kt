@@ -11,15 +11,26 @@ import okhttp3.CookieJar
 import okhttp3.HttpUrl
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
+import okhttp3.Response
 import okhttp3.logging.HttpLoggingInterceptor
+import java.io.IOException
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
+import javax.inject.Qualifier
 import javax.inject.Singleton
 
 /** Hilt module for network dependencies */
 @Module
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
+
+    @Qualifier
+    @Retention(AnnotationRetention.BINARY)
+    annotation class UserAgentInterceptorQualifier
+
+    @Qualifier
+    @Retention(AnnotationRetention.BINARY)
+    annotation class RetryInterceptorQualifier
 
     @Provides
     @Singleton
@@ -52,6 +63,7 @@ object NetworkModule {
 
     @Provides
     @Singleton
+    @UserAgentInterceptorQualifier
     fun provideUserAgentInterceptor(): Interceptor {
         return Interceptor { chain ->
             val userAgents = listOf(
@@ -69,7 +81,9 @@ object NetworkModule {
                 .header("User-Agent", randomUserAgent)
                 .header(
                     "Accept",
-                    "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+                    "text/html,application/xhtml+xml,application/xml;q=0.9," +
+                        "image/avif,image/webp,image/apng,*/*;q=0.8," +
+                        "application/signed-exchange;v=b3;q=0.7",
                 )
                 .header("Accept-Language", "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7")
                 .header("Accept-Encoding", "gzip, deflate, br")
@@ -99,15 +113,47 @@ object NetworkModule {
 
     @Provides
     @Singleton
+    @RetryInterceptorQualifier
+    fun provideRetryInterceptor(): Interceptor {
+        return Interceptor { chain ->
+            val request = chain.request()
+            var response: Response? = null
+            var attempts = 0
+            val maxRetries = 3
+            while (attempts < maxRetries) {
+                try {
+                    attempts++
+                    response = chain.proceed(request)
+                    if (response.isSuccessful) {
+                        return@Interceptor response
+                    } else {
+                        response.close()
+                        println("Request failed, retrying in ${attempts * 2} seconds")
+                        Thread.sleep((attempts * 2000).toLong()) // Exponential backoff
+                    }
+                } catch (e: IOException) {
+                    println("Request failed with exception: ${e.message}, retrying in ${attempts * 2} seconds")
+                    Thread.sleep((attempts * 2000).toLong()) // Exponential backoff
+                }
+            }
+            response ?: throw IOException("Max retries reached, request failed")
+            response
+        }
+    }
+
+    @Provides
+    @Singleton
     fun provideOkHttpClient(
         loggingInterceptor: HttpLoggingInterceptor,
         cookieJar: CookieJar,
-        userAgentInterceptor: Interceptor,
+        @UserAgentInterceptorQualifier userAgentInterceptor: Interceptor,
         connectionPool: ConnectionPool,
+        @RetryInterceptorQualifier retryInterceptor: Interceptor,
     ): OkHttpClient {
         return OkHttpClient.Builder()
             .addInterceptor(userAgentInterceptor)
             .addInterceptor(loggingInterceptor)
+            .addInterceptor(retryInterceptor)
             .cookieJar(cookieJar)
             .connectionPool(connectionPool)
             .connectTimeout(30, TimeUnit.SECONDS)

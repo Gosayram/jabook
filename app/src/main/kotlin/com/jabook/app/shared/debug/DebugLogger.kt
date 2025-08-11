@@ -111,6 +111,13 @@ object DebugLogger {
             logInfo("DebugLogger fallback to internal storage: ${e.message}")
         }
         isInitialized = true
+        val storageType =
+            if (logFile?.path?.contains("files") == true) {
+                "internal"
+            } else {
+                "external"
+            }
+        logInfo("DebugLogger init complete. Using $storageType storage", TAG)
     }
 
     fun logInfo(message: String, tag: String = TAG) {
@@ -276,6 +283,8 @@ object DebugLogger {
         WARNING,
         ERROR,
     }
+
+    private val values: List<String> = emptyList() // Unused property
 }
 
 /** Playback events for debugging */
