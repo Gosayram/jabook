@@ -28,7 +28,6 @@ constructor(private val bookmarkDao: BookmarkDao) {
         bookmarkDao.insertBookmark(bookmark.toEntity())
     }
 
-
     suspend fun deleteBookmark(id: String) {
         bookmarkDao.deleteBookmarkById(id)
     }

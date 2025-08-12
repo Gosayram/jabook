@@ -5,8 +5,8 @@ import com.jabook.app.core.data.mapper.AudiobookMapper.toDomainList
 import com.jabook.app.core.data.mapper.AudiobookMapper.toEntity
 import com.jabook.app.core.database.dao.AudiobookDao
 import com.jabook.app.core.domain.model.Audiobook
-import com.jabook.app.core.domain.model.Chapter
 import com.jabook.app.core.domain.model.Bookmark
+import com.jabook.app.core.domain.model.Chapter
 import com.jabook.app.core.domain.repository.AudiobookRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -145,11 +145,9 @@ constructor(
         return chapterHelper.getChapterByNumber(audiobookId, chapterNumber)
     }
 
-
     override suspend fun updateChapterDownloadStatus(id: String, isDownloaded: Boolean, progress: Float) {
         chapterHelper.updateChapterDownloadStatus(id, isDownloaded, progress)
     }
-
 
     override suspend fun deleteChapter(id: String) {
         chapterHelper.deleteChapter(id)
@@ -170,7 +168,6 @@ constructor(
     override fun getAllBookmarks(): Flow<List<com.jabook.app.core.domain.model.Bookmark>> {
         return bookmarkHelper.getAllBookmarks()
     }
-
 
     override suspend fun deleteBookmark(id: String) {
         bookmarkHelper.deleteBookmark(id)

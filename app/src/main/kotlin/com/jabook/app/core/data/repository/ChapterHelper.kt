@@ -28,11 +28,9 @@ constructor(private val chapterDao: ChapterDao) {
         chapterDao.insertChapter(chapter.toEntity())
     }
 
-
     suspend fun upsertChapters(chapters: List<Chapter>) {
         chapterDao.insertChapters(chapters.map { it.toEntity() })
     }
-
 
     suspend fun updateChapterDownloadStatus(id: String, isDownloaded: Boolean, progress: Float) {
         chapterDao.updateDownloadStatus(id, isDownloaded, progress)

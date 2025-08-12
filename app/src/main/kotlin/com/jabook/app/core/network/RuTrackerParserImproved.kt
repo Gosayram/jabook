@@ -19,7 +19,7 @@ import javax.inject.Singleton
 @Singleton
 class RuTrackerParserImproved @Inject constructor(
     private val debugLogger: IDebugLogger,
-) : RuTrackerParser {
+) : RuTrackerParser() {
 
     override suspend fun parseSearchResults(html: String): List<RuTrackerAudiobook> {
         return try {
@@ -379,7 +379,7 @@ class RuTrackerParserImproved @Inject constructor(
         return href.substringAfter("t=").substringBefore("&").takeIf { it.isNotBlank() } ?: ""
     }
 
-    private fun extractTitle(row: Element): String? {
+    override fun extractTitle(row: Element): String? {
         // Try multiple selectors for title
         val titleSelectors = listOf(
             ".torrent-title a",
@@ -402,7 +402,7 @@ class RuTrackerParserImproved @Inject constructor(
         return null
     }
 
-    private fun extractAuthorFromTitle(title: String): String {
+    override fun extractAuthorFromTitle(title: String): String {
         // Common patterns for author extraction
         val patterns = listOf(
             Regex("^([^-]+)\\s*-"), // Author - Title
@@ -621,4 +621,247 @@ class RuTrackerParserImproved @Inject constructor(
             debugLogger.logError("RuTrackerParserImproved: Failed to log HTML structure", e)
         }
     }
+}
+override fun extractTitle(row: Element): String? {
+    // Try multiple selectors for title
+    val titleSelectors = listOf(
+        ".torrent-title a",
+        ".topic-title a",
+        "a[href*='viewtopic']",
+        "td:nth-child(3) a",
+        ".tLeft a",
+    )
+
+    for (selector in titleSelectors) {
+        val titleElement = row.selectFirst(selector)
+        if (titleElement != null) {
+            val title = titleElement.text().trim()
+            if (title.isNotBlank()) {
+                return title
+            }
+        }
+    }
+
+    return null
+}
+
+override fun extractAuthorFromTitle(title: String): String {
+    // Common patterns for author extraction
+    val patterns = listOf(
+        Regex("^([^-]+)\\s*-"), // Author - Title
+        Regex("^([^\\(]+)\\s*\\("), // Author (Narrator)
+        Regex("^([^\\[]+)\\s*\\["), // Author [Series]
+    )
+
+    for (pattern in patterns) {
+        val match = pattern.find(title)
+        if (match != null) {
+            val author = match.groupValues[1].trim()
+            if (author.isNotBlank()) {
+                return author
+            }
+        }
+    }
+
+    // Fallback: take first part before common separators
+    return title.split(" - ", " (", " [").firstOrNull()?.trim() ?: ""
+}
+
+override fun extractSize(row: Element): String {
+    // Try multiple selectors for size
+    val sizeSelectors = listOf(
+        ".size",
+        ".torrent-size",
+        "td:nth-child(5)",
+        "td:nth-child(6)",
+        ".tCenter:contains(MB), .tCenter:contains(GB)",
+    )
+
+    for (selector in sizeSelectors) {
+        val sizeElement = row.selectFirst(selector)
+        if (sizeElement != null) {
+            val sizeText = sizeElement.text().trim()
+            if (sizeText.matches(Regex(".*\\d+.*[KMGT]?B.*"))) {
+                return sizeText
+            }
+        }
+    }
+
+    return "0 MB"
+}
+
+override fun extractSeeders(row: Element): Int {
+    return extractNumber(row, listOf(".seeders", ".seeds", "td:nth-child(6)", "td:nth-child(7)"))
+}
+
+override fun extractLeechers(row: Element): Int {
+    return extractNumber(row, listOf(".leechers", ".leech", "td:nth-child(7)", "td:nth-child(8)"))
+}
+
+private fun extractNumber(row: Element, selectors: List<String>): Int {
+    for (selector in selectors) {
+        val element = row.selectFirst(selector)
+        if (element != null) {
+            val number = element.text().trim().toIntOrNull()
+            if (number != null) {
+                return number
+            }
+        }
+    }
+    return 0
+}
+
+override fun extractAddedDate(row: Element): String {
+    val dateSelectors = listOf(
+        ".date",
+        ".added-date",
+        "td:nth-child(8)",
+        "td:nth-child(9)",
+        ".tCenter:last-child",
+    )
+
+    for (selector in dateSelectors) {
+        val dateElement = row.selectFirst(selector)
+        if (dateElement != null) {
+            val dateText = dateElement.text().trim()
+            if (dateText.matches(Regex("\\d{2}[.-]\\d{2}[.-]\\d{2,4}.*"))) {
+                return dateText
+            }
+        }
+    }
+
+    return ""
+}
+
+private suspend fun parseAudiobookDetailsFromDocument(doc: Document, html: String): RuTrackerAudiobook? {
+    // Implementation similar to existing but with improved selectors
+    // This would be a comprehensive implementation of detail parsing
+    // For now, return a basic implementation
+
+    val topicId = extractTopicIdFromDocument(doc) ?: return null
+    val title = extractTitleFromDocument(doc) ?: return null
+
+    return RuTrackerAudiobook(
+        id = topicId,
+        title = title,
+        author = "",
+        narrator = null,
+        description = "",
+        category = "Audiobooks",
+        categoryId = "33",
+        year = null,
+        quality = null,
+        duration = null,
+        size = "0 MB",
+        sizeBytes = 0L,
+        magnetUri = extractMagnetLink(html),
+        torrentUrl = extractTorrentLink(html),
+        seeders = 0,
+        leechers = 0,
+        completed = 0,
+        addedDate = "",
+        lastUpdate = null,
+        coverUrl = null,
+        rating = null,
+        genreList = emptyList(),
+        tags = emptyList(),
+        isVerified = false,
+        state = parseTorrentState(html),
+        downloads = 0,
+        registered = null,
+    )
+}
+
+private fun extractTopicIdFromDocument(doc: Document): String? {
+    // Try canonical link first
+    val canonical = doc.selectFirst("link[rel=canonical]")
+    if (canonical != null) {
+        val href = canonical.attr("href")
+        val topicId = extractTopicIdFromHref(href)
+        if (topicId.isNotBlank()) {
+            return topicId
+        }
+    }
+
+    // Try URL in address bar (meta)
+    val urlMeta = doc.selectFirst("meta[property='og:url']")
+    if (urlMeta != null) {
+        val href = urlMeta.attr("content")
+        val topicId = extractTopicIdFromHref(href)
+        if (topicId.isNotBlank()) {
+            return topicId
+        }
+    }
+
+    return null
+}
+
+private fun extractTitleFromDocument(doc: Document): String? {
+    // Try multiple selectors for page title
+    val titleSelectors = listOf(
+        "h1.maintitle",
+        ".topic-title",
+        "h1",
+        "title",
+    )
+
+    for (selector in titleSelectors) {
+        val titleElement = doc.selectFirst(selector)
+        if (titleElement != null) {
+            val title = titleElement.text().trim()
+            if (title.isNotBlank() && !title.contains("RuTracker", ignoreCase = true)) {
+                return title
+            }
+        }
+    }
+
+    return null
+}
+
+private fun parseCategoryRow(row: Element): RuTrackerCategory? {
+    // Implementation for category parsing
+    return null // Placeholder
+}
+
+private fun parseSizeToBytes(size: String): Long {
+    return try {
+        val number = size.replace(Regex("[^0-9.]"), "").toDoubleOrNull() ?: 0.0
+        val unit = size.replace(Regex("[0-9. ]"), "").uppercase()
+
+        when (unit) {
+            "KB" -> (number * 1024).toLong()
+            "MB" -> (number * 1024 * 1024).toLong()
+            "GB" -> (number * 1024 * 1024 * 1024).toLong()
+            "TB" -> (number * 1024 * 1024 * 1024 * 1024).toLong()
+            else -> (number * 1024 * 1024).toLong() // Default to MB
+        }
+    } catch (e: Exception) {
+        0L
+    }
+}
+
+private fun logHtmlStructure(doc: Document) {
+    try {
+        val tables = doc.select("table")
+        debugLogger.logDebug("RuTrackerParserImproved: Found ${tables.size} tables")
+
+        tables.forEachIndexed { index, table ->
+            val rows = table.select("tr")
+            debugLogger.logDebug("RuTrackerParserImproved: Table $index has ${rows.size} rows")
+
+            if (rows.size > 0) {
+                val firstRow = rows.first()!!
+                val cells = firstRow.select("td, th")
+                debugLogger.logDebug("RuTrackerParserImproved: First row has ${cells.size} cells")
+
+                cells.forEachIndexed { cellIndex, cell ->
+                    val cellText = cell.text().take(50)
+                    debugLogger.logDebug("RuTrackerParserImproved: Cell $cellIndex: '$cellText'")
+                }
+            }
+        }
+    } catch (e: Exception) {
+        debugLogger.logError("RuTrackerParserImproved: Failed to log HTML structure", e)
+    }
+}
 }
