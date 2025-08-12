@@ -4,7 +4,7 @@
 [![Android](https://img.shields.io/badge/Android-6.0%2B-green.svg)](https://developer.android.com/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-green.svg)](LICENSE)
 
-Modern audiobook player for Android devices with RuTracker.net integration. Built with Kotlin 2.2.x, Jetpack Compose, and Material Design 3. Supports Android 6.0+ (API 23-34) with comprehensive offline-first architecture.
+Modern audiobook player for Android devices with RuTracker.net integration. Built with Kotlin 2.2.x, Jetpack Compose, and Material Design 3. Supports Android 6.0+ (API 23-35) with comprehensive offline-first architecture.
 
 ## Table of Contents
 
@@ -37,7 +37,7 @@ Modern audiobook player for Android devices with RuTracker.net integration. Buil
 - **ExoPlayer integration** for high-quality audio playback with chapter navigation
 - **Offline-first architecture** for uninterrupted listening experience
 - **Smart library management** with automatic metadata extraction and organization
-- **Universal Android support** - works on all devices (API 23-34)
+- **Universal Android support** - works on all devices (API 23-35)
 - **Privacy-focused** - no analytics or external tracking
 - **Advanced player features** - sleep timer, playback speed control, bookmarks
 - **Comprehensive download management** with pause/resume capabilities
@@ -47,7 +47,7 @@ Modern audiobook player for Android devices with RuTracker.net integration. Buil
 ### Prerequisites
 
 - JDK 17, Kotlin 2.2.x, Gradle 8.14+
-- Android SDK with API 23-34
+- Android SDK with API 23-35
 - Android Studio (recommended) or command line tools
 
 ### Quick Install
@@ -173,7 +173,7 @@ app/
 ### Supported Android Versions
 
 - **Minimum**: Android 6.0 (API 23) - covers ~98% of devices
-- **Target**: Android 14 (API 34)
+- **Target**: Android 15 (API 35)
 - **Features**: Adaptive UI, runtime permissions, scoped storage
 
 ## Contributing
@@ -188,7 +188,7 @@ app/
 - Use 4 spaces for indentation
 - Follow Kotlin naming conventions
 - Write KDoc comments for public APIs
-- Maximum line length: 120 characters
+- Maximum line length: 140 characters
 
 ## License
 
@@ -202,5 +202,5 @@ See [CHANGELOG.md](CHANGELOG.md) for the latest changes and version history.
 
 **Project Status**: In Development  
 **Current Version**: 0.1.0  
-**Supported Platforms**: Android 6.0+ (API 23-34)  
-**Distribution**: Direct APK (sideloading) 
+**Supported Platforms**: Android 6.0+ (API 23-35)  
+**Distribution**: Direct APK (sideloading)
