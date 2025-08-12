@@ -358,7 +358,7 @@ object PerformanceTracker {
         DebugLogger.logPerformance(operation, duration, additionalInfo)
     }
 
-    fun getAverageTime(operation: String): Long) {
+    fun getAverageTime(operation: String): Long {
         return metrics[operation]?.average()?.toLong() ?: 0
     }
 
@@ -372,7 +372,7 @@ object PerformanceTracker {
 }
 
 /** Inline function for easy performance measurement */
-inline fun  measurePerformance(operation: String, additionalInfo: String = "", block: () -> T): T {
+inline fun <reified T> measurePerformance(operation: String, additionalInfo: String = "", block: () -> T): T {
     val startTime = PerformanceTracker.startMeasurement(operation)
     return try {
         block()
