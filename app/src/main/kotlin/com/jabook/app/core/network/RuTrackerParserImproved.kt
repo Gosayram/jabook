@@ -17,6 +17,7 @@ import javax.inject.Singleton
  * better error handling and fallback mechanisms
  */
 @Singleton
+@Suppress("TooManyFunctions")
 class RuTrackerParserImproved @Inject constructor(
     private val debugLogger: IDebugLogger,
 ) : RuTrackerParser {

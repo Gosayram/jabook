@@ -2,7 +2,6 @@ package com.jabook.app.core.network
 
 import com.jabook.app.core.domain.model.RuTrackerAudiobook
 import com.jabook.app.core.domain.model.RuTrackerCategory
-import com.jabook.app.shared.debug.IDebugLogger
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -23,9 +22,7 @@ interface RuTrackerParser {
  * Default implementation of RuTracker HTML Parser
  */
 @Singleton
-class RuTrackerParserImpl @Inject constructor(
-    private val debugLogger: IDebugLogger,
-) : RuTrackerParser {
+class RuTrackerParserImpl @Inject constructor() : RuTrackerParser {
 
     override suspend fun parseSearchResults(html: String): List<RuTrackerAudiobook> {
         // Basic implementation - to be overridden by improved parser

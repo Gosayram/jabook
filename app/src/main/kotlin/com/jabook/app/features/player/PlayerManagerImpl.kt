@@ -1,7 +1,6 @@
 package com.jabook.app.features.player
 
 import android.content.Context
-import android.media.AudioManager
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
@@ -217,5 +216,4 @@ class PlayerManagerImpl @Inject constructor(
         )
         _playbackState.value = state
     }
-
 }

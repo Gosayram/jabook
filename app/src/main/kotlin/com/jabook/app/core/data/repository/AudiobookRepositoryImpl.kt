@@ -24,18 +24,37 @@ constructor(
     private val chapterHelper: ChapterHelper,
     private val bookmarkHelper: BookmarkHelper,
 ) : AudiobookRepository {
-    override suspend fun upsertChapter(chapter: Chapter) {
-        chapterHelper.upsertChapter(chapter)
-    }
 
-    override suspend fun upsertChapters(chapters: List<Chapter>) {
-        chapterHelper.upsertChapters(chapters)
-    }
+    // Chapter operations delegated to ChapterHelper
+    override suspend fun upsertChapter(chapter: Chapter) = chapterHelper.upsertChapter(chapter)
+    override suspend fun upsertChapters(chapters: List<Chapter>) = chapterHelper.upsertChapters(chapters)
+    override fun getChaptersByAudiobookId(audiobookId: String) = chapterHelper.getChaptersByAudiobookId(audiobookId)
+    override suspend fun getChapterById(id: String) = chapterHelper.getChapterById(id)
+    override suspend fun getChapterByNumber(audiobookId: String, chapterNumber: Int) = chapterHelper.getChapterByNumber(
+        audiobookId,
+        chapterNumber,
+    )
+    override suspend fun updateChapterDownloadStatus(
+        id: String,
+        isDownloaded: Boolean,
+        progress: Float,
+    ) = chapterHelper.updateChapterDownloadStatus(
+        id,
+        isDownloaded,
+        progress,
+    )
+    override suspend fun deleteChapter(id: String) = chapterHelper.deleteChapter(id)
+    override suspend fun deleteChaptersForAudiobook(audiobookId: String) = chapterHelper.deleteChaptersForAudiobook(audiobookId)
 
-    override suspend fun upsertBookmark(bookmark: Bookmark) {
-        bookmarkHelper.upsertBookmark(bookmark)
-    }
+    // Bookmark operations delegated to BookmarkHelper
+    override suspend fun upsertBookmark(bookmark: Bookmark) = bookmarkHelper.upsertBookmark(bookmark)
+    override fun getBookmarksByAudiobookId(audiobookId: String) = bookmarkHelper.getBookmarksByAudiobookId(audiobookId)
+    override suspend fun getBookmarkById(id: String) = bookmarkHelper.getBookmarkById(id)
+    override fun getAllBookmarks() = bookmarkHelper.getAllBookmarks()
+    override suspend fun deleteBookmark(id: String) = bookmarkHelper.deleteBookmark(id)
+    override suspend fun deleteBookmarksForAudiobook(audiobookId: String) = bookmarkHelper.deleteBookmarksForAudiobook(audiobookId)
 
+    // Audiobook operations
     override fun getAllAudiobooks(): Flow<List<Audiobook>> {
         return audiobookDao.getAllAudiobooks().map { it.toDomainList() }
     }
@@ -131,50 +150,6 @@ constructor(
 
     override suspend fun resetAllPlaybackPositions() {
         audiobookDao.resetAllPlaybackPositions()
-    }
-
-    override fun getChaptersByAudiobookId(audiobookId: String): Flow<List<com.jabook.app.core.domain.model.Chapter>> {
-        return chapterHelper.getChaptersByAudiobookId(audiobookId)
-    }
-
-    override suspend fun getChapterById(id: String): com.jabook.app.core.domain.model.Chapter? {
-        return chapterHelper.getChapterById(id)
-    }
-
-    override suspend fun getChapterByNumber(audiobookId: String, chapterNumber: Int): com.jabook.app.core.domain.model.Chapter? {
-        return chapterHelper.getChapterByNumber(audiobookId, chapterNumber)
-    }
-
-    override suspend fun updateChapterDownloadStatus(id: String, isDownloaded: Boolean, progress: Float) {
-        chapterHelper.updateChapterDownloadStatus(id, isDownloaded, progress)
-    }
-
-    override suspend fun deleteChapter(id: String) {
-        chapterHelper.deleteChapter(id)
-    }
-
-    override suspend fun deleteChaptersForAudiobook(audiobookId: String) {
-        chapterHelper.deleteChaptersForAudiobook(audiobookId)
-    }
-
-    override fun getBookmarksByAudiobookId(audiobookId: String): Flow<List<com.jabook.app.core.domain.model.Bookmark>> {
-        return bookmarkHelper.getBookmarksByAudiobookId(audiobookId)
-    }
-
-    override suspend fun getBookmarkById(id: String): com.jabook.app.core.domain.model.Bookmark? {
-        return bookmarkHelper.getBookmarkById(id)
-    }
-
-    override fun getAllBookmarks(): Flow<List<com.jabook.app.core.domain.model.Bookmark>> {
-        return bookmarkHelper.getAllBookmarks()
-    }
-
-    override suspend fun deleteBookmark(id: String) {
-        bookmarkHelper.deleteBookmark(id)
-    }
-
-    override suspend fun deleteBookmarksForAudiobook(audiobookId: String) {
-        bookmarkHelper.deleteBookmarksForAudiobook(audiobookId)
     }
 
     /** Convert domain DownloadStatus to entity DownloadStatus. */
