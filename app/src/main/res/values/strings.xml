@@ -217,8 +217,21 @@
     <string name="write_test_log_entry">Write test log entry</string>
     <string name="test_log_written">Test log entry written. Check log file.</string>
     <string name="write_test_log_failed">Failed to write test log: %s</string>
-    <string name="log_folder_saf">Log folder (SAF): %s\nFile: %s</string>
+    <string name="log_folder_saf" formatted="false">Log folder (SAF): %s\nFile: %s</string>
     <string name="log_file_will_appear">Log file will appear after the first log entry.</string>
     <string name="log_file_path">Log file path: %s</string>
     
-</resources> 
+    <!-- Login Card -->
+    <string name="logged_in">Logged In</string>
+    <string name="login">Login</string>
+    <string name="logged_in_as">Logged in as: %s</string>
+    <string name="logout">Logout</string>
+    <string name="username">Username</string>
+    <string name="password">Password</string>
+    
+    <!-- Mode Toggle Card -->
+    <string name="ru_tracker_mode">RuTracker Mode</string>
+    <string name="guest_mode_desc">View magnet links without registration</string>
+    <string name="authorized_mode_desc">Full access with user credentials</string>
+    
+</resources>

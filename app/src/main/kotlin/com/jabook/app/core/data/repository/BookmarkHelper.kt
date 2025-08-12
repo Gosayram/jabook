@@ -2,6 +2,7 @@ package com.jabook.app.core.data.repository
 
 import com.jabook.app.core.data.mapper.AudiobookMapper.toBookmarkDomainList
 import com.jabook.app.core.data.mapper.AudiobookMapper.toDomain
+import com.jabook.app.core.data.mapper.AudiobookMapper.toEntity
 import com.jabook.app.core.database.dao.BookmarkDao
 import com.jabook.app.core.domain.model.Bookmark
 import kotlinx.coroutines.flow.Flow

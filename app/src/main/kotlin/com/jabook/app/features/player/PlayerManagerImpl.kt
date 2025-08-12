@@ -54,7 +54,7 @@ class PlayerManagerImpl @Inject constructor(
     private val _playbackState = MutableStateFlow(PlaybackState())
     private val exoPlayerHandler: ExoPlayerHandler = ExoPlayerHandler(context, debugLogger, mediaItemManager, this)
     private val chapterHandler: ChapterHandler = ChapterHandler(mediaItemManager)
-    private val audioFocusHandler: AudioFocusHandler = AudioFocusHandler(audioFocusManager, this)
+    private val audioFocusHandler: AudioFocusHandler = AudioFocusHandler(audioFocusManager)
 
     private val sleepTimerDelegate = SleepTimerDelegate(
         sleepTimerManager = sleepTimerManager,
@@ -218,35 +218,4 @@ class PlayerManagerImpl @Inject constructor(
         _playbackState.value = state
     }
 
-    // AudioManager.OnAudioFocusChangeListener implementation
-    override fun onAudioFocusChange(focusChange: Int) {
-        debugLogger.logDebug("Audio focus change: $focusChange")
-
-        when (focusChange) {
-            AudioManager.AUDIOFOCUS_GAIN -> {
-                // Resume playback if we were playing before
-                if (playWhenReady && exoPlayerHandler.exoPlayer?.isPlaying == false) {
-                    exoPlayerHandler.play()
-                }
-                exoPlayerHandler.exoPlayer?.volume = 1.0f
-            }
-            AudioManager.AUDIOFOCUS_LOSS -> {
-                // Pause playback and abandon focus
-                playWhenReady = false
-                exoPlayerHandler.pause()
-                audioFocusHandler.abandonAudioFocus()
-            }
-            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
-                // Pause playback but keep focus
-                if (exoPlayerHandler.exoPlayer?.isPlaying == true) {
-                    exoPlayerHandler.pause()
-                }
-            }
-            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
-                // Lower the volume
-                exoPlayerHandler.exoPlayer?.volume = 0.3f
-            }
-        }
-        updatePlaybackState()
-    }
 }

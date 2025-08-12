@@ -341,9 +341,8 @@ class StorageManagerImpl @Inject constructor(private val context: Context) : Sto
                 format = format,
                 chapterNumber = extractChapterNumber(file.name),
                 duration = trackLength.toLong(),
-                bitrate = audioFile.audioHeader.bitRate.toString(),
+                bitrate = audioFile.audioHeader.bitRate?.toInt() ?: 0,
                 title = tag.getFirst(FieldKey.TITLE),
-                artist = tag.getFirst(FieldKey.ARTIST),
             )
         } catch (e: Exception) {
             DebugLogger.logError("Failed to create AudioFile for ${file.name}", e, "StorageManager")
@@ -374,60 +373,6 @@ class StorageManagerImpl @Inject constructor(private val context: Context) : Sto
         } catch (e: Exception) {
             DebugLogger.logError("Failed to calculate directory size", e, "StorageManager")
             0
-        }
-    }
-}
-
-@kotlinx.serialization.Serializable
-data class StorageInfo(
-    val totalSpace: Long,
-    val availableSpace: Long,
-    val usedSpace: Long,
-    val audiobooksSize: Long,
-    val tempSize: Long,
-    val cacheSize: Long,
-    val logsSize: Long,
-)
-
-@kotlinx.serialization.Serializable
-data class AudiobookMetadata(
-    val title: String,
-    val author: String,
-    val description: String,
-    val coverImageUrl: String? = null,
-)
-
-@kotlinx.serialization.Serializable
-data class AudioFile(
-    val path: String,
-    val name: String,
-    val size: Long,
-    val format: AudioFormat,
-    val chapterNumber: Int? = null,
-    val duration: Long? = null,
-    val bitrate: String? = null,
-    val title: String? = null,
-    val artist: String? = null,
-)
-
-@kotlinx.serialization.Serializable
-enum class AudioFormat {
-    MP3,
-    FLAC,
-    WAV,
-    M4A,
-    OTHER,
-    ;
-
-    companion object {
-        fun fromExtension(extension: String): AudioFormat {
-            return when (extension.lowercase()) {
-                "mp3" -> MP3
-                "flac" -> FLAC
-                "wav" -> WAV
-                "m4a" -> M4A
-                else -> OTHER
-            }
         }
     }
 }

@@ -222,7 +222,7 @@ class PlayerService : MediaSessionService() {
             .addAction(playPauseAction)
             .addAction(nextAction)
             .setStyle(
-                MediaNotificationCompat.MediaStyle().setShowActionsInCompactView(0, 1, 2).setMediaSession(mediaSession?.sessionCompatToken),
+                MediaNotificationCompat.MediaStyle().setShowActionsInCompactView(0, 1, 2),
             )
             .setContentIntent(createContentIntent())
             .setDeleteIntent(createDeleteIntent())
