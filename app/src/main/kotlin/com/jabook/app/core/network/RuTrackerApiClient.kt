@@ -61,7 +61,7 @@ sealed class AuthenticationState {
 @Singleton
 class RuTrackerApiClientImpl @Inject constructor(
     private val ruTrackerApiService: RuTrackerApiService,
-    private val ruTrackerParser: RuTrackerParserImproved,
+    private val ruTrackerParser: RuTrackerParser,
     private val ruTrackerPreferences: RuTrackerPreferences,
     private val debugLogger: IDebugLogger,
 ) : RuTrackerApiClient {

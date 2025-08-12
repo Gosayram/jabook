@@ -3,6 +3,8 @@ package com.jabook.app.core.network.extractors
 import org.jsoup.nodes.Document
 
 object GenreExtractor {
+    val DEFAULT_GENRES = emptyList<String>()
+
     fun extractGenres(doc: Document): List<String> {
         val genreSelectors = listOf(
             "span.post-b:contains(Жанр:) + *",
@@ -19,6 +21,6 @@ object GenreExtractor {
             }
         }
 
-        return emptyList()
+        return DEFAULT_GENRES
     }
 }

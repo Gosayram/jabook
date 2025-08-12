@@ -2,10 +2,8 @@ package com.jabook.app.features.player
 
 import com.jabook.app.core.domain.model.Audiobook
 import com.jabook.app.core.domain.model.Chapter
-import com.jabook.app.shared.debug.IDebugLogger
 
 class ChapterHandler(
-    private val debugLogger: IDebugLogger,
     private val mediaItemManager: MediaItemManager,
 ) {
 

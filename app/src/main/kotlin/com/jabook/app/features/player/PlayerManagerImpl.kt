@@ -53,7 +53,7 @@ class PlayerManagerImpl @Inject constructor(
 
     private val _playbackState = MutableStateFlow(PlaybackState())
     private val exoPlayerHandler: ExoPlayerHandler = ExoPlayerHandler(context, debugLogger, mediaItemManager, this)
-    private val chapterHandler: ChapterHandler = ChapterHandler(debugLogger, mediaItemManager)
+    private val chapterHandler: ChapterHandler = ChapterHandler(mediaItemManager)
     private val audioFocusHandler: AudioFocusHandler = AudioFocusHandler(audioFocusManager, this)
 
     private val sleepTimerDelegate = SleepTimerDelegate(

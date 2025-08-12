@@ -20,8 +20,28 @@ object DateExtractor {
         return ""
     }
 
+    // Last update info is not typically shown on details page
+    val DEFAULT_LAST_UPDATE: String? = null
+
     fun extractLastUpdate(doc: Document): String? {
-        // Last update info is not typically shown on details page
-        return null
+        // Try to extract last update date from various selectors
+        val lastUpdateSelectors = listOf(
+            ".last-update",
+            ".updated-date",
+            ".modification-date",
+            ".edit-date",
+        )
+
+        for (selector in lastUpdateSelectors) {
+            val element = doc.selectFirst(selector)
+            if (element != null) {
+                val updateText = element.text().trim()
+                if (updateText.isNotBlank()) {
+                    return updateText
+                }
+            }
+        }
+
+        return DEFAULT_LAST_UPDATE
     }
 }

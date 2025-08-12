@@ -130,6 +130,12 @@ enum class TorrentState {
     DUBIOUSLY, // сомнительно
     CONSUMED, // поглощена
     TEMPORARY, // временная
+    PENDING, // ожидание
+    REJECTED, // отклонено
+    DUPLICATE, // дубликат
+    CLOSED, // закрыто
+    CHECKING, // проверка
+    ABSORBED, // поглощено
 }
 
 /** Download progress information */

@@ -3,6 +3,8 @@ package com.jabook.app.core.network.extractors
 import org.jsoup.nodes.Document
 
 object CoverExtractor {
+    val DEFAULT_COVER_URL: String? = null
+
     fun extractCoverUrl(doc: Document): String? {
         val coverSelectors = listOf(
             "var.postImg[title*='.jpg']",
@@ -21,6 +23,6 @@ object CoverExtractor {
             }
         }
 
-        return null
+        return DEFAULT_COVER_URL
     }
 }
