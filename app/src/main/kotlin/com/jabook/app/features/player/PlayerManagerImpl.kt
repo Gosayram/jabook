@@ -5,7 +5,6 @@ import android.media.AudioManager
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
-import androidx.media3.exoplayer.ExoPlayer
 import com.jabook.app.core.domain.model.Audiobook
 import com.jabook.app.core.domain.model.Chapter
 import com.jabook.app.shared.debug.IDebugLogger
@@ -42,73 +41,41 @@ private class SleepTimerDelegate(
 class PlayerManagerImpl @Inject constructor(
     @ApplicationContext private val context: Context,
     private val debugLogger: IDebugLogger,
-    private val audioFocusManager: AudioFocusManager,
+    audioFocusManager: AudioFocusManager,
     sleepTimerManager: SleepTimerManager,
     private val mediaItemManager: MediaItemManager,
     private val playbackStateManager: PlaybackStateManager,
-) : PlayerManager, Player.Listener, AudioManager.OnAudioFocusChangeListener {
+) : PlayerManager, Player.Listener {
 
-    private var exoPlayer: ExoPlayer? = null
     private var currentAudiobook: Audiobook? = null
     private var chapters: List<Chapter> = emptyList()
     private var playWhenReady = false
 
     private val _playbackState = MutableStateFlow(PlaybackState())
+    private val exoPlayerHandler: ExoPlayerHandler = ExoPlayerHandler(context, debugLogger, mediaItemManager, this)
+    private val chapterHandler: ChapterHandler = ChapterHandler(debugLogger, mediaItemManager)
+    private val audioFocusHandler: AudioFocusHandler = AudioFocusHandler(audioFocusManager, this)
 
     private val sleepTimerDelegate = SleepTimerDelegate(
         sleepTimerManager = sleepTimerManager,
-        onTimerFinished = { pause() },
+        onTimerFinished = { exoPlayerHandler.pause() },
         onStateChanged = { updatePlaybackState() },
     )
 
-    override fun getExoPlayer(): ExoPlayer? = exoPlayer
+    override fun getExoPlayer(): androidx.media3.exoplayer.ExoPlayer? = exoPlayerHandler.exoPlayer
 
     override fun initializePlayer(audiobook: Audiobook) {
         debugLogger.logInfo("PlayerManagerImpl.initializePlayer: ${audiobook.title}")
 
         try {
-            // Release existing player if any
-            release()
-
-            // Create new ExoPlayer instance
-            exoPlayer =
-                ExoPlayer.Builder(context)
-                    .setSeekBackIncrementMs(15000) // 15 seconds
-                    .setSeekForwardIncrementMs(30000) // 30 seconds
-                    .build()
-
-            exoPlayer?.addListener(this)
-
             // Store current audiobook
             currentAudiobook = audiobook
 
-            // For now, create a single chapter from the audiobook
-            // Actual chapter loading from repository will be implemented later
-            chapters =
-                if (audiobook.localAudioPath != null) {
-                    listOf(
-                        Chapter(
-                            id = "${audiobook.id}_chapter_1",
-                            audiobookId = audiobook.id,
-                            chapterNumber = 1,
-                            title = audiobook.title,
-                            filePath = audiobook.localAudioPath,
-                            durationMs = audiobook.durationMs,
-                            isDownloaded = audiobook.isDownloaded,
-                        ),
-                    )
-                } else {
-                    emptyList()
-                }
+            // Create chapters
+            chapters = chapterHandler.createChapters(audiobook)
 
-            if (chapters.isNotEmpty()) {
-                // Create media items from chapters
-                val mediaItems = mediaItemManager.createMediaItems(chapters)
-
-                // Set media items directly
-                exoPlayer?.setMediaItems(mediaItems)
-                exoPlayer?.prepare()
-            }
+            // Initialize player with chapters
+            exoPlayerHandler.initializePlayer(chapters)
 
             // Update playback state
             updatePlaybackState()
@@ -123,49 +90,47 @@ class PlayerManagerImpl @Inject constructor(
     override fun play() {
         debugLogger.logDebug("PlayerManagerImpl.play called")
         playWhenReady = true
-        if (audioFocusManager.requestAudioFocus(this)) {
-            exoPlayer?.play()
+        if (audioFocusHandler.requestAudioFocus()) {
+            exoPlayerHandler.play()
         }
     }
 
     override fun pause() {
         debugLogger.logDebug("PlayerManagerImpl.pause called")
         playWhenReady = false
-        exoPlayer?.pause()
+        exoPlayerHandler.pause()
     }
 
     override fun stop() {
         debugLogger.logDebug("PlayerManagerImpl.stop called")
-        exoPlayer?.stop()
+        exoPlayerHandler.stop()
         sleepTimerDelegate.cancelSleepTimer()
         updatePlaybackState()
     }
 
     override fun seekTo(position: Long) {
         debugLogger.logDebug("PlayerManagerImpl.seekTo: $position")
-        exoPlayer?.seekTo(position)
+        exoPlayerHandler.seekTo(position)
     }
 
     override fun seekToChapter(chapterIndex: Int) {
         debugLogger.logDebug("PlayerManagerImpl.seekToChapter: $chapterIndex")
-        if (chapterIndex >= 0 && chapterIndex < chapters.size) {
-            exoPlayer?.seekTo(chapterIndex, 0)
-        }
+        exoPlayerHandler.seekToChapter(chapterIndex, chapters)
     }
 
     override fun nextChapter() {
         debugLogger.logDebug("PlayerManagerImpl.nextChapter called")
-        exoPlayer?.seekToNextMediaItem()
+        exoPlayerHandler.nextChapter()
     }
 
     override fun previousChapter() {
         debugLogger.logDebug("PlayerManagerImpl.previousChapter called")
-        exoPlayer?.seekToPreviousMediaItem()
+        exoPlayerHandler.previousChapter()
     }
 
     override fun setPlaybackSpeed(speed: Float) {
         debugLogger.logDebug("PlayerManagerImpl.setPlaybackSpeed: $speed")
-        exoPlayer?.setPlaybackSpeed(speed)
+        exoPlayerHandler.setPlaybackSpeed(speed)
         updatePlaybackState()
     }
 
@@ -193,30 +158,28 @@ class PlayerManagerImpl @Inject constructor(
     }
 
     override fun getCurrentPosition(): Long {
-        return exoPlayer?.currentPosition ?: 0
+        return exoPlayerHandler.getCurrentPosition()
     }
 
     override fun getDuration(): Long {
-        return exoPlayer?.duration ?: 0
+        return exoPlayerHandler.getDuration()
     }
 
     override fun getCurrentChapter(): Chapter? {
-        val currentIndex = exoPlayer?.currentMediaItemIndex ?: return null
+        val currentIndex = exoPlayerHandler.getCurrentChapterIndex() ?: return null
         return chapters.getOrNull(currentIndex)
     }
 
     override fun getPlaybackSpeed(): Float {
-        return exoPlayer?.playbackParameters?.speed ?: 1.0f
+        return exoPlayerHandler.getPlaybackSpeed()
     }
 
     override fun release() {
         debugLogger.logDebug("PlayerManagerImpl.release called")
 
         sleepTimerDelegate.cancelSleepTimer()
-        audioFocusManager.abandonAudioFocus()
-        exoPlayer?.removeListener(this)
-        exoPlayer?.release()
-        exoPlayer = null
+        audioFocusHandler.abandonAudioFocus()
+        exoPlayerHandler.release()
         currentAudiobook = null
         chapters = emptyList()
 
@@ -245,6 +208,16 @@ class PlayerManagerImpl @Inject constructor(
         updatePlaybackState()
     }
 
+    /** Update internal playback state */
+    private fun updatePlaybackState(error: String? = null) {
+        val state = playbackStateManager.createPlaybackState(
+            player = exoPlayerHandler.exoPlayer,
+            sleepTimerRemaining = getSleepTimerRemaining(),
+            error = error,
+        )
+        _playbackState.value = state
+    }
+
     // AudioManager.OnAudioFocusChangeListener implementation
     override fun onAudioFocusChange(focusChange: Int) {
         debugLogger.logDebug("Audio focus change: $focusChange")
@@ -252,38 +225,28 @@ class PlayerManagerImpl @Inject constructor(
         when (focusChange) {
             AudioManager.AUDIOFOCUS_GAIN -> {
                 // Resume playback if we were playing before
-                if (playWhenReady && exoPlayer?.isPlaying == false) {
-                    exoPlayer?.play()
+                if (playWhenReady && exoPlayerHandler.exoPlayer?.isPlaying == false) {
+                    exoPlayerHandler.play()
                 }
-                exoPlayer?.volume = 1.0f
+                exoPlayerHandler.exoPlayer?.volume = 1.0f
             }
             AudioManager.AUDIOFOCUS_LOSS -> {
                 // Pause playback and abandon focus
                 playWhenReady = false
-                exoPlayer?.pause()
-                audioFocusManager.abandonAudioFocus()
+                exoPlayerHandler.pause()
+                audioFocusHandler.abandonAudioFocus()
             }
             AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
                 // Pause playback but keep focus
-                if (exoPlayer?.isPlaying == true) {
-                    exoPlayer?.pause()
+                if (exoPlayerHandler.exoPlayer?.isPlaying == true) {
+                    exoPlayerHandler.pause()
                 }
             }
             AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
                 // Lower the volume
-                exoPlayer?.volume = 0.3f
+                exoPlayerHandler.exoPlayer?.volume = 0.3f
             }
         }
         updatePlaybackState()
-    }
-
-    /** Update internal playback state */
-    private fun updatePlaybackState(error: String? = null) {
-        val state = playbackStateManager.createPlaybackState(
-            player = exoPlayer,
-            sleepTimerRemaining = getSleepTimerRemaining(),
-            error = error,
-        )
-        _playbackState.value = state
     }
 }

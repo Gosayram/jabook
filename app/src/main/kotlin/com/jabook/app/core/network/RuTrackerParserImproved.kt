@@ -159,13 +159,9 @@ class RuTrackerParserImproved @Inject constructor(
             )
 
             for (selector in torrentSelectors) {
-                val torrentElement = doc.selectFirst(selector)
-                if (torrentElement != null) {
-                    val href = torrentElement.attr("href")
-                    if (href.contains("dl.php") || href.endsWith(".torrent")) {
-                        debugLogger.logDebug("RuTrackerParserImproved: Found torrent link with selector: $selector")
-                        return if (href.startsWith("http")) href else "https://rutracker.net$href"
-                    }
+                val torrentLink = processTorrentElement(doc, selector)
+                if (torrentLink != null) {
+                    return torrentLink
                 }
             }
 
@@ -175,6 +171,18 @@ class RuTrackerParserImproved @Inject constructor(
             debugLogger.logError("RuTrackerParserImproved: Failed to extract torrent link", e)
             null
         }
+    }
+
+    private fun processTorrentElement(doc: Document, selector: String): String? {
+        val torrentElement = doc.selectFirst(selector)
+        if (torrentElement != null) {
+            val href = torrentElement.attr("href")
+            if (href.contains("dl.php") || href.endsWith(".torrent")) {
+                debugLogger.logDebug("RuTrackerParserImproved: Found torrent link with selector: $selector")
+                return if (href.startsWith("http")) href else "https://rutracker.net$href"
+            }
+        }
+        return null
     }
 
     override suspend fun parseTorrentState(html: String): TorrentState {
@@ -191,13 +199,9 @@ class RuTrackerParserImproved @Inject constructor(
 
                 val statusText = "$src $title $text".lowercase()
 
-                when {
-                    statusText.contains("проверено") || statusText.contains("approved") -> return TorrentState.APPROVED
-                    statusText.contains("не проверено") || statusText.contains("not approved") -> return TorrentState.NOT_APPROVED
-                    statusText.contains("недооформлено") || statusText.contains("need edit") -> return TorrentState.NEED_EDIT
-                    statusText.contains("сомнительно") || statusText.contains("dubious") -> return TorrentState.DUBIOUSLY
-                    statusText.contains("поглощена") || statusText.contains("consumed") -> return TorrentState.CONSUMED
-                    statusText.contains("временная") || statusText.contains("temporary") -> return TorrentState.TEMPORARY
+                val torrentState = getTorrentState(statusText)
+                if (torrentState != null) {
+                    return torrentState
                 }
             }
 
@@ -206,6 +210,42 @@ class RuTrackerParserImproved @Inject constructor(
             debugLogger.logError("RuTrackerParserImproved: Failed to parse torrent state", e)
             TorrentState.APPROVED
         }
+    }
+
+    private fun getTorrentState(statusText: String): TorrentState? {
+        return when {
+            isApproved(statusText) -> TorrentState.APPROVED
+            isNotApproved(statusText) -> TorrentState.NOT_APPROVED
+            isNeedEdit(statusText) -> TorrentState.NEED_EDIT
+            isDubious(statusText) -> TorrentState.DUBIOUSLY
+            isConsumed(statusText) -> TorrentState.CONSUMED
+            isTemporary(statusText) -> TorrentState.TEMPORARY
+            else -> null
+        }
+    }
+
+    private fun isApproved(statusText: String): Boolean {
+        return statusText.contains("проверено") || statusText.contains("approved")
+    }
+
+    private fun isNotApproved(statusText: String): Boolean {
+        return statusText.contains("не проверено") || statusText.contains("not approved")
+    }
+
+    private fun isNeedEdit(statusText: String): Boolean {
+        return statusText.contains("недооформлено") || statusText.contains("need edit")
+    }
+
+    private fun isDubious(statusText: String): Boolean {
+        return statusText.contains("сомнительно") || statusText.contains("dubious")
+    }
+
+    private fun isConsumed(statusText: String): Boolean {
+        return statusText.contains("поглощена") || statusText.contains("consumed")
+    }
+
+    private fun isTemporary(statusText: String): Boolean {
+        return statusText.contains("временная") || statusText.contains("temporary")
     }
 
     private fun isErrorPage(html: String): Boolean {

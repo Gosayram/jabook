@@ -1,34 +1,51 @@
+// Top-level imports for property loading and Jacoco task type
 import java.util.Properties
 import java.io.FileInputStream
+import org.gradle.testing.jacoco.tasks.JacocoReport
 
 plugins {
+    // Android & Kotlin (use AGP version from root; do not specify here to avoid conflicts)
     id("com.android.application")
-    id("org.jetbrains.kotlin.android")
-    id("org.jetbrains.kotlin.plugin.compose")
-    id("com.google.devtools.ksp")
-    // id("org.jlleitschuh.gradle.ktlint") // Disabled to avoid conflicts with ktfmt
-    id("io.gitlab.arturbosch.detekt")
-    id("com.google.dagger.hilt.android")
-    id("org.jetbrains.kotlin.plugin.parcelize")
-    // id("com.ncorti.ktfmt.gradle") version "0.23.0" // Disabled to avoid conflicts with detekt
+    id("org.jetbrains.kotlin.android") version "2.2.0"
+    id("org.jetbrains.kotlin.plugin.compose") version "2.2.0"
+    id("org.jetbrains.kotlin.plugin.parcelize") version "2.2.0"
+
+    // KSP (aligned with Kotlin 2.2.0)
+    id("com.google.devtools.ksp") version "2.2.0-2.0.2"
+
+    // Static analysis
+    id("io.gitlab.arturbosch.detekt") version "1.23.8"
+
+    // Hilt Gradle plugin
+    id("com.google.dagger.hilt.android") version "2.57"
+
+    // Code coverage
     jacoco
+
+    // Kotlinx Serialization compiler plugin
+    kotlin("plugin.serialization") version "2.2.0"
 }
 
-// Load keystore properties
+// Load keystore properties (if present)
 val keystorePropertiesFile = rootProject.file("keystore.properties")
-val keystoreProperties = Properties()
-if (keystorePropertiesFile.exists()) {
-    keystoreProperties.load(FileInputStream(keystorePropertiesFile))
+val keystoreProperties = Properties().apply {
+    if (keystorePropertiesFile.exists()) {
+        load(FileInputStream(keystorePropertiesFile))
+    }
 }
 
+// Android configuration
 android {
     namespace = "com.jabook.app"
-    compileSdk = 34
+
+    // Use SDK levels supported by used libraries
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.jabook.app"
-        minSdk = 23 // Android 6.0 - wide device coverage
-        targetSdk = 34 // Latest stable Android
+        minSdk = 23
+        targetSdk = 35
+
         versionCode = 1
         versionName = "0.1.0"
 
@@ -39,6 +56,7 @@ android {
         buildConfigField("boolean", "DEBUG_MODE", "true")
     }
 
+    // Signing (uses values from keystore.properties if available)
     signingConfigs {
         create("release") {
             if (keystorePropertiesFile.exists()) {
@@ -50,10 +68,14 @@ android {
         }
     }
 
+    // Build types
     buildTypes {
         release {
             isMinifyEnabled = false
-            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
             signingConfig = signingConfigs.getByName("release")
         }
         debug {
@@ -63,51 +85,63 @@ android {
         }
     }
 
+    // Enable Compose, ViewBinding and BuildConfig
     buildFeatures {
         compose = true
-        viewBinding = true // For legacy View fallbacks
+        viewBinding = true
         buildConfig = true
     }
 
-    composeOptions { kotlinCompilerExtensionVersion = "1.5.15" }
-
+    // Java / Kotlin toolchains
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
+    kotlin {
+        jvmToolchain(17)
+    }
 
-    kotlin { jvmToolchain(17) }
-
-    packaging { resources { excludes += "/META-INF/{AL2.0,LGPL2.1}" } }
-
+    // Lint configuration
     lint {
         baseline = file("lint-baseline.xml")
         abortOnError = false
     }
 
+    // Packaging options
     packaging {
-        jniLibs {
-            keepDebugSymbols.addAll(
-                listOf(
-                    "*/libandroidx.graphics.path.so",
-                    "*/libdatastore_shared_counter.so"
-                )
-            )
+        resources {
+            excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
+        jniLibs { }
+    }
+
+    // Unit test options
+    testOptions {
+        unitTests.isReturnDefaultValues = true
+        unitTests.isIncludeAndroidResources = true
     }
 }
+
+// Repositories are intentionally NOT declared here.
+// Settings enforce FAIL_ON_PROJECT_REPOS; repositories must be in settings.gradle(.kts).
 
 dependencies {
     // Kotlin standard library
     implementation("org.jetbrains.kotlin:kotlin-stdlib:2.2.0")
-    // Core Android dependencies
-    implementation("androidx.core:core-ktx:1.13.1")
-    implementation("androidx.appcompat:appcompat:1.7.0")
-    implementation("com.google.android.material:material:1.12.0")
-    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
-    implementation("androidx.activity:activity-compose:1.9.3")
 
-    // Jetpack Compose
+    // Android core & UI
+    implementation("androidx.core:core-ktx:1.16.0")
+    implementation("androidx.appcompat:appcompat:1.7.1")
+    implementation("com.google.android.material:material:1.12.0")
+
+    // Lifecycle
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.9.2")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.9.2")
+
+    // Activity
+    implementation("androidx.activity:activity-compose:1.10.1")
+
+    // Compose (stable BOM)
     implementation(platform("androidx.compose:compose-bom:2024.12.01"))
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
@@ -116,63 +150,64 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.compose.material:material")
 
-    // Navigation & Architecture
-    implementation("androidx.navigation:navigation-compose:2.8.5")
+    // Navigation
+    implementation("androidx.navigation:navigation-compose:2.8.7")
     implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
-    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
 
-    // Dependency Injection
-    implementation("com.google.dagger:hilt-android:2.56.2")
+    // DI
+    implementation("com.google.dagger:hilt-android:2.57")
     implementation("javax.inject:javax.inject:1")
-    ksp("com.google.dagger:hilt-compiler:2.56.2")
+    ksp("com.google.dagger:hilt-compiler:2.57")
 
-    // Database & Storage
-    implementation("androidx.room:room-runtime:2.6.1")
-    implementation("androidx.room:room-ktx:2.6.1")
-    implementation("androidx.room:room-common:2.6.1")
-    ksp("androidx.room:room-compiler:2.6.1")
+    // Room
+    implementation("androidx.room:room-runtime:2.7.2")
+    implementation("androidx.room:room-ktx:2.7.2")
+    implementation("androidx.room:room-common:2.7.2")
+    ksp("androidx.room:room-compiler:2.7.2")
 
-    // Media & Audio
-    implementation("androidx.media3:media3-exoplayer:1.3.1")
-    implementation("androidx.media3:media3-exoplayer-dash:1.3.1")
-    implementation("androidx.media3:media3-ui:1.3.1")
-    implementation("androidx.media3:media3-session:1.3.1")
+    // Media3
+    implementation("androidx.media3:media3-exoplayer:1.8.0")
+    implementation("androidx.media3:media3-exoplayer-dash:1.8.0")
+    implementation("androidx.media3:media3-ui:1.8.0")
+    implementation("androidx.media3:media3-session:1.8.0")
 
-    // Media compatibility for notifications
-    implementation("androidx.media:media:1.6.0")
+    // Legacy media compat
+    implementation("androidx.media:media:1.7.0")
 
-    // Networking
+    // Networking (Retrofit2 + OkHttp4)
     implementation("com.squareup.retrofit2:retrofit:2.11.0")
     implementation("com.squareup.retrofit2:converter-gson:2.11.0")
     implementation("com.squareup.retrofit2:converter-scalars:2.11.0")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
 
-    // Image loading
-    implementation("io.coil-kt:coil-compose:2.7.0")
-
-    // Coroutines
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.0")
-
-    // JSON processing
-    implementation("com.google.code.gson:gson:2.11.0")
+    // JSON (Gson)
+    implementation("com.google.code.gson:gson:2.13.1")
 
     // HTML parsing
-    implementation("org.jsoup:jsoup:1.17.2")
+    implementation("org.jsoup:jsoup:1.21.1")
 
-    // File processing and compression
-    implementation("org.apache.commons:commons-compress:1.27.1")
+    // Kotlinx Serialization JSON (with kotlin.time.Instant serializers)
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
 
-    // Torrent support (temporarily disabled due to dependency issues)
-    // implementation("org.libtorrent4j:libtorrent4j:2.0.9-1")
-    // TODO: Find correct version or alternative torrent library
+    // Image loading (Coil v3 for Compose)
+    implementation("io.coil-kt.coil3:coil-compose:3.3.0")
 
-    // Code quality plugins
+    // Audio metadata
+    implementation("net.jthink:jaudiotagger:3.0.1")
+
+    // Compression
+    implementation("org.apache.commons:commons-compress:1.28.0")
+
+    // Detekt formatting
     detektPlugins("io.gitlab.arturbosch.detekt:detekt-formatting:1.23.8")
 
-    // Testing dependencies
+    // DataStore
+    implementation("androidx.datastore:datastore-preferences:1.1.2")
+
+    // Tests
     testImplementation("junit:junit:4.13.2")
-    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.0")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
     testImplementation("androidx.arch.core:core-testing:2.2.0")
     testImplementation("com.google.truth:truth:1.4.4")
     testImplementation("io.mockk:mockk:1.13.13")
@@ -184,20 +219,14 @@ dependencies {
 
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
-    implementation("androidx.datastore:datastore-preferences:1.1.1")
 }
 
+// Aggregated quality task
 tasks.register("check-all") {
     dependsOn("detekt", "testDebugUnitTest", "assembleDebug", "jacocoTestReport", "lint")
 }
 
-// Configure test task for Android
-android.testOptions {
-    unitTests.isReturnDefaultValues = true
-    unitTests.isIncludeAndroidResources = true
-}
-
-// Configure JaCoCo for test coverage
+// JaCoCo configuration for unit test coverage report
 tasks.register("jacocoTestReport", JacocoReport::class) {
     dependsOn("testDebugUnitTest")
 
@@ -206,59 +235,46 @@ tasks.register("jacocoTestReport", JacocoReport::class) {
         html.required.set(true)
     }
 
+    // Main Kotlin sources
     val mainSrc = "${project.projectDir}/src/main/kotlin"
+    sourceDirectories.from(mainSrc)
 
-    sourceDirectories.setFrom(files(mainSrc))
-    classDirectories.setFrom(
-        files("${project.layout.buildDirectory.asFile.get()}/intermediates/javac/debug/compileDebugJavaWithJavac/classes")
+    // Include both Java and Kotlin compiled classes (AGP 8+)
+    classDirectories.from(
+        fileTree("${project.layout.buildDirectory.get()}/intermediates/javac/debug/compileDebugJavaWithJavac/classes"),
+        fileTree("${project.layout.buildDirectory.get()}/tmp/kotlin-classes/debug")
     )
-    executionData.setFrom(fileTree(project.layout.buildDirectory.asFile.get()).include("**/*.exec", "**/*.ec"))
+
+    // Execution data (*.exec / *.ec)
+    executionData.from(
+        fileTree(project.layout.buildDirectory.get()).include("**/*.exec", "**/*.ec")
+    )
 }
 
-// KSP configuration for better performance
+// KSP arguments (Room schemas)
 ksp {
     arg("room.schemaLocation", "$projectDir/schemas")
     arg("room.incremental", "true")
     arg("room.expandProjection", "true")
 }
 
-// Ktlint configuration (disabled to avoid conflicts with ktfmt)
-// ktlint {
-//     android.set(true)
-//     ignoreFailures.set(false)
-//     reporters {
-//         reporter(org.jlleitschuh.gradle.ktlint.reporter.ReporterType.PLAIN)
-//         reporter(org.jlleitschuh.gradle.ktlint.reporter.ReporterType.CHECKSTYLE)
-//     }
-// }
-
 // Detekt configuration
 detekt {
     toolVersion = "1.23.8"
     config.setFrom("$rootDir/detekt.yml")
     buildUponDefaultConfig = true
-    allRules = false // Don't activate all rules (many are unstable)
+    allRules = false
     baseline = file("$rootDir/detekt-baseline.xml")
-    autoCorrect = true // Enable auto-correction
+    autoCorrect = true
 }
 
-// Configure detekt reports
+// Detekt reports & JVM target
 tasks.withType<io.gitlab.arturbosch.detekt.Detekt>().configureEach {
     jvmTarget = "17"
     reports {
-        html.required.set(true) // HTML report for browser viewing
-        xml.required.set(true) // XML report for CI integration
-        sarif.required.set(true) // SARIF format for GitHub integration
-        md.required.set(true) // Markdown format for documentation
+        html.required.set(true)
+        xml.required.set(true)
+        sarif.required.set(true)
+        md.required.set(true)
     }
 }
-
-tasks.withType<io.gitlab.arturbosch.detekt.DetektCreateBaselineTask>().configureEach { jvmTarget = "17" }
-
-// Ktfmt configuration (disabled to avoid conflicts with detekt)
-// ktfmt {
-//     kotlinLangStyle() // Use 4 spaces indentation as per .editorconfig
-//     maxWidth.set(140)
-//     removeUnusedImports.set(true)
-//     manageTrailingCommas.set(true) // Automatically add/remove trailing commas
-// }

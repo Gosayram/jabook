@@ -7,6 +7,11 @@ import com.jabook.app.shared.utils.FileUtils
 import com.jabook.app.shared.utils.ValidationUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+import org.jaudiotagger.audio.AudioFileIO
+import org.jaudiotagger.tag.FieldKey
 import java.io.File
 import java.io.FileOutputStream
 import java.net.URL
@@ -88,8 +93,12 @@ class StorageManagerImpl @Inject constructor(private val context: Context) : Sto
 
                 when (FileUtils.getFileExtension(archivePath)) {
                     "zip" -> extractZipFile(archiveFile, destination, audioFiles)
-                    "rar" -> extractRarFile(archiveFile, destination, audioFiles)
-                    "7z" -> extract7zFile(archiveFile, destination, audioFiles)
+                    "rar" -> {
+                        DebugLogger.logWarning("RAR extraction is not supported", "StorageManager")
+                    }
+                    "7z" -> {
+                        DebugLogger.logWarning("7z extraction is not supported", "StorageManager")
+                    }
                     else -> {
                         DebugLogger.logWarning("Unsupported archive format: $archivePath", "StorageManager")
                     }
@@ -233,9 +242,8 @@ class StorageManagerImpl @Inject constructor(private val context: Context) : Sto
         return try {
             val metadataFile = File(audiobookDirectory, "metadata.json")
             if (metadataFile.exists()) {
-                // Parse JSON metadata file
-                // This would use a JSON parser like Gson or kotlinx.serialization
-                null // TODO: Implement JSON parsing
+                val jsonString = metadataFile.readText()
+                return Json.decodeFromString<AudiobookMetadata>(jsonString)
             } else {
                 null
             }
@@ -249,9 +257,8 @@ class StorageManagerImpl @Inject constructor(private val context: Context) : Sto
         withContext(Dispatchers.IO) {
             try {
                 val metadataFile = File(directory, "metadata.json")
-                // Save metadata as JSON
-                // This would use a JSON serializer like Gson or kotlinx.serialization
-                // TODO: Implement JSON serialization
+                val jsonString = Json.encodeToString(metadata)
+                metadataFile.writeText(jsonString)
                 DebugLogger.logInfo("Saved audiobook metadata to ${metadataFile.absolutePath}", "StorageManager")
             } catch (e: Exception) {
                 DebugLogger.logError("Failed to save audiobook metadata", e, "StorageManager")
@@ -280,22 +287,7 @@ class StorageManagerImpl @Inject constructor(private val context: Context) : Sto
         try {
             ZipFile(archiveFile).use { zipFile ->
                 zipFile.entries().asSequence().forEach { entry ->
-                    val entryFile = File(destination, entry.name)
-
-                    if (entry.isDirectory) {
-                        entryFile.mkdirs()
-                    } else {
-                        entryFile.parentFile?.mkdirs()
-
-                        zipFile.getInputStream(entry).use { input -> FileOutputStream(entryFile).use { output -> input.copyTo(output) } }
-
-                        if (ValidationUtils.isValidAudioFile(entryFile.name)) {
-                            val audioFile = createAudioFile(entryFile)
-                            if (audioFile != null) {
-                                audioFiles.add(audioFile)
-                            }
-                        }
-                    }
+                    processZipEntry(zipFile, entry, destination, audioFiles)
                 }
             }
         } catch (e: Exception) {
@@ -303,14 +295,31 @@ class StorageManagerImpl @Inject constructor(private val context: Context) : Sto
         }
     }
 
+    private fun processZipEntry(zipFile: ZipFile, entry: java.util.zip.ZipEntry, destination: File, audioFiles: MutableList<AudioFile>) {
+        val entryFile = File(destination, entry.name)
+
+        if (entry.isDirectory) {
+            entryFile.mkdirs()
+        } else {
+            entryFile.parentFile?.mkdirs()
+
+            zipFile.getInputStream(entry).use { input -> FileOutputStream(entryFile).use { output -> input.copyTo(output) } }
+
+            if (ValidationUtils.isValidAudioFile(entryFile.name)) {
+                val audioFile = createAudioFile(entryFile)
+                if (audioFile != null) {
+                    audioFiles.add(audioFile)
+                }
+            }
+        }
+    }
+
     private fun extractRarFile(archiveFile: File, destination: File, audioFiles: MutableList<AudioFile>) {
-        // TODO: Implement RAR extraction using a library like junrar
-        DebugLogger.logWarning("RAR extraction not implemented yet", "StorageManager")
+        DebugLogger.logWarning("RAR extraction is not supported", "StorageManager")
     }
 
     private fun extract7zFile(archiveFile: File, destination: File, audioFiles: MutableList<AudioFile>) {
-        // TODO: Implement 7z extraction using a library like Apache Commons Compress
-        DebugLogger.logWarning("7z extraction not implemented yet", "StorageManager")
+        DebugLogger.logWarning("7z extraction is not supported", "StorageManager")
     }
 
     private fun createAudioFile(file: File): AudioFile? {
@@ -321,13 +330,20 @@ class StorageManagerImpl @Inject constructor(private val context: Context) : Sto
 
             val format = AudioFormat.fromExtension(FileUtils.getFileExtension(file.name))
 
-            // TODO: Extract audio metadata (duration, bitrate, etc.) using a library like JAudioTagger
+            val audioFile = AudioFileIO.read(file)
+            val tag = audioFile.tag
+            val trackLength = audioFile.audioHeader.trackLength
+
             AudioFile(
                 path = file.absolutePath,
                 name = file.name,
                 size = file.length(),
                 format = format,
                 chapterNumber = extractChapterNumber(file.name),
+                duration = trackLength.toLong(),
+                bitrate = audioFile.audioHeader.bitRate.toString(),
+                title = tag.getFirst(FieldKey.TITLE),
+                artist = tag.getFirst(FieldKey.ARTIST),
             )
         } catch (e: Exception) {
             DebugLogger.logError("Failed to create AudioFile for ${file.name}", e, "StorageManager")
@@ -358,6 +374,60 @@ class StorageManagerImpl @Inject constructor(private val context: Context) : Sto
         } catch (e: Exception) {
             DebugLogger.logError("Failed to calculate directory size", e, "StorageManager")
             0
+        }
+    }
+}
+
+@kotlinx.serialization.Serializable
+data class StorageInfo(
+    val totalSpace: Long,
+    val availableSpace: Long,
+    val usedSpace: Long,
+    val audiobooksSize: Long,
+    val tempSize: Long,
+    val cacheSize: Long,
+    val logsSize: Long,
+)
+
+@kotlinx.serialization.Serializable
+data class AudiobookMetadata(
+    val title: String,
+    val author: String,
+    val description: String,
+    val coverImageUrl: String? = null,
+)
+
+@kotlinx.serialization.Serializable
+data class AudioFile(
+    val path: String,
+    val name: String,
+    val size: Long,
+    val format: AudioFormat,
+    val chapterNumber: Int? = null,
+    val duration: Long? = null,
+    val bitrate: String? = null,
+    val title: String? = null,
+    val artist: String? = null,
+)
+
+@kotlinx.serialization.Serializable
+enum class AudioFormat {
+    MP3,
+    FLAC,
+    WAV,
+    M4A,
+    OTHER,
+    ;
+
+    companion object {
+        fun fromExtension(extension: String): AudioFormat {
+            return when (extension.lowercase()) {
+                "mp3" -> MP3
+                "flac" -> FLAC
+                "wav" -> WAV
+                "m4a" -> M4A
+                else -> OTHER
+            }
         }
     }
 }

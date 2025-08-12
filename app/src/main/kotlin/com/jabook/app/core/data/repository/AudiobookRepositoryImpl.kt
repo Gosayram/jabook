@@ -1,16 +1,12 @@
 package com.jabook.app.core.data.repository
 
-import com.jabook.app.core.data.mapper.AudiobookMapper.toBookmarkDomainList
-import com.jabook.app.core.data.mapper.AudiobookMapper.toChapterDomainList
 import com.jabook.app.core.data.mapper.AudiobookMapper.toDomain
 import com.jabook.app.core.data.mapper.AudiobookMapper.toDomainList
 import com.jabook.app.core.data.mapper.AudiobookMapper.toEntity
 import com.jabook.app.core.database.dao.AudiobookDao
-import com.jabook.app.core.database.dao.BookmarkDao
-import com.jabook.app.core.database.dao.ChapterDao
 import com.jabook.app.core.domain.model.Audiobook
-import com.jabook.app.core.domain.model.Bookmark
 import com.jabook.app.core.domain.model.Chapter
+import com.jabook.app.core.domain.model.Bookmark
 import com.jabook.app.core.domain.repository.AudiobookRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -23,8 +19,23 @@ import com.jabook.app.core.domain.model.DownloadStatus as DomainDownloadStatus
 @Singleton
 class AudiobookRepositoryImpl
 @Inject
-constructor(private val audiobookDao: AudiobookDao, private val chapterDao: ChapterDao, private val bookmarkDao: BookmarkDao) :
-    AudiobookRepository {
+constructor(
+    private val audiobookDao: AudiobookDao,
+    private val chapterHelper: ChapterHelper,
+    private val bookmarkHelper: BookmarkHelper,
+) : AudiobookRepository {
+    override suspend fun upsertChapter(chapter: Chapter) {
+        chapterHelper.upsertChapter(chapter)
+    }
+
+    override suspend fun upsertChapters(chapters: List<Chapter>) {
+        chapterHelper.upsertChapters(chapters)
+    }
+
+    override suspend fun upsertBookmark(bookmark: Bookmark) {
+        bookmarkHelper.upsertBookmark(bookmark)
+    }
+
     override fun getAllAudiobooks(): Flow<List<Audiobook>> {
         return audiobookDao.getAllAudiobooks().map { it.toDomainList() }
     }
@@ -122,64 +133,51 @@ constructor(private val audiobookDao: AudiobookDao, private val chapterDao: Chap
         audiobookDao.resetAllPlaybackPositions()
     }
 
-    // Chapter operations
-
-    override fun getChaptersByAudiobookId(audiobookId: String): Flow<List<Chapter>> {
-        return chapterDao.getChaptersByAudiobookId(audiobookId).map { it.toChapterDomainList() }
+    override fun getChaptersByAudiobookId(audiobookId: String): Flow<List<com.jabook.app.core.domain.model.Chapter>> {
+        return chapterHelper.getChaptersByAudiobookId(audiobookId)
     }
 
-    override suspend fun getChapterById(id: String): Chapter? {
-        return chapterDao.getChapterById(id)?.toDomain()
+    override suspend fun getChapterById(id: String): com.jabook.app.core.domain.model.Chapter? {
+        return chapterHelper.getChapterById(id)
     }
 
-    override suspend fun getChapterByNumber(audiobookId: String, chapterNumber: Int): Chapter? {
-        return chapterDao.getChapterByNumber(audiobookId, chapterNumber)?.toDomain()
+    override suspend fun getChapterByNumber(audiobookId: String, chapterNumber: Int): com.jabook.app.core.domain.model.Chapter? {
+        return chapterHelper.getChapterByNumber(audiobookId, chapterNumber)
     }
 
-    override suspend fun upsertChapter(chapter: Chapter) {
-        chapterDao.insertChapter(chapter.toEntity())
-    }
-
-    override suspend fun upsertChapters(chapters: List<Chapter>) {
-        chapterDao.insertChapters(chapters.map { it.toEntity() })
-    }
 
     override suspend fun updateChapterDownloadStatus(id: String, isDownloaded: Boolean, progress: Float) {
-        chapterDao.updateDownloadStatus(id, isDownloaded, progress)
+        chapterHelper.updateChapterDownloadStatus(id, isDownloaded, progress)
     }
 
+
     override suspend fun deleteChapter(id: String) {
-        chapterDao.getChapterById(id)?.let { chapter -> chapterDao.deleteChapter(chapter) }
+        chapterHelper.deleteChapter(id)
     }
 
     override suspend fun deleteChaptersForAudiobook(audiobookId: String) {
-        chapterDao.deleteChaptersForAudiobook(audiobookId)
+        chapterHelper.deleteChaptersForAudiobook(audiobookId)
     }
 
-    // Bookmark operations
-
-    override fun getBookmarksByAudiobookId(audiobookId: String): Flow<List<Bookmark>> {
-        return bookmarkDao.getBookmarksByAudiobookId(audiobookId).map { it.toBookmarkDomainList() }
+    override fun getBookmarksByAudiobookId(audiobookId: String): Flow<List<com.jabook.app.core.domain.model.Bookmark>> {
+        return bookmarkHelper.getBookmarksByAudiobookId(audiobookId)
     }
 
-    override suspend fun getBookmarkById(id: String): Bookmark? {
-        return bookmarkDao.getBookmarkById(id)?.toDomain()
+    override suspend fun getBookmarkById(id: String): com.jabook.app.core.domain.model.Bookmark? {
+        return bookmarkHelper.getBookmarkById(id)
     }
 
-    override fun getAllBookmarks(): Flow<List<Bookmark>> {
-        return bookmarkDao.getAllBookmarks().map { it.toBookmarkDomainList() }
+    override fun getAllBookmarks(): Flow<List<com.jabook.app.core.domain.model.Bookmark>> {
+        return bookmarkHelper.getAllBookmarks()
     }
 
-    override suspend fun upsertBookmark(bookmark: Bookmark) {
-        bookmarkDao.insertBookmark(bookmark.toEntity())
-    }
 
     override suspend fun deleteBookmark(id: String) {
-        bookmarkDao.deleteBookmarkById(id)
+        bookmarkHelper.deleteBookmark(id)
     }
 
     override suspend fun deleteBookmarksForAudiobook(audiobookId: String) {
-        bookmarkDao.deleteBookmarksForAudiobook(audiobookId)
+        bookmarkHelper.deleteBookmarksForAudiobook(audiobookId)
     }
 
     /** Convert domain DownloadStatus to entity DownloadStatus. */

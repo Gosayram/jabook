@@ -24,7 +24,7 @@ import javax.inject.Singleton
 @Singleton
 class RuTrackerApiService @Inject constructor(
     private val httpClient: OkHttpClient,
-    private val parser: RuTrackerParser,
+    private val parser: RuTrackerParserImproved,
     private val debugLogger: IDebugLogger,
 ) {
     companion object {
