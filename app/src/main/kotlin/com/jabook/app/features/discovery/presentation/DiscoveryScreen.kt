@@ -60,6 +60,7 @@ import com.jabook.app.shared.ui.components.getDynamicVerticalPadding
 @Composable
 fun DiscoveryScreen(
     onNavigateToAudiobook: (RuTrackerAudiobook) -> Unit,
+    onDownload: (RuTrackerAudiobook) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: DiscoveryViewModel = hiltViewModel(),
     themeViewModel: ThemeViewModel,
@@ -138,10 +139,11 @@ fun DiscoveryScreen(
                     }
                 }
                 item {
-                    SearchResultsSection(
-                        uiState = uiState,
-                        onNavigateToAudiobook = onNavigateToAudiobook,
-                    )
+                SearchResultsSection(
+                    uiState = uiState,
+                    onNavigateToAudiobook = onNavigateToAudiobook,
+                    onDownload = onDownload,
+                )
                 }
                 item {
                     TrendingSection(

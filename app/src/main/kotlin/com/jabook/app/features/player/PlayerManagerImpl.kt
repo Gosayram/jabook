@@ -52,11 +52,12 @@ class PlayerManagerImpl @Inject constructor(
     private var playWhenReady = false
 
     private val _playbackState = MutableStateFlow(PlaybackState())
+    private val playerListener = PlayerListener()
     private val exoPlayerHandler = ExoPlayerHandler(
         context = context,
         debugLogger = debugLogger,
         mediaItemManager = mediaItemManager,
-        listener = this,
+        listener = playerListener,
     )
     private val chapterHandler: ChapterHandler = ChapterHandler(
         mediaItemManager = mediaItemManager,
@@ -194,25 +195,26 @@ class PlayerManagerImpl @Inject constructor(
         _playbackState.value = PlaybackState()
     }
 
-    // ExoPlayer.Listener implementation
-    override fun onPlaybackStateChanged(playbackState: Int) {
-        debugLogger.logDebug("PlayerManagerImpl.onPlaybackStateChanged: $playbackState")
-        updatePlaybackState()
-    }
+    private inner class PlayerListener : Player.Listener {
+        override fun onPlaybackStateChanged(playbackState: Int) {
+            debugLogger.logDebug("PlayerManagerImpl.onPlaybackStateChanged: $playbackState")
+            updatePlaybackState()
+        }
 
-    override fun onIsPlayingChanged(isPlaying: Boolean) {
-        debugLogger.logDebug("PlayerManagerImpl.onIsPlayingChanged: $isPlaying")
-        updatePlaybackState()
-    }
+        override fun onIsPlayingChanged(isPlaying: Boolean) {
+            debugLogger.logDebug("PlayerManagerImpl.onIsPlayingChanged: $isPlaying")
+            updatePlaybackState()
+        }
 
-    override fun onPlayerError(error: PlaybackException) {
-        debugLogger.logError("PlayerManagerImpl ExoPlayer error", error)
-        updatePlaybackState(error = "Playback error: ${error.message}")
-    }
+        override fun onPlayerError(error: PlaybackException) {
+            debugLogger.logError("PlayerManagerImpl ExoPlayer error", error)
+            updatePlaybackState(error = "Playback error: ${error.message}")
+        }
 
-    override fun onMediaItemTransition(mediaItem: androidx.media3.common.MediaItem?, reason: Int) {
-        debugLogger.logDebug("PlayerManagerImpl.onMediaItemTransition: reason=$reason")
-        updatePlaybackState()
+        override fun onMediaItemTransition(mediaItem: androidx.media3.common.MediaItem?, reason: Int) {
+            debugLogger.logDebug("PlayerManagerImpl.onMediaItemTransition: reason=$reason")
+            updatePlaybackState()
+        }
     }
 
     override fun onAudioFocusChange(focusChange: Int) {

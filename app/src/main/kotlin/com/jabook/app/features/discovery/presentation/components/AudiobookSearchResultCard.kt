@@ -1,5 +1,8 @@
 package com.jabook.app.features.discovery.presentation.components
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -23,15 +26,16 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalClipboard
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -39,6 +43,7 @@ import coil3.compose.AsyncImage
 import com.jabook.app.R
 import com.jabook.app.core.domain.model.RuTrackerAudiobook
 import com.jabook.app.shared.utils.formatFileSize
+import kotlinx.coroutines.launch
 
 @Composable
 fun AudiobookCover(
@@ -96,8 +101,11 @@ fun ActionButtons(
     magnetUri: String?,
     torrentUrl: String?,
     isGuestMode: Boolean,
+    audiobook: RuTrackerAudiobook,
+    onDownload: (RuTrackerAudiobook) -> Unit,
 ) {
     val clipboardManager = LocalClipboard.current
+    val coroutineScope = rememberCoroutineScope()
 
     Row(
         modifier = Modifier.padding(top = 8.dp),
@@ -106,7 +114,12 @@ fun ActionButtons(
         if (magnetUri != null) {
             IconButton(
                 onClick = {
-                    clipboardManager.setText(AnnotatedString(magnetUri))
+                    coroutineScope.launch {
+                        val clipboard = LocalContext.current.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                        clipboard.setPrimaryClip(
+                            ClipData.newPlainText("Magnet Link", magnetUri),
+                        )
+                    }
                 },
             ) {
                 Icon(
@@ -118,7 +131,7 @@ fun ActionButtons(
         if (!isGuestMode && torrentUrl != null) {
             IconButton(
                 onClick = {
-                    // Torrent download will be implemented later
+                    onDownload(audiobook)
                 },
             ) {
                 Icon(
@@ -232,6 +245,7 @@ fun AudiobookSearchResultCard(
     audiobook: RuTrackerAudiobook,
     onClick: () -> Unit,
     isGuestMode: Boolean,
+    onDownload: (RuTrackerAudiobook) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Card(
@@ -261,6 +275,8 @@ fun AudiobookSearchResultCard(
                     magnetUri = audiobook.magnetUri,
                     torrentUrl = audiobook.torrentUrl,
                     isGuestMode = isGuestMode,
+                    audiobook = audiobook,
+                    onDownload = onDownload,
                 )
 
                 MetadataRow(

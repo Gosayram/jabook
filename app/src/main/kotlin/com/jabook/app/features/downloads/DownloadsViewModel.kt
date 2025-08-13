@@ -12,7 +12,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -46,17 +45,28 @@ constructor(
     val selectedTab: StateFlow<DownloadsTab> = _selectedTab.asStateFlow()
 
     val uiState: StateFlow<DownloadsUiState> =
-        combine(activeDownloads, completedDownloads, failedDownloads, isLoading, errorMessage, selectedTab) { states ->
+        combine(
+            activeDownloads,
+            completedDownloads,
+            failedDownloads,
+            isLoading,
+            errorMessage,
+            selectedTab,
+        ) { active: List<DownloadProgress>, completed: List<DownloadProgress>, failed: List<DownloadProgress>, loading: Boolean, error: String?, tab: DownloadsTab ->
             DownloadsUiState(
-                activeDownloads = states[0] as List<DownloadProgress>,
-                completedDownloads = states[1] as List<DownloadProgress>,
-                failedDownloads = states[2] as List<DownloadProgress>,
-                isLoading = states[3] as Boolean,
-                errorMessage = states[4] as String?,
-                selectedTab = states[5] as DownloadsTab,
+                activeDownloads = active,
+                completedDownloads = completed,
+                failedDownloads = failed,
+                isLoading = loading,
+                errorMessage = error,
+                selectedTab = tab,
             )
         }
-            .stateIn(scope = viewModelScope, started = SharingStarted.WhileSubscribed(5000), initialValue = DownloadsUiState())
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5000),
+                initialValue = DownloadsUiState(),
+            )
 
     init {
         loadDownloads()
