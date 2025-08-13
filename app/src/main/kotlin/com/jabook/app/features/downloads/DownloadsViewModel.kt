@@ -71,10 +71,6 @@ constructor(
 
                 torrentRepository
                     .getActiveDownloads()
-                    .catch { error ->
-                        debugLogger.logError("Failed to load downloads", error)
-                        _errorMessage.value = "Failed to load downloads: ${error.message}"
-                    }
                     .collect { downloads ->
                         categorizeDownloads(downloads)
                         _isLoading.value = false
@@ -92,7 +88,6 @@ constructor(
         viewModelScope.launch {
             try {
                 torrentManager.downloadStates
-                    .catch { error -> debugLogger.logError("Failed to observe download updates", error) }
                     .collect { downloadStates ->
                         val downloads = downloadStates.values.toList()
                         categorizeDownloads(downloads)

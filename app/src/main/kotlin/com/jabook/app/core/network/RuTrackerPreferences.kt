@@ -33,7 +33,7 @@ interface RuTrackerPreferences {
  */
 @Singleton
 class RuTrackerPreferencesImpl @Inject constructor(
-    @ApplicationContext private val context: Context,
+    @param:ApplicationContext private val context: Context,
 ) : RuTrackerPreferences {
 
     private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "rutracker_preferences")
