@@ -1,6 +1,7 @@
 package com.jabook.app.features.player
 
 import android.content.Context
+import android.media.AudioManager
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
@@ -44,16 +45,23 @@ class PlayerManagerImpl @Inject constructor(
     sleepTimerManager: SleepTimerManager,
     private val mediaItemManager: MediaItemManager,
     private val playbackStateManager: PlaybackStateManager,
-) : PlayerManager, Player.Listener {
+) : PlayerManager, Player.Listener, AudioManager.OnAudioFocusChangeListener {
 
     private var currentAudiobook: Audiobook? = null
     private var chapters: List<Chapter> = emptyList()
     private var playWhenReady = false
 
     private val _playbackState = MutableStateFlow(PlaybackState())
-    private val exoPlayerHandler: ExoPlayerHandler = ExoPlayerHandler(context, debugLogger, mediaItemManager, this)
-    private val chapterHandler: ChapterHandler = ChapterHandler(mediaItemManager)
-    private val audioFocusHandler: AudioFocusHandler = AudioFocusHandler(audioFocusManager)
+    private val exoPlayerHandler = ExoPlayerHandler(
+        context = context,
+        debugLogger = debugLogger,
+        mediaItemManager = mediaItemManager,
+        listener = this,
+    )
+    private val chapterHandler: ChapterHandler = ChapterHandler(
+        mediaItemManager = mediaItemManager,
+    )
+    private val audioFocusHandler: AudioFocusHandler = AudioFocusHandler(audioFocusManager, this)
 
     private val sleepTimerDelegate = SleepTimerDelegate(
         sleepTimerManager = sleepTimerManager,
@@ -205,6 +213,25 @@ class PlayerManagerImpl @Inject constructor(
     override fun onMediaItemTransition(mediaItem: androidx.media3.common.MediaItem?, reason: Int) {
         debugLogger.logDebug("PlayerManagerImpl.onMediaItemTransition: reason=$reason")
         updatePlaybackState()
+    }
+
+    override fun onAudioFocusChange(focusChange: Int) {
+        when (focusChange) {
+            AudioManager.AUDIOFOCUS_GAIN -> {
+                if (playWhenReady) {
+                    exoPlayerHandler.play()
+                }
+            }
+            AudioManager.AUDIOFOCUS_LOSS -> {
+                exoPlayerHandler.pause()
+            }
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
+                exoPlayerHandler.pause()
+            }
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
+                // Handle ducking if needed
+            }
+        }
     }
 
     /** Update internal playback state */

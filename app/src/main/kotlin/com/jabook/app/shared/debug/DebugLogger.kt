@@ -1,7 +1,6 @@
 package com.jabook.app.shared.debug
 
 import android.content.ContentResolver
-import android.content.ContentValues
 import android.content.Context
 import android.content.SharedPreferences
 import android.net.Uri
@@ -270,10 +269,6 @@ object DebugLogger {
             }
         }
         // If not found, create the file
-        val values = ContentValues().apply {
-            put(DocumentsContract.Document.COLUMN_DISPLAY_NAME, fileName)
-            put(DocumentsContract.Document.COLUMN_MIME_TYPE, "text/plain")
-        }
         return DocumentsContract.createDocument(contentResolver, folderUri, "text/plain", fileName)
     }
 
