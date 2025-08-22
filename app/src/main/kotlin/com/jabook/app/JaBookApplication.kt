@@ -17,7 +17,7 @@ class JaBookApplication : Application() {
         super.onCreate()
 
         // Initialize debug logging in debug mode
-        if (BuildConfig.DEBUG_MODE) {
+        if (BuildConfig.DEBUG) {
             initializeDebugLogging()
             // Start performance monitoring in debug builds
             performanceProfiler.startProfiling()

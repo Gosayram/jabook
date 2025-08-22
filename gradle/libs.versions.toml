@@ -40,6 +40,10 @@ ktlint = "13.0.0"
 detekt = "1.23.8"
 jsoup = "1.21.1"
 media3 = "1.8.0"
+kotlinx-serialization-json = "1.7.3"
+resilience4j = "2.1.0"
+jaudiotagger = "2.2.5"
+commons-lang3 = "3.14.0"
 
 [libraries]
 # AndroidX
@@ -135,6 +139,19 @@ androidx-core-testing = { group = "androidx.arch.core", name = "core-testing", v
 robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectric" }
 truth = { module = "com.google.truth:truth", version.ref = "truth" }
 turbine = { module = "app.cash.turbine:turbine", version.ref = "turbine" }
+
+# Kotlinx Serialization
+kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization-json" }
+
+# Resilience4j (Circuit Breaker)
+resilience4j-circuitbreaker = { module = "io.github.resilience4j:resilience4j-circuitbreaker", version.ref = "resilience4j" }
+resilience4j-retry = { module = "io.github.resilience4j:resilience4j-retry", version.ref = "resilience4j" }
+
+# JAudioTagger
+jaudiotagger = { module = "org.jaudiotagger:jaudiotagger", version.ref = "jaudiotagger" }
+
+# Apache Commons
+commons-lang3 = { module = "org.apache.commons:commons-lang3", version.ref = "commons-lang3" }
 
 # Firebase
 firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "firebase-bom" }

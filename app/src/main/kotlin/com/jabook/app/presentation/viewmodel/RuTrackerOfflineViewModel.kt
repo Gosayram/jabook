@@ -2,15 +2,20 @@ package com.jabook.app.presentation.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.jabook.app.core.network.models.RuTrackerCategory
-import com.jabook.app.core.network.models.RuTrackerSearchResult
-import com.jabook.app.core.network.models.RuTrackerTorrentDetails
+import com.jabook.app.core.domain.model.RuTrackerCategory
+import com.jabook.app.core.domain.model.RuTrackerSearchResult
+import com.jabook.app.core.network.RuTrackerParserEnhanced.RuTrackerTorrentDetails
 import com.jabook.app.core.offline.RuTrackerOfflineManager
 import com.jabook.app.core.offline.RuTrackerOfflineManager.OfflineDataStatistics
 import com.jabook.app.core.offline.RuTrackerOfflineManager.OfflineSearchAnalytics
 import com.jabook.app.shared.debug.IDebugLogger
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 

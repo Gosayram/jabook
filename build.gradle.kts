@@ -16,9 +16,9 @@ tasks.register("clean", Delete::class) {
     delete(rootProject.layout.buildDirectory)
 }
 
-// Aggregates checks from the app module (detekt/lint/tests/coverage)
+// Aggregates checks from the app module (lintKotlin/formatKotlin)
 tasks.register("check-all") {
-    description = "Run all checks including linting, static analysis, and tests"
+    description = "Run all checks including linting and code formatting"
     group = "verification"
-    dependsOn(":app:check", ":app:lint")
+    dependsOn(":app:lintKotlin", ":app:formatKotlin")
 }

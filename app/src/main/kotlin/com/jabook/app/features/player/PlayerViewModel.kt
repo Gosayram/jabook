@@ -72,7 +72,20 @@ class PlayerViewModel
                     bookmarks = bookmarks,
                     isBookmarksSheetVisible = isBookmarksSheetVisible,
                 )
-            }.stateIn(scope = viewModelScope, started = SharingStarted.WhileSubscribed(5000), initialValue = PlayerUiState())
+            }.stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5000),
+                initialValue = PlayerUiState(),
+            )
+
+        // Public properties with private backing fields
+        val currentAudiobook: Audiobook? get() = _currentAudiobook.value
+        val playbackSpeed: Float get() = _playbackSpeed.value
+        val sleepTimerMinutes: Int get() = _sleepTimerMinutes.value
+        val isSpeedDialogVisible: Boolean get() = _isSpeedDialogVisible.value
+        val isSleepTimerDialogVisible: Boolean get() = _isSleepTimerDialogVisible.value
+        val bookmarks: List<Bookmark> get() = _bookmarks.value
+        val isBookmarksSheetVisible: Boolean get() = _isBookmarksSheetVisible.value
 
         fun loadAudiobook(audiobook: Audiobook) {
             viewModelScope.launch {
@@ -174,11 +187,11 @@ class PlayerViewModel
         }
 
         fun showBookmarksSheet() {
-            _isBookmarksSheetVisible.value = true
+            isBookmarksSheetVisible.value = true
         }
 
         fun hideBookmarksSheet() {
-            _isBookmarksSheetVisible.value = false
+            isBookmarksSheetVisible.value = false
         }
 
         fun deleteBookmark(bookmark: Bookmark) {
@@ -213,7 +226,7 @@ class PlayerViewModel
         fun setPlaybackSpeed(speed: Float) {
             viewModelScope.launch {
                 try {
-                    _playbackSpeed.value = speed
+                    playbackSpeed.value = speed
                     playerManager.setPlaybackSpeed(speed)
                     debugLogger.logInfo("Playback speed set to: $speed")
                 } catch (e: Exception) {
@@ -225,7 +238,7 @@ class PlayerViewModel
         fun setSleepTimer(minutes: Int) {
             viewModelScope.launch {
                 try {
-                    _sleepTimerMinutes.value = minutes
+                    sleepTimerMinutes.value = minutes
                     playerManager.setSleepTimer(minutes)
                     debugLogger.logInfo("Sleep timer set to: $minutes minutes")
                 } catch (e: Exception) {
@@ -235,23 +248,23 @@ class PlayerViewModel
         }
 
         fun showSpeedDialog() {
-            _isSpeedDialogVisible.value = true
+            isSpeedDialogVisible.value = true
         }
 
         fun hideSpeedDialog() {
-            _isSpeedDialogVisible.value = false
+            isSpeedDialogVisible.value = false
         }
 
         fun showSleepTimerDialog() {
-            _isSleepTimerDialogVisible.value = true
+            isSleepTimerDialogVisible.value = true
         }
 
         fun hideSleepTimerDialog() {
-            _isSleepTimerDialogVisible.value = false
+            isSleepTimerDialogVisible.value = false
         }
 
         private fun savePlaybackPosition() {
-            val audiobook = _currentAudiobook.value ?: return
+            val audiobook = currentAudiobook.value ?: return
             val position = playerManager.getCurrentPosition()
 
             viewModelScope.launch {

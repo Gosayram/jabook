@@ -1,4 +1,5 @@
 
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -70,56 +71,56 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            
+
             // BuildConfig fields for release
             buildConfigField("boolean", "DEBUG", "false")
             buildConfigField("boolean", "ENABLE_LOGGING", "false")
-            
+
             // Res values for release
             resValue("string", "app_name", "JaBook")
-            
+
             // Signing config for release
             signingConfig = signingConfigs.getByName("debug")
         }
-        
+
         debug {
             applicationIdSuffix = ".debug"
             versionNameSuffix = "-debug"
-            
+
             // BuildConfig fields for debug
             buildConfigField("boolean", "DEBUG", "true")
             buildConfigField("boolean", "ENABLE_LOGGING", "true")
-            
+
             // Res values for debug
             resValue("string", "app_name", "JaBook Debug")
-            
+
             // Enable debug features
             isDebuggable = true
         }
-        
+
         // Custom build type for staging
         create("staging") {
             applicationIdSuffix = ".staging"
             versionNameSuffix = "-staging"
-            
+
             // BuildConfig fields for staging
             buildConfigField("boolean", "DEBUG", "true")
             buildConfigField("boolean", "ENABLE_LOGGING", "true")
-            
+
             // Res values for staging
             resValue("string", "app_name", "JaBook Staging")
-            
+
             // Disable minify for staging
             isMinifyEnabled = false
             isShrinkResources = false
         }
     }
-    
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    
+
     kotlin {
         compilerOptions {
             jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
@@ -135,7 +136,7 @@ android {
             )
         }
     }
-    
+
     buildFeatures {
         compose = true
         buildConfig = true
@@ -143,30 +144,30 @@ android {
         dataBinding = true
         resValues = true
     }
-    
+
     composeOptions {
         kotlinCompilerExtensionVersion = libs.versions.compose.compiler.get()
     }
-    
-    
+
+
     testOptions {
         unitTests {
             isIncludeAndroidResources = true
             isReturnDefaultValues = true
         }
     }
-    
+
     sourceSets {
         // Add shared test resources
         getByName("test") {
             resources.srcDir("src/sharedTest/resources")
         }
-        
+
         getByName("androidTest") {
             resources.srcDir("src/sharedTest/resources")
         }
     }
-    
+
     lint {
         abortOnError = false
         checkReleaseBuilds = false
@@ -208,7 +209,21 @@ dependencies {
     implementation(libs.accompanist.permissions)
     implementation(libs.accompanist.placeholder)
     implementation(libs.androidx.constraintlayout)
-    
+
+    // Kotlinx Serialization
+    implementation(libs.kotlinx.serialization.json)
+
+    // Circuit Breaker (Resilience4j)
+    implementation(libs.resilience4j.circuitbreaker)
+    implementation(libs.resilience4j.retry)
+
+    // JAudioTagger for audio metadata (temporarily commented out)
+    // implementation(libs.jaudiotagger)
+
+    // Apache Commons
+    implementation(libs.commons.lang3)
+
+
     // Media3 ExoPlayer dependencies
     implementation(libs.androidx.media3.common)
     implementation(libs.androidx.media3.exoplayer)
@@ -217,7 +232,7 @@ dependencies {
     implementation(libs.androidx.media3.ui)
     implementation(libs.androidx.media3.session)
     implementation(libs.androidx.media3.exoplayer.workmanager)
-    
+
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
 }

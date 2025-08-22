@@ -13,9 +13,9 @@ import com.jabook.app.core.network.extractors.DescriptionExtractor
 import com.jabook.app.core.network.extractors.DetailsExtractor
 import com.jabook.app.core.network.extractors.TitleExtractor
 import com.jabook.app.core.network.extractors.TopicIdExtractor
-import com.jabook.app.core.network.models.RuTrackerCategory
-import com.jabook.app.core.network.models.RuTrackerSearchResult
-import com.jabook.app.core.network.models.RuTrackerTorrentDetails
+import com.jabook.app.core.domain.model.RuTrackerCategory
+import com.jabook.app.core.domain.model.RuTrackerSearchResult
+import com.jabook.app.core.network.RuTrackerParserEnhanced.RuTrackerTorrentDetails
 import com.jabook.app.shared.debug.IDebugLogger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
