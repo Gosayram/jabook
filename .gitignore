@@ -157,3 +157,7 @@ keystore.properties
 # Ignore wrapper files
 !gradle/wrapper/gradle-wrapper.jar
 !gradle/wrapper/gradle-wrapper.properties
+
+
+# Kotlin Compiler
+kotlin-compiler-*
