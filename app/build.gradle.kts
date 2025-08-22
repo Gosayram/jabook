@@ -3,11 +3,23 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.compose.compiler)
-    alias(libs.plugins.kotlin.kapt)
+
+    id("com.google.dagger.hilt.android")
+    id("org.jmailen.kotlinter") version "5.1.0"
+    id("com.google.devtools.ksp")
     alias(libs.plugins.kotlin.parcelize)
-    alias(libs.plugins.hilt.android)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.navigation.safeargs.kotlin)
+}
+
+kotlinter {
+    reporters = arrayOf("checkstyle", "plain")
+    ignoreFormatFailures = false
+    ignoreLintFailures = false
+}
+
+tasks.lintKotlinMain {
+    dependsOn(tasks.formatKotlinMain)
 }
 
 android {
@@ -43,14 +55,10 @@ android {
         buildConfigField("long", "CIRCUIT_BREAKER_RETRY_DELAY", "60000L") // 1 minute
 
         // Room schema location
-        javaCompileOptions {
-            annotationProcessorOptions {
-                arguments += mapOf(
-                    "room.schemaLocation" to "$projectDir/schemas",
-                    "room.incremental" to "true",
-                    "room.expandProjection" to "true"
-                )
-            }
+        ksp {
+            arg("room.schemaLocation", "$projectDir/schemas")
+            arg("room.incremental", "true")
+            arg("room.expandProjection", "true")
         }
     }
 
@@ -149,11 +157,6 @@ android {
     }
     
     sourceSets {
-        // Add the schema location for Room
-        getByName("main") {
-            java.srcDir("build/generated/source/kapt/main")
-        }
-        
         // Add shared test resources
         getByName("test") {
             resources.srcDir("src/sharedTest/resources")
@@ -173,7 +176,7 @@ android {
 dependencies {
     implementation(libs.jsoup)
     implementation(libs.hilt.android)
-    kapt(libs.hilt.android.compiler)
+    ksp(libs.hilt.android.compiler)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.ui)
     implementation(libs.androidx.ui.graphics)
@@ -188,7 +191,7 @@ dependencies {
     implementation(libs.androidx.hilt.navigation.compose)
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
-    kapt(libs.androidx.room.compiler)
+    ksp(libs.androidx.room.compiler)
     implementation(libs.retrofit)
     implementation(libs.retrofit.gson)
     implementation(libs.okhttp)
