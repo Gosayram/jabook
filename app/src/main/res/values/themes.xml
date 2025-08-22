@@ -1,35 +1,348 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <style name="Base.Theme.JaBook" parent="Theme.Material3.DayNight">
-        <!-- Material Design 3 Colors -->
-        <item name="colorPrimary">@color/md_theme_light_primary</item>
-        <item name="colorOnPrimary">@color/md_theme_light_onPrimary</item>
-        <item name="colorPrimaryContainer">@color/md_theme_light_primaryContainer</item>
-        <item name="colorOnPrimaryContainer">@color/md_theme_light_onPrimaryContainer</item>
-        <item name="colorSecondary">@color/md_theme_light_secondary</item>
-        <item name="colorOnSecondary">@color/md_theme_light_onSecondary</item>
-        <item name="colorSecondaryContainer">@color/md_theme_light_secondaryContainer</item>
-        <item name="colorOnSecondaryContainer">@color/md_theme_light_onSecondaryContainer</item>
-        <item name="colorTertiary">@color/md_theme_light_tertiary</item>
-        <item name="colorOnTertiary">@color/md_theme_light_onTertiary</item>
-        <item name="colorTertiaryContainer">@color/md_theme_light_tertiaryContainer</item>
-        <item name="colorOnTertiaryContainer">@color/md_theme_light_onTertiaryContainer</item>
-        <item name="colorError">@color/md_theme_light_error</item>
-        <item name="colorOnError">@color/md_theme_light_onError</item>
-        <item name="colorErrorContainer">@color/md_theme_light_errorContainer</item>
-        <item name="colorOnErrorContainer">@color/md_theme_light_onErrorContainer</item>
-        <item name="android:colorBackground">@color/md_theme_light_background</item>
-        <item name="colorOnBackground">@color/md_theme_light_onBackground</item>
-        <item name="colorSurface">@color/md_theme_light_surface</item>
-        <item name="colorOnSurface">@color/md_theme_light_onSurface</item>
-        <item name="colorSurfaceVariant">@color/md_theme_light_surfaceVariant</item>
-        <item name="colorOnSurfaceVariant">@color/md_theme_light_onSurfaceVariant</item>
-        <item name="colorOutline">@color/md_theme_light_outline</item>
-        <item name="colorOutlineVariant">@color/md_theme_light_outlineVariant</item>
-        <item name="colorSurfaceInverse">@color/md_theme_light_inverseSurface</item>
-        <item name="colorOnSurfaceInverse">@color/md_theme_light_inverseOnSurface</item>
-        <item name="colorPrimaryInverse">@color/md_theme_light_inversePrimary</item>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Base application theme. -->
+    <style name="Theme.JaBook" parent="AppTheme">
+        <!-- Primary brand color. -->
+        <item name="colorPrimary">@color/primary</item>
+        <item name="colorOnPrimary">@color/text_on_primary</item>
+        <item name="colorPrimaryContainer">@color/primary_light</item>
+        <item name="colorOnPrimaryContainer">@color/text_primary</item>
+        
+        <!-- Secondary brand color. -->
+        <item name="colorSecondary">@color/accent</item>
+        <item name="colorOnSecondary">@color/white</item>
+        <item name="colorSecondaryContainer">@color/surface_variant</item>
+        <item name="colorOnSecondaryContainer">@color/text_primary</item>
+        
+        <!-- Tertiary brand color. -->
+        <item name="colorTertiary">@color/info</item>
+        <item name="colorOnTertiary">@color/white</item>
+        <item name="colorTertiaryContainer">@color/surface_variant</item>
+        <item name="colorOnTertiaryContainer">@color/text_primary</item>
+        
+        <!-- Error color. -->
+        <item name="colorError">@color/error</item>
+        <item name="colorOnError">@color/white</item>
+        <item name="colorErrorContainer">@color/error</item>
+        <item name="colorOnErrorContainer">@color/white</item>
+        
+        <!-- Background color. -->
+        <item name="colorBackground">@color/background</item>
+        <item name="colorOnBackground">@color/text_primary</item>
+        
+        <!-- Surface color. -->
+        <item name="colorSurface">@color/surface</item>
+        <item name="colorOnSurface">@color/text_primary</item>
+        <item name="colorSurfaceVariant">@color/surface_variant</item>
+        <item name="colorOnSurfaceVariant">@color/text_secondary</item>
+        
+        <!-- Outline color. -->
+        <item name="colorOutline">@color/text_tertiary</item>
+        <item name="colorOutlineVariant">@color/surface_variant</item>
+        
+        <!-- Inverse surface color. -->
+        <item name="colorInverseSurface">@color/text_primary</item>
+        <item name="colorInverseOnSurface">@color/white</item>
+        <item name="colorInversePrimary">@color/primary_light</item>
+        
+        <!-- scrim colors -->
+        <item name="colorScrim">@color/black</item>
+        <item name="colorScrimVariant">@color/black</item>
     </style>
-
-    <style name="Theme.JaBook" parent="Base.Theme.JaBook" />
-</resources> 
+    
+    <!-- Light theme. -->
+    <style name="Theme.JaBook.Light" parent="Theme.JaBook">
+        <!-- Status bar color. -->
+        <item name="android:statusBarColor">@color/surface</item>
+        <item name="android:statusBarColor" tools:targetApi="l">@color/surface</item>
+        <item name="android:windowLightStatusBar">true</item>
+        
+        <!-- Navigation bar color. -->
+        <item name="android:navigationBarColor">@color/surface</item>
+        <item name="android:windowLightNavigationBar">true</item>
+        
+        <!-- Window background. -->
+        <item name="android:windowBackground">@color/background</item>
+        
+        <!-- Text colors. -->
+        <item name="android:textColorPrimary">@color/text_primary</item>
+        <item name="android:textColorSecondary">@color/text_secondary</item>
+        <item name="android:textColorTertiary">@color/text_tertiary</item>
+        <item name="android:textColorPrimaryInverse">@color/white</item>
+        <item name="android:textColorSecondaryInverse">@color/text_secondary</item>
+        <item name="android:textColorTertiaryInverse">@color/text_tertiary</item>
+        
+        <!-- Ripple color. -->
+        <item name="colorControlHighlight">@color/primary_light</item>
+        
+        <!-- Checkbox, RadioButton, Switch colors. -->
+        <item name="colorControlNormal">@color/text_tertiary</item>
+        <item name="colorControlActivated">@color/primary</item>
+        <item name="colorControlHighlight">@color/primary_light</item>
+        
+        <!-- EditText colors. -->
+        <item name="colorAccent">@color/primary</item>
+        <item name="editTextColor">@color/text_primary</item>
+        <item name="android:textColorHint">@color/text_tertiary</item>
+        
+        <!-- Button colors. -->
+        <item name="android:buttonStyle">@style/Widget.App.Button</item>
+        <item name="android:borderlessButtonStyle">@style/Widget.App.Button.TextButton</item>
+        <item name="materialButtonStyle">@style/Widget.App.Button</item>
+        <item name="materialButtonOutlinedStyle">@style/Widget.App.Button.OutlinedButton</item>
+        <item name="materialButtonToggleGroupStyle">@style/Widget.Material3.ButtonToggleGroup</item>
+        
+        <!-- CardView colors. -->
+        <item name="cardViewStyle">@style/Widget.App.CardView</item>
+        
+        <!-- TextInputLayout colors. -->
+        <item name="textInputStyle">@style/Widget.App.TextInputLayout</item>
+        
+        <!-- Toolbar colors. -->
+        <item name="toolbarStyle">@style/Widget.App.Toolbar</item>
+        
+        <!-- BottomNavigationView colors. -->
+        <item name="bottomNavigationStyle">@style/Widget.App.BottomNavigationView</item>
+        
+        <!-- Chip colors. -->
+        <item name="chipStyle">@style/Widget.App.Chip</item>
+        <item name="chipStandaloneStyle">@style/Widget.App.Chip.Assist</item>
+        
+        <!-- ProgressIndicator colors. -->
+        <item name="linearProgressIndicatorStyle">@style/Widget.App.ProgressIndicator.Linear</item>
+        <item name="circularProgressIndicatorStyle">@style/Widget.App.ProgressIndicator.Circular</item>
+        
+        <!-- Switch colors. -->
+        <item name="switchStyle">@style/Widget.App.Switch</item>
+        
+        <!-- Checkbox colors. -->
+        <item name="checkboxStyle">@style/Widget.App.CheckBox</item>
+        
+        <!-- RadioButton colors. -->
+        <item name="radioButtonStyle">@style/Widget.App.RadioButton</item>
+        
+        <!-- Slider colors. -->
+        <item name="sliderStyle">@style/Widget.App.Slider</item>
+        
+        <!-- Dialog theme. -->
+        <item name="alertDialogTheme">@style/ThemeOverlay.App.MaterialAlertDialog</item>
+        <item name="materialAlertDialogTheme">@style/ThemeOverlay.App.MaterialAlertDialog</item>
+    </style>
+    
+    <!-- Dark theme. -->
+    <style name="Theme.JaBook.Dark" parent="Theme.JaBook">
+        <!-- Primary brand color. -->
+        <item name="colorPrimary">@color/primary</item>
+        <item name="colorOnPrimary">@color/text_on_primary</item>
+        <item name="colorPrimaryContainer">@color/primary_dark</item>
+        <item name="colorOnPrimaryContainer">@color/text_primary</item>
+        
+        <!-- Secondary brand color. -->
+        <item name="colorSecondary">@color/accent</item>
+        <item name="colorOnSecondary">@color/white</item>
+        <item name="colorSecondaryContainer">@color/surface_variant</item>
+        <item name="colorOnSecondaryContainer">@color/text_primary</item>
+        
+        <!-- Tertiary brand color. -->
+        <item name="colorTertiary">@color/info</item>
+        <item name="colorOnTertiary">@color/white</item>
+        <item name="colorTertiaryContainer">@color/surface_variant</item>
+        <item name="colorOnTertiaryContainer">@color/text_primary</item>
+        
+        <!-- Error color. -->
+        <item name="colorError">@color/error</item>
+        <item name="colorOnError">@color/white</item>
+        <item name="colorErrorContainer">@color/error</item>
+        <item name="colorOnErrorContainer">@color/white</item>
+        
+        <!-- Background color. -->
+        <item name="colorBackground">@color/black</item>
+        <item name="colorOnBackground">@color/text_primary</item>
+        
+        <!-- Surface color. -->
+        <item name="colorSurface">@color/black</item>
+        <item name="colorOnSurface">@color/text_primary</item>
+        <item name="colorSurfaceVariant">@color/surface_variant</item>
+        <item name="colorOnSurfaceVariant">@color/text_secondary</item>
+        
+        <!-- Outline color. -->
+        <item name="colorOutline">@color/text_tertiary</item>
+        <item name="colorOutlineVariant">@color/surface_variant</item>
+        
+        <!-- Inverse surface color. -->
+        <item name="colorInverseSurface">@color/text_primary</item>
+        <item name="colorInverseOnSurface">@color/black</item>
+        <item name="colorInversePrimary">@color/primary_dark</item>
+        
+        <!-- Status bar color. -->
+        <item name="android:statusBarColor">@color/black</item>
+        <item name="android:statusBarColor" tools:targetApi="l">@color/black</item>
+        <item name="android:windowLightStatusBar">false</item>
+        
+        <!-- Navigation bar color. -->
+        <item name="android:navigationBarColor">@color/black</item>
+        <item name="android:windowLightNavigationBar">false</item>
+        
+        <!-- Window background. -->
+        <item name="android:windowBackground">@color/black</item>
+        
+        <!-- Text colors. -->
+        <item name="android:textColorPrimary">@color/text_primary</item>
+        <item name="android:textColorSecondary">@color/text_secondary</item>
+        <item name="android:textColorTertiary">@color/text_tertiary</item>
+        <item name="android:textColorPrimaryInverse">@color/black</item>
+        <item name="android:textColorSecondaryInverse">@color/text_secondary</item>
+        <item name="android:textColorTertiaryInverse">@color/text_tertiary</item>
+        
+        <!-- Ripple color. -->
+        <item name="colorControlHighlight">@color/primary_dark</item>
+        
+        <!-- Checkbox, RadioButton, Switch colors. -->
+        <item name="colorControlNormal">@color/text_tertiary</item>
+        <item name="colorControlActivated">@color/primary</item>
+        <item name="colorControlHighlight">@color/primary_dark</item>
+        
+        <!-- EditText colors. -->
+        <item name="colorAccent">@color/primary</item>
+        <item name="editTextColor">@color/text_primary</item>
+        <item name="android:textColorHint">@color/text_tertiary</item>
+        
+        <!-- Button colors. -->
+        <item name="android:buttonStyle">@style/Widget.App.Button</item>
+        <item name="android:borderlessButtonStyle">@style/Widget.App.Button.TextButton</item>
+        <item name="materialButtonStyle">@style/Widget.App.Button</item>
+        <item name="materialButtonOutlinedStyle">@style/Widget.App.Button.OutlinedButton</item>
+        <item name="materialButtonToggleGroupStyle">@style/Widget.Material3.ButtonToggleGroup</item>
+        
+        <!-- CardView colors. -->
+        <item name="cardViewStyle">@style/Widget.App.CardView</item>
+        
+        <!-- TextInputLayout colors. -->
+        <item name="textInputStyle">@style/Widget.App.TextInputLayout</item>
+        
+        <!-- Toolbar colors. -->
+        <item name="toolbarStyle">@style/Widget.App.Toolbar</item>
+        
+        <!-- BottomNavigationView colors. -->
+        <item name="bottomNavigationStyle">@style/Widget.App.BottomNavigationView</item>
+        
+        <!-- Chip colors. -->
+        <item name="chipStyle">@style/Widget.App.Chip</item>
+        <item name="chipStandaloneStyle">@style/Widget.App.Chip.Assist</item>
+        
+        <!-- ProgressIndicator colors. -->
+        <item name="linearProgressIndicatorStyle">@style/Widget.App.ProgressIndicator.Linear</item>
+        <item name="circularProgressIndicatorStyle">@style/Widget.App.ProgressIndicator.Circular</item>
+        
+        <!-- Switch colors. -->
+        <item name="switchStyle">@style/Widget.App.Switch</item>
+        
+        <!-- Checkbox colors. -->
+        <item name="checkboxStyle">@style/Widget.App.CheckBox</item>
+        
+        <!-- RadioButton colors. -->
+        <item name="radioButtonStyle">@style/Widget.App.RadioButton</item>
+        
+        <!-- Slider colors. -->
+        <item name="sliderStyle">@style/Widget.App.Slider</item>
+        
+        <!-- Dialog theme. -->
+        <item name="alertDialogTheme">@style/ThemeOverlay.App.MaterialAlertDialog</item>
+        <item name="materialAlertDialogTheme">@style/ThemeOverlay.App.MaterialAlertDialog</item>
+    </style>
+    
+    <!-- Player theme. -->
+    <style name="Theme.JaBook.Player" parent="PlayerTheme">
+        <!-- Status bar color. -->
+        <item name="android:statusBarColor">@color/player_background</item>
+        <item name="android:statusBarColor" tools:targetApi="l">@color/player_background</item>
+        <item name="android:windowLightStatusBar">false</item>
+        
+        <!-- Navigation bar color. -->
+        <item name="android:navigationBarColor">@color/player_background</item>
+        <item name="android:windowLightNavigationBar">false</item>
+        
+        <!-- Window background. -->
+        <item name="android:windowBackground">@color/player_background</item>
+        
+        <!-- Text colors. -->
+        <item name="android:textColorPrimary">@color/player_controls</item>
+        <item name="android:textColorSecondary">@color/player_controls</item>
+        <item name="android:textColorTertiary">@color/player_controls</item>
+        
+        <!-- Ripple color. -->
+        <item name="colorControlHighlight">@color/player_progress</item>
+        
+        <!-- Checkbox, RadioButton, Switch colors. -->
+        <item name="colorControlNormal">@color/player_controls</item>
+        <item name="colorControlActivated">@color/player_progress</item>
+        <item name="colorControlHighlight">@color/player_progress</item>
+        
+        <!-- EditText colors. -->
+        <item name="colorAccent">@color/player_progress</item>
+        <item name="editTextColor">@color/player_controls</item>
+        <item name="android:textColorHint">@color/player_controls</item>
+        
+        <!-- Button colors. -->
+        <item name="android:buttonStyle">@style/Widget.App.Button</item>
+        <item name="android:borderlessButtonStyle">@style/Widget.App.Button.TextButton</item>
+        <item name="materialButtonStyle">@style/Widget.App.Button</item>
+        <item name="materialButtonOutlinedStyle">@style/Widget.App.Button.OutlinedButton</item>
+        <item name="materialButtonToggleGroupStyle">@style/Widget.Material3.ButtonToggleGroup</item>
+        
+        <!-- CardView colors. -->
+        <item name="cardViewStyle">@style/Widget.App.CardView</item>
+        
+        <!-- TextInputLayout colors. -->
+        <item name="textInputStyle">@style/Widget.App.TextInputLayout</item>
+        
+        <!-- Toolbar colors. -->
+        <item name="toolbarStyle">@style/Widget.App.Toolbar</item>
+        
+        <!-- BottomNavigationView colors. -->
+        <item name="bottomNavigationStyle">@style/Widget.App.BottomNavigationView</item>
+        
+        <!-- Chip colors. -->
+        <item name="chipStyle">@style/Widget.App.Chip</item>
+        <item name="chipStandaloneStyle">@style/Widget.App.Chip.Assist</item>
+        
+        <!-- ProgressIndicator colors. -->
+        <item name="linearProgressIndicatorStyle">@style/Widget.App.ProgressIndicator.Linear</item>
+        <item name="circularProgressIndicatorStyle">@style/Widget.App.ProgressIndicator.Circular</item>
+        
+        <!-- Switch colors. -->
+        <item name="switchStyle">@style/Widget.App.Switch</item>
+        
+        <!-- Checkbox colors. -->
+        <item name="checkboxStyle">@style/Widget.App.CheckBox</item>
+        
+        <!-- RadioButton colors. -->
+        <item name="radioButtonStyle">@style/Widget.App.RadioButton</item>
+        
+        <!-- Slider colors. -->
+        <item name="sliderStyle">@style/Widget.App.Slider</item>
+        
+        <!-- Dialog theme. -->
+        <item name="alertDialogTheme">@style/ThemeOverlay.App.MaterialAlertDialog</item>
+        <item name="materialAlertDialogTheme">@style/ThemeOverlay.App.MaterialAlertDialog</item>
+    </style>
+    
+    <!-- Splash screen theme. -->
+    <style name="Theme.JaBook.Splash" parent="Theme.SplashScreen">
+        <!-- Splash screen background color. -->
+        <item name="windowSplashScreenBackground">@color/primary</item>
+        
+        <!-- Splash screen icon. -->
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
+        <item name="windowSplashScreenAnimationDuration">1000</item>
+        
+        <!-- Post splash screen theme. -->
+        <item name="postSplashScreenTheme">@style/Theme.JaBook.Light</item>
+        
+        <!-- Status bar and navigation bar colors. -->
+        <item name="android:statusBarColor">@color/primary</item>
+        <item name="android:navigationBarColor">@color/primary</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+    </style>
+</resources>

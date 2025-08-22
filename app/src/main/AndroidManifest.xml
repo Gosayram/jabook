@@ -2,31 +2,37 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- Network permissions for downloading audiobooks -->
+    <!-- Internet permission for network requests -->
     <uses-permission android:name="android.permission.INTERNET" />
+    
+    <!-- Network state permission for checking connectivity -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     
-    <!-- Storage permissions for saving audiobooks -->
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
-        android:maxSdkVersion="28" />
-    
-    <!-- For Android 10+ scoped storage -->
-    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
-    
-    <!-- Audio playback permissions -->
+    <!-- Wake lock permission for background playback -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    
+    <!-- Foreground service permission for media playback -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     
-    <!-- For handling audio focus -->
-    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <!-- Storage permission for downloading and caching -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     
-    <!-- For notifications on Android 13+ -->
+    <!-- Install packages permission for installing downloaded content -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    
+    <!-- Notification permission for showing media controls -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     
-    <!-- Optional: for detecting network changes -->
-    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <!-- Vibration permission for haptic feedback -->
+    <uses-permission android:name="android.permission.VIBRATE" />
+    
+    <!-- Battery optimization exemption for background playback -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    
+    <!-- Query all packages for checking installed apps -->
+    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" 
+        tools:ignore="QueryAllPackagesPermission" />
 
     <application
         android:name=".JaBookApplication"
@@ -37,34 +43,180 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.JaBook"
-        android:requestLegacyExternalStorage="true"
+        android:theme="@style/Theme.JaBook.Splash"
+        android:usesCleartextTraffic="true"
         tools:targetApi="31">
         
         <!-- Main Activity -->
         <activity
-            android:name=".MainActivity"
+            android:name=".presentation.MainActivity"
             android:exported="true"
             android:launchMode="singleTop"
-            android:theme="@style/Theme.JaBook">
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.JaBook.Light">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            
+            <!-- Intent filter for handling torrent files -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="file" />
+                <data android:mimeType="application/x-bittorrent" />
+            </intent-filter>
+            
+            <!-- Intent filter for handling magnet links -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="magnet" />
+            </intent-filter>
         </activity>
         
-        <!-- Media playback service -->
+        <!-- Player Activity -->
+        <activity
+            android:name=".presentation.player.PlayerActivity"
+            android:exported="false"
+            android:launchMode="singleTop"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.JaBook.Player" />
+        
+        <!-- Settings Activity -->
+        <activity
+            android:name=".presentation.settings.SettingsActivity"
+            android:exported="false"
+            android:launchMode="singleTop"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.JaBook.Light" />
+        
+        <!-- RuTracker Settings Activity -->
+        <activity
+            android:name=".presentation.rutracker.RuTrackerSettingsActivity"
+            android:exported="false"
+            android:launchMode="singleTop"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.JaBook.Light" />
+        
+        <!-- Domain Management Activity -->
+        <activity
+            android:name=".presentation.rutracker.RuTrackerDomainManagementActivity"
+            android:exported="false"
+            android:launchMode="singleTop"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.JaBook.Light" />
+        
+        <!-- Cache Management Activity -->
+        <activity
+            android:name=".presentation.cache.CacheManagementActivity"
+            android:exported="false"
+            android:launchMode="singleTop"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.JaBook.Light" />
+        
+        <!-- Offline Management Activity -->
+        <activity
+            android:name=".presentation.offline.OfflineManagementActivity"
+            android:exported="false"
+            android:launchMode="singleTop"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.JaBook.Light" />
+        
+        <!-- Monitor Activity -->
+        <activity
+            android:name=".presentation.monitor.MonitorActivity"
+            android:exported="false"
+            android:launchMode="singleTop"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.JaBook.Light" />
+        
+        <!-- Debug Activity -->
+        <activity
+            android:name=".presentation.debug.DebugActivity"
+            android:exported="false"
+            android:launchMode="singleTop"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.JaBook.Light" />
+        
+        <!-- Media Playback Service -->
         <service
-            android:name=".features.player.PlayerService"
-            android:enabled="true"
+            android:name=".core.player.MediaPlaybackService"
             android:exported="false"
             android:foregroundServiceType="mediaPlayback">
             <intent-filter>
-                <action android:name="androidx.media3.session.MediaSessionService" />
+                <action android:name="android.media.browse.MediaBrowserService" />
             </intent-filter>
         </service>
         
-        <!-- File provider for sharing files -->
+        <!-- Download Service -->
+        <service
+            android:name=".core.download.DownloadService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+        
+        <!-- Cache Service -->
+        <service
+            android:name=".core.cache.CacheService"
+            android:exported="false" />
+        
+        <!-- Monitor Service -->
+        <service
+            android:name=".core.monitor.MonitorService"
+            android:exported="false" />
+        
+        <!-- Widget Provider -->
+        <receiver
+            android:name=".presentation.widget.JaBookWidgetProvider"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/jabook_widget_info" />
+        </receiver>
+        
+        <!-- Media Button Receiver -->
+        <receiver
+            android:name=".core.player.MediaButtonReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.MEDIA_BUTTON" />
+            </intent-filter>
+        </receiver>
+        
+        <!-- Boot Receiver for starting services on device boot -->
+        <receiver
+            android:name=".core.receiver.BootReceiver"
+            android:enabled="true"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+            </intent-filter>
+        </receiver>
+        
+        <!-- Network Change Receiver -->
+        <receiver
+            android:name=".core.receiver.NetworkChangeReceiver"
+            android:enabled="true"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.net.conn.CONNECTIVITY_CHANGE" />
+            </intent-filter>
+        </receiver>
+        
+        <!-- Provider for database -->
+        <provider
+            android:name=".core.database.JaBookProvider"
+            android:authorities="${applicationId}.provider"
+            android:exported="false"
+            android:grantUriPermissions="true" />
+        
+        <!-- File Provider for sharing files -->
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
@@ -75,17 +227,59 @@
                 android:resource="@xml/file_paths" />
         </provider>
         
-        <!-- FileProvider for debug log export -->
+        <!-- WorkManager Initialization -->
         <provider
-            android:name="androidx.core.content.FileProvider"
-            android:authorities="${applicationId}.provider"
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
             android:exported="false"
-            android:grantUriPermissions="true">
+            tools:node="merge">
             <meta-data
-                android:name="android.support.FILE_PROVIDER_PATHS"
-                android:resource="@xml/file_paths" />
+                android:name="androidx.work.WorkManagerInitializer"
+                android:value="androidx.startup" />
         </provider>
         
+        <!-- Crash Reporting -->
+        <meta-data
+            android:name="firebase_crashlytics_collection_enabled"
+            android:value="true" />
+        
+        <!-- Analytics -->
+        <meta-data
+            android:name="firebase_analytics_collection_enabled"
+            android:value="true" />
+        
+        <!-- AdMob App ID -->
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="ca-app-pub-XXXXXXXXXXXXXXXX~YYYYYYYYYY" />
+        
+        <!-- Allow HTTP traffic for RuTracker domains -->
+        <network-security-config>
+            <domain-config cleartextTrafficPermitted="true">
+                <domain includeSubdomains="true">rutracker.me</domain>
+                <domain includeSubdomains="true">rutracker.org</domain>
+                <domain includeSubdomains="true">rutracker.net</domain>
+            </domain-config>
+        </network-security-config>
     </application>
 
-</manifest> 
+    <queries>
+        <!-- Browser apps for opening links -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
+        </intent>
+        
+        <!-- Media player apps for external playback -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:mimeType="audio/*" />
+        </intent>
+        
+        <!-- File manager apps for opening files -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:mimeType="application/x-bittorrent" />
+        </intent>
+    </queries>
+</manifest>

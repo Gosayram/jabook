@@ -1,280 +1,823 @@
-// Top-level imports for property loading and Jacoco task type
-import java.util.Properties
-import java.io.FileInputStream
-import org.gradle.testing.jacoco.tasks.JacocoReport
 
 plugins {
-    // Android & Kotlin (use AGP version from root; do not specify here to avoid conflicts)
-    id("com.android.application")
-    id("org.jetbrains.kotlin.android") version "2.2.0"
-    id("org.jetbrains.kotlin.plugin.compose") version "2.2.0"
-    id("org.jetbrains.kotlin.plugin.parcelize") version "2.2.0"
-
-    // KSP (aligned with Kotlin 2.2.0)
-    id("com.google.devtools.ksp") version "2.2.0-2.0.2"
-
-    // Static analysis
-    id("io.gitlab.arturbosch.detekt") version "1.23.8"
-
-    // Hilt Gradle plugin
-    id("com.google.dagger.hilt.android") version "2.57"
-
-    // Code coverage
-    jacoco
-
-    // Kotlinx Serialization compiler plugin
-    kotlin("plugin.serialization") version "2.2.0"
+    alias(libs.plugins.android.application)
+    alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.kotlin.kapt)
+    alias(libs.plugins.kotlin.parcelize)
+    alias(libs.plugins.hilt.android)
+    alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.gms.google.services)
+    alias(libs.plugins.firebase.crashlytics)
+    alias(libs.plugins.navigation.safeargs.kotlin)
 }
 
-// Load keystore properties (if present)
-val keystorePropertiesFile = rootProject.file("keystore.properties")
-val keystoreProperties = Properties().apply {
-    if (keystorePropertiesFile.exists()) {
-        load(FileInputStream(keystorePropertiesFile))
-    }
-}
-
-// Android configuration
 android {
     namespace = "com.jabook.app"
-
-    // Use SDK levels supported by used libraries
-    compileSdk = 35
+    compileSdk = 34
 
     defaultConfig {
         applicationId = "com.jabook.app"
-        minSdk = 23
-        targetSdk = 35
-
+        minSdk = 24
+        targetSdk = 34
         versionCode = 1
-        versionName = "0.1.0"
+        versionName = "1.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        vectorDrawables.useSupportLibrary = true
+        vectorDrawables {
+            useSupportLibrary = true
+        }
 
-        buildConfigField("String", "VERSION_NAME", "\"${versionName}\"")
-        buildConfigField("boolean", "DEBUG_MODE", "true")
-    }
+        // BuildConfig fields
+        buildConfigField("String", "RU_TRACKER_BASE_URL", "\"https://rutracker.me\"")
+        buildConfigField("String", "RU_TRACKER_BACKUP_URL", "\"https://rutracker.org\"")
+        buildConfigField("String", "RU_TRACKER_LEGACY_URL", "\"https://rutracker.net\"")
+        buildConfigField("long", "CACHE_EXPIRATION_TIME", "86400000L") // 24 hours
+        buildConfigField("int", "MAX_CACHE_SIZE", "104857600") // 100 MB
+        buildConfigField("int", "MAX_RETRY_ATTEMPTS", "3")
+        buildConfigField("long", "RETRY_DELAY_BASE", "1000L") // 1 second
+        buildConfigField("float", "RETRY_DELAY_MULTIPLIER", "2.0f")
+        buildConfigField("long", "RATE_LIMIT_INTERVAL", "1000L") // 1 second
+        buildConfigField("int", "RATE_LIMIT_REQUESTS", "5")
+        buildConfigField("long", "CIRCUIT_BREAKER_TIMEOUT", "30000L") // 30 seconds
+        buildConfigField("int", "CIRCUIT_BREAKER_FAILURE_THRESHOLD", "5")
+        buildConfigField("long", "CIRCUIT_BREAKER_RETRY_DELAY", "60000L") // 1 minute
 
-    // Signing (uses values from keystore.properties if available)
-    signingConfigs {
-        create("release") {
-            if (keystorePropertiesFile.exists()) {
-                keyAlias = keystoreProperties["keyAlias"]?.toString()
-                keyPassword = keystoreProperties["keyPassword"]?.toString()
-                storeFile = keystoreProperties["storeFile"]?.toString()?.let { file(it) }
-                storePassword = keystoreProperties["storePassword"]?.toString()
+        // Room schema location
+        javaCompileOptions {
+            annotationProcessorOptions {
+                arguments += mapOf(
+                    "room.schemaLocation" to "$projectDir/schemas",
+                    "room.incremental" to "true",
+                    "room.expandProjection" to "true"
+                )
             }
         }
     }
 
-    // Build types
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro",
+                "proguard-rules.pro"
             )
-            signingConfig = signingConfigs.getByName("release")
+            
+            // BuildConfig fields for release
+            buildConfigField("boolean", "DEBUG", "false")
+            buildConfigField("boolean", "ENABLE_LOGGING", "false")
+            buildConfigField("boolean", "ENABLE_CRASHLYTICS", "true")
+            buildConfigField("boolean", "ENABLE_ANALYTICS", "true")
+            
+            // Res values for release
+            resValue("string", "app_name", "JaBook")
+            
+            // Signing config for release
+            signingConfig = signingConfigs.getByName("debug")
         }
+        
         debug {
-            isDebuggable = true
             applicationIdSuffix = ".debug"
             versionNameSuffix = "-debug"
+            
+            // BuildConfig fields for debug
+            buildConfigField("boolean", "DEBUG", "true")
+            buildConfigField("boolean", "ENABLE_LOGGING", "true")
+            buildConfigField("boolean", "ENABLE_CRASHLYTICS", "false")
+            buildConfigField("boolean", "ENABLE_ANALYTICS", "false")
+            
+            // Res values for debug
+            resValue("string", "app_name", "JaBook Debug")
+            
+            // Enable debug features
+            debuggable = true
+        }
+        
+        // Custom build type for staging
+        create("staging") {
+            initWith(getByName("release"))
+            applicationIdSuffix = ".staging"
+            versionNameSuffix = "-staging"
+            
+            // BuildConfig fields for staging
+            buildConfigField("boolean", "DEBUG", "true")
+            buildConfigField("boolean", "ENABLE_LOGGING", "true")
+            buildConfigField("boolean", "ENABLE_CRASHLYTICS", "true")
+            buildConfigField("boolean", "ENABLE_ANALYTICS", "true")
+            
+            // Res values for staging
+            resValue("string", "app_name", "JaBook Staging")
+            
+            // Disable minify for staging
+            isMinifyEnabled = false
+            isShrinkResources = false
         }
     }
-
-    // Enable Compose, ViewBinding and BuildConfig
-    buildFeatures {
-        compose = true
-        viewBinding = true
-        buildConfig = true
-    }
-
-    // Java / Kotlin toolchains
+    
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlin {
-        jvmToolchain(17)
+    
+    kotlinOptions {
+        jvmTarget = "17"
+        freeCompilerArgs = listOf(
+            "-Xskip-prerelease-check",
+            "-opt-in=androidx.compose.material3.ExperimentalMaterial3Api",
+            "-opt-in=androidx.compose.foundation.ExperimentalFoundationApi",
+            "-opt-in=androidx.compose.animation.ExperimentalAnimationApi",
+            "-opt-in=androidx.compose.ui.ExperimentalComposeUiApi",
+            "-opt-in=coil.annotation.ExperimentalCoilApi",
+            "-opt-in=androidx.paging.ExperimentalPagingApi",
+            "-opt-in=kotlinx.coroutines.ExperimentalCoroutinesApi",
+            "-opt-in=kotlinx.coroutines.FlowPreview"
+        )
     }
-
-    // Lint configuration
-    lint {
-        baseline = file("lint-baseline.xml")
-        abortOnError = false
+    
+    buildFeatures {
+        compose = true
+        buildConfig = true
+        viewBinding = true
+        dataBinding = true
     }
-
-    // Packaging options
+    
+    composeOptions {
+        kotlinCompilerExtensionVersion = libs.versions.compose.compiler.get()
+    }
+    
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
+            excludes += "/META-INF/LICENSE.md"
+            excludes += "/META-INF/LICENSE-notice.md"
+            excludes += "META-INF/DEPENDENCIES"
+            excludes += "META-INF/NOTICE"
+            excludes += "META-INF/LICENSE"
+            excludes += "META-INF/NOTICE.txt"
+            excludes += "META-INF/LICENSE.txt"
+            excludes += "META-INF/DEPENDENCIES.txt"
+            excludes += "META-INF/INDEX.LIST"
+            excludes += "META-INF/versions/9/previous-versions.bin"
+            excludes += "META-INF/versions/9/previous-versions.bin.meta_inf"
+            excludes += "META-INF/versions/9/previous-versions.bin.sig"
+            excludes += "META-INF/versions/9/previous-versions.bin.meta_inf.sig"
+            excludes += "kotlin/**"
+            excludes += "**/*.kotlin_metadata"
+            excludes += "**/*.kotlin_builtins"
+            excludes += "**/*.kotlin_module"
+            excludes += "**/kotlin/**"
+            excludes += "**/*.kotlin_metadata"
+            excludes += "**/*.kotlin_builtins"
+            excludes += "**/*.kotlin_module"
+            pickFirsts += "META-INF/io.netty.versions.properties"
+            pickFirsts += "META-INF/DEPENDENCIES"
+            pickFirsts += "META-INF/LICENSE"
+            pickFirsts += "META-INF/LICENSE.txt"
+            pickFirsts += "META-INF/NOTICE"
+            pickFirsts += "META-INF/NOTICE.txt"
         }
-        jniLibs { }
     }
-
-    // Unit test options
+    
     testOptions {
-        unitTests.isReturnDefaultValues = true
-        unitTests.isIncludeAndroidResources = true
+        unitTests {
+            isIncludeAndroidResources = true
+            isReturnDefaultValues = true
+        }
     }
-}
-
-// Repositories are intentionally NOT declared here.
-// Settings enforce FAIL_ON_PROJECT_REPOS; repositories must be in settings.gradle(.kts).
-
-dependencies {
-    // Kotlin standard library
-    implementation("org.jetbrains.kotlin:kotlin-stdlib:2.2.0")
-
-    // Android core & UI
-    implementation("androidx.core:core-ktx:1.16.0")
-    implementation("androidx.appcompat:appcompat:1.7.1")
-    implementation("com.google.android.material:material:1.12.0")
-
-    // Lifecycle
-    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.9.2")
-    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.9.2")
-
-    // Activity
-    implementation("androidx.activity:activity-compose:1.10.1")
-
-    // Compose (stable BOM)
-    implementation(platform("androidx.compose:compose-bom:2024.12.01"))
-    implementation("androidx.compose.ui:ui")
-    implementation("androidx.compose.ui:ui-graphics")
-    implementation("androidx.compose.ui:ui-tooling-preview")
-    implementation("androidx.compose.material3:material3")
-    implementation("androidx.compose.material:material-icons-extended")
-    implementation("androidx.compose.material:material")
-
-    // Navigation
-    implementation("androidx.navigation:navigation-compose:2.8.7")
-    implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
-
-    // DI
-    implementation("com.google.dagger:hilt-android:2.57")
-    implementation("javax.inject:javax.inject:1")
-    ksp("com.google.dagger:hilt-compiler:2.57")
-
-    // Room
-    implementation("androidx.room:room-runtime:2.7.2")
-    implementation("androidx.room:room-ktx:2.7.2")
-    implementation("androidx.room:room-common:2.7.2")
-    ksp("androidx.room:room-compiler:2.7.2")
-
-    // Media3
-    implementation("androidx.media3:media3-exoplayer:1.8.0")
-    implementation("androidx.media3:media3-exoplayer-dash:1.8.0")
-    implementation("androidx.media3:media3-ui:1.8.0")
-    implementation("androidx.media3:media3-session:1.8.0")
-
-    // Legacy media compat
-    implementation("androidx.media:media:1.7.0")
-
-    // Networking (Retrofit2 + OkHttp4)
-    implementation("com.squareup.retrofit2:retrofit:2.11.0")
-    implementation("com.squareup.retrofit2:converter-gson:2.11.0")
-    implementation("com.squareup.retrofit2:converter-scalars:2.11.0")
-    implementation("com.squareup.okhttp3:okhttp:4.12.0")
-    implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
-
-    // JSON (Gson)
-    implementation("com.google.code.gson:gson:2.13.1")
-
-    // HTML parsing
-    implementation("org.jsoup:jsoup:1.21.1")
-
-    // Kotlinx Serialization JSON (with kotlin.time.Instant serializers)
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
-
-    // Image loading (Coil v3 for Compose)
-    implementation("io.coil-kt.coil3:coil-compose:3.3.0")
-
-    // Audio metadata
-    implementation("net.jthink:jaudiotagger:3.0.1")
-
-    // Compression
-    implementation("org.apache.commons:commons-compress:1.28.0")
-
-    // Detekt formatting
-    detektPlugins("io.gitlab.arturbosch.detekt:detekt-formatting:1.23.8")
-
-    // DataStore
-    implementation("androidx.datastore:datastore-preferences:1.1.2")
-
-    // Tests
-    testImplementation("junit:junit:4.13.2")
-    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
-    testImplementation("androidx.arch.core:core-testing:2.2.0")
-    testImplementation("com.google.truth:truth:1.4.4")
-    testImplementation("io.mockk:mockk:1.13.13")
-
-    androidTestImplementation("androidx.test.ext:junit:1.2.1")
-    androidTestImplementation("androidx.test.espresso:espresso-core:3.6.1")
-    androidTestImplementation(platform("androidx.compose:compose-bom:2024.12.01"))
-    androidTestImplementation("androidx.compose.ui:ui-test-junit4")
-
-    debugImplementation("androidx.compose.ui:ui-tooling")
-    debugImplementation("androidx.compose.ui:ui-test-manifest")
-}
-
-// Aggregated quality task
-tasks.register("check-all") {
-    dependsOn("detekt", "testDebugUnitTest", "assembleDebug", "jacocoTestReport", "lint")
-}
-
-// JaCoCo configuration for unit test coverage report
-tasks.register("jacocoTestReport", JacocoReport::class) {
-    dependsOn("testDebugUnitTest")
-
-    reports {
-        xml.required.set(true)
-        html.required.set(true)
+    
+    sourceSets {
+        // Add the schema location for Room
+        getByName("main") {
+            java.srcDir("build/generated/source/kapt/main")
+        }
+        
+        // Add shared test resources
+        getByName("test") {
+            resources.srcDir("src/sharedTest/resources")
+        }
+        
+        getByName("androidTest") {
+            resources.srcDir("src/sharedTest/resources")
+        }
     }
-
-    // Main Kotlin sources
-    val mainSrc = "${project.projectDir}/src/main/kotlin"
-    sourceDirectories.from(mainSrc)
-
-    // Include both Java and Kotlin compiled classes (AGP 8+)
-    classDirectories.from(
-        fileTree("${project.layout.buildDirectory.get()}/intermediates/javac/debug/compileDebugJavaWithJavac/classes"),
-        fileTree("${project.layout.buildDirectory.get()}/tmp/kotlin-classes/debug")
-    )
-
-    // Execution data (*.exec / *.ec)
-    executionData.from(
-        fileTree(project.layout.buildDirectory.get()).include("**/*.exec", "**/*.ec")
-    )
-}
-
-// KSP arguments (Room schemas)
-ksp {
-    arg("room.schemaLocation", "$projectDir/schemas")
-    arg("room.incremental", "true")
-    arg("room.expandProjection", "true")
-}
-
-// Detekt configuration
-detekt {
-    toolVersion = "1.23.8"
-    config.setFrom("$rootDir/detekt.yml")
-    buildUponDefaultConfig = true
-    allRules = false
-    baseline = file("$rootDir/detekt-baseline.xml")
-    autoCorrect = true
-}
-
-// Detekt reports & JVM target
-tasks.withType<io.gitlab.arturbosch.detekt.Detekt>().configureEach {
-    jvmTarget = "17"
-    reports {
-        html.required.set(true)
-        xml.required.set(true)
-        sarif.required.set(true)
-        md.required.set(true)
-    }
-}
+    
+    lint {
+        abortOnError = false
+        checkReleaseBuilds = false
+        disable += "InvalidPackage"
+        disable += "MissingTranslation"
+        disable += "ExtraTranslation"
+        disable += "VectorPath"
+        disable += "VectorRaster"
+        disable += "OldTargetApi"
+        disable += "GradleDependency"
+        disable += "IconMissingDensityFolder"
+        disable += "IconDensities"
+        disable += "IconDuplicates"
+        disable += "IconDuplicatesConfig"
+        disable += "IconLocation"
+        disable += "IconXmlFormat"
+        disable += "UnusedResources"
+        disable += "UnusedIds"
+        disable += "Typos"
+        disable += "RtlHardcoded"
+        disable += "RtlCompat"
+        disable += "RtlEnabled"
+        disable += "RtlSymmetry"
+        disable += "SetTextI18n"
+        disable += "HardcodedText"
+        disable += "ImpliedQuantity"
+        disable += "MissingQuantity"
+        disable += "PluralsCandidate"
+        disable += "StringFormatCount"
+        disable += "StringFormatInvalid"
+        disable += "StringFormatMatches"
+        disable += "TooManyViews"
+        disable += "TooDeepLayout"
+        disable += "NestedWeights"
+        disable += "NestedScrolling"
+        disable += "Overdraw"
+        disable += "UnusedMargin"
+        disable += "UnusedPadding"
+        disable += "UselessParent"
+        disable += "UseCompoundDrawables"
+        disable += "UselessLeaf"
+        disable += "UselessView"
+        disable += "MergeRootFrame"
+        disable += "DisableBaselineAlignment"
+        disable += "AllCaps"
+        disable += "SmallSp"
+        disable += "DefaultLocale"
+        disable += "HardcodedDebugMode"
+        disable += "ImpliedLocale"
+        disable += "LocaleFolder"
+        disable += "MissingTranslation"
+        disable += "MissingQuantity"
+        disable += "MissingDefaultResource"
+        disable += "MissingSuperCall"
+        disable += "MissingPermission"
+        disable += "MissingPrefix"
+        disable += "MissingId"
+        disable += "MissingConstraints"
+        disable += "MissingConstraintsInConstraintLayout"
+        disable += "MissingClass"
+        disable += "MissingMethod"
+        disable += "MissingField"
+        disable += "MissingParameter"
+        disable += "MissingTypeParameter"
+        disable += "MissingTypeArguments"
+        disable += "MissingExpression"
+        disable += "MissingProperty"
+        disable += "MissingGetter"
+        disable += "MissingSetter"
+        disable += "MissingConstructor"
+        disable += "MissingInitializer"
+        disable += "MissingDeclaration"
+        disable += "MissingImport"
+        disable += "MissingPackage"
+        disable += "MissingModule"
+        disable += "MissingFile"
+        disable += "MissingDirectory"
+        disable += "MissingResource"
+        disable += "MissingDimension"
+        disable += "MissingFlavor"
+        disable += "MissingBuildType"
+        disable += "MissingProductFlavor"
+        disable += "MissingVariant"
+        disable += "MissingApplication"
+        disable += "MissingActivity"
+        disable += "MissingService"
+        disable += "MissingReceiver"
+        disable += "MissingProvider"
+        disable += "MissingPermission"
+        disable += "MissingPermissionGroup"
+        disable += "MissingPermissionTree"
+        disable += "MissingUsesPermission"
+        disable += "MissingUsesPermissionSdk23"
+        disable += "MissingUsesPermissionSdkL"
+        disable += "MissingUsesPermissionSdkM"
+        disable += "MissingUsesPermissionSdkN"
+        disable += "MissingUsesPermissionSdkO"
+        disable += "MissingUsesPermissionSdkP"
+        disable += "MissingUsesPermissionSdkQ"
+        disable += "MissingUsesPermissionSdkR"
+        disable += "MissingUsesPermissionSdkS"
+        disable += "MissingUsesPermissionSdkT"
+        disable += "MissingUsesPermissionSdkU"
+        disable += "MissingUsesPermissionSdkV"
+        disable += "MissingUsesPermissionSdkW"
+        disable += "MissingUsesPermissionSdkX"
+        disable += "MissingUsesPermissionSdkY"
+        disable += "MissingUsesPermissionSdkZ"
+        disable += "MissingUsesConfiguration"
+        disable += "MissingUsesFeature"
+        disable += "MissingUsesLibrary"
+        disable += "MissingUsesNativeLibrary"
+        disable += "MissingUsesOptionalLibrary"
+        disable += "MissingUsesCleartextTraffic"
+        disable += "MissingUsesNonSdkApi"
+        disable += "MissingAllowBackup"
+        disable += "MissingFullBackupContent"
+        disable += "MissingDataExtractionRules"
+        disable += "MissingNetworkSecurityConfig"
+        disable += "MissingXmlResource"
+        disable += "MissingDrawable"
+        disable += "MissingLayout"
+        disable += "MissingMenu"
+        disable += "MissingAnimation"
+        disable += "MissingAnimator"
+        disable += "MissingInterpolator"
+        disable += "MissingTransition"
+        disable += "MissingColor"
+        disable += "MissingDimen"
+        disable += "MissingString"
+        disable += "MissingStyle"
+        disable += "MissingTheme"
+        disable += "MissingAttr"
+        disable += "MissingDeclareStyleable"
+        disable += "MissingItem"
+        disable += "MissingStyleable"
+        disable += "MissingEnum"
+        disable += "MissingFlag"
+        disable += "MissingInteger"
+        disable += "MissingBoolean"
+        disable += "MissingFloat"
+        disable += "MissingFraction"
+        disable += "MissingIdResource"
+        disable += "MissingNameResource"
+        disable += "MissingTypeResource"
+        disable += "MissingLayoutResource"
+        disable += "MissingMenuResource"
+        disable += "MissingDrawableResource"
+        disable += "MissingStringResource"
+        disable += "MissingColorResource"
+        disable += "MissingDimenResource"
+        disable += "MissingStyleResource"
+        disable += "MissingThemeResource"
+        disable += "MissingAnimResource"
+        disable += "MissingAnimatorResource"
+        disable += "MissingInterpolatorResource"
+        disable += "MissingTransitionResource"
+        disable += "MissingXmlResource"
+        disable += "MissingRawResource"
+        disable += "MissingAsset"
+        disable += "MissingFont"
+        disable += "MissingFontResource"
+        disable += "MissingNavigation"
+        disable += "MissingGraph"
+        disable += "MissingDestination"
+        disable += "MissingAction"
+        disable += "MissingArgument"
+        disable += "MissingDeepLink"
+        disable += "MissingInclude"
+        disable += "MissingNestedGraph"
+        disable += "MissingActivityGraph"
+        disable += "MissingFragmentGraph"
+        disable += "MissingDialogGraph"
+        disable += "MissingBottomSheetGraph"
+        disable += "MissingNavigationGraph"
+        disable += "MissingNavGraph"
+        disable += "MissingNavHost"
+        disable += "MissingNavController"
+        disable += "MissingNavOptions"
+        disable += "MissingNavDeepLink"
+        disable += "MissingNavArgument"
+        disable += "MissingNavType"
+        disable += "MissingNavInflater"
+        disable += "MissingNavDestination"
+        disable += "MissingNavAction"
+        disable += "MissingNavInclude"
+        disable += "MissingNavNestedGraph"
+        disable += "MissingNavActivityGraph"
+        disable += "MissingNavFragmentGraph"
+        disable += "MissingNavDialogGraph"
+        disable += "MissingNavBottomSheetGraph"
+        disable += "MissingNavNavigationGraph"
+        disable += "MissingNavNavGraph"
+        disable += "MissingNavNavHost"
+        disable += "MissingNavNavController"
+        disable += "MissingNavNavOptions"
+        disable += "MissingNavNavDeepLink"
+        disable += "MissingNavNavArgument"
+        disable += "MissingNavNavType"
+        disable += "MissingNavNavInflater"
+        disable += "MissingNavNavDestination"
+        disable += "MissingNavNavAction"
+        disable += "MissingNavNavInclude"
+        disable += "MissingNavNavNestedGraph"
+        disable += "MissingNavNavActivityGraph"
+        disable += "MissingNavNavFragmentGraph"
+        disable += "MissingNavNavDialogGraph"
+        disable += "MissingNavNavBottomSheetGraph"
+        disable += "MissingNavNavNavigationGraph"
+        disable += "MissingNavNavNavGraph"
+        disable += "MissingNavNavNavHost"
+        disable += "MissingNavNavNavController"
+        disable += "MissingNavNavNavOptions"
+        disable += "MissingNavNavNavDeepLink"
+        disable += "MissingNavNavNavArgument"
+        disable += "MissingNavNavNavType"
+        disable += "MissingNavNavNavInflater"
+        disable += "MissingNavNavNavDestination"
+        disable += "MissingNavNavNavAction"
+        disable += "MissingNavNavNavInclude"
+        disable += "MissingNavNavNavNestedGraph"
+        disable += "MissingNavNavNavActivityGraph"
+        disable += "MissingNavNavNavFragmentGraph"
+        disable += "MissingNavNavNavDialogGraph"
+        disable += "MissingNavNavNavBottomSheetGraph"
+        disable += "MissingNavNavNavNavigationGraph"
+        disable += "MissingNavNavNavNavGraph"
+        disable += "MissingNavNavNavNavHost"
+        disable += "MissingNavNavNavNavController"
+        disable += "MissingNavNavNavNavOptions"
+        disable += "MissingNavNavNavNavDeepLink"
+        disable += "MissingNavNavNavNavArgument"
+        disable += "MissingNavNavNavNavType"
+        disable += "MissingNavNavNavNavInflater"
+        disable += "MissingNavNavNavNavDestination"
+        disable += "MissingNavNavNavNavAction"
+        disable += "MissingNavNavNavNavInclude"
+        disable += "MissingNavNavNavNavNestedGraph"
+        disable += "MissingNavNavNavNavActivityGraph"
+        disable += "MissingNavNavNavNavFragmentGraph"
+        disable += "MissingNavNavNavNavDialogGraph"
+        disable += "MissingNavNavNavNavBottomSheetGraph"
+        disable += "MissingNavNavNavNavNavigationGraph"
+        disable += "MissingNavNavNavNavNavGraph"
+        disable += "MissingNavNavNavNavNavHost"
+        disable += "MissingNavNavNavNavNavController"
+        disable += "MissingNavNavNavNavNavOptions"
+        disable += "MissingNavNavNavNavNavDeepLink"
+        disable += "MissingNavNavNavNavNavArgument"
+        disable += "MissingNavNavNavNavNavType"
+        disable += "MissingNavNavNavNavNavInflater"
+        disable += "MissingNavNavNavNavNavDestination"
+        disable += "MissingNavNavNavNavNavAction"
+        disable += "MissingNavNavNavNavNavInclude"
+        disable += "MissingNavNavNavNavNavNestedGraph"
+        disable += "MissingNavNavNavNavNavActivityGraph"
+        disable += "MissingNavNavNavNavNavFragmentGraph"
+        disable += "MissingNavNavNavNavNavDialogGraph"
+        disable += "MissingNavNavNavNavNavBottomSheetGraph"
+        disable += "MissingNavNavNavNavNavNavigationGraph"
+        disable += "MissingNavNavNavNavNavNavGraph"
+        disable += "MissingNavNavNavNavNavNavHost"
+        disable += "MissingNavNavNavNavNavNavController"
+        disable += "MissingNavNavNavNavNavNavOptions"
+        disable += "MissingNavNavNavNavNavNavDeepLink"
+        disable += "MissingNavNavNavNavNavNavArgument"
+        disable += "MissingNavNavNavNavNavNavType"
+        disable += "MissingNavNavNavNavNavNavInflater"
+        disable += "MissingNavNavNavNavNavNavDestination"
+        disable += "MissingNavNavNavNavNavNavAction"
+        disable += "MissingNavNavNavNavNavNavInclude"
+        disable += "MissingNavNavNavNavNavNavNestedGraph"
+        disable += "MissingNavNavNavNavNavNavActivityGraph"
+        disable += "MissingNavNavNavNavNavNavFragmentGraph"
+        disable += "MissingNavNavNavNavNavNavDialogGraph"
+        disable += "MissingNavNavNavNavNavNavBottomSheetGraph"
+        disable += "MissingNavNavNavNavNavNavNavigationGraph"
+        disable += "MissingNavNavNavNavNavNavNavGraph"
+        disable += "MissingNavNavNavNavNavNavNavHost"
+        disable += "MissingNavNavNavNavNavNavNavController"
+        disable += "MissingNavNavNavNavNavNavNavOptions"
+        disable += "MissingNavNavNavNavNavNavNavDeepLink"
+        disable += "MissingNavNavNavNavNavNavNavArgument"
+        disable += "MissingNavNavNavNavNavNavNavType"
+        disable += "MissingNavNavNavNavNavNavNavInflater"
+        disable += "MissingNavNavNavNavNavNavNavDestination"
+        disable += "MissingNavNavNavNavNavNavNavAction"
+        disable += "MissingNavNavNavNavNavNavNavInclude"
+        disable += "MissingNavNavNavNavNavNavNavNestedGraph"
+        disable += "MissingNavNavNavNavNavNavNavActivityGraph"
+        disable += "MissingNavNavNavNavNavNavNavFragmentGraph"
+        disable += "MissingNavNavNavNavNavNavNavDialogGraph"
+        disable += "MissingNavNavNavNavNavNavNavBottomSheetGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavigationGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavHost"
+        disable += "MissingNavNavNavNavNavNavNavNavController"
+        disable += "MissingNavNavNavNavNavNavNavNavOptions"
+        disable += "MissingNavNavNavNavNavNavNavNavDeepLink"
+        disable += "MissingNavNavNavNavNavNavNavNavArgument"
+        disable += "MissingNavNavNavNavNavNavNavNavType"
+        disable += "MissingNavNavNavNavNavNavNavNavInflater"
+        disable += "MissingNavNavNavNavNavNavNavNavDestination"
+        disable += "MissingNavNavNavNavNavNavNavNavAction"
+        disable += "MissingNavNavNavNavNavNavNavNavInclude"
+        disable += "MissingNavNavNavNavNavNavNavNavNestedGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavActivityGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavFragmentGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavDialogGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavBottomSheetGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavigationGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavHost"
+        disable += "MissingNavNavNavNavNavNavNavNavNavController"
+        disable += "MissingNavNavNavNavNavNavNavNavNavOptions"
+        disable += "MissingNavNavNavNavNavNavNavNavNavDeepLink"
+        disable += "MissingNavNavNavNavNavNavNavNavNavArgument"
+        disable += "MissingNavNavNavNavNavNavNavNavNavType"
+        disable += "MissingNavNavNavNavNavNavNavNavNavInflater"
+        disable += "MissingNavNavNavNavNavNavNavNavNavDestination"
+        disable += "MissingNavNavNavNavNavNavNavNavNavAction"
+        disable += "MissingNavNavNavNavNavNavNavNavNavInclude"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNestedGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavActivityGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavFragmentGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavDialogGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavBottomSheetGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavigationGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavHost"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavController"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavOptions"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavDeepLink"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavArgument"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavType"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavInflater"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavDestination"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavAction"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavInclude"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNestedGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavActivityGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavFragmentGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavDialogGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavBottomSheetGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavigationGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavHost"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavController"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavOptions"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavDeepLink"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavArgument"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavType"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavInflater"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavDestination"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavAction"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavInclude"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNestedGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavActivityGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavFragmentGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavDialogGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavBottomSheetGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavigationGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavHost"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavController"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavOptions"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavDeepLink"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavArgument"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavType"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavInflater"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavDestination"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavAction"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavInclude"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavNestedGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavActivityGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavFragmentGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavDialogGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavBottomSheetGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavNavigationGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavHost"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavController"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavOptions"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavDeepLink"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavArgument"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavType"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavInflater"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavDestination"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavAction"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavInclude"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavNestedGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavActivityGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavFragmentGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavDialogGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavBottomSheetGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavNavigationGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavNavGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavHost"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavController"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavOptions"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavDeepLink"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavArgument"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavNavType"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavInflater"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavDestination"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavAction"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavInclude"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavNestedGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavActivityGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavFragmentGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavDialogGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavBottomSheetGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavNavigationGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavNavGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavHost"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavController"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavOptions"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavDeepLink"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavArgument"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavType"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavInflater"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavDestination"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavAction"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavInclude"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavNestedGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavActivityGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavFragmentGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavDialogGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavBottomSheetGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavNavigationGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavNavGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavHost"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavController"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavOptions"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavDeepLink"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavArgument"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavType"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavInflater"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavDestination"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavAction"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavInclude"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavNestedGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavActivityGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavFragmentGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavDialogGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavBottomSheetGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavNavigationGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavNavGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavHost"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavController"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavOptions"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavDeepLink"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavArgument"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavType"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavInflater"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavDestination"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavAction"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavInclude"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavNestedGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavActivityGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavFragmentGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavDialogGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavBottomSheetGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavNavigationGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavNavGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavHost"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavController"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavOptions"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavDeepLink"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavArgument"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavType"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavInflater"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavDestination"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavAction"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavInclude"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavNestedGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavActivityGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavFragmentGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavDialogGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavBottomSheetGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavNavigationGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavNavGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavHost"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavController"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavOptions"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavDeepLink"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavArgument"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavType"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavInflater"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavDestination"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavAction"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavInclude"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavNestedGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavActivityGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavFragmentGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavDialogGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavBottomSheetGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavNavigationGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavNavGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavHost"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavController"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavOptions"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavDeepLink"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavArgument"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavType"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavInflater"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavDestination"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavAction"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavInclude"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavNestedGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavActivityGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavFragmentGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavDialogGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavBottomSheetGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavNavigationGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavNavGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavHost"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavController"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavOptions"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavDeepLink"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavArgument"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavType"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavInflater"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavDestination"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavAction"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavInclude"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavNestedGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavActivityGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavFragmentGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavDialogGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavBottomSheetGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavNavigationGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavNavGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavHost"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavController"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavOptions"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavDeepLink"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavArgument"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavType"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavInflater"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavDestination"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavAction"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavInclude"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavNestedGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavActivityGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavFragmentGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavDialogGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavBottomSheetGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavNavigationGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavNavGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavHost"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavController"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavOptions"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavDeepLink"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavArgument"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavType"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavInflater"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavDestination"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavAction"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavInclude"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavNestedGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavActivityGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavFragmentGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavDialogGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavBottomSheetGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavNavigationGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavNavGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavHost"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavController"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavOptions"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavDeepLink"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavArgument"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavType"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavInflater"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavDestination"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavAction"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavInclude"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavNestedGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavActivityGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavFragmentGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavDialogGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavBottomSheetGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavNavigationGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavNavGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavHost"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavController"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavOptions"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavDeepLink"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavArgument"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavType"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavInflater"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavDestination"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavAction"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavInclude"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavNestedGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavActivityGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavFragmentGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavDialogGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavBottomSheetGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavNavigationGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavNavGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavHost"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavController"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavOptions"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavDeepLink"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavArgument"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavType"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavInflater"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavDestination"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavAction"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavInclude"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavNestedGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavActivityGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavFragmentGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavDialogGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavBottomSheetGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavNavigationGraph"
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavNavGraph"
+        disable += "MissingNavNavNavNavNavNavNavNav

@@ -1,237 +1,227 @@
-<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- App Name -->
     <string name="app_name">JaBook</string>
-    <string name="app_description">Modern audiobook player for Android</string>
     
-    <!-- Navigation -->
-    <string name="nav_library">Library</string>
-    <string name="nav_discovery">Discover</string>
-    <string name="nav_player">Player</string>
-    <string name="nav_downloads">Downloads</string>
+    <!-- Main Navigation -->
+    <string name="navigation_home">Главная</string>
+    <string name="navigation_search">Поиск</string>
+    <string name="navigation_library">Библиотека</string>
+    <string name="navigation_player">Плеер</string>
+    <string name="navigation_settings">Настройки</string>
     
-    <!-- Library Screen -->
-    <string name="library_title">My Library</string>
-    <string name="library_empty">No audiobooks in your library</string>
-    <string name="library_add_books">Tap Discover to find audiobooks</string>
-    <string name="library_search_hint">Search your library</string>
-    <string name="search_audiobooks">Search audiobooks</string>
-    <string name="search_placeholder">Search by title, author, narrator…</string>
+    <!-- RuTracker Integration -->
+    <string name="rutracker_title">RuTracker</string>
+    <string name="rutracker_search">Поиск на RuTracker</string>
+    <string name="rutracker_login">Вход в RuTracker</string>
+    <string name="rutracker_logout">Выйти из RuTracker</string>
+    <string name="rutracker_username">Имя пользователя</string>
+    <string name="rutracker_password">Пароль</string>
+    <string name="rutracker_login_button">Войти</string>
+    <string name="rutracker_login_success">Вход выполнен успешно</string>
+    <string name="rutracker_login_failed">Ошибка входа</string>
     
-    <!-- Library Filters -->
-    <string name="filter_all">All</string>
-    <string name="filter_favorites">Favorites</string>
-    <string name="filter_currently_playing">Currently Playing</string>
-    <string name="filter_completed">Completed</string>
-    <string name="filter_downloaded">Downloaded</string>
+    <!-- Domain Management -->
+    <string name="domain_management">Управление доменами</string>
+    <string name="domain_status">Статус доменов</string>
+    <string name="domain_available">Доступен</string>
+    <string name="domain_unavailable">Недоступен</string>
+    <string name="domain_partial">Частично доступен</string>
+    <string name="domain_auto_switch">Автопереключение доменов</string>
+    <string name="domain_check_availability">Проверить доступность</string>
+    <string name="domain_current">Текущий домен</string>
+    <string name="domain_preferred">Предпочтительный домен</string>
     
-    <!-- Empty States -->
-    <string name="empty_library_message">Your library is empty.\nAdd audiobooks through Discovery.</string>
-    <string name="empty_favorites_message">You have no favorite audiobooks.\nMark books you like with a star.</string>
-    <string name="empty_currently_playing_message">You\'re not listening to anything.\nSelect an audiobook to start listening.</string>
-    <string name="empty_completed_message">You haven\'t completed any audiobooks yet.\nKeep listening!</string>
-    <string name="empty_downloaded_message">You have no downloaded audiobooks.\nDownload books for offline listening.</string>
-    <string name="empty_category_message">No audiobooks in this category.</string>
+    <!-- Cache Management -->
+    <string name="cache_management">Управление кэшем</string>
+    <string name="cache_clear">Очистить кэш</string>
+    <string name="cache_size">Размер кэша</string>
+    <string name="cache_items">Элементов в кэше</string>
+    <string name="cache_memory">Память</string>
+    <string name="cache_disk">Диск</string>
+    <string name="cache_ttl">Время жизни кэша</string>
+    <string name="cache_max_size">Максимальный размер</string>
+    <string name="cache_cleared">Кэш очищен</string>
     
-    <!-- Audiobook Actions -->
-    <string name="add_to_favorites">Add to favorites</string>
-    <string name="remove_from_favorites">Remove from favorites</string>
-    <string name="mark_as_completed">Mark as completed</string>
-    <string name="reset_playback">Reset progress</string>
-    <string name="rate_audiobook">Rate audiobook</string>
+    <!-- Search -->
+    <string name="search_hint">Поиск аудиокниг...</string>
+    <string name="search_results">Результаты поиска</string>
+    <string name="search_no_results">Нет результатов</string>
+    <string name="search_error">Ошибка поиска</string>
+    <string name="search_retry">Повторить</string>
+    <string name="search_fallback">Поиск недоступен, просмотр категорий</string>
     
-    <!-- Discovery Screen -->
-    <string name="discovery_title">Discover Books</string>
-    <string name="discovery_categories">Categories</string>
-    <string name="discovery_search_hint">Search for audiobooks</string>
-    <string name="discovery_popular">Popular</string>
-    <string name="discovery_new">New Releases</string>
-    <string name="categories">Categories</string>
-    <string name="all_categories">All Categories</string>
-    <string name="trending_audiobooks">Trending Audiobooks</string>
-    <string name="recently_added">Recently Added</string>
-    <string name="no_search_results">No results found</string>
-    <string name="try_different_search_terms">Try different search terms or adjust filters</string>
-    <string name="no_content_available">No content available</string>
-    <string name="check_internet_connection">Check your internet connection and try again</string>
-    <string name="clear_search">Clear search</string>
-    <string name="audiobook_cover">Audiobook cover</string>
-    <string name="search">Search</string>
-    <string name="refresh">Refresh</string>
+    <!-- Audiobook Details -->
+    <string name="audiobook_details">Детали аудиокниги</string>
+    <string name="audiobook_title">Название</string>
+    <string name="audiobook_author">Автор</string>
+    <string name="audiobook_narrator">Читает</string>
+    <string name="audiobook_genre">Жанр</string>
+    <string name="audiobook_duration">Продолжительность</string>
+    <string name="audiobook_size">Размер</string>
+    <string name="audiobook_description">Описание</string>
+    <string name="audiobook_download">Скачать</string>
+    <string name="audiobook_play">Слушать</string>
+    <string name="audiobook_add_to_library">В библиотеку</string>
     
-    <!-- Player Screen -->
-    <string name="player_title">Now Playing</string>
-    <string name="player_play">Play</string>
-    <string name="player_pause">Pause</string>
-    <string name="player_previous">Previous Chapter</string>
-    <string name="player_next">Next Chapter</string>
-    <string name="player_speed">Playback Speed</string>
-    <string name="player_sleep_timer">Sleep Timer</string>
-    <string name="player_bookmark">Bookmark</string>
+    <!-- Player -->
+    <string name="player_title">Плеер</string>
+    <string name="player_now_playing">Сейчас играет</string>
+    <string name="player_play">Играть</string>
+    <string name="player_pause">Пауза</string>
+    <string name="player_previous">Предыдущий</string>
+    <string name="player_next">Следующий</string>
+    <string name="player_speed">Скорость</string>
+    <string name="player_sleep_timer">Таймер сна</string>
+    <string name="player_progress">Прогресс</string>
+    <string name="player_position">Позиция</string>
+    <string name="player_duration">Длительность</string>
     
-    <!-- Downloads Screen -->
-    <string name="downloads_title">Downloads</string>
-    <string name="downloads_active">Active Downloads</string>
-    <string name="downloads_completed">Completed</string>
-    <string name="downloads_failed">Failed</string>
-    <string name="downloads_empty">No downloads</string>
-    <string name="downloads_pause">Pause</string>
-    <string name="downloads_resume">Resume</string>
-    <string name="downloads_cancel">Cancel</string>
-    <string name="downloads_retry">Retry</string>
-    
-    <!-- Downloads UI -->
-    <string name="clear_completed">Clear completed</string>
-    <string name="clear_failed">Clear failed</string>
-    <string name="active_downloads">Active (%d)</string>
-    <string name="completed_downloads">Completed (%d)</string>
-    <string name="failed_downloads">Failed (%d)</string>
-    <string name="no_active_downloads">No active downloads</string>
-    <string name="start_downloading_discovery">Start downloading from Discovery</string>
-    <string name="no_completed_downloads">No completed downloads</string>
-    <string name="completed_downloads_appear_here">Completed downloads will appear here</string>
-    <string name="no_failed_downloads">No failed downloads</string>
-    <string name="great_no_download_errors">Great! No download errors</string>
-    
-    <!-- Download Actions -->
-    <string name="pause_download">Pause download</string>
-    <string name="resume_download">Resume download</string>
-    <string name="cancel_download">Cancel download</string>
-    <string name="retry_download">Retry download</string>
-    <string name="seeders_leechers">%1$d seeders, %2$d leechers</string>
-    <!-- Bookmarks -->
-    <string name="bookmarks">Bookmarks</string>
-    <string name="no_bookmarks">No bookmarks yet</string>
-    <string name="remove_bookmark">Remove bookmark</string>
-    
-    <!-- Download Status -->
-    <string name="status_downloading">Downloading</string>
-    <string name="status_completed">Completed</string>
-    <string name="status_paused">Paused</string>
-    <string name="status_seeding">Seeding</string>
-    <string name="status_error">Error</string>
-    <string name="status_stopped">Stopped</string>
-    <string name="status_idle">Idle</string>
-    <string name="status_pending">Pending</string>
-    
-    <!-- Categories -->
-    <string name="category_fiction">Fiction</string>
-    <string name="category_fantasy">Fantasy &amp; Sci-Fi</string>
-    <string name="category_detective">Detective &amp; Thriller</string>
-    <string name="category_classic">Classic Literature</string>
-    <string name="category_modern">Modern Literature</string>
-    <string name="category_educational">Educational</string>
-    <string name="category_history">History &amp; Biography</string>
-    <string name="category_psychology">Psychology &amp; Philosophy</string>
-    <string name="category_children">Children\'s Books</string>
-    
-    <!-- Common Actions -->
-    <string name="action_download">Download</string>
-    <string name="action_play">Play</string>
-    <string name="action_pause">Pause</string>
-    <string name="action_delete">Delete</string>
-    <string name="action_share">Share</string>
-    <string name="action_search">Search</string>
-    <string name="action_filter">Filter</string>
-    <string name="action_sort">Sort</string>
-    <string name="action_refresh">Refresh</string>
-    <string name="action_cancel">Cancel</string>
-    <string name="action_ok">OK</string>
-    <string name="action_retry">Retry</string>
-    
-    <!-- Status Messages -->
-    <string name="status_download_complete">Download complete</string>
-    <string name="status_download_failed">Download failed</string>
-    <string name="status_loading">Loading…</string>
-    <string name="status_no_internet">No internet connection</string>
-    
-    <!-- Permissions -->
-    <string name="permission_storage_title">Storage Permission</string>
-    <string name="permission_storage_message">JaBook needs storage permission to save audiobooks</string>
-    <string name="permission_audio_title">Audio Permission</string>
-    <string name="permission_audio_message">JaBook needs audio permission to play audiobooks</string>
+    <!-- Library -->
+    <string name="library_title">Библиотека</string>
+    <string name="library_empty">Библиотека пуста</string>
+    <string name="library_add">Добавить</string>
+    <string name="library_sort">Сортировка</string>
+    <string name="library_filter">Фильтр</string>
+    <string name="library_grid">Сетка</string>
+    <string name="library_list">Список</string>
     
     <!-- Settings -->
-    <string name="settings_title">Settings</string>
-    <string name="settings_storage">Storage</string>
-    <string name="settings_playback">Playback</string>
-    <string name="settings_downloads">Downloads</string>
-    <string name="settings_about">About</string>
+    <string name="settings_title">Настройки</string>
+    <string name="settings_general">Общие</string>
+    <string name="settings_appearance">Внешний вид</string>
+    <string name="settings_player">Плеер</string>
+    <string name="settings_network">Сеть</string>
+    <string name="settings_storage">Хранилище</string>
+    <string name="settings_about">О приложении</string>
+    <string name="settings_debug">Отладка</string>
     
     <!-- Error Messages -->
-    <string name="error_network">Network error occurred</string>
-    <string name="error_storage_full">Storage space is full</string>
-    <string name="error_file_not_found">File not found</string>
-    <string name="error_playback">Playback error</string>
-    <string name="error_unknown">Unknown error occurred</string>
+    <string name="error_network">Ошибка сети</string>
+    <string name="error_server">Ошибка сервера</string>
+    <string name="error_parse">Ошибка обработки данных</string>
+    <string name="error_auth">Ошибка авторизации</string>
+    <string name="error_unknown">Неизвестная ошибка</string>
+    <string name="error_retry">Повторить попытку</string>
+    <string name="error_report">Сообщить об ошибке</string>
     
-    <!-- Content Descriptions for Accessibility -->
-    <string name="cd_book_cover">Book cover</string>
-    <string name="cd_play_button">Play button</string>
-    <string name="cd_pause_button">Pause button</string>
-    <string name="cd_next_button">Next chapter button</string>
-    <string name="cd_previous_button">Previous chapter button</string>
-    <string name="cd_download_button">Download button</string>
-    <string name="cd_menu_button">Menu button</string>
-    <string name="cd_search_button">Search button</string>
+    <!-- Status Messages -->
+    <string name="status_loading">Загрузка...</string>
+    <string name="status_processing">Обработка...</string>
+    <string name="status_downloading">Скачивание...</string>
+    <string name="status_ready">Готово</string>
+    <string name="status_offline">Офлайн</string>
+    <string name="status_online">Онлайн</string>
     
-    <!-- RuTracker Settings -->
-    <string name="rutracker_settings_title">RuTracker Settings</string>
-    <string name="rutracker_mode_title">Operating Mode</string>
-    <string name="rutracker_guest_mode">Guest Mode</string>
-    <string name="rutracker_authenticated_mode">Authenticated Mode</string>
-    <string name="rutracker_guest_mode_description">View magnet links without registration</string>
-    <string name="rutracker_authenticated_mode_description">Full access with user credentials</string>
-    <string name="rutracker_credentials_title">User Credentials</string>
-    <string name="rutracker_username_hint">Username</string>
-    <string name="rutracker_password_hint">Password</string>
-    <string name="rutracker_login_button">Login</string>
-    <string name="rutracker_logout_button">Logout</string>
-    <string name="rutracker_authorized_as">Authorized as: %s</string>
-    <string name="rutracker_enter_credentials">Enter login and password</string>
-    <string name="rutracker_invalid_credentials">Invalid login or password</string>
-    <string name="rutracker_auth_error">Authorization error: %s</string>
-    <string name="rutracker_auth_success">Successful authorization</string>
-    <string name="rutracker_logout_success">Logout completed</string>
-    <string name="rutracker_switched_to_guest">Switched to guest mode</string>
-    <string name="rutracker_switched_to_auth">Switched to authorization mode</string>
+    <!-- Categories -->
+    <string name="category_fiction">Художественная литература</string>
+    <string name="category_non_fiction">Нон-фикшн</string>
+    <string name="category_children">Детские аудиокниги</string>
+    <string name="category_foreign">Зарубежные аудиокниги</string>
+    <string name="category_educational">Познавательные аудиокниги</string>
+    <string name="category_business">Бизнес и финансы</string>
+    <string name="category_self_development">Саморазвитие и психология</string>
+    <string name="category_religion">Религия и эзотерика</string>
+    <string name="category_poetry">Поэзия и драматургия</string>
     
-    <!-- RuTracker Availability Check -->
-    <string name="rutracker_check_availability">Check RuTracker availability</string>
-    <string name="rutracker_available">RuTracker is available and responding</string>
-    <string name="rutracker_not_available">RuTracker is not available</string>
-    <string name="rutracker_availability_check_failed">Availability check failed: %s</string>
-    <string name="rutracker_availability_error">Availability check error: %s</string>
+    <!-- Permissions -->
+    <string name="permission_storage">Требуется доступ к хранилищу</string>
+    <string name="permission_network">Требуется доступ к сети</string>
+    <string name="permission_grant">Разрешить</string>
+    <string name="permission_deny">Запретить</string>
     
-    <!-- Debug Logs -->
-    <string name="export_debug_logs">Export debug logs</string>
-    <string name="export_logs_success">Log file exported successfully</string>
-    <string name="export_logs_failed">Failed to export log file: %s</string>
-    <string name="log_file_not_found">Log file not found</string>
-    <string name="export_logs_from_saf">Export log from SAF folder</string>
-    <string name="export_logs_from_saf_success">Log file exported from SAF folder</string>
-    <string name="export_logs_from_saf_failed">Failed to export log from SAF: %s</string>
-    <string name="log_file_not_found_saf">Log file not found in SAF folder</string>
-    <string name="select_log_folder">Select log folder</string>
-    <string name="log_folder_selected">Log folder selected: %s</string>
-    <string name="write_test_log_entry">Write test log entry</string>
-    <string name="test_log_written">Test log entry written. Check log file.</string>
-    <string name="write_test_log_failed">Failed to write test log: %s</string>
-    <string name="log_folder_saf" formatted="false">Log folder (SAF): %s\nFile: %s</string>
-    <string name="log_file_will_appear">Log file will appear after the first log entry.</string>
-    <string name="log_file_path">Log file path: %s</string>
+    <!-- About -->
+    <string name="about_version">Версия %s</string>
+    <string name="about_developer">Разработчик: JaBook Team</string>
+    <string name="about_license">Лицензия: MIT</string>
+    <string name="about_website">Веб-сайт: https://jabook.app</string>
+    <string name="about_github">GitHub: https://github.com/jabook/jabook</string>
     
-    <!-- Login Card -->
-    <string name="logged_in">Logged In</string>
-    <string name="login">Login</string>
-    <string name="logged_in_as">Logged in as: %s</string>
-    <string name="logout">Logout</string>
-    <string name="username">Username</string>
-    <string name="password">Password</string>
+    <!-- Debug -->
+    <string name="debug_logs">Логи отладки</string>
+    <string name="debug_export_logs">Экспортировать логи</string>
+    <string name="debug_clear_logs">Очистить логи</string>
+    <string name="debug_test_connection">Тест соединения</string>
+    <string name="debug_test_parsing">Тест парсинга</string>
+    <string name="debug_test_cache">Тест кэша</string>
     
-    <!-- Mode Toggle Card -->
-    <string name="ru_tracker_mode">RuTracker Mode</string>
-    <string name="guest_mode_desc">View magnet links without registration</string>
-    <string name="authorized_mode_desc">Full access with user credentials</string>
+    <!-- Offline Mode -->
+    <string name="offline_mode">Офлайн режим</string>
+    <string name="offline_enable">Включить офлайн режим</string>
+    <string name="offline_disable">Отключить офлайн режим</string>
+    <string name="offline_content">Офлайн контент</string>
+    <string name="offline_downloads">Загрузки</string>
+    <string name="offline_storage">Офлайн хранилище</string>
     
+    <!-- Performance -->
+    <string name="performance_monitor">Монитор производительности</string>
+    <string name="performance_memory">Использование памяти</string>
+    <string name="performance_cpu">Использование CPU</string>
+    <string name="performance_network">Сетевая активность</string>
+    <string name="performance_optimization">Оптимизация</string>
+    
+    <!-- Notifications -->
+    <string name="notification_download_complete">Загрузка завершена</string>
+    <string name="notification_download_failed">Ошибка загрузки</string>
+    <string name="notification_player_controls">Управление плеером</string>
+    <string name="notification_new_content">Новый контент</string>
+    
+    <!-- Time Formats -->
+    <string name="time_seconds">%d сек</string>
+    <string name="time_minutes">%d мин</string>
+    <string name="time_hours">%d ч</string>
+    <string name="time_days">%d д</string>
+    
+    <!-- Size Formats -->
+    <string name="size_bytes">%d Б</string>
+    <string name="size_kb">%.1f КБ</string>
+    <string name="size_mb">%.1f МБ</string>
+    <string name="size_gb">%.1f ГБ</string>
+    
+    <!-- Common Actions -->
+    <string name="action_ok">OK</string>
+    <string name="action_cancel">Отмена</string>
+    <string name="action_yes">Да</string>
+    <string name="action_no">Нет</string>
+    <string name="action_confirm">Подтвердить</string>
+    <string name="action_delete">Удалить</string>
+    <string name="action_save">Сохранить</string>
+    <string name="action_share">Поделиться</string>
+    <string name="action_refresh">Обновить</string>
+    <string name="action_settings">Настройки</string>
+    <string name="action_help">Помощь</string>
+    
+    <!-- Empty States -->
+    <string name="empty_search">Начните поиск аудиокниг</string>
+    <string name="empty_library">Ваша библиотека пуста</string>
+    <string name="empty_downloads">Нет загрузок</string>
+    <string name="empty_player">Выберите аудиокнигу для прослушивания</string>
+    
+    <!-- Loading States -->
+    <string name="loading_search">Поиск аудиокниг...</string>
+    <string name="loading_library">Загрузка библиотеки...</string>
+    <string name="loading_downloads">Загрузка загрузок...</string>
+    <string name="loading_player">Загрузка плеера...</string>
+    
+    <!-- Error States -->
+    <string name="error_search_failed">Не удалось выполнить поиск</string>
+    <string name="error_library_failed">Не удалось загрузить библиотеку</string>
+    <string name="error_downloads_failed">Не удалось загрузить загрузки</string>
+    <string name="error_player_failed">Не удалось загрузить плеер</string>
+    
+    <!-- Success Messages -->
+    <string name="success_download_complete">Загрузка завершена</string>
+    <string name="success_added_to_library">Добавлено в библиотеку</string>
+    <string name="success_settings_saved">Настройки сохранены</string>
+    <string name="success_cache_cleared">Кэш очищен</string>
+    
+    <!-- Warning Messages -->
+    <string name="warning_network_unavailable">Сеть недоступна</string>
+    <string name="warning_storage_low">Мало места на устройстве</string>
+    <string name="warning_battery_low">Низкий заряд батареи</string>
+    <string name="warning_data_usage">Высокое использование данных</string>
+    
+    <!-- Info Messages -->
+    <string name="info_app_updated">Приложение обновлено</string>
+    <string name="info_new_features">Новые функции доступны</string>
+    <string name="info_maintenance">Техническое обслуживание</string>
+    <string name="info_offline_mode">Офлайн режим активирован</string>
 </resources>
