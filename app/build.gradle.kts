@@ -3,6 +3,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.compose.compiler)
     id("com.google.dagger.hilt.android")
     id("org.jmailen.kotlinter") version "5.1.0"
     id("com.google.devtools.ksp")
@@ -141,6 +142,10 @@ android {
         viewBinding = true
         dataBinding = true
         resValues = true
+    }
+
+    composeOptions {
+        kotlinCompilerExtensionVersion = libs.versions.compose.compiler.get()
     }
 
 
