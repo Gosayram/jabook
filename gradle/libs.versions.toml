@@ -23,6 +23,7 @@ coroutines = "1.9.0"
 datastore = "1.1.1"
 work-runtime = "2.10.0"
 coil = "2.7.0"
+coil3 = "3.3.0"
 accompanist = "0.32.0"
 junit = "4.13.2"
 junit-ext = "1.2.1"
@@ -110,6 +111,8 @@ androidx-work-testing = { group = "androidx.work", name = "work-testing", versio
 # Image Loading
 coil-compose = { module = "io.coil-kt:coil-compose", version.ref = "coil" }
 coil-gif = { module = "io.coil-kt:coil-gif", version.ref = "coil" }
+coil3-core = { module = "io.coil-kt.coil3:coil", version.ref = "coil3"}
+coil3-gif = { module = "io.coil-kt.coil3:coil-gif", version.ref = "coil3"}
 
 # Accompanist
 accompanist-systemuicontroller = { module = "com.google.accompanist:accompanist-systemuicontroller", version.ref = "accompanist" }

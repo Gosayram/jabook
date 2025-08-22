@@ -1,6 +1,7 @@
 package com.jabook.app.core.network
 
 import com.jabook.app.core.cache.CacheKey
+import com.jabook.app.core.cache.CacheStatistics
 import com.jabook.app.core.cache.RuTrackerCacheManager
 import com.jabook.app.core.circuitbreaker.CircuitBreaker
 import com.jabook.app.core.circuitbreaker.CircuitBreakerState
@@ -10,6 +11,12 @@ import com.jabook.app.core.network.RuTrackerParserEnhanced.RuTrackerTorrentDetai
 import com.jabook.app.core.network.RuTrackerParserImproved
 import com.jabook.app.core.network.domain.RuTrackerDomainManager
 import com.jabook.app.core.network.errorhandler.RuTrackerErrorHandler
+import com.jabook.app.core.network.exceptions.CategoriesUnavailableException
+import com.jabook.app.core.network.exceptions.DetailsUnavailableException
+import com.jabook.app.core.network.exceptions.DomainUnavailableException
+import com.jabook.app.core.network.exceptions.NetworkException
+import com.jabook.app.core.network.exceptions.ParseException
+import com.jabook.app.core.network.exceptions.SearchUnavailableException
 import com.jabook.app.core.network.extractors.AuthorExtractor
 import com.jabook.app.core.network.extractors.CategoryExtractor
 import com.jabook.app.core.network.extractors.DescriptionExtractor
@@ -20,10 +27,12 @@ import com.jabook.app.shared.debug.IDebugLogger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import okhttp3.FormBody
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -482,7 +491,7 @@ class RuTrackerApiServiceEnhanced
             try {
                 val encodedQuery = URLEncoder.encode(query, StandardCharsets.UTF_8.name())
                 val urlBuilder =
-                    "${baseUrl}$SEARCH_PATH".toHttpUrlOrNull()?.newBuilder()
+                    "$baseUrl$SEARCH_PATH".toHttpUrlOrNull()?.newBuilder()
                         ?: return Result.failure(NetworkException("Invalid URL"))
 
                 urlBuilder.addQueryParameter("nm", encodedQuery)
@@ -848,7 +857,7 @@ class RuTrackerApiServiceEnhanced
                 totalHits = totalHits,
                 totalMisses = totalMisses,
                 averageResponseTime = averageResponseTime,
-                cacheSize = cacheManager.getCacheSize(),
+                cacheSize = cacheManager.getSize().toInt(),
             )
         }
 

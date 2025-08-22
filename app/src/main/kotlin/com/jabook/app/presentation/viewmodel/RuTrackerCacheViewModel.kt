@@ -106,7 +106,7 @@ class RuTrackerCacheViewModel
         private fun loadCacheSize() {
             viewModelScope.launch {
                 try {
-                    val size = cacheManager.getSize()
+                    val size = cacheManager.getDiskSize() + cacheManager.getMemorySize()
                     _uiState.update { it.copy(cacheSize = size) }
                 } catch (e: Exception) {
                     debugLogger.logError("RuTrackerCacheViewModel: Error loading cache size", e)
@@ -123,7 +123,7 @@ class RuTrackerCacheViewModel
 
                 try {
                     val namespace = _uiState.value.selectedNamespace
-                    val keys = cacheManager.getKeys(namespace)
+                    val keys = cacheManager.getCacheKeys(namespace)
 
                     _uiState.update { current ->
                         current.copy(
@@ -152,7 +152,7 @@ class RuTrackerCacheViewModel
                 _uiState.update { it.copy(isLoading = true) }
 
                 try {
-                    val result = cacheManager.clear()
+                    val result = cacheManager.clearAll()
                     if (result.isSuccess) {
                         _uiState.update { current ->
                             current.copy(
@@ -282,7 +282,7 @@ class RuTrackerCacheViewModel
                 try {
                     val namespace = _uiState.value.selectedNamespace
                     val cacheKey = CacheKey(namespace, key)
-                    val result = cacheManager.remove(cacheKey)
+                    val result = cacheManager.delete(cacheKey)
 
                     if (result.isSuccess) {
                         _uiState.update { current ->
@@ -451,7 +451,7 @@ class RuTrackerCacheViewModel
             try {
                 val namespace = _uiState.value.selectedNamespace
                 val cacheKey = CacheKey(namespace, key)
-                cacheManager.contains(cacheKey)
+                cacheManager.hasKey(cacheKey)
             } catch (e: Exception) {
                 debugLogger.logError("RuTrackerCacheViewModel: Error checking cache entry", e)
                 false

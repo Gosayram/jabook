@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -122,8 +123,13 @@ class RuTrackerCacheManager
                     val memoryEntry = memoryCache[cacheKey]
                     if (memoryEntry != null && !isExpired(memoryEntry)) {
                         // Update access statistics
-                        memoryEntry.accessCount = memoryEntry.accessCount + 1
-                        memoryEntry.lastAccessed = System.currentTimeMillis()
+                        // Create a new entry with updated values since CacheEntry is immutable
+                        val updatedEntry =
+                            memoryEntry.copy(
+                                accessCount = memoryEntry.accessCount + 1,
+                                lastAccessed = System.currentTimeMillis(),
+                            )
+                        memoryCache[cacheKey] = updatedEntry
                         hitCount.incrementAndGet()
                         updateStatistics()
 
@@ -136,13 +142,13 @@ class RuTrackerCacheManager
                     if (diskFile.exists()) {
                         try {
                             val json = diskFile.readText()
-                            val entry = Json.decodeFromString<CacheEntry<String>>(json)
+                            val entry = Json.decodeFromString<CacheEntry<Any>>(json)
 
                             if (!isExpired(entry)) {
                                 // Move to memory cache if space available
                                 if (memoryCache.size < config.memoryMaxSize) {
                                     val data = deserializer(entry.data)
-                                    memoryCache[cacheKey] = entry.copy(data = data as Any)
+                                    memoryCache[cacheKey] = entry.copy(data = data)
                                 }
 
                                 hitCount.incrementAndGet()
@@ -317,7 +323,7 @@ class RuTrackerCacheManager
                     if (diskFile.exists()) {
                         try {
                             val json = diskFile.readText()
-                            val entry = Json.decodeFromString<CacheEntry<String>>(json)
+                            val entry = Json.decodeFromString<CacheEntry<Any>>(json)
                             return@withLock !isExpired(entry)
                         } catch (e: Exception) {
                             diskFile.delete()
@@ -496,7 +502,7 @@ class RuTrackerCacheManager
                     if (file.name.endsWith(".cache")) {
                         try {
                             val json = file.readText()
-                            val entry = Json.decodeFromString<CacheEntry<String>>(json)
+                            val entry = Json.decodeFromString<CacheEntry<Any>>(json)
 
                             if (isExpired(entry)) {
                                 file.delete()
