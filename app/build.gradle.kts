@@ -15,6 +15,7 @@ android {
     compileSdk = 35
 
     defaultConfig {
+        manifestPlaceholders["appLabel"] = "JaBook"
         applicationId = "com.jabook.app"
         minSdk = 24
         targetSdk = 35
@@ -90,7 +91,6 @@ android {
         
         // Custom build type for staging
         create("staging") {
-            initWith(getByName("release"))
             applicationIdSuffix = ".staging"
             versionNameSuffix = "-staging"
             
@@ -122,7 +122,6 @@ android {
                 "-opt-in=androidx.compose.animation.ExperimentalAnimationApi",
                 "-opt-in=androidx.compose.ui.ExperimentalComposeUiApi",
                 "-opt-in=coil.annotation.ExperimentalCoilApi",
-                "-opt-in=androidx.paging.ExperimentalPagingApi",
                 "-opt-in=kotlinx.coroutines.ExperimentalCoroutinesApi",
                 "-opt-in=kotlinx.coroutines.FlowPreview"
             )
@@ -793,6 +792,7 @@ dependencies {
     kapt(libs.hilt.android.compiler)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.material3)
+    implementation(libs.androidx.appcompat)
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
@@ -820,4 +820,14 @@ dependencies {
     implementation(libs.accompanist.systemuicontroller)
     implementation(libs.accompanist.permissions)
     implementation(libs.accompanist.placeholder)
+    implementation(libs.androidx.constraintlayout)
+    
+    // Media3 ExoPlayer dependencies
+    implementation(libs.media3.common)
+    implementation(libs.media3.exoplayer)
+    implementation(libs.media3.exoplayer.hls)
+    implementation(libs.media3.datasource.okhttp)
+    implementation(libs.media3.ui)
+    implementation(libs.media3.session)
+    implementation(libs.media3.exoplayer.workmanager)
 }

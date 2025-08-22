@@ -27,7 +27,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import javax.inject.Inject
-import androidx.media.app.NotificationCompat as MediaNotificationCompat
+import androidx.media3.session.MediaNotificationCompat
 
 /** Foreground service for background audio playbook Handles MediaSession and playback notifications */
 @UnstableApi

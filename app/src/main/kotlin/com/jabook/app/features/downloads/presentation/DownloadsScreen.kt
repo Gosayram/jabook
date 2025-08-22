@@ -1,4 +1,3 @@
-@file:OptIn(androidx.compose.material.ExperimentalMaterialApi::class)
 
 package com.jabook.app.features.downloads.presentation
 
@@ -16,7 +15,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.DismissDirection
 import androidx.compose.material.DismissValue
-import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.SwipeToDismiss
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Clear

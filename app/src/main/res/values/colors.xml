@@ -326,4 +326,7 @@
     <color name="gray_700">#424242</color>
     <color name="gray_800">#303030</color>
     <color name="gray_900">#212121</color>
+    
+    <!-- App Colors -->
+    <color name="jabook_orange">#FF6F00</color>
 </resources>
