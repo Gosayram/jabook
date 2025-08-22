@@ -217,9 +217,6 @@ dependencies {
     implementation(libs.resilience4j.circuitbreaker)
     implementation(libs.resilience4j.retry)
 
-    // JAudioTagger for audio metadata (temporarily commented out)
-    implementation("org.bitbucket.ijabz:jaudiotagger:3.0.1")
-
     // Apache Commons
     implementation(libs.commons.lang3)
 
