@@ -10,30 +10,26 @@ import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 
 class BookmarkHelper
-@Inject
-constructor(private val bookmarkDao: BookmarkDao) {
+    @Inject
+    constructor(
+        private val bookmarkDao: BookmarkDao,
+    ) {
+        fun getBookmarksByAudiobookId(audiobookId: String): Flow<List<Bookmark>> =
+            bookmarkDao.getBookmarksByAudiobookId(audiobookId).map { it.toBookmarkDomainList() }
 
-    fun getBookmarksByAudiobookId(audiobookId: String): Flow<List<Bookmark>> {
-        return bookmarkDao.getBookmarksByAudiobookId(audiobookId).map { it.toBookmarkDomainList() }
-    }
+        suspend fun getBookmarkById(id: String): Bookmark? = bookmarkDao.getBookmarkById(id)?.toDomain()
 
-    suspend fun getBookmarkById(id: String): Bookmark? {
-        return bookmarkDao.getBookmarkById(id)?.toDomain()
-    }
+        fun getAllBookmarks(): Flow<List<Bookmark>> = bookmarkDao.getAllBookmarks().map { it.toBookmarkDomainList() }
 
-    fun getAllBookmarks(): Flow<List<Bookmark>> {
-        return bookmarkDao.getAllBookmarks().map { it.toBookmarkDomainList() }
-    }
+        suspend fun upsertBookmark(bookmark: Bookmark) {
+            bookmarkDao.insertBookmark(bookmark.toEntity())
+        }
 
-    suspend fun upsertBookmark(bookmark: Bookmark) {
-        bookmarkDao.insertBookmark(bookmark.toEntity())
-    }
+        suspend fun deleteBookmark(id: String) {
+            bookmarkDao.deleteBookmarkById(id)
+        }
 
-    suspend fun deleteBookmark(id: String) {
-        bookmarkDao.deleteBookmarkById(id)
+        suspend fun deleteBookmarksForAudiobook(audiobookId: String) {
+            bookmarkDao.deleteBookmarksForAudiobook(audiobookId)
+        }
     }
-
-    suspend fun deleteBookmarksForAudiobook(audiobookId: String) {
-        bookmarkDao.deleteBookmarksForAudiobook(audiobookId)
-    }
-}

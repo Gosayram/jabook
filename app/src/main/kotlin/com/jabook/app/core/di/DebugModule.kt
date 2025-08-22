@@ -14,11 +14,10 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 class DebugModule {
-
     /** Provides DebugLogger instance Initializes it with application context */
     @Provides
     @Singleton
-    fun provideDebugLogger(@ApplicationContext context: Context): IDebugLogger {
-        return DebugLoggerImpl(context)
-    }
+    fun provideDebugLogger(
+        @ApplicationContext context: Context,
+    ): IDebugLogger = DebugLoggerImpl(context)
 }

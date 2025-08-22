@@ -53,11 +53,11 @@ fun PlayerProgressBar(
         animateFloatAsState(
             targetValue = progress,
             animationSpec =
-            if (isUserDragging) {
-                tween(0) // No animation during dragging
-            } else {
-                tween(durationMillis = JaBookAnimations.DURATION_SHORT, easing = JaBookAnimations.STANDARD_EASING)
-            },
+                if (isUserDragging) {
+                    tween(0) // No animation during dragging
+                } else {
+                    tween(durationMillis = JaBookAnimations.DURATION_SHORT, easing = JaBookAnimations.STANDARD_EASING)
+                },
             label = "progressAnimation",
         )
 
@@ -119,7 +119,12 @@ fun PlayerProgressBar(
 }
 
 /** Draw bookmark markers on the progress bar with animation support */
-private fun DrawScope.drawBookmarkMarkers(bookmarkPositions: List<Long>, duration: Long, alpha: Float, color: Color) {
+private fun DrawScope.drawBookmarkMarkers(
+    bookmarkPositions: List<Long>,
+    duration: Long,
+    alpha: Float,
+    color: Color,
+) {
     val trackWidth = size.width
     val trackHeight = size.height
     val markerHeight = trackHeight * 0.8f
@@ -132,8 +137,12 @@ private fun DrawScope.drawBookmarkMarkers(bookmarkPositions: List<Long>, duratio
         // Draw bookmark marker with animation
         drawRect(
             color = color.copy(alpha = alpha),
-            topLeft = androidx.compose.ui.geometry.Offset(x = x - markerWidth / 2, y = (trackHeight - markerHeight) / 2),
-            size = androidx.compose.ui.geometry.Size(width = markerWidth, height = markerHeight),
+            topLeft =
+                androidx.compose.ui.geometry
+                    .Offset(x = x - markerWidth / 2, y = (trackHeight - markerHeight) / 2),
+            size =
+                androidx.compose.ui.geometry
+                    .Size(width = markerWidth, height = markerHeight),
         )
     }
 }

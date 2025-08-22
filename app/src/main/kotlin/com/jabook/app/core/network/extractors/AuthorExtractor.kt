@@ -5,13 +5,14 @@ import org.jsoup.nodes.Document
 object AuthorExtractor {
     fun extractAuthor(doc: Document): String {
         // Try multiple approaches for author extraction
-        val authorSelectors = listOf(
-            "span.post-b:contains(Автор:) + br + *",
-            "span.post-b:contains(Автор:)",
-            "span.post-b:contains(Автор)",
-            "div.post_body:contains(Автор:)",
-            "div.post_body:contains(Автор)",
-        )
+        val authorSelectors =
+            listOf(
+                "span.post-b:contains(Автор:) + br + *",
+                "span.post-b:contains(Автор:)",
+                "span.post-b:contains(Автор)",
+                "div.post_body:contains(Автор:)",
+                "div.post_body:contains(Автор)",
+            )
 
         for (selector in authorSelectors) {
             val element = doc.selectFirst(selector)
@@ -28,12 +29,13 @@ object AuthorExtractor {
     }
 
     fun extractNarrator(doc: Document): String? {
-        val narratorSelectors = listOf(
-            "span.post-b:contains(Читает:) + br + *",
-            "span.post-b:contains(Читает:)",
-            "div.post_body:contains(Читает:)",
-            "div.post_body:contains(Читает)",
-        )
+        val narratorSelectors =
+            listOf(
+                "span.post-b:contains(Читает:) + br + *",
+                "span.post-b:contains(Читает:)",
+                "div.post_body:contains(Читает:)",
+                "div.post_body:contains(Читает)",
+            )
 
         for (selector in narratorSelectors) {
             val element = doc.selectFirst(selector)

@@ -224,11 +224,13 @@ private fun PlayerSecondaryControls(
     ) {
         IconButton(
             onClick = onSpeedClick,
-            modifier = Modifier.scale(state.speedButtonScale)
-                .clip(CircleShape)
-                .background(
-                    if (state.speedText != "1.0x") MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f) else Color.Transparent,
-                ),
+            modifier =
+                Modifier
+                    .scale(state.speedButtonScale)
+                    .clip(CircleShape)
+                    .background(
+                        if (state.speedText != "1.0x") MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f) else Color.Transparent,
+                    ),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
@@ -245,11 +247,19 @@ private fun PlayerSecondaryControls(
         }
         IconButton(
             onClick = onSleepTimerClick,
-            modifier = Modifier.scale(state.timerButtonScale)
-                .clip(CircleShape)
-                .background(
-                    if (state.sleepTimerText != null) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f) else Color.Transparent,
-                ),
+            modifier =
+                Modifier
+                    .scale(state.timerButtonScale)
+                    .clip(CircleShape)
+                    .background(
+                        if (state.sleepTimerText !=
+                            null
+                        ) {
+                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+                        } else {
+                            Color.Transparent
+                        },
+                    ),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(painter = painterResource(R.drawable.ic_book_24), contentDescription = "Sleep timer", tint = state.timerButtonColor)

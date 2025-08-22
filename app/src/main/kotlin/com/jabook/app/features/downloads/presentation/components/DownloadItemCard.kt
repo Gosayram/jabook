@@ -172,11 +172,12 @@ private fun DownloadItemInfo(download: DownloadProgress) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            text = if (download.total > 0) {
-                "${formatFileSize(download.downloaded)} / ${formatFileSize(download.total)}"
-            } else {
-                formatFileSize(download.downloaded)
-            },
+            text =
+                if (download.total > 0) {
+                    "${formatFileSize(download.downloaded)} / ${formatFileSize(download.total)}"
+                } else {
+                    formatFileSize(download.downloaded)
+                },
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -212,8 +213,8 @@ private fun DownloadItemPeers(download: DownloadProgress) {
 }
 
 @Composable
-private fun getStatusText(status: TorrentStatus): String {
-    return when (status) {
+private fun getStatusText(status: TorrentStatus): String =
+    when (status) {
         TorrentStatus.DOWNLOADING -> stringResource(R.string.status_downloading)
         TorrentStatus.COMPLETED -> stringResource(R.string.status_completed)
         TorrentStatus.PAUSED -> stringResource(R.string.status_paused)
@@ -223,11 +224,10 @@ private fun getStatusText(status: TorrentStatus): String {
         TorrentStatus.IDLE -> stringResource(R.string.status_idle)
         TorrentStatus.PENDING -> stringResource(R.string.status_pending)
     }
-}
 
 @Composable
-private fun getStatusColor(status: TorrentStatus): Color {
-    return when (status) {
+private fun getStatusColor(status: TorrentStatus): Color =
+    when (status) {
         TorrentStatus.DOWNLOADING -> Color(0xFF2196F3) // Blue
         TorrentStatus.COMPLETED -> Color(0xFF4CAF50) // Green
         TorrentStatus.PAUSED -> Color(0xFFFF9800) // Orange
@@ -237,23 +237,20 @@ private fun getStatusColor(status: TorrentStatus): Color {
         TorrentStatus.IDLE -> Color(0xFF757575) // Gray
         TorrentStatus.PENDING -> Color(0xFF757575) // Gray
     }
-}
 
 @Composable
-private fun getProgressColor(status: TorrentStatus): Color {
-    return when (status) {
+private fun getProgressColor(status: TorrentStatus): Color =
+    when (status) {
         TorrentStatus.DOWNLOADING -> Color(0xFF2196F3) // Blue
         TorrentStatus.PAUSED -> Color(0xFFFF9800) // Orange
         TorrentStatus.SEEDING -> Color(0xFF9C27B0) // Purple
         else -> MaterialTheme.colorScheme.primary
     }
-}
 
-private fun formatETA(etaSeconds: Long): String {
-    return when {
+private fun formatETA(etaSeconds: Long): String =
+    when {
         etaSeconds < 60 -> "${etaSeconds}s"
         etaSeconds < 3600 -> "${etaSeconds / 60}m"
         etaSeconds < 86400 -> "${etaSeconds / 3600}h ${(etaSeconds % 3600) / 60}m"
         else -> "${etaSeconds / 86400}d"
     }
-}

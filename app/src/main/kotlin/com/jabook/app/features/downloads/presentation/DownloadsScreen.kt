@@ -6,11 +6,11 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -60,7 +60,12 @@ import com.jabook.app.shared.ui.components.JaBookEmptyState
 import com.jabook.app.shared.ui.components.ThemeToggleButton
 import com.jabook.app.shared.ui.components.getDynamicVerticalPadding
 
-data class DownloadsEmptyState(val type: EmptyStateType, val title: String, val subtitle: String)
+data class DownloadsEmptyState(
+    val type: EmptyStateType,
+    val title: String,
+    val subtitle: String,
+)
+
 data class DownloadsActions(
     val onPause: (String) -> Unit,
     val onResume: (String) -> Unit,
@@ -123,7 +128,8 @@ fun DownloadsScreen(
                 modifier = Modifier.fillMaxWidth(),
             )
 
-            androidx.compose.foundation.layout.Spacer(modifier = Modifier.height(16.dp))
+            androidx.compose.foundation.layout
+                .Spacer(modifier = Modifier.height(16.dp))
 
             // Content based on selected tab
             Box(modifier = Modifier.fillMaxSize().weight(1f)) {
@@ -132,14 +138,16 @@ fun DownloadsScreen(
                         DownloadsList(
                             downloads = uiState.activeDownloads,
                             isLoading = uiState.isLoading,
-                            emptyState = DownloadsEmptyState(
-                                EmptyStateType.EmptyDownloads,
-                                stringResource(R.string.no_active_downloads),
-                                stringResource(R.string.start_downloading_discovery),
-                            ),
-                            actions = DownloadsActions({
-                                viewModel.pauseDownload(it)
-                            }, { viewModel.resumeDownload(it) }, { viewModel.cancelDownload(it) }, { viewModel.retryDownload(it) }),
+                            emptyState =
+                                DownloadsEmptyState(
+                                    EmptyStateType.EmptyDownloads,
+                                    stringResource(R.string.no_active_downloads),
+                                    stringResource(R.string.start_downloading_discovery),
+                                ),
+                            actions =
+                                DownloadsActions({
+                                    viewModel.pauseDownload(it)
+                                }, { viewModel.resumeDownload(it) }, { viewModel.cancelDownload(it) }, { viewModel.retryDownload(it) }),
                             modifier = Modifier.fillMaxSize().padding(top = 8.dp),
                         )
                     }
@@ -147,14 +155,16 @@ fun DownloadsScreen(
                         DownloadsList(
                             downloads = uiState.completedDownloads,
                             isLoading = uiState.isLoading,
-                            emptyState = DownloadsEmptyState(
-                                EmptyStateType.EmptyDownloads,
-                                stringResource(R.string.no_completed_downloads),
-                                stringResource(R.string.completed_downloads_appear_here),
-                            ),
-                            actions = DownloadsActions({
-                                viewModel.pauseDownload(it)
-                            }, { viewModel.resumeDownload(it) }, { viewModel.cancelDownload(it) }, { viewModel.retryDownload(it) }),
+                            emptyState =
+                                DownloadsEmptyState(
+                                    EmptyStateType.EmptyDownloads,
+                                    stringResource(R.string.no_completed_downloads),
+                                    stringResource(R.string.completed_downloads_appear_here),
+                                ),
+                            actions =
+                                DownloadsActions({
+                                    viewModel.pauseDownload(it)
+                                }, { viewModel.resumeDownload(it) }, { viewModel.cancelDownload(it) }, { viewModel.retryDownload(it) }),
                             modifier = Modifier.fillMaxSize().padding(top = 8.dp),
                         )
                     }
@@ -162,14 +172,16 @@ fun DownloadsScreen(
                         DownloadsList(
                             downloads = uiState.failedDownloads,
                             isLoading = uiState.isLoading,
-                            emptyState = DownloadsEmptyState(
-                                EmptyStateType.GeneralError,
-                                stringResource(R.string.no_failed_downloads),
-                                stringResource(R.string.great_no_download_errors),
-                            ),
-                            actions = DownloadsActions({
-                                viewModel.pauseDownload(it)
-                            }, { viewModel.resumeDownload(it) }, { viewModel.cancelDownload(it) }, { viewModel.retryDownload(it) }),
+                            emptyState =
+                                DownloadsEmptyState(
+                                    EmptyStateType.GeneralError,
+                                    stringResource(R.string.no_failed_downloads),
+                                    stringResource(R.string.great_no_download_errors),
+                                ),
+                            actions =
+                                DownloadsActions({
+                                    viewModel.pauseDownload(it)
+                                }, { viewModel.resumeDownload(it) }, { viewModel.cancelDownload(it) }, { viewModel.retryDownload(it) }),
                             modifier = Modifier.fillMaxSize().padding(top = 8.dp),
                         )
                     }
@@ -250,25 +262,26 @@ private fun DownloadListItem(
     download: DownloadProgress,
     actions: DownloadsActions,
 ) {
-    val dismissState = rememberDismissState(
-        confirmStateChange = { value ->
-            when (value) {
-                DismissValue.DismissedToEnd -> {
-                    if (download.status == TorrentStatus.DOWNLOADING) {
-                        actions.onPause(download.torrentId)
-                    } else if (download.status == TorrentStatus.PAUSED) {
-                        actions.onResume(download.torrentId)
+    val dismissState =
+        rememberDismissState(
+            confirmStateChange = { value ->
+                when (value) {
+                    DismissValue.DismissedToEnd -> {
+                        if (download.status == TorrentStatus.DOWNLOADING) {
+                            actions.onPause(download.torrentId)
+                        } else if (download.status == TorrentStatus.PAUSED) {
+                            actions.onResume(download.torrentId)
+                        }
+                        false
                     }
-                    false
+                    DismissValue.DismissedToStart -> {
+                        actions.onCancel(download.torrentId)
+                        false
+                    }
+                    else -> false
                 }
-                DismissValue.DismissedToStart -> {
-                    actions.onCancel(download.torrentId)
-                    false
-                }
-                else -> false
-            }
-        },
-    )
+            },
+        )
     SwipeToDismiss(
         state = dismissState,
         background = {
@@ -298,7 +311,7 @@ private fun DownloadListItem(
             Box(
                 modifier = Modifier.fillMaxSize().background(color, RoundedCornerShape(8.dp)).padding(24.dp),
                 contentAlignment =
-                if (direction == DismissDirection.StartToEnd) Alignment.CenterStart else Alignment.CenterEnd,
+                    if (direction == DismissDirection.StartToEnd) Alignment.CenterStart else Alignment.CenterEnd,
             ) {
                 Icon(imageVector = icon, contentDescription = null, tint = contentTint)
             }

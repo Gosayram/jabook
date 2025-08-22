@@ -13,13 +13,22 @@ interface StorageManager {
 
     suspend fun getLogsDirectory(): File
 
-    suspend fun createAudiobookDirectory(author: String, title: String): File
+    suspend fun createAudiobookDirectory(
+        author: String,
+        title: String,
+    ): File
 
-    suspend fun extractAudiobookFiles(archivePath: String, destination: File): List<AudioFile>
+    suspend fun extractAudiobookFiles(
+        archivePath: String,
+        destination: File,
+    ): List<AudioFile>
 
     suspend fun detectAudioFiles(directory: File): List<AudioFile>
 
-    suspend fun deleteAudiobook(author: String, title: String): Boolean
+    suspend fun deleteAudiobook(
+        author: String,
+        title: String,
+    ): Boolean
 
     suspend fun getStorageInfo(): StorageInfo
 
@@ -29,9 +38,15 @@ interface StorageManager {
 
     fun getAudiobookMetadata(audiobookDirectory: File): AudiobookMetadata?
 
-    suspend fun saveAudiobookMetadata(directory: File, metadata: AudiobookMetadata)
+    suspend fun saveAudiobookMetadata(
+        directory: File,
+        metadata: AudiobookMetadata,
+    )
 
-    suspend fun downloadCoverImage(url: String, destination: File): Boolean
+    suspend fun downloadCoverImage(
+        url: String,
+        destination: File,
+    ): Boolean
 }
 
 /** Audio file information */
@@ -47,14 +62,13 @@ data class AudioFile(
     val chapterNumber: Int? = null,
     val title: String? = null,
 ) {
-    fun getFormattedSize(): String {
-        return when {
+    fun getFormattedSize(): String =
+        when {
             size >= 1024 * 1024 * 1024 -> String.format(Locale.US, "%.1f GB", size / (1024.0 * 1024.0 * 1024.0))
             size >= 1024 * 1024 -> String.format(Locale.US, "%.1f MB", size / (1024.0 * 1024.0))
             size >= 1024 -> String.format(Locale.US, "%.1f KB", size / 1024.0)
             else -> String.format(Locale.US, "%d B", size)
         }
-    }
 
     fun getFormattedDuration(): String {
         if (duration <= 0) return "Unknown"
@@ -72,7 +86,10 @@ data class AudioFile(
 }
 
 /** Audio format enumeration */
-enum class AudioFormat(val extension: String, val mimeType: String) {
+enum class AudioFormat(
+    val extension: String,
+    val mimeType: String,
+) {
     MP3("mp3", "audio/mpeg"),
     MP4("mp4", "audio/mp4"),
     M4A("m4a", "audio/mp4"),
@@ -84,13 +101,9 @@ enum class AudioFormat(val extension: String, val mimeType: String) {
     ;
 
     companion object {
-        fun fromExtension(extension: String): AudioFormat {
-            return values().find { it.extension.equals(extension, ignoreCase = true) } ?: UNKNOWN
-        }
+        fun fromExtension(extension: String): AudioFormat = values().find { it.extension.equals(extension, ignoreCase = true) } ?: UNKNOWN
 
-        fun fromMimeType(mimeType: String): AudioFormat {
-            return values().find { it.mimeType.equals(mimeType, ignoreCase = true) } ?: UNKNOWN
-        }
+        fun fromMimeType(mimeType: String): AudioFormat = values().find { it.mimeType.equals(mimeType, ignoreCase = true) } ?: UNKNOWN
     }
 }
 
@@ -118,14 +131,13 @@ data class StorageInfo(
 
     fun getFormattedLogs(): String = formatBytes(logsSize)
 
-    private fun formatBytes(bytes: Long): String {
-        return when {
+    private fun formatBytes(bytes: Long): String =
+        when {
             bytes >= 1024 * 1024 * 1024 -> String.format(Locale.US, "%.1f GB", bytes / (1024.0 * 1024.0 * 1024.0))
             bytes >= 1024 * 1024 -> String.format(Locale.US, "%.1f MB", bytes / (1024.0 * 1024.0))
             bytes >= 1024 -> String.format(Locale.US, "%.1f KB", bytes / 1024.0)
             else -> String.format(Locale.US, "%d B", bytes)
         }
-    }
 }
 
 /** Audiobook metadata */

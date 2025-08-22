@@ -26,8 +26,13 @@ object ViewFallbacks {
     }
 
     /** Creates a button with automatic selection between Compose and View */
-    fun createButton(context: Context, text: String, onClick: () -> Unit, variant: ButtonVariant = ButtonVariant.Primary): View {
-        return if (isComposeSupported()) {
+    fun createButton(
+        context: Context,
+        text: String,
+        onClick: () -> Unit,
+        variant: ButtonVariant = ButtonVariant.Primary,
+    ): View =
+        if (isComposeSupported()) {
             ComposeView(context).apply {
                 setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
                 setContent { JaBookTheme { JaBookButton(text = text, onClick = onClick, variant = variant) } }
@@ -35,7 +40,6 @@ object ViewFallbacks {
         } else {
             createLegacyButton(context, text, onClick, variant)
         }
-    }
 
     /** Creates loading/error state with automatic selection */
     fun createEmptyState(
@@ -44,8 +48,8 @@ object ViewFallbacks {
         title: String? = null,
         subtitle: String? = null,
         actionButton: (() -> Unit)? = null,
-    ): View {
-        return if (isComposeSupported()) {
+    ): View =
+        if (isComposeSupported()) {
             ComposeView(context).apply {
                 setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
                 setContent {
@@ -55,21 +59,21 @@ object ViewFallbacks {
                             title = title,
                             subtitle = subtitle,
                             actionButton =
-                            if (actionButton != null) {
-                                {
-                                    JaBookButton(
-                                        text =
-                                        when (state) {
-                                            EmptyStateType.NetworkError -> "Повторить"
-                                            EmptyStateType.GeneralError -> "Попробовать снова"
-                                            else -> "Обновить"
-                                        },
-                                        onClick = actionButton,
-                                    )
-                                }
-                            } else {
-                                null
-                            },
+                                if (actionButton != null) {
+                                    {
+                                        JaBookButton(
+                                            text =
+                                                when (state) {
+                                                    EmptyStateType.NetworkError -> "Повторить"
+                                                    EmptyStateType.GeneralError -> "Попробовать снова"
+                                                    else -> "Обновить"
+                                                },
+                                            onClick = actionButton,
+                                        )
+                                    }
+                                } else {
+                                    null
+                                },
                         )
                     }
                 }
@@ -77,11 +81,15 @@ object ViewFallbacks {
         } else {
             createLegacyEmptyState(context, state, title, subtitle, actionButton)
         }
-    }
 
     /** Creates legacy button for older Android versions */
-    private fun createLegacyButton(context: Context, text: String, onClick: () -> Unit, variant: ButtonVariant): Button {
-        return Button(context).apply {
+    private fun createLegacyButton(
+        context: Context,
+        text: String,
+        onClick: () -> Unit,
+        variant: ButtonVariant,
+    ): Button =
+        Button(context).apply {
             this.text = text
             setOnClickListener { onClick() }
 
@@ -109,7 +117,6 @@ object ViewFallbacks {
             setPadding(48, 32, 48, 32)
             minimumHeight = 120 // 48dp in pixels
         }
-    }
 
     /** Creates legacy state for older Android versions */
     private fun createLegacyEmptyState(
@@ -118,8 +125,8 @@ object ViewFallbacks {
         title: String?,
         subtitle: String?,
         actionButton: (() -> Unit)?,
-    ): LinearLayout {
-        return LinearLayout(context).apply {
+    ): LinearLayout =
+        LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             gravity = android.view.Gravity.CENTER
             setPadding(64, 64, 64, 64)
@@ -179,7 +186,6 @@ object ViewFallbacks {
                 )
             }
         }
-    }
 
     /** Creates container for compatibility with automatic technology selection */
     @Composable
@@ -191,17 +197,22 @@ object ViewFallbacks {
     /** Utilities for compatibility */
     object Utils {
         /** Gets the correct color for the current Android version */
-        fun getCompatColor(context: Context, colorRes: Int): Int {
-            return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+        fun getCompatColor(
+            context: Context,
+            colorRes: Int,
+        ): Int =
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 context.getColor(colorRes)
             } else {
                 // For Android 6.0 we use the old API without @Suppress
                 context.resources.getColor(colorRes)
             }
-        }
 
         /** Applies compatible styles to View */
-        fun applyCompatStyles(view: View, context: Context) {
+        fun applyCompatStyles(
+            view: View,
+            context: Context,
+        ) {
             // Apply elevation for API 21+
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
                 view.elevation = 8f
@@ -214,8 +225,8 @@ object ViewFallbacks {
         }
 
         /** Creates adaptive layout for different screen sizes */
-        fun createAdaptiveLayout(context: Context): ViewGroup {
-            return LinearLayout(context).apply {
+        fun createAdaptiveLayout(context: Context): ViewGroup =
+            LinearLayout(context).apply {
                 orientation =
                     if (isTablet(context)) {
                         LinearLayout.HORIZONTAL
@@ -223,17 +234,18 @@ object ViewFallbacks {
                         LinearLayout.VERTICAL
                     }
             }
-        }
 
         /** Checks if the device is a tablet */
-        private fun isTablet(context: Context): Boolean {
-            return context.resources.configuration.smallestScreenWidthDp >= 600
-        }
+        private fun isTablet(context: Context): Boolean = context.resources.configuration.smallestScreenWidthDp >= 600
     }
 }
 
 /** Extension for simplifying creation of fallback View */
-fun ViewGroup.addCompatView(context: Context, createCompose: @Composable () -> Unit, createView: () -> View) {
+fun ViewGroup.addCompatView(
+    context: Context,
+    createCompose: @Composable () -> Unit,
+    createView: () -> View,
+) {
     val view =
         if (ViewFallbacks.isComposeSupported()) {
             ComposeView(context).apply {

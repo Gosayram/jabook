@@ -21,9 +21,7 @@ import com.jabook.app.R
 import com.jabook.app.features.settings.presentation.RuTrackerSettingsViewModel
 
 @Composable
-fun SafLogFolderSection(
-    viewModel: RuTrackerSettingsViewModel,
-) {
+fun SafLogFolderSection(viewModel: RuTrackerSettingsViewModel) {
     val context = LocalContext.current
 
     // State to force recomposition when SAF Uri changes
@@ -59,17 +57,18 @@ fun SafLogFolderSection(
     }
 
     // SAF launcher for selecting log folder
-    val logFolderLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
-        if (uri != null) {
-            // Pass the selected folder Uri to the ViewModel or save in preferences
-            viewModel.setLogFolderUri(uri.toString())
-            safUriState = uri.toString() // Force recomposition
-            Toast.makeText(context, context.getString(R.string.log_folder_selected, uri), Toast.LENGTH_SHORT).show()
-            android.util.Log.d("RuTrackerSettingsScreen", "SAF Uri saved: $uri")
-            // Write a test log entry to create the file immediately
-            viewModel.writeTestLogEntry()
+    val logFolderLauncher =
+        rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+            if (uri != null) {
+                // Pass the selected folder Uri to the ViewModel or save in preferences
+                viewModel.setLogFolderUri(uri.toString())
+                safUriState = uri.toString() // Force recomposition
+                Toast.makeText(context, context.getString(R.string.log_folder_selected, uri), Toast.LENGTH_SHORT).show()
+                android.util.Log.d("RuTrackerSettingsScreen", "SAF Uri saved: $uri")
+                // Write a test log entry to create the file immediately
+                viewModel.writeTestLogEntry()
+            }
         }
-    }
 
     // Button to select log folder via SAF
     Button(

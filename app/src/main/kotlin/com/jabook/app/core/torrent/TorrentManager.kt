@@ -18,15 +18,24 @@ interface TorrentManager {
 
     suspend fun resumeTorrent(torrentId: String)
 
-    suspend fun removeTorrent(torrentId: String, deleteFiles: Boolean = false)
+    suspend fun removeTorrent(
+        torrentId: String,
+        deleteFiles: Boolean = false,
+    )
 
     fun getTorrentProgress(torrentId: String): Flow<DownloadProgress>
 
     fun getAllTorrents(): Flow<List<TorrentHandle>>
 
-    suspend fun setDownloadLocation(torrentId: String, path: String)
+    suspend fun setDownloadLocation(
+        torrentId: String,
+        path: String,
+    )
 
-    suspend fun setDownloadLimits(downloadLimit: Long, uploadLimit: Long)
+    suspend fun setDownloadLimits(
+        downloadLimit: Long,
+        uploadLimit: Long,
+    )
 }
 
 /** Torrent configuration */

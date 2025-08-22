@@ -8,12 +8,13 @@ object DownloadsExtractor {
 
     fun extractDownloads(doc: Document): Int {
         // Try to extract download count from various selectors
-        val downloadSelectors = listOf(
-            ".downloads",
-            ".download-count",
-            ".dl-count",
-            ".times-downloaded",
-        )
+        val downloadSelectors =
+            listOf(
+                ".downloads",
+                ".download-count",
+                ".dl-count",
+                ".times-downloaded",
+            )
 
         for (selector in downloadSelectors) {
             val element = doc.selectFirst(selector)

@@ -8,14 +8,15 @@ object VerificationExtractor {
 
     fun extractIsVerified(doc: Document): Boolean {
         // Try to extract verification status from various selectors
-        val verificationSelectors = listOf(
-            ".verified",
-            ".verified-torrent",
-            ".check-mark",
-            ".status-verified",
-            "img[src*='verified']",
-            "img[alt*='verified']",
-        )
+        val verificationSelectors =
+            listOf(
+                ".verified",
+                ".verified-torrent",
+                ".check-mark",
+                ".status-verified",
+                "img[src*='verified']",
+                "img[alt*='verified']",
+            )
 
         for (selector in verificationSelectors) {
             val element = doc.selectFirst(selector)
@@ -34,12 +35,14 @@ object VerificationExtractor {
         return DEFAULT_IS_VERIFIED
     }
 
-    private fun isVerifiedByText(text: String): Boolean {
-        return text.contains("verified") || text.contains("проверено")
-    }
+    private fun isVerifiedByText(text: String): Boolean = text.contains("verified") || text.contains("проверено")
 
-    private fun isVerifiedByAttributes(src: String, alt: String): Boolean {
-        return src.contains("verified") || src.contains("check") ||
-            alt.contains("verified") || alt.contains("проверено")
-    }
+    private fun isVerifiedByAttributes(
+        src: String,
+        alt: String,
+    ): Boolean =
+        src.contains("verified") ||
+            src.contains("check") ||
+            alt.contains("verified") ||
+            alt.contains("проверено")
 }

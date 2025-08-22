@@ -29,7 +29,11 @@ import androidx.compose.ui.unit.dp
 import com.jabook.app.shared.ui.theme.JaBookAnimations
 
 @Composable
-fun SpeedDialog(currentSpeed: Float, onSpeedSelected: (Float) -> Unit, onDismiss: () -> Unit) {
+fun SpeedDialog(
+    currentSpeed: Float,
+    onSpeedSelected: (Float) -> Unit,
+    onDismiss: () -> Unit,
+) {
     val availableSpeeds = listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f, 2.5f, 3.0f)
 
     AlertDialog(
@@ -47,7 +51,11 @@ fun SpeedDialog(currentSpeed: Float, onSpeedSelected: (Float) -> Unit, onDismiss
 }
 
 @Composable
-private fun SpeedDialogItem(speed: Float, isSelected: Boolean, onSpeedSelected: (Float) -> Unit) {
+private fun SpeedDialogItem(
+    speed: Float,
+    isSelected: Boolean,
+    onSpeedSelected: (Float) -> Unit,
+) {
     val scale by
         animateFloatAsState(
             targetValue = if (isSelected) 1.05f else 1.0f,
@@ -58,7 +66,7 @@ private fun SpeedDialogItem(speed: Float, isSelected: Boolean, onSpeedSelected: 
     val backgroundColor by
         animateColorAsState(
             targetValue =
-            if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f) else MaterialTheme.colorScheme.surface,
+                if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f) else MaterialTheme.colorScheme.surface,
             animationSpec = tween(durationMillis = JaBookAnimations.DURATION_MEDIUM, easing = JaBookAnimations.EMPHASIZED_EASING),
             label = "speedItemBackground",
         )
@@ -72,12 +80,13 @@ private fun SpeedDialogItem(speed: Float, isSelected: Boolean, onSpeedSelected: 
 
     Row(
         modifier =
-        Modifier.fillMaxWidth()
-            .scale(scale)
-            .clip(RoundedCornerShape(8.dp))
-            .background(backgroundColor)
-            .clickable { onSpeedSelected(speed) }
-            .padding(vertical = 8.dp, horizontal = 4.dp),
+            Modifier
+                .fillMaxWidth()
+                .scale(scale)
+                .clip(RoundedCornerShape(8.dp))
+                .background(backgroundColor)
+                .clickable { onSpeedSelected(speed) }
+                .padding(vertical = 8.dp, horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Start,
     ) {

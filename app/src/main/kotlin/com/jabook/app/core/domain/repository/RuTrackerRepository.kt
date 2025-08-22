@@ -8,7 +8,6 @@ import kotlinx.coroutines.flow.Flow
 
 /** Repository interface for RuTracker integration Provides methods to interact with RuTracker API for audiobook discovery */
 interface RuTrackerRepository {
-
     /**
      * Get all available categories from RuTracker
      *
@@ -24,7 +23,11 @@ interface RuTrackerRepository {
      * @param sortBy Sort criteria (seeders, date, size, etc.)
      * @return Flow of list of audiobooks
      */
-    fun getAudiobooks(categoryId: String, page: Int = 1, sortBy: String = "seeders"): Flow<List<RuTrackerAudiobook>>
+    fun getAudiobooks(
+        categoryId: String,
+        page: Int = 1,
+        sortBy: String = "seeders",
+    ): Flow<List<RuTrackerAudiobook>>
 
     /**
      * Search audiobooks by query
@@ -34,7 +37,11 @@ interface RuTrackerRepository {
      * @param page Page number for pagination
      * @return Flow of search results
      */
-    fun searchAudiobooks(query: String, categoryId: String? = null, page: Int = 1): Flow<RuTrackerSearchResult>
+    fun searchAudiobooks(
+        query: String,
+        categoryId: String? = null,
+        page: Int = 1,
+    ): Flow<RuTrackerSearchResult>
 
     /**
      * Get detailed information about specific audiobook
@@ -81,12 +88,18 @@ interface RuTrackerRepository {
      * @param limit Number of results to return
      * @return Flow of popular audiobooks
      */
-    fun getPopularByCategory(categoryId: String, limit: Int = 20): Flow<List<RuTrackerAudiobook>>
+    fun getPopularByCategory(
+        categoryId: String,
+        limit: Int = 20,
+    ): Flow<List<RuTrackerAudiobook>>
 
     /**
      * Authorization of the user on RuTracker
      */
-    suspend fun login(username: String, password: String): Boolean
+    suspend fun login(
+        username: String,
+        password: String,
+    ): Boolean
 
     /**
      * Logout of the user from RuTracker

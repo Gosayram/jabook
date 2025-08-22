@@ -46,35 +46,36 @@ data class RuTrackerAudiobook(
     val registered: java.util.Date? = null,
 ) : Parcelable {
     companion object {
-        fun empty() = RuTrackerAudiobook(
-            id = "",
-            title = "",
-            author = "",
-            narrator = null,
-            description = "",
-            category = "",
-            categoryId = "",
-            year = null,
-            quality = null,
-            duration = null,
-            size = "",
-            sizeBytes = 0L,
-            magnetUri = null,
-            torrentUrl = null,
-            seeders = 0,
-            leechers = 0,
-            completed = 0,
-            addedDate = "",
-            lastUpdate = null,
-            coverUrl = null,
-            rating = null,
-            genreList = emptyList(),
-            tags = emptyList(),
-            isVerified = false,
-            state = TorrentState.APPROVED,
-            downloads = 0,
-            registered = null,
-        )
+        fun empty() =
+            RuTrackerAudiobook(
+                id = "",
+                title = "",
+                author = "",
+                narrator = null,
+                description = "",
+                category = "",
+                categoryId = "",
+                year = null,
+                quality = null,
+                duration = null,
+                size = "",
+                sizeBytes = 0L,
+                magnetUri = null,
+                torrentUrl = null,
+                seeders = 0,
+                leechers = 0,
+                completed = 0,
+                addedDate = "",
+                lastUpdate = null,
+                coverUrl = null,
+                rating = null,
+                genreList = emptyList(),
+                tags = emptyList(),
+                isVerified = false,
+                state = TorrentState.APPROVED,
+                downloads = 0,
+                registered = null,
+            )
     }
 }
 
@@ -88,13 +89,14 @@ data class RuTrackerSearchResult(
     val results: List<RuTrackerAudiobook>,
 ) : Parcelable {
     companion object {
-        fun empty(query: String) = RuTrackerSearchResult(
-            query = query,
-            totalResults = 0,
-            currentPage = 1,
-            totalPages = 1,
-            results = emptyList(),
-        )
+        fun empty(query: String) =
+            RuTrackerSearchResult(
+                query = query,
+                totalResults = 0,
+                currentPage = 1,
+                totalPages = 1,
+                results = emptyList(),
+            )
     }
 }
 

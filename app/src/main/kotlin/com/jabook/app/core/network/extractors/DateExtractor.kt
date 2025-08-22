@@ -4,10 +4,11 @@ import org.jsoup.nodes.Document
 
 object DateExtractor {
     fun extractAddedDate(doc: Document): String {
-        val dateSelectors = listOf(
-            "a.p-link.small",
-            "span.post-time a",
-        )
+        val dateSelectors =
+            listOf(
+                "a.p-link.small",
+                "span.post-time a",
+            )
 
         for (selector in dateSelectors) {
             val element = doc.selectFirst(selector)
@@ -25,12 +26,13 @@ object DateExtractor {
 
     fun extractLastUpdate(doc: Document): String? {
         // Try to extract last update date from various selectors
-        val lastUpdateSelectors = listOf(
-            ".last-update",
-            ".updated-date",
-            ".modification-date",
-            ".edit-date",
-        )
+        val lastUpdateSelectors =
+            listOf(
+                ".last-update",
+                ".updated-date",
+                ".modification-date",
+                ".edit-date",
+            )
 
         for (selector in lastUpdateSelectors) {
             val element = doc.selectFirst(selector)

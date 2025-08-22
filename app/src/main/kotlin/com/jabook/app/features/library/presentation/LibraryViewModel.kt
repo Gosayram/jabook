@@ -17,152 +17,156 @@ import javax.inject.Inject
 /** ViewModel for the Library screen. Manages the state and handles user interactions for the audiobook library. */
 @HiltViewModel
 class LibraryViewModel
-@Inject
-constructor(
-    private val getLibraryAudiobooksUseCase: GetLibraryAudiobooksUseCase,
-    private val updateAudiobookUseCase: UpdateAudiobookUseCase,
-    private val debugLogger: IDebugLogger,
-) : ViewModel() {
-    private val _uiState = MutableStateFlow(LibraryUiState())
-    val uiState: StateFlow<LibraryUiState> = _uiState.asStateFlow()
+    @Inject
+    constructor(
+        private val getLibraryAudiobooksUseCase: GetLibraryAudiobooksUseCase,
+        private val updateAudiobookUseCase: UpdateAudiobookUseCase,
+        private val debugLogger: IDebugLogger,
+    ) : ViewModel() {
+        private val _uiState = MutableStateFlow(LibraryUiState())
+        val uiState: StateFlow<LibraryUiState> = _uiState.asStateFlow()
 
-    private val _audiobooks = MutableStateFlow<List<Audiobook>>(emptyList())
-    val audiobooks: StateFlow<List<Audiobook>> = _audiobooks.asStateFlow()
+        private val _audiobooks = MutableStateFlow<List<Audiobook>>(emptyList())
+        val audiobooks: StateFlow<List<Audiobook>> = _audiobooks.asStateFlow()
 
-    private val _categories = MutableStateFlow<List<String>>(emptyList())
-    val categories: StateFlow<List<String>> = _categories.asStateFlow()
+        private val _categories = MutableStateFlow<List<String>>(emptyList())
+        val categories: StateFlow<List<String>> = _categories.asStateFlow()
 
-    init {
-        debugLogger.logInfo("LibraryViewModel initialized")
-        loadAudiobooks()
-        loadCategories()
-    }
+        init {
+            debugLogger.logInfo("LibraryViewModel initialized")
+            loadAudiobooks()
+            loadCategories()
+        }
 
-    /** Load audiobooks based on current filter. */
-    fun loadAudiobooks() {
-        viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+        /** Load audiobooks based on current filter. */
+        fun loadAudiobooks() {
+            viewModelScope.launch {
+                _uiState.value = _uiState.value.copy(isLoading = true, error = null)
 
-            try {
-                val flow =
-                    when (_uiState.value.currentFilter) {
-                        LibraryFilter.ALL -> getLibraryAudiobooksUseCase()
-                        LibraryFilter.FAVORITES -> getLibraryAudiobooksUseCase.getFavorites()
-                        LibraryFilter.CURRENTLY_PLAYING -> getLibraryAudiobooksUseCase.getCurrentlyPlaying()
-                        LibraryFilter.COMPLETED -> getLibraryAudiobooksUseCase.getCompleted()
-                        LibraryFilter.DOWNLOADED -> getLibraryAudiobooksUseCase.getDownloaded()
-                        LibraryFilter.CATEGORY -> {
-                            val category = _uiState.value.selectedCategory
-                            if (category != null) {
-                                getLibraryAudiobooksUseCase.getByCategory(category)
-                            } else {
-                                getLibraryAudiobooksUseCase()
+                try {
+                    val flow =
+                        when (_uiState.value.currentFilter) {
+                            LibraryFilter.ALL -> getLibraryAudiobooksUseCase()
+                            LibraryFilter.FAVORITES -> getLibraryAudiobooksUseCase.getFavorites()
+                            LibraryFilter.CURRENTLY_PLAYING -> getLibraryAudiobooksUseCase.getCurrentlyPlaying()
+                            LibraryFilter.COMPLETED -> getLibraryAudiobooksUseCase.getCompleted()
+                            LibraryFilter.DOWNLOADED -> getLibraryAudiobooksUseCase.getDownloaded()
+                            LibraryFilter.CATEGORY -> {
+                                val category = _uiState.value.selectedCategory
+                                if (category != null) {
+                                    getLibraryAudiobooksUseCase.getByCategory(category)
+                                } else {
+                                    getLibraryAudiobooksUseCase()
+                                }
                             }
                         }
-                    }
 
-                flow
+                    flow
+                        .catch { exception ->
+                            _uiState.value = _uiState.value.copy(isLoading = false, error = exception.message ?: "Unknown error occurred")
+                        }.collect { books ->
+                            _audiobooks.value = books
+                            _uiState.value = _uiState.value.copy(isLoading = false, error = null)
+                        }
+                } catch (exception: Exception) {
+                    _uiState.value = _uiState.value.copy(isLoading = false, error = exception.message ?: "Unknown error occurred")
+                }
+            }
+        }
+
+        /** Load available categories. */
+        private fun loadCategories() {
+            viewModelScope.launch {
+                getLibraryAudiobooksUseCase
+                    .getCategories()
+                    .catch { /* Ignore errors for categories */ }
+                    .collect { categoryList -> _categories.value = categoryList }
+            }
+        }
+
+        /** Search audiobooks by query. */
+        fun searchAudiobooks(query: String) {
+            if (query.isBlank()) {
+                loadAudiobooks()
+                return
+            }
+
+            viewModelScope.launch {
+                _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+
+                getLibraryAudiobooksUseCase
+                    .search(query)
                     .catch { exception ->
-                        _uiState.value = _uiState.value.copy(isLoading = false, error = exception.message ?: "Unknown error occurred")
-                    }
-                    .collect { books ->
+                        _uiState.value = _uiState.value.copy(isLoading = false, error = exception.message ?: "Search failed")
+                    }.collect { books ->
                         _audiobooks.value = books
                         _uiState.value = _uiState.value.copy(isLoading = false, error = null)
                     }
-            } catch (exception: Exception) {
-                _uiState.value = _uiState.value.copy(isLoading = false, error = exception.message ?: "Unknown error occurred")
             }
         }
-    }
 
-    /** Load available categories. */
-    private fun loadCategories() {
-        viewModelScope.launch {
-            getLibraryAudiobooksUseCase
-                .getCategories()
-                .catch { /* Ignore errors for categories */ }
-                .collect { categoryList -> _categories.value = categoryList }
-        }
-    }
-
-    /** Search audiobooks by query. */
-    fun searchAudiobooks(query: String) {
-        if (query.isBlank()) {
+        /** Change the current filter. */
+        fun changeFilter(
+            filter: LibraryFilter,
+            category: String? = null,
+        ) {
+            _uiState.value = _uiState.value.copy(currentFilter = filter, selectedCategory = category)
             loadAudiobooks()
-            return
         }
 
-        viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
-
-            getLibraryAudiobooksUseCase
-                .search(query)
-                .catch { exception ->
-                    _uiState.value = _uiState.value.copy(isLoading = false, error = exception.message ?: "Search failed")
+        /** Toggle favorite status of an audiobook. */
+        fun toggleFavorite(audiobook: Audiobook) {
+            viewModelScope.launch {
+                try {
+                    updateAudiobookUseCase.toggleFavorite(audiobook.id, !audiobook.isFavorite)
+                    // UI will update automatically through Flow
+                } catch (exception: Exception) {
+                    _uiState.value = _uiState.value.copy(error = "Failed to update favorite: ${exception.message}")
                 }
-                .collect { books ->
-                    _audiobooks.value = books
-                    _uiState.value = _uiState.value.copy(isLoading = false, error = null)
+            }
+        }
+
+        /** Update user rating for an audiobook. */
+        fun updateRating(
+            audiobook: Audiobook,
+            rating: Float,
+        ) {
+            viewModelScope.launch {
+                try {
+                    updateAudiobookUseCase.updateRating(audiobook.id, rating)
+                } catch (exception: Exception) {
+                    _uiState.value = _uiState.value.copy(error = "Failed to update rating: ${exception.message}")
                 }
-        }
-    }
-
-    /** Change the current filter. */
-    fun changeFilter(filter: LibraryFilter, category: String? = null) {
-        _uiState.value = _uiState.value.copy(currentFilter = filter, selectedCategory = category)
-        loadAudiobooks()
-    }
-
-    /** Toggle favorite status of an audiobook. */
-    fun toggleFavorite(audiobook: Audiobook) {
-        viewModelScope.launch {
-            try {
-                updateAudiobookUseCase.toggleFavorite(audiobook.id, !audiobook.isFavorite)
-                // UI will update automatically through Flow
-            } catch (exception: Exception) {
-                _uiState.value = _uiState.value.copy(error = "Failed to update favorite: ${exception.message}")
             }
         }
-    }
 
-    /** Update user rating for an audiobook. */
-    fun updateRating(audiobook: Audiobook, rating: Float) {
-        viewModelScope.launch {
-            try {
-                updateAudiobookUseCase.updateRating(audiobook.id, rating)
-            } catch (exception: Exception) {
-                _uiState.value = _uiState.value.copy(error = "Failed to update rating: ${exception.message}")
+        /** Mark audiobook as completed. */
+        fun markAsCompleted(audiobook: Audiobook) {
+            viewModelScope.launch {
+                try {
+                    updateAudiobookUseCase.markAsCompleted(audiobook.id)
+                } catch (exception: Exception) {
+                    _uiState.value = _uiState.value.copy(error = "Failed to mark as completed: ${exception.message}")
+                }
             }
         }
-    }
 
-    /** Mark audiobook as completed. */
-    fun markAsCompleted(audiobook: Audiobook) {
-        viewModelScope.launch {
-            try {
-                updateAudiobookUseCase.markAsCompleted(audiobook.id)
-            } catch (exception: Exception) {
-                _uiState.value = _uiState.value.copy(error = "Failed to mark as completed: ${exception.message}")
+        /** Reset playback for an audiobook. */
+        fun resetPlayback(audiobook: Audiobook) {
+            viewModelScope.launch {
+                try {
+                    updateAudiobookUseCase.resetPlayback(audiobook.id)
+                } catch (exception: Exception) {
+                    _uiState.value = _uiState.value.copy(error = "Failed to reset playback: ${exception.message}")
+                }
             }
         }
-    }
 
-    /** Reset playback for an audiobook. */
-    fun resetPlayback(audiobook: Audiobook) {
-        viewModelScope.launch {
-            try {
-                updateAudiobookUseCase.resetPlayback(audiobook.id)
-            } catch (exception: Exception) {
-                _uiState.value = _uiState.value.copy(error = "Failed to reset playback: ${exception.message}")
-            }
+        /** Clear any current error. */
+        fun clearError() {
+            _uiState.value = _uiState.value.copy(error = null)
         }
     }
-
-    /** Clear any current error. */
-    fun clearError() {
-        _uiState.value = _uiState.value.copy(error = null)
-    }
-}
 
 /** UI state for the Library screen. */
 data class LibraryUiState(

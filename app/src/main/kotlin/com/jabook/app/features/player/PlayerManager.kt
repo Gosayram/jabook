@@ -93,25 +93,51 @@ data class SleepTimerConfig(
 
 /** Player events for logging and monitoring */
 sealed class PlayerEvent {
-    data class PlayerInitialized(val audiobook: Audiobook) : PlayerEvent()
+    data class PlayerInitialized(
+        val audiobook: Audiobook,
+    ) : PlayerEvent()
 
-    data class PlaybackStarted(val audiobook: Audiobook, val chapter: Chapter) : PlayerEvent()
+    data class PlaybackStarted(
+        val audiobook: Audiobook,
+        val chapter: Chapter,
+    ) : PlayerEvent()
 
-    data class PlaybackPaused(val audiobook: Audiobook, val position: Long) : PlayerEvent()
+    data class PlaybackPaused(
+        val audiobook: Audiobook,
+        val position: Long,
+    ) : PlayerEvent()
 
-    data class PlaybackStopped(val audiobook: Audiobook) : PlayerEvent()
+    data class PlaybackStopped(
+        val audiobook: Audiobook,
+    ) : PlayerEvent()
 
-    data class PlaybackCompleted(val audiobook: Audiobook) : PlayerEvent()
+    data class PlaybackCompleted(
+        val audiobook: Audiobook,
+    ) : PlayerEvent()
 
-    data class ChapterChanged(val audiobook: Audiobook, val chapter: Chapter) : PlayerEvent()
+    data class ChapterChanged(
+        val audiobook: Audiobook,
+        val chapter: Chapter,
+    ) : PlayerEvent()
 
-    data class PlaybackSpeedChanged(val audiobook: Audiobook, val speed: Float) : PlayerEvent()
+    data class PlaybackSpeedChanged(
+        val audiobook: Audiobook,
+        val speed: Float,
+    ) : PlayerEvent()
 
-    data class SleepTimerSet(val audiobook: Audiobook, val minutes: Int) : PlayerEvent()
+    data class SleepTimerSet(
+        val audiobook: Audiobook,
+        val minutes: Int,
+    ) : PlayerEvent()
 
-    data class SleepTimerTriggered(val audiobook: Audiobook) : PlayerEvent()
+    data class SleepTimerTriggered(
+        val audiobook: Audiobook,
+    ) : PlayerEvent()
 
-    data class PlaybackError(val audiobook: Audiobook, val error: String) : PlayerEvent()
+    data class PlaybackError(
+        val audiobook: Audiobook,
+        val error: String,
+    ) : PlayerEvent()
 }
 
 /** Audio focus management */

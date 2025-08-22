@@ -10,12 +10,13 @@ object SeedersExtractor {
 
     fun extractSeeders(doc: Document): Int {
         // Try to extract seeders count from various selectors
-        val seedersSelectors = listOf(
-            ".seeders",
-            ".seeds",
-            ".seed-count",
-            ".torrent-seeders",
-        )
+        val seedersSelectors =
+            listOf(
+                ".seeders",
+                ".seeds",
+                ".seed-count",
+                ".torrent-seeders",
+            )
 
         for (selector in seedersSelectors) {
             val element = doc.selectFirst(selector)
@@ -33,12 +34,13 @@ object SeedersExtractor {
 
     fun extractLeechers(doc: Document): Int {
         // Try to extract leechers count from various selectors
-        val leechersSelectors = listOf(
-            ".leechers",
-            ".leech",
-            ".leech-count",
-            ".torrent-leechers",
-        )
+        val leechersSelectors =
+            listOf(
+                ".leechers",
+                ".leech",
+                ".leech-count",
+                ".torrent-leechers",
+            )
 
         for (selector in leechersSelectors) {
             val element = doc.selectFirst(selector)
@@ -56,12 +58,13 @@ object SeedersExtractor {
 
     fun extractCompleted(doc: Document): Int {
         // Try to extract completed downloads count from various selectors
-        val completedSelectors = listOf(
-            ".completed",
-            ".complete",
-            ".completed-downloads",
-            ".torrent-completed",
-        )
+        val completedSelectors =
+            listOf(
+                ".completed",
+                ".complete",
+                ".completed-downloads",
+                ".torrent-completed",
+            )
 
         for (selector in completedSelectors) {
             val element = doc.selectFirst(selector)

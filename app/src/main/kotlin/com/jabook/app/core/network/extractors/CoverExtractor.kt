@@ -6,12 +6,13 @@ object CoverExtractor {
     val DEFAULT_COVER_URL: String? = null
 
     fun extractCoverUrl(doc: Document): String? {
-        val coverSelectors = listOf(
-            "var.postImg[title*='.jpg']",
-            "var.postImg[title*='.png']",
-            "img[src*='fastpic.ru']",
-            "img[src*='covers']",
-        )
+        val coverSelectors =
+            listOf(
+                "var.postImg[title*='.jpg']",
+                "var.postImg[title*='.png']",
+                "img[src*='fastpic.ru']",
+                "img[src*='covers']",
+            )
 
         for (selector in coverSelectors) {
             val element = doc.selectFirst(selector)

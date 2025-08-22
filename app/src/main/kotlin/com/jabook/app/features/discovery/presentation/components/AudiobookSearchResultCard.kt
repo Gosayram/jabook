@@ -46,9 +46,7 @@ import com.jabook.app.shared.utils.formatFileSize
 import kotlinx.coroutines.launch
 
 @Composable
-fun AudiobookCover(
-    modifier: Modifier = Modifier,
-) {
+fun AudiobookCover(modifier: Modifier = Modifier) {
     AsyncImage(
         model = null, // coverImageUrl not available in RuTrackerAudiobook
         contentDescription = stringResource(R.string.audiobook_cover),

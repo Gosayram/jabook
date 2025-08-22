@@ -6,10 +6,7 @@ class AudioFocusHandler(
     private val audioFocusManager: AudioFocusManager,
     private val listener: AudioManager.OnAudioFocusChangeListener,
 ) {
-
-    fun requestAudioFocus(): Boolean {
-        return audioFocusManager.requestAudioFocus(listener)
-    }
+    fun requestAudioFocus(): Boolean = audioFocusManager.requestAudioFocus(listener)
 
     fun abandonAudioFocus() {
         audioFocusManager.abandonAudioFocus()

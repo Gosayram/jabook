@@ -34,7 +34,5 @@ abstract class RuTrackerModule {
 
     @Binds
     @Singleton
-    abstract fun bindRuTrackerRepository(
-        impl: RuTrackerRepositoryImpl,
-    ): RuTrackerRepository
+    abstract fun bindRuTrackerRepository(impl: RuTrackerRepositoryImpl): RuTrackerRepository
 }

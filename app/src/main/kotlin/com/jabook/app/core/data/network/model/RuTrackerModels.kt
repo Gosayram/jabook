@@ -37,7 +37,16 @@ data class RuTrackerTorrent(
 )
 
 /** Torrent file information */
-data class TorrentFile(val path: String, val size: Long, val priority: Int = 1)
+data class TorrentFile(
+    val path: String,
+    val size: Long,
+    val priority: Int = 1,
+)
 
 /** Torrent metadata information */
-data class TorrentInfo(val name: String, val totalSize: Long, val files: List<TorrentFile>, val hash: String)
+data class TorrentInfo(
+    val name: String,
+    val totalSize: Long,
+    val files: List<TorrentFile>,
+    val hash: String,
+)

@@ -51,11 +51,12 @@ class MainActivity : ComponentActivity() {
             val themeViewModel: ThemeViewModel = viewModel()
             val themeMode = themeViewModel.themeMode.collectAsState().value
             JaBookTheme(
-                darkTheme = when (themeMode) {
-                    AppThemeMode.SYSTEM -> isSystemInDarkTheme()
-                    AppThemeMode.DARK -> true
-                    AppThemeMode.LIGHT -> false
-                },
+                darkTheme =
+                    when (themeMode) {
+                        AppThemeMode.SYSTEM -> isSystemInDarkTheme()
+                        AppThemeMode.DARK -> true
+                        AppThemeMode.LIGHT -> false
+                    },
             ) {
                 JaBookApp(
                     themeViewModel = themeViewModel,
@@ -99,9 +100,10 @@ fun JaBookApp(
 @Composable
 fun JaBookAppPreview() {
     val context = LocalContext.current
-    val previewThemeViewModel = viewModel<ThemeViewModel>(
-        factory = ViewModelProvider.AndroidViewModelFactory(context.applicationContext as android.app.Application),
-    )
+    val previewThemeViewModel =
+        viewModel<ThemeViewModel>(
+            factory = ViewModelProvider.AndroidViewModelFactory(context.applicationContext as android.app.Application),
+        )
     JaBookTheme {
         JaBookApp(
             themeViewModel = previewThemeViewModel,

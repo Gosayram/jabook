@@ -4,18 +4,31 @@ import com.jabook.app.core.domain.model.TorrentStatus
 
 /** Events emitted by the torrent system for logging and notifications */
 sealed class TorrentEvent {
-
     /** Torrent was added to download queue */
-    data class TorrentAdded(val torrentId: String, val name: String, val magnetUri: String, val audiobookId: String) : TorrentEvent()
+    data class TorrentAdded(
+        val torrentId: String,
+        val name: String,
+        val magnetUri: String,
+        val audiobookId: String,
+    ) : TorrentEvent()
 
     /** Torrent download started */
-    data class TorrentStarted(val torrentId: String, val name: String) : TorrentEvent()
+    data class TorrentStarted(
+        val torrentId: String,
+        val name: String,
+    ) : TorrentEvent()
 
     /** Torrent download paused */
-    data class TorrentPaused(val torrentId: String, val name: String) : TorrentEvent()
+    data class TorrentPaused(
+        val torrentId: String,
+        val name: String,
+    ) : TorrentEvent()
 
     /** Torrent download resumed */
-    data class TorrentResumed(val torrentId: String, val name: String) : TorrentEvent()
+    data class TorrentResumed(
+        val torrentId: String,
+        val name: String,
+    ) : TorrentEvent()
 
     /** Torrent download completed */
     data class TorrentCompleted(
@@ -28,14 +41,27 @@ sealed class TorrentEvent {
     ) : TorrentEvent()
 
     /** Torrent download failed */
-    data class TorrentError(val torrentId: String, val name: String, val error: String, val errorCode: Int? = null) : TorrentEvent()
+    data class TorrentError(
+        val torrentId: String,
+        val name: String,
+        val error: String,
+        val errorCode: Int? = null,
+    ) : TorrentEvent()
 
     /** Torrent removed from queue */
-    data class TorrentRemoved(val torrentId: String, val name: String, val filesDeleted: Boolean) : TorrentEvent()
+    data class TorrentRemoved(
+        val torrentId: String,
+        val name: String,
+        val filesDeleted: Boolean,
+    ) : TorrentEvent()
 
     /** Torrent status changed */
-    data class TorrentStatusChanged(val torrentId: String, val name: String, val oldStatus: TorrentStatus, val newStatus: TorrentStatus) :
-        TorrentEvent()
+    data class TorrentStatusChanged(
+        val torrentId: String,
+        val name: String,
+        val oldStatus: TorrentStatus,
+        val newStatus: TorrentStatus,
+    ) : TorrentEvent()
 
     /** Torrent progress updated */
     data class TorrentProgressUpdated(
@@ -68,7 +94,12 @@ sealed class TorrentEvent {
     ) : TorrentEvent()
 
     /** Torrent seeding started */
-    data class TorrentSeeding(val torrentId: String, val name: String, val uploadSpeed: Long, val ratio: Float) : TorrentEvent()
+    data class TorrentSeeding(
+        val torrentId: String,
+        val name: String,
+        val uploadSpeed: Long,
+        val ratio: Float,
+    ) : TorrentEvent()
 
     /** Global torrent statistics updated */
     data class TorrentStatsUpdated(
@@ -86,5 +117,8 @@ sealed class TorrentEvent {
     data object TorrentEngineShutdown : TorrentEvent()
 
     /** Torrent engine error */
-    data class TorrentEngineError(val error: String, val errorCode: Int? = null) : TorrentEvent()
+    data class TorrentEngineError(
+        val error: String,
+        val errorCode: Int? = null,
+    ) : TorrentEvent()
 }

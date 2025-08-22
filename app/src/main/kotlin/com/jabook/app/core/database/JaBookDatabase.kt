@@ -32,18 +32,18 @@ abstract class JaBookDatabase : RoomDatabase() {
         @Volatile private var INSTANCE: JaBookDatabase? = null
 
         /** Get the singleton database instance. */
-        fun getInstance(context: Context): JaBookDatabase {
-            return INSTANCE
+        fun getInstance(context: Context): JaBookDatabase =
+            INSTANCE
                 ?: synchronized(this) {
                     val instance =
-                        Room.databaseBuilder(context.applicationContext, JaBookDatabase::class.java, DATABASE_NAME)
+                        Room
+                            .databaseBuilder(context.applicationContext, JaBookDatabase::class.java, DATABASE_NAME)
                             .fallbackToDestructiveMigration(true) // For development - remove in production
                             .build()
 
                     INSTANCE = instance
                     instance
                 }
-        }
 
         /** Clear the database instance for testing purposes. */
         internal fun clearInstance() {

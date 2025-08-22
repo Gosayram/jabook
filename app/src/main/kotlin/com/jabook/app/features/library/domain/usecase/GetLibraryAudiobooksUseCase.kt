@@ -6,44 +6,32 @@ import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 
 /** Use case for retrieving audiobooks in the user's library. Provides different filtering options for the library view. */
-class GetLibraryAudiobooksUseCase @Inject constructor(private val repository: AudiobookRepository) {
-    /** Get all audiobooks in the library. */
-    operator fun invoke(): Flow<List<Audiobook>> {
-        return repository.getAllAudiobooks()
-    }
+class GetLibraryAudiobooksUseCase
+    @Inject
+    constructor(
+        private val repository: AudiobookRepository,
+    ) {
+        /** Get all audiobooks in the library. */
+        operator fun invoke(): Flow<List<Audiobook>> = repository.getAllAudiobooks()
 
-    /** Get audiobooks by category. */
-    fun getByCategory(category: String): Flow<List<Audiobook>> {
-        return repository.getAudiobooksByCategory(category)
-    }
+        /** Get audiobooks by category. */
+        fun getByCategory(category: String): Flow<List<Audiobook>> = repository.getAudiobooksByCategory(category)
 
-    /** Get favorite audiobooks. */
-    fun getFavorites(): Flow<List<Audiobook>> {
-        return repository.getFavoriteAudiobooks()
-    }
+        /** Get favorite audiobooks. */
+        fun getFavorites(): Flow<List<Audiobook>> = repository.getFavoriteAudiobooks()
 
-    /** Get currently playing audiobooks. */
-    fun getCurrentlyPlaying(): Flow<List<Audiobook>> {
-        return repository.getCurrentlyPlayingAudiobooks()
-    }
+        /** Get currently playing audiobooks. */
+        fun getCurrentlyPlaying(): Flow<List<Audiobook>> = repository.getCurrentlyPlayingAudiobooks()
 
-    /** Get completed audiobooks. */
-    fun getCompleted(): Flow<List<Audiobook>> {
-        return repository.getCompletedAudiobooks()
-    }
+        /** Get completed audiobooks. */
+        fun getCompleted(): Flow<List<Audiobook>> = repository.getCompletedAudiobooks()
 
-    /** Get downloaded audiobooks. */
-    fun getDownloaded(): Flow<List<Audiobook>> {
-        return repository.getDownloadedAudiobooks()
-    }
+        /** Get downloaded audiobooks. */
+        fun getDownloaded(): Flow<List<Audiobook>> = repository.getDownloadedAudiobooks()
 
-    /** Search audiobooks by query. */
-    fun search(query: String): Flow<List<Audiobook>> {
-        return repository.searchAudiobooks(query)
-    }
+        /** Search audiobooks by query. */
+        fun search(query: String): Flow<List<Audiobook>> = repository.searchAudiobooks(query)
 
-    /** Get all available categories. */
-    fun getCategories(): Flow<List<String>> {
-        return repository.getAllCategories()
+        /** Get all available categories. */
+        fun getCategories(): Flow<List<String>> = repository.getAllCategories()
     }
-}

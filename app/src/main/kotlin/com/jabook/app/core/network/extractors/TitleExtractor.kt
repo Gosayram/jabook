@@ -5,11 +5,12 @@ import org.jsoup.nodes.Document
 object TitleExtractor {
     fun extractTitle(doc: Document): String {
         // Try multiple selectors for title
-        val selectors = listOf(
-            "h1.maintitle a",
-            "h1.maintitle",
-            "title",
-        )
+        val selectors =
+            listOf(
+                "h1.maintitle a",
+                "h1.maintitle",
+                "title",
+            )
 
         for (selector in selectors) {
             val element = doc.selectFirst(selector)

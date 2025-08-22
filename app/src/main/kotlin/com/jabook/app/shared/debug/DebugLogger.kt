@@ -20,25 +20,54 @@ import java.util.Locale
 
 /** Interface for debug logging to avoid DI issues with object singleton */
 interface IDebugLogger {
-    fun logInfo(message: String, tag: String = "JaBook")
+    fun logInfo(
+        message: String,
+        tag: String = "JaBook",
+    )
 
-    fun logDebug(message: String, tag: String = "JaBook")
+    fun logDebug(
+        message: String,
+        tag: String = "JaBook",
+    )
 
-    fun logWarning(message: String, tag: String = "JaBook")
+    fun logWarning(
+        message: String,
+        tag: String = "JaBook",
+    )
 
-    fun logError(message: String, error: Throwable? = null, tag: String = "JaBook")
+    fun logError(
+        message: String,
+        error: Throwable? = null,
+        tag: String = "JaBook",
+    )
 
-    fun logNetworkRequest(url: String, method: String, headers: Map<String, String> = emptyMap())
+    fun logNetworkRequest(
+        url: String,
+        method: String,
+        headers: Map<String, String> = emptyMap(),
+    )
 
-    fun logNetworkResponse(url: String, statusCode: Int, responseTime: Long, size: Long = 0)
+    fun logNetworkResponse(
+        url: String,
+        statusCode: Int,
+        responseTime: Long,
+        size: Long = 0,
+    )
 
     fun logTorrentEvent(event: TorrentEvent)
 
     fun logPlaybackEvent(event: PlaybackEvent)
 
-    fun logUserAction(action: String, context: String = "")
+    fun logUserAction(
+        action: String,
+        context: String = "",
+    )
 
-    fun logPerformance(operation: String, duration: Long, additionalInfo: String = "")
+    fun logPerformance(
+        operation: String,
+        duration: Long,
+        additionalInfo: String = "",
+    )
 
     fun exportLogs(): File?
 
@@ -46,33 +75,61 @@ interface IDebugLogger {
 }
 
 /** Debug logger implementation that delegates to the singleton */
-class DebugLoggerImpl(context: Context) : IDebugLogger {
+class DebugLoggerImpl(
+    context: Context,
+) : IDebugLogger {
     init {
         DebugLogger.initialize(context)
     }
 
-    override fun logInfo(message: String, tag: String) = DebugLogger.logInfo(message, tag)
+    override fun logInfo(
+        message: String,
+        tag: String,
+    ) = DebugLogger.logInfo(message, tag)
 
-    override fun logDebug(message: String, tag: String) = DebugLogger.logDebug(message, tag)
+    override fun logDebug(
+        message: String,
+        tag: String,
+    ) = DebugLogger.logDebug(message, tag)
 
-    override fun logWarning(message: String, tag: String) = DebugLogger.logWarning(message, tag)
+    override fun logWarning(
+        message: String,
+        tag: String,
+    ) = DebugLogger.logWarning(message, tag)
 
-    override fun logError(message: String, error: Throwable?, tag: String) = DebugLogger.logError(message, error, tag)
+    override fun logError(
+        message: String,
+        error: Throwable?,
+        tag: String,
+    ) = DebugLogger.logError(message, error, tag)
 
-    override fun logNetworkRequest(url: String, method: String, headers: Map<String, String>) =
-        DebugLogger.logNetworkRequest(url, method, headers)
+    override fun logNetworkRequest(
+        url: String,
+        method: String,
+        headers: Map<String, String>,
+    ) = DebugLogger.logNetworkRequest(url, method, headers)
 
-    override fun logNetworkResponse(url: String, statusCode: Int, responseTime: Long, size: Long) =
-        DebugLogger.logNetworkResponse(url, statusCode, responseTime, size)
+    override fun logNetworkResponse(
+        url: String,
+        statusCode: Int,
+        responseTime: Long,
+        size: Long,
+    ) = DebugLogger.logNetworkResponse(url, statusCode, responseTime, size)
 
     override fun logTorrentEvent(event: TorrentEvent) = DebugLogger.logTorrentEvent(event)
 
     override fun logPlaybackEvent(event: PlaybackEvent) = DebugLogger.logPlaybackEvent(event)
 
-    override fun logUserAction(action: String, context: String) = DebugLogger.logUserAction(action, context)
+    override fun logUserAction(
+        action: String,
+        context: String,
+    ) = DebugLogger.logUserAction(action, context)
 
-    override fun logPerformance(operation: String, duration: Long, additionalInfo: String) =
-        DebugLogger.logPerformance(operation, duration, additionalInfo)
+    override fun logPerformance(
+        operation: String,
+        duration: Long,
+        additionalInfo: String,
+    ) = DebugLogger.logPerformance(operation, duration, additionalInfo)
 
     override fun exportLogs(): File? = DebugLogger.exportLogs()
 
@@ -119,22 +176,35 @@ object DebugLogger {
         logInfo("DebugLogger init complete - using $storageType storage", tag = TAG)
     }
 
-    fun logInfo(message: String, tag: String = TAG) {
+    fun logInfo(
+        message: String,
+        tag: String = TAG,
+    ) {
         Log.i(tag, message)
         writeToFile(LogLevel.INFO, tag, message)
     }
 
-    fun logDebug(message: String, tag: String = TAG) {
+    fun logDebug(
+        message: String,
+        tag: String = TAG,
+    ) {
         Log.d(tag, message)
         writeToFile(LogLevel.DEBUG, tag, message)
     }
 
-    fun logWarning(message: String, tag: String = TAG) {
+    fun logWarning(
+        message: String,
+        tag: String = TAG,
+    ) {
         Log.w(tag, message)
         writeToFile(LogLevel.WARNING, tag, message)
     }
 
-    fun logError(message: String, error: Throwable? = null, tag: String = TAG) {
+    fun logError(
+        message: String,
+        error: Throwable? = null,
+        tag: String = TAG,
+    ) {
         Log.e(tag, message, error)
         val errorMessage =
             if (error != null) {
@@ -145,13 +215,22 @@ object DebugLogger {
         writeToFile(LogLevel.ERROR, tag, errorMessage)
     }
 
-    fun logNetworkRequest(url: String, method: String, headers: Map<String, String> = emptyMap()) {
+    fun logNetworkRequest(
+        url: String,
+        method: String,
+        headers: Map<String, String> = emptyMap(),
+    ) {
         val headerString = headers.entries.joinToString(", ") { "${it.key}: ${it.value}" }
         val message = "Network Request: $method $url${if (headerString.isNotEmpty()) " | Headers: $headerString" else ""}"
         logDebug(message, "Network")
     }
 
-    fun logNetworkResponse(url: String, statusCode: Int, responseTime: Long, size: Long = 0) {
+    fun logNetworkResponse(
+        url: String,
+        statusCode: Int,
+        responseTime: Long,
+        size: Long = 0,
+    ) {
         val message = "Network Response: $statusCode $url | Time: ${responseTime}ms${if (size > 0) " | Size: ${size}B" else ""}"
         logDebug(message, "Network")
     }
@@ -175,26 +254,35 @@ object DebugLogger {
         logInfo(message, "Playback")
     }
 
-    fun logUserAction(action: String, context: String = "") {
+    fun logUserAction(
+        action: String,
+        context: String = "",
+    ) {
         val message = "User Action: $action${if (context.isNotEmpty()) " | Context: $context" else ""}"
         logInfo(message, "UserAction")
     }
 
-    fun logPerformance(operation: String, duration: Long, additionalInfo: String = "") {
+    fun logPerformance(
+        operation: String,
+        duration: Long,
+        additionalInfo: String = "",
+    ) {
         val message = "Performance: $operation took ${duration}ms${if (additionalInfo.isNotEmpty()) " | $additionalInfo" else ""}"
         logDebug(message, "Performance")
     }
 
-    fun exportLogs(): File? {
-        return logFile?.takeIf { it.exists() }
-    }
+    fun exportLogs(): File? = logFile?.takeIf { it.exists() }
 
     fun clearLogs() {
         logFile?.delete()
         logInfo("Logs cleared")
     }
 
-    private fun writeToFile(level: LogLevel, tag: String, message: String) {
+    private fun writeToFile(
+        level: LogLevel,
+        tag: String,
+        message: String,
+    ) {
         if (!isInitialized) return
 
         val context = appContext ?: return
@@ -249,16 +337,21 @@ object DebugLogger {
     /**
      * Find or create a log file in the SAF folder. Returns the file Uri.
      */
-    private fun findOrCreateLogFile(contentResolver: ContentResolver, folderUri: Uri, fileName: String): Uri? {
+    private fun findOrCreateLogFile(
+        contentResolver: ContentResolver,
+        folderUri: Uri,
+        fileName: String,
+    ): Uri? {
         // Try to find the file first
         val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(folderUri, DocumentsContract.getTreeDocumentId(folderUri))
-        val cursor = contentResolver.query(
-            childrenUri,
-            arrayOf(DocumentsContract.Document.COLUMN_DOCUMENT_ID, DocumentsContract.Document.COLUMN_DISPLAY_NAME),
-            null,
-            null,
-            null,
-        )
+        val cursor =
+            contentResolver.query(
+                childrenUri,
+                arrayOf(DocumentsContract.Document.COLUMN_DOCUMENT_ID, DocumentsContract.Document.COLUMN_DISPLAY_NAME),
+                null,
+                null,
+                null,
+            )
         cursor?.use {
             while (it.moveToNext()) {
                 val name = it.getString(1)
@@ -282,17 +375,34 @@ object DebugLogger {
 
 /** Playback events for debugging */
 sealed class PlaybackEvent {
-    data class PlaybackStarted(val audiobookTitle: String) : PlaybackEvent()
+    data class PlaybackStarted(
+        val audiobookTitle: String,
+    ) : PlaybackEvent()
 
-    data class PlaybackPaused(val audiobookTitle: String, val position: Long) : PlaybackEvent()
+    data class PlaybackPaused(
+        val audiobookTitle: String,
+        val position: Long,
+    ) : PlaybackEvent()
 
-    data class PlaybackStopped(val audiobookTitle: String) : PlaybackEvent()
+    data class PlaybackStopped(
+        val audiobookTitle: String,
+    ) : PlaybackEvent()
 
-    data class PlaybackSeek(val audiobookTitle: String, val fromPosition: Long, val toPosition: Long) : PlaybackEvent()
+    data class PlaybackSeek(
+        val audiobookTitle: String,
+        val fromPosition: Long,
+        val toPosition: Long,
+    ) : PlaybackEvent()
 
-    data class PlaybackSpeedChanged(val audiobookTitle: String, val speed: Float) : PlaybackEvent()
+    data class PlaybackSpeedChanged(
+        val audiobookTitle: String,
+        val speed: Float,
+    ) : PlaybackEvent()
 
-    data class PlaybackError(val audiobookTitle: String, val error: String) : PlaybackEvent()
+    data class PlaybackError(
+        val audiobookTitle: String,
+        val error: String,
+    ) : PlaybackEvent()
 }
 
 /** Debug panel interface for development */
@@ -331,19 +441,32 @@ data class DeviceInfo(
     val availableMemory: Long,
 )
 
-data class StorageInfo(val totalSpace: Long, val availableSpace: Long, val usedSpace: Long, val appDataSize: Long)
+data class StorageInfo(
+    val totalSpace: Long,
+    val availableSpace: Long,
+    val usedSpace: Long,
+    val appDataSize: Long,
+)
 
-data class NetworkInfo(val connectionType: String, val isConnected: Boolean, val isMetered: Boolean)
+data class NetworkInfo(
+    val connectionType: String,
+    val isConnected: Boolean,
+    val isMetered: Boolean,
+)
 
 /** Performance metrics tracker */
 object PerformanceTracker {
     private val metrics = mutableMapOf<String, MutableList<Long>>()
 
-    fun startMeasurement(@Suppress("UNUSED_PARAMETER") operation: String): Long {
-        return System.currentTimeMillis()
-    }
+    fun startMeasurement(
+        @Suppress("UNUSED_PARAMETER") operation: String,
+    ): Long = System.currentTimeMillis()
 
-    fun endMeasurement(operation: String, startTime: Long, additionalInfo: String = "") {
+    fun endMeasurement(
+        operation: String,
+        startTime: Long,
+        additionalInfo: String = "",
+    ) {
         val duration = System.currentTimeMillis() - startTime
 
         // Track metrics
@@ -353,13 +476,9 @@ object PerformanceTracker {
         DebugLogger.logPerformance(operation, duration, additionalInfo)
     }
 
-    fun getAverageTime(operation: String): Long {
-        return metrics[operation]?.average()?.toLong() ?: 0
-    }
+    fun getAverageTime(operation: String): Long = metrics[operation]?.average()?.toLong() ?: 0
 
-    fun getMetrics(): Map<String, List<Long>> {
-        return metrics.toMap()
-    }
+    fun getMetrics(): Map<String, List<Long>> = metrics.toMap()
 
     fun clearMetrics() {
         metrics.clear()
@@ -367,7 +486,11 @@ object PerformanceTracker {
 }
 
 /** Inline function for easy performance measurement */
-inline fun <reified T> measurePerformance(operation: String, additionalInfo: String = "", block: () -> T): T {
+inline fun <reified T> measurePerformance(
+    operation: String,
+    additionalInfo: String = "",
+    block: () -> T,
+): T {
     val startTime = PerformanceTracker.startMeasurement(operation)
     return try {
         block()

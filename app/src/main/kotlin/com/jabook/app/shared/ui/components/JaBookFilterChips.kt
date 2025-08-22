@@ -58,17 +58,17 @@ fun JaBookFilterChips(
                     onClick = { onFilterChange(filter.key, !filter.isSelected) },
                     label = { Text(text = filter.label, style = MaterialTheme.typography.bodyMedium) },
                     leadingIcon =
-                    if (filter.isSelected) {
-                        { Icon(imageVector = Icons.Default.Check, contentDescription = "Выбрано", modifier = Modifier.size(16.dp)) }
-                    } else {
-                        null
-                    },
+                        if (filter.isSelected) {
+                            { Icon(imageVector = Icons.Default.Check, contentDescription = "Выбрано", modifier = Modifier.size(16.dp)) }
+                        } else {
+                            null
+                        },
                     colors =
-                    FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                        selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                        selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                    ),
+                        FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                            selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        ),
                 )
             }
         }
@@ -93,11 +93,11 @@ fun JaBookFilterChips(
                         Icon(imageVector = Icons.Default.Sort, contentDescription = "Сортировка", modifier = Modifier.size(16.dp))
                     },
                     colors =
-                    AssistChipDefaults.assistChipColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                        labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                        leadingIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    ),
+                        AssistChipDefaults.assistChipColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            leadingIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        ),
                 )
             }
         }
@@ -105,10 +105,17 @@ fun JaBookFilterChips(
 }
 
 /** Модель для фильтра */
-data class FilterChip(val key: String, val label: String, val isSelected: Boolean = false)
+data class FilterChip(
+    val key: String,
+    val label: String,
+    val isSelected: Boolean = false,
+)
 
 /** Модель для опции сортировки */
-data class SortOption(val key: String, val label: String)
+data class SortOption(
+    val key: String,
+    val label: String,
+)
 
 /** Простая версия фильтров только для категорий */
 @Composable
@@ -129,17 +136,17 @@ fun JaBookCategoryChips(
                 onClick = { onCategorySelect(null) },
                 label = { Text(text = "Все", style = MaterialTheme.typography.bodyMedium) },
                 leadingIcon =
-                if (selectedCategory == null) {
-                    { Icon(imageVector = Icons.Default.Check, contentDescription = "Выбрано", modifier = Modifier.size(16.dp)) }
-                } else {
-                    null
-                },
+                    if (selectedCategory == null) {
+                        { Icon(imageVector = Icons.Default.Check, contentDescription = "Выбрано", modifier = Modifier.size(16.dp)) }
+                    } else {
+                        null
+                    },
                 colors =
-                FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                    selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                    selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                ),
+                    FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                        selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    ),
             )
         }
 
@@ -150,17 +157,17 @@ fun JaBookCategoryChips(
                 onClick = { onCategorySelect(category) },
                 label = { Text(text = category, style = MaterialTheme.typography.bodyMedium) },
                 leadingIcon =
-                if (selectedCategory == category) {
-                    { Icon(imageVector = Icons.Default.Check, contentDescription = "Выбрано", modifier = Modifier.size(16.dp)) }
-                } else {
-                    null
-                },
+                    if (selectedCategory == category) {
+                        { Icon(imageVector = Icons.Default.Check, contentDescription = "Выбрано", modifier = Modifier.size(16.dp)) }
+                    } else {
+                        null
+                    },
                 colors =
-                FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                    selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                    selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                ),
+                    FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                        selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    ),
             )
         }
     }

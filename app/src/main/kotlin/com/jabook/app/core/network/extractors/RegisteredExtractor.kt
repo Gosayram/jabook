@@ -9,11 +9,12 @@ object RegisteredExtractor {
 
     fun extractRegistered(doc: Document): Date? {
         // Try to extract registration date from various selectors
-        val registeredSelectors = listOf(
-            ".registered-date",
-            ".user-registered",
-            ".reg-date",
-        )
+        val registeredSelectors =
+            listOf(
+                ".registered-date",
+                ".user-registered",
+                ".reg-date",
+            )
 
         for (selector in registeredSelectors) {
             val element = doc.selectFirst(selector)

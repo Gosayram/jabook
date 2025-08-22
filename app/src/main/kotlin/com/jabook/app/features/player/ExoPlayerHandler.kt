@@ -12,7 +12,6 @@ class ExoPlayerHandler(
     private val mediaItemManager: MediaItemManager,
     private val listener: Player.Listener,
 ) {
-
     var exoPlayer: ExoPlayer? = null
         private set
 
@@ -23,7 +22,8 @@ class ExoPlayerHandler(
 
             // Create new ExoPlayer instance
             exoPlayer =
-                ExoPlayer.Builder(context)
+                ExoPlayer
+                    .Builder(context)
                     .setSeekBackIncrementMs(15000) // 15 seconds
                     .setSeekForwardIncrementMs(30000) // 30 seconds
                     .build()
@@ -59,7 +59,10 @@ class ExoPlayerHandler(
         exoPlayer?.seekTo(position)
     }
 
-    fun seekToChapter(chapterIndex: Int, chapters: List<Chapter>) {
+    fun seekToChapter(
+        chapterIndex: Int,
+        chapters: List<Chapter>,
+    ) {
         if (chapterIndex >= 0 && chapterIndex < chapters.size) {
             exoPlayer?.seekTo(chapterIndex, 0)
         }
@@ -83,19 +86,11 @@ class ExoPlayerHandler(
         exoPlayer = null
     }
 
-    fun getCurrentPosition(): Long {
-        return exoPlayer?.currentPosition ?: 0
-    }
+    fun getCurrentPosition(): Long = exoPlayer?.currentPosition ?: 0
 
-    fun getDuration(): Long {
-        return exoPlayer?.duration ?: 0
-    }
+    fun getDuration(): Long = exoPlayer?.duration ?: 0
 
-    fun getCurrentChapterIndex(): Int? {
-        return exoPlayer?.currentMediaItemIndex
-    }
+    fun getCurrentChapterIndex(): Int? = exoPlayer?.currentMediaItemIndex
 
-    fun getPlaybackSpeed(): Float {
-        return exoPlayer?.playbackParameters?.speed ?: 1.0f
-    }
+    fun getPlaybackSpeed(): Float = exoPlayer?.playbackParameters?.speed ?: 1.0f
 }

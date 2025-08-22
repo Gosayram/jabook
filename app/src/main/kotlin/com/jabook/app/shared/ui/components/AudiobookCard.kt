@@ -42,7 +42,7 @@ fun AudiobookCard(
         modifier = modifier.fillMaxWidth().clickable { onClick() },
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp, pressedElevation = 8.dp),
         colors =
-        CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface, contentColor = MaterialTheme.colorScheme.onSurface),
+            CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface, contentColor = MaterialTheme.colorScheme.onSurface),
         shape = RoundedCornerShape(12.dp),
     ) {
         when (cardStyle) {
@@ -57,12 +57,19 @@ fun AudiobookCard(
 }
 
 @Composable
-private fun GridCardContent(audiobook: Audiobook, showProgress: Boolean) {
+private fun GridCardContent(
+    audiobook: Audiobook,
+    showProgress: Boolean,
+) {
     Column(modifier = Modifier.padding(12.dp)) {
         // Обложка книги
         Box(
             modifier =
-            Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(8.dp)).background(MaterialTheme.colorScheme.surfaceVariant),
+                Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(1f)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
         ) {
             AsyncImage(
                 model = audiobook.coverUrl,
@@ -119,7 +126,10 @@ private fun GridCardContent(audiobook: Audiobook, showProgress: Boolean) {
 }
 
 @Composable
-private fun ListCardContent(audiobook: Audiobook, showProgress: Boolean) {
+private fun ListCardContent(
+    audiobook: Audiobook,
+    showProgress: Boolean,
+) {
     Row(modifier = Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         // Обложка книги
         Box(modifier = Modifier.size(80.dp).clip(RoundedCornerShape(8.dp)).background(MaterialTheme.colorScheme.surfaceVariant)) {
@@ -188,7 +198,10 @@ private fun ListCardContent(audiobook: Audiobook, showProgress: Boolean) {
 }
 
 @Composable
-private fun DownloadStatusIndicator(status: DownloadStatus, modifier: Modifier = Modifier) {
+private fun DownloadStatusIndicator(
+    status: DownloadStatus,
+    modifier: Modifier = Modifier,
+) {
     val (backgroundColor, text) =
         when (status) {
             DownloadStatus.NOT_DOWNLOADED -> MaterialTheme.colorScheme.surface to ""

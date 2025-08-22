@@ -18,150 +18,163 @@ import com.jabook.app.core.domain.model.DownloadStatus as DomainDownloadStatus
 /** Implementation of AudiobookRepository using Room database. Provides concrete data access operations for audiobooks. */
 @Singleton
 class AudiobookRepositoryImpl
-@Inject
-constructor(
-    private val audiobookDao: AudiobookDao,
-    private val chapterHelper: ChapterHelper,
-    private val bookmarkHelper: BookmarkHelper,
-) : AudiobookRepository {
+    @Inject
+    constructor(
+        private val audiobookDao: AudiobookDao,
+        private val chapterHelper: ChapterHelper,
+        private val bookmarkHelper: BookmarkHelper,
+    ) : AudiobookRepository {
+        // Chapter operations delegated to ChapterHelper
+        override suspend fun upsertChapter(chapter: Chapter) = chapterHelper.upsertChapter(chapter)
 
-    // Chapter operations delegated to ChapterHelper
-    override suspend fun upsertChapter(chapter: Chapter) = chapterHelper.upsertChapter(chapter)
-    override suspend fun upsertChapters(chapters: List<Chapter>) = chapterHelper.upsertChapters(chapters)
-    override fun getChaptersByAudiobookId(audiobookId: String) = chapterHelper.getChaptersByAudiobookId(audiobookId)
-    override suspend fun getChapterById(id: String) = chapterHelper.getChapterById(id)
-    override suspend fun getChapterByNumber(audiobookId: String, chapterNumber: Int) = chapterHelper.getChapterByNumber(
-        audiobookId,
-        chapterNumber,
-    )
-    override suspend fun updateChapterDownloadStatus(
-        id: String,
-        isDownloaded: Boolean,
-        progress: Float,
-    ) = chapterHelper.updateChapterDownloadStatus(
-        id,
-        isDownloaded,
-        progress,
-    )
-    override suspend fun deleteChapter(id: String) = chapterHelper.deleteChapter(id)
-    override suspend fun deleteChaptersForAudiobook(audiobookId: String) = chapterHelper.deleteChaptersForAudiobook(audiobookId)
+        override suspend fun upsertChapters(chapters: List<Chapter>) = chapterHelper.upsertChapters(chapters)
 
-    // Bookmark operations delegated to BookmarkHelper
-    override suspend fun upsertBookmark(bookmark: Bookmark) = bookmarkHelper.upsertBookmark(bookmark)
-    override fun getBookmarksByAudiobookId(audiobookId: String) = bookmarkHelper.getBookmarksByAudiobookId(audiobookId)
-    override suspend fun getBookmarkById(id: String) = bookmarkHelper.getBookmarkById(id)
-    override fun getAllBookmarks() = bookmarkHelper.getAllBookmarks()
-    override suspend fun deleteBookmark(id: String) = bookmarkHelper.deleteBookmark(id)
-    override suspend fun deleteBookmarksForAudiobook(audiobookId: String) = bookmarkHelper.deleteBookmarksForAudiobook(audiobookId)
+        override fun getChaptersByAudiobookId(audiobookId: String) = chapterHelper.getChaptersByAudiobookId(audiobookId)
 
-    // Audiobook operations
-    override fun getAllAudiobooks(): Flow<List<Audiobook>> {
-        return audiobookDao.getAllAudiobooks().map { it.toDomainList() }
-    }
+        override suspend fun getChapterById(id: String) = chapterHelper.getChapterById(id)
 
-    override suspend fun getAudiobookById(id: String): Audiobook? {
-        return audiobookDao.getAudiobookById(id)?.toDomain()
-    }
+        override suspend fun getChapterByNumber(
+            audiobookId: String,
+            chapterNumber: Int,
+        ) = chapterHelper.getChapterByNumber(
+            audiobookId,
+            chapterNumber,
+        )
 
-    override fun getAudiobookByIdFlow(id: String): Flow<Audiobook?> {
-        return audiobookDao.getAudiobookByIdFlow(id).map { it?.toDomain() }
-    }
+        override suspend fun updateChapterDownloadStatus(
+            id: String,
+            isDownloaded: Boolean,
+            progress: Float,
+        ) = chapterHelper.updateChapterDownloadStatus(
+            id,
+            isDownloaded,
+            progress,
+        )
 
-    override fun getAudiobooksByCategory(category: String): Flow<List<Audiobook>> {
-        return audiobookDao.getAudiobooksByCategory(category).map { it.toDomainList() }
-    }
+        override suspend fun deleteChapter(id: String) = chapterHelper.deleteChapter(id)
 
-    override fun getFavoriteAudiobooks(): Flow<List<Audiobook>> {
-        return audiobookDao.getFavoriteAudiobooks().map { it.toDomainList() }
-    }
+        override suspend fun deleteChaptersForAudiobook(audiobookId: String) = chapterHelper.deleteChaptersForAudiobook(audiobookId)
 
-    override fun getCurrentlyPlayingAudiobooks(): Flow<List<Audiobook>> {
-        return audiobookDao.getCurrentlyPlayingAudiobooks().map { it.toDomainList() }
-    }
+        // Bookmark operations delegated to BookmarkHelper
+        override suspend fun upsertBookmark(bookmark: Bookmark) = bookmarkHelper.upsertBookmark(bookmark)
 
-    override fun getCompletedAudiobooks(): Flow<List<Audiobook>> {
-        return audiobookDao.getCompletedAudiobooks().map { it.toDomainList() }
-    }
+        override fun getBookmarksByAudiobookId(audiobookId: String) = bookmarkHelper.getBookmarksByAudiobookId(audiobookId)
 
-    override fun getDownloadedAudiobooks(): Flow<List<Audiobook>> {
-        return audiobookDao.getDownloadedAudiobooks().map { it.toDomainList() }
-    }
+        override suspend fun getBookmarkById(id: String) = bookmarkHelper.getBookmarkById(id)
 
-    override fun getAudiobooksByDownloadStatus(status: DomainDownloadStatus): Flow<List<Audiobook>> {
-        val entityStatus = status.toEntityStatus()
-        return audiobookDao.getAudiobooksByDownloadStatus(entityStatus).map { it.toDomainList() }
-    }
+        override fun getAllBookmarks() = bookmarkHelper.getAllBookmarks()
 
-    override fun searchAudiobooks(query: String): Flow<List<Audiobook>> {
-        return audiobookDao.searchAudiobooks(query).map { it.toDomainList() }
-    }
+        override suspend fun deleteBookmark(id: String) = bookmarkHelper.deleteBookmark(id)
 
-    override fun getAllCategories(): Flow<List<String>> {
-        return audiobookDao.getAllCategories()
-    }
+        override suspend fun deleteBookmarksForAudiobook(audiobookId: String) = bookmarkHelper.deleteBookmarksForAudiobook(audiobookId)
 
-    override suspend fun upsertAudiobook(audiobook: Audiobook) {
-        audiobookDao.insertAudiobook(audiobook.toEntity())
-    }
+        // Audiobook operations
+        override fun getAllAudiobooks(): Flow<List<Audiobook>> = audiobookDao.getAllAudiobooks().map { it.toDomainList() }
 
-    override suspend fun upsertAudiobooks(audiobooks: List<Audiobook>) {
-        audiobookDao.insertAudiobooks(audiobooks.map { it.toEntity() })
-    }
+        override suspend fun getAudiobookById(id: String): Audiobook? = audiobookDao.getAudiobookById(id)?.toDomain()
 
-    override suspend fun updatePlaybackPosition(id: String, positionMs: Long) {
-        audiobookDao.updatePlaybackPosition(id, positionMs)
-    }
+        override fun getAudiobookByIdFlow(id: String): Flow<Audiobook?> = audiobookDao.getAudiobookByIdFlow(id).map { it?.toDomain() }
 
-    override suspend fun updateDownloadStatus(id: String, status: DomainDownloadStatus, progress: Float, error: String?) {
-        audiobookDao.updateDownloadStatus(id, status.toEntityStatus(), progress, error)
-    }
+        override fun getAudiobooksByCategory(category: String): Flow<List<Audiobook>> =
+            audiobookDao.getAudiobooksByCategory(category).map {
+                it.toDomainList()
+            }
 
-    override suspend fun updateFavoriteStatus(id: String, isFavorite: Boolean) {
-        audiobookDao.updateFavoriteStatus(id, isFavorite)
-    }
+        override fun getFavoriteAudiobooks(): Flow<List<Audiobook>> = audiobookDao.getFavoriteAudiobooks().map { it.toDomainList() }
 
-    override suspend fun updateCompletionStatus(id: String, isCompleted: Boolean) {
-        audiobookDao.updateCompletionStatus(id, isCompleted)
-    }
+        override fun getCurrentlyPlayingAudiobooks(): Flow<List<Audiobook>> =
+            audiobookDao.getCurrentlyPlayingAudiobooks().map { it.toDomainList() }
 
-    override suspend fun updateUserRating(id: String, rating: Float?) {
-        audiobookDao.updateUserRating(id, rating)
-    }
+        override fun getCompletedAudiobooks(): Flow<List<Audiobook>> = audiobookDao.getCompletedAudiobooks().map { it.toDomainList() }
 
-    override suspend fun updatePlaybackSpeed(id: String, speed: Float) {
-        audiobookDao.updatePlaybackSpeed(id, speed)
-    }
+        override fun getDownloadedAudiobooks(): Flow<List<Audiobook>> = audiobookDao.getDownloadedAudiobooks().map { it.toDomainList() }
 
-    override suspend fun deleteAudiobook(id: String) {
-        audiobookDao.deleteAudiobookById(id)
-    }
-
-    override suspend fun deleteFailedDownloads() {
-        audiobookDao.deleteFailedDownloads()
-    }
-
-    override suspend fun getAudiobooksCount(): Int {
-        return audiobookDao.getAudiobooksCount()
-    }
-
-    override suspend fun getTotalDownloadedSize(): Long {
-        return audiobookDao.getTotalDownloadedSize()
-    }
-
-    override suspend fun resetAllPlaybackPositions() {
-        audiobookDao.resetAllPlaybackPositions()
-    }
-
-    /** Convert domain DownloadStatus to entity DownloadStatus. */
-    private fun DomainDownloadStatus.toEntityStatus(): EntityDownloadStatus {
-        return when (this) {
-            DomainDownloadStatus.NOT_DOWNLOADED -> EntityDownloadStatus.NOT_DOWNLOADED
-            DomainDownloadStatus.QUEUED -> EntityDownloadStatus.QUEUED
-            DomainDownloadStatus.DOWNLOADING -> EntityDownloadStatus.DOWNLOADING
-            DomainDownloadStatus.PAUSED -> EntityDownloadStatus.PAUSED
-            DomainDownloadStatus.COMPLETED -> EntityDownloadStatus.COMPLETED
-            DomainDownloadStatus.FAILED -> EntityDownloadStatus.FAILED
-            DomainDownloadStatus.CANCELLED -> EntityDownloadStatus.CANCELLED
+        override fun getAudiobooksByDownloadStatus(status: DomainDownloadStatus): Flow<List<Audiobook>> {
+            val entityStatus = status.toEntityStatus()
+            return audiobookDao.getAudiobooksByDownloadStatus(entityStatus).map { it.toDomainList() }
         }
+
+        override fun searchAudiobooks(query: String): Flow<List<Audiobook>> = audiobookDao.searchAudiobooks(query).map { it.toDomainList() }
+
+        override fun getAllCategories(): Flow<List<String>> = audiobookDao.getAllCategories()
+
+        override suspend fun upsertAudiobook(audiobook: Audiobook) {
+            audiobookDao.insertAudiobook(audiobook.toEntity())
+        }
+
+        override suspend fun upsertAudiobooks(audiobooks: List<Audiobook>) {
+            audiobookDao.insertAudiobooks(audiobooks.map { it.toEntity() })
+        }
+
+        override suspend fun updatePlaybackPosition(
+            id: String,
+            positionMs: Long,
+        ) {
+            audiobookDao.updatePlaybackPosition(id, positionMs)
+        }
+
+        override suspend fun updateDownloadStatus(
+            id: String,
+            status: DomainDownloadStatus,
+            progress: Float,
+            error: String?,
+        ) {
+            audiobookDao.updateDownloadStatus(id, status.toEntityStatus(), progress, error)
+        }
+
+        override suspend fun updateFavoriteStatus(
+            id: String,
+            isFavorite: Boolean,
+        ) {
+            audiobookDao.updateFavoriteStatus(id, isFavorite)
+        }
+
+        override suspend fun updateCompletionStatus(
+            id: String,
+            isCompleted: Boolean,
+        ) {
+            audiobookDao.updateCompletionStatus(id, isCompleted)
+        }
+
+        override suspend fun updateUserRating(
+            id: String,
+            rating: Float?,
+        ) {
+            audiobookDao.updateUserRating(id, rating)
+        }
+
+        override suspend fun updatePlaybackSpeed(
+            id: String,
+            speed: Float,
+        ) {
+            audiobookDao.updatePlaybackSpeed(id, speed)
+        }
+
+        override suspend fun deleteAudiobook(id: String) {
+            audiobookDao.deleteAudiobookById(id)
+        }
+
+        override suspend fun deleteFailedDownloads() {
+            audiobookDao.deleteFailedDownloads()
+        }
+
+        override suspend fun getAudiobooksCount(): Int = audiobookDao.getAudiobooksCount()
+
+        override suspend fun getTotalDownloadedSize(): Long = audiobookDao.getTotalDownloadedSize()
+
+        override suspend fun resetAllPlaybackPositions() {
+            audiobookDao.resetAllPlaybackPositions()
+        }
+
+        /** Convert domain DownloadStatus to entity DownloadStatus. */
+        private fun DomainDownloadStatus.toEntityStatus(): EntityDownloadStatus =
+            when (this) {
+                DomainDownloadStatus.NOT_DOWNLOADED -> EntityDownloadStatus.NOT_DOWNLOADED
+                DomainDownloadStatus.QUEUED -> EntityDownloadStatus.QUEUED
+                DomainDownloadStatus.DOWNLOADING -> EntityDownloadStatus.DOWNLOADING
+                DomainDownloadStatus.PAUSED -> EntityDownloadStatus.PAUSED
+                DomainDownloadStatus.COMPLETED -> EntityDownloadStatus.COMPLETED
+                DomainDownloadStatus.FAILED -> EntityDownloadStatus.FAILED
+                DomainDownloadStatus.CANCELLED -> EntityDownloadStatus.CANCELLED
+            }
     }
-}

@@ -12,9 +12,7 @@ import com.jabook.app.R
 import com.jabook.app.features.settings.presentation.RuTrackerSettingsViewModel
 
 @Composable
-fun TestLogEntrySection(
-    viewModel: RuTrackerSettingsViewModel,
-) {
+fun TestLogEntrySection(viewModel: RuTrackerSettingsViewModel) {
     val context = LocalContext.current
 
     // Button to manually write a test log entry for SAF diagnostics

@@ -14,20 +14,24 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface AudiobookDao {
     /** Get all audiobooks ordered by last played date. */
-    @Query("SELECT * FROM audiobooks ORDER BY last_played_at DESC, added_at DESC") fun getAllAudiobooks(): Flow<List<AudiobookEntity>>
+    @Query("SELECT * FROM audiobooks ORDER BY last_played_at DESC, added_at DESC")
+    fun getAllAudiobooks(): Flow<List<AudiobookEntity>>
 
     /** Get audiobook by ID. */
-    @Query("SELECT * FROM audiobooks WHERE id = :id") suspend fun getAudiobookById(id: String): AudiobookEntity?
+    @Query("SELECT * FROM audiobooks WHERE id = :id")
+    suspend fun getAudiobookById(id: String): AudiobookEntity?
 
     /** Get audiobook by ID as Flow for reactive updates. */
-    @Query("SELECT * FROM audiobooks WHERE id = :id") fun getAudiobookByIdFlow(id: String): Flow<AudiobookEntity?>
+    @Query("SELECT * FROM audiobooks WHERE id = :id")
+    fun getAudiobookByIdFlow(id: String): Flow<AudiobookEntity?>
 
     /** Get audiobooks by category. */
     @Query("SELECT * FROM audiobooks WHERE category = :category ORDER BY title ASC")
     fun getAudiobooksByCategory(category: String): Flow<List<AudiobookEntity>>
 
     /** Get favorite audiobooks. */
-    @Query("SELECT * FROM audiobooks WHERE is_favorite = 1 ORDER BY title ASC") fun getFavoriteAudiobooks(): Flow<List<AudiobookEntity>>
+    @Query("SELECT * FROM audiobooks WHERE is_favorite = 1 ORDER BY title ASC")
+    fun getFavoriteAudiobooks(): Flow<List<AudiobookEntity>>
 
     /** Get currently playing audiobooks (with progress). */
     @Query(
@@ -64,13 +68,16 @@ interface AudiobookDao {
     fun searchAudiobooks(query: String): Flow<List<AudiobookEntity>>
 
     /** Get all distinct categories. */
-    @Query("SELECT DISTINCT category FROM audiobooks ORDER BY category ASC") fun getAllCategories(): Flow<List<String>>
+    @Query("SELECT DISTINCT category FROM audiobooks ORDER BY category ASC")
+    fun getAllCategories(): Flow<List<String>>
 
     /** Insert a new audiobook. */
-    @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun insertAudiobook(audiobook: AudiobookEntity)
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAudiobook(audiobook: AudiobookEntity)
 
     /** Insert multiple audiobooks. */
-    @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun insertAudiobooks(audiobooks: List<AudiobookEntity>)
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAudiobooks(audiobooks: List<AudiobookEntity>)
 
     /** Update an existing audiobook. */
     @Update suspend fun updateAudiobook(audiobook: AudiobookEntity)
@@ -85,7 +92,10 @@ interface AudiobookDao {
         WHERE id = :id
     """,
     )
-    suspend fun updatePlaybackPosition(id: String, positionMs: Long)
+    suspend fun updatePlaybackPosition(
+        id: String,
+        positionMs: Long,
+    )
 
     /** Update download status and progress. */
     @Query(
@@ -98,7 +108,12 @@ interface AudiobookDao {
         WHERE id = :id
     """,
     )
-    suspend fun updateDownloadStatus(id: String, status: DownloadStatus, progress: Float, error: String? = null)
+    suspend fun updateDownloadStatus(
+        id: String,
+        status: DownloadStatus,
+        progress: Float,
+        error: String? = null,
+    )
 
     /** Mark audiobook as favorite/unfavorite. */
     @Query(
@@ -109,7 +124,10 @@ interface AudiobookDao {
         WHERE id = :id
     """,
     )
-    suspend fun updateFavoriteStatus(id: String, isFavorite: Boolean)
+    suspend fun updateFavoriteStatus(
+        id: String,
+        isFavorite: Boolean,
+    )
 
     /** Mark audiobook as completed. */
     @Query(
@@ -121,7 +139,10 @@ interface AudiobookDao {
         WHERE id = :id
     """,
     )
-    suspend fun updateCompletionStatus(id: String, isCompleted: Boolean)
+    suspend fun updateCompletionStatus(
+        id: String,
+        isCompleted: Boolean,
+    )
 
     /** Update user rating. */
     @Query(
@@ -132,7 +153,10 @@ interface AudiobookDao {
         WHERE id = :id
     """,
     )
-    suspend fun updateUserRating(id: String, rating: Float?)
+    suspend fun updateUserRating(
+        id: String,
+        rating: Float?,
+    )
 
     /** Update playback speed. */
     @Query(
@@ -143,22 +167,29 @@ interface AudiobookDao {
         WHERE id = :id
     """,
     )
-    suspend fun updatePlaybackSpeed(id: String, speed: Float)
+    suspend fun updatePlaybackSpeed(
+        id: String,
+        speed: Float,
+    )
 
     /** Delete an audiobook. */
     @Delete suspend fun deleteAudiobook(audiobook: AudiobookEntity)
 
     /** Delete audiobook by ID. */
-    @Query("DELETE FROM audiobooks WHERE id = :id") suspend fun deleteAudiobookById(id: String)
+    @Query("DELETE FROM audiobooks WHERE id = :id")
+    suspend fun deleteAudiobookById(id: String)
 
     /** Delete all audiobooks with failed downloads. */
-    @Query("DELETE FROM audiobooks WHERE download_status = 'FAILED'") suspend fun deleteFailedDownloads()
+    @Query("DELETE FROM audiobooks WHERE download_status = 'FAILED'")
+    suspend fun deleteFailedDownloads()
 
     /** Get total count of audiobooks. */
-    @Query("SELECT COUNT(*) FROM audiobooks") suspend fun getAudiobooksCount(): Int
+    @Query("SELECT COUNT(*) FROM audiobooks")
+    suspend fun getAudiobooksCount(): Int
 
     /** Get total size of downloaded audiobooks. */
-    @Query("SELECT SUM(file_size) FROM audiobooks WHERE download_status = 'COMPLETED'") suspend fun getTotalDownloadedSize(): Long
+    @Query("SELECT SUM(file_size) FROM audiobooks WHERE download_status = 'COMPLETED'")
+    suspend fun getTotalDownloadedSize(): Long
 
     /** Reset all playback positions (for testing/debug). */
     @Query(

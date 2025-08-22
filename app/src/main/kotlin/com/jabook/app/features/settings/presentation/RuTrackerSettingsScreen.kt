@@ -20,15 +20,14 @@ import com.jabook.app.features.settings.presentation.components.StatusMessageCar
 import com.jabook.app.features.settings.presentation.components.TestLogEntrySection
 
 @Composable
-fun RuTrackerSettingsScreen(
-    viewModel: RuTrackerSettingsViewModel = hiltViewModel(),
-) {
+fun RuTrackerSettingsScreen(viewModel: RuTrackerSettingsViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsState()
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         ModeToggleCard(
@@ -38,12 +37,13 @@ fun RuTrackerSettingsScreen(
 
         if (!state.isGuestMode) {
             LoginCard(
-                state = LoginCardState(
-                    username = state.username,
-                    password = state.password,
-                    isAuthorized = state.isAuthorized,
-                    isLoading = state.isLoading,
-                ),
+                state =
+                    LoginCardState(
+                        username = state.username,
+                        password = state.password,
+                        isAuthorized = state.isAuthorized,
+                        isLoading = state.isLoading,
+                    ),
                 onUsernameChange = viewModel::setUsername,
                 onPasswordChange = viewModel::setPassword,
                 onLogin = viewModel::login,

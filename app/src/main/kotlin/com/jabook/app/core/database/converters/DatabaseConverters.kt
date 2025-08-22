@@ -8,25 +8,17 @@ import java.util.Date
 class DatabaseConverters {
     /** Convert Date to Long timestamp. */
     @TypeConverter
-    fun fromDate(date: Date?): Long? {
-        return date?.time
-    }
+    fun fromDate(date: Date?): Long? = date?.time
 
     /** Convert Long timestamp to Date. */
     @TypeConverter
-    fun toDate(timestamp: Long?): Date? {
-        return timestamp?.let { Date(it) }
-    }
+    fun toDate(timestamp: Long?): Date? = timestamp?.let { Date(it) }
 
     /** Convert DownloadStatus enum to String. */
     @TypeConverter
-    fun fromDownloadStatus(status: DownloadStatus): String {
-        return status.name
-    }
+    fun fromDownloadStatus(status: DownloadStatus): String = status.name
 
     /** Convert String to DownloadStatus enum. */
     @TypeConverter
-    fun toDownloadStatus(status: String): DownloadStatus {
-        return DownloadStatus.valueOf(status)
-    }
+    fun toDownloadStatus(status: String): DownloadStatus = DownloadStatus.valueOf(status)
 }

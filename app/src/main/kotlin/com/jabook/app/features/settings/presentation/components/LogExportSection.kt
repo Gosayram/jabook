@@ -15,9 +15,7 @@ import com.jabook.app.features.settings.presentation.RuTrackerSettingsViewModel
 import java.io.File
 
 @Composable
-fun LogExportSection(
-    viewModel: RuTrackerSettingsViewModel,
-) {
+fun LogExportSection(viewModel: RuTrackerSettingsViewModel) {
     val context = LocalContext.current
 
     Button(
@@ -26,16 +24,18 @@ fun LogExportSection(
             val logFile: File? = viewModel.exportLogs()
             if (logFile != null && logFile.exists()) {
                 try {
-                    val uri = FileProvider.getUriForFile(
-                        context,
-                        context.packageName + ".provider",
-                        logFile,
-                    )
-                    val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                        type = "text/plain"
-                        putExtra(Intent.EXTRA_STREAM, uri)
-                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                    }
+                    val uri =
+                        FileProvider.getUriForFile(
+                            context,
+                            context.packageName + ".provider",
+                            logFile,
+                        )
+                    val shareIntent =
+                        Intent(Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            putExtra(Intent.EXTRA_STREAM, uri)
+                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        }
                     context.startActivity(Intent.createChooser(shareIntent, "Share debug log file"))
                     Toast.makeText(context, context.getString(R.string.export_logs_success), Toast.LENGTH_SHORT).show()
                 } catch (e: Exception) {

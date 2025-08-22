@@ -19,25 +19,19 @@ object DatabaseModule {
     /** Provides the singleton Room database instance. */
     @Provides
     @Singleton
-    fun provideJaBookDatabase(@ApplicationContext context: Context): JaBookDatabase {
-        return JaBookDatabase.getInstance(context)
-    }
+    fun provideJaBookDatabase(
+        @ApplicationContext context: Context,
+    ): JaBookDatabase = JaBookDatabase.getInstance(context)
 
     /** Provides the AudiobookDao from the database. */
     @Provides
-    fun provideAudiobookDao(database: JaBookDatabase): AudiobookDao {
-        return database.audiobookDao()
-    }
+    fun provideAudiobookDao(database: JaBookDatabase): AudiobookDao = database.audiobookDao()
 
     /** Provides the ChapterDao from the database. */
     @Provides
-    fun provideChapterDao(database: JaBookDatabase): ChapterDao {
-        return database.chapterDao()
-    }
+    fun provideChapterDao(database: JaBookDatabase): ChapterDao = database.chapterDao()
 
     /** Provides the BookmarkDao from the database. */
     @Provides
-    fun provideBookmarkDao(database: JaBookDatabase): BookmarkDao {
-        return database.bookmarkDao()
-    }
+    fun provideBookmarkDao(database: JaBookDatabase): BookmarkDao = database.bookmarkDao()
 }

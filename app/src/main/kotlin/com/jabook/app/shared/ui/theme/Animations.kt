@@ -27,7 +27,6 @@ import androidx.compose.ui.graphics.TransformOrigin
  * timing and easing.
  */
 object JaBookAnimations {
-
     // Standard durations following Material Design 3
     const val DURATION_SHORT = 150
     const val DURATION_MEDIUM = 300
@@ -100,43 +99,36 @@ object JaBookAnimations {
 
 /** Transition for play/pause button state changes */
 @Composable
-fun playPauseTransition(isPlaying: Boolean): Transition<Boolean> {
-    return updateTransition(targetState = isPlaying, label = "playPauseTransition")
-}
+fun playPauseTransition(isPlaying: Boolean): Transition<Boolean> = updateTransition(targetState = isPlaying, label = "playPauseTransition")
 
 /** Scale animation for play/pause button */
 @Composable
-fun Transition<Boolean>.animatePlayPauseScale(): State<Float> {
-    return animateFloat(transitionSpec = { JaBookAnimations.springAnimationSpec }, label = "playPauseScale") { playing ->
+fun Transition<Boolean>.animatePlayPauseScale(): State<Float> =
+    animateFloat(transitionSpec = { JaBookAnimations.springAnimationSpec }, label = "playPauseScale") { playing ->
         if (playing) 1.1f else 1.0f
     }
-}
 
 /** Loading state transition */
 @Composable
-fun loadingTransition(isLoading: Boolean): Transition<Boolean> {
-    return updateTransition(targetState = isLoading, label = "loadingTransition")
-}
+fun loadingTransition(isLoading: Boolean): Transition<Boolean> = updateTransition(targetState = isLoading, label = "loadingTransition")
 
 /** Fade animation for loading states */
 @Composable
-fun Transition<Boolean>.animateLoadingAlpha(): State<Float> {
-    return animateFloat(transitionSpec = { JaBookAnimations.mediumAnimationSpec }, label = "loadingAlpha") { loading ->
+fun Transition<Boolean>.animateLoadingAlpha(): State<Float> =
+    animateFloat(transitionSpec = { JaBookAnimations.mediumAnimationSpec }, label = "loadingAlpha") { loading ->
         if (loading) 0.6f else 1.0f
     }
-}
 
 /** Progress bar animation */
 @Composable
-fun progressTransition(progress: Float): Transition<Float> {
-    return updateTransition(targetState = progress, label = "progressTransition")
-}
+fun progressTransition(progress: Float): Transition<Float> = updateTransition(targetState = progress, label = "progressTransition")
 
 /** Smooth progress animation */
 @Composable
-fun Transition<Float>.animateProgressValue(): State<Float> {
-    return animateFloat(transitionSpec = { JaBookAnimations.mediumAnimationSpec }, label = "progressValue") { it }
-}
+fun Transition<Float>.animateProgressValue(): State<Float> =
+    animateFloat(transitionSpec = {
+        JaBookAnimations.mediumAnimationSpec
+    }, label = "progressValue") { it }
 
 /** Download status transition */
 enum class DownloadAnimationState {
@@ -148,14 +140,13 @@ enum class DownloadAnimationState {
 }
 
 @Composable
-fun downloadStatusTransition(status: DownloadAnimationState): Transition<DownloadAnimationState> {
-    return updateTransition(targetState = status, label = "downloadStatusTransition")
-}
+fun downloadStatusTransition(status: DownloadAnimationState): Transition<DownloadAnimationState> =
+    updateTransition(targetState = status, label = "downloadStatusTransition")
 
 /** Color animation for download status */
 @Composable
-fun Transition<DownloadAnimationState>.animateDownloadColor(): State<Float> {
-    return animateFloat(transitionSpec = { JaBookAnimations.mediumAnimationSpec }, label = "downloadColor") { state ->
+fun Transition<DownloadAnimationState>.animateDownloadColor(): State<Float> =
+    animateFloat(transitionSpec = { JaBookAnimations.mediumAnimationSpec }, label = "downloadColor") { state ->
         when (state) {
             DownloadAnimationState.IDLE -> 0f
             DownloadAnimationState.DOWNLOADING -> 1f
@@ -164,32 +155,26 @@ fun Transition<DownloadAnimationState>.animateDownloadColor(): State<Float> {
             DownloadAnimationState.ERROR -> 0.8f
         }
     }
-}
 
 /** Bookmark animation state */
 @Composable
-fun bookmarkTransition(isBookmarked: Boolean): Transition<Boolean> {
-    return updateTransition(targetState = isBookmarked, label = "bookmarkTransition")
-}
+fun bookmarkTransition(isBookmarked: Boolean): Transition<Boolean> =
+    updateTransition(targetState = isBookmarked, label = "bookmarkTransition")
 
 /** Scale animation for bookmark button */
 @Composable
-fun Transition<Boolean>.animateBookmarkScale(): State<Float> {
-    return animateFloat(transitionSpec = { JaBookAnimations.springAnimationSpec }, label = "bookmarkScale") { bookmarked ->
+fun Transition<Boolean>.animateBookmarkScale(): State<Float> =
+    animateFloat(transitionSpec = { JaBookAnimations.springAnimationSpec }, label = "bookmarkScale") { bookmarked ->
         if (bookmarked) 1.2f else 1.0f
     }
-}
 
 /** Favorite animation state */
 @Composable
-fun favoriteTransition(isFavorite: Boolean): Transition<Boolean> {
-    return updateTransition(targetState = isFavorite, label = "favoriteTransition")
-}
+fun favoriteTransition(isFavorite: Boolean): Transition<Boolean> = updateTransition(targetState = isFavorite, label = "favoriteTransition")
 
 /** Scale animation for favorite button */
 @Composable
-fun Transition<Boolean>.animateFavoriteScale(): State<Float> {
-    return animateFloat(transitionSpec = { JaBookAnimations.springAnimationSpec }, label = "favoriteScale") { favorite ->
+fun Transition<Boolean>.animateFavoriteScale(): State<Float> =
+    animateFloat(transitionSpec = { JaBookAnimations.springAnimationSpec }, label = "favoriteScale") { favorite ->
         if (favorite) 1.15f else 1.0f
     }
-}

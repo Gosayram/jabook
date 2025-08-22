@@ -139,11 +139,11 @@ fun DiscoveryScreen(
                     }
                 }
                 item {
-                SearchResultsSection(
-                    uiState = uiState,
-                    onNavigateToAudiobook = onNavigateToAudiobook,
-                    onDownload = onDownload,
-                )
+                    SearchResultsSection(
+                        uiState = uiState,
+                        onNavigateToAudiobook = onNavigateToAudiobook,
+                        onDownload = onDownload,
+                    )
                 }
                 item {
                     TrendingSection(
@@ -326,10 +326,11 @@ private fun RecentlyAddedSection(
 
 @Composable
 private fun EmptyStateSection(uiState: DiscoveryUiState) {
-    val shouldShowEmptyState = !uiState.isSearchActive &&
-        uiState.trendingAudiobooks.isEmpty() &&
-        uiState.recentlyAdded.isEmpty() &&
-        !uiState.isLoading
+    val shouldShowEmptyState =
+        !uiState.isSearchActive &&
+            uiState.trendingAudiobooks.isEmpty() &&
+            uiState.recentlyAdded.isEmpty() &&
+            !uiState.isLoading
 
     if (shouldShowEmptyState) {
         JaBookEmptyState(
@@ -342,7 +343,11 @@ private fun EmptyStateSection(uiState: DiscoveryUiState) {
 }
 
 @Composable
-private fun PaginationLoader(isLoading: Boolean, isSearchActive: Boolean, hasResults: Boolean) {
+private fun PaginationLoader(
+    isLoading: Boolean,
+    isSearchActive: Boolean,
+    hasResults: Boolean,
+) {
     if (isLoading && isSearchActive && hasResults) {
         Box(modifier = Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
             CircularProgressIndicator()
@@ -351,7 +356,11 @@ private fun PaginationLoader(isLoading: Boolean, isSearchActive: Boolean, hasRes
 }
 
 @Composable
-private fun MainLoader(isLoading: Boolean, isSearchActive: Boolean, hasResults: Boolean) {
+private fun MainLoader(
+    isLoading: Boolean,
+    isSearchActive: Boolean,
+    hasResults: Boolean,
+) {
     if (isLoading && (!isSearchActive || !hasResults)) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
     }

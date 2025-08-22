@@ -7,7 +7,6 @@ import kotlinx.coroutines.flow.Flow
 
 /** Repository interface for torrent management Handles downloading audiobooks via torrent protocol */
 interface TorrentRepository {
-
     /**
      * Add torrent to download queue
      *
@@ -16,7 +15,11 @@ interface TorrentRepository {
      * @param downloadPath Path where to download files
      * @return Flow of torrent handle
      */
-    suspend fun addTorrent(magnetUri: String, audiobookId: String, downloadPath: String): Flow<TorrentHandle>
+    suspend fun addTorrent(
+        magnetUri: String,
+        audiobookId: String,
+        downloadPath: String,
+    ): Flow<TorrentHandle>
 
     /**
      * Get download progress for specific torrent
@@ -60,7 +63,10 @@ interface TorrentRepository {
      * @param torrentId Torrent ID to remove
      * @param deleteFiles Whether to delete downloaded files
      */
-    suspend fun removeTorrent(torrentId: String, deleteFiles: Boolean = false)
+    suspend fun removeTorrent(
+        torrentId: String,
+        deleteFiles: Boolean = false,
+    )
 
     /**
      * Get torrent status

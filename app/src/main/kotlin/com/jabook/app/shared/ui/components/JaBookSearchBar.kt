@@ -111,23 +111,23 @@ fun JaBookSearchBar(
             enabled = isEnabled,
             singleLine = true,
             colors =
-            OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = MaterialTheme.colorScheme.primary,
-                unfocusedBorderColor = MaterialTheme.colorScheme.outline,
-                focusedTextColor = MaterialTheme.colorScheme.onSurface,
-                unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
-                cursorColor = MaterialTheme.colorScheme.primary,
-            ),
+                OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                    focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                    unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                    cursorColor = MaterialTheme.colorScheme.primary,
+                ),
             shape = RoundedCornerShape(16.dp),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, imeAction = ImeAction.Search),
             keyboardActions =
-            KeyboardActions(
-                onSearch = {
-                    onSearch(internalQuery)
-                    keyboardController?.hide()
-                    focusManager.clearFocus()
-                },
-            ),
+                KeyboardActions(
+                    onSearch = {
+                        onSearch(internalQuery)
+                        keyboardController?.hide()
+                        focusManager.clearFocus()
+                    },
+                ),
         )
     }
 }
@@ -178,22 +178,22 @@ fun JaBookSearchField(
         enabled = isEnabled,
         singleLine = true,
         colors =
-        OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = MaterialTheme.colorScheme.primary,
-            unfocusedBorderColor = MaterialTheme.colorScheme.outline,
-            focusedTextColor = MaterialTheme.colorScheme.onSurface,
-            unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
-            cursorColor = MaterialTheme.colorScheme.primary,
-        ),
+            OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                cursorColor = MaterialTheme.colorScheme.primary,
+            ),
         shape = RoundedCornerShape(12.dp),
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, imeAction = ImeAction.Search),
         keyboardActions =
-        KeyboardActions(
-            onSearch = {
-                onSearch(query)
-                keyboardController?.hide()
-                focusManager.clearFocus()
-            },
-        ),
+            KeyboardActions(
+                onSearch = {
+                    onSearch(query)
+                    keyboardController?.hide()
+                    focusManager.clearFocus()
+                },
+            ),
     )
 }

@@ -93,21 +93,21 @@ fun MiniPlayerBar(
 
     Column(
         modifier =
-        modifier
-            .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surface)
-            .clickable { onBarClick() }
-            .padding(horizontal = 16.dp, vertical = 8.dp)
-            .graphicsLayer { shadowElevation = barElevation },
+            modifier
+                .fillMaxWidth()
+                .background(MaterialTheme.colorScheme.surface)
+                .clickable { onBarClick() }
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+                .graphicsLayer { shadowElevation = barElevation },
     ) {
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             // Book icon placeholder with subtle animation
             Box(
                 modifier =
-                Modifier.size(40.dp).clip(CircleShape).background(MaterialTheme.colorScheme.surfaceVariant).graphicsLayer {
-                    scaleX = if (isPlaying) 1.05f else 1.0f
-                    scaleY = if (isPlaying) 1.05f else 1.0f
-                },
+                    Modifier.size(40.dp).clip(CircleShape).background(MaterialTheme.colorScheme.surfaceVariant).graphicsLayer {
+                        scaleX = if (isPlaying) 1.05f else 1.0f
+                        scaleY = if (isPlaying) 1.05f else 1.0f
+                    },
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
@@ -119,9 +119,10 @@ fun MiniPlayerBar(
 
             // Title and author with animation
             Column(
-                modifier = Modifier.weight(1f).padding(horizontal = 12.dp).graphicsLayer {
-                    alpha = if (isPlaying) 1.0f else 0.8f
-                },
+                modifier =
+                    Modifier.weight(1f).padding(horizontal = 12.dp).graphicsLayer {
+                        alpha = if (isPlaying) 1.0f else 0.8f
+                    },
             ) {
                 Text(
                     text = audiobook.title,
@@ -142,9 +143,9 @@ fun MiniPlayerBar(
             // Play/Pause button with enhanced animations
             Box(
                 modifier =
-                Modifier.size(40.dp).scale(playButtonScale).clip(CircleShape).background(playButtonBackgroundColor).clickable {
-                    onPlayPause()
-                },
+                    Modifier.size(40.dp).scale(playButtonScale).clip(CircleShape).background(playButtonBackgroundColor).clickable {
+                        onPlayPause()
+                    },
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(

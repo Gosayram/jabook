@@ -9,12 +9,13 @@ object StateExtractor {
 
     fun extractTorrentState(doc: Document): TorrentState {
         // Try to extract torrent state from various selectors
-        val stateSelectors = listOf(
-            ".torrent-state",
-            ".status",
-            ".state",
-            ".torrent-status",
-        )
+        val stateSelectors =
+            listOf(
+                ".torrent-state",
+                ".status",
+                ".state",
+                ".torrent-status",
+            )
 
         for (selector in stateSelectors) {
             val element = doc.selectFirst(selector)
@@ -27,8 +28,8 @@ object StateExtractor {
         return DEFAULT_TORRENT_STATE
     }
 
-    private fun parseStateText(stateText: String): TorrentState {
-        return when {
+    private fun parseStateText(stateText: String): TorrentState =
+        when {
             isApprovedState(stateText) -> TorrentState.APPROVED
             isPendingState(stateText) -> TorrentState.PENDING
             isRejectedState(stateText) -> TorrentState.REJECTED
@@ -39,14 +40,20 @@ object StateExtractor {
             isAbsorbedState(stateText) -> TorrentState.ABSORBED
             else -> DEFAULT_TORRENT_STATE
         }
-    }
 
     private fun isApprovedState(text: String) = text.contains("approved") || text.contains("одобрено")
+
     private fun isPendingState(text: String) = text.contains("pending") || text.contains("ожидание")
+
     private fun isRejectedState(text: String) = text.contains("rejected") || text.contains("отклонено")
+
     private fun isDuplicateState(text: String) = text.contains("duplicate") || text.contains("дубликат")
+
     private fun isClosedState(text: String) = text.contains("closed") || text.contains("закрыто")
+
     private fun isNeedEditState(text: String) = text.contains("need_edit") || text.contains("требует правки")
+
     private fun isCheckingState(text: String) = text.contains("checking") || text.contains("проверка")
+
     private fun isAbsorbedState(text: String) = text.contains("absorbed") || text.contains("поглощено")
 }

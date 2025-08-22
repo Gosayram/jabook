@@ -34,7 +34,11 @@ import com.jabook.app.core.domain.model.RuTrackerAudiobook
 import com.jabook.app.shared.utils.formatFileSize
 
 @Composable
-fun AudiobookSectionCard(audiobook: RuTrackerAudiobook, onClick: () -> Unit, modifier: Modifier = Modifier) {
+fun AudiobookSectionCard(
+    audiobook: RuTrackerAudiobook,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     Card(
         modifier = modifier.clickable { onClick() },
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),

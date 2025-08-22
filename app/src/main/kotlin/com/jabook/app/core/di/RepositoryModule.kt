@@ -15,8 +15,10 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 abstract class RepositoryModule {
     /** Bind AudiobookRepositoryImpl to AudiobookRepository interface. */
-    @Binds @Singleton abstract fun bindAudiobookRepository(audiobookRepositoryImpl: AudiobookRepositoryImpl): AudiobookRepository
+    @Binds @Singleton
+    abstract fun bindAudiobookRepository(audiobookRepositoryImpl: AudiobookRepositoryImpl): AudiobookRepository
 
     /** Bind TorrentRepositoryImpl to TorrentRepository interface. */
-    @Binds @Singleton abstract fun bindTorrentRepository(torrentRepositoryImpl: TorrentRepositoryImpl): TorrentRepository
+    @Binds @Singleton
+    abstract fun bindTorrentRepository(torrentRepositoryImpl: TorrentRepositoryImpl): TorrentRepository
 }

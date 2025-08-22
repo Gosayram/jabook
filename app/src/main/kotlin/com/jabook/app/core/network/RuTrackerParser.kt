@@ -12,9 +12,13 @@ import javax.inject.Singleton
  */
 interface RuTrackerParser {
     suspend fun parseSearchResults(html: String): List<RuTrackerAudiobook>
+
     suspend fun parseAudiobookDetails(html: String): RuTrackerAudiobook?
+
     suspend fun parseCategories(html: String): List<RuTrackerCategory>
+
     suspend fun extractMagnetLink(html: String): String?
+
     suspend fun extractTorrentLink(html: String): String?
 }
 
@@ -22,30 +26,31 @@ interface RuTrackerParser {
  * Default implementation of RuTracker HTML Parser
  */
 @Singleton
-class RuTrackerParserImpl @Inject constructor() : RuTrackerParser {
+class RuTrackerParserImpl
+    @Inject
+    constructor() : RuTrackerParser {
+        override suspend fun parseSearchResults(html: String): List<RuTrackerAudiobook> {
+            // Basic implementation - to be overridden by improved parser
+            return emptyList()
+        }
 
-    override suspend fun parseSearchResults(html: String): List<RuTrackerAudiobook> {
-        // Basic implementation - to be overridden by improved parser
-        return emptyList()
-    }
+        override suspend fun parseAudiobookDetails(html: String): RuTrackerAudiobook? {
+            // Basic implementation - to be overridden by improved parser
+            return null
+        }
 
-    override suspend fun parseAudiobookDetails(html: String): RuTrackerAudiobook? {
-        // Basic implementation - to be overridden by improved parser
-        return null
-    }
+        override suspend fun parseCategories(html: String): List<RuTrackerCategory> {
+            // Basic implementation - to be overridden by improved parser
+            return emptyList()
+        }
 
-    override suspend fun parseCategories(html: String): List<RuTrackerCategory> {
-        // Basic implementation - to be overridden by improved parser
-        return emptyList()
-    }
+        override suspend fun extractMagnetLink(html: String): String? {
+            // Basic implementation - to be overridden by improved parser
+            return null
+        }
 
-    override suspend fun extractMagnetLink(html: String): String? {
-        // Basic implementation - to be overridden by improved parser
-        return null
+        override suspend fun extractTorrentLink(html: String): String? {
+            // Basic implementation - to be overridden by improved parser
+            return null
+        }
     }
-
-    override suspend fun extractTorrentLink(html: String): String? {
-        // Basic implementation - to be overridden by improved parser
-        return null
-    }
-}

@@ -44,7 +44,9 @@ import com.jabook.app.shared.ui.ThemeViewModel
 import com.jabook.app.shared.ui.theme.JaBookAnimations
 
 /** Navigation destinations for the app */
-sealed class Screen(val route: String) {
+sealed class Screen(
+    val route: String,
+) {
     object Library : Screen("library")
 
     object Discovery : Screen("discovery")
@@ -146,33 +148,29 @@ fun JaBookNavigation(
 }
 
 /** Get enter transition for forward navigation */
-private fun getEnterTransition(): EnterTransition {
-    return slideInHorizontally(
+private fun getEnterTransition(): EnterTransition =
+    slideInHorizontally(
         animationSpec = tween(durationMillis = JaBookAnimations.DURATION_MEDIUM, easing = JaBookAnimations.EMPHASIZED_EASING),
         initialOffsetX = { it },
     ) + fadeIn(animationSpec = tween(durationMillis = JaBookAnimations.DURATION_MEDIUM, easing = JaBookAnimations.STANDARD_EASING))
-}
 
 /** Get exit transition for forward navigation */
-private fun getExitTransition(): ExitTransition {
-    return slideOutHorizontally(
+private fun getExitTransition(): ExitTransition =
+    slideOutHorizontally(
         animationSpec = tween(durationMillis = JaBookAnimations.DURATION_SHORT, easing = JaBookAnimations.STANDARD_EASING),
         targetOffsetX = { -it / 3 },
     ) + fadeOut(animationSpec = tween(durationMillis = JaBookAnimations.DURATION_SHORT, easing = JaBookAnimations.STANDARD_EASING))
-}
 
 /** Get enter transition for back navigation */
-private fun getPopEnterTransition(): EnterTransition {
-    return slideInHorizontally(
+private fun getPopEnterTransition(): EnterTransition =
+    slideInHorizontally(
         animationSpec = tween(durationMillis = JaBookAnimations.DURATION_MEDIUM, easing = JaBookAnimations.EMPHASIZED_EASING),
         initialOffsetX = { -it / 3 },
     ) + fadeIn(animationSpec = tween(durationMillis = JaBookAnimations.DURATION_MEDIUM, easing = JaBookAnimations.STANDARD_EASING))
-}
 
 /** Get exit transition for back navigation */
-private fun getPopExitTransition(): ExitTransition {
-    return slideOutHorizontally(
+private fun getPopExitTransition(): ExitTransition =
+    slideOutHorizontally(
         animationSpec = tween(durationMillis = JaBookAnimations.DURATION_SHORT, easing = JaBookAnimations.STANDARD_EASING),
         targetOffsetX = { it },
     ) + fadeOut(animationSpec = tween(durationMillis = JaBookAnimations.DURATION_SHORT, easing = JaBookAnimations.STANDARD_EASING))
-}

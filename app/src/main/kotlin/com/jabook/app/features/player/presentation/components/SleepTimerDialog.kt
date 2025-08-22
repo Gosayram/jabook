@@ -18,7 +18,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
 @Composable
-fun SleepTimerDialog(currentMinutes: Int, onTimerSet: (Int) -> Unit, onDismiss: () -> Unit) {
+fun SleepTimerDialog(
+    currentMinutes: Int,
+    onTimerSet: (Int) -> Unit,
+    onDismiss: () -> Unit,
+) {
     val availableTimers = listOf(0, 5, 10, 15, 30, 45, 60, 90, 120) // 0 means off
 
     AlertDialog(

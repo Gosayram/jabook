@@ -48,22 +48,42 @@ interface AudiobookRepository {
     suspend fun upsertAudiobooks(audiobooks: List<Audiobook>)
 
     /** Update playback position. */
-    suspend fun updatePlaybackPosition(id: String, positionMs: Long)
+    suspend fun updatePlaybackPosition(
+        id: String,
+        positionMs: Long,
+    )
 
     /** Update download status. */
-    suspend fun updateDownloadStatus(id: String, status: DownloadStatus, progress: Float, error: String? = null)
+    suspend fun updateDownloadStatus(
+        id: String,
+        status: DownloadStatus,
+        progress: Float,
+        error: String? = null,
+    )
 
     /** Update favorite status. */
-    suspend fun updateFavoriteStatus(id: String, isFavorite: Boolean)
+    suspend fun updateFavoriteStatus(
+        id: String,
+        isFavorite: Boolean,
+    )
 
     /** Update completion status. */
-    suspend fun updateCompletionStatus(id: String, isCompleted: Boolean)
+    suspend fun updateCompletionStatus(
+        id: String,
+        isCompleted: Boolean,
+    )
 
     /** Update user rating. */
-    suspend fun updateUserRating(id: String, rating: Float?)
+    suspend fun updateUserRating(
+        id: String,
+        rating: Float?,
+    )
 
     /** Update playback speed. */
-    suspend fun updatePlaybackSpeed(id: String, speed: Float)
+    suspend fun updatePlaybackSpeed(
+        id: String,
+        speed: Float,
+    )
 
     /** Delete audiobook. */
     suspend fun deleteAudiobook(id: String)
@@ -89,7 +109,10 @@ interface AudiobookRepository {
     suspend fun getChapterById(id: String): Chapter?
 
     /** Get chapter by number. */
-    suspend fun getChapterByNumber(audiobookId: String, chapterNumber: Int): Chapter?
+    suspend fun getChapterByNumber(
+        audiobookId: String,
+        chapterNumber: Int,
+    ): Chapter?
 
     /** Insert or update chapter. */
     suspend fun upsertChapter(chapter: Chapter)
@@ -98,7 +121,11 @@ interface AudiobookRepository {
     suspend fun upsertChapters(chapters: List<Chapter>)
 
     /** Update chapter download status. */
-    suspend fun updateChapterDownloadStatus(id: String, isDownloaded: Boolean, progress: Float)
+    suspend fun updateChapterDownloadStatus(
+        id: String,
+        isDownloaded: Boolean,
+        progress: Float,
+    )
 
     /** Delete chapter. */
     suspend fun deleteChapter(id: String)

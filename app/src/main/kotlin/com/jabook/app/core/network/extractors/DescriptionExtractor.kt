@@ -4,11 +4,12 @@ import org.jsoup.nodes.Document
 
 object DescriptionExtractor {
     fun extractDescription(doc: Document): String {
-        val descriptionSelectors = listOf(
-            "div.post_body",
-            "div.post_body span.post-i",
-            "div.post_body span.post-b:contains(Описание:) + *",
-        )
+        val descriptionSelectors =
+            listOf(
+                "div.post_body",
+                "div.post_body span.post-i",
+                "div.post_body span.post-b:contains(Описание:) + *",
+            )
 
         for (selector in descriptionSelectors) {
             val element = doc.selectFirst(selector)

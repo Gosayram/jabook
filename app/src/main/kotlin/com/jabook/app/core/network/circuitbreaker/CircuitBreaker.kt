@@ -7,14 +7,16 @@ import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * Circuit Breaker implementation for RuTracker domains
- * 
+ *
  * States:
  * - CLOSED: Normal operation, requests pass through
  * - OPEN: Circuit is open, requests fail fast
  * - HALF_OPEN: Testing if service has recovered
  */
 enum class CircuitBreakerState {
-    CLOSED, OPEN, HALF_OPEN
+    CLOSED,
+    OPEN,
+    HALF_OPEN,
 }
 
 /**
@@ -24,14 +26,14 @@ data class CircuitBreakerConfig(
     val failureThreshold: Int = 5,
     val recoveryTimeout: Long = 60_000L, // 1 minute
     val expectedException: Class<out Throwable> = RuTrackerException::class.java,
-    val halfOpenAttempts: Int = 3
+    val halfOpenAttempts: Int = 3,
 )
 
 /**
  * Circuit Breaker implementation
  */
 class CircuitBreaker(
-    private val config: CircuitBreakerConfig = CircuitBreakerConfig()
+    private val config: CircuitBreakerConfig = CircuitBreakerConfig(),
 ) {
     private val mutex = Mutex()
     private var state: CircuitBreakerState = CircuitBreakerState.CLOSED
@@ -42,8 +44,8 @@ class CircuitBreaker(
     /**
      * Check if request is allowed
      */
-    suspend fun allowRequest(): Boolean {
-        return mutex.withLock {
+    suspend fun allowRequest(): Boolean =
+        mutex.withLock {
             when (state) {
                 CircuitBreakerState.CLOSED -> true
                 CircuitBreakerState.OPEN -> {
@@ -67,7 +69,6 @@ class CircuitBreaker(
                 }
             }
         }
-    }
 
     /**
      * Record successful request
@@ -97,8 +98,9 @@ class CircuitBreaker(
      */
     suspend fun recordFailure(exception: Throwable? = null) {
         mutex.withLock {
-            val shouldCountFailure = exception == null || 
-                config.expectedException.isInstance(exception)
+            val shouldCountFailure =
+                exception == null ||
+                    config.expectedException.isInstance(exception)
 
             if (!shouldCountFailure) {
                 return
@@ -130,8 +132,8 @@ class CircuitBreaker(
     /**
      * Get current state
      */
-    suspend fun getState(): CircuitBreakerState {
-        return mutex.withLock {
+    suspend fun getState(): CircuitBreakerState =
+        mutex.withLock {
             // Check if we should transition from OPEN to HALF_OPEN
             if (state == CircuitBreakerState.OPEN) {
                 val now = System.currentTimeMillis()
@@ -142,25 +144,22 @@ class CircuitBreaker(
             }
             state
         }
-    }
 
     /**
      * Get current failure count
      */
-    suspend fun getFailureCount(): Int {
-        return mutex.withLock {
+    suspend fun getFailureCount(): Int =
+        mutex.withLock {
             failureCount.get()
         }
-    }
 
     /**
      * Get time since last failure
      */
-    suspend fun getTimeSinceLastFailure(): Long {
-        return mutex.withLock {
+    suspend fun getTimeSinceLastFailure(): Long =
+        mutex.withLock {
             if (lastFailureTime == 0L) 0 else System.currentTimeMillis() - lastFailureTime
         }
-    }
 
     /**
      * Reset circuit breaker to CLOSED state
@@ -187,11 +186,11 @@ class CircuitBreaker(
     /**
      * Get circuit breaker status as string
      */
-    suspend fun getStatus(): String {
-        return mutex.withLock {
+    suspend fun getStatus(): String =
+        mutex.withLock {
             val failureCount = failureCount.get()
             val timeSinceFailure = if (lastFailureTime == 0L) 0 else System.currentTimeMillis() - lastFailureTime
-            
+
             """
             Circuit Breaker Status:
             State: $state
@@ -201,7 +200,6 @@ class CircuitBreaker(
             Config: failureThreshold=${config.failureThreshold}, recoveryTimeout=${config.recoveryTimeout}ms
             """.trimIndent()
         }
-    }
 }
 
 /**
@@ -212,36 +210,38 @@ object CircuitBreakerFactory {
         failureThreshold: Int = 5,
         recoveryTimeout: Long = 60_000L,
         expectedException: Class<out Throwable> = RuTrackerException::class.java,
-        halfOpenAttempts: Int = 3
-    ): CircuitBreaker {
-        return CircuitBreaker(
+        halfOpenAttempts: Int = 3,
+    ): CircuitBreaker =
+        CircuitBreaker(
             CircuitBreakerConfig(
                 failureThreshold = failureThreshold,
                 recoveryTimeout = recoveryTimeout,
                 expectedException = expectedException,
-                halfOpenAttempts = halfOpenAttempts
-            )
+                halfOpenAttempts = halfOpenAttempts,
+            ),
         )
-    }
 
     fun createForDomain(domain: String): CircuitBreaker {
         // Different configurations for different domains
         return when (domain) {
-            "rutracker.me" -> create(
-                failureThreshold = 3, // Lower threshold for primary domain
-                recoveryTimeout = 30_000L, // Faster recovery for primary domain
-                halfOpenAttempts = 2
-            )
-            "rutracker.org" -> create(
-                failureThreshold = 5,
-                recoveryTimeout = 60_000L,
-                halfOpenAttempts = 3
-            )
-            "rutracker.net" -> create(
-                failureThreshold = 2, // Very low threshold for broken domain
-                recoveryTimeout = 300_000L, // Long recovery time
-                halfOpenAttempts = 1
-            )
+            "rutracker.me" ->
+                create(
+                    failureThreshold = 3, // Lower threshold for primary domain
+                    recoveryTimeout = 30_000L, // Faster recovery for primary domain
+                    halfOpenAttempts = 2,
+                )
+            "rutracker.org" ->
+                create(
+                    failureThreshold = 5,
+                    recoveryTimeout = 60_000L,
+                    halfOpenAttempts = 3,
+                )
+            "rutracker.net" ->
+                create(
+                    failureThreshold = 2, // Very low threshold for broken domain
+                    recoveryTimeout = 300_000L, // Long recovery time
+                    halfOpenAttempts = 1,
+                )
             else -> create() // Default configuration
         }
     }

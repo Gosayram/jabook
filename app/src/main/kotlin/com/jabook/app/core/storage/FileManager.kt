@@ -6,7 +6,6 @@ import java.io.File
 
 /** File manager interface for audiobook storage and organization Based on IDEA.md file structure specification */
 interface FileManager {
-
     /** Initialize file manager and create necessary directories */
     suspend fun initialize()
 
@@ -56,7 +55,10 @@ interface FileManager {
     suspend fun deleteAudiobook(audiobook: Audiobook): Boolean
 
     /** Move audiobook files to different location */
-    suspend fun moveAudiobook(audiobook: Audiobook, newLocation: File): Boolean
+    suspend fun moveAudiobook(
+        audiobook: Audiobook,
+        newLocation: File,
+    ): Boolean
 
     /** Get total size of audiobook files */
     suspend fun getAudiobookSize(audiobook: Audiobook): Long
@@ -68,10 +70,16 @@ interface FileManager {
     suspend fun validateFileSystem(): FileSystemValidationResult
 
     /** Export audiobook to external storage */
-    suspend fun exportAudiobook(audiobook: Audiobook, destinationPath: String): Boolean
+    suspend fun exportAudiobook(
+        audiobook: Audiobook,
+        destinationPath: String,
+    ): Boolean
 
     /** Import audiobook from external storage */
-    suspend fun importAudiobook(sourcePath: String, audiobook: Audiobook): Boolean
+    suspend fun importAudiobook(
+        sourcePath: String,
+        audiobook: Audiobook,
+    ): Boolean
 }
 
 /** Storage information for audiobook files */
@@ -93,21 +101,37 @@ data class AudiobookStorageInfo(
 
 /** File system event for monitoring changes */
 sealed class FileSystemEvent {
-    data class FileCreated(val file: File) : FileSystemEvent()
+    data class FileCreated(
+        val file: File,
+    ) : FileSystemEvent()
 
-    data class FileDeleted(val file: File) : FileSystemEvent()
+    data class FileDeleted(
+        val file: File,
+    ) : FileSystemEvent()
 
-    data class FileModified(val file: File) : FileSystemEvent()
+    data class FileModified(
+        val file: File,
+    ) : FileSystemEvent()
 
-    data class DirectoryCreated(val directory: File) : FileSystemEvent()
+    data class DirectoryCreated(
+        val directory: File,
+    ) : FileSystemEvent()
 
-    data class DirectoryDeleted(val directory: File) : FileSystemEvent()
+    data class DirectoryDeleted(
+        val directory: File,
+    ) : FileSystemEvent()
 
-    data class StorageSpaceChanged(val storageInfo: AudiobookStorageInfo) : FileSystemEvent()
+    data class StorageSpaceChanged(
+        val storageInfo: AudiobookStorageInfo,
+    ) : FileSystemEvent()
 }
 
 /** File system validation result */
-data class FileSystemValidationResult(val isValid: Boolean, val issues: List<FileSystemIssue>, val fixedIssues: List<FileSystemIssue>)
+data class FileSystemValidationResult(
+    val isValid: Boolean,
+    val issues: List<FileSystemIssue>,
+    val fixedIssues: List<FileSystemIssue>,
+)
 
 /** File system issue */
 data class FileSystemIssue(

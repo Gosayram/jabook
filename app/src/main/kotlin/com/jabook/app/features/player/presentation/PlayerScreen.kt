@@ -86,21 +86,22 @@ fun PlayerScreen(
                 )
                 Spacer(modifier = Modifier.height(28.dp))
                 PlayerControlsSection(
-                    params = PlayerControlsSectionParams(
-                        uiState = uiState,
-                        onPlayPause = { viewModel.playPause() },
-                        onSeekForward = { viewModel.seekForward() },
-                        onSeekBackward = { viewModel.seekBackward() },
-                        onNextChapter = { viewModel.nextChapter() },
-                        onPreviousChapter = { viewModel.previousChapter() },
-                        onSpeedClick = { viewModel.showSpeedDialog() },
-                        onSleepTimerClick = { viewModel.showSleepTimerDialog() },
-                        onBookmarkClick = { viewModel.addBookmark() },
-                        onShowBookmarksClick = {
-                            viewModel.showBookmarksSheet()
-                            coroutineScope.launch { sheetState.show() }
-                        },
-                    ),
+                    params =
+                        PlayerControlsSectionParams(
+                            uiState = uiState,
+                            onPlayPause = { viewModel.playPause() },
+                            onSeekForward = { viewModel.seekForward() },
+                            onSeekBackward = { viewModel.seekBackward() },
+                            onNextChapter = { viewModel.nextChapter() },
+                            onPreviousChapter = { viewModel.previousChapter() },
+                            onSpeedClick = { viewModel.showSpeedDialog() },
+                            onSleepTimerClick = { viewModel.showSleepTimerDialog() },
+                            onBookmarkClick = { viewModel.addBookmark() },
+                            onShowBookmarksClick = {
+                                viewModel.showBookmarksSheet()
+                                coroutineScope.launch { sheetState.show() }
+                            },
+                        ),
                 )
             } else {
                 PlayerEmptyState()
@@ -215,21 +216,22 @@ data class PlayerControlsSectionParams(
 
 @Composable
 private fun PlayerControlsSection(params: PlayerControlsSectionParams) {
-    val playerParams = PlayerControlsParams(
-        isPlaying = params.uiState.isPlaying,
-        playbackSpeed = params.uiState.playbackSpeed,
-        sleepTimerMinutes = params.uiState.sleepTimerMinutes,
-        onPlayPause = params.onPlayPause,
-        onSeekForward = params.onSeekForward,
-        onSeekBackward = params.onSeekBackward,
-        onNextChapter = params.onNextChapter,
-        onPreviousChapter = params.onPreviousChapter,
-        onSpeedClick = params.onSpeedClick,
-        onSleepTimerClick = params.onSleepTimerClick,
-        onBookmarkClick = params.onBookmarkClick,
-        onShowBookmarksClick = params.onShowBookmarksClick,
-        modifier = Modifier.fillMaxWidth(),
-    )
+    val playerParams =
+        PlayerControlsParams(
+            isPlaying = params.uiState.isPlaying,
+            playbackSpeed = params.uiState.playbackSpeed,
+            sleepTimerMinutes = params.uiState.sleepTimerMinutes,
+            onPlayPause = params.onPlayPause,
+            onSeekForward = params.onSeekForward,
+            onSeekBackward = params.onSeekBackward,
+            onNextChapter = params.onNextChapter,
+            onPreviousChapter = params.onPreviousChapter,
+            onSpeedClick = params.onSpeedClick,
+            onSleepTimerClick = params.onSleepTimerClick,
+            onBookmarkClick = params.onBookmarkClick,
+            onShowBookmarksClick = params.onShowBookmarksClick,
+            modifier = Modifier.fillMaxWidth(),
+        )
     PlayerControls(params = playerParams)
 }
 
@@ -292,9 +294,10 @@ private fun BookmarksSheetSection(
                 LazyColumn {
                     items(bookmarks, key = { it.id }) { bookmark ->
                         Row(
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp).clickable {
-                                onBookmarkClick(bookmark.positionMs)
-                            },
+                            modifier =
+                                Modifier.fillMaxWidth().padding(vertical = 8.dp).clickable {
+                                    onBookmarkClick(bookmark.positionMs)
+                                },
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
@@ -345,8 +348,8 @@ fun formatTime(timeMs: Long): String {
 
 // Helper function to format sleep timer
 @Composable
-fun formatSleepTimer(minutes: Int): String {
-    return if (minutes > 0) {
+fun formatSleepTimer(minutes: Int): String =
+    if (minutes > 0) {
         val hours = minutes / 60
         val remainingMinutes = minutes % 60
 
@@ -358,4 +361,3 @@ fun formatSleepTimer(minutes: Int): String {
     } else {
         ""
     }
-}

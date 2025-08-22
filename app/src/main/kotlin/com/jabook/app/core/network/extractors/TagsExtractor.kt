@@ -8,13 +8,14 @@ object TagsExtractor {
 
     fun extractTags(doc: Document): List<String> {
         // Try to extract tags from various selectors
-        val tagSelectors = listOf(
-            ".tags",
-            ".tag",
-            ".keywords",
-            ".labels",
-            ".categories",
-        )
+        val tagSelectors =
+            listOf(
+                ".tags",
+                ".tag",
+                ".keywords",
+                ".labels",
+                ".categories",
+            )
 
         val tags = mutableListOf<String>()
 
@@ -24,9 +25,11 @@ object TagsExtractor {
                 val tagText = element.text().trim()
                 if (tagText.isNotBlank() && !tags.contains(tagText)) {
                     // Split by common separators
-                    val splitTags = tagText.split(",", ";", "|", "•")
-                        .map { it.trim() }
-                        .filter { it.isNotBlank() }
+                    val splitTags =
+                        tagText
+                            .split(",", ";", "|", "•")
+                            .map { it.trim() }
+                            .filter { it.isNotBlank() }
 
                     tags.addAll(splitTags)
                 }

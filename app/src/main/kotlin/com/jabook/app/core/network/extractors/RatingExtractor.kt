@@ -8,12 +8,13 @@ object RatingExtractor {
 
     fun extractRating(doc: Document): Float? {
         // Try to extract rating from various selectors
-        val ratingSelectors = listOf(
-            ".rating",
-            ".stars",
-            ".score",
-            ".rating-value",
-        )
+        val ratingSelectors =
+            listOf(
+                ".rating",
+                ".stars",
+                ".score",
+                ".rating-value",
+            )
 
         for (selector in ratingSelectors) {
             val element = doc.selectFirst(selector)

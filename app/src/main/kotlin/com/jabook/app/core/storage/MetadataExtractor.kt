@@ -5,7 +5,6 @@ import java.io.File
 
 /** Interface for extracting metadata from audio files */
 interface MetadataExtractor {
-
     /** Extract basic metadata from audio file */
     suspend fun extractMetadata(audioFile: File): AudioFileMetadata?
 
@@ -19,7 +18,10 @@ interface MetadataExtractor {
     suspend fun generateAudiobookMetadata(audioFiles: List<File>): ExtractedAudiobookMetadata?
 
     /** Generate chapters from audio files */
-    suspend fun generateChapters(audioFiles: List<File>, audiobookId: String): List<Chapter>
+    suspend fun generateChapters(
+        audioFiles: List<File>,
+        audiobookId: String,
+    ): List<Chapter>
 
     /** Validate audio file integrity */
     suspend fun validateAudioFile(audioFile: File): AudioFileValidationResult
@@ -83,10 +85,18 @@ data class ChapterMetadata(
 )
 
 /** Audio file validation result */
-data class AudioFileValidationResult(val isValid: Boolean, val issues: List<AudioFileIssue>, val canAutoFix: Boolean)
+data class AudioFileValidationResult(
+    val isValid: Boolean,
+    val issues: List<AudioFileIssue>,
+    val canAutoFix: Boolean,
+)
 
 /** Audio file issue */
-data class AudioFileIssue(val type: AudioFileIssueType, val severity: AudioFileIssueSeverity, val description: String)
+data class AudioFileIssue(
+    val type: AudioFileIssueType,
+    val severity: AudioFileIssueSeverity,
+    val description: String,
+)
 
 enum class AudioFileIssueType {
     CORRUPTED_FILE,

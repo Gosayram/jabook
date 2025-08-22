@@ -10,9 +10,7 @@ import com.jabook.app.R
 import com.jabook.app.features.settings.presentation.RuTrackerSettingsViewModel
 
 @Composable
-fun AvailabilityCheckSection(
-    viewModel: RuTrackerSettingsViewModel,
-) {
+fun AvailabilityCheckSection(viewModel: RuTrackerSettingsViewModel) {
     // Button to manually check RuTracker availability
     Button(
         onClick = {

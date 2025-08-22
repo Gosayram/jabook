@@ -16,7 +16,9 @@ enum class AppThemeMode { SYSTEM, LIGHT, DARK }
 
 private val Application.dataStore by preferencesDataStore(name = "settings")
 
-class ThemeViewModel(app: Application) : AndroidViewModel(app) {
+class ThemeViewModel(
+    app: Application,
+) : AndroidViewModel(app) {
     private val themeModeKey = booleanPreferencesKey("dark_theme_enabled")
     private val useSystemKey = booleanPreferencesKey("use_system_theme")
 
@@ -26,11 +28,12 @@ class ThemeViewModel(app: Application) : AndroidViewModel(app) {
     init {
         viewModelScope.launch {
             val prefs = app.dataStore.data.first()
-            _themeMode.value = when {
-                prefs[useSystemKey] == true -> AppThemeMode.SYSTEM
-                prefs.contains(themeModeKey) -> if (prefs[themeModeKey] == true) AppThemeMode.DARK else AppThemeMode.LIGHT
-                else -> AppThemeMode.SYSTEM
-            }
+            _themeMode.value =
+                when {
+                    prefs[useSystemKey] == true -> AppThemeMode.SYSTEM
+                    prefs.contains(themeModeKey) -> if (prefs[themeModeKey] == true) AppThemeMode.DARK else AppThemeMode.LIGHT
+                    else -> AppThemeMode.SYSTEM
+                }
         }
     }
 
@@ -38,11 +41,12 @@ class ThemeViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             val app = getApplication<Application>()
             val current = _themeMode.value
-            val next = when (current) {
-                AppThemeMode.SYSTEM -> AppThemeMode.LIGHT
-                AppThemeMode.LIGHT -> AppThemeMode.DARK
-                AppThemeMode.DARK -> AppThemeMode.SYSTEM
-            }
+            val next =
+                when (current) {
+                    AppThemeMode.SYSTEM -> AppThemeMode.LIGHT
+                    AppThemeMode.LIGHT -> AppThemeMode.DARK
+                    AppThemeMode.DARK -> AppThemeMode.SYSTEM
+                }
             _themeMode.value = next
             app.dataStore.edit { prefs ->
                 prefs[useSystemKey] = next == AppThemeMode.SYSTEM

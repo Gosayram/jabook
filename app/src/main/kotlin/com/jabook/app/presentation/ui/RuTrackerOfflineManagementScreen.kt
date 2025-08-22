@@ -11,10 +11,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.jabook.app.core.offline.RuTrackerOfflineManager
 import com.jabook.app.core.network.models.RuTrackerSearchResult
 import com.jabook.app.presentation.viewmodel.RuTrackerOfflineViewModel
 
@@ -25,7 +23,7 @@ import com.jabook.app.presentation.viewmodel.RuTrackerOfflineViewModel
 @Composable
 fun RuTrackerOfflineManagementScreen(
     viewModel: RuTrackerOfflineViewModel = hiltViewModel(),
-    onBack: () -> Unit
+    onBack: () -> Unit,
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val isOfflineMode by viewModel.isOfflineMode.collectAsState()
@@ -35,17 +33,17 @@ fun RuTrackerOfflineManagementScreen(
     val categories by viewModel.categories.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
-    
+
     var showSearchDialog by remember { mutableStateOf(false) }
     var showDataSummary by remember { mutableStateOf(false) }
     var showClearConfirmation by remember { mutableStateOf(false) }
-    
+
     LaunchedEffect(errorMessage) {
         if (errorMessage != null) {
             // Handle error (e.g., show snackbar)
         }
     }
-    
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -59,115 +57,116 @@ fun RuTrackerOfflineManagementScreen(
                     IconButton(onClick = { showDataSummary = true }) {
                         Icon(Icons.Default.Info, contentDescription = "Data Summary")
                     }
-                }
+                },
             )
-        }
+        },
     ) { paddingValues ->
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(16.dp)
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .padding(16.dp),
         ) {
             // Offline Mode Toggle
             Card(
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Column(
-                    modifier = Modifier.padding(16.dp)
+                    modifier = Modifier.padding(16.dp),
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Column {
                             Text(
                                 text = "Offline Mode",
                                 style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold
+                                fontWeight = FontWeight.Bold,
                             )
                             Text(
                                 text = if (isOfflineMode) "Enabled" else "Disabled",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = if (isOfflineMode) Color.Green else Color.Gray
+                                color = if (isOfflineMode) Color.Green else Color.Gray,
                             )
                         }
                         Switch(
                             checked = isOfflineMode,
-                            onCheckedChange = { viewModel.toggleOfflineMode() }
+                            onCheckedChange = { viewModel.toggleOfflineMode() },
                         )
                     }
-                    
+
                     Spacer(modifier = Modifier.height(8.dp))
-                    
+
                     if (isOfflineMode) {
                         Text(
                             text = "Offline mode is active. You can search and browse cached content.",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     } else {
                         Text(
                             text = "Enable offline mode to access cached content without internet.",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
             }
-            
+
             Spacer(modifier = Modifier.height(16.dp))
-            
+
             // Data Status
             Card(
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Column(
-                    modifier = Modifier.padding(16.dp)
+                    modifier = Modifier.padding(16.dp),
                 ) {
                     Text(
                         text = "Offline Data Status",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(bottom = 8.dp)
+                        modifier = Modifier.padding(bottom = 8.dp),
                     )
-                    
+
                     DataStatusItem(
                         label = "Search Results",
-                        isAvailable = offlineDataStatus.hasSearchResults
+                        isAvailable = offlineDataStatus.hasSearchResults,
                     )
                     DataStatusItem(
                         label = "Categories",
-                        isAvailable = offlineDataStatus.hasCategories
+                        isAvailable = offlineDataStatus.hasCategories,
                     )
                     DataStatusItem(
                         label = "Torrent Details",
-                        isAvailable = offlineDataStatus.hasDetails
+                        isAvailable = offlineDataStatus.hasDetails,
                     )
                     DataStatusItem(
                         label = "Search Index",
-                        isAvailable = offlineDataStatus.hasSearchIndex
+                        isAvailable = offlineDataStatus.hasSearchIndex,
                     )
                 }
             }
-            
+
             Spacer(modifier = Modifier.height(16.dp))
-            
+
             // Actions
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Button(
                     onClick = { viewModel.loadOfflineData() },
                     modifier = Modifier.weight(1f),
-                    enabled = !isLoading
+                    enabled = !isLoading,
                 ) {
                     if (isLoading) {
                         CircularProgressIndicator(
                             modifier = Modifier.size(16.dp),
-                            strokeWidth = 2.dp
+                            strokeWidth = 2.dp,
                         )
                     } else {
                         Icon(Icons.Default.Refresh, contentDescription = null)
@@ -175,93 +174,93 @@ fun RuTrackerOfflineManagementScreen(
                         Text("Refresh")
                     }
                 }
-                
+
                 Button(
                     onClick = { showSearchDialog = true },
                     modifier = Modifier.weight(1f),
-                    enabled = isOfflineMode && offlineDataStatus.hasSearchResults
+                    enabled = isOfflineMode && offlineDataStatus.hasSearchResults,
                 ) {
                     Icon(Icons.Default.Search, contentDescription = null)
                     Spacer(modifier = Modifier.width(4.dp))
                     Text("Search")
                 }
-                
+
                 Button(
                     onClick = { showClearConfirmation = true },
                     modifier = Modifier.weight(1f),
                     enabled = !isLoading,
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
                 ) {
                     Icon(Icons.Default.Delete, contentDescription = null)
                     Spacer(modifier = Modifier.width(4.dp))
                     Text("Clear")
                 }
             }
-            
+
             Spacer(modifier = Modifier.height(16.dp))
-            
+
             // Search Analytics
             if (isOfflineMode) {
                 Card(
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Column(
-                        modifier = Modifier.padding(16.dp)
+                        modifier = Modifier.padding(16.dp),
                     ) {
                         Text(
                             text = "Search Analytics",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(bottom = 8.dp)
+                            modifier = Modifier.padding(bottom = 8.dp),
                         )
-                        
+
                         AnalyticsItem(
                             label = "Total Searches",
-                            value = searchAnalytics.totalSearches.toString()
+                            value = searchAnalytics.totalSearches.toString(),
                         )
                         AnalyticsItem(
                             label = "Successful Searches",
-                            value = searchAnalytics.successfulSearches.toString()
+                            value = searchAnalytics.successfulSearches.toString(),
                         )
                         AnalyticsItem(
                             label = "Failed Searches",
-                            value = searchAnalytics.failedSearches.toString()
+                            value = searchAnalytics.failedSearches.toString(),
                         )
                         AnalyticsItem(
                             label = "Total Results",
-                            value = searchAnalytics.totalResults.toString()
+                            value = searchAnalytics.totalResults.toString(),
                         )
-                        
+
                         if (searchAnalytics.totalSearches > 0) {
                             val successRate = (searchAnalytics.successfulSearches.toFloat() / searchAnalytics.totalSearches) * 100
                             AnalyticsItem(
                                 label = "Success Rate",
-                                value = "%.1f%%".format(successRate)
+                                value = "%.1f%%".format(successRate),
                             )
                         }
                     }
                 }
-                
+
                 Spacer(modifier = Modifier.height(16.dp))
             }
-            
+
             // Recent Search Results
             if (searchResults.isNotEmpty()) {
                 Card(
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Column(
-                        modifier = Modifier.padding(16.dp)
+                        modifier = Modifier.padding(16.dp),
                     ) {
                         Text(
                             text = "Recent Search Results",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(bottom = 8.dp)
+                            modifier = Modifier.padding(bottom = 8.dp),
                         )
-                        
+
                         LazyColumn(
-                            modifier = Modifier.height(200.dp)
+                            modifier = Modifier.height(200.dp),
                         ) {
                             items(searchResults.take(5)) { result ->
                                 SearchResultItem(result = result)
@@ -272,11 +271,11 @@ fun RuTrackerOfflineManagementScreen(
             }
         }
     }
-    
+
     // Search Dialog
     if (showSearchDialog) {
         var searchQuery by remember { mutableStateOf("") }
-        
+
         AlertDialog(
             onDismissRequest = { showSearchDialog = false },
             title = { Text("Search Offline") },
@@ -286,16 +285,16 @@ fun RuTrackerOfflineManagementScreen(
                         value = searchQuery,
                         onValueChange = { searchQuery = it },
                         label = { Text("Search Query") },
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
                     )
-                    
+
                     Spacer(modifier = Modifier.height(16.dp))
-                    
+
                     if (searchResults.isNotEmpty()) {
                         Text(
                             text = "Found ${searchResults.size} results",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.primary
+                            color = MaterialTheme.colorScheme.primary,
                         )
                     }
                 }
@@ -306,7 +305,7 @@ fun RuTrackerOfflineManagementScreen(
                         viewModel.searchOffline(searchQuery)
                         showSearchDialog = false
                     },
-                    enabled = searchQuery.isNotBlank()
+                    enabled = searchQuery.isNotBlank(),
                 ) {
                     Text("Search")
                 }
@@ -315,14 +314,14 @@ fun RuTrackerOfflineManagementScreen(
                 TextButton(onClick = { showSearchDialog = false }) {
                     Text("Cancel")
                 }
-            }
+            },
         )
     }
-    
+
     // Data Summary Dialog
     if (showDataSummary) {
         val stats = viewModel.getOfflineDataStatistics()
-        
+
         AlertDialog(
             onDismissRequest = { showDataSummary = false },
             title = { Text("Offline Data Summary") },
@@ -340,10 +339,10 @@ fun RuTrackerOfflineManagementScreen(
                 Button(onClick = { showDataSummary = false }) {
                     Text("OK")
                 }
-            }
+            },
         )
     }
-    
+
     // Clear Confirmation Dialog
     if (showClearConfirmation) {
         AlertDialog(
@@ -358,7 +357,7 @@ fun RuTrackerOfflineManagementScreen(
                         viewModel.clearOfflineData()
                         showClearConfirmation = false
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
                 ) {
                     Text("Clear")
                 }
@@ -367,7 +366,7 @@ fun RuTrackerOfflineManagementScreen(
                 TextButton(onClick = { showClearConfirmation = false }) {
                     Text("Cancel")
                 }
-            }
+            },
         )
     }
 }
@@ -376,22 +375,22 @@ fun RuTrackerOfflineManagementScreen(
 fun DataStatusItem(
     label: String,
     isAvailable: Boolean,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Row(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
             text = label,
-            style = MaterialTheme.typography.bodyMedium
+            style = MaterialTheme.typography.bodyMedium,
         )
         Icon(
             imageVector = if (isAvailable) Icons.Default.CheckCircle else Icons.Default.Cancel,
             contentDescription = null,
             tint = if (isAvailable) Color.Green else Color.Red,
-            modifier = Modifier.size(16.dp)
+            modifier = Modifier.size(16.dp),
         )
     }
 }
@@ -400,21 +399,21 @@ fun DataStatusItem(
 fun AnalyticsItem(
     label: String,
     value: String,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Row(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
             text = label,
-            style = MaterialTheme.typography.bodySmall
+            style = MaterialTheme.typography.bodySmall,
         )
         Text(
             text = value,
             style = MaterialTheme.typography.bodySmall,
-            fontWeight = FontWeight.Bold
+            fontWeight = FontWeight.Bold,
         )
     }
 }
@@ -423,21 +422,21 @@ fun AnalyticsItem(
 fun SummaryItem(
     label: String,
     value: String,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Row(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
             text = label,
-            style = MaterialTheme.typography.bodyMedium
+            style = MaterialTheme.typography.bodyMedium,
         )
         Text(
             text = value,
             style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Bold
+            fontWeight = FontWeight.Bold,
         )
     }
 }
@@ -445,62 +444,62 @@ fun SummaryItem(
 @Composable
 fun SearchResultItem(
     result: RuTrackerSearchResult,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp)
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .padding(vertical = 4.dp),
     ) {
         Column(
-            modifier = Modifier.padding(12.dp)
+            modifier = Modifier.padding(12.dp),
         ) {
             Text(
                 text = result.title,
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Bold,
-                maxLines = 2
+                maxLines = 2,
             )
-            
+
             Spacer(modifier = Modifier.height(4.dp))
-            
+
             Text(
                 text = "Author: ${result.author}",
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 Text(
                     text = "Size: ${formatFileSize(result.size)}",
-                    style = MaterialTheme.typography.bodySmall
+                    style = MaterialTheme.typography.bodySmall,
                 )
                 Text(
                     text = "Seeders: ${result.seeders}",
-                    style = MaterialTheme.typography.bodySmall
+                    style = MaterialTheme.typography.bodySmall,
                 )
             }
         }
     }
 }
 
-private fun formatFileSize(bytes: Long): String {
-    return when {
+private fun formatFileSize(bytes: Long): String =
+    when {
         bytes < 1024 -> "$bytes B"
         bytes < 1024 * 1024 -> "${bytes / 1024} KB"
         bytes < 1024 * 1024 * 1024 -> "${bytes / (1024 * 1024)} MB"
         else -> "${bytes / (1024 * 1024 * 1024)} GB"
     }
-}
 
-private fun formatTimestamp(timestamp: Long): String {
-    return if (timestamp > 0) {
+private fun formatTimestamp(timestamp: Long): String =
+    if (timestamp > 0) {
         val now = System.currentTimeMillis()
         val diff = now - timestamp
-        
+
         when {
             diff < 60 * 1000 -> "Just now"
             diff < 60 * 60 * 1000 -> "${diff / (60 * 1000)} minutes ago"
@@ -510,4 +509,3 @@ private fun formatTimestamp(timestamp: Long): String {
     } else {
         "Never"
     }
-}

@@ -11,7 +11,6 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 object PerformanceModule {
-
     @Provides
     @Singleton
     fun providePerformanceProfiler(debugLogger: com.jabook.app.shared.debug.IDebugLogger): PerformanceProfiler =

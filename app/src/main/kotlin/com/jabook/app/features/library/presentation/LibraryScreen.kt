@@ -67,9 +67,11 @@ fun LibraryScreen(
     }
 
     Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(horizontal = 16.dp, vertical = 8.dp), // Reduced vertical padding
+        modifier =
+            modifier
+                .fillMaxSize()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+        // Reduced vertical padding
         verticalArrangement = androidx.compose.foundation.layout.Arrangement.Top,
     ) {
         TopAppBar(
@@ -119,8 +121,12 @@ fun LibraryScreen(
                 }
                 else -> {
                     LazyColumn(
-                        contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 8.dp),
-                        verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(12.dp),
+                        contentPadding =
+                            androidx.compose.foundation.layout
+                                .PaddingValues(vertical = 8.dp),
+                        verticalArrangement =
+                            androidx.compose.foundation.layout.Arrangement
+                                .spacedBy(12.dp),
                     ) {
                         items(audiobooks) { audiobook ->
                             AudiobookListItem(
@@ -143,7 +149,10 @@ fun LibraryScreen(
 }
 
 @Composable
-private fun EmptyLibraryMessage(filter: LibraryFilter, modifier: Modifier = Modifier) {
+private fun EmptyLibraryMessage(
+    filter: LibraryFilter,
+    modifier: Modifier = Modifier,
+) {
     val messageResId =
         when (filter) {
             LibraryFilter.ALL -> R.string.empty_library_message

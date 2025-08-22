@@ -30,24 +30,30 @@ fun getDynamicVerticalPadding(): Dp {
 }
 
 @Composable
-fun ThemeToggleButton(themeMode: AppThemeMode, onToggle: () -> Unit) {
+fun ThemeToggleButton(
+    themeMode: AppThemeMode,
+    onToggle: () -> Unit,
+) {
     IconButton(onClick = onToggle) {
         when (themeMode) {
-            AppThemeMode.SYSTEM -> Icon(
-                imageVector = Icons.Filled.SettingsBrightness,
-                contentDescription = "System theme",
-                tint = MaterialTheme.colorScheme.onSurface,
-            )
-            AppThemeMode.LIGHT -> Icon(
-                imageVector = Icons.Filled.Brightness7,
-                contentDescription = "Light theme",
-                tint = MaterialTheme.colorScheme.onSurface,
-            )
-            AppThemeMode.DARK -> Icon(
-                imageVector = Icons.Filled.Brightness4,
-                contentDescription = "Dark theme",
-                tint = MaterialTheme.colorScheme.onSurface,
-            )
+            AppThemeMode.SYSTEM ->
+                Icon(
+                    imageVector = Icons.Filled.SettingsBrightness,
+                    contentDescription = "System theme",
+                    tint = MaterialTheme.colorScheme.onSurface,
+                )
+            AppThemeMode.LIGHT ->
+                Icon(
+                    imageVector = Icons.Filled.Brightness7,
+                    contentDescription = "Light theme",
+                    tint = MaterialTheme.colorScheme.onSurface,
+                )
+            AppThemeMode.DARK ->
+                Icon(
+                    imageVector = Icons.Filled.Brightness4,
+                    contentDescription = "Dark theme",
+                    tint = MaterialTheme.colorScheme.onSurface,
+                )
         }
     }
 }

@@ -24,8 +24,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.jabook.app.shared.ui.components.JaBookButton
 import com.jabook.app.shared.ui.components.ButtonVariant
+import com.jabook.app.shared.ui.components.JaBookButton
 
 /** Component for displaying different application states Supports empty states, loading, and errors */
 @Composable
@@ -87,7 +87,11 @@ fun JaBookEmptyState(
 }
 
 /** Types of empty states with preset icons and texts */
-enum class EmptyStateType(val icon: ImageVector, val defaultTitle: String, val defaultSubtitle: String) {
+enum class EmptyStateType(
+    val icon: ImageVector,
+    val defaultTitle: String,
+    val defaultSubtitle: String,
+) {
     Loading(
         icon = Icons.Default.LibraryBooks, // Not used for Loading
         defaultTitle = "Загрузка...",
@@ -127,7 +131,10 @@ enum class EmptyStateType(val icon: ImageVector, val defaultTitle: String, val d
 
 /** Component for displaying loading with custom text */
 @Composable
-fun JaBookLoadingState(message: String = "Загрузка...", modifier: Modifier = Modifier) {
+fun JaBookLoadingState(
+    message: String = "Загрузка...",
+    modifier: Modifier = Modifier,
+) {
     Column(
         modifier = modifier.fillMaxSize().padding(32.dp),
         verticalArrangement = Arrangement.Center,
@@ -160,10 +167,10 @@ fun JaBookErrorState(
         title = title,
         subtitle = subtitle,
         actionButton =
-        if (onRetry != null) {
-            { JaBookButton(text = "Попробовать снова", onClick = onRetry, variant = ButtonVariant.Primary) }
-        } else {
-            null
-        },
+            if (onRetry != null) {
+                { JaBookButton(text = "Попробовать снова", onClick = onRetry, variant = ButtonVariant.Primary) }
+            } else {
+                null
+            },
     )
 }

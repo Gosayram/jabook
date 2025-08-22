@@ -13,14 +13,11 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 object StorageModule {
-
     /** Provides file manager for audiobook storage */
     @Provides
     @Singleton
     fun provideFileManager(
         @dagger.hilt.android.qualifiers.ApplicationContext context: android.content.Context,
         debugLogger: IDebugLogger,
-    ): FileManager {
-        return FileManagerImpl(context, debugLogger)
-    }
+    ): FileManager = FileManagerImpl(context, debugLogger)
 }

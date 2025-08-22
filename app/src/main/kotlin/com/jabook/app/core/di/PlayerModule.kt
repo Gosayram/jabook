@@ -12,7 +12,7 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 abstract class PlayerModule {
-
     /** Binds PlayerManagerImpl to PlayerManager interface */
-    @Binds @Singleton abstract fun bindPlayerManager(playerManagerImpl: PlayerManagerImpl): PlayerManager
+    @Binds @Singleton
+    abstract fun bindPlayerManager(playerManagerImpl: PlayerManagerImpl): PlayerManager
 }
