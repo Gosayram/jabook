@@ -2,8 +2,7 @@ package com.jabook.app.core.network
 
 import com.jabook.app.core.cache.CacheKey
 import com.jabook.app.core.cache.RuTrackerCacheManager
-import com.jabook.app.core.domain.RuTrackerDomainManager
-import com.jabook.app.core.exceptions.RuTrackerException.*
+import com.jabook.app.core.network.domain.RuTrackerDomainManager
 import com.jabook.app.core.network.models.RuTrackerCategory
 import com.jabook.app.core.network.models.RuTrackerSearchResult
 import com.jabook.app.shared.debug.IDebugLogger

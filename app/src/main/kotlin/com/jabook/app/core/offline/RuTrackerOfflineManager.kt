@@ -7,8 +7,12 @@ import com.jabook.app.core.network.models.RuTrackerCategory
 import com.jabook.app.core.network.models.RuTrackerSearchResult
 import com.jabook.app.core.network.models.RuTrackerTorrentDetails
 import com.jabook.app.shared.debug.IDebugLogger
-import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.util.concurrent.ConcurrentHashMap

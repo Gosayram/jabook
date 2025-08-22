@@ -1,6 +1,7 @@
 package com.jabook.app.core.network
 
-import com.jabook.app.core.exceptions.RuTrackerException.*
+import com.jabook.app.core.domain.model.RuTrackerSearchResult
+import com.jabook.app.core.exceptions.RuTrackerException.ParseException
 import com.jabook.app.core.network.models.RuTrackerCategory
 import com.jabook.app.core.network.models.RuTrackerSearchResult
 import com.jabook.app.core.network.models.RuTrackerTorrentDetails
@@ -96,7 +97,7 @@ class RuTrackerParserEnhanced
                     results
                 } catch (e: Exception) {
                     debugLogger.logError("RuTrackerParserEnhanced: Failed to parse search results", e)
-                    throw ParseException("Failed to parse search results: ${e.message}")
+                    throw ParseException("Failed to parse search results: ${e.message}") as Throwable
                 }
             }
 
@@ -722,3 +723,5 @@ class RuTrackerParserEnhanced
             return ""
         }
     }
+
+annotation class RuTrackerTorrentDetails
