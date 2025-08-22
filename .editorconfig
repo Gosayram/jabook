@@ -8,8 +8,9 @@ trim_trailing_whitespace = true
 
 [*.{kt,kts}]
 indent_style = space
-indent_size = 4
+indent_size = 2
 continuation_indent_size = 8
+max_line_lenght = 140
 ktlint_standard_function-naming = disabled
 ktlint_standard_property-naming = disabled
 ktlint_standard_comment-spacing = disabled
