@@ -13,7 +13,7 @@ object TitleExtractor {
 
         for (selector in selectors) {
             val element = doc.selectFirst(selector)
-            val title = element?.text()?.trim()?.takeIf { it.isNotBlank() }
+            val title = element?.text()?.trim().ifBlank { null }
             if (!title.isNullOrBlank()) {
                 return title
             }

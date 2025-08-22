@@ -12,7 +12,7 @@ object DescriptionExtractor {
 
         for (selector in descriptionSelectors) {
             val element = doc.selectFirst(selector)
-            val text = element?.text()?.trim()
+            val text = element?.text()?.trim() ?: ""
             if (!text.isNullOrBlank()) {
                 return text
             }

@@ -1,5 +1,6 @@
 package com.jabook.app.core.network.domain
 
+import android.content.Context
 import com.jabook.app.core.network.circuitbreaker.CircuitBreaker
 import com.jabook.app.core.network.circuitbreaker.CircuitBreakerFactory
 import com.jabook.app.core.network.exceptions.RuTrackerException
@@ -16,6 +17,7 @@ import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 import javax.inject.Inject
@@ -467,4 +469,217 @@ class RuTrackerDomainManager @Inject constructor(
             }
         }
     }
+
+    /**
+     * Enhanced domain health monitoring with detailed metrics
+     */
+    data class EnhancedDomainHealth(
+        val domain: String,
+        val isAvailable: Boolean,
+        val responseTime: Long,
+        val lastChecked: Long,
+        val failureCount: Int,
+        val circuitBreakerState: String,
+        val consecutiveFailures: Int,
+        val successRate: Double,
+        val averageResponseTime: Long,
+        val healthScore: Int,
+        val lastFailureReason: String?
+    )
+
+    /**
+     * Performance metrics for domain monitoring
+     */
+    data class DomainPerformanceMetrics(
+        var totalRequests: Int = 0,
+        var successfulRequests: Int = 0,
+        var failedRequests: Int = 0,
+        var averageResponseTime: Long = 0,
+        var fastestResponseTime: Long = Long.MAX_VALUE,
+        var slowestResponseTime: Long = 0,
+        var lastRequestTime: Long = 0
+    )
+
+    private val performanceMetrics = ConcurrentHashMap<String, DomainPerformanceMetrics>()
+    private val healthHistory = ConcurrentHashMap<String, MutableList<EnhancedDomainHealth>>()
+    private val maxHealthHistorySize = 100
+
+    /**
+     * Get enhanced domain health with detailed metrics
+     */
+    suspend fun getEnhancedDomainHealth(domain: String): EnhancedDomainHealth? {
+        return mutex.withLock {
+            val status = healthStatus[domain] ?: return@withLock null
+            val metrics = performanceMetrics[domain] ?: DomainPerformanceMetrics()
+            
+            val successRate = if (metrics.totalRequests > 0) {
+                metrics.successfulRequests.toDouble() / metrics.totalRequests
+            } else 0.0
+            
+            val healthScore = calculateHealthScore(status, successRate)
+            
+            EnhancedDomainHealth(
+                domain = domain,
+                isAvailable = status.isAvailable,
+                responseTime = status.responseTime,
+                lastChecked = status.lastChecked,
+                failureCount = status.failureCount,
+                circuitBreakerState = status.circuitBreakerState,
+                consecutiveFailures = status.consecutiveFailures,
+                successRate = successRate,
+                averageResponseTime = metrics.averageResponseTime,
+                healthScore = healthScore,
+                lastFailureReason = getLatestFailureReason(domain)
+            )
+        }
+    }
+
+    /**
+     * Calculate health score based on various factors
+     */
+    private fun calculateHealthScore(status: DomainHealthStatus, successRate: Double): Int {
+        var score = 100
+        
+        // Deduct points for unavailability
+        if (!status.isAvailable) score -= 40
+        
+        // Deduct points for low success rate
+        score -= ((1.0 - successRate) * 30).toInt()
+        
+        // Deduct points for high failure count
+        score -= minOf(status.failureCount * 2, 20)
+        
+        // Deduct points for circuit breaker state
+        when (status.circuitBreakerState) {
+            "OPEN" -> score -= 30
+            "HALF_OPEN" -> score -= 15
+            else -> {}
+        }
+        
+        return maxOf(0, score)
+    }
+
+    /**
+     * Get performance metrics for domain
+     */
+    suspend fun getDomainPerformanceMetrics(domain: String): DomainPerformanceMetrics? {
+        return mutex.withLock {
+            performanceMetrics[domain]
+        }
+    }
+
+    /**
+     * Get health history for domain
+     */
+    suspend fun getDomainHealthHistory(domain: String, limit: Int = 20): List<EnhancedDomainHealth> {
+        return mutex.withLock {
+            val history = healthHistory[domain] ?: emptyList()
+            history.takeLast(limit)
+        }
+    }
+
+    /**
+     * Update performance metrics after request
+     */
+    private suspend fun updatePerformanceMetrics(
+        domain: String,
+        success: Boolean,
+        responseTime: Long,
+        error: Exception? = null
+    ) {
+        mutex.withLock {
+            val metrics = performanceMetrics[domain] ?: DomainPerformanceMetrics()
+            
+            metrics.totalRequests++
+            metrics.lastRequestTime = System.currentTimeMillis()
+            
+            if (success) {
+                metrics.successfulRequests++
+                metrics.averageResponseTime = calculateAverage(
+                    metrics.averageResponseTime,
+                    metrics.successfulRequests - 1,
+                    responseTime
+                )
+                metrics.fastestResponseTime = minOf(metrics.fastestResponseTime, responseTime)
+            } else {
+                metrics.failedRequests++
+                metrics.slowestResponseTime = maxOf(metrics.slowestResponseTime, responseTime)
+            }
+            
+            performanceMetrics[domain] = metrics
+        }
+    }
+
+    /**
+     * Calculate running average
+     */
+    private fun calculateAverage(currentAverage: Long, count: Int, newValue: Long): Long {
+        return if (count == 0) newValue else (currentAverage * count + newValue) / (count + 1)
+    }
+
+    /**
+     * Get latest failure reason
+     */
+    private fun getLatestFailureReason(domain: String): String? {
+        val history = healthHistory[domain] ?: return null
+        return history.lastOrNull { !it.isAvailable }?.lastFailureReason
+    }
+
+    /**
+     * Update health history
+     */
+    private suspend fun updateHealthHistory(health: EnhancedDomainHealth) {
+        mutex.withLock {
+            val history = healthHistory.getOrPut(health.domain) { mutableListOf() }
+            history.add(health)
+            
+            // Keep only recent history
+            if (history.size > maxHealthHistorySize) {
+                history.removeAt(0)
+            }
+        }
+    }
+
+    /**
+     * Get overall system health
+     */
+    suspend fun getSystemHealth(): Map<String, Any> {
+        return mutex.withLock {
+            val activeDomains = domains.values.filter { it.isActive }
+            val totalDomains = activeDomains.size
+            val healthyDomains = activeDomains.count { 
+                healthStatus[it.baseUrl.removePrefix("https://").removePrefix("http://")]?.isAvailable == true 
+            }
+            
+            val averageResponseTime = performanceMetrics.values
+                .map { it.averageResponseTime }
+                .average()
+                .toLong()
+            
+            mapOf(
+                "totalDomains" to totalDomains,
+                "healthyDomains" to healthyDomains,
+                "systemHealthScore" to if (totalDomains > 0) (healthyDomains * 100 / totalDomains) else 0,
+                "averageResponseTime" to averageResponseTime,
+                "currentDomain" to _currentDomain.value,
+                "domainStatuses" to healthStatus.toMap()
+            )
+        }
+    }
+
+    /**
+     * Export domain health data for analytics
+     */
+    suspend fun exportHealthData(): Map<String, Any> {
+        return mutex.withLock {
+            mapOf(
+                "timestamp" to System.currentTimeMillis(),
+                "systemHealth" to getSystemHealth(),
+                "domainMetrics" to performanceMetrics.toMap(),
+                "domainStatuses" to healthStatus.toMap(),
+                "currentDomain" to _currentDomain.value
+            )
+        }
+    }
+
 }

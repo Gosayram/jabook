@@ -762,4 +762,324 @@ class RuTrackerApiServiceEnhanced @Inject constructor(
     fun getCacheStatistics(): Flow<CacheStatistics> {
         return cacheManager.statistics
     }
+
+    /**
+     * Enhanced cache statistics with detailed metrics
+     */
+    data class EnhancedCacheStatistics(
+        val hitRate: Double,
+        val missRate: Double,
+        val totalRequests: Long,
+        val totalHits: Long,
+        val totalMisses: Long,
+        val averageResponseTime: Long,
+        val cacheSize: Int
+    )
+
+    /**
+     * Performance metrics for API operations
+     */
+    data class ApiOperationMetrics(
+        var operation: String,
+        var totalRequests: Int = 0,
+        var successfulRequests: Int = 0,
+        var failedRequests: Int = 0,
+        var averageResponseTime: Long = 0,
+        var fastestResponseTime: Long = Long.MAX_VALUE,
+        var slowestResponseTime: Long = 0,
+        var cacheHits: Int = 0,
+        var cacheMisses: Int = 0,
+        var lastRequestTime: Long = 0
+    )
+
+    private val operationMetrics = mutableMapOf<String, ApiOperationMetrics>()
+    private val errorContexts = mutableListOf<String>()
+    private val maxErrorContexts = 100
+
+    /**
+     * Get enhanced cache statistics
+     */
+    suspend fun getEnhancedCacheStatistics(): EnhancedCacheStatistics {
+        val basicStats = cacheManager.statistics.first()
+        val totalRequests = basicStats.totalRequests
+        val totalHits = basicStats.hits
+        val totalMisses = totalRequests - totalHits
+        
+        val hitRate = if (totalRequests > 0) totalHits.toDouble() / totalRequests else 0.0
+        val missRate = if (totalRequests > 0) totalMisses.toDouble() / totalRequests else 0.0
+        
+        val averageResponseTime = operationMetrics.values
+            .map { it.averageResponseTime }
+            .average()
+            .toLong()
+        
+        return EnhancedCacheStatistics(
+            hitRate = hitRate,
+            missRate = missRate,
+            totalRequests = totalRequests,
+            totalHits = totalHits,
+            totalMisses = totalMisses,
+            averageResponseTime = averageResponseTime,
+            cacheSize = cacheManager.getCacheSize()
+        )
+    }
+
+    /**
+     * Get operation metrics
+     */
+    fun getOperationMetrics(): Map<String, ApiOperationMetrics> {
+        return operationMetrics.toMap()
+    }
+
+    /**
+     * Get error contexts for debugging
+     */
+    fun getErrorContexts(limit: Int = 20): List<String> {
+        return errorContexts.takeLast(limit)
+    }
+
+    /**
+     * Clear error contexts
+     */
+    fun clearErrorContexts() {
+        errorContexts.clear()
+        debugLogger.logInfo("RuTrackerApiServiceEnhanced: Error contexts cleared")
+    }
+
+    /**
+     * Update operation metrics
+     */
+    private fun updateOperationMetrics(
+        operation: String,
+        success: Boolean,
+        responseTime: Long,
+        cacheHit: Boolean = false
+    ) {
+        val metrics = operationMetrics.getOrPut(operation) { ApiOperationMetrics(operation) }
+        
+        metrics.totalRequests++
+        metrics.lastRequestTime = System.currentTimeMillis()
+        
+        if (success) {
+            metrics.successfulRequests++
+            metrics.averageResponseTime = calculateAverage(
+                metrics.averageResponseTime,
+                metrics.successfulRequests - 1,
+                responseTime
+            )
+            metrics.fastestResponseTime = minOf(metrics.fastestResponseTime, responseTime)
+        } else {
+            metrics.failedRequests++
+            metrics.slowestResponseTime = maxOf(metrics.slowestResponseTime, responseTime)
+        }
+        
+        if (cacheHit) {
+            metrics.cacheHits++
+        } else {
+            metrics.cacheMisses++
+        }
+        
+        operationMetrics[operation] = metrics
+    }
+
+    /**
+     * Record error context
+     */
+    private fun recordErrorContext(context: String) {
+        errorContexts.add(context)
+        
+        // Keep only recent error contexts
+        if (errorContexts.size > maxErrorContexts) {
+            errorContexts.removeAt(0)
+        }
+    }
+
+    /**
+     * Enhanced search with improved error handling and metrics
+     */
+    suspend fun searchAudiobooksEnhanced(
+        query: String,
+        categoryId: Int? = null,
+        page: Int = 0,
+        forceRefresh: Boolean = false,
+        timeout: Long = DEFAULT_TIMEOUT
+    ): Result<List<RuTrackerSearchResult>> = withContext(Dispatchers.IO) {
+        val startTime = System.currentTimeMillis()
+        val operation = "search"
+        
+        debugLogger.logDebug("RuTrackerApiServiceEnhanced: Enhanced search for query: $query")
+        
+        try {
+            // Check cache first
+            if (!forceRefresh) {
+                val cacheKey = CacheKey(
+                    namespace = "search",
+                    key = "search_${query}_${categoryId}_${page}",
+                    version = 1
+                )
+                
+                val cachedResult = cacheManager.get(cacheKey) { json ->
+                    Json.decodeFromString<List<RuTrackerSearchResult>>(json)
+                }
+                
+                if (cachedResult.isSuccess) {
+                    val responseTime = System.currentTimeMillis() - startTime
+                    updateOperationMetrics(operation, true, responseTime, true)
+                    debugLogger.logDebug("RuTrackerApiServiceEnhanced: Search result found in cache")
+                    return@withContext cachedResult
+                }
+            }
+            
+            // Execute with circuit breaker
+            val result = searchCircuitBreaker.execute {
+                executeWithDomainFallback { baseUrl ->
+                    performSearch(baseUrl, query, categoryId, page)
+                }
+            }.map { results ->
+                // Cache successful results
+                if (results.isNotEmpty()) {
+                    val cacheKey = CacheKey(
+                        namespace = "search",
+                        key = "search_${query}_${categoryId}_${page}",
+                        version = 1
+                    )
+                    
+                    cacheManager.put(
+                        key = cacheKey,
+                        data = results,
+                        ttl = CACHE_TTL_SEARCH,
+                        serializer = { Json.encodeToString(it) }
+                    )
+                    
+                    debugLogger.logDebug("RuTrackerApiServiceEnhanced: Search result cached")
+                }
+                
+                results
+            }.recover { exception ->
+                // Handle circuit breaker open state
+                if (exception is CircuitBreakerOpenException) {
+                    debugLogger.logWarning("RuTrackerApiServiceEnhanced: Search circuit breaker is open")
+                    Result.failure(SearchUnavailableException("Search temporarily unavailable due to repeated failures"))
+                } else {
+                    Result.failure(exception)
+                }
+            }
+            
+            val responseTime = System.currentTimeMillis() - startTime
+            updateOperationMetrics(operation, result.isSuccess, responseTime, false)
+            
+            result
+            
+        } catch (e: Exception) {
+            val responseTime = System.currentTimeMillis() - startTime
+            updateOperationMetrics(operation, false, responseTime, false)
+            
+            val errorContext = "Operation: $operation, Error: ${e.message}, Time: ${System.currentTimeMillis()}"
+            recordErrorContext(errorContext)
+            debugLogger.logError("RuTrackerApiServiceEnhanced: Enhanced search failed", e)
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Enhanced get details with improved error handling and metrics
+     */
+    suspend fun getAudiobookDetailsEnhanced(
+        topicId: String,
+        forceRefresh: Boolean = false,
+        timeout: Long = DEFAULT_TIMEOUT
+    ): Result<RuTrackerTorrentDetails> = withContext(Dispatchers.IO) {
+        val startTime = System.currentTimeMillis()
+        val operation = "details"
+        
+        debugLogger.logDebug("RuTrackerApiServiceEnhanced: Enhanced details for topic: $topicId")
+        
+        try {
+            // Check cache first
+            if (!forceRefresh) {
+                val cacheKey = CacheKey(
+                    namespace = "details",
+                    key = "details_$topicId",
+                    version = 1
+                )
+                
+                val cachedResult = cacheManager.get(cacheKey) { json ->
+                    Json.decodeFromString<RuTrackerTorrentDetails>(json)
+                }
+                
+                if (cachedResult.isSuccess) {
+                    val responseTime = System.currentTimeMillis() - startTime
+                    updateOperationMetrics(operation, true, responseTime, true)
+                    debugLogger.logDebug("RuTrackerApiServiceEnhanced: Details found in cache")
+                    return@withContext cachedResult
+                }
+            }
+            
+            // Execute with circuit breaker
+            val result = detailsCircuitBreaker.execute {
+                executeWithDomainFallback { baseUrl ->
+                    performGetDetails(baseUrl, topicId)
+                }
+            }.map { details ->
+                // Cache successful results
+                val cacheKey = CacheKey(
+                    namespace = "details",
+                    key = "details_$topicId",
+                    version = 1
+                )
+                
+                cacheManager.put(
+                    key = cacheKey,
+                    data = details,
+                    ttl = CACHE_TTL_DETAILS,
+                    serializer = { Json.encodeToString(it) }
+                )
+                
+                debugLogger.logDebug("RuTrackerApiServiceEnhanced: Details cached")
+                details
+            }.recover { exception ->
+                // Handle circuit breaker open state
+                if (exception is CircuitBreakerOpenException) {
+                    debugLogger.logWarning("RuTrackerApiServiceEnhanced: Details circuit breaker is open")
+                    Result.failure(DetailsUnavailableException("Details temporarily unavailable due to repeated failures"))
+                } else {
+                    Result.failure(exception)
+                }
+            }
+            
+            val responseTime = System.currentTimeMillis() - startTime
+            updateOperationMetrics(operation, result.isSuccess, responseTime, false)
+            
+            result
+            
+        } catch (e: Exception) {
+            val responseTime = System.currentTimeMillis() - startTime
+            updateOperationMetrics(operation, false, responseTime, false)
+            
+            val errorContext = "Operation: $operation, Error: ${e.message}, Time: ${System.currentTimeMillis()}"
+            recordErrorContext(errorContext)
+            debugLogger.logError("RuTrackerApiServiceEnhanced: Enhanced details failed", e)
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Export performance data for analytics
+     */
+    suspend fun exportPerformanceData(): Map<String, Any> {
+        return mapOf(
+            "timestamp" to System.currentTimeMillis(),
+            "operationMetrics" to operationMetrics,
+            "errorContexts" to errorContexts.takeLast(50),
+            "cacheStatistics" to getEnhancedCacheStatistics(),
+            "circuitBreakerStates" to getCircuitBreakerStates()
+        )
+    }
+
+    /**
+     * Calculate running average
+     */
+    private fun calculateAverage(currentAverage: Long, count: Int, newValue: Long): Long {
+        return if (count == 0) newValue else (currentAverage * count + newValue) / (count + 1)
+    }
 }

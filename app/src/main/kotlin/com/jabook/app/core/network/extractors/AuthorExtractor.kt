@@ -16,7 +16,7 @@ object AuthorExtractor {
         for (selector in authorSelectors) {
             val element = doc.selectFirst(selector)
             val text = element?.text() ?: ""
-            val author = text.substringAfter("Автор:").substringAfter("Автор").trim()
+            val author = text.substringAfter("Автор:").trim()
             if (author.isNotBlank()) {
                 return author
             }

@@ -10,6 +10,9 @@ plugins {
     alias(libs.plugins.gms.google.services)
     alias(libs.plugins.firebase.crashlytics)
     alias(libs.plugins.navigation.safeargs.kotlin)
+    dependencies {
+        implementation(libs.jsoup)
+    }
 }
 
 android {
@@ -91,7 +94,7 @@ android {
             resValue("string", "app_name", "JaBook Debug")
             
             // Enable debug features
-            debuggable = true
+            isDebuggable = true
         }
         
         // Custom build type for staging
@@ -120,19 +123,21 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
     
-    kotlinOptions {
-        jvmTarget = "17"
-        freeCompilerArgs = listOf(
-            "-Xskip-prerelease-check",
-            "-opt-in=androidx.compose.material3.ExperimentalMaterial3Api",
-            "-opt-in=androidx.compose.foundation.ExperimentalFoundationApi",
-            "-opt-in=androidx.compose.animation.ExperimentalAnimationApi",
-            "-opt-in=androidx.compose.ui.ExperimentalComposeUiApi",
-            "-opt-in=coil.annotation.ExperimentalCoilApi",
-            "-opt-in=androidx.paging.ExperimentalPagingApi",
-            "-opt-in=kotlinx.coroutines.ExperimentalCoroutinesApi",
-            "-opt-in=kotlinx.coroutines.FlowPreview"
-        )
+    kotlin {
+        compilerOptions {
+            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+            freeCompilerArgs.addAll(
+                "-Xskip-prerelease-check",
+                "-opt-in=androidx.compose.material3.ExperimentalMaterial3Api",
+                "-opt-in=androidx.compose.foundation.ExperimentalFoundationApi",
+                "-opt-in=androidx.compose.animation.ExperimentalAnimationApi",
+                "-opt-in=androidx.compose.ui.ExperimentalComposeUiApi",
+                "-opt-in=coil.annotation.ExperimentalCoilApi",
+                "-opt-in=androidx.paging.ExperimentalPagingApi",
+                "-opt-in=kotlinx.coroutines.ExperimentalCoroutinesApi",
+                "-opt-in=kotlinx.coroutines.FlowPreview"
+            )
+        }
     }
     
     buildFeatures {
@@ -820,4 +825,6 @@ android {
         disable += "MissingNavNavNavNavNavNavNavNavNavNavNavBottomSheetGraph"
         disable += "MissingNavNavNavNavNavNavNavNavNavNavNavNavigationGraph"
         disable += "MissingNavNavNavNavNavNavNavNavNavNavNavNavGraph"
-        disable += "MissingNavNavNavNavNavNavNavNav
+        disable += "MissingNavNavNavNavNavNavNavNavNavNavNavHost"
+    }
+}

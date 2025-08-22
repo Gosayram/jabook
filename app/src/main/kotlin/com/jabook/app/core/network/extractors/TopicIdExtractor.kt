@@ -14,7 +14,7 @@ object TopicIdExtractor {
         for (selector in selectors) {
             val element = doc.selectFirst(selector)
             val href = element?.attr("href") ?: ""
-            val topicId = href.substringAfter("t=").substringBefore("&").takeIf { it.isNotBlank() }
+            val topicId = href.substringAfter("t=").substringBefore("&").ifBlank { null }
             if (!topicId.isNullOrBlank()) {
                 return topicId
             }
