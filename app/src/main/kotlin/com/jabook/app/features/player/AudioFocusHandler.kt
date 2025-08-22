@@ -3,12 +3,12 @@ package com.jabook.app.features.player
 import android.media.AudioManager
 
 class AudioFocusHandler(
-    private val audioFocusManager: AudioFocusManager,
-    private val listener: AudioManager.OnAudioFocusChangeListener,
+  private val audioFocusManager: AudioFocusManager,
+  private val listener: AudioManager.OnAudioFocusChangeListener,
 ) {
-    fun requestAudioFocus(): Boolean = audioFocusManager.requestAudioFocus(listener)
+  fun requestAudioFocus(): Boolean = audioFocusManager.requestAudioFocus(listener)
 
-    fun abandonAudioFocus() {
-        audioFocusManager.abandonAudioFocus()
-    }
+  fun abandonAudioFocus() {
+    audioFocusManager.abandonAudioFocus()
+  }
 }

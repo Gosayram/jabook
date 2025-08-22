@@ -7,27 +7,27 @@ import javax.inject.Singleton
 
 @Singleton
 class PlaybackStateManager
-    @Inject
-    constructor() {
-        fun createPlaybackState(
-            player: ExoPlayer?,
-            sleepTimerRemaining: Long,
-            error: String? = null,
-        ): PlaybackState =
-            if (player != null) {
-                PlaybackState(
-                    isPlaying = player.isPlaying,
-                    isPaused = !player.isPlaying && player.playbackState == Player.STATE_READY,
-                    isBuffering = player.playbackState == Player.STATE_BUFFERING,
-                    isCompleted = player.playbackState == Player.STATE_ENDED,
-                    currentPosition = player.currentPosition,
-                    duration = player.duration,
-                    currentChapterIndex = player.currentMediaItemIndex,
-                    playbackSpeed = player.playbackParameters.speed,
-                    sleepTimerRemaining = sleepTimerRemaining,
-                    error = error,
-                )
-            } else {
-                PlaybackState(error = error)
-            }
-    }
+  @Inject
+  constructor() {
+    fun createPlaybackState(
+      player: ExoPlayer?,
+      sleepTimerRemaining: Long,
+      error: String? = null,
+    ): PlaybackState =
+      if (player != null) {
+        PlaybackState(
+          isPlaying = player.isPlaying,
+          isPaused = !player.isPlaying && player.playbackState == Player.STATE_READY,
+          isBuffering = player.playbackState == Player.STATE_BUFFERING,
+          isCompleted = player.playbackState == Player.STATE_ENDED,
+          currentPosition = player.currentPosition,
+          duration = player.duration,
+          currentChapterIndex = player.currentMediaItemIndex,
+          playbackSpeed = player.playbackParameters.speed,
+          sleepTimerRemaining = sleepTimerRemaining,
+          error = error,
+        )
+      } else {
+        PlaybackState(error = error)
+      }
+  }

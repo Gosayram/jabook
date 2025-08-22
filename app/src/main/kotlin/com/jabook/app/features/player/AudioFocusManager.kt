@@ -12,65 +12,65 @@ import javax.inject.Singleton
 
 @Singleton
 class AudioFocusManager
-    @Inject
-    constructor(
-        @ApplicationContext private val context: Context,
-        private val debugLogger: IDebugLogger,
-    ) {
-        private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-        private var audioFocusRequest: AudioFocusRequest? = null
-        private var hasAudioFocus = false
+  @Inject
+  constructor(
+    @ApplicationContext private val context: Context,
+    private val debugLogger: IDebugLogger,
+  ) {
+    private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+    private var audioFocusRequest: AudioFocusRequest? = null
+    private var hasAudioFocus = false
 
-        fun requestAudioFocus(listener: AudioManager.OnAudioFocusChangeListener): Boolean {
-            if (hasAudioFocus) return true
+    fun requestAudioFocus(listener: AudioManager.OnAudioFocusChangeListener): Boolean {
+      if (hasAudioFocus) return true
 
-            val result =
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    val audioAttributes =
-                        AudioAttributes
-                            .Builder()
-                            .setUsage(AudioAttributes.USAGE_MEDIA)
-                            .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
-                            .build()
+      val result =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+          val audioAttributes =
+            AudioAttributes
+              .Builder()
+              .setUsage(AudioAttributes.USAGE_MEDIA)
+              .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+              .build()
 
-                    audioFocusRequest =
-                        AudioFocusRequest
-                            .Builder(AudioManager.AUDIOFOCUS_GAIN)
-                            .setAudioAttributes(audioAttributes)
-                            .setAcceptsDelayedFocusGain(true)
-                            .setOnAudioFocusChangeListener(listener)
-                            .build()
+          audioFocusRequest =
+            AudioFocusRequest
+              .Builder(AudioManager.AUDIOFOCUS_GAIN)
+              .setAudioAttributes(audioAttributes)
+              .setAcceptsDelayedFocusGain(true)
+              .setOnAudioFocusChangeListener(listener)
+              .build()
 
-                    audioManager.requestAudioFocus(audioFocusRequest!!)
-                } else {
-                    // For Android 6.0-7.1 we use the old API, but without @Suppress
-                    audioManager.requestAudioFocus(
-                        listener,
-                        AudioManager.STREAM_MUSIC,
-                        AudioManager.AUDIOFOCUS_GAIN,
-                    )
-                }
-
-            hasAudioFocus = result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
-            debugLogger.logDebug("Audio focus request result: $result")
-            return hasAudioFocus
+          audioManager.requestAudioFocus(audioFocusRequest!!)
+        } else {
+          // For Android 6.0-7.1 we use the old API, but without @Suppress
+          audioManager.requestAudioFocus(
+            listener,
+            AudioManager.STREAM_MUSIC,
+            AudioManager.AUDIOFOCUS_GAIN,
+          )
         }
 
-        fun abandonAudioFocus() {
-            if (!hasAudioFocus) return
-
-            val result =
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    audioFocusRequest?.let { audioManager.abandonAudioFocusRequest(it) }
-                        ?: AudioManager.AUDIOFOCUS_REQUEST_FAILED
-                } else {
-                    // For Android 6.0-7.1 we use the old API
-                    audioManager.abandonAudioFocus(null)
-                }
-
-            hasAudioFocus = false
-            debugLogger.logDebug("Audio focus abandoned, result: $result")
-        }
-
-        fun hasAudioFocus(): Boolean = hasAudioFocus
+      hasAudioFocus = result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+      debugLogger.logDebug("Audio focus request result: $result")
+      return hasAudioFocus
     }
+
+    fun abandonAudioFocus() {
+      if (!hasAudioFocus) return
+
+      val result =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+          audioFocusRequest?.let { audioManager.abandonAudioFocusRequest(it) }
+            ?: AudioManager.AUDIOFOCUS_REQUEST_FAILED
+        } else {
+          // For Android 6.0-7.1 we use the old API
+          audioManager.abandonAudioFocus(null)
+        }
+
+      hasAudioFocus = false
+      debugLogger.logDebug("Audio focus abandoned, result: $result")
+    }
+
+    fun hasAudioFocus(): Boolean = hasAudioFocus
+  }
