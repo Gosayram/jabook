@@ -19,41 +19,41 @@ import com.jabook.app.shared.ui.AppThemeMode
  */
 @Composable
 fun getDynamicVerticalPadding(): Dp {
-    val configuration = LocalConfiguration.current
-    val screenHeightDp = configuration.screenHeightDp
-    return when {
-        screenHeightDp < 600 -> 12.dp
-        screenHeightDp < 800 -> 16.dp
-        screenHeightDp < 1000 -> 20.dp
-        else -> 32.dp
-    }
+  val configuration = LocalConfiguration.current
+  val screenHeightDp = configuration.screenHeightDp
+  return when {
+    screenHeightDp < 600 -> 12.dp
+    screenHeightDp < 800 -> 16.dp
+    screenHeightDp < 1000 -> 20.dp
+    else -> 32.dp
+  }
 }
 
 @Composable
 fun ThemeToggleButton(
-    themeMode: AppThemeMode,
-    onToggle: () -> Unit,
+  themeMode: AppThemeMode,
+  onToggle: () -> Unit,
 ) {
-    IconButton(onClick = onToggle) {
-        when (themeMode) {
-            AppThemeMode.SYSTEM ->
-                Icon(
-                    imageVector = Icons.Filled.SettingsBrightness,
-                    contentDescription = "System theme",
-                    tint = MaterialTheme.colorScheme.onSurface,
-                )
-            AppThemeMode.LIGHT ->
-                Icon(
-                    imageVector = Icons.Filled.Brightness7,
-                    contentDescription = "Light theme",
-                    tint = MaterialTheme.colorScheme.onSurface,
-                )
-            AppThemeMode.DARK ->
-                Icon(
-                    imageVector = Icons.Filled.Brightness4,
-                    contentDescription = "Dark theme",
-                    tint = MaterialTheme.colorScheme.onSurface,
-                )
-        }
+  IconButton(onClick = onToggle) {
+    when (themeMode) {
+      AppThemeMode.SYSTEM ->
+        Icon(
+          imageVector = Icons.Filled.SettingsBrightness,
+          contentDescription = "System theme",
+          tint = MaterialTheme.colorScheme.onSurface,
+        )
+      AppThemeMode.LIGHT ->
+        Icon(
+          imageVector = Icons.Filled.Brightness7,
+          contentDescription = "Light theme",
+          tint = MaterialTheme.colorScheme.onSurface,
+        )
+      AppThemeMode.DARK ->
+        Icon(
+          imageVector = Icons.Filled.Brightness4,
+          contentDescription = "Dark theme",
+          tint = MaterialTheme.colorScheme.onSurface,
+        )
     }
+  }
 }

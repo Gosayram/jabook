@@ -45,132 +45,132 @@ import com.jabook.app.shared.ui.theme.JaBookAnimations
 
 /** Navigation destinations for the app */
 sealed class Screen(
-    val route: String,
+  val route: String,
 ) {
-    object Library : Screen("library")
+  object Library : Screen("library")
 
-    object Discovery : Screen("discovery")
+  object Discovery : Screen("discovery")
 
-    object Downloads : Screen("downloads")
+  object Downloads : Screen("downloads")
 
-    object Player : Screen("player")
+  object Player : Screen("player")
 
-    object Settings : Screen("settings") // New screen for settings
+  object Settings : Screen("settings") // New screen for settings
 }
 
 /** Main navigation composable with bottom navigation and animated transitions */
 @Composable
 fun JaBookNavigation(
-    navController: NavHostController = rememberNavController(),
-    modifier: Modifier = Modifier,
-    themeViewModel: ThemeViewModel,
-    themeMode: AppThemeMode,
+  navController: NavHostController = rememberNavController(),
+  modifier: Modifier = Modifier,
+  themeViewModel: ThemeViewModel,
+  themeMode: AppThemeMode,
 ) {
-    val navBackStackEntry by navController.currentBackStackEntryAsState()
-    val currentDestination = navBackStackEntry?.destination
+  val navBackStackEntry by navController.currentBackStackEntryAsState()
+  val currentDestination = navBackStackEntry?.destination
 
-    Scaffold(
-        modifier = modifier.fillMaxSize(),
-        bottomBar = {
-            NavigationBar(containerColor = MaterialTheme.colorScheme.surfaceContainer, contentColor = MaterialTheme.colorScheme.onSurface) {
-                val items =
-                    listOf(
-                        Triple(Screen.Library, Icons.Default.Home, R.string.library_title),
-                        Triple(Screen.Discovery, Icons.Default.Search, R.string.discovery),
-                        Triple(Screen.Downloads, Icons.Default.Download, R.string.downloads),
-                        Triple(Screen.Player, Icons.Default.PlayArrow, R.string.player),
-                        Triple(Screen.Settings, Icons.Default.Settings, R.string.settings), // Added Settings icon
-                    )
+  Scaffold(
+    modifier = modifier.fillMaxSize(),
+    bottomBar = {
+      NavigationBar(containerColor = MaterialTheme.colorScheme.surfaceContainer, contentColor = MaterialTheme.colorScheme.onSurface) {
+        val items =
+          listOf(
+            Triple(Screen.Library, Icons.Default.Home, R.string.library_title),
+            Triple(Screen.Discovery, Icons.Default.Search, R.string.discovery),
+            Triple(Screen.Downloads, Icons.Default.Download, R.string.downloads),
+            Triple(Screen.Player, Icons.Default.PlayArrow, R.string.player),
+            Triple(Screen.Settings, Icons.Default.Settings, R.string.settings), // Added Settings icon
+          )
 
-                items.forEach { (screen, icon, titleRes) ->
-                    NavigationBarItem(
-                        icon = { Icon(icon, contentDescription = null) },
-                        label = { Text(stringResource(titleRes)) },
-                        selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true,
-                        onClick = {
-                            navController.navigate(screen.route) {
-                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                        },
-                    )
-                }
-            }
-        },
-    ) { innerPadding ->
-        Surface(modifier = Modifier.fillMaxSize().padding(innerPadding), color = MaterialTheme.colorScheme.background) {
-            NavHost(
-                navController = navController,
-                startDestination = Screen.Library.route,
-                modifier = Modifier.fillMaxSize(),
-                enterTransition = { getEnterTransition() },
-                exitTransition = { getExitTransition() },
-                popEnterTransition = { getPopEnterTransition() },
-                popExitTransition = { getPopExitTransition() },
-            ) {
-                composable(Screen.Library.route) {
-                    LibraryScreen(
-                        onAudiobookClick = { audiobook -> navController.navigate(Screen.Player.route) },
-                        themeViewModel = themeViewModel,
-                        themeMode = themeMode,
-                    )
-                }
-
-                composable(Screen.Discovery.route) {
-                    DiscoveryScreen(
-                        onNavigateToAudiobook = { audiobook -> navController.navigate(Screen.Player.route) },
-                        themeViewModel = themeViewModel,
-                        themeMode = themeMode,
-                    )
-                }
-
-                composable(Screen.Downloads.route) {
-                    DownloadsScreen(
-                        themeViewModel = themeViewModel,
-                        themeMode = themeMode,
-                    )
-                }
-
-                composable(Screen.Player.route) {
-                    PlayerScreen(
-                        themeViewModel = themeViewModel,
-                        themeMode = themeMode,
-                    )
-                }
-
-                composable(Screen.Settings.route) {
-                    RuTrackerSettingsScreen() // New settings screen
-                }
-            }
+        items.forEach { (screen, icon, titleRes) ->
+          NavigationBarItem(
+            icon = { Icon(icon, contentDescription = null) },
+            label = { Text(stringResource(titleRes)) },
+            selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true,
+            onClick = {
+              navController.navigate(screen.route) {
+                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                launchSingleTop = true
+                restoreState = true
+              }
+            },
+          )
         }
+      }
+    },
+  ) { innerPadding ->
+    Surface(modifier = Modifier.fillMaxSize().padding(innerPadding), color = MaterialTheme.colorScheme.background) {
+      NavHost(
+        navController = navController,
+        startDestination = Screen.Library.route,
+        modifier = Modifier.fillMaxSize(),
+        enterTransition = { getEnterTransition() },
+        exitTransition = { getExitTransition() },
+        popEnterTransition = { getPopEnterTransition() },
+        popExitTransition = { getPopExitTransition() },
+      ) {
+        composable(Screen.Library.route) {
+          LibraryScreen(
+            onAudiobookClick = { audiobook -> navController.navigate(Screen.Player.route) },
+            themeViewModel = themeViewModel,
+            themeMode = themeMode,
+          )
+        }
+
+        composable(Screen.Discovery.route) {
+          DiscoveryScreen(
+            onNavigateToAudiobook = { audiobook -> navController.navigate(Screen.Player.route) },
+            themeViewModel = themeViewModel,
+            themeMode = themeMode,
+          )
+        }
+
+        composable(Screen.Downloads.route) {
+          DownloadsScreen(
+            themeViewModel = themeViewModel,
+            themeMode = themeMode,
+          )
+        }
+
+        composable(Screen.Player.route) {
+          PlayerScreen(
+            themeViewModel = themeViewModel,
+            themeMode = themeMode,
+          )
+        }
+
+        composable(Screen.Settings.route) {
+          RuTrackerSettingsScreen() // New settings screen
+        }
+      }
     }
+  }
 }
 
 /** Get enter transition for forward navigation */
 private fun getEnterTransition(): EnterTransition =
-    slideInHorizontally(
-        animationSpec = tween(durationMillis = JaBookAnimations.DURATION_MEDIUM, easing = JaBookAnimations.EMPHASIZED_EASING),
-        initialOffsetX = { it },
-    ) + fadeIn(animationSpec = tween(durationMillis = JaBookAnimations.DURATION_MEDIUM, easing = JaBookAnimations.STANDARD_EASING))
+  slideInHorizontally(
+    animationSpec = tween(durationMillis = JaBookAnimations.DURATION_MEDIUM, easing = JaBookAnimations.EMPHASIZED_EASING),
+    initialOffsetX = { it },
+  ) + fadeIn(animationSpec = tween(durationMillis = JaBookAnimations.DURATION_MEDIUM, easing = JaBookAnimations.STANDARD_EASING))
 
 /** Get exit transition for forward navigation */
 private fun getExitTransition(): ExitTransition =
-    slideOutHorizontally(
-        animationSpec = tween(durationMillis = JaBookAnimations.DURATION_SHORT, easing = JaBookAnimations.STANDARD_EASING),
-        targetOffsetX = { -it / 3 },
-    ) + fadeOut(animationSpec = tween(durationMillis = JaBookAnimations.DURATION_SHORT, easing = JaBookAnimations.STANDARD_EASING))
+  slideOutHorizontally(
+    animationSpec = tween(durationMillis = JaBookAnimations.DURATION_SHORT, easing = JaBookAnimations.STANDARD_EASING),
+    targetOffsetX = { -it / 3 },
+  ) + fadeOut(animationSpec = tween(durationMillis = JaBookAnimations.DURATION_SHORT, easing = JaBookAnimations.STANDARD_EASING))
 
 /** Get enter transition for back navigation */
 private fun getPopEnterTransition(): EnterTransition =
-    slideInHorizontally(
-        animationSpec = tween(durationMillis = JaBookAnimations.DURATION_MEDIUM, easing = JaBookAnimations.EMPHASIZED_EASING),
-        initialOffsetX = { -it / 3 },
-    ) + fadeIn(animationSpec = tween(durationMillis = JaBookAnimations.DURATION_MEDIUM, easing = JaBookAnimations.STANDARD_EASING))
+  slideInHorizontally(
+    animationSpec = tween(durationMillis = JaBookAnimations.DURATION_MEDIUM, easing = JaBookAnimations.EMPHASIZED_EASING),
+    initialOffsetX = { -it / 3 },
+  ) + fadeIn(animationSpec = tween(durationMillis = JaBookAnimations.DURATION_MEDIUM, easing = JaBookAnimations.STANDARD_EASING))
 
 /** Get exit transition for back navigation */
 private fun getPopExitTransition(): ExitTransition =
-    slideOutHorizontally(
-        animationSpec = tween(durationMillis = JaBookAnimations.DURATION_SHORT, easing = JaBookAnimations.STANDARD_EASING),
-        targetOffsetX = { it },
-    ) + fadeOut(animationSpec = tween(durationMillis = JaBookAnimations.DURATION_SHORT, easing = JaBookAnimations.STANDARD_EASING))
+  slideOutHorizontally(
+    animationSpec = tween(durationMillis = JaBookAnimations.DURATION_SHORT, easing = JaBookAnimations.STANDARD_EASING),
+    targetOffsetX = { it },
+  ) + fadeOut(animationSpec = tween(durationMillis = JaBookAnimations.DURATION_SHORT, easing = JaBookAnimations.STANDARD_EASING))

@@ -20,19 +20,19 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 abstract class RuTrackerModule {
-    @Binds
-    @Singleton
-    abstract fun bindRuTrackerPreferences(impl: RuTrackerPreferencesImpl): RuTrackerPreferences
+  @Binds
+  @Singleton
+  abstract fun bindRuTrackerPreferences(impl: RuTrackerPreferencesImpl): RuTrackerPreferences
 
-    @Binds
-    @Singleton
-    abstract fun bindRuTrackerApiClient(impl: RuTrackerApiClientImpl): RuTrackerApiClient
+  @Binds
+  @Singleton
+  abstract fun bindRuTrackerApiClient(impl: RuTrackerApiClientImpl): RuTrackerApiClient
 
-    @Binds
-    @Singleton
-    abstract fun bindRuTrackerParser(impl: RuTrackerParserImproved): RuTrackerParser
+  @Binds
+  @Singleton
+  abstract fun bindRuTrackerParser(impl: RuTrackerParserImproved): RuTrackerParser
 
-    @Binds
-    @Singleton
-    abstract fun bindRuTrackerRepository(impl: RuTrackerRepositoryImpl): RuTrackerRepository
+  @Binds
+  @Singleton
+  abstract fun bindRuTrackerRepository(impl: RuTrackerRepositoryImpl): RuTrackerRepository
 }

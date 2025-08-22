@@ -35,93 +35,93 @@ import com.jabook.app.shared.utils.formatFileSize
 
 @Composable
 fun AudiobookSectionCard(
-    audiobook: RuTrackerAudiobook,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
+  audiobook: RuTrackerAudiobook,
+  onClick: () -> Unit,
+  modifier: Modifier = Modifier,
 ) {
-    Card(
-        modifier = modifier.clickable { onClick() },
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-    ) {
-        Column(modifier = Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            // Cover image
-            AsyncImage(
-                model = null, // coverImageUrl not available in RuTrackerAudiobook
-                contentDescription = stringResource(R.string.audiobook_cover),
-                modifier = Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(8.dp)),
-                contentScale = ContentScale.Crop,
-                placeholder = painterResource(R.drawable.ic_book_24),
-                error = painterResource(R.drawable.ic_book_24),
+  Card(
+    modifier = modifier.clickable { onClick() },
+    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+  ) {
+    Column(modifier = Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+      // Cover image
+      AsyncImage(
+        model = null, // coverImageUrl not available in RuTrackerAudiobook
+        contentDescription = stringResource(R.string.audiobook_cover),
+        modifier = Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(8.dp)),
+        contentScale = ContentScale.Crop,
+        placeholder = painterResource(R.drawable.ic_book_24),
+        error = painterResource(R.drawable.ic_book_24),
+      )
+
+      // Content
+      Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        // Title
+        Text(
+          text = audiobook.title,
+          style = MaterialTheme.typography.titleSmall,
+          fontWeight = FontWeight.SemiBold,
+          maxLines = 2,
+          overflow = TextOverflow.Ellipsis,
+          color = MaterialTheme.colorScheme.onSurface,
+        )
+
+        // Author
+        Text(
+          text = audiobook.author,
+          style = MaterialTheme.typography.bodySmall,
+          color = MaterialTheme.colorScheme.onSurfaceVariant,
+          maxLines = 1,
+          overflow = TextOverflow.Ellipsis,
+        )
+
+        // Size
+        Text(
+          text = formatFileSize(audiobook.sizeBytes),
+          style = MaterialTheme.typography.bodySmall,
+          color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+
+        // Seeds and rating
+        Row(
+          horizontalArrangement = Arrangement.spacedBy(8.dp),
+          verticalAlignment = Alignment.CenterVertically,
+          modifier = Modifier.fillMaxWidth(),
+        ) {
+          // Seeds/Leechers
+          Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+            Icon(
+              imageVector = Icons.Default.People,
+              contentDescription = null,
+              modifier = Modifier.size(12.dp),
+              tint = if (audiobook.seeders > 0) Color(0xFF4CAF50) else MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            Text(
+              text = "${audiobook.seeders}",
+              style = MaterialTheme.typography.bodySmall,
+              color = if (audiobook.seeders > 0) Color(0xFF4CAF50) else MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+          }
 
-            // Content
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                // Title
-                Text(
-                    text = audiobook.title,
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
-
-                // Author
-                Text(
-                    text = audiobook.author,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-
-                // Size
-                Text(
-                    text = formatFileSize(audiobook.sizeBytes),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-
-                // Seeds and rating
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    // Seeds/Leechers
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                        Icon(
-                            imageVector = Icons.Default.People,
-                            contentDescription = null,
-                            modifier = Modifier.size(12.dp),
-                            tint = if (audiobook.seeders > 0) Color(0xFF4CAF50) else MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Text(
-                            text = "${audiobook.seeders}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = if (audiobook.seeders > 0) Color(0xFF4CAF50) else MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-
-                    // Rating
-                    if ((audiobook.rating ?: 0f) > 0f) {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                            Icon(
-                                imageVector = Icons.Default.Star,
-                                contentDescription = null,
-                                modifier = Modifier.size(12.dp),
-                                tint = Color(0xFFFFC107),
-                            )
-                            Text(
-                                text = "%.1f".format(audiobook.rating),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    }
-                }
+          // Rating
+          if ((audiobook.rating ?: 0f) > 0f) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+              Icon(
+                imageVector = Icons.Default.Star,
+                contentDescription = null,
+                modifier = Modifier.size(12.dp),
+                tint = Color(0xFFFFC107),
+              )
+              Text(
+                text = "%.1f".format(audiobook.rating),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+              )
             }
+          }
         }
+      }
     }
+  }
 }

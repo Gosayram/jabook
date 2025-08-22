@@ -12,38 +12,38 @@ import androidx.compose.ui.unit.dp
 
 @Composable
 fun StatusMessageCard(
-    errorMessage: String? = null,
-    successMessage: String? = null,
-    modifier: Modifier = Modifier,
+  errorMessage: String? = null,
+  successMessage: String? = null,
+  modifier: Modifier = Modifier,
 ) {
-    when {
-        errorMessage != null -> {
-            Card(
-                modifier = modifier.fillMaxWidth(),
-                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
-            ) {
-                Text(
-                    text = errorMessage,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onErrorContainer,
-                    modifier = Modifier.padding(16.dp),
-                )
-            }
-        }
-        successMessage != null -> {
-            Card(
-                modifier = modifier.fillMaxWidth(),
-                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
-            ) {
-                Text(
-                    text = successMessage,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                    modifier = Modifier.padding(16.dp),
-                )
-            }
-        }
+  when {
+    errorMessage != null -> {
+      Card(
+        modifier = modifier.fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+      ) {
+        Text(
+          text = errorMessage,
+          style = MaterialTheme.typography.bodyMedium,
+          color = MaterialTheme.colorScheme.onErrorContainer,
+          modifier = Modifier.padding(16.dp),
+        )
+      }
     }
+    successMessage != null -> {
+      Card(
+        modifier = modifier.fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+      ) {
+        Text(
+          text = successMessage,
+          style = MaterialTheme.typography.bodyMedium,
+          color = MaterialTheme.colorScheme.onPrimaryContainer,
+          modifier = Modifier.padding(16.dp),
+        )
+      }
+    }
+  }
 }

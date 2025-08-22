@@ -19,44 +19,44 @@ import com.jabook.app.R
 
 @Composable
 fun ModeToggleCard(
-    isGuestMode: Boolean,
-    onModeChange: (Boolean) -> Unit,
-    modifier: Modifier = Modifier,
+  isGuestMode: Boolean,
+  onModeChange: (Boolean) -> Unit,
+  modifier: Modifier = Modifier,
 ) {
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+  Card(
+    modifier = modifier.fillMaxWidth(),
+    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+  ) {
+    Row(
+      modifier =
+        Modifier
+          .fillMaxWidth()
+          .padding(16.dp),
+      horizontalArrangement = Arrangement.SpaceBetween,
+      verticalAlignment = Alignment.CenterVertically,
     ) {
-        Row(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                Text(
-                    text = stringResource(R.string.ru_tracker_mode),
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = MaterialTheme.colorScheme.primary,
-                )
+      Column(
+        modifier = Modifier.weight(1f),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+      ) {
+        Text(
+          text = stringResource(R.string.ru_tracker_mode),
+          style = MaterialTheme.typography.headlineSmall,
+          color = MaterialTheme.colorScheme.primary,
+        )
 
-                Text(
-                    text = if (isGuestMode) stringResource(R.string.guest_mode_desc) else stringResource(R.string.authorized_mode_desc),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
+        Text(
+          text = if (isGuestMode) stringResource(R.string.guest_mode_desc) else stringResource(R.string.authorized_mode_desc),
+          style = MaterialTheme.typography.bodyMedium,
+          color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+      }
 
-            Switch(
-                checked = !isGuestMode, // Inverted because true means authorized mode
-                onCheckedChange = { onModeChange(!it) }, // Inverted because true means guest mode
-            )
-        }
+      Switch(
+        checked = !isGuestMode, // Inverted because true means authorized mode
+        onCheckedChange = { onModeChange(!it) }, // Inverted because true means guest mode
+      )
     }
+  }
 }

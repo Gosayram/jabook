@@ -21,110 +21,110 @@ import androidx.compose.ui.unit.sp
 /** JaBook standardized button component with Material Design 3 styling Provides consistent button appearance across the application */
 @Composable
 fun JaBookButton(
-    text: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    variant: ButtonVariant = ButtonVariant.Primary,
-    isEnabled: Boolean = true,
-    isLoading: Boolean = false,
-    minHeight: Dp = 48.dp,
+  text: String,
+  onClick: () -> Unit,
+  modifier: Modifier = Modifier,
+  variant: ButtonVariant = ButtonVariant.Primary,
+  isEnabled: Boolean = true,
+  isLoading: Boolean = false,
+  minHeight: Dp = 48.dp,
 ) {
-    when (variant) {
-        ButtonVariant.Primary -> {
-            Button(
-                onClick = onClick,
-                modifier = modifier.height(minHeight),
-                enabled = isEnabled && !isLoading,
-                colors =
-                    ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary,
-                        disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                        disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    ),
-                shape = RoundedCornerShape(12.dp),
-                contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp),
-            ) {
-                ButtonContent(text = text, isLoading = isLoading)
-            }
-        }
-
-        ButtonVariant.Secondary -> {
-            OutlinedButton(
-                onClick = onClick,
-                modifier = modifier.height(minHeight),
-                enabled = isEnabled && !isLoading,
-                colors =
-                    ButtonDefaults.outlinedButtonColors(
-                        contentColor = MaterialTheme.colorScheme.primary,
-                        disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    ),
-                border =
-                    BorderStroke(
-                        width = 1.dp,
-                        color = if (isEnabled) MaterialTheme.colorScheme.outline else MaterialTheme.colorScheme.surfaceVariant,
-                    ),
-                shape = RoundedCornerShape(12.dp),
-                contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp),
-            ) {
-                ButtonContent(text = text, isLoading = isLoading)
-            }
-        }
-
-        ButtonVariant.Text -> {
-            TextButton(
-                onClick = onClick,
-                modifier = modifier.height(minHeight),
-                enabled = isEnabled && !isLoading,
-                colors =
-                    ButtonDefaults.textButtonColors(
-                        contentColor = MaterialTheme.colorScheme.primary,
-                        disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    ),
-                shape = RoundedCornerShape(12.dp),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-            ) {
-                ButtonContent(text = text, isLoading = isLoading)
-            }
-        }
-
-        ButtonVariant.Danger -> {
-            Button(
-                onClick = onClick,
-                modifier = modifier.height(minHeight),
-                enabled = isEnabled && !isLoading,
-                colors =
-                    ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.error,
-                        contentColor = MaterialTheme.colorScheme.onError,
-                        disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                        disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    ),
-                shape = RoundedCornerShape(12.dp),
-                contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp),
-            ) {
-                ButtonContent(text = text, isLoading = isLoading)
-            }
-        }
+  when (variant) {
+    ButtonVariant.Primary -> {
+      Button(
+        onClick = onClick,
+        modifier = modifier.height(minHeight),
+        enabled = isEnabled && !isLoading,
+        colors =
+          ButtonDefaults.buttonColors(
+            containerColor = MaterialTheme.colorScheme.primary,
+            contentColor = MaterialTheme.colorScheme.onPrimary,
+            disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+            disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+          ),
+        shape = RoundedCornerShape(12.dp),
+        contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp),
+      ) {
+        ButtonContent(text = text, isLoading = isLoading)
+      }
     }
+
+    ButtonVariant.Secondary -> {
+      OutlinedButton(
+        onClick = onClick,
+        modifier = modifier.height(minHeight),
+        enabled = isEnabled && !isLoading,
+        colors =
+          ButtonDefaults.outlinedButtonColors(
+            contentColor = MaterialTheme.colorScheme.primary,
+            disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+          ),
+        border =
+          BorderStroke(
+            width = 1.dp,
+            color = if (isEnabled) MaterialTheme.colorScheme.outline else MaterialTheme.colorScheme.surfaceVariant,
+          ),
+        shape = RoundedCornerShape(12.dp),
+        contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp),
+      ) {
+        ButtonContent(text = text, isLoading = isLoading)
+      }
+    }
+
+    ButtonVariant.Text -> {
+      TextButton(
+        onClick = onClick,
+        modifier = modifier.height(minHeight),
+        enabled = isEnabled && !isLoading,
+        colors =
+          ButtonDefaults.textButtonColors(
+            contentColor = MaterialTheme.colorScheme.primary,
+            disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+          ),
+        shape = RoundedCornerShape(12.dp),
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+      ) {
+        ButtonContent(text = text, isLoading = isLoading)
+      }
+    }
+
+    ButtonVariant.Danger -> {
+      Button(
+        onClick = onClick,
+        modifier = modifier.height(minHeight),
+        enabled = isEnabled && !isLoading,
+        colors =
+          ButtonDefaults.buttonColors(
+            containerColor = MaterialTheme.colorScheme.error,
+            contentColor = MaterialTheme.colorScheme.onError,
+            disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+            disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+          ),
+        shape = RoundedCornerShape(12.dp),
+        contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp),
+      ) {
+        ButtonContent(text = text, isLoading = isLoading)
+      }
+    }
+  }
 }
 
 @Composable
 private fun ButtonContent(
-    text: String,
-    isLoading: Boolean,
+  text: String,
+  isLoading: Boolean,
 ) {
-    if (isLoading) {
-        Text(text = "Загрузка...", style = TextStyle(fontSize = 16.sp, fontWeight = FontWeight.Medium, letterSpacing = 0.5.sp))
-    } else {
-        Text(text = text, style = TextStyle(fontSize = 16.sp, fontWeight = FontWeight.Medium, letterSpacing = 0.5.sp))
-    }
+  if (isLoading) {
+    Text(text = "Загрузка...", style = TextStyle(fontSize = 16.sp, fontWeight = FontWeight.Medium, letterSpacing = 0.5.sp))
+  } else {
+    Text(text = text, style = TextStyle(fontSize = 16.sp, fontWeight = FontWeight.Medium, letterSpacing = 0.5.sp))
+  }
 }
 
 /** Button style variants for different use cases */
 enum class ButtonVariant {
-    Primary, // Filled button for primary actions
-    Secondary, // Outlined button for secondary actions
-    Text, // Text button for tertiary actions
-    Danger, // Red button for destructive actions
+  Primary, // Filled button for primary actions
+  Secondary, // Outlined button for secondary actions
+  Text, // Text button for tertiary actions
+  Danger, // Red button for destructive actions
 }

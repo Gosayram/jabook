@@ -1,9 +1,8 @@
 [versions]
 agp = "8.10.0"
-kotlin = "2.2.0"
-ksp = "2.2.0-2.0.2"
+kotlin = "2.1.21"
+ksp = "2.1.21-2.0.1"
 hilt = "2.57"
-compose-compiler = "1.5.16"
 core-ktx = "1.15.0"
 lifecycle-runtime-ktx = "2.8.7"
 activity-compose = "1.9.3"
@@ -161,7 +160,6 @@ firebase-crashlytics-library = { group = "com.google.firebase", name = "firebase
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
-compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 kotlin-kapt = { id = "org.jetbrains.kotlin.kapt", version.ref = "kotlin" }
 kotlin-parcelize = { id = "org.jetbrains.kotlin.plugin.parcelize", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }

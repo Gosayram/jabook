@@ -21,23 +21,23 @@ fun String.truncate(maxLength: Int): String = if (this.length <= maxLength) this
 
 /** Long extensions for time and size formatting */
 fun Long.formatAsTime(): String {
-    val hours = TimeUnit.MILLISECONDS.toHours(this)
-    val minutes = TimeUnit.MILLISECONDS.toMinutes(this) % 60
-    val seconds = TimeUnit.MILLISECONDS.toSeconds(this) % 60
+  val hours = TimeUnit.MILLISECONDS.toHours(this)
+  val minutes = TimeUnit.MILLISECONDS.toMinutes(this) % 60
+  val seconds = TimeUnit.MILLISECONDS.toSeconds(this) % 60
 
-    return when {
-        hours > 0 -> String.format(Locale.US, "%02d:%02d:%02d", hours, minutes, seconds)
-        else -> String.format(Locale.US, "%02d:%02d", minutes, seconds)
-    }
+  return when {
+    hours > 0 -> String.format(Locale.US, "%02d:%02d:%02d", hours, minutes, seconds)
+    else -> String.format(Locale.US, "%02d:%02d", minutes, seconds)
+  }
 }
 
 fun Long.formatAsSize(): String =
-    when {
-        this >= 1024 * 1024 * 1024 -> String.format(Locale.US, "%.1f GB", this / (1024.0 * 1024.0 * 1024.0))
-        this >= 1024 * 1024 -> String.format(Locale.US, "%.1f MB", this / (1024.0 * 1024.0))
-        this >= 1024 -> String.format(Locale.US, "%.1f KB", this / 1024.0)
-        else -> String.format(Locale.US, "%d B", this)
-    }
+  when {
+    this >= 1024 * 1024 * 1024 -> String.format(Locale.US, "%.1f GB", this / (1024.0 * 1024.0 * 1024.0))
+    this >= 1024 * 1024 -> String.format(Locale.US, "%.1f MB", this / (1024.0 * 1024.0))
+    this >= 1024 -> String.format(Locale.US, "%.1f KB", this / 1024.0)
+    else -> String.format(Locale.US, "%d B", this)
+  }
 
 fun Long.formatAsDate(): String = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date(this))
 
@@ -50,130 +50,130 @@ fun Float.formatAsPercentage(): String = String.format(Locale.US, "%.1f%%", this
 
 /** Context extensions */
 fun Context.isNetworkAvailable(): Boolean {
-    val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+  val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
 
-    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-        val network = connectivityManager.activeNetwork ?: return false
-        val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
-        capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) ||
-            capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) ||
-            capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)
-    } else {
-        // For Android 6.0 we use the old API without @Suppress
-        val networkInfo = connectivityManager.activeNetworkInfo
-        networkInfo?.isConnected == true
-    }
+  return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+    val network = connectivityManager.activeNetwork ?: return false
+    val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
+    capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) ||
+      capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) ||
+      capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)
+  } else {
+    // For Android 6.0 we use the old API without @Suppress
+    val networkInfo = connectivityManager.activeNetworkInfo
+    networkInfo?.isConnected == true
+  }
 }
 
 fun Context.isWifiConnected(): Boolean {
-    val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+  val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
 
-    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-        val network = connectivityManager.activeNetwork ?: return false
-        val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
-        capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
-    } else {
-        // For Android 6.0 we use the old API without @Suppress
-        val networkInfo = connectivityManager.activeNetworkInfo
-        networkInfo?.type == ConnectivityManager.TYPE_WIFI && networkInfo.isConnected
-    }
+  return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+    val network = connectivityManager.activeNetwork ?: return false
+    val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
+    capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
+  } else {
+    // For Android 6.0 we use the old API without @Suppress
+    val networkInfo = connectivityManager.activeNetworkInfo
+    networkInfo?.type == ConnectivityManager.TYPE_WIFI && networkInfo.isConnected
+  }
 }
 
 fun Context.shareText(
-    text: String,
-    title: String = "Share",
+  text: String,
+  title: String = "Share",
 ) {
-    val intent =
-        Intent().apply {
-            action = Intent.ACTION_SEND
-            putExtra(Intent.EXTRA_TEXT, text)
-            type = "text/plain"
-        }
-    startActivity(Intent.createChooser(intent, title))
+  val intent =
+    Intent().apply {
+      action = Intent.ACTION_SEND
+      putExtra(Intent.EXTRA_TEXT, text)
+      type = "text/plain"
+    }
+  startActivity(Intent.createChooser(intent, title))
 }
 
 fun Context.openUrl(url: String) {
-    val intent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url))
-    startActivity(intent)
+  val intent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url))
+  startActivity(intent)
 }
 
 /** Collection extensions */
 fun <T> List<T>.safeGet(index: Int): T? = if (index >= 0 && index < size) this[index] else null
 
 fun <T> MutableList<T>.addIfNotExists(item: T) {
-    if (!contains(item)) {
-        add(item)
-    }
+  if (!contains(item)) {
+    add(item)
+  }
 }
 
 fun <T> List<T>.chunkedSafe(size: Int): List<List<T>> = if (size <= 0) listOf(this) else chunked(size)
 
 /** Validation utilities */
 object ValidationUtils {
-    fun isValidEmail(email: String): Boolean =
-        android.util.Patterns.EMAIL_ADDRESS
-            .matcher(email)
-            .matches()
+  fun isValidEmail(email: String): Boolean =
+    android.util.Patterns.EMAIL_ADDRESS
+      .matcher(email)
+      .matches()
 
-    fun isValidUrl(url: String): Boolean =
-        android.util.Patterns.WEB_URL
-            .matcher(url)
-            .matches()
+  fun isValidUrl(url: String): Boolean =
+    android.util.Patterns.WEB_URL
+      .matcher(url)
+      .matches()
 
-    fun isValidMagnetLink(magnetLink: String): Boolean = magnetLink.matches(Regex("^magnet:\\?xt=urn:btih:[a-fA-F0-9]{40,}.*"))
+  fun isValidMagnetLink(magnetLink: String): Boolean = magnetLink.matches(Regex("^magnet:\\?xt=urn:btih:[a-fA-F0-9]{40,}.*"))
 
-    fun isValidFileName(fileName: String): Boolean {
-        val invalidChars = listOf('/', '\\', ':', '*', '?', '"', '<', '>', '|')
-        return fileName.isNotBlank() && fileName.none { it in invalidChars }
-    }
+  fun isValidFileName(fileName: String): Boolean {
+    val invalidChars = listOf('/', '\\', ':', '*', '?', '"', '<', '>', '|')
+    return fileName.isNotBlank() && fileName.none { it in invalidChars }
+  }
 
-    fun isValidAudioFile(fileName: String): Boolean {
-        val audioExtensions = listOf("mp3", "mp4", "m4a", "aac", "ogg", "flac", "wav")
-        val extension = fileName.substringAfterLast('.', "").lowercase()
-        return extension in audioExtensions
-    }
+  fun isValidAudioFile(fileName: String): Boolean {
+    val audioExtensions = listOf("mp3", "mp4", "m4a", "aac", "ogg", "flac", "wav")
+    val extension = fileName.substringAfterLast('.', "").lowercase()
+    return extension in audioExtensions
+  }
 }
 
 /** File utilities */
 object FileUtils {
-    fun getFileExtension(fileName: String): String = fileName.substringAfterLast('.', "").lowercase()
+  fun getFileExtension(fileName: String): String = fileName.substringAfterLast('.', "").lowercase()
 
-    fun getFileNameWithoutExtension(fileName: String): String = fileName.substringBeforeLast('.')
+  fun getFileNameWithoutExtension(fileName: String): String = fileName.substringBeforeLast('.')
 
-    fun sanitizeFileName(fileName: String): String = fileName.replace(Regex("[^a-zA-Z0-9._-]"), "_")
+  fun sanitizeFileName(fileName: String): String = fileName.replace(Regex("[^a-zA-Z0-9._-]"), "_")
 
-    fun createUniqueFileName(
-        baseName: String,
-        extension: String,
-        existingFiles: List<String>,
-    ): String {
-        var counter = 1
-        var fileName = "$baseName.$extension"
+  fun createUniqueFileName(
+    baseName: String,
+    extension: String,
+    existingFiles: List<String>,
+  ): String {
+    var counter = 1
+    var fileName = "$baseName.$extension"
 
-        while (existingFiles.contains(fileName)) {
-            fileName = "${baseName}_$counter.$extension"
-            counter++
-        }
-
-        return fileName
+    while (existingFiles.contains(fileName)) {
+      fileName = "${baseName}_$counter.$extension"
+      counter++
     }
+
+    return fileName
+  }
 }
 
 /** Text utilities */
 object TextUtils {
-    fun extractNumbers(text: String): List<Int> = Regex("\\d+").findAll(text).map { it.value.toInt() }.toList()
+  fun extractNumbers(text: String): List<Int> = Regex("\\d+").findAll(text).map { it.value.toInt() }.toList()
 
-    fun removeHtmlTags(html: String): String = html.replace(Regex("<[^>]*>"), "")
+  fun removeHtmlTags(html: String): String = html.replace(Regex("<[^>]*>"), "")
 
-    fun capitalizeWords(text: String): String =
-        text.split(" ").joinToString(" ") { word ->
-            word.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.US) else it.toString() }
-        }
+  fun capitalizeWords(text: String): String =
+    text.split(" ").joinToString(" ") { word ->
+      word.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.US) else it.toString() }
+    }
 
-    fun truncateWithEllipsis(
-        text: String,
-        maxLength: Int,
-    ): String = if (text.length <= maxLength) text else "${text.substring(0, maxLength - 3)}..."
+  fun truncateWithEllipsis(
+    text: String,
+    maxLength: Int,
+  ): String = if (text.length <= maxLength) text else "${text.substring(0, maxLength - 3)}..."
 }
 
 /** File size formatting utility function */
@@ -181,53 +181,53 @@ fun formatFileSize(sizeBytes: Long): String = sizeBytes.formatAsSize()
 
 /** Math utilities */
 object MathUtils {
-    fun clamp(
-        value: Int,
-        min: Int,
-        max: Int,
-    ): Int =
-        when {
-            value < min -> min
-            value > max -> max
-            else -> value
-        }
-
-    fun clamp(
-        value: Float,
-        min: Float,
-        max: Float,
-    ): Float =
-        when {
-            value < min -> min
-            value > max -> max
-            else -> value
-        }
-
-    fun clamp(
-        value: Long,
-        min: Long,
-        max: Long,
-    ): Long =
-        when {
-            value < min -> min
-            value > max -> max
-            else -> value
-        }
-
-    fun lerp(
-        start: Float,
-        end: Float,
-        fraction: Float,
-    ): Float = start + (end - start) * fraction
-
-    fun map(
-        value: Float,
-        fromMin: Float,
-        fromMax: Float,
-        toMin: Float,
-        toMax: Float,
-    ): Float {
-        val normalizedValue = (value - fromMin) / (fromMax - fromMin)
-        return toMin + normalizedValue * (toMax - toMin)
+  fun clamp(
+    value: Int,
+    min: Int,
+    max: Int,
+  ): Int =
+    when {
+      value < min -> min
+      value > max -> max
+      else -> value
     }
+
+  fun clamp(
+    value: Float,
+    min: Float,
+    max: Float,
+  ): Float =
+    when {
+      value < min -> min
+      value > max -> max
+      else -> value
+    }
+
+  fun clamp(
+    value: Long,
+    min: Long,
+    max: Long,
+  ): Long =
+    when {
+      value < min -> min
+      value > max -> max
+      else -> value
+    }
+
+  fun lerp(
+    start: Float,
+    end: Float,
+    fraction: Float,
+  ): Float = start + (end - start) * fraction
+
+  fun map(
+    value: Float,
+    fromMin: Float,
+    fromMax: Float,
+    toMin: Float,
+    toMax: Float,
+  ): Float {
+    val normalizedValue = (value - fromMin) / (fromMax - fromMin)
+    return toMin + normalizedValue * (toMax - toMin)
+  }
 }

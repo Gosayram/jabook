@@ -24,73 +24,73 @@ import com.jabook.app.features.library.presentation.LibraryFilter
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun LibraryFilterChips(
-    currentFilter: LibraryFilter,
-    categories: List<String>,
-    selectedCategory: String?,
-    onFilterChange: (LibraryFilter, String?) -> Unit,
-    modifier: Modifier = Modifier,
+  currentFilter: LibraryFilter,
+  categories: List<String>,
+  selectedCategory: String?,
+  onFilterChange: (LibraryFilter, String?) -> Unit,
+  modifier: Modifier = Modifier,
 ) {
-    var showCategoryDropdown by remember { mutableStateOf(false) }
+  var showCategoryDropdown by remember { mutableStateOf(false) }
 
-    FlowRow(
-        modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        // All filter
-        FilterChip(
-            selected = currentFilter == LibraryFilter.ALL,
-            onClick = { onFilterChange(LibraryFilter.ALL, null) },
-            label = { Text(stringResource(R.string.filter_all)) },
-        )
+  FlowRow(
+    modifier = modifier.fillMaxWidth(),
+    horizontalArrangement = Arrangement.spacedBy(8.dp),
+    verticalArrangement = Arrangement.spacedBy(4.dp),
+  ) {
+    // All filter
+    FilterChip(
+      selected = currentFilter == LibraryFilter.ALL,
+      onClick = { onFilterChange(LibraryFilter.ALL, null) },
+      label = { Text(stringResource(R.string.filter_all)) },
+    )
 
-        // Favorites filter
-        FilterChip(
-            selected = currentFilter == LibraryFilter.FAVORITES,
-            onClick = { onFilterChange(LibraryFilter.FAVORITES, null) },
-            label = { Text(stringResource(R.string.filter_favorites)) },
-        )
+    // Favorites filter
+    FilterChip(
+      selected = currentFilter == LibraryFilter.FAVORITES,
+      onClick = { onFilterChange(LibraryFilter.FAVORITES, null) },
+      label = { Text(stringResource(R.string.filter_favorites)) },
+    )
 
-        // Currently Playing filter
-        FilterChip(
-            selected = currentFilter == LibraryFilter.CURRENTLY_PLAYING,
-            onClick = { onFilterChange(LibraryFilter.CURRENTLY_PLAYING, null) },
-            label = { Text(stringResource(R.string.filter_currently_playing)) },
-        )
+    // Currently Playing filter
+    FilterChip(
+      selected = currentFilter == LibraryFilter.CURRENTLY_PLAYING,
+      onClick = { onFilterChange(LibraryFilter.CURRENTLY_PLAYING, null) },
+      label = { Text(stringResource(R.string.filter_currently_playing)) },
+    )
 
-        // Completed filter
-        FilterChip(
-            selected = currentFilter == LibraryFilter.COMPLETED,
-            onClick = { onFilterChange(LibraryFilter.COMPLETED, null) },
-            label = { Text(stringResource(R.string.filter_completed)) },
-        )
+    // Completed filter
+    FilterChip(
+      selected = currentFilter == LibraryFilter.COMPLETED,
+      onClick = { onFilterChange(LibraryFilter.COMPLETED, null) },
+      label = { Text(stringResource(R.string.filter_completed)) },
+    )
 
-        // Downloaded filter
-        FilterChip(
-            selected = currentFilter == LibraryFilter.DOWNLOADED,
-            onClick = { onFilterChange(LibraryFilter.DOWNLOADED, null) },
-            label = { Text(stringResource(R.string.filter_downloaded)) },
-        )
+    // Downloaded filter
+    FilterChip(
+      selected = currentFilter == LibraryFilter.DOWNLOADED,
+      onClick = { onFilterChange(LibraryFilter.DOWNLOADED, null) },
+      label = { Text(stringResource(R.string.filter_downloaded)) },
+    )
 
-        // Category filter with dropdown
-        if (categories.isNotEmpty()) {
-            FilterChip(
-                selected = currentFilter == LibraryFilter.CATEGORY,
-                onClick = { showCategoryDropdown = true },
-                label = { Text(text = selectedCategory ?: stringResource(R.string.discovery_categories)) },
-            )
+    // Category filter with dropdown
+    if (categories.isNotEmpty()) {
+      FilterChip(
+        selected = currentFilter == LibraryFilter.CATEGORY,
+        onClick = { showCategoryDropdown = true },
+        label = { Text(text = selectedCategory ?: stringResource(R.string.discovery_categories)) },
+      )
 
-            DropdownMenu(expanded = showCategoryDropdown, onDismissRequest = { showCategoryDropdown = false }) {
-                for (category in categories) {
-                    DropdownMenuItem(
-                        text = { Text(category) },
-                        onClick = {
-                            onFilterChange(LibraryFilter.CATEGORY, category)
-                            showCategoryDropdown = false
-                        },
-                    )
-                }
-            }
+      DropdownMenu(expanded = showCategoryDropdown, onDismissRequest = { showCategoryDropdown = false }) {
+        for (category in categories) {
+          DropdownMenuItem(
+            text = { Text(category) },
+            onClick = {
+              onFilterChange(LibraryFilter.CATEGORY, category)
+              showCategoryDropdown = false
+            },
+          )
         }
+      }
     }
+  }
 }

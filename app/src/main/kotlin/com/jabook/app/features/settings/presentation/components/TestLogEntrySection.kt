@@ -13,20 +13,20 @@ import com.jabook.app.features.settings.presentation.RuTrackerSettingsViewModel
 
 @Composable
 fun TestLogEntrySection(viewModel: RuTrackerSettingsViewModel) {
-    val context = LocalContext.current
+  val context = LocalContext.current
 
-    // Button to manually write a test log entry for SAF diagnostics
-    Button(
-        onClick = {
-            try {
-                viewModel.writeTestLogEntry()
-                Toast.makeText(context, context.getString(R.string.test_log_written), Toast.LENGTH_SHORT).show()
-            } catch (e: Exception) {
-                Toast.makeText(context, context.getString(R.string.write_test_log_failed, e.message), Toast.LENGTH_LONG).show()
-            }
-        },
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Text(stringResource(R.string.write_test_log_entry))
-    }
+  // Button to manually write a test log entry for SAF diagnostics
+  Button(
+    onClick = {
+      try {
+        viewModel.writeTestLogEntry()
+        Toast.makeText(context, context.getString(R.string.test_log_written), Toast.LENGTH_SHORT).show()
+      } catch (e: Exception) {
+        Toast.makeText(context, context.getString(R.string.write_test_log_failed, e.message), Toast.LENGTH_LONG).show()
+      }
+    },
+    modifier = Modifier.fillMaxWidth(),
+  ) {
+    Text(stringResource(R.string.write_test_log_entry))
+  }
 }

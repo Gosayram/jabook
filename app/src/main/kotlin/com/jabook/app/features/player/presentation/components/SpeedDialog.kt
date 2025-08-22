@@ -30,76 +30,76 @@ import com.jabook.app.shared.ui.theme.JaBookAnimations
 
 @Composable
 fun SpeedDialog(
-    currentSpeed: Float,
-    onSpeedSelected: (Float) -> Unit,
-    onDismiss: () -> Unit,
+  currentSpeed: Float,
+  onSpeedSelected: (Float) -> Unit,
+  onDismiss: () -> Unit,
 ) {
-    val availableSpeeds = listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f, 2.5f, 3.0f)
+  val availableSpeeds = listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f, 2.5f, 3.0f)
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(text = "Playback Speed", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold) },
-        text = {
-            LazyColumn {
-                items(availableSpeeds) { speed ->
-                    SpeedDialogItem(speed = speed, isSelected = speed == currentSpeed, onSpeedSelected = onSpeedSelected)
-                }
-            }
-        },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } },
-    )
+  AlertDialog(
+    onDismissRequest = onDismiss,
+    title = { Text(text = "Playback Speed", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold) },
+    text = {
+      LazyColumn {
+        items(availableSpeeds) { speed ->
+          SpeedDialogItem(speed = speed, isSelected = speed == currentSpeed, onSpeedSelected = onSpeedSelected)
+        }
+      }
+    },
+    confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } },
+  )
 }
 
 @Composable
 private fun SpeedDialogItem(
-    speed: Float,
-    isSelected: Boolean,
-    onSpeedSelected: (Float) -> Unit,
+  speed: Float,
+  isSelected: Boolean,
+  onSpeedSelected: (Float) -> Unit,
 ) {
-    val scale by
-        animateFloatAsState(
-            targetValue = if (isSelected) 1.05f else 1.0f,
-            animationSpec = tween(durationMillis = JaBookAnimations.DURATION_SHORT, easing = JaBookAnimations.EMPHASIZED_EASING),
-            label = "speedItemScale",
-        )
+  val scale by
+    animateFloatAsState(
+      targetValue = if (isSelected) 1.05f else 1.0f,
+      animationSpec = tween(durationMillis = JaBookAnimations.DURATION_SHORT, easing = JaBookAnimations.EMPHASIZED_EASING),
+      label = "speedItemScale",
+    )
 
-    val backgroundColor by
-        animateColorAsState(
-            targetValue =
-                if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f) else MaterialTheme.colorScheme.surface,
-            animationSpec = tween(durationMillis = JaBookAnimations.DURATION_MEDIUM, easing = JaBookAnimations.EMPHASIZED_EASING),
-            label = "speedItemBackground",
-        )
+  val backgroundColor by
+    animateColorAsState(
+      targetValue =
+        if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f) else MaterialTheme.colorScheme.surface,
+      animationSpec = tween(durationMillis = JaBookAnimations.DURATION_MEDIUM, easing = JaBookAnimations.EMPHASIZED_EASING),
+      label = "speedItemBackground",
+    )
 
-    val textColor by
-        animateColorAsState(
-            targetValue = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-            animationSpec = tween(durationMillis = JaBookAnimations.DURATION_MEDIUM, easing = JaBookAnimations.EMPHASIZED_EASING),
-            label = "speedItemTextColor",
-        )
+  val textColor by
+    animateColorAsState(
+      targetValue = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+      animationSpec = tween(durationMillis = JaBookAnimations.DURATION_MEDIUM, easing = JaBookAnimations.EMPHASIZED_EASING),
+      label = "speedItemTextColor",
+    )
 
-    Row(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .scale(scale)
-                .clip(RoundedCornerShape(8.dp))
-                .background(backgroundColor)
-                .clickable { onSpeedSelected(speed) }
-                .padding(vertical = 8.dp, horizontal = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.Start,
-    ) {
-        RadioButton(selected = isSelected, onClick = { onSpeedSelected(speed) })
+  Row(
+    modifier =
+      Modifier
+        .fillMaxWidth()
+        .scale(scale)
+        .clip(RoundedCornerShape(8.dp))
+        .background(backgroundColor)
+        .clickable { onSpeedSelected(speed) }
+        .padding(vertical = 8.dp, horizontal = 4.dp),
+    verticalAlignment = Alignment.CenterVertically,
+    horizontalArrangement = Arrangement.Start,
+  ) {
+    RadioButton(selected = isSelected, onClick = { onSpeedSelected(speed) })
 
-        AnimatedVisibility(visible = true, enter = JaBookAnimations.dialogEnterTransition, exit = JaBookAnimations.dialogExitTransition) {
-            Text(
-                text = "${speed}x",
-                style = MaterialTheme.typography.bodyLarge,
-                color = textColor,
-                fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
-                modifier = Modifier.padding(start = 8.dp),
-            )
-        }
+    AnimatedVisibility(visible = true, enter = JaBookAnimations.dialogEnterTransition, exit = JaBookAnimations.dialogExitTransition) {
+      Text(
+        text = "${speed}x",
+        style = MaterialTheme.typography.bodyLarge,
+        color = textColor,
+        fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
+        modifier = Modifier.padding(start = 8.dp),
+      )
     }
+  }
 }

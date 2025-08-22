@@ -11,15 +11,15 @@ import javax.inject.Singleton
  * This interface defines the contract for parsing RuTracker HTML content
  */
 interface RuTrackerParser {
-    suspend fun parseSearchResults(html: String): List<RuTrackerAudiobook>
+  suspend fun parseSearchResults(html: String): List<RuTrackerAudiobook>
 
-    suspend fun parseAudiobookDetails(html: String): RuTrackerAudiobook?
+  suspend fun parseAudiobookDetails(html: String): RuTrackerAudiobook?
 
-    suspend fun parseCategories(html: String): List<RuTrackerCategory>
+  suspend fun parseCategories(html: String): List<RuTrackerCategory>
 
-    suspend fun extractMagnetLink(html: String): String?
+  suspend fun extractMagnetLink(html: String): String?
 
-    suspend fun extractTorrentLink(html: String): String?
+  suspend fun extractTorrentLink(html: String): String?
 }
 
 /**
@@ -27,30 +27,30 @@ interface RuTrackerParser {
  */
 @Singleton
 class RuTrackerParserImpl
-    @Inject
-    constructor() : RuTrackerParser {
-        override suspend fun parseSearchResults(html: String): List<RuTrackerAudiobook> {
-            // Basic implementation - to be overridden by improved parser
-            return emptyList()
-        }
-
-        override suspend fun parseAudiobookDetails(html: String): RuTrackerAudiobook? {
-            // Basic implementation - to be overridden by improved parser
-            return null
-        }
-
-        override suspend fun parseCategories(html: String): List<RuTrackerCategory> {
-            // Basic implementation - to be overridden by improved parser
-            return emptyList()
-        }
-
-        override suspend fun extractMagnetLink(html: String): String? {
-            // Basic implementation - to be overridden by improved parser
-            return null
-        }
-
-        override suspend fun extractTorrentLink(html: String): String? {
-            // Basic implementation - to be overridden by improved parser
-            return null
-        }
+  @Inject
+  constructor() : RuTrackerParser {
+    override suspend fun parseSearchResults(html: String): List<RuTrackerAudiobook> {
+      // Basic implementation - to be overridden by improved parser
+      return emptyList()
     }
+
+    override suspend fun parseAudiobookDetails(html: String): RuTrackerAudiobook? {
+      // Basic implementation - to be overridden by improved parser
+      return null
+    }
+
+    override suspend fun parseCategories(html: String): List<RuTrackerCategory> {
+      // Basic implementation - to be overridden by improved parser
+      return emptyList()
+    }
+
+    override suspend fun extractMagnetLink(html: String): String? {
+      // Basic implementation - to be overridden by improved parser
+      return null
+    }
+
+    override suspend fun extractTorrentLink(html: String): String? {
+      // Basic implementation - to be overridden by improved parser
+      return null
+    }
+  }

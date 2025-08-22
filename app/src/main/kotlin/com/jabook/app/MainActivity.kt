@@ -33,81 +33,81 @@ import javax.inject.Inject
 /** Main activity for JaBook application. Entry point for the user interface using Jetpack Compose. */
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
-    @Inject lateinit var debugLogger: IDebugLogger
+  @Inject lateinit var debugLogger: IDebugLogger
 
-    @Inject lateinit var ruTrackerAvailabilityChecker: RuTrackerAvailabilityChecker
+  @Inject lateinit var ruTrackerAvailabilityChecker: RuTrackerAvailabilityChecker
 
-    private val activityScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+  private val activityScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        debugLogger.logInfo("MainActivity started")
-        enableEdgeToEdge()
+  override fun onCreate(savedInstanceState: Bundle?) {
+    super.onCreate(savedInstanceState)
+    debugLogger.logInfo("MainActivity started")
+    enableEdgeToEdge()
 
-        // Start RuTracker availability checks
-        ruTrackerAvailabilityChecker.startAvailabilityChecks(activityScope)
+    // Start RuTracker availability checks
+    ruTrackerAvailabilityChecker.startAvailabilityChecks(activityScope)
 
-        setContent {
-            val themeViewModel: ThemeViewModel = viewModel()
-            val themeMode = themeViewModel.themeMode.collectAsState().value
-            JaBookTheme(
-                darkTheme =
-                    when (themeMode) {
-                        AppThemeMode.SYSTEM -> isSystemInDarkTheme()
-                        AppThemeMode.DARK -> true
-                        AppThemeMode.LIGHT -> false
-                    },
-            ) {
-                JaBookApp(
-                    themeViewModel = themeViewModel,
-                    themeMode = themeMode,
-                )
-            }
-        }
+    setContent {
+      val themeViewModel: ThemeViewModel = viewModel()
+      val themeMode = themeViewModel.themeMode.collectAsState().value
+      JaBookTheme(
+        darkTheme =
+          when (themeMode) {
+            AppThemeMode.SYSTEM -> isSystemInDarkTheme()
+            AppThemeMode.DARK -> true
+            AppThemeMode.LIGHT -> false
+          },
+      ) {
+        JaBookApp(
+          themeViewModel = themeViewModel,
+          themeMode = themeMode,
+        )
+      }
     }
+  }
 
-    override fun onDestroy() {
-        super.onDestroy()
-        // Stop RuTracker availability checks when activity is destroyed
-        ruTrackerAvailabilityChecker.stopAvailabilityChecks()
-        debugLogger.logInfo("MainActivity destroyed")
-    }
+  override fun onDestroy() {
+    super.onDestroy()
+    // Stop RuTracker availability checks when activity is destroyed
+    ruTrackerAvailabilityChecker.stopAvailabilityChecks()
+    debugLogger.logInfo("MainActivity destroyed")
+  }
 }
 
 @Composable
 fun JaBookApp(
-    themeViewModel: ThemeViewModel,
-    themeMode: AppThemeMode,
+  themeViewModel: ThemeViewModel,
+  themeMode: AppThemeMode,
 ) {
-    val navController = rememberNavController()
+  val navController = rememberNavController()
 
-    Surface(
-        modifier = Modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background,
-    ) {
-        Scaffold { paddingValues ->
-            JaBookNavigation(
-                navController = navController,
-                modifier = Modifier.padding(paddingValues),
-                themeViewModel = themeViewModel,
-                themeMode = themeMode,
-            )
-        }
+  Surface(
+    modifier = Modifier.fillMaxSize(),
+    color = MaterialTheme.colorScheme.background,
+  ) {
+    Scaffold { paddingValues ->
+      JaBookNavigation(
+        navController = navController,
+        modifier = Modifier.padding(paddingValues),
+        themeViewModel = themeViewModel,
+        themeMode = themeMode,
+      )
     }
+  }
 }
 
 @Preview(showBackground = true)
 @Composable
 fun JaBookAppPreview() {
-    val context = LocalContext.current
-    val previewThemeViewModel =
-        viewModel<ThemeViewModel>(
-            factory = ViewModelProvider.AndroidViewModelFactory(context.applicationContext as android.app.Application),
-        )
-    JaBookTheme {
-        JaBookApp(
-            themeViewModel = previewThemeViewModel,
-            themeMode = AppThemeMode.SYSTEM,
-        )
-    }
+  val context = LocalContext.current
+  val previewThemeViewModel =
+    viewModel<ThemeViewModel>(
+      factory = ViewModelProvider.AndroidViewModelFactory(context.applicationContext as android.app.Application),
+    )
+  JaBookTheme {
+    JaBookApp(
+      themeViewModel = previewThemeViewModel,
+      themeMode = AppThemeMode.SYSTEM,
+    )
+  }
 }

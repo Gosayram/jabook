@@ -61,91 +61,91 @@ import com.jabook.app.presentation.viewmodel.RuTrackerCacheViewModel
  */
 @Composable
 fun CacheStatisticsCard(
-    statistics: CacheStatistics,
-    hitRate: String,
-    cacheSize: String,
-    memorySize: String,
-    diskSize: String,
-    modifier: Modifier = Modifier,
+  statistics: CacheStatistics,
+  hitRate: String,
+  cacheSize: String,
+  memorySize: String,
+  diskSize: String,
+  modifier: Modifier = Modifier,
 ) {
-    Card(
-        modifier = modifier.fillMaxWidth(),
+  Card(
+    modifier = modifier.fillMaxWidth(),
+  ) {
+    Column(
+      modifier =
+        Modifier
+          .fillMaxWidth()
+          .padding(16.dp),
     ) {
-        Column(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-        ) {
-            Text(
-                text = "Статистика кэша",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-            )
+      Text(
+        text = "Статистика кэша",
+        style = MaterialTheme.typography.titleMedium,
+        fontWeight = FontWeight.Bold,
+      )
 
-            Spacer(modifier = Modifier.height(16.dp))
+      Spacer(modifier = Modifier.height(16.dp))
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-            ) {
-                StatisticItem(
-                    label = "Hit Rate",
-                    value = hitRate,
-                    color = MaterialTheme.colorScheme.primary,
-                )
+      Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceEvenly,
+      ) {
+        StatisticItem(
+          label = "Hit Rate",
+          value = hitRate,
+          color = MaterialTheme.colorScheme.primary,
+        )
 
-                StatisticItem(
-                    label = "Всего размер",
-                    value = cacheSize,
-                    color = MaterialTheme.colorScheme.secondary,
-                )
+        StatisticItem(
+          label = "Всего размер",
+          value = cacheSize,
+          color = MaterialTheme.colorScheme.secondary,
+        )
 
-                StatisticItem(
-                    label = "Память",
-                    value = memorySize,
-                    color = MaterialTheme.colorScheme.tertiary,
-                )
+        StatisticItem(
+          label = "Память",
+          value = memorySize,
+          color = MaterialTheme.colorScheme.tertiary,
+        )
 
-                StatisticItem(
-                    label = "Диск",
-                    value = diskSize,
-                    color = MaterialTheme.colorScheme.error,
-                )
-            }
+        StatisticItem(
+          label = "Диск",
+          value = diskSize,
+          color = MaterialTheme.colorScheme.error,
+        )
+      }
 
-            Spacer(modifier = Modifier.height(16.dp))
+      Spacer(modifier = Modifier.height(16.dp))
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-            ) {
-                StatisticItem(
-                    label = "Записи в памяти",
-                    value = statistics.memoryEntries.toString(),
-                    color = MaterialTheme.colorScheme.primary,
-                )
+      Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceEvenly,
+      ) {
+        StatisticItem(
+          label = "Записи в памяти",
+          value = statistics.memoryEntries.toString(),
+          color = MaterialTheme.colorScheme.primary,
+        )
 
-                StatisticItem(
-                    label = "Записи на диске",
-                    value = statistics.diskEntries.toString(),
-                    color = MaterialTheme.colorScheme.secondary,
-                )
+        StatisticItem(
+          label = "Записи на диске",
+          value = statistics.diskEntries.toString(),
+          color = MaterialTheme.colorScheme.secondary,
+        )
 
-                StatisticItem(
-                    label = "Попаданий",
-                    value = statistics.hitCount.toString(),
-                    color = Color.Green,
-                )
+        StatisticItem(
+          label = "Попаданий",
+          value = statistics.hitCount.toString(),
+          color = Color.Green,
+        )
 
-                StatisticItem(
-                    label = "Промахов",
-                    value = statistics.missCount.toString(),
-                    color = Color.Red,
-                )
-            }
-        }
+        StatisticItem(
+          label = "Промахов",
+          value = statistics.missCount.toString(),
+          color = Color.Red,
+        )
+      }
     }
+  }
 }
 
 /**
@@ -153,28 +153,28 @@ fun CacheStatisticsCard(
  */
 @Composable
 fun StatisticItem(
-    label: String,
-    value: String,
-    color: Color,
-    modifier: Modifier = Modifier,
+  label: String,
+  value: String,
+  color: Color,
+  modifier: Modifier = Modifier,
 ) {
-    Column(
-        modifier = modifier,
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Text(
-            text = value,
-            style = MaterialTheme.typography.headlineSmall,
-            color = color,
-            fontWeight = FontWeight.Bold,
-        )
+  Column(
+    modifier = modifier,
+    horizontalAlignment = Alignment.CenterHorizontally,
+  ) {
+    Text(
+      text = value,
+      style = MaterialTheme.typography.headlineSmall,
+      color = color,
+      fontWeight = FontWeight.Bold,
+    )
 
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-    }
+    Text(
+      text = label,
+      style = MaterialTheme.typography.bodySmall,
+      color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+  }
 }
 
 /**
@@ -182,77 +182,77 @@ fun StatisticItem(
  */
 @Composable
 fun EfficiencyMetricsCard(
-    metrics: Map<String, Float>,
-    getMetricValue: (String) -> String,
-    modifier: Modifier = Modifier,
+  metrics: Map<String, Float>,
+  getMetricValue: (String) -> String,
+  modifier: Modifier = Modifier,
 ) {
-    Card(
-        modifier = modifier.fillMaxWidth(),
+  Card(
+    modifier = modifier.fillMaxWidth(),
+  ) {
+    Column(
+      modifier =
+        Modifier
+          .fillMaxWidth()
+          .padding(16.dp),
     ) {
-        Column(
+      Text(
+        text = "Эффективность кэша",
+        style = MaterialTheme.typography.titleMedium,
+        fontWeight = FontWeight.Bold,
+      )
+
+      Spacer(modifier = Modifier.height(16.dp))
+
+      LazyColumn(
+        modifier = Modifier.fillMaxWidth(),
+      ) {
+        items(metrics.keys.toList()) { metric ->
+          Row(
             modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-        ) {
+              Modifier
+                .fillMaxWidth()
+                .padding(vertical = 4.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+          ) {
             Text(
-                text = "Эффективность кэша",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
+              text =
+                when (metric) {
+                  "hitRate" -> "Hit Rate"
+                  "memoryUtilization" -> "Использование памяти"
+                  "diskUtilization" -> "Использование диска"
+                  "evictionRate" -> "Rate Eviction"
+                  else -> metric
+                },
+              style = MaterialTheme.typography.bodyMedium,
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            LazyColumn(
-                modifier = Modifier.fillMaxWidth(),
+            Box(
+              modifier =
+                Modifier
+                  .clip(RoundedCornerShape(4.dp))
+                  .background(
+                    when {
+                      metric == "hitRate" && metrics[metric] ?: 0f > 0.8f -> Color.Green
+                      metric == "hitRate" && metrics[metric] ?: 0f > 0.5f -> Color.Yellow
+                      metric == "hitRate" -> Color.Red
+                      metrics[metric] ?: 0f > 0.8f -> Color.Red
+                      metrics[metric] ?: 0f > 0.5f -> Color.Yellow
+                      else -> Color.Green
+                    },
+                  ).padding(horizontal = 8.dp, vertical = 4.dp),
             ) {
-                items(metrics.keys.toList()) { metric ->
-                    Row(
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 4.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            text =
-                                when (metric) {
-                                    "hitRate" -> "Hit Rate"
-                                    "memoryUtilization" -> "Использование памяти"
-                                    "diskUtilization" -> "Использование диска"
-                                    "evictionRate" -> "Rate Eviction"
-                                    else -> metric
-                                },
-                            style = MaterialTheme.typography.bodyMedium,
-                        )
-
-                        Box(
-                            modifier =
-                                Modifier
-                                    .clip(RoundedCornerShape(4.dp))
-                                    .background(
-                                        when {
-                                            metric == "hitRate" && metrics[metric] ?: 0f > 0.8f -> Color.Green
-                                            metric == "hitRate" && metrics[metric] ?: 0f > 0.5f -> Color.Yellow
-                                            metric == "hitRate" -> Color.Red
-                                            metrics[metric] ?: 0f > 0.8f -> Color.Red
-                                            metrics[metric] ?: 0f > 0.5f -> Color.Yellow
-                                            else -> Color.Green
-                                        },
-                                    ).padding(horizontal = 8.dp, vertical = 4.dp),
-                        ) {
-                            Text(
-                                text = getMetricValue(metric),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = Color.White,
-                            )
-                        }
-                    }
-                }
+              Text(
+                text = getMetricValue(metric),
+                style = MaterialTheme.typography.bodySmall,
+                color = Color.White,
+              )
             }
+          }
         }
+      }
     }
+  }
 }
 
 /**
@@ -260,62 +260,62 @@ fun EfficiencyMetricsCard(
  */
 @Composable
 fun CacheConfigurationCard(
-    configSummary: Map<String, String>,
-    modifier: Modifier = Modifier,
+  configSummary: Map<String, String>,
+  modifier: Modifier = Modifier,
 ) {
-    Card(
-        modifier = modifier.fillMaxWidth(),
+  Card(
+    modifier = modifier.fillMaxWidth(),
+  ) {
+    Column(
+      modifier =
+        Modifier
+          .fillMaxWidth()
+          .padding(16.dp),
     ) {
-        Column(
+      Text(
+        text = "Конфигурация кэша",
+        style = MaterialTheme.typography.titleMedium,
+        fontWeight = FontWeight.Bold,
+      )
+
+      Spacer(modifier = Modifier.height(16.dp))
+
+      LazyColumn(
+        modifier = Modifier.fillMaxWidth(),
+      ) {
+        items(configSummary.keys.toList()) { key ->
+          Row(
             modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-        ) {
+              Modifier
+                .fillMaxWidth()
+                .padding(vertical = 4.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+          ) {
             Text(
-                text = "Конфигурация кэша",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
+              text =
+                when (key) {
+                  "memoryMaxSize" -> "Макс. размер памяти"
+                  "diskMaxSize" -> "Макс. размер диска"
+                  "defaultTTL" -> "TTL по умолчанию"
+                  "cleanupInterval" -> "Интервал очистки"
+                  "compressionEnabled" -> "Сжатие"
+                  "encryptionEnabled" -> "Шифрование"
+                  else -> key
+                },
+              style = MaterialTheme.typography.bodyMedium,
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            LazyColumn(
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                items(configSummary.keys.toList()) { key ->
-                    Row(
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 4.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            text =
-                                when (key) {
-                                    "memoryMaxSize" -> "Макс. размер памяти"
-                                    "diskMaxSize" -> "Макс. размер диска"
-                                    "defaultTTL" -> "TTL по умолчанию"
-                                    "cleanupInterval" -> "Интервал очистки"
-                                    "compressionEnabled" -> "Сжатие"
-                                    "encryptionEnabled" -> "Шифрование"
-                                    else -> key
-                                },
-                            style = MaterialTheme.typography.bodyMedium,
-                        )
-
-                        Text(
-                            text = configSummary[key] ?: "",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-            }
+            Text(
+              text = configSummary[key] ?: "",
+              style = MaterialTheme.typography.bodySmall,
+              color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+          }
         }
+      }
     }
+  }
 }
 
 /**
@@ -323,50 +323,50 @@ fun CacheConfigurationCard(
  */
 @Composable
 fun CacheKeyItem(
-    key: String,
-    onRemove: (String) -> Unit,
-    onViewDetails: (String) -> Unit,
-    modifier: Modifier = Modifier,
+  key: String,
+  onRemove: (String) -> Unit,
+  onViewDetails: (String) -> Unit,
+  modifier: Modifier = Modifier,
 ) {
-    Card(
-        modifier =
-            modifier
-                .fillMaxWidth()
-                .padding(vertical = 2.dp),
+  Card(
+    modifier =
+      modifier
+        .fillMaxWidth()
+        .padding(vertical = 2.dp),
+  ) {
+    Row(
+      modifier =
+        Modifier
+          .fillMaxWidth()
+          .padding(16.dp),
+      horizontalArrangement = Arrangement.SpaceBetween,
+      verticalAlignment = Alignment.CenterVertically,
     ) {
-        Row(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = key,
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.weight(1f),
-            )
+      Text(
+        text = key,
+        style = MaterialTheme.typography.bodyMedium,
+        modifier = Modifier.weight(1f),
+      )
 
-            Row {
-                IconButton(onClick = { onViewDetails(key) }) {
-                    Icon(
-                        imageVector = Icons.Default.Info,
-                        contentDescription = "View details",
-                        tint = MaterialTheme.colorScheme.primary,
-                    )
-                }
-
-                IconButton(onClick = { onRemove(key) }) {
-                    Icon(
-                        imageVector = Icons.Default.Delete,
-                        contentDescription = "Remove",
-                        tint = MaterialTheme.colorScheme.error,
-                    )
-                }
-            }
+      Row {
+        IconButton(onClick = { onViewDetails(key) }) {
+          Icon(
+            imageVector = Icons.Default.Info,
+            contentDescription = "View details",
+            tint = MaterialTheme.colorScheme.primary,
+          )
         }
+
+        IconButton(onClick = { onRemove(key) }) {
+          Icon(
+            imageVector = Icons.Default.Delete,
+            contentDescription = "Remove",
+            tint = MaterialTheme.colorScheme.error,
+          )
+        }
+      }
     }
+  }
 }
 
 /**
@@ -375,276 +375,276 @@ fun CacheKeyItem(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RuTrackerCacheManagementScreen(
-    viewModel: RuTrackerCacheViewModel = hiltViewModel(),
-    onNavigateBack: () -> Unit,
+  viewModel: RuTrackerCacheViewModel = hiltViewModel(),
+  onNavigateBack: () -> Unit,
 ) {
-    val uiState by viewModel.uiState.collectAsState()
-    var showConfigDialog by remember { mutableStateOf(false) }
-    var showDebugDialog by remember { mutableStateOf(false) }
-    var selectedKey by remember { mutableStateOf("") }
-    var debugKey by remember { mutableStateOf("") }
-    var debugValue by remember { mutableStateOf("") }
+  val uiState by viewModel.uiState.collectAsState()
+  var showConfigDialog by remember { mutableStateOf(false) }
+  var showDebugDialog by remember { mutableStateOf(false) }
+  var selectedKey by remember { mutableStateOf("") }
+  var debugKey by remember { mutableStateOf("") }
+  var debugValue by remember { mutableStateOf("") }
 
-    LaunchedEffect(uiState.selectedNamespace) {
-        viewModel.loadCacheKeys()
-    }
+  LaunchedEffect(uiState.selectedNamespace) {
+    viewModel.loadCacheKeys()
+  }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Управление кэшем RuTracker") },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                actions = {
-                    IconButton(onClick = { viewModel.refreshCacheData() }) {
-                        Icon(
-                            imageVector = Icons.Default.Refresh,
-                            contentDescription = "Refresh",
-                            tint = if (uiState.isRefreshing) MaterialTheme.colorScheme.primary else LocalContentColor.current,
-                        )
-                    }
-                    IconButton(onClick = { showConfigDialog = true }) {
-                        Icon(
-                            imageVector = Icons.Default.Settings,
-                            contentDescription = "Configuration",
-                        )
-                    }
-                    IconButton(onClick = { showDebugDialog = true }) {
-                        Icon(
-                            imageVector = Icons.Default.Build,
-                            contentDescription = "Debug",
-                        )
-                    }
-                },
-            )
+  Scaffold(
+    topBar = {
+      TopAppBar(
+        title = { Text("Управление кэшем RuTracker") },
+        navigationIcon = {
+          IconButton(onClick = onNavigateBack) {
+            Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Back")
+          }
         },
-    ) { padding ->
-        Column(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .padding(padding)
-                    .padding(16.dp),
+        actions = {
+          IconButton(onClick = { viewModel.refreshCacheData() }) {
+            Icon(
+              imageVector = Icons.Default.Refresh,
+              contentDescription = "Refresh",
+              tint = if (uiState.isRefreshing) MaterialTheme.colorScheme.primary else LocalContentColor.current,
+            )
+          }
+          IconButton(onClick = { showConfigDialog = true }) {
+            Icon(
+              imageVector = Icons.Default.Settings,
+              contentDescription = "Configuration",
+            )
+          }
+          IconButton(onClick = { showDebugDialog = true }) {
+            Icon(
+              imageVector = Icons.Default.Build,
+              contentDescription = "Debug",
+            )
+          }
+        },
+      )
+    },
+  ) { padding ->
+    Column(
+      modifier =
+        Modifier
+          .fillMaxSize()
+          .padding(padding)
+          .padding(16.dp),
+    ) {
+      // Cache statistics
+      CacheStatisticsCard(
+        statistics = uiState.statistics,
+        hitRate = viewModel.getHitRatePercentage(),
+        cacheSize = viewModel.getFormattedCacheSize(),
+        memorySize = viewModel.getFormattedMemorySize(),
+        diskSize = viewModel.getFormattedDiskSize(),
+      )
+
+      Spacer(modifier = Modifier.height(16.dp))
+
+      // Efficiency metrics
+      EfficiencyMetricsCard(
+        metrics = uiState.efficiencyMetrics,
+        getMetricValue = { viewModel.getEfficiencyMetricValue(it) },
+      )
+
+      Spacer(modifier = Modifier.height(16.dp))
+
+      // Namespace selection and actions
+      Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+      ) {
+        // Namespace selector
+        Row(
+          verticalAlignment = Alignment.CenterVertically,
         ) {
-            // Cache statistics
-            CacheStatisticsCard(
-                statistics = uiState.statistics,
-                hitRate = viewModel.getHitRatePercentage(),
-                cacheSize = viewModel.getFormattedCacheSize(),
-                memorySize = viewModel.getFormattedMemorySize(),
-                diskSize = viewModel.getFormattedDiskSize(),
-            )
+          Text(
+            text = "Пространство:",
+            style = MaterialTheme.typography.bodyMedium,
+          )
 
-            Spacer(modifier = Modifier.height(16.dp))
+          Spacer(modifier = Modifier.width(8.dp))
 
-            // Efficiency metrics
-            EfficiencyMetricsCard(
-                metrics = uiState.efficiencyMetrics,
-                getMetricValue = { viewModel.getEfficiencyMetricValue(it) },
-            )
+          var expanded by remember { mutableStateOf(false) }
+          Box {
+            OutlinedButton(onClick = { expanded = true }) {
+              Text(uiState.selectedNamespace)
+              Icon(Icons.Default.ArrowDropDown, contentDescription = null)
+            }
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Namespace selection and actions
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
+            DropdownMenu(
+              expanded = expanded,
+              onDismissRequest = { expanded = false },
             ) {
-                // Namespace selector
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        text = "Пространство:",
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-
-                    Spacer(modifier = Modifier.width(8.dp))
-
-                    var expanded by remember { mutableStateOf(false) }
-                    Box {
-                        OutlinedButton(onClick = { expanded = true }) {
-                            Text(uiState.selectedNamespace)
-                            Icon(Icons.Default.ArrowDropDown, contentDescription = null)
-                        }
-
-                        DropdownMenu(
-                            expanded = expanded,
-                            onDismissRequest = { expanded = false },
-                        ) {
-                            uiState.availableNamespaces.forEach { namespace ->
-                                DropdownMenuItem(
-                                    text = { Text(namespace) },
-                                    onClick = {
-                                        viewModel.selectNamespace(namespace)
-                                        expanded = false
-                                    },
-                                )
-                            }
-                        }
-                    }
-                }
-
-                // Action buttons
-                Row {
-                    OutlinedButton(onClick = { viewModel.forceCleanup() }) {
-                        Text("Очистить")
-                    }
-
-                    Spacer(modifier = Modifier.width(8.dp))
-
-                    Button(onClick = { viewModel.clearNamespaceCache() }) {
-                        Text("Очистить все")
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Cache keys list
-            if (uiState.isLoading) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    CircularProgressIndicator()
-                }
-            } else if (uiState.cacheKeys.isEmpty()) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = "Нет записей в кэше",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                ) {
-                    items(uiState.cacheKeys) { key ->
-                        CacheKeyItem(
-                            key = key,
-                            onRemove = { viewModel.removeCacheEntry(it) },
-                            onViewDetails = {
-                                selectedKey = it
-                                // TODO: Show details dialog
-                            },
-                        )
-                    }
-                }
-            }
-
-            // User message
-            uiState.userMessage?.let { message ->
-                Spacer(modifier = Modifier.height(16.dp))
-                Card(
-                    colors =
-                        CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.primaryContainer,
-                        ),
-                ) {
-                    Text(
-                        text = message,
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                        textAlign = TextAlign.Center,
-                    )
-                }
-
-                LaunchedEffect(message) {
-                    kotlinx.coroutines.delay(3000)
-                    viewModel.clearUserMessage()
-                }
-            }
-        }
-    }
-
-    // Configuration dialog
-    if (showConfigDialog) {
-        AlertDialog(
-            onDismissRequest = { showConfigDialog = false },
-            title = { Text("Конфигурация кэша") },
-            text = {
-                CacheConfigurationCard(
-                    configSummary = viewModel.getConfigSummary(),
+              uiState.availableNamespaces.forEach { namespace ->
+                DropdownMenuItem(
+                  text = { Text(namespace) },
+                  onClick = {
+                    viewModel.selectNamespace(namespace)
+                    expanded = false
+                  },
                 )
-            },
-            confirmButton = {
-                TextButton(onClick = { showConfigDialog = false }) {
-                    Text("Закрыть")
-                }
-            },
-        )
+              }
+            }
+          }
+        }
+
+        // Action buttons
+        Row {
+          OutlinedButton(onClick = { viewModel.forceCleanup() }) {
+            Text("Очистить")
+          }
+
+          Spacer(modifier = Modifier.width(8.dp))
+
+          Button(onClick = { viewModel.clearNamespaceCache() }) {
+            Text("Очистить все")
+          }
+        }
+      }
+
+      Spacer(modifier = Modifier.height(16.dp))
+
+      // Cache keys list
+      if (uiState.isLoading) {
+        Box(
+          modifier = Modifier.fillMaxSize(),
+          contentAlignment = Alignment.Center,
+        ) {
+          CircularProgressIndicator()
+        }
+      } else if (uiState.cacheKeys.isEmpty()) {
+        Box(
+          modifier = Modifier.fillMaxSize(),
+          contentAlignment = Alignment.Center,
+        ) {
+          Text(
+            text = "Нет записей в кэше",
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+          )
+        }
+      } else {
+        LazyColumn(
+          modifier = Modifier.fillMaxSize(),
+        ) {
+          items(uiState.cacheKeys) { key ->
+            CacheKeyItem(
+              key = key,
+              onRemove = { viewModel.removeCacheEntry(it) },
+              onViewDetails = {
+                selectedKey = it
+                // TODO: Show details dialog
+              },
+            )
+          }
+        }
+      }
+
+      // User message
+      uiState.userMessage?.let { message ->
+        Spacer(modifier = Modifier.height(16.dp))
+        Card(
+          colors =
+            CardDefaults.cardColors(
+              containerColor = MaterialTheme.colorScheme.primaryContainer,
+            ),
+        ) {
+          Text(
+            text = message,
+            modifier =
+              Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            textAlign = TextAlign.Center,
+          )
+        }
+
+        LaunchedEffect(message) {
+          kotlinx.coroutines.delay(3000)
+          viewModel.clearUserMessage()
+        }
+      }
     }
+  }
 
-    // Debug dialog
-    if (showDebugDialog) {
-        AlertDialog(
-            onDismissRequest = { showDebugDialog = false },
-            title = { Text("Отладка кэша") },
-            text = {
-                Column {
-                    // Test data input
-                    OutlinedTextField(
-                        value = debugKey,
-                        onValueChange = { debugKey = it },
-                        label = { Text("Ключ") },
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    OutlinedTextField(
-                        value = debugValue,
-                        onValueChange = { debugValue = it },
-                        label = { Text("Значение") },
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        Button(
-                            onClick = {
-                                viewModel.putTestData(debugKey, debugValue)
-                                debugKey = ""
-                                debugValue = ""
-                            },
-                            modifier = Modifier.weight(1f),
-                        ) {
-                            Text("Добавить")
-                        }
-
-                        OutlinedButton(
-                            onClick = {
-                                viewModel.getCacheEntryDebug(debugKey)?.let { value ->
-                                    debugValue = value
-                                }
-                            },
-                            modifier = Modifier.weight(1f),
-                        ) {
-                            Text("Получить")
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showDebugDialog = false }) {
-                    Text("Закрыть")
-                }
-            },
+  // Configuration dialog
+  if (showConfigDialog) {
+    AlertDialog(
+      onDismissRequest = { showConfigDialog = false },
+      title = { Text("Конфигурация кэша") },
+      text = {
+        CacheConfigurationCard(
+          configSummary = viewModel.getConfigSummary(),
         )
-    }
+      },
+      confirmButton = {
+        TextButton(onClick = { showConfigDialog = false }) {
+          Text("Закрыть")
+        }
+      },
+    )
+  }
+
+  // Debug dialog
+  if (showDebugDialog) {
+    AlertDialog(
+      onDismissRequest = { showDebugDialog = false },
+      title = { Text("Отладка кэша") },
+      text = {
+        Column {
+          // Test data input
+          OutlinedTextField(
+            value = debugKey,
+            onValueChange = { debugKey = it },
+            label = { Text("Ключ") },
+            modifier = Modifier.fillMaxWidth(),
+          )
+
+          Spacer(modifier = Modifier.height(8.dp))
+
+          OutlinedTextField(
+            value = debugValue,
+            onValueChange = { debugValue = it },
+            label = { Text("Значение") },
+            modifier = Modifier.fillMaxWidth(),
+          )
+
+          Spacer(modifier = Modifier.height(16.dp))
+
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+          ) {
+            Button(
+              onClick = {
+                viewModel.putTestData(debugKey, debugValue)
+                debugKey = ""
+                debugValue = ""
+              },
+              modifier = Modifier.weight(1f),
+            ) {
+              Text("Добавить")
+            }
+
+            OutlinedButton(
+              onClick = {
+                viewModel.getCacheEntryDebug(debugKey)?.let { value ->
+                  debugValue = value
+                }
+              },
+              modifier = Modifier.weight(1f),
+            ) {
+              Text("Получить")
+            }
+          }
+        }
+      },
+      confirmButton = {
+        TextButton(onClick = { showDebugDialog = false }) {
+          Text("Закрыть")
+        }
+      },
+    )
+  }
 }

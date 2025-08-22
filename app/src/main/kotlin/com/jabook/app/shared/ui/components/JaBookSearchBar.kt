@@ -37,163 +37,163 @@ import kotlinx.coroutines.delay
 /** Компонент поиска с автодополнением и современным дизайном Поддерживает различные API уровни Android */
 @Composable
 fun JaBookSearchBar(
-    query: String,
-    onQueryChange: (String) -> Unit,
-    onSearch: (String) -> Unit,
-    modifier: Modifier = Modifier,
-    placeholder: String = "Поиск аудиокниг...",
-    isEnabled: Boolean = true,
-    autoFocus: Boolean = false,
-    debounceMillis: Long = 300L,
+  query: String,
+  onQueryChange: (String) -> Unit,
+  onSearch: (String) -> Unit,
+  modifier: Modifier = Modifier,
+  placeholder: String = "Поиск аудиокниг...",
+  isEnabled: Boolean = true,
+  autoFocus: Boolean = false,
+  debounceMillis: Long = 300L,
 ) {
-    val focusRequester = remember { FocusRequester() }
-    val focusManager = LocalFocusManager.current
-    val keyboardController = LocalSoftwareKeyboardController.current
+  val focusRequester = remember { FocusRequester() }
+  val focusManager = LocalFocusManager.current
+  val keyboardController = LocalSoftwareKeyboardController.current
 
-    // Debounced search - автоматический поиск с задержкой
-    var internalQuery by rememberSaveable { mutableStateOf(query) }
+  // Debounced search - автоматический поиск с задержкой
+  var internalQuery by rememberSaveable { mutableStateOf(query) }
 
-    LaunchedEffect(internalQuery) {
-        if (internalQuery != query) {
-            onQueryChange(internalQuery)
-        }
-
-        if (internalQuery.isNotEmpty()) {
-            delay(debounceMillis)
-            onSearch(internalQuery)
-        }
+  LaunchedEffect(internalQuery) {
+    if (internalQuery != query) {
+      onQueryChange(internalQuery)
     }
 
-    LaunchedEffect(query) {
-        if (query != internalQuery) {
-            internalQuery = query
-        }
+    if (internalQuery.isNotEmpty()) {
+      delay(debounceMillis)
+      onSearch(internalQuery)
     }
+  }
 
-    LaunchedEffect(autoFocus) {
-        if (autoFocus) {
-            focusRequester.requestFocus()
-        }
+  LaunchedEffect(query) {
+    if (query != internalQuery) {
+      internalQuery = query
     }
+  }
 
-    Box(modifier = modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(MaterialTheme.colorScheme.surface)) {
-        OutlinedTextField(
-            value = internalQuery,
-            onValueChange = { newQuery -> internalQuery = newQuery },
-            modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
-            placeholder = { Text(text = placeholder, color = MaterialTheme.colorScheme.onSurfaceVariant) },
-            leadingIcon = {
-                Icon(
-                    imageVector = Icons.Default.Search,
-                    contentDescription = "Поиск",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(20.dp),
-                )
-            },
-            trailingIcon = {
-                if (internalQuery.isNotEmpty()) {
-                    IconButton(
-                        onClick = {
-                            internalQuery = ""
-                            onQueryChange("")
-                            focusManager.clearFocus()
-                        },
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Clear,
-                            contentDescription = "Очистить",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(20.dp),
-                        )
-                    }
-                }
-            },
-            enabled = isEnabled,
-            singleLine = true,
-            colors =
-                OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = MaterialTheme.colorScheme.primary,
-                    unfocusedBorderColor = MaterialTheme.colorScheme.outline,
-                    focusedTextColor = MaterialTheme.colorScheme.onSurface,
-                    unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
-                    cursorColor = MaterialTheme.colorScheme.primary,
-                ),
-            shape = RoundedCornerShape(16.dp),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, imeAction = ImeAction.Search),
-            keyboardActions =
-                KeyboardActions(
-                    onSearch = {
-                        onSearch(internalQuery)
-                        keyboardController?.hide()
-                        focusManager.clearFocus()
-                    },
-                ),
+  LaunchedEffect(autoFocus) {
+    if (autoFocus) {
+      focusRequester.requestFocus()
+    }
+  }
+
+  Box(modifier = modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(MaterialTheme.colorScheme.surface)) {
+    OutlinedTextField(
+      value = internalQuery,
+      onValueChange = { newQuery -> internalQuery = newQuery },
+      modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
+      placeholder = { Text(text = placeholder, color = MaterialTheme.colorScheme.onSurfaceVariant) },
+      leadingIcon = {
+        Icon(
+          imageVector = Icons.Default.Search,
+          contentDescription = "Поиск",
+          tint = MaterialTheme.colorScheme.onSurfaceVariant,
+          modifier = Modifier.size(20.dp),
         )
-    }
+      },
+      trailingIcon = {
+        if (internalQuery.isNotEmpty()) {
+          IconButton(
+            onClick = {
+              internalQuery = ""
+              onQueryChange("")
+              focusManager.clearFocus()
+            },
+          ) {
+            Icon(
+              imageVector = Icons.Default.Clear,
+              contentDescription = "Очистить",
+              tint = MaterialTheme.colorScheme.onSurfaceVariant,
+              modifier = Modifier.size(20.dp),
+            )
+          }
+        }
+      },
+      enabled = isEnabled,
+      singleLine = true,
+      colors =
+        OutlinedTextFieldDefaults.colors(
+          focusedBorderColor = MaterialTheme.colorScheme.primary,
+          unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+          focusedTextColor = MaterialTheme.colorScheme.onSurface,
+          unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+          cursorColor = MaterialTheme.colorScheme.primary,
+        ),
+      shape = RoundedCornerShape(16.dp),
+      keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, imeAction = ImeAction.Search),
+      keyboardActions =
+        KeyboardActions(
+          onSearch = {
+            onSearch(internalQuery)
+            keyboardController?.hide()
+            focusManager.clearFocus()
+          },
+        ),
+    )
+  }
 }
 
 /** Упрощённая версия поиска без debounce для случаев когда нужен мгновенный ответ */
 @Composable
 fun JaBookSearchField(
-    query: String,
-    onQueryChange: (String) -> Unit,
-    onSearch: (String) -> Unit,
-    modifier: Modifier = Modifier,
-    placeholder: String = "Поиск...",
-    isEnabled: Boolean = true,
+  query: String,
+  onQueryChange: (String) -> Unit,
+  onSearch: (String) -> Unit,
+  modifier: Modifier = Modifier,
+  placeholder: String = "Поиск...",
+  isEnabled: Boolean = true,
 ) {
-    val focusManager = LocalFocusManager.current
-    val keyboardController = LocalSoftwareKeyboardController.current
+  val focusManager = LocalFocusManager.current
+  val keyboardController = LocalSoftwareKeyboardController.current
 
-    OutlinedTextField(
-        value = query,
-        onValueChange = onQueryChange,
-        modifier = modifier.fillMaxWidth(),
-        placeholder = { Text(text = placeholder, color = MaterialTheme.colorScheme.onSurfaceVariant) },
-        leadingIcon = {
-            Icon(
-                imageVector = Icons.Default.Search,
-                contentDescription = "Поиск",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(20.dp),
-            )
+  OutlinedTextField(
+    value = query,
+    onValueChange = onQueryChange,
+    modifier = modifier.fillMaxWidth(),
+    placeholder = { Text(text = placeholder, color = MaterialTheme.colorScheme.onSurfaceVariant) },
+    leadingIcon = {
+      Icon(
+        imageVector = Icons.Default.Search,
+        contentDescription = "Поиск",
+        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.size(20.dp),
+      )
+    },
+    trailingIcon = {
+      if (query.isNotEmpty()) {
+        IconButton(
+          onClick = {
+            onQueryChange("")
+            focusManager.clearFocus()
+          },
+        ) {
+          Icon(
+            imageVector = Icons.Default.Clear,
+            contentDescription = "Очистить",
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(20.dp),
+          )
+        }
+      }
+    },
+    enabled = isEnabled,
+    singleLine = true,
+    colors =
+      OutlinedTextFieldDefaults.colors(
+        focusedBorderColor = MaterialTheme.colorScheme.primary,
+        unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+        cursorColor = MaterialTheme.colorScheme.primary,
+      ),
+    shape = RoundedCornerShape(12.dp),
+    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, imeAction = ImeAction.Search),
+    keyboardActions =
+      KeyboardActions(
+        onSearch = {
+          onSearch(query)
+          keyboardController?.hide()
+          focusManager.clearFocus()
         },
-        trailingIcon = {
-            if (query.isNotEmpty()) {
-                IconButton(
-                    onClick = {
-                        onQueryChange("")
-                        focusManager.clearFocus()
-                    },
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Clear,
-                        contentDescription = "Очистить",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(20.dp),
-                    )
-                }
-            }
-        },
-        enabled = isEnabled,
-        singleLine = true,
-        colors =
-            OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = MaterialTheme.colorScheme.primary,
-                unfocusedBorderColor = MaterialTheme.colorScheme.outline,
-                focusedTextColor = MaterialTheme.colorScheme.onSurface,
-                unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
-                cursorColor = MaterialTheme.colorScheme.primary,
-            ),
-        shape = RoundedCornerShape(12.dp),
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, imeAction = ImeAction.Search),
-        keyboardActions =
-            KeyboardActions(
-                onSearch = {
-                    onSearch(query)
-                    keyboardController?.hide()
-                    focusManager.clearFocus()
-                },
-            ),
-    )
+      ),
+  )
 }

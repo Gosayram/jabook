@@ -16,22 +16,22 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 object DatabaseModule {
-    /** Provides the singleton Room database instance. */
-    @Provides
-    @Singleton
-    fun provideJaBookDatabase(
-        @ApplicationContext context: Context,
-    ): JaBookDatabase = JaBookDatabase.getInstance(context)
+  /** Provides the singleton Room database instance. */
+  @Provides
+  @Singleton
+  fun provideJaBookDatabase(
+    @ApplicationContext context: Context,
+  ): JaBookDatabase = JaBookDatabase.getInstance(context)
 
-    /** Provides the AudiobookDao from the database. */
-    @Provides
-    fun provideAudiobookDao(database: JaBookDatabase): AudiobookDao = database.audiobookDao()
+  /** Provides the AudiobookDao from the database. */
+  @Provides
+  fun provideAudiobookDao(database: JaBookDatabase): AudiobookDao = database.audiobookDao()
 
-    /** Provides the ChapterDao from the database. */
-    @Provides
-    fun provideChapterDao(database: JaBookDatabase): ChapterDao = database.chapterDao()
+  /** Provides the ChapterDao from the database. */
+  @Provides
+  fun provideChapterDao(database: JaBookDatabase): ChapterDao = database.chapterDao()
 
-    /** Provides the BookmarkDao from the database. */
-    @Provides
-    fun provideBookmarkDao(database: JaBookDatabase): BookmarkDao = database.bookmarkDao()
+  /** Provides the BookmarkDao from the database. */
+  @Provides
+  fun provideBookmarkDao(database: JaBookDatabase): BookmarkDao = database.bookmarkDao()
 }

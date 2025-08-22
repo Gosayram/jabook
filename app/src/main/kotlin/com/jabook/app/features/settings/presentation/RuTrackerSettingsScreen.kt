@@ -21,47 +21,47 @@ import com.jabook.app.features.settings.presentation.components.TestLogEntrySect
 
 @Composable
 fun RuTrackerSettingsScreen(viewModel: RuTrackerSettingsViewModel = hiltViewModel()) {
-    val state by viewModel.state.collectAsState()
+  val state by viewModel.state.collectAsState()
 
-    Column(
-        modifier =
-            Modifier
-                .fillMaxSize()
-                .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        ModeToggleCard(
-            isGuestMode = state.isGuestMode,
-            onModeChange = viewModel::setGuestMode,
-        )
+  Column(
+    modifier =
+      Modifier
+        .fillMaxSize()
+        .padding(16.dp),
+    verticalArrangement = Arrangement.spacedBy(16.dp),
+  ) {
+    ModeToggleCard(
+      isGuestMode = state.isGuestMode,
+      onModeChange = viewModel::setGuestMode,
+    )
 
-        if (!state.isGuestMode) {
-            LoginCard(
-                state =
-                    LoginCardState(
-                        username = state.username,
-                        password = state.password,
-                        isAuthorized = state.isAuthorized,
-                        isLoading = state.isLoading,
-                    ),
-                onUsernameChange = viewModel::setUsername,
-                onPasswordChange = viewModel::setPassword,
-                onLogin = viewModel::login,
-                onLogout = viewModel::logout,
-            )
-        }
-
-        StatusMessageCard(
-            errorMessage = state.error,
-            successMessage = state.successMessage,
-        )
-
-        LogExportSection(viewModel = viewModel)
-
-        SafLogFolderSection(viewModel = viewModel)
-
-        TestLogEntrySection(viewModel = viewModel)
-
-        AvailabilityCheckSection(viewModel = viewModel)
+    if (!state.isGuestMode) {
+      LoginCard(
+        state =
+          LoginCardState(
+            username = state.username,
+            password = state.password,
+            isAuthorized = state.isAuthorized,
+            isLoading = state.isLoading,
+          ),
+        onUsernameChange = viewModel::setUsername,
+        onPasswordChange = viewModel::setPassword,
+        onLogin = viewModel::login,
+        onLogout = viewModel::logout,
+      )
     }
+
+    StatusMessageCard(
+      errorMessage = state.error,
+      successMessage = state.successMessage,
+    )
+
+    LogExportSection(viewModel = viewModel)
+
+    SafLogFolderSection(viewModel = viewModel)
+
+    TestLogEntrySection(viewModel = viewModel)
+
+    AvailabilityCheckSection(viewModel = viewModel)
+  }
 }
