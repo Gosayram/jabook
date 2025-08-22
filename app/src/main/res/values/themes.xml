@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
     <!-- Base application theme. -->
-    <style name="Theme.JaBook" parent="AppTheme">
+    <style name="Theme.JaBook" parent="Theme.Material3.DayNight.NoActionBar">
         <!-- Primary brand color. -->
         <item name="colorPrimary">@color/primary</item>
         <item name="colorOnPrimary">@color/text_on_primary</item>
@@ -252,7 +252,7 @@
     </style>
     
     <!-- Player theme. -->
-    <style name="Theme.JaBook.Player" parent="PlayerTheme">
+    <style name="Theme.JaBook.Player" parent="Theme.Material3.DayNight.NoActionBar">
         <!-- Status bar color. -->
         <item name="android:statusBarColor">@color/player_background</item>
         <item name="android:statusBarColor" tools:targetApi="l">@color/player_background</item>
