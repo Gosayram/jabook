@@ -31,7 +31,7 @@ object CategoryExtractor {
         for (selector in categorySelectors) {
             val element = doc.selectFirst(selector)
             val href = element?.attr("href") ?: ""
-            val categoryId = href.substringAfter("c=").substringAfter("f=").substringBefore("&").takeIf { it.isNotBlank() }
+            val categoryId = href.substringAfter("c=").substringAfter("f=").substringBefore("&").ifBlank { null }
             if (!categoryId.isNullOrBlank()) {
                 return categoryId
             }

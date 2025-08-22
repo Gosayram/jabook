@@ -7,12 +7,7 @@ plugins {
     alias(libs.plugins.kotlin.parcelize)
     alias(libs.plugins.hilt.android)
     alias(libs.plugins.kotlin.serialization)
-    alias(libs.plugins.gms.google.services)
-    alias(libs.plugins.firebase.crashlytics)
     alias(libs.plugins.navigation.safeargs.kotlin)
-    dependencies {
-        implementation(libs.jsoup)
-    }
 }
 
 android {
@@ -24,7 +19,7 @@ android {
         minSdk = 24
         targetSdk = 34
         versionCode = 1
-        versionName = "1.0.0"
+        versionName = "0.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -70,8 +65,6 @@ android {
             // BuildConfig fields for release
             buildConfigField("boolean", "DEBUG", "false")
             buildConfigField("boolean", "ENABLE_LOGGING", "false")
-            buildConfigField("boolean", "ENABLE_CRASHLYTICS", "true")
-            buildConfigField("boolean", "ENABLE_ANALYTICS", "true")
             
             // Res values for release
             resValue("string", "app_name", "JaBook")
@@ -87,8 +80,6 @@ android {
             // BuildConfig fields for debug
             buildConfigField("boolean", "DEBUG", "true")
             buildConfigField("boolean", "ENABLE_LOGGING", "true")
-            buildConfigField("boolean", "ENABLE_CRASHLYTICS", "false")
-            buildConfigField("boolean", "ENABLE_ANALYTICS", "false")
             
             // Res values for debug
             resValue("string", "app_name", "JaBook Debug")
@@ -106,8 +97,6 @@ android {
             // BuildConfig fields for staging
             buildConfigField("boolean", "DEBUG", "true")
             buildConfigField("boolean", "ENABLE_LOGGING", "true")
-            buildConfigField("boolean", "ENABLE_CRASHLYTICS", "true")
-            buildConfigField("boolean", "ENABLE_ANALYTICS", "true")
             
             // Res values for staging
             resValue("string", "app_name", "JaBook Staging")
@@ -145,44 +134,13 @@ android {
         buildConfig = true
         viewBinding = true
         dataBinding = true
+        resValues = true
     }
     
     composeOptions {
         kotlinCompilerExtensionVersion = libs.versions.compose.compiler.get()
     }
     
-    packaging {
-        resources {
-            excludes += "/META-INF/{AL2.0,LGPL2.1}"
-            excludes += "/META-INF/LICENSE.md"
-            excludes += "/META-INF/LICENSE-notice.md"
-            excludes += "META-INF/DEPENDENCIES"
-            excludes += "META-INF/NOTICE"
-            excludes += "META-INF/LICENSE"
-            excludes += "META-INF/NOTICE.txt"
-            excludes += "META-INF/LICENSE.txt"
-            excludes += "META-INF/DEPENDENCIES.txt"
-            excludes += "META-INF/INDEX.LIST"
-            excludes += "META-INF/versions/9/previous-versions.bin"
-            excludes += "META-INF/versions/9/previous-versions.bin.meta_inf"
-            excludes += "META-INF/versions/9/previous-versions.bin.sig"
-            excludes += "META-INF/versions/9/previous-versions.bin.meta_inf.sig"
-            excludes += "kotlin/**"
-            excludes += "**/*.kotlin_metadata"
-            excludes += "**/*.kotlin_builtins"
-            excludes += "**/*.kotlin_module"
-            excludes += "**/kotlin/**"
-            excludes += "**/*.kotlin_metadata"
-            excludes += "**/*.kotlin_builtins"
-            excludes += "**/*.kotlin_module"
-            pickFirsts += "META-INF/io.netty.versions.properties"
-            pickFirsts += "META-INF/DEPENDENCIES"
-            pickFirsts += "META-INF/LICENSE"
-            pickFirsts += "META-INF/LICENSE.txt"
-            pickFirsts += "META-INF/NOTICE"
-            pickFirsts += "META-INF/NOTICE.txt"
-        }
-    }
     
     testOptions {
         unitTests {
@@ -827,4 +785,11 @@ android {
         disable += "MissingNavNavNavNavNavNavNavNavNavNavNavNavGraph"
         disable += "MissingNavNavNavNavNavNavNavNavNavNavNavHost"
     }
+}
+
+dependencies {
+    implementation(libs.jsoup)
+    implementation(libs.hilt.android.library)
+    kapt(libs.hilt.android.compiler)
+    implementation(libs.androidx.compose.material3)
 }
