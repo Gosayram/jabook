@@ -1,26 +1,14 @@
 // Top-level build file where you can add configuration options common to all sub-projects/modules.
 
 plugins {
-    // Keep AGP single-sourced here to avoid classpath conflicts across modules
-    id("com.android.application") version "8.9.0" apply false
-
-    // Kotlin 2.2.0 across the project
-    id("org.jetbrains.kotlin.android") version "2.2.0" apply false
-    id("org.jetbrains.kotlin.plugin.compose") version "2.2.0" apply false
-    id("org.jetbrains.kotlin.plugin.parcelize") version "2.2.0" apply false
-    id("org.jetbrains.kotlin.kapt") version "2.2.0" apply false
-
-    // KSP aligned with Kotlin 2.2.x
-    id("com.google.devtools.ksp") version "2.2.0-2.0.2" apply false  //  [oai_citation:0‡GitHub](https://github.com/google/ksp/releases?utm_source=chatgpt.com)
-
-    // Hilt Gradle plugin (update from 2.53.1 → 2.57)
-    id("com.google.dagger.hilt.android") version "2.57" apply false   //  [oai_citation:1‡mvnrepository.com](https://mvnrepository.com/artifact/com.google.dagger/hilt-android-gradle-plugin?utm_source=chatgpt.com)
-
-    // Ktlint Gradle plugin (latest stable)
-    id("org.jlleitschuh.gradle.ktlint") version "13.0.0" apply false  //  [oai_citation:2‡plugins.gradle.org](https://plugins.gradle.org/plugin/org.jlleitschuh.gradle.ktlint?utm_source=chatgpt.com) [oai_citation:3‡mvnrepository.com](https://mvnrepository.com/artifact/org.jlleitschuh.gradle.ktlint/org.jlleitschuh.gradle.ktlint.gradle.plugin?utm_source=chatgpt.com)
-
-    // Detekt plugin (update from 1.23.4 → 1.23.8)
-    id("io.gitlab.arturbosch.detekt") version "1.23.8" apply false    //  [oai_citation:4‡detekt.dev](https://detekt.dev/docs/intro?utm_source=chatgpt.com) [oai_citation:5‡GitHub](https://github.com/detekt/detekt/releases?utm_source=chatgpt.com)
+    alias(libs.plugins.android.application) apply false
+    alias(libs.plugins.kotlin.android) apply false
+    alias(libs.plugins.compose.compiler) apply false
+    alias(libs.plugins.kotlin.parcelize) apply false
+    alias(libs.plugins.kotlin.serialization) apply false
+    alias(libs.plugins.ksp) apply false
+    alias(libs.plugins.hilt.android) apply false
+    alias(libs.plugins.detekt) apply false
 }
 
 // Registers a clean task for the whole project
