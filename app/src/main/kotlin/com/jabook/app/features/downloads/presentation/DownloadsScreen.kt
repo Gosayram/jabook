@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -47,6 +48,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.jabook.app.R
+import com.jabook.app.core.domain.model.DownloadProgress
+import com.jabook.app.core.domain.model.TorrentStatus
 import com.jabook.app.features.downloads.DownloadsTab
 import com.jabook.app.features.downloads.DownloadsViewModel
 import com.jabook.app.features.downloads.presentation.components.DownloadItemCard
@@ -62,7 +65,7 @@ data class DownloadsActions(
     val onPause: (String) -> Unit,
     val onResume: (String) -> Unit,
     val onCancel: (String) -> Unit,
-    val onRetry: (com.jabook.app.core.domain.model.DownloadProgress) -> Unit,
+    val onRetry: (DownloadProgress) -> Unit,
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -212,7 +215,7 @@ private fun DownloadsTabRow(
 
 @Composable
 private fun DownloadsList(
-    downloads: List<com.jabook.app.core.domain.model.DownloadProgress>,
+    downloads: List<DownloadProgress>,
     isLoading: Boolean,
     emptyState: DownloadsEmptyState,
     actions: DownloadsActions,
@@ -244,16 +247,16 @@ private fun DownloadsList(
 
 @Composable
 private fun DownloadListItem(
-    download: com.jabook.app.core.domain.model.DownloadProgress,
+    download: DownloadProgress,
     actions: DownloadsActions,
 ) {
     val dismissState = rememberDismissState(
         confirmStateChange = { value ->
             when (value) {
                 DismissValue.DismissedToEnd -> {
-                    if (download.status == com.jabook.app.core.domain.model.TorrentStatus.DOWNLOADING) {
+                    if (download.status == TorrentStatus.DOWNLOADING) {
                         actions.onPause(download.torrentId)
-                    } else if (download.status == com.jabook.app.core.domain.model.TorrentStatus.PAUSED) {
+                    } else if (download.status == TorrentStatus.PAUSED) {
                         actions.onResume(download.torrentId)
                     }
                     false
@@ -278,7 +281,7 @@ private fun DownloadListItem(
                 }
             val icon =
                 if (direction == DismissDirection.StartToEnd) {
-                    if (download.status == com.jabook.app.core.domain.model.TorrentStatus.PAUSED) {
+                    if (download.status == TorrentStatus.PAUSED) {
                         Icons.Default.PlayArrow
                     } else {
                         Icons.Default.Pause

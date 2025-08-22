@@ -30,7 +30,6 @@ import javax.inject.Inject
 import androidx.media3.session.MediaNotificationCompat
 
 /** Foreground service for background audio playbook Handles MediaSession and playback notifications */
-@UnstableApi
 @AndroidEntryPoint
 class PlayerService : MediaSessionService() {
 

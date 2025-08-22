@@ -24,6 +24,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.jabook.app.shared.ui.components.JaBookButton
+import com.jabook.app.shared.ui.components.ButtonVariant
 
 /** Component for displaying different application states Supports empty states, loading, and errors */
 @Composable

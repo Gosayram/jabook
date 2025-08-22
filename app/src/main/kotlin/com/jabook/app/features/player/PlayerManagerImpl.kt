@@ -2,9 +2,9 @@ package com.jabook.app.features.player
 
 import android.content.Context
 import android.media.AudioManager
-import androidx.media3.common.PlaybackException
-import androidx.media3.common.Player
-import androidx.media3.common.util.UnstableApi
+// import androidx.media3.common.PlaybackException
+// import androidx.media3.common.Player
+// import androidx.media3.common.util.UnstableApi
 import com.jabook.app.core.domain.model.Audiobook
 import com.jabook.app.core.domain.model.Chapter
 import com.jabook.app.shared.debug.IDebugLogger
@@ -36,7 +36,6 @@ private class SleepTimerDelegate(
 }
 
 /** ExoPlayer implementation of PlayerManager interface Handles audiobook playback with Media3 ExoPlayer */
-@UnstableApi
 @Singleton
 class PlayerManagerImpl @Inject constructor(
     @ApplicationContext private val context: Context,
