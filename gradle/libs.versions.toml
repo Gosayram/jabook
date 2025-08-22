@@ -42,7 +42,7 @@ jsoup = "1.21.1"
 media3 = "1.8.0"
 kotlinx-serialization-json = "1.7.3"
 resilience4j = "2.1.0"
-jaudiotagger = "2.2.5"
+jaudiotagger = "3.0.1"
 commons-lang3 = "3.14.0"
 
 [libraries]

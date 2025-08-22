@@ -122,7 +122,7 @@ class RuTrackerCacheManager
                     val memoryEntry = memoryCache[cacheKey]
                     if (memoryEntry != null && !isExpired(memoryEntry)) {
                         // Update access statistics
-                        memoryEntry.accessCount++
+                        memoryEntry.accessCount = memoryEntry.accessCount + 1
                         memoryEntry.lastAccessed = System.currentTimeMillis()
                         hitCount.incrementAndGet()
                         updateStatistics()

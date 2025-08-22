@@ -76,10 +76,10 @@ fun JaBookNavigation(
                 val items =
                     listOf(
                         Triple(Screen.Library, Icons.Default.Home, R.string.library_title),
-                        Triple(Screen.Discovery, Icons.Default.Search, R.string.discovery_title),
-                        Triple(Screen.Downloads, Icons.Default.Download, R.string.downloads_title),
-                        Triple(Screen.Player, Icons.Default.PlayArrow, R.string.player_title),
-                        Triple(Screen.Settings, Icons.Default.Settings, R.string.settings_title), // Added Settings icon
+                        Triple(Screen.Discovery, Icons.Default.Search, R.string.discovery),
+                        Triple(Screen.Downloads, Icons.Default.Download, R.string.downloads),
+                        Triple(Screen.Player, Icons.Default.PlayArrow, R.string.player),
+                        Triple(Screen.Settings, Icons.Default.Settings, R.string.settings), // Added Settings icon
                     )
 
                 items.forEach { (screen, icon, titleRes) ->

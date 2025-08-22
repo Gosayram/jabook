@@ -4,6 +4,9 @@ import com.jabook.app.core.cache.CacheKey
 import com.jabook.app.core.cache.RuTrackerCacheManager
 import com.jabook.app.core.circuitbreaker.CircuitBreaker
 import com.jabook.app.core.circuitbreaker.CircuitBreakerState
+import com.jabook.app.core.domain.model.RuTrackerCategory
+import com.jabook.app.core.domain.model.RuTrackerSearchResult
+import com.jabook.app.core.network.RuTrackerParserEnhanced.RuTrackerTorrentDetails
 import com.jabook.app.core.network.RuTrackerParserImproved
 import com.jabook.app.core.network.domain.RuTrackerDomainManager
 import com.jabook.app.core.network.errorhandler.RuTrackerErrorHandler
@@ -13,9 +16,6 @@ import com.jabook.app.core.network.extractors.DescriptionExtractor
 import com.jabook.app.core.network.extractors.DetailsExtractor
 import com.jabook.app.core.network.extractors.TitleExtractor
 import com.jabook.app.core.network.extractors.TopicIdExtractor
-import com.jabook.app.core.domain.model.RuTrackerCategory
-import com.jabook.app.core.domain.model.RuTrackerSearchResult
-import com.jabook.app.core.network.RuTrackerParserEnhanced.RuTrackerTorrentDetails
 import com.jabook.app.shared.debug.IDebugLogger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
