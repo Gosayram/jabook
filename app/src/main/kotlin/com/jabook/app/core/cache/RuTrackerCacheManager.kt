@@ -147,20 +147,20 @@ class RuTrackerCacheManager
                             if (!isExpired(entry)) {
                                 // Move to memory cache if space available
                                 if (memoryCache.size < config.memoryMaxSize) {
-                                    val data = deserializer(entry.data)
+                                    val data = deserializer(entry.data.toString())
                                     memoryCache[cacheKey] = entry.copy(data = data)
                                 }
 
                                 hitCount.incrementAndGet()
                                 updateStatistics()
 
-                                return@withContext Result.success(deserializer(entry.data))
+                                return@withContext Result.success(deserializer(entry.data.toString()))
                             } else {
                                 // Remove expired entry
                                 diskFile.delete()
                             }
                         } catch (e: Exception) {
-                            debugLogger.logWarning("RuTrackerCacheManager: Failed to read disk cache for $cacheKey", e)
+                            debugLogger.logWarning("RuTrackerCacheManager: Failed to read disk cache for $cacheKey: ${e.message}")
                             diskFile.delete()
                         }
                     }

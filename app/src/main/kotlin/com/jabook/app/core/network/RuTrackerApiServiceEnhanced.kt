@@ -5,6 +5,7 @@ import com.jabook.app.core.cache.CacheStatistics
 import com.jabook.app.core.cache.RuTrackerCacheManager
 import com.jabook.app.core.circuitbreaker.CircuitBreaker
 import com.jabook.app.core.circuitbreaker.CircuitBreakerState
+import com.jabook.app.core.circuitbreaker.CircuitBreakerOpenException
 import com.jabook.app.core.domain.model.RuTrackerCategory
 import com.jabook.app.core.domain.model.RuTrackerSearchResult
 import com.jabook.app.core.network.RuTrackerParserEnhanced.RuTrackerTorrentDetails
@@ -39,6 +40,7 @@ import okhttp3.Request
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.atomic.AtomicInteger
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import javax.inject.Inject
 import javax.inject.Singleton
 
