@@ -25,6 +25,11 @@ android {
     namespace = "com.jabook.app"
     compileSdk = 35
 
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
     defaultConfig {
         manifestPlaceholders["appLabel"] = "JaBook"
         applicationId = "com.jabook.app"
@@ -116,6 +121,7 @@ android {
 
     kotlin {
         compilerOptions {
+            jvmToolchain(17)
             jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
             freeCompilerArgs.addAll(
                 "-Xskip-prerelease-check",
@@ -137,12 +143,6 @@ android {
         dataBinding = true
         resValues = true
     }
-
-    composeOptions {
-        kotlinCompilerExtensionVersion = libs.versions.compose.compiler.get()
-    }
-
-
 
     testOptions {
         unitTests {
