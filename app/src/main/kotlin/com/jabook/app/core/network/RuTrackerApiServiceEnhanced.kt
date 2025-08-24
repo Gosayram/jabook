@@ -22,8 +22,6 @@ import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import java.net.URLEncoder
-import java.nio.charset.StandardCharsets
 import java.time.Duration
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
@@ -34,9 +32,9 @@ import javax.inject.Singleton
  * Enhanced RuTracker API Service with domain switching, caching, and retry logic
  *
  * Нюансы:
- * - В проекте обнаружен тип RuTrackerAudiobook (а не RuTrackerSearchResult), поэтому search возвращает List<RuTrackerAudiobook>.
- * - В некоторых модулях могут отсутствовать исключения/методы; для совместимости добавлены локальные Exception-классы
- *   и «безопасные» вызовы через рефлексию.
+ * - В проекте используется RuTrackerAudiobook (а не RuTrackerSearchResult), поэтому search возвращает List<RuTrackerAudiobook>.
+ * - Добавлены локальные исключения и минимальная модель деталей, чтобы убрать Unresolved reference.
+ * - Fallback-парсинг деталей и magnet без прямых вызовов несуществующих методов парсера.
  */
 @Singleton
 class RuTrackerApiServiceEnhanced @Inject constructor(
@@ -45,13 +43,11 @@ class RuTrackerApiServiceEnhanced @Inject constructor(
   private val cacheManager: RuTrackerCacheManager,
   private val errorHandler: RuTrackerErrorHandler,
   private val debugLogger: IDebugLogger,
-  // Парсер оставляем, но на критичных местах есть fallback
   private val parser: RuTrackerParserImproved,
 ) {
 
   // -------------------- Локальные типы/исключения для совместимости --------------------
 
-  /** Детали торрента (минимальный набор полей). Если в проекте есть своя модель – можно сделать typealias. */
   data class RuTrackerTorrentDetails(
     val topicId: String,
     val title: String? = null,
@@ -63,7 +59,6 @@ class RuTrackerApiServiceEnhanced @Inject constructor(
     val postedAt: String? = null,
   )
 
-  /** Если модуль ошибок отсутствует – используем локальные исключения с теми же именами. */
   open class NetworkException(message: String, cause: Throwable? = null) : Exception(message, cause)
   class ParseException(message: String) : Exception(message)
   class DomainUnavailableException(message: String) : Exception(message)
@@ -80,11 +75,11 @@ class RuTrackerApiServiceEnhanced @Inject constructor(
 
     private const val DEFAULT_TIMEOUT = 30L // seconds
     private const val MAX_RETRIES = 3
-    private const val BASE_RETRY_DELAY = 1000L // milliseconds
-    private const val RATE_LIMIT_DELAY = 2000L // milliseconds between requests
-    private const val CACHE_TTL_SEARCH = 5 * 60 * 1000L // 5 minutes
-    private const val CACHE_TTL_CATEGORIES = 30 * 60 * 1000L // 30 minutes
-    private const val CACHE_TTL_DETAILS = 10 * 60 * 1000L // 10 minutes
+    private const val BASE_RETRY_DELAY = 1000L // ms
+    private const val RATE_LIMIT_DELAY = 2000L // ms
+    private const val CACHE_TTL_SEARCH = 5 * 60 * 1000L // 5m
+    private const val CACHE_TTL_CATEGORIES = 30 * 60 * 1000L // 30m
+    private const val CACHE_TTL_DETAILS = 10 * 60 * 1000L // 10m
 
     private val JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()
   }
@@ -125,8 +120,7 @@ class RuTrackerApiServiceEnhanced @Inject constructor(
   )
 
   /**
-   * Helper to execute a suspending block under a Resilience4j CircuitBreaker.
-   * Works with Result<T>.
+   * Выполнить блок под CircuitBreaker c Result<T>.
    */
   private suspend fun <T> withBreaker(
     breaker: CircuitBreaker,
@@ -152,7 +146,6 @@ class RuTrackerApiServiceEnhanced @Inject constructor(
 
   // -------------------- Public API --------------------
 
-  /** Поиск – возвращаем то, что реально есть в проекте: RuTrackerAudiobook */
   suspend fun searchAudiobooks(
     query: String,
     categoryId: Int? = null,
@@ -169,7 +162,7 @@ class RuTrackerApiServiceEnhanced @Inject constructor(
       }
 
       val result = withBreaker(searchCircuitBreaker) {
-        executeWithDomainFallback { baseUrl -> performSearch(baseUrl, query, categoryId, page) }
+        executeWithDomainFallback(operation = { baseUrl -> performSearch(baseUrl, query, categoryId, page) })
       }
 
       if (result.isSuccess) {
@@ -204,7 +197,7 @@ class RuTrackerApiServiceEnhanced @Inject constructor(
       }
 
       val result = withBreaker(detailsCircuitBreaker) {
-        executeWithDomainFallback { baseUrl -> performGetDetails(baseUrl, topicId) }
+        executeWithDomainFallback(operation = { baseUrl -> performGetDetails(baseUrl, topicId) })
       }
 
       if (result.isSuccess) {
@@ -233,7 +226,7 @@ class RuTrackerApiServiceEnhanced @Inject constructor(
       }
 
       val result = withBreaker(categoriesCircuitBreaker) {
-        executeWithDomainFallback { baseUrl -> performGetCategories(baseUrl) }
+        executeWithDomainFallback(operation = { baseUrl -> performGetCategories(baseUrl) })
       }
 
       if (result.isSuccess) {
@@ -261,7 +254,7 @@ class RuTrackerApiServiceEnhanced @Inject constructor(
         if (cached.isSuccess) return@withContext cached
       }
 
-      val result = executeWithDomainFallback { baseUrl -> performGetMagnetLink(baseUrl, topicId) }
+      val result = executeWithDomainFallback(operation = { baseUrl -> performGetMagnetLink(baseUrl, topicId) })
 
       if (result.isSuccess) {
         val magnet = result.getOrNull()
@@ -277,13 +270,13 @@ class RuTrackerApiServiceEnhanced @Inject constructor(
   suspend fun login(username: String, password: String): Result<Boolean> =
     withContext(Dispatchers.IO) {
       debugLogger.logDebug("RuTrackerApiServiceEnhanced: Attempting login for user: $username")
-      executeWithDomainFallback { baseUrl -> performLogin(baseUrl, username, password) }
+      executeWithDomainFallback(operation = { baseUrl -> performLogin(baseUrl, username, password) })
     }
 
   suspend fun downloadTorrent(topicId: String, outputFile: java.io.File): Result<Boolean> =
     withContext(Dispatchers.IO) {
       debugLogger.logDebug("RuTrackerApiServiceEnhanced: Downloading torrent for topic: $topicId")
-      executeWithDomainFallback { baseUrl -> performDownloadTorrent(baseUrl, topicId, outputFile) }
+      executeWithDomainFallback(operation = { baseUrl -> performDownloadTorrent(baseUrl, topicId, outputFile) })
     }
 
   // -------------------- Fallback & Retry --------------------
@@ -305,10 +298,9 @@ class RuTrackerApiServiceEnhanced @Inject constructor(
     }
   }
 
-  private fun safeHandleError(exception: Throwable, domain: String, operation: String) {
+  private fun safeHandleError(exception: Throwable, domain: String, opName: String) {
     // Пробуем разные сигнатуры errorHandler.handleError(...).
     try {
-      // handleError(Throwable, String, String)
       val m1 = errorHandler.javaClass.methods.firstOrNull {
         it.name == "handleError" &&
                 it.parameterCount == 3 &&
@@ -317,10 +309,9 @@ class RuTrackerApiServiceEnhanced @Inject constructor(
                 it.parameterTypes[2] == String::class.java
       }
       if (m1 != null) {
-        m1.invoke(errorHandler, exception, domain, operation)
+        m1.invoke(errorHandler, exception, domain, opName)
         return
       }
-      // handleError(Throwable)
       val m2 = errorHandler.javaClass.methods.firstOrNull {
         it.name == "handleError" &&
                 it.parameterCount == 1 &&
@@ -333,7 +324,7 @@ class RuTrackerApiServiceEnhanced @Inject constructor(
     } catch (_: Throwable) {
       // проглатываем – логируем ниже
     }
-    debugLogger.logError("RuTrackerApiServiceEnhanced: errorHandler fallback logging ($operation @ $domain)", exception)
+    debugLogger.logError("RuTrackerApiServiceEnhanced: errorHandler fallback logging ($opName @ $domain)", exception)
   }
 
   private suspend fun <T> executeWithDomainFallback(operation: suspend (String) -> Result<T>): Result<T> {
@@ -342,7 +333,7 @@ class RuTrackerApiServiceEnhanced @Inject constructor(
       try {
         debugLogger.logDebug("RuTrackerApiServiceEnhanced: Trying domain: $domain")
         applyRateLimiting(domain)
-        val result = executeWithRetry { operation("https://$domain") }
+        val result = executeWithRetry(operation = { operation("https://$domain") })
         if (result.isSuccess) {
           debugLogger.logDebug("RuTrackerApiServiceEnhanced: Operation successful on domain: $domain")
           return result
@@ -401,11 +392,10 @@ class RuTrackerApiServiceEnhanced @Inject constructor(
     page: Int,
   ): Result<List<RuTrackerAudiobook>> {
     return try {
-      val encodedQuery = URLEncoder.encode(query, StandardCharsets.UTF_8.name())
       val urlBuilder = "$baseUrl$SEARCH_PATH".toHttpUrlOrNull()?.newBuilder()
         ?: return Result.failure(NetworkException("Invalid URL"))
 
-      // Важно: **не** кодировать параметр через URLEncoder ещё раз при addQueryParameter – он сам кодирует.
+      // addQueryParameter сам кодирует значение
       urlBuilder.addQueryParameter("nm", query)
       if (categoryId != null) urlBuilder.addQueryParameter("f", categoryId.toString())
       if (page > 0) urlBuilder.addQueryParameter("start", (page * 50).toString())
@@ -414,7 +404,6 @@ class RuTrackerApiServiceEnhanced @Inject constructor(
       httpClient.newCall(request).execute().use { response ->
         val body = response.body?.string().orEmpty()
         if (!response.isSuccessful) return Result.failure(NetworkException("HTTP ${response.code}: ${response.message}"))
-        // У парсера ожидается List<RuTrackerAudiobook>
         val results = try {
           parser.parseSearchResults(body)
         } catch (t: Throwable) {
@@ -437,27 +426,17 @@ class RuTrackerApiServiceEnhanced @Inject constructor(
       httpClient.newCall(request).execute().use { response ->
         val body = response.body?.string().orEmpty()
         if (!response.isSuccessful) return Result.failure(NetworkException("HTTP ${response.code}: ${response.message}"))
-        val details = try {
-          // Пытаемся использовать парсер; если нет метода/типа – падаем в fallback
-          val parsed = parser.parseTorrentDetails(body)
-          // На случай несовпадения типов – аккуратно переливаем в локальную модель по известным полям
-          when (parsed) {
-            is RuTrackerTorrentDetails -> parsed
-            else -> {
-              // Простейший fallback: вытащим title и magnet из HTML
-              val title = Regex("<title>(.*?)</title>", RegexOption.IGNORE_CASE)
-                .find(body)?.groupValues?.getOrNull(1)
-              val magnet = extractMagnetFromHtml(body)
-              RuTrackerTorrentDetails(topicId = topicId, title = title, magnet = magnet)
-            }
-          }
-        } catch (t: Throwable) {
-          debugLogger.logWarning("RuTrackerApiServiceEnhanced: parser.parseTorrentDetails failed, fallback: ${t.message}")
-          val title = Regex("<title>(.*?)</title>", RegexOption.IGNORE_CASE)
-            .find(body)?.groupValues?.getOrNull(1)
-          val magnet = extractMagnetFromHtml(body)
-          RuTrackerTorrentDetails(topicId, title = title, magnet = magnet)
-        }
+
+        // Fallback-парсинг без прямого вызова несуществующего метода парсера
+        val title = Regex("<title>(.*?)</title>", RegexOption.IGNORE_CASE)
+          .find(body)?.groupValues?.getOrNull(1)
+        val magnet = extractMagnetFromHtml(body)
+
+        val details = RuTrackerTorrentDetails(
+          topicId = topicId,
+          title = title,
+          magnet = magnet
+        )
         Result.success(details)
       }
     } catch (e: Exception) {
@@ -494,12 +473,9 @@ class RuTrackerApiServiceEnhanced @Inject constructor(
       httpClient.newCall(request).execute().use { response ->
         val body = response.body?.string().orEmpty()
         if (!response.isSuccessful) return Result.failure(NetworkException("HTTP ${response.code}: ${response.message}"))
-        val magnetLink = try {
-          // Если у парсера есть метод – используем
-          parser.parseMagnetLink(body) ?: extractMagnetFromHtml(body)
-        } catch (_: Throwable) {
-          extractMagnetFromHtml(body)
-        }
+
+        // Только fallback из HTML, без вызова parser.parseMagnetLink (которого может не быть)
+        val magnetLink = extractMagnetFromHtml(body)
         if (magnetLink.isNullOrEmpty()) return Result.failure(ParseException("Magnet link not found"))
         Result.success(magnetLink)
       }
@@ -510,9 +486,7 @@ class RuTrackerApiServiceEnhanced @Inject constructor(
   }
 
   private fun extractMagnetFromHtml(html: String): String? {
-    // Ищем стандартную magnet-ссылку
     Regex("""magnet:\?xt=urn:[^"'<>\s]+""", RegexOption.IGNORE_CASE).find(html)?.value?.let { return it }
-    // Иногда она лежит в href
     Regex("""href\s*=\s*["'](magnet:[^"']+)["']""", RegexOption.IGNORE_CASE).find(html)?.groupValues?.getOrNull(1)?.let { return it }
     return null
   }
