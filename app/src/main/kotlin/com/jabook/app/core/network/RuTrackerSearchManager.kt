@@ -3,8 +3,9 @@ package com.jabook.app.core.network
 import com.jabook.app.core.cache.CacheKey
 import com.jabook.app.core.cache.RuTrackerCacheManager
 import com.jabook.app.core.network.domain.RuTrackerDomainManager
-import com.jabook.app.core.network.models.RuTrackerCategory
-import com.jabook.app.core.network.models.RuTrackerSearchResult
+import com.jabook.app.core.domain.model.RuTrackerCategory
+import com.jabook.app.core.domain.model.RuTrackerSearchResult
+import com.jabook.app.core.domain.model.RuTrackerAudiobook
 import com.jabook.app.shared.debug.IDebugLogger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.map
@@ -104,7 +105,7 @@ class RuTrackerSearchManager
               return@withContext result
             }
           } catch (e: Exception) {
-            debugLogger.logWarning("RuTrackerSearchManager: Search strategy $strategy failed", e)
+            debugLogger.logWarning("RuTrackerSearchManager: Search strategy $strategy failed: ${e.message}")
             // Continue with next strategy
           }
         }
@@ -117,7 +118,7 @@ class RuTrackerSearchManager
           query = query,
           categoryId = categoryId,
           page = page,
-          results = emptyList(),
+          results = emptyList<RuTrackerAudiobook>(),
           totalResults = 0,
           strategy = SearchStrategy.DirectSearch,
           fromCache = false,
@@ -193,7 +194,7 @@ class RuTrackerSearchManager
           suggestions
         } catch (e: Exception) {
           debugLogger.logError("RuTrackerSearchManager: Failed to get search suggestions", e)
-          emptyList()
+          emptyList<String>()
         }
       }
     }
@@ -326,7 +327,7 @@ class RuTrackerSearchManager
 
         // Filter results based on query
         val filteredResults =
-          categoryResults.filter { result ->
+          categoryResults.filter { result: RuTrackerAudiobook ->
             result.title.contains(query, ignoreCase = true) ||
               result.author.contains(query, ignoreCase = true)
           }
@@ -371,7 +372,7 @@ class RuTrackerSearchManager
         }
 
         // Search for each keyword and combine results
-        val allResults = mutableListOf<RuTrackerSearchResult>()
+        val allResults = mutableListOf<RuTrackerAudiobook>()
 
         for (keyword in keywords) {
           val result = apiService.searchAudiobooks(keyword, categoryId, 0)
@@ -383,7 +384,7 @@ class RuTrackerSearchManager
         // Remove duplicates and sort by relevance
         val uniqueResults =
           allResults
-            .distinctBy { it.topicId }
+            .distinctBy { it.id }
             .sortedByDescending { calculateRelevanceScore(it, query) }
             .take(MAX_SEARCH_RESULTS)
 
@@ -427,7 +428,7 @@ class RuTrackerSearchManager
         }
 
         // Search for each fuzzy term
-        val allResults = mutableListOf<RuTrackerSearchResult>()
+        val allResults = mutableListOf<RuTrackerAudiobook>()
 
         for (term in fuzzyTerms) {
           val result = apiService.searchAudiobooks(term, categoryId, 0)
@@ -439,7 +440,7 @@ class RuTrackerSearchManager
         // Remove duplicates and sort by fuzzy match score
         val uniqueResults =
           allResults
-            .distinctBy { it.topicId }
+            .distinctBy { it.id }
             .sortedByDescending { calculateFuzzyMatchScore(it, query) }
             .take(MAX_SEARCH_RESULTS)
 
@@ -469,7 +470,7 @@ class RuTrackerSearchManager
             categories
               .getOrNull()
               ?.find { it.name.contains("Аудиокниги", ignoreCase = true) }
-          audiobookCategory?.id ?: 33 // Default audiobook category ID
+          (audiobookCategory?.id?.toIntOrNull() ?: 33) // Default audiobook category ID
         } else {
           33 // Default audiobook category ID
         }
@@ -484,7 +485,7 @@ class RuTrackerSearchManager
     private suspend fun browseCategory(
       categoryId: Int,
       page: Int,
-    ): List<RuTrackerSearchResult> {
+    ): List<RuTrackerAudiobook> {
       // This would need to be implemented based on the actual API
       // For now, return empty list
       return emptyList()
@@ -531,7 +532,7 @@ class RuTrackerSearchManager
      * Calculate relevance score
      */
     private fun calculateRelevanceScore(
-      result: RuTrackerSearchResult,
+      result: RuTrackerAudiobook,
       query: String,
     ): Double {
       var score = 0.0
@@ -550,7 +551,7 @@ class RuTrackerSearchManager
       score += result.seeders * 0.1
 
       // Size bonus (larger files might be more complete)
-      score += (result.size / (1024 * 1024)) * 0.001
+      score += (result.sizeBytes / (1024 * 1024)) * 0.001
 
       return score
     }
@@ -559,7 +560,7 @@ class RuTrackerSearchManager
      * Calculate fuzzy match score
      */
     private fun calculateFuzzyMatchScore(
-      result: RuTrackerSearchResult,
+      result: RuTrackerAudiobook,
       query: String,
     ): Double {
       var score = 0.0
@@ -743,7 +744,7 @@ class RuTrackerSearchManager
       val query: String,
       val categoryId: Int?,
       val page: Int,
-      val results: List<RuTrackerSearchResult>,
+      val results: List<RuTrackerAudiobook>,
       val totalResults: Int,
       val strategy: SearchStrategy,
       val fromCache: Boolean,

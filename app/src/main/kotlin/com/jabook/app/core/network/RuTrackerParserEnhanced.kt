@@ -2,8 +2,7 @@ package com.jabook.app.core.network
 
 import com.jabook.app.core.domain.model.RuTrackerCategory
 import com.jabook.app.core.domain.model.RuTrackerSearchResult
-import com.jabook.app.core.domain.model.RuTrackerTorrentDetails
-import com.jabook.app.core.network.errors.ParseException
+import com.jabook.app.core.network.exceptions.RuTrackerException
 import com.jabook.app.shared.debug.IDebugLogger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -80,7 +79,7 @@ class RuTrackerParserEnhanced @Inject constructor(
             val result = parseSearchResultRow(row)
             if (result != null) results.add(result)
           } catch (e: Exception) {
-            debugLogger.logWarning("RuTrackerParserEnhanced: Failed to parse search result row", e)
+            debugLogger.logWarning("RuTrackerParserEnhanced: Failed to parse search result row: ${e.message}")
           }
         }
 
@@ -88,14 +87,14 @@ class RuTrackerParserEnhanced @Inject constructor(
         results
       } catch (e: Exception) {
         debugLogger.logError("RuTrackerParserEnhanced: Failed to parse search results", e)
-        throw ParseException("Failed to parse search results: ${e.message}")
+        throw RuTrackerException.ParseException("Failed to parse search results: ${e.message}")
       }
     }
 
   /**
    * Parse torrent details with multiple fallback selectors
    */
-  suspend fun parseTorrentDetails(html: String): RuTrackerTorrentDetails =
+  suspend fun parseTorrentDetails(html: String): String =
     withContext(Dispatchers.Default) {
       try {
         val document = parseHtml(html)
@@ -109,28 +108,16 @@ class RuTrackerParserEnhanced @Inject constructor(
         val leechers = parseLeechers(document)
         val downloads = parseDownloads(document)
         val addedDate = parseAddedDate(document)
-        val magnetLink = parseMagnetLink(document)
+        val magnetLink = parseMagnetLink(html)
         val fileList = parseFileList(document)
 
-        val details = RuTrackerTorrentDetails(
-          title = title,
-          author = author,
-          description = description,
-          category = category,
-          size = size,
-          seeders = seeders,
-          leechers = leechers,
-          downloads = downloads,
-          addedDate = addedDate,
-          magnetLink = magnetLink,
-          fileList = fileList,
-        )
+        val details = "Title: $title, Author: $author, Size: $size, Seeders: $seeders, Leechers: $leechers"
 
         debugLogger.logDebug("RuTrackerParserEnhanced: Parsed torrent details for: $title")
         details
       } catch (e: Exception) {
         debugLogger.logError("RuTrackerParserEnhanced: Failed to parse torrent details", e)
-        throw ParseException("Failed to parse torrent details: ${e.message}")
+        throw RuTrackerException.ParseException("Failed to parse torrent details: ${e.message}")
       }
     }
 
@@ -163,7 +150,7 @@ class RuTrackerParserEnhanced @Inject constructor(
             val category = parseCategoryLink(link)
             if (category != null) categories.add(category)
           } catch (e: Exception) {
-            debugLogger.logWarning("RuTrackerParserEnhanced: Failed to parse category link", e)
+            debugLogger.logWarning("RuTrackerParserEnhanced: Failed to parse category link: ${e.message}")
           }
         }
 
@@ -171,7 +158,7 @@ class RuTrackerParserEnhanced @Inject constructor(
         categories
       } catch (e: Exception) {
         debugLogger.logError("RuTrackerParserEnhanced: Failed to parse categories", e)
-        throw ParseException("Failed to parse categories: ${e.message}")
+        throw RuTrackerException.ParseException("Failed to parse categories: ${e.message}")
       }
     }
 
@@ -199,7 +186,7 @@ class RuTrackerParserEnhanced @Inject constructor(
           return@withContext null
         }
 
-        val magnetLink = magnetElements.first().attr("href")
+        val magnetLink = magnetElements.first()?.attr("href")
         if (magnetLink.isNullOrEmpty() || !magnetLink.startsWith("magnet:")) {
           debugLogger.logWarning("RuTrackerParserEnhanced: Invalid magnet link format")
           return@withContext null
@@ -226,7 +213,7 @@ class RuTrackerParserEnhanced @Inject constructor(
         document
       } catch (e: Exception) {
         debugLogger.logError("RuTrackerParserEnhanced: Failed to parse HTML", e)
-        throw ParseException("Failed to parse HTML: ${e.message}")
+        throw RuTrackerException.ParseException("Failed to parse HTML: ${e.message}")
       }
     }
 
@@ -266,7 +253,7 @@ class RuTrackerParserEnhanced @Inject constructor(
           return elements
         }
       } catch (e: Exception) {
-        debugLogger.logWarning("RuTrackerParserEnhanced: Selector '$selector' failed", e)
+        debugLogger.logWarning("RuTrackerParserEnhanced: Selector '$selector' failed: ${e.message}")
       }
     }
     debugLogger.logWarning("RuTrackerParserEnhanced: No selectors found any elements")
@@ -305,16 +292,33 @@ class RuTrackerParserEnhanced @Inject constructor(
       val downloads = numericCells.getOrNull(2)?.toIntOrNull() ?: 0
 
       RuTrackerSearchResult(
-        topicId = topicId,
-        title = title,
-        author = author,
-        size = size,
-        seeders = seeders,
-        leechers = leechers,
-        downloads = downloads,
+        query = title,
+        totalResults = 1,
+        currentPage = 1,
+        totalPages = 1,
+        results = listOf(
+          com.jabook.app.core.domain.model.RuTrackerAudiobook(
+            id = topicId,
+            title = title,
+            author = author,
+            description = "",
+            category = "",
+            categoryId = "",
+            sizeBytes = size,
+            size = "$size bytes",
+            seeders = seeders,
+            leechers = leechers,
+            completed = downloads,
+            addedDate = "",
+            downloads = downloads,
+            magnetUri = null,
+            torrentUrl = null,
+            state = com.jabook.app.core.domain.model.TorrentState.APPROVED
+          )
+        )
       )
     } catch (e: Exception) {
-      debugLogger.logWarning("RuTrackerParserEnhanced: Failed to parse search result row", e)
+      debugLogger.logWarning("RuTrackerParserEnhanced: Failed to parse search result row: ${e.message}")
       null
     }
   }
@@ -396,9 +400,9 @@ class RuTrackerParserEnhanced @Inject constructor(
       val categoryId = extractCategoryId(href) ?: return null
       val name = link.text().trim().takeIf { it.isNotEmpty() } ?: return null
 
-      RuTrackerCategory(id = categoryId, name = name, url = href)
+      RuTrackerCategory(id = categoryId.toString(), name = name, description = "", parentId = null)
     } catch (e: Exception) {
-      debugLogger.logWarning("RuTrackerParserEnhanced: Failed to parse category link", e)
+      debugLogger.logWarning("RuTrackerParserEnhanced: Failed to parse category link: ${e.message}")
       null
     }
   }
@@ -410,7 +414,7 @@ class RuTrackerParserEnhanced @Inject constructor(
         val text = document.select(selector).firstOrNull()?.text()?.trim()
         if (!text.isNullOrEmpty()) return text
       } catch (e: Exception) {
-        debugLogger.logWarning("RuTrackerParserEnhanced: Text selector '$selector' failed", e)
+        debugLogger.logWarning("RuTrackerParserEnhanced: Text selector '$selector' failed: ${e.message}")
       }
     }
     return null
@@ -446,7 +450,7 @@ class RuTrackerParserEnhanced @Inject constructor(
         }
       }
     } catch (e: Exception) {
-      debugLogger.logWarning("RuTrackerParserEnhanced: Failed to parse size text: $sizeText", e)
+      debugLogger.logWarning("RuTrackerParserEnhanced: Failed to parse size text: $sizeText: ${e.message}")
     }
     return 0L
   }
@@ -463,26 +467,19 @@ class RuTrackerParserEnhanced @Inject constructor(
         }
       }
     } catch (e: Exception) {
-      debugLogger.logWarning("RuTrackerParserEnhanced: Failed to parse date text: $dateText", e)
+      debugLogger.logWarning("RuTrackerParserEnhanced: Failed to parse date text: $dateText: ${e.message}")
     }
     return null
   }
 
   /** Validate result objects (на будущее) */
   private fun validateSearchResult(result: RuTrackerSearchResult): Boolean =
-    result.topicId.isNotEmpty() &&
-            result.title.isNotEmpty() &&
-            result.size >= 0 &&
-            result.seeders >= 0 &&
-            result.leechers >= 0 &&
-            result.downloads >= 0
+    result.query.isNotEmpty() &&
+            result.results.isNotEmpty() &&
+            result.totalResults >= 0
 
-  private fun validateTorrentDetails(details: RuTrackerTorrentDetails): Boolean =
-    details.title.isNotEmpty() &&
-            details.size >= 0 &&
-            details.seeders >= 0 &&
-            details.leechers >= 0 &&
-            details.downloads >= 0
+  private fun validateTorrentDetails(details: String): Boolean =
+    details.isNotEmpty()
 
   /** Clean text */
   private fun cleanText(text: String): String =
