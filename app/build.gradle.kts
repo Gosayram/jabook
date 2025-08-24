@@ -9,7 +9,6 @@ plugins {
     id("com.google.devtools.ksp")
     alias(libs.plugins.kotlin.parcelize)
     alias(libs.plugins.kotlin.serialization)
-    alias(libs.plugins.navigation.safeargs.kotlin)
 }
 
 kotlinter {
@@ -113,11 +112,6 @@ android {
             isMinifyEnabled = false
             isShrinkResources = false
         }
-    }
-
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
     }
 
     kotlin {
