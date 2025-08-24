@@ -39,7 +39,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
-import java.time.Duration
+import org.threeten.bp.Duration
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Inject
@@ -95,7 +95,7 @@ constructor(
     CircuitBreakerConfig.custom()
       .failureRateThreshold(50f)
       .slidingWindowSize(10)
-      .waitDurationInOpenState(Duration.ofMillis(60_000))
+      .waitDurationInOpenState(Duration.ofMillis(60_000L))
       .permittedNumberOfCallsInHalfOpenState(3)
       .build()
   )
@@ -105,7 +105,7 @@ constructor(
     CircuitBreakerConfig.custom()
       .failureRateThreshold(50f)
       .slidingWindowSize(10)
-      .waitDurationInOpenState(Duration.ofMillis(30_000))
+      .waitDurationInOpenState(Duration.ofMillis(30_000L))
       .permittedNumberOfCallsInHalfOpenState(3)
       .build()
   )
@@ -115,7 +115,7 @@ constructor(
     CircuitBreakerConfig.custom()
       .failureRateThreshold(50f)
       .slidingWindowSize(10)
-      .waitDurationInOpenState(Duration.ofMillis(20_000))
+      .waitDurationInOpenState(Duration.ofMillis(20_000L))
       .permittedNumberOfCallsInHalfOpenState(2)
       .build()
   )

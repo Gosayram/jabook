@@ -203,6 +203,7 @@ dependencies {
     implementation(libs.accompanist.permissions)
     implementation(libs.accompanist.placeholder)
     implementation(libs.androidx.constraintlayout)
+    implementation("org.threeten:threetenbp:${libs.versions.threetenbp.get()}")
 
     // Kotlinx Serialization
     implementation(libs.kotlinx.serialization.json)
