@@ -12,6 +12,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.io.File
@@ -21,11 +22,23 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Cache entry metadata
+ * Cache entry metadata (in-memory)
  */
 @Serializable
 data class CacheEntry<T>(
   val data: T,
+  val timestamp: Long,
+  val ttl: Long,
+  val accessCount: Long = 0,
+  val lastAccessed: Long = System.currentTimeMillis(),
+)
+
+/**
+ * On-disk cache entry format (store only String payloads)
+ */
+@Serializable
+private data class CacheEntryDisk(
+  val data: String,
   val timestamp: Long,
   val ttl: Long,
   val accessCount: Long = 0,
@@ -74,501 +87,534 @@ data class CacheKey(
  */
 @Singleton
 class RuTrackerCacheManager
-  @Inject
-  constructor(
-    private val debugLogger: IDebugLogger,
-    private val cacheDir: File,
-    private val config: CacheConfig = CacheConfig(),
-  ) {
-    private val memoryCache = ConcurrentHashMap<String, CacheEntry<Any>>()
-    private val accessCounts = ConcurrentHashMap<String, AtomicLong>()
-    private val mutex = Mutex()
+@Inject
+constructor(
+  private val debugLogger: IDebugLogger,
+  private val cacheDir: File,
+  private val config: CacheConfig = CacheConfig(),
+) {
+  private val memoryCache = ConcurrentHashMap<String, CacheEntry<Any>>()
+  private val accessCounts = ConcurrentHashMap<String, AtomicLong>()
+  private val mutex = Mutex()
 
-    private val _statistics = MutableStateFlow(CacheStatistics(0, 0, 0, 0, 0, 0, 0, 0))
-    val statistics: Flow<CacheStatistics> = _statistics.asStateFlow()
+  private val _statistics = MutableStateFlow(CacheStatistics(0, 0, 0, 0, 0, 0, 0, 0))
+  val statistics: Flow<CacheStatistics> = _statistics.asStateFlow()
 
-    private val hitCount = AtomicLong(0)
-    private val missCount = AtomicLong(0)
-    private val evictionCount = AtomicLong(0)
+  private val hitCount = AtomicLong(0)
+  private val missCount = AtomicLong(0)
+  private val evictionCount = AtomicLong(0)
 
-    private var cleanupJob: kotlinx.coroutines.Job? = null
-    private val isCleanupRunning =
-      java.util.concurrent.atomic
-        .AtomicBoolean(false)
+  private var cleanupJob: kotlinx.coroutines.Job? = null
+  private val isCleanupRunning = java.util.concurrent.atomic.AtomicBoolean(false)
 
-    init {
-      // Ensure cache directory exists
-      if (!cacheDir.exists()) {
-        cacheDir.mkdirs()
-      }
-
-      // Start periodic cleanup
-      startCleanupTask()
-
-      debugLogger.logInfo("RuTrackerCacheManager: Initialized with config: $config")
+  init {
+    // Ensure cache directory exists
+    if (!cacheDir.exists()) {
+      cacheDir.mkdirs()
     }
 
-    /**
-     * Get data from cache
-     */
-    suspend fun <T> get(
-      key: CacheKey,
-      deserializer: (String) -> T,
-    ): Result<T> =
-      withContext(Dispatchers.IO) {
-        mutex.withLock {
-          val cacheKey = key.toString()
+    // Start periodic cleanup
+    startCleanupTask()
 
-          // Try memory cache first
-          val memoryEntry = memoryCache[cacheKey]
-          if (memoryEntry != null && !isExpired(memoryEntry)) {
-            // Update access statistics
-            // Create a new entry with updated values since CacheEntry is immutable
-            val updatedEntry =
-              memoryEntry.copy(
-                accessCount = memoryEntry.accessCount + 1,
-                lastAccessed = System.currentTimeMillis(),
-              )
-            memoryCache[cacheKey] = updatedEntry
-            hitCount.incrementAndGet()
-            updateStatistics()
+    debugLogger.logInfo("RuTrackerCacheManager: Initialized with config: $config")
+  }
 
-            @Suppress("UNCHECKED_CAST")
-            return@withContext Result.success(memoryEntry.data as T)
-          }
+  /**
+   * Get data from cache
+   */
+  suspend fun <T : Any> get(
+    key: CacheKey,
+    deserializer: (String) -> T,
+  ): Result<T> =
+    withContext(Dispatchers.IO) {
+      mutex.withLock {
+        val cacheKey = key.toString()
 
-          // Try disk cache
-          val diskFile = getDiskCacheFile(cacheKey)
-          if (diskFile.exists()) {
-            try {
-              val json = diskFile.readText()
-              val entry = Json.decodeFromString<CacheEntry<Any>>(json)
-
-              if (!isExpired(entry)) {
-                // Move to memory cache if space available
-                if (memoryCache.size < config.memoryMaxSize) {
-                  val data = deserializer(entry.data.toString())
-                  memoryCache[cacheKey] = entry.copy(data = data)
-                }
-
-                hitCount.incrementAndGet()
-                updateStatistics()
-
-                @Suppress("UNCHECKED_CAST")
-                return@withContext Result.success(deserializer(entry.data.toString()) as T)
-              } else {
-                // Remove expired entry
-                diskFile.delete()
-              }
-            } catch (e: Exception) {
-              debugLogger.logWarning("RuTrackerCacheManager: Failed to read disk cache for $cacheKey: ${e.message}")
-              diskFile.delete()
-            }
-          }
-
-          missCount.incrementAndGet()
+        // Try memory cache first
+        val memoryEntry = memoryCache[cacheKey]
+        if (memoryEntry != null && !isExpired(memoryEntry)) {
+          // Update access statistics (CacheEntry is immutable → create a new one)
+          val updatedEntry =
+            memoryEntry.copy(
+              accessCount = memoryEntry.accessCount + 1,
+              lastAccessed = System.currentTimeMillis(),
+            )
+          memoryCache[cacheKey] = updatedEntry
+          hitCount.incrementAndGet()
           updateStatistics()
-          Result.failure(RuTrackerException.CacheException("Cache miss for key: $cacheKey"))
+
+          @Suppress("UNCHECKED_CAST")
+          return@withContext Result.success(memoryEntry.data as T)
         }
-      }
 
-    /**
-     * Put data in cache
-     */
-    suspend fun <T> put(
-      key: CacheKey,
-      data: T,
-      ttl: Long = config.defaultTTL,
-      serializer: (T) -> String,
-    ): Result<Unit> =
-      withContext(Dispatchers.IO) {
-        mutex.withLock {
-          val cacheKey = key.toString()
-          val now = System.currentTimeMillis()
-
+        // Try disk cache
+        val diskFile = getDiskCacheFile(cacheKey)
+        if (diskFile.exists()) {
           try {
-            val entry =
+            val json = diskFile.readText()
+            val entryDisk = Json.decodeFromString<CacheEntryDisk>(json)
+
+            val probeForTtl =
               CacheEntry(
-                data = data as Any,
-                timestamp = now,
-                ttl = ttl,
-                accessCount = 1,
-                lastAccessed = now,
+                data = entryDisk.data, // only for TTL check
+                timestamp = entryDisk.timestamp,
+                ttl = entryDisk.ttl,
+                accessCount = entryDisk.accessCount,
+                lastAccessed = entryDisk.lastAccessed,
               )
 
-            // Put in memory cache
-            if (memoryCache.size >= config.memoryMaxSize) {
-              evictFromMemoryCache()
-            }
-            memoryCache[cacheKey] = entry
+            if (!isExpired(probeForTtl)) {
+              // Move to memory cache if space available
+              if (memoryCache.size < config.memoryMaxSize) {
+                val obj: Any = deserializer(entryDisk.data)
+                memoryCache[cacheKey] =
+                  CacheEntry(
+                    data = obj,
+                    timestamp = entryDisk.timestamp,
+                    ttl = entryDisk.ttl,
+                    accessCount = entryDisk.accessCount + 1,
+                    lastAccessed = System.currentTimeMillis(),
+                  )
+              }
 
-            // Put in disk cache
-            val diskFile = getDiskCacheFile(cacheKey)
-            val jsonEntry = entry.copy(data = serializer(data))
-            val json = Json.encodeToString(jsonEntry)
+              hitCount.incrementAndGet()
+              updateStatistics()
 
-            diskFile.writeText(json)
-
-            updateStatistics()
-            Result.success(Unit)
-          } catch (e: Exception) {
-            debugLogger.logError("RuTrackerCacheManager: Failed to cache data for key: $cacheKey", e)
-            Result.failure(RuTrackerException.CacheException("Failed to cache data: ${e.message}"))
-          }
-        }
-      }
-
-    /**
-     * Remove data from cache
-     */
-    suspend fun remove(key: CacheKey): Result<Unit> =
-      withContext(Dispatchers.IO) {
-        mutex.withLock {
-          val cacheKey = key.toString()
-
-          try {
-            // Remove from memory cache
-            memoryCache.remove(cacheKey)
-
-            // Remove from disk cache
-            val diskFile = getDiskCacheFile(cacheKey)
-            if (diskFile.exists()) {
+              @Suppress("UNCHECKED_CAST")
+              return@withContext Result.success(deserializer(entryDisk.data) as T)
+            } else {
+              // Remove expired entry
               diskFile.delete()
             }
-
-            updateStatistics()
-            Result.success(Unit)
           } catch (e: Exception) {
-            debugLogger.logError("RuTrackerCacheManager: Failed to remove cache for key: $cacheKey", e)
-            Result.failure(RuTrackerException.CacheException("Failed to remove cache: ${e.message}"))
+            debugLogger.logWarning("RuTrackerCacheManager: Failed to read disk cache for $cacheKey: ${e.message}")
+            diskFile.delete()
           }
         }
+
+        missCount.incrementAndGet()
+        updateStatistics()
+        Result.failure(RuTrackerException.CacheException("Cache miss for key: $cacheKey"))
       }
+    }
 
-    /**
-     * Clear all cache
-     */
-    suspend fun clear(): Result<Unit> =
-      withContext(Dispatchers.IO) {
-        mutex.withLock {
-          try {
-            // Clear memory cache
-            memoryCache.clear()
+  /**
+   * Put data in cache
+   */
+  suspend fun <T : Any> put(
+    key: CacheKey,
+    data: T,
+    ttl: Long = config.defaultTTL,
+    serializer: (T) -> String,
+  ): Result<Unit> =
+    withContext(Dispatchers.IO) {
+      mutex.withLock {
+        val cacheKey = key.toString()
+        val now = System.currentTimeMillis()
 
-            // Clear disk cache
-            cacheDir.listFiles()?.forEach { file ->
-              if (file.name.endsWith(".cache")) {
-                file.delete()
-              }
-            }
+        try {
+          val entry: CacheEntry<Any> =
+            CacheEntry(
+              data = data as Any,
+              timestamp = now,
+              ttl = ttl,
+              accessCount = 1,
+              lastAccessed = now,
+            )
 
-            // Reset counters
-            hitCount.set(0)
-            missCount.set(0)
-            evictionCount.set(0)
-
-            updateStatistics()
-            debugLogger.logInfo("RuTrackerCacheManager: Cache cleared")
-            Result.success(Unit)
-          } catch (e: Exception) {
-            debugLogger.logError("RuTrackerCacheManager: Failed to clear cache", e)
-            Result.failure(RuTrackerException.CacheException("Failed to clear cache: ${e.message}"))
+          // Put in memory cache
+          if (memoryCache.size >= config.memoryMaxSize) {
+            evictFromMemoryCache()
           }
+          memoryCache[cacheKey] = entry
+
+          // Put in disk cache (serialize as String payload)
+          val diskFile = getDiskCacheFile(cacheKey)
+          val jsonEntry =
+            CacheEntryDisk(
+              data = serializer(data),
+              timestamp = entry.timestamp,
+              ttl = entry.ttl,
+              accessCount = entry.accessCount,
+              lastAccessed = entry.lastAccessed,
+            )
+          val json = Json.encodeToString(jsonEntry)
+          diskFile.writeText(json)
+
+          updateStatistics()
+          Result.success(Unit)
+        } catch (e: Exception) {
+          debugLogger.logError("RuTrackerCacheManager: Failed to cache data for key: $cacheKey", e)
+          Result.failure(RuTrackerException.CacheException("Failed to cache data: ${e.message}"))
         }
       }
+    }
 
-    /**
-     * Clear cache by namespace
-     */
-    suspend fun clearNamespace(namespace: String): Result<Unit> =
-      withContext(Dispatchers.IO) {
-        mutex.withLock {
-          try {
-            // Remove from memory cache
-            val keysToRemove = memoryCache.keys.filter { it.startsWith("${namespace}_v") }
-            keysToRemove.forEach { memoryCache.remove(it) }
+  /**
+   * Remove data from cache
+   */
+  suspend fun remove(key: CacheKey): Result<Unit> =
+    withContext(Dispatchers.IO) {
+      mutex.withLock {
+        val cacheKey = key.toString()
 
-            // Remove from disk cache
-            cacheDir.listFiles()?.forEach { file ->
-              if (file.name.startsWith("${namespace}_v") && file.name.endsWith(".cache")) {
-                file.delete()
-              }
-            }
+        try {
+          // Remove from memory cache
+          memoryCache.remove(cacheKey)
 
-            updateStatistics()
-            debugLogger.logInfo("RuTrackerCacheManager: Cache cleared for namespace: $namespace")
-            Result.success(Unit)
-          } catch (e: Exception) {
-            debugLogger.logError("RuTrackerCacheManager: Failed to clear cache for namespace: $namespace", e)
-            Result.failure(RuTrackerException.CacheException("Failed to clear namespace cache: ${e.message}"))
-          }
-        }
-      }
-
-    /**
-     * Check if key exists in cache
-     */
-    suspend fun contains(key: CacheKey): Boolean =
-      withContext(Dispatchers.IO) {
-        mutex.withLock {
-          val cacheKey = key.toString()
-
-          // Check memory cache
-          val memoryEntry = memoryCache[cacheKey]
-          if (memoryEntry != null && !isExpired(memoryEntry)) {
-            return@withLock true
-          }
-
-          // Check disk cache
+          // Remove from disk cache
           val diskFile = getDiskCacheFile(cacheKey)
           if (diskFile.exists()) {
-            try {
-              val json = diskFile.readText()
-              val entry = Json.decodeFromString<CacheEntry<Any>>(json)
-              return@withLock !isExpired(entry)
-            } catch (e: Exception) {
-              diskFile.delete()
-            }
+            diskFile.delete()
           }
 
-          false
+          updateStatistics()
+          Result.success(Unit)
+        } catch (e: Exception) {
+          debugLogger.logError("RuTrackerCacheManager: Failed to remove cache for key: $cacheKey", e)
+          Result.failure(RuTrackerException.CacheException("Failed to remove cache: ${e.message}"))
         }
       }
+    }
 
-    /**
-     * Get cache size
-     */
-    suspend fun getSize(): Long =
-      withContext(Dispatchers.IO) {
-        mutex.withLock {
-          var totalSize = 0L
+  /**
+   * Clear all cache
+   */
+  suspend fun clear(): Result<Unit> =
+    withContext(Dispatchers.IO) {
+      mutex.withLock {
+        try {
+          // Clear memory cache
+          memoryCache.clear()
 
-          // Memory cache size (approximate)
-          memoryCache.values.forEach { entry ->
-            totalSize += estimateSize(entry.data)
-          }
-
-          // Disk cache size
+          // Clear disk cache
           cacheDir.listFiles()?.forEach { file ->
             if (file.name.endsWith(".cache")) {
-              totalSize += file.length()
+              file.delete()
             }
           }
 
-          totalSize
+          // Reset counters
+          hitCount.set(0)
+          missCount.set(0)
+          evictionCount.set(0)
+
+          updateStatistics()
+          debugLogger.logInfo("RuTrackerCacheManager: Cache cleared")
+          Result.success(Unit)
+        } catch (e: Exception) {
+          debugLogger.logError("RuTrackerCacheManager: Failed to clear cache", e)
+          Result.failure(RuTrackerException.CacheException("Failed to clear cache: ${e.message}"))
         }
       }
+    }
 
-    /**
-     * Get cache keys by namespace
-     */
-    suspend fun getKeys(namespace: String): List<String> =
-      withContext(Dispatchers.IO) {
-        mutex.withLock {
-          val keys = mutableListOf<String>()
-          val prefix = "${namespace}_v"
+  /**
+   * Clear cache by namespace
+   */
+  suspend fun clearNamespace(namespace: String): Result<Unit> =
+    withContext(Dispatchers.IO) {
+      mutex.withLock {
+        try {
+          // Remove from memory cache
+          val keysToRemove = memoryCache.keys.filter { it.startsWith("${namespace}_v") }
+          keysToRemove.forEach { memoryCache.remove(it) }
 
-          // Memory cache keys
-          memoryCache.keys.filter { it.startsWith(prefix) }.forEach { keys.add(it) }
-
-          // Disk cache keys
+          // Remove from disk cache
           cacheDir.listFiles()?.forEach { file ->
-            if (file.name.startsWith(prefix) && file.name.endsWith(".cache")) {
-              keys.add(file.name.removeSuffix(".cache"))
+            if (file.name.startsWith("${namespace}_v") && file.name.endsWith(".cache")) {
+              file.delete()
             }
           }
 
-          keys.distinct()
+          updateStatistics()
+          debugLogger.logInfo("RuTrackerCacheManager: Cache cleared for namespace: $namespace")
+          Result.success(Unit)
+        } catch (e: Exception) {
+          debugLogger.logError("RuTrackerCacheManager: Failed to clear cache for namespace: $namespace", e)
+          Result.failure(RuTrackerException.CacheException("Failed to clear namespace cache: ${e.message}"))
         }
       }
-
-    /**
-     * Evict least recently used entries from memory cache
-     */
-    private suspend fun evictFromMemoryCache() {
-      if (memoryCache.size <= config.memoryMaxSize) return
-
-      val entriesToEvict =
-        memoryCache.entries
-          .sortedBy { it.value.lastAccessed }
-          .take(memoryCache.size - config.memoryMaxSize + 1)
-
-      entriesToEvict.forEach { (key, _) ->
-        memoryCache.remove(key)
-        evictionCount.incrementAndGet()
-      }
-
-      updateStatistics()
     }
 
-    /**
-     * Check if cache entry is expired
-     */
-    private fun isExpired(entry: CacheEntry<*>): Boolean = System.currentTimeMillis() - entry.timestamp > entry.ttl
-
-    /**
-     * Get disk cache file
-     */
-    private fun getDiskCacheFile(key: String): File = File(cacheDir, "${key.replace(Regex("[^a-zA-Z0-9_-]"), "_")}.cache")
-
-    /**
-     * Estimate size of object in bytes
-     */
-    private fun estimateSize(obj: Any): Long =
-      try {
-        Json
-          .encodeToString(obj)
-          .toByteArray()
-          .size
-          .toLong()
-      } catch (e: Exception) {
-        1024L // Default estimate
-      }
-
-    /**
-     * Update cache statistics
-     */
-    private suspend fun updateStatistics() {
+  /**
+   * Check if key exists in cache
+   */
+  suspend fun contains(key: CacheKey): Boolean =
+    withContext(Dispatchers.IO) {
       mutex.withLock {
-        val memorySize = memoryCache.values.sumOf { estimateSize(it.data) }
-        val diskSize = cacheDir.listFiles()?.filter { it.name.endsWith(".cache") }?.sumOf { it.length() } ?: 0L
+        val cacheKey = key.toString()
 
-        _statistics.value =
-          CacheStatistics(
-            memoryEntries = memoryCache.size,
-            diskEntries = cacheDir.listFiles()?.count { it.name.endsWith(".cache") } ?: 0,
-            memorySize = memorySize,
-            diskSize = diskSize,
-            hitCount = hitCount.get(),
-            missCount = missCount.get(),
-            evictionCount = evictionCount.get(),
-            lastCleanup = System.currentTimeMillis(),
-          )
-      }
-    }
+        // Check memory cache
+        val memoryEntry = memoryCache[cacheKey]
+        if (memoryEntry != null && !isExpired(memoryEntry)) {
+          return@withLock true
+        }
 
-    /**
-     * Start periodic cleanup task
-     */
-    private fun startCleanupTask() {
-      if (isCleanupRunning.getAndSet(true)) return
-
-      cleanupJob =
-        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
-          while (isCleanupRunning.get()) {
-            try {
-              cleanupExpiredEntries()
-              kotlinx.coroutines.delay(config.cleanupInterval)
-            } catch (e: Exception) {
-              debugLogger.logError("RuTrackerCacheManager: Error in cleanup task", e)
-              kotlinx.coroutines.delay(config.cleanupInterval)
-            }
+        // Check disk cache
+        val diskFile = getDiskCacheFile(cacheKey)
+        if (diskFile.exists()) {
+          try {
+            val json = diskFile.readText()
+            val entry = Json.decodeFromString<CacheEntryDisk>(json)
+            val probe =
+              CacheEntry(
+                data = entry.data,
+                timestamp = entry.timestamp,
+                ttl = entry.ttl,
+                accessCount = entry.accessCount,
+                lastAccessed = entry.lastAccessed,
+              )
+            return@withLock !isExpired(probe)
+          } catch (e: Exception) {
+            diskFile.delete()
           }
         }
 
-      debugLogger.logInfo("RuTrackerCacheManager: Cleanup task started")
+        false
+      }
     }
 
-    /**
-     * Stop cleanup task
-     */
-    fun stopCleanupTask() {
-      isCleanupRunning.set(false)
-      cleanupJob?.cancel()
-      cleanupJob = null
-      debugLogger.logInfo("RuTrackerCacheManager: Cleanup task stopped")
-    }
-
-    /**
-     * Clean up expired entries
-     */
-    private suspend fun cleanupExpiredEntries() {
+  /**
+   * Get cache size
+   */
+  suspend fun getSize(): Long =
+    withContext(Dispatchers.IO) {
       mutex.withLock {
-        var cleanedCount = 0
+        var totalSize = 0L
 
-        // Clean memory cache
-        val expiredMemoryKeys =
-          memoryCache.keys.filter { key ->
-            val entry = memoryCache[key]
-            entry != null && isExpired(entry)
-          }
-
-        expiredMemoryKeys.forEach { key ->
-          memoryCache.remove(key)
-          cleanedCount++
+        // Memory cache size (approximate)
+        memoryCache.values.forEach { entry ->
+          totalSize += estimateSize(entry.data)
         }
 
-        // Clean disk cache
+        // Disk cache size
         cacheDir.listFiles()?.forEach { file ->
           if (file.name.endsWith(".cache")) {
-            try {
-              val json = file.readText()
-              val entry = Json.decodeFromString<CacheEntry<Any>>(json)
+            totalSize += file.length()
+          }
+        }
 
-              if (isExpired(entry)) {
-                file.delete()
-                cleanedCount++
-              }
-            } catch (e: Exception) {
+        totalSize
+      }
+    }
+
+  /**
+   * Get cache keys by namespace
+   */
+  suspend fun getKeys(namespace: String): List<String> =
+    withContext(Dispatchers.IO) {
+      mutex.withLock {
+        val keys = mutableListOf<String>()
+        val prefix = "${namespace}_v"
+
+        // Memory cache keys
+        memoryCache.keys.filter { it.startsWith(prefix) }.forEach { keys.add(it) }
+
+        // Disk cache keys
+        cacheDir.listFiles()?.forEach { file ->
+          if (file.name.startsWith(prefix) && file.name.endsWith(".cache")) {
+            keys.add(file.name.removeSuffix(".cache"))
+          }
+        }
+
+        keys.distinct()
+      }
+    }
+
+  /**
+   * Evict least recently used entries from memory cache
+   */
+  private suspend fun evictFromMemoryCache() {
+    if (memoryCache.size <= config.memoryMaxSize) return
+
+    val entriesToEvict =
+      memoryCache.entries
+        .sortedBy { it.value.lastAccessed }
+        .take(memoryCache.size - config.memoryMaxSize + 1)
+
+    entriesToEvict.forEach { (key, _) ->
+      memoryCache.remove(key)
+      evictionCount.incrementAndGet()
+    }
+
+    updateStatistics()
+  }
+
+  /**
+   * Check if cache entry is expired
+   */
+  private fun isExpired(entry: CacheEntry<*>): Boolean =
+    System.currentTimeMillis() - entry.timestamp > entry.ttl
+
+  /**
+   * Get disk cache file
+   */
+  private fun getDiskCacheFile(key: String): File =
+    File(cacheDir, "${key.replace(Regex("[^a-zA-Z0-9_-]"), "_")}.cache")
+
+  /**
+   * Estimate size of object in bytes (best-effort; avoid kotlinx.serialization for Any)
+   */
+  private fun estimateSize(obj: Any): Long =
+    try {
+      obj.toString().toByteArray().size.toLong()
+    } catch (e: Exception) {
+      1024L // Fallback estimate
+    }
+
+  /**
+   * Update cache statistics
+   */
+  private suspend fun updateStatistics() {
+    mutex.withLock {
+      val memorySize = memoryCache.values.sumOf { estimateSize(it.data) }
+      val diskSize = cacheDir.listFiles()?.filter { it.name.endsWith(".cache") }?.sumOf { it.length() } ?: 0L
+
+      _statistics.value =
+        CacheStatistics(
+          memoryEntries = memoryCache.size,
+          diskEntries = cacheDir.listFiles()?.count { it.name.endsWith(".cache") } ?: 0,
+          memorySize = memorySize,
+          diskSize = diskSize,
+          hitCount = hitCount.get(),
+          missCount = missCount.get(),
+          evictionCount = evictionCount.get(),
+          lastCleanup = System.currentTimeMillis(),
+        )
+    }
+  }
+
+  /**
+   * Start periodic cleanup task
+   */
+  private fun startCleanupTask() {
+    if (isCleanupRunning.getAndSet(true)) return
+
+    cleanupJob =
+      kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+        while (isCleanupRunning.get()) {
+          try {
+            cleanupExpiredEntries()
+            kotlinx.coroutines.delay(config.cleanupInterval)
+          } catch (e: Exception) {
+            debugLogger.logError("RuTrackerCacheManager: Error in cleanup task", e)
+            kotlinx.coroutines.delay(config.cleanupInterval)
+          }
+        }
+      }
+
+    debugLogger.logInfo("RuTrackerCacheManager: Cleanup task started")
+  }
+
+  /**
+   * Stop cleanup task
+   */
+  fun stopCleanupTask() {
+    isCleanupRunning.set(false)
+    cleanupJob?.cancel()
+    cleanupJob = null
+    debugLogger.logInfo("RuTrackerCacheManager: Cleanup task stopped")
+  }
+
+  /**
+   * Clean up expired entries
+   */
+  private suspend fun cleanupExpiredEntries() {
+    mutex.withLock {
+      var cleanedCount = 0
+
+      // Clean memory cache
+      val expiredMemoryKeys =
+        memoryCache.keys.filter { key ->
+          val entry = memoryCache[key]
+          entry != null && isExpired(entry)
+        }
+
+      expiredMemoryKeys.forEach { key ->
+        memoryCache.remove(key)
+        cleanedCount++
+      }
+
+      // Clean disk cache
+      cacheDir.listFiles()?.forEach { file ->
+        if (file.name.endsWith(".cache")) {
+          try {
+            val json = file.readText()
+            val entry = Json.decodeFromString<CacheEntryDisk>(json)
+            val probe =
+              CacheEntry(
+                data = entry.data,
+                timestamp = entry.timestamp,
+                ttl = entry.ttl,
+                accessCount = entry.accessCount,
+                lastAccessed = entry.lastAccessed,
+              )
+
+            if (isExpired(probe)) {
               file.delete()
               cleanedCount++
             }
+          } catch (e: Exception) {
+            file.delete()
+            cleanedCount++
           }
         }
+      }
 
-        if (cleanedCount > 0) {
-          updateStatistics()
-          debugLogger.logDebug("RuTrackerCacheManager: Cleaned up $cleanedCount expired entries")
+      if (cleanedCount > 0) {
+        updateStatistics()
+        debugLogger.logDebug("RuTrackerCacheManager: Cleaned up $cleanedCount expired entries")
+      }
+    }
+  }
+
+  /**
+   * Force cleanup of expired entries
+   */
+  suspend fun forceCleanup(): Result<Int> =
+    withContext(Dispatchers.IO) {
+      mutex.withLock {
+        try {
+          val beforeCount = memoryCache.size + (cacheDir.listFiles()?.count { it.name.endsWith(".cache") } ?: 0)
+          cleanupExpiredEntries()
+          val afterCount = memoryCache.size + (cacheDir.listFiles()?.count { it.name.endsWith(".cache") } ?: 0)
+
+          val cleanedCount = beforeCount - afterCount
+          debugLogger.logInfo("RuTrackerCacheManager: Force cleanup completed, removed $cleanedCount entries")
+
+          Result.success(cleanedCount)
+        } catch (e: Exception) {
+          debugLogger.logError("RuTrackerCacheManager: Force cleanup failed", e)
+          Result.failure(RuTrackerException.CacheException("Force cleanup failed: ${e.message}"))
         }
       }
     }
 
-    /**
-     * Force cleanup of expired entries
-     */
-    suspend fun forceCleanup(): Result<Int> =
-      withContext(Dispatchers.IO) {
-        mutex.withLock {
-          try {
-            val beforeCount = memoryCache.size + (cacheDir.listFiles()?.count { it.name.endsWith(".cache") } ?: 0)
-            cleanupExpiredEntries()
-            val afterCount = memoryCache.size + (cacheDir.listFiles()?.count { it.name.endsWith(".cache") } ?: 0)
+  /**
+   * Get cache hit rate
+   */
+  fun getHitRate(): Flow<Float> =
+    statistics.map { stats ->
+      val total = stats.hitCount + stats.missCount
+      if (total > 0) stats.hitCount.toFloat() / total else 0f
+    }
 
-            val cleanedCount = beforeCount - afterCount
-            debugLogger.logInfo("RuTrackerCacheManager: Force cleanup completed, removed $cleanedCount entries")
+  /**
+   * Get cache efficiency metrics
+   */
+  fun getEfficiencyMetrics(): Flow<Map<String, Float>> =
+    statistics.map { stats ->
+      val total = stats.hitCount + stats.missCount
+      val hitRate = if (total > 0) stats.hitCount.toFloat() / total else 0f
+      val memoryUtilization = if (config.memoryMaxSize > 0) stats.memoryEntries.toFloat() / config.memoryMaxSize else 0f
+      val diskUtilization = if (config.diskMaxSize > 0) stats.diskSize.toFloat() / config.diskMaxSize else 0f
 
-            Result.success(cleanedCount)
-          } catch (e: Exception) {
-            debugLogger.logError("RuTrackerCacheManager: Force cleanup failed", e)
-            Result.failure(RuTrackerException.CacheException("Force cleanup failed: ${e.message}"))
-          }
-        }
-      }
-
-    /**
-     * Get cache hit rate
-     */
-    fun getHitRate(): Flow<Float> =
-      statistics.map { stats ->
-        val total = stats.hitCount + stats.missCount
-        if (total > 0) stats.hitCount.toFloat() / total else 0f
-      }
-
-    /**
-     * Get cache efficiency metrics
-     */
-    fun getEfficiencyMetrics(): Flow<Map<String, Float>> =
-      statistics.map { stats ->
-        val total = stats.hitCount + stats.missCount
-        val hitRate = if (total > 0) stats.hitCount.toFloat() / total else 0f
-        val memoryUtilization = if (config.memoryMaxSize > 0) stats.memoryEntries.toFloat() / config.memoryMaxSize else 0f
-        val diskUtilization = if (config.diskMaxSize > 0) stats.diskSize.toFloat() / config.diskMaxSize else 0f
-
-        mapOf(
-          "hitRate" to hitRate,
-          "memoryUtilization" to memoryUtilization,
-          "diskUtilization" to diskUtilization,
-          "evictionRate" to (if (total > 0) stats.evictionCount.toFloat() / total else 0f),
-        )
-      }
-  }
+      mapOf(
+        "hitRate" to hitRate,
+        "memoryUtilization" to memoryUtilization,
+        "diskUtilization" to diskUtilization,
+        "evictionRate" to (if (total > 0) stats.evictionCount.toFloat() / total else 0f),
+      )
+    }
+}
