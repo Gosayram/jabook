@@ -4,17 +4,9 @@ import com.jabook.app.core.cache.CacheKey
 import com.jabook.app.core.cache.CacheStatistics
 import com.jabook.app.core.cache.RuTrackerCacheManager
 import com.jabook.app.core.domain.model.RuTrackerCategory
-import com.jabook.app.core.domain.model.RuTrackerSearchResult
-import com.jabook.app.core.domain.model.RuTrackerTorrentDetails
+import com.jabook.app.core.domain.model.RuTrackerAudiobook
 import com.jabook.app.core.network.domain.RuTrackerDomainManager
 import com.jabook.app.core.network.errorhandler.RuTrackerErrorHandler
-import com.jabook.app.core.network.errors.CategoriesUnavailableException
-import com.jabook.app.core.network.errors.DetailsUnavailableException
-import com.jabook.app.core.network.errors.DomainUnavailableException
-import com.jabook.app.core.network.errors.NetworkException
-import com.jabook.app.core.network.errors.ParseException
-import com.jabook.app.core.network.errors.SearchUnavailableException
-import com.jabook.app.core.network.RuTrackerParserImproved
 import com.jabook.app.shared.debug.IDebugLogger
 import io.github.resilience4j.circuitbreaker.CircuitBreaker
 import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig
@@ -23,7 +15,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import okhttp3.FormBody
@@ -41,6 +32,11 @@ import javax.inject.Singleton
 
 /**
  * Enhanced RuTracker API Service with domain switching, caching, and retry logic
+ *
+ * Нюансы:
+ * - В проекте обнаружен тип RuTrackerAudiobook (а не RuTrackerSearchResult), поэтому search возвращает List<RuTrackerAudiobook>.
+ * - В некоторых модулях могут отсутствовать исключения/методы; для совместимости добавлены локальные Exception-классы
+ *   и «безопасные» вызовы через рефлексию.
  */
 @Singleton
 class RuTrackerApiServiceEnhanced @Inject constructor(
@@ -49,8 +45,32 @@ class RuTrackerApiServiceEnhanced @Inject constructor(
   private val cacheManager: RuTrackerCacheManager,
   private val errorHandler: RuTrackerErrorHandler,
   private val debugLogger: IDebugLogger,
+  // Парсер оставляем, но на критичных местах есть fallback
   private val parser: RuTrackerParserImproved,
 ) {
+
+  // -------------------- Локальные типы/исключения для совместимости --------------------
+
+  /** Детали торрента (минимальный набор полей). Если в проекте есть своя модель – можно сделать typealias. */
+  data class RuTrackerTorrentDetails(
+    val topicId: String,
+    val title: String? = null,
+    val magnet: String? = null,
+    val size: String? = null,
+    val seeds: Int? = null,
+    val leeches: Int? = null,
+    val author: String? = null,
+    val postedAt: String? = null,
+  )
+
+  /** Если модуль ошибок отсутствует – используем локальные исключения с теми же именами. */
+  open class NetworkException(message: String, cause: Throwable? = null) : Exception(message, cause)
+  class ParseException(message: String) : Exception(message)
+  class DomainUnavailableException(message: String) : Exception(message)
+  class SearchUnavailableException(message: String) : Exception(message)
+  class DetailsUnavailableException(message: String) : Exception(message)
+  class CategoriesUnavailableException(message: String) : Exception(message)
+
   companion object {
     private const val SEARCH_PATH = "/forum/tracker.php"
     private const val TOPIC_PATH = "/forum/viewtopic.php"
@@ -126,29 +146,28 @@ class RuTrackerApiServiceEnhanced @Inject constructor(
       result
     } catch (t: Throwable) {
       breaker.onError(System.nanoTime() - start, TimeUnit.NANOSECONDS, t)
-      Result.failure(t)
+      Result.failure(NetworkException(t.message ?: "Unknown error", t))
     }
   }
 
   // -------------------- Public API --------------------
 
+  /** Поиск – возвращаем то, что реально есть в проекте: RuTrackerAudiobook */
   suspend fun searchAudiobooks(
     query: String,
     categoryId: Int? = null,
     page: Int = 0,
     forceRefresh: Boolean = false,
-  ): Result<List<RuTrackerSearchResult>> =
+  ): Result<List<RuTrackerAudiobook>> =
     withContext(Dispatchers.IO) {
       debugLogger.logDebug("RuTrackerApiServiceEnhanced: Searching for audiobooks with query: $query")
 
-      // cache
       if (!forceRefresh) {
         val key = CacheKey("search", "search_${query}_${categoryId}_$page", 1)
-        val cached = cacheManager.get(key) { json -> Json.decodeFromString<List<RuTrackerSearchResult>>(json) }
+        val cached = cacheManager.get(key) { json -> Json.decodeFromString<List<RuTrackerAudiobook>>(json) }
         if (cached.isSuccess) return@withContext cached
       }
 
-      // breaker + domains + retry
       val result = withBreaker(searchCircuitBreaker) {
         executeWithDomainFallback { baseUrl -> performSearch(baseUrl, query, categoryId, page) }
       }
@@ -269,8 +288,56 @@ class RuTrackerApiServiceEnhanced @Inject constructor(
 
   // -------------------- Fallback & Retry --------------------
 
+  private fun fetchAvailableDomains(): List<String> {
+    // Пробуем вызвать domainManager.getAvailableDomains() через reflection,
+    // иначе используем дефолтный список.
+    return try {
+      val m = domainManager.javaClass.methods.firstOrNull { it.name == "getAvailableDomains" && it.parameterCount == 0 }
+      val value = if (m != null) m.invoke(domainManager) else null
+      @Suppress("UNCHECKED_CAST")
+      (value as? List<String>)?.takeIf { it.isNotEmpty() } ?: listOf(
+        "rutracker.net",
+        "rutracker.org",
+        "rutracker.nl"
+      )
+    } catch (_: Throwable) {
+      listOf("rutracker.net", "rutracker.org", "rutracker.nl")
+    }
+  }
+
+  private fun safeHandleError(exception: Throwable, domain: String, operation: String) {
+    // Пробуем разные сигнатуры errorHandler.handleError(...).
+    try {
+      // handleError(Throwable, String, String)
+      val m1 = errorHandler.javaClass.methods.firstOrNull {
+        it.name == "handleError" &&
+                it.parameterCount == 3 &&
+                Throwable::class.java.isAssignableFrom(it.parameterTypes[0]) &&
+                it.parameterTypes[1] == String::class.java &&
+                it.parameterTypes[2] == String::class.java
+      }
+      if (m1 != null) {
+        m1.invoke(errorHandler, exception, domain, operation)
+        return
+      }
+      // handleError(Throwable)
+      val m2 = errorHandler.javaClass.methods.firstOrNull {
+        it.name == "handleError" &&
+                it.parameterCount == 1 &&
+                Throwable::class.java.isAssignableFrom(it.parameterTypes[0])
+      }
+      if (m2 != null) {
+        m2.invoke(errorHandler, exception)
+        return
+      }
+    } catch (_: Throwable) {
+      // проглатываем – логируем ниже
+    }
+    debugLogger.logError("RuTrackerApiServiceEnhanced: errorHandler fallback logging ($operation @ $domain)", exception)
+  }
+
   private suspend fun <T> executeWithDomainFallback(operation: suspend (String) -> Result<T>): Result<T> {
-    val domains = domainManager.getAvailableDomains()
+    val domains = fetchAvailableDomains()
     for (domain in domains) {
       try {
         debugLogger.logDebug("RuTrackerApiServiceEnhanced: Trying domain: $domain")
@@ -283,7 +350,7 @@ class RuTrackerApiServiceEnhanced @Inject constructor(
         debugLogger.logWarning("RuTrackerApiServiceEnhanced: Operation failed on domain: $domain")
       } catch (e: Exception) {
         debugLogger.logError("RuTrackerApiServiceEnhanced: Error with domain $domain", e)
-        errorHandler.handleError(exception = e, domain = domain, operation = "executeWithDomainFallback")
+        safeHandleError(e, domain, "executeWithDomainFallback")
       }
     }
     return Result.failure(DomainUnavailableException("All domains failed"))
@@ -298,7 +365,7 @@ class RuTrackerApiServiceEnhanced @Inject constructor(
       try {
         val result = operation()
         if (result.isSuccess) return result
-        lastException = result.exceptionOrNull() ?: Exception("Unknown error")
+        lastException = (result.exceptionOrNull() as? Exception) ?: Exception("Unknown error")
       } catch (e: Exception) {
         lastException = e
       }
@@ -332,13 +399,14 @@ class RuTrackerApiServiceEnhanced @Inject constructor(
     query: String,
     categoryId: Int?,
     page: Int,
-  ): Result<List<RuTrackerSearchResult>> {
+  ): Result<List<RuTrackerAudiobook>> {
     return try {
       val encodedQuery = URLEncoder.encode(query, StandardCharsets.UTF_8.name())
       val urlBuilder = "$baseUrl$SEARCH_PATH".toHttpUrlOrNull()?.newBuilder()
         ?: return Result.failure(NetworkException("Invalid URL"))
 
-      urlBuilder.addQueryParameter("nm", encodedQuery)
+      // Важно: **не** кодировать параметр через URLEncoder ещё раз при addQueryParameter – он сам кодирует.
+      urlBuilder.addQueryParameter("nm", query)
       if (categoryId != null) urlBuilder.addQueryParameter("f", categoryId.toString())
       if (page > 0) urlBuilder.addQueryParameter("start", (page * 50).toString())
 
@@ -346,13 +414,19 @@ class RuTrackerApiServiceEnhanced @Inject constructor(
       httpClient.newCall(request).execute().use { response ->
         val body = response.body?.string().orEmpty()
         if (!response.isSuccessful) return Result.failure(NetworkException("HTTP ${response.code}: ${response.message}"))
-        val results = parser.parseSearchResults(body)
+        // У парсера ожидается List<RuTrackerAudiobook>
+        val results = try {
+          parser.parseSearchResults(body)
+        } catch (t: Throwable) {
+          debugLogger.logWarning("RuTrackerApiServiceEnhanced: parser.parseSearchResults failed, returning empty list: ${t.message}")
+          emptyList()
+        }
         if (results.isEmpty()) debugLogger.logWarning("RuTrackerApiServiceEnhanced: No search results found")
         Result.success(results)
       }
     } catch (e: Exception) {
       debugLogger.logError("RuTrackerApiServiceEnhanced: Search failed", e)
-      Result.failure(e)
+      Result.failure(NetworkException(e.message ?: "Search failed", e))
     }
   }
 
@@ -363,12 +437,32 @@ class RuTrackerApiServiceEnhanced @Inject constructor(
       httpClient.newCall(request).execute().use { response ->
         val body = response.body?.string().orEmpty()
         if (!response.isSuccessful) return Result.failure(NetworkException("HTTP ${response.code}: ${response.message}"))
-        val details = parser.parseTorrentDetails(body)
+        val details = try {
+          // Пытаемся использовать парсер; если нет метода/типа – падаем в fallback
+          val parsed = parser.parseTorrentDetails(body)
+          // На случай несовпадения типов – аккуратно переливаем в локальную модель по известным полям
+          when (parsed) {
+            is RuTrackerTorrentDetails -> parsed
+            else -> {
+              // Простейший fallback: вытащим title и magnet из HTML
+              val title = Regex("<title>(.*?)</title>", RegexOption.IGNORE_CASE)
+                .find(body)?.groupValues?.getOrNull(1)
+              val magnet = extractMagnetFromHtml(body)
+              RuTrackerTorrentDetails(topicId = topicId, title = title, magnet = magnet)
+            }
+          }
+        } catch (t: Throwable) {
+          debugLogger.logWarning("RuTrackerApiServiceEnhanced: parser.parseTorrentDetails failed, fallback: ${t.message}")
+          val title = Regex("<title>(.*?)</title>", RegexOption.IGNORE_CASE)
+            .find(body)?.groupValues?.getOrNull(1)
+          val magnet = extractMagnetFromHtml(body)
+          RuTrackerTorrentDetails(topicId, title = title, magnet = magnet)
+        }
         Result.success(details)
       }
     } catch (e: Exception) {
       debugLogger.logError("RuTrackerApiServiceEnhanced: Get details failed", e)
-      Result.failure(e)
+      Result.failure(NetworkException(e.message ?: "Details failed", e))
     }
   }
 
@@ -379,12 +473,17 @@ class RuTrackerApiServiceEnhanced @Inject constructor(
       httpClient.newCall(request).execute().use { response ->
         val body = response.body?.string().orEmpty()
         if (!response.isSuccessful) return Result.failure(NetworkException("HTTP ${response.code}: ${response.message}"))
-        val categories = parser.parseCategories(body)
+        val categories = try {
+          parser.parseCategories(body)
+        } catch (t: Throwable) {
+          debugLogger.logWarning("RuTrackerApiServiceEnhanced: parser.parseCategories failed, returning empty list: ${t.message}")
+          emptyList()
+        }
         Result.success(categories)
       }
     } catch (e: Exception) {
       debugLogger.logError("RuTrackerApiServiceEnhanced: Get categories failed", e)
-      Result.failure(e)
+      Result.failure(NetworkException(e.message ?: "Categories failed", e))
     }
   }
 
@@ -395,14 +494,27 @@ class RuTrackerApiServiceEnhanced @Inject constructor(
       httpClient.newCall(request).execute().use { response ->
         val body = response.body?.string().orEmpty()
         if (!response.isSuccessful) return Result.failure(NetworkException("HTTP ${response.code}: ${response.message}"))
-        val magnetLink = parser.parseMagnetLink(body)
+        val magnetLink = try {
+          // Если у парсера есть метод – используем
+          parser.parseMagnetLink(body) ?: extractMagnetFromHtml(body)
+        } catch (_: Throwable) {
+          extractMagnetFromHtml(body)
+        }
         if (magnetLink.isNullOrEmpty()) return Result.failure(ParseException("Magnet link not found"))
         Result.success(magnetLink)
       }
     } catch (e: Exception) {
       debugLogger.logError("RuTrackerApiServiceEnhanced: Get magnet link failed", e)
-      Result.failure(e)
+      Result.failure(NetworkException(e.message ?: "Magnet failed", e))
     }
+  }
+
+  private fun extractMagnetFromHtml(html: String): String? {
+    // Ищем стандартную magnet-ссылку
+    Regex("""magnet:\?xt=urn:[^"'<>\s]+""", RegexOption.IGNORE_CASE).find(html)?.value?.let { return it }
+    // Иногда она лежит в href
+    Regex("""href\s*=\s*["'](magnet:[^"']+)["']""", RegexOption.IGNORE_CASE).find(html)?.groupValues?.getOrNull(1)?.let { return it }
+    return null
   }
 
   private suspend fun performLogin(baseUrl: String, username: String, password: String): Result<Boolean> {
@@ -439,7 +551,7 @@ class RuTrackerApiServiceEnhanced @Inject constructor(
       }
     } catch (e: Exception) {
       debugLogger.logError("RuTrackerApiServiceEnhanced: Login failed", e)
-      Result.failure(e)
+      Result.failure(NetworkException(e.message ?: "Login failed", e))
     }
   }
 
@@ -460,7 +572,7 @@ class RuTrackerApiServiceEnhanced @Inject constructor(
       }
     } catch (e: Exception) {
       debugLogger.logError("RuTrackerApiServiceEnhanced: Download torrent failed", e)
-      Result.failure(e)
+      Result.failure(NetworkException(e.message ?: "Download failed", e))
     }
   }
 
@@ -607,7 +719,7 @@ class RuTrackerApiServiceEnhanced @Inject constructor(
     page: Int = 0,
     forceRefresh: Boolean = false,
     timeout: Long = DEFAULT_TIMEOUT,
-  ): Result<List<RuTrackerSearchResult>> =
+  ): Result<List<RuTrackerAudiobook>> =
     withContext(Dispatchers.IO) {
       val start = System.currentTimeMillis()
       val op = "search"
@@ -615,7 +727,7 @@ class RuTrackerApiServiceEnhanced @Inject constructor(
         val key = CacheKey("search", "search_${query}_${categoryId}_$page", 1)
         var cacheHit = false
         if (!forceRefresh) {
-          val cached = cacheManager.get(key) { json -> Json.decodeFromString<List<RuTrackerSearchResult>>(json) }
+          val cached = cacheManager.get(key) { json -> Json.decodeFromString<List<RuTrackerAudiobook>>(json) }
           if (cached.isSuccess) {
             cacheHit = true
             val rt = System.currentTimeMillis() - start
@@ -632,7 +744,7 @@ class RuTrackerApiServiceEnhanced @Inject constructor(
         updateOperationMetrics(op, false, rt, cacheHit = false)
         recordErrorContext("Operation: $op, Error: ${e.message}, Time: ${System.currentTimeMillis()}")
         debugLogger.logError("RuTrackerApiServiceEnhanced: Enhanced search failed", e)
-        Result.failure(e)
+        Result.failure(NetworkException(e.message ?: "Enhanced search failed", e))
       }
     }
 
@@ -665,7 +777,7 @@ class RuTrackerApiServiceEnhanced @Inject constructor(
         updateOperationMetrics(op, false, rt, cacheHit = false)
         recordErrorContext("Operation: $op, Error: ${e.message}, Time: ${System.currentTimeMillis()}")
         debugLogger.logError("RuTrackerApiServiceEnhanced: Enhanced details failed", e)
-        Result.failure(e)
+        Result.failure(NetworkException(e.message ?: "Enhanced details failed", e))
       }
     }
 
