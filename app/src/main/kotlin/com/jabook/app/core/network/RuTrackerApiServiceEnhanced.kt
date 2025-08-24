@@ -6,7 +6,6 @@ import com.jabook.app.core.cache.RuTrackerCacheManager
 import com.jabook.app.core.domain.model.RuTrackerCategory
 import com.jabook.app.core.domain.model.RuTrackerSearchResult
 import com.jabook.app.core.domain.model.RuTrackerTorrentDetails
-import com.jabook.app.core.network.RuTrackerParserImproved
 import com.jabook.app.core.network.domain.RuTrackerDomainManager
 import com.jabook.app.core.network.errorhandler.RuTrackerErrorHandler
 import com.jabook.app.core.network.errors.CategoriesUnavailableException
@@ -15,12 +14,7 @@ import com.jabook.app.core.network.errors.DomainUnavailableException
 import com.jabook.app.core.network.errors.NetworkException
 import com.jabook.app.core.network.errors.ParseException
 import com.jabook.app.core.network.errors.SearchUnavailableException
-import com.jabook.app.core.network.extractors.AuthorExtractor
-import com.jabook.app.core.network.extractors.CategoryExtractor
-import com.jabook.app.core.network.extractors.DescriptionExtractor
-import com.jabook.app.core.network.extractors.DetailsExtractor
-import com.jabook.app.core.network.extractors.TitleExtractor
-import com.jabook.app.core.network.extractors.TopicIdExtractor
+import com.jabook.app.core.network.RuTrackerParserImproved
 import com.jabook.app.shared.debug.IDebugLogger
 import io.github.resilience4j.circuitbreaker.CircuitBreaker
 import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig
@@ -39,7 +33,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
-import org.threeten.bp.Duration
+import java.time.Duration
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Inject
@@ -49,30 +43,20 @@ import javax.inject.Singleton
  * Enhanced RuTracker API Service with domain switching, caching, and retry logic
  */
 @Singleton
-class RuTrackerApiServiceEnhanced
-@Inject
-constructor(
+class RuTrackerApiServiceEnhanced @Inject constructor(
   private val httpClient: OkHttpClient,
   private val domainManager: RuTrackerDomainManager,
   private val cacheManager: RuTrackerCacheManager,
   private val errorHandler: RuTrackerErrorHandler,
   private val debugLogger: IDebugLogger,
   private val parser: RuTrackerParserImproved,
-  private val titleExtractor: TitleExtractor,
-  private val authorExtractor: AuthorExtractor,
-  private val descriptionExtractor: DescriptionExtractor,
-  private val categoryExtractor: CategoryExtractor,
-  private val detailsExtractor: DetailsExtractor,
-  private val topicIdExtractor: TopicIdExtractor,
 ) {
   companion object {
     private const val SEARCH_PATH = "/forum/tracker.php"
     private const val TOPIC_PATH = "/forum/viewtopic.php"
     private const val CATEGORIES_PATH = "/forum/index.php"
-    private const val FORUM_PATH = "/forum/viewforum.php"
     private const val LOGIN_PATH = "/forum/login.php"
     private const val DOWNLOAD_PATH = "/forum/dl.php"
-    private const val MAGNET_LINK_PATH = "/forum/viewtopic.php"
 
     private const val DEFAULT_TIMEOUT = 30L // seconds
     private const val MAX_RETRIES = 3
@@ -146,9 +130,8 @@ constructor(
     }
   }
 
-  /**
-   * Search for audiobooks with domain switching, caching, and retry logic
-   */
+  // -------------------- Public API --------------------
+
   suspend fun searchAudiobooks(
     query: String,
     categoryId: Int? = null,
@@ -158,35 +141,29 @@ constructor(
     withContext(Dispatchers.IO) {
       debugLogger.logDebug("RuTrackerApiServiceEnhanced: Searching for audiobooks with query: $query")
 
-      // Check cache first
+      // cache
       if (!forceRefresh) {
-        val cacheKey = CacheKey(namespace = "search", key = "search_${query}_${categoryId}_$page", version = 1)
-        val cached = cacheManager.get(cacheKey) { json -> Json.decodeFromString<List<RuTrackerSearchResult>>(json) }
-        if (cached.isSuccess) {
-          debugLogger.logDebug("RuTrackerApiServiceEnhanced: Search result found in cache")
-          return@withContext cached
-        }
+        val key = CacheKey("search", "search_${query}_${categoryId}_$page", 1)
+        val cached = cacheManager.get(key) { json -> Json.decodeFromString<List<RuTrackerSearchResult>>(json) }
+        if (cached.isSuccess) return@withContext cached
       }
 
-      // Execute with circuit breaker + domain fallback + retry
+      // breaker + domains + retry
       val result = withBreaker(searchCircuitBreaker) {
-        executeWithDomainFallback { baseUrl ->
-          performSearch(baseUrl, query, categoryId, page)
-        }
+        executeWithDomainFallback { baseUrl -> performSearch(baseUrl, query, categoryId, page) }
       }
 
-      // Cache on success
-      result.onSuccess { results ->
-        if (results.isNotEmpty()) {
-          val cacheKey = CacheKey(namespace = "search", key = "search_${query}_${categoryId}_$page", version = 1)
-          cacheManager.put(cacheKey, results, CACHE_TTL_SEARCH) { Json.encodeToString(it) }
-          debugLogger.logDebug("RuTrackerApiServiceEnhanced: Search result cached")
+      if (result.isSuccess) {
+        val value = result.getOrNull()
+        if (!value.isNullOrEmpty()) {
+          val key = CacheKey("search", "search_${query}_${categoryId}_$page", 1)
+          cacheManager.put(key, value, CACHE_TTL_SEARCH) { Json.encodeToString(it) }
         }
-      }.onFailure { e ->
+      } else {
+        val e = result.exceptionOrNull()
         if (e is NetworkException) debugLogger.logWarning("Search failed: ${e.message}")
       }
 
-      // If breaker was open → surface a domain-specific error
       if (searchCircuitBreaker.state == CircuitBreaker.State.OPEN) {
         return@withContext Result.failure(SearchUnavailableException("Search temporarily unavailable due to repeated failures"))
       }
@@ -194,9 +171,6 @@ constructor(
       result
     }
 
-  /**
-   * Get audiobook details with domain switching, caching, and retry logic
-   */
   suspend fun getAudiobookDetails(
     topicId: String,
     forceRefresh: Boolean = false,
@@ -205,24 +179,21 @@ constructor(
       debugLogger.logDebug("RuTrackerApiServiceEnhanced: Getting details for topic: $topicId")
 
       if (!forceRefresh) {
-        val cacheKey = CacheKey(namespace = "details", key = "details_$topicId", version = 1)
-        val cached = cacheManager.get(cacheKey) { json -> Json.decodeFromString<RuTrackerTorrentDetails>(json) }
-        if (cached.isSuccess) {
-          debugLogger.logDebug("RuTrackerApiServiceEnhanced: Details found in cache")
-          return@withContext cached
-        }
+        val key = CacheKey("details", "details_$topicId", 1)
+        val cached = cacheManager.get(key) { json -> Json.decodeFromString<RuTrackerTorrentDetails>(json) }
+        if (cached.isSuccess) return@withContext cached
       }
 
       val result = withBreaker(detailsCircuitBreaker) {
-        executeWithDomainFallback { baseUrl ->
-          performGetDetails(baseUrl, topicId)
-        }
+        executeWithDomainFallback { baseUrl -> performGetDetails(baseUrl, topicId) }
       }
 
-      result.onSuccess { details ->
-        val cacheKey = CacheKey(namespace = "details", key = "details_$topicId", version = 1)
-        cacheManager.put(cacheKey, details, CACHE_TTL_DETAILS) { Json.encodeToString(it) }
-        debugLogger.logDebug("RuTrackerApiServiceEnhanced: Details cached")
+      if (result.isSuccess) {
+        val details = result.getOrNull()
+        if (details != null) {
+          val key = CacheKey("details", "details_$topicId", 1)
+          cacheManager.put(key, details, CACHE_TTL_DETAILS) { Json.encodeToString(it) }
+        }
       }
 
       if (detailsCircuitBreaker.state == CircuitBreaker.State.OPEN) {
@@ -232,32 +203,26 @@ constructor(
       result
     }
 
-  /**
-   * Get categories with domain switching, caching, and retry logic
-   */
   suspend fun getCategories(forceRefresh: Boolean = false): Result<List<RuTrackerCategory>> =
     withContext(Dispatchers.IO) {
       debugLogger.logDebug("RuTrackerApiServiceEnhanced: Getting categories")
 
       if (!forceRefresh) {
-        val cacheKey = CacheKey(namespace = "categories", key = "categories", version = 1)
-        val cached = cacheManager.get(cacheKey) { json -> Json.decodeFromString<List<RuTrackerCategory>>(json) }
-        if (cached.isSuccess) {
-          debugLogger.logDebug("RuTrackerApiServiceEnhanced: Categories found in cache")
-          return@withContext cached
-        }
+        val key = CacheKey("categories", "categories", 1)
+        val cached = cacheManager.get(key) { json -> Json.decodeFromString<List<RuTrackerCategory>>(json) }
+        if (cached.isSuccess) return@withContext cached
       }
 
       val result = withBreaker(categoriesCircuitBreaker) {
-        executeWithDomainFallback { baseUrl ->
-          performGetCategories(baseUrl)
-        }
+        executeWithDomainFallback { baseUrl -> performGetCategories(baseUrl) }
       }
 
-      result.onSuccess { categories ->
-        val cacheKey = CacheKey(namespace = "categories", key = "categories", version = 1)
-        cacheManager.put(cacheKey, categories, CACHE_TTL_CATEGORIES) { Json.encodeToString(it) }
-        debugLogger.logDebug("RuTrackerApiServiceEnhanced: Categories cached")
+      if (result.isSuccess) {
+        val list = result.getOrNull()
+        if (!list.isNullOrEmpty()) {
+          val key = CacheKey("categories", "categories", 1)
+          cacheManager.put(key, list, CACHE_TTL_CATEGORIES) { Json.encodeToString(it) }
+        }
       }
 
       if (categoriesCircuitBreaker.state == CircuitBreaker.State.OPEN) {
@@ -267,114 +232,68 @@ constructor(
       result
     }
 
-  /**
-   * Get magnet link for a torrent
-   */
-  suspend fun getMagnetLink(
-    topicId: String,
-    forceRefresh: Boolean = false,
-  ): Result<String> =
+  suspend fun getMagnetLink(topicId: String, forceRefresh: Boolean = false): Result<String> =
     withContext(Dispatchers.IO) {
       debugLogger.logDebug("RuTrackerApiServiceEnhanced: Getting magnet link for topic: $topicId")
 
       if (!forceRefresh) {
-        val cacheKey = CacheKey(namespace = "magnet", key = "magnet_$topicId", version = 1)
-        val cached = cacheManager.get(cacheKey) { json -> json }
-        if (cached.isSuccess) {
-          debugLogger.logDebug("RuTrackerApiServiceEnhanced: Magnet link found in cache")
-          return@withContext cached
+        val key = CacheKey("magnet", "magnet_$topicId", 1)
+        val cached = cacheManager.get(key) { json -> json }
+        if (cached.isSuccess) return@withContext cached
+      }
+
+      val result = executeWithDomainFallback { baseUrl -> performGetMagnetLink(baseUrl, topicId) }
+
+      if (result.isSuccess) {
+        val magnet = result.getOrNull()
+        if (!magnet.isNullOrEmpty()) {
+          val key = CacheKey("magnet", "magnet_$topicId", 1)
+          cacheManager.put(key, magnet, CACHE_TTL_DETAILS) { it }
         }
-      }
-
-      val result = executeWithDomainFallback { baseUrl ->
-        performGetMagnetLink(baseUrl, topicId)
-      }
-
-      result.onSuccess { magnet ->
-        val cacheKey = CacheKey(namespace = "magnet", key = "magnet_$topicId", version = 1)
-        cacheManager.put(cacheKey, magnet, CACHE_TTL_DETAILS) { it }
-        debugLogger.logDebug("RuTrackerApiServiceEnhanced: Magnet link cached")
       }
 
       result
     }
 
-  /**
-   * Login to RuTracker
-   */
-  suspend fun login(
-    username: String,
-    password: String,
-  ): Result<Boolean> =
+  suspend fun login(username: String, password: String): Result<Boolean> =
     withContext(Dispatchers.IO) {
       debugLogger.logDebug("RuTrackerApiServiceEnhanced: Attempting login for user: $username")
-
-      executeWithDomainFallback { baseUrl ->
-        performLogin(baseUrl, username, password)
-      }
+      executeWithDomainFallback { baseUrl -> performLogin(baseUrl, username, password) }
     }
 
-  /**
-   * Download torrent file
-   */
-  suspend fun downloadTorrent(
-    topicId: String,
-    outputFile: java.io.File,
-  ): Result<Boolean> =
+  suspend fun downloadTorrent(topicId: String, outputFile: java.io.File): Result<Boolean> =
     withContext(Dispatchers.IO) {
       debugLogger.logDebug("RuTrackerApiServiceEnhanced: Downloading torrent for topic: $topicId")
-
-      executeWithDomainFallback { baseUrl ->
-        performDownloadTorrent(baseUrl, topicId, outputFile)
-      }
+      executeWithDomainFallback { baseUrl -> performDownloadTorrent(baseUrl, topicId, outputFile) }
     }
 
-  /**
-   * Execute operation with domain fallback and retry logic
-   */
+  // -------------------- Fallback & Retry --------------------
+
   private suspend fun <T> executeWithDomainFallback(operation: suspend (String) -> Result<T>): Result<T> {
     val domains = domainManager.getAvailableDomains()
-
     for (domain in domains) {
       try {
         debugLogger.logDebug("RuTrackerApiServiceEnhanced: Trying domain: $domain")
-
-        // Apply rate limiting
         applyRateLimiting(domain)
-
-        // Execute with retry logic
         val result = executeWithRetry { operation("https://$domain") }
-
         if (result.isSuccess) {
           debugLogger.logDebug("RuTrackerApiServiceEnhanced: Operation successful on domain: $domain")
           return result
         }
-
         debugLogger.logWarning("RuTrackerApiServiceEnhanced: Operation failed on domain: $domain")
       } catch (e: Exception) {
         debugLogger.logError("RuTrackerApiServiceEnhanced: Error with domain $domain", e)
-
-        // Report error to error handler
-        errorHandler.handleError(
-          exception = e,
-          domain = domain,
-          operation = "executeWithDomainFallback",
-        )
+        errorHandler.handleError(exception = e, domain = domain, operation = "executeWithDomainFallback")
       }
     }
-
     return Result.failure(DomainUnavailableException("All domains failed"))
   }
 
-  /**
-   * Execute operation with retry logic
-   */
   private suspend fun <T> executeWithRetry(
     operation: suspend () -> Result<T>,
     maxRetries: Int = MAX_RETRIES,
   ): Result<T> {
     var lastException: Exception? = null
-
     for (attempt in 1..maxRetries) {
       try {
         val result = operation()
@@ -383,42 +302,31 @@ constructor(
       } catch (e: Exception) {
         lastException = e
       }
-
       if (attempt < maxRetries) {
         val delayMs = calculateRetryDelay(attempt)
         debugLogger.logDebug("RuTrackerApiServiceEnhanced: Retry $attempt/$maxRetries after ${delayMs}ms")
         delay(delayMs)
       }
     }
-
     return Result.failure(lastException ?: Exception("All retries failed"))
   }
 
-  /**
-   * Calculate retry delay with exponential backoff
-   */
   private fun calculateRetryDelay(attempt: Int): Long = BASE_RETRY_DELAY * (1L shl (attempt - 1))
 
-  /**
-   * Apply rate limiting
-   */
   private suspend fun applyRateLimiting(domain: String) {
     val now = System.currentTimeMillis()
     val lastRequest = lastRequestTime[domain] ?: 0
-
-    val timeSinceLastRequest = now - lastRequest
-    if (timeSinceLastRequest < RATE_LIMIT_DELAY) {
-      val delayMs = RATE_LIMIT_DELAY - timeSinceLastRequest
+    val elapsed = now - lastRequest
+    if (elapsed < RATE_LIMIT_DELAY) {
+      val delayMs = RATE_LIMIT_DELAY - elapsed
       debugLogger.logDebug("RuTrackerApiServiceEnhanced: Rate limiting, delaying for ${delayMs}ms")
       delay(delayMs)
     }
-
     lastRequestTime[domain] = System.currentTimeMillis()
   }
 
-  /**
-   * Perform search operation
-   */
+  // -------------------- HTTP ops --------------------
+
   private suspend fun performSearch(
     baseUrl: String,
     query: String,
@@ -435,12 +343,9 @@ constructor(
       if (page > 0) urlBuilder.addQueryParameter("start", (page * 50).toString())
 
       val request = Request.Builder().url(urlBuilder.build()).addDefaultHeaders().build()
-
       httpClient.newCall(request).execute().use { response ->
         val body = response.body?.string().orEmpty()
-        if (!response.isSuccessful) {
-          return Result.failure(NetworkException("HTTP ${response.code}: ${response.message}"))
-        }
+        if (!response.isSuccessful) return Result.failure(NetworkException("HTTP ${response.code}: ${response.message}"))
         val results = parser.parseSearchResults(body)
         if (results.isEmpty()) debugLogger.logWarning("RuTrackerApiServiceEnhanced: No search results found")
         Result.success(results)
@@ -451,21 +356,13 @@ constructor(
     }
   }
 
-  /**
-   * Perform get details operation
-   */
-  private suspend fun performGetDetails(
-    baseUrl: String,
-    topicId: String,
-  ): Result<RuTrackerTorrentDetails> {
+  private suspend fun performGetDetails(baseUrl: String, topicId: String): Result<RuTrackerTorrentDetails> {
     return try {
       val url = "${baseUrl}$TOPIC_PATH?t=$topicId"
       val request = Request.Builder().url(url).addDefaultHeaders().build()
       httpClient.newCall(request).execute().use { response ->
         val body = response.body?.string().orEmpty()
-        if (!response.isSuccessful) {
-          return Result.failure(NetworkException("HTTP ${response.code}: ${response.message}"))
-        }
+        if (!response.isSuccessful) return Result.failure(NetworkException("HTTP ${response.code}: ${response.message}"))
         val details = parser.parseTorrentDetails(body)
         Result.success(details)
       }
@@ -475,18 +372,13 @@ constructor(
     }
   }
 
-  /**
-   * Perform get categories operation
-   */
   private suspend fun performGetCategories(baseUrl: String): Result<List<RuTrackerCategory>> {
     return try {
       val url = "${baseUrl}$CATEGORIES_PATH"
       val request = Request.Builder().url(url).addDefaultHeaders().build()
       httpClient.newCall(request).execute().use { response ->
         val body = response.body?.string().orEmpty()
-        if (!response.isSuccessful) {
-          return Result.failure(NetworkException("HTTP ${response.code}: ${response.message}"))
-        }
+        if (!response.isSuccessful) return Result.failure(NetworkException("HTTP ${response.code}: ${response.message}"))
         val categories = parser.parseCategories(body)
         Result.success(categories)
       }
@@ -496,25 +388,15 @@ constructor(
     }
   }
 
-  /**
-   * Perform get magnet link operation
-   */
-  private suspend fun performGetMagnetLink(
-    baseUrl: String,
-    topicId: String,
-  ): Result<String> {
+  private suspend fun performGetMagnetLink(baseUrl: String, topicId: String): Result<String> {
     return try {
       val url = "${baseUrl}$TOPIC_PATH?t=$topicId"
       val request = Request.Builder().url(url).addDefaultHeaders().build()
       httpClient.newCall(request).execute().use { response ->
         val body = response.body?.string().orEmpty()
-        if (!response.isSuccessful) {
-          return Result.failure(NetworkException("HTTP ${response.code}: ${response.message}"))
-        }
+        if (!response.isSuccessful) return Result.failure(NetworkException("HTTP ${response.code}: ${response.message}"))
         val magnetLink = parser.parseMagnetLink(body)
-        if (magnetLink.isNullOrEmpty()) {
-          return Result.failure(ParseException("Magnet link not found"))
-        }
+        if (magnetLink.isNullOrEmpty()) return Result.failure(ParseException("Magnet link not found"))
         Result.success(magnetLink)
       }
     } catch (e: Exception) {
@@ -523,28 +405,16 @@ constructor(
     }
   }
 
-  /**
-   * Perform login operation
-   */
-  private suspend fun performLogin(
-    baseUrl: String,
-    username: String,
-    password: String,
-  ): Result<Boolean> {
+  private suspend fun performLogin(baseUrl: String, username: String, password: String): Result<Boolean> {
     return try {
-      // First, get login page to extract CSRF token
       val loginPageUrl = "${baseUrl}$LOGIN_PATH"
       val loginPageRequest = Request.Builder().url(loginPageUrl).addDefaultHeaders().build()
       httpClient.newCall(loginPageRequest).execute().use { loginPageResponse ->
         val loginPageBody = loginPageResponse.body?.string().orEmpty()
-        if (!loginPageResponse.isSuccessful) {
-          return Result.failure(NetworkException("Failed to get login page"))
-        }
+        if (!loginPageResponse.isSuccessful) return Result.failure(NetworkException("Failed to get login page"))
 
-        val csrfToken = extractCsrfToken(loginPageBody)
-          ?: return Result.failure(ParseException("CSRF token not found"))
+        val csrfToken = extractCsrfToken(loginPageBody) ?: return Result.failure(ParseException("CSRF token not found"))
 
-        // Perform login
         val loginForm = FormBody.Builder()
           .add("login_username", username)
           .add("login_password", password)
@@ -573,9 +443,6 @@ constructor(
     }
   }
 
-  /**
-   * Perform download torrent operation
-   */
   private suspend fun performDownloadTorrent(
     baseUrl: String,
     topicId: String,
@@ -585,13 +452,9 @@ constructor(
       val url = "${baseUrl}$DOWNLOAD_PATH?t=$topicId"
       val request = Request.Builder().url(url).addDefaultHeaders().build()
       httpClient.newCall(request).execute().use { response ->
-        if (!response.isSuccessful) {
-          return Result.failure(NetworkException("HTTP ${response.code}: ${response.message}"))
-        }
+        if (!response.isSuccessful) return Result.failure(NetworkException("HTTP ${response.code}: ${response.message}"))
         response.body?.byteStream()?.use { inputStream ->
-          outputFile.outputStream().use { outputStream ->
-            inputStream.copyTo(outputStream)
-          }
+          outputFile.outputStream().use { outputStream -> inputStream.copyTo(outputStream) }
         }
         Result.success(true)
       }
@@ -601,24 +464,15 @@ constructor(
     }
   }
 
-  /**
-   * Extract CSRF token from login page (simplified implementation)
-   */
   private fun extractCsrfToken(html: String): String? {
     val pattern = Regex("name=\"form_token\"\\s+value=\"([^\"]+)\"")
-    val matchResult = pattern.find(html)
-    return matchResult?.groupValues?.get(1)
+    return pattern.find(html)?.groupValues?.get(1)
   }
 
-  /**
-   * Add default headers to request
-   */
   private fun Request.Builder.addDefaultHeaders(): Request.Builder =
     this
-      .addHeader(
-        "User-Agent",
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-      ).addHeader("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8")
+      .addHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+      .addHeader("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8")
       .addHeader("Accept-Language", "en-US,en;q=0.9")
       .addHeader("Accept-Encoding", "gzip, deflate, br")
       .addHeader("Connection", "keep-alive")
@@ -654,9 +508,6 @@ constructor(
     debugLogger.logInfo("RuTrackerApiServiceEnhanced: Circuit breakers reset")
   }
 
-  /**
-   * Clear cache for specific namespace
-   */
   suspend fun clearCache(namespace: String): Result<Unit> =
     try {
       cacheManager.clearNamespace(namespace)
@@ -667,14 +518,8 @@ constructor(
       Result.failure(e)
     }
 
-  /**
-   * Get cache statistics
-   */
   fun getCacheStatistics(): Flow<CacheStatistics> = cacheManager.statistics
 
-  /**
-   * Enhanced cache statistics with detailed metrics (derived from CacheStatistics)
-   */
   data class EnhancedCacheStatistics(
     val hitRate: Double,
     val missRate: Double,
@@ -685,9 +530,6 @@ constructor(
     val cacheSizeBytes: Long,
   )
 
-  /**
-   * Performance metrics for API operations
-   */
   data class ApiOperationMetrics(
     var operation: String,
     var totalRequests: Int = 0,
@@ -705,20 +547,14 @@ constructor(
   private val errorContexts = mutableListOf<String>()
   private val maxErrorContexts = 100
 
-  /**
-   * Get enhanced cache statistics
-   */
   suspend fun getEnhancedCacheStatistics(): EnhancedCacheStatistics {
     val basic = cacheManager.statistics.first()
     val totalHits = basic.hitCount
     val totalMisses = basic.missCount
     val totalRequests = totalHits + totalMisses
-
     val hitRate = if (totalRequests > 0) totalHits.toDouble() / totalRequests else 0.0
     val missRate = if (totalRequests > 0) totalMisses.toDouble() / totalRequests else 0.0
-
     val avgResp = operationMetrics.values.map { it.averageResponseTime }.average().toLong()
-
     return EnhancedCacheStatistics(
       hitRate = hitRate,
       missRate = missRate,
@@ -730,27 +566,15 @@ constructor(
     )
   }
 
-  /**
-   * Get operation metrics
-   */
   fun getOperationMetrics(): Map<String, ApiOperationMetrics> = operationMetrics.toMap()
 
-  /**
-   * Get error contexts for debugging
-   */
   fun getErrorContexts(limit: Int = 20): List<String> = errorContexts.takeLast(limit)
 
-  /**
-   * Clear error contexts
-   */
   fun clearErrorContexts() {
     errorContexts.clear()
     debugLogger.logInfo("RuTrackerApiServiceEnhanced: Error contexts cleared")
   }
 
-  /**
-   * Update operation metrics
-   */
   private fun updateOperationMetrics(
     operation: String,
     success: Boolean,
@@ -758,38 +582,25 @@ constructor(
     cacheHit: Boolean = false,
   ) {
     val metrics = operationMetrics.getOrPut(operation) { ApiOperationMetrics(operation) }
-
     metrics.totalRequests++
     metrics.lastRequestTime = System.currentTimeMillis()
-
     if (success) {
       metrics.successfulRequests++
-      metrics.averageResponseTime =
-        calculateAverage(metrics.averageResponseTime, metrics.successfulRequests - 1, responseTime)
+      metrics.averageResponseTime = calculateAverage(metrics.averageResponseTime, metrics.successfulRequests - 1, responseTime)
       metrics.fastestResponseTime = minOf(metrics.fastestResponseTime, responseTime)
     } else {
       metrics.failedRequests++
       metrics.slowestResponseTime = maxOf(metrics.slowestResponseTime, responseTime)
     }
-
     if (cacheHit) metrics.cacheHits++ else metrics.cacheMisses++
-
     operationMetrics[operation] = metrics
   }
 
-  /**
-   * Record error context
-   */
   private fun recordErrorContext(context: String) {
     errorContexts.add(context)
-    if (errorContexts.size > maxErrorContexts) {
-      errorContexts.removeAt(0)
-    }
+    if (errorContexts.size > maxErrorContexts) errorContexts.removeAt(0)
   }
 
-  /**
-   * Enhanced search wrapper that also tracks metrics (delegates to searchAudiobooks)
-   */
   suspend fun searchAudiobooksEnhanced(
     query: String,
     categoryId: Int? = null,
@@ -801,10 +612,10 @@ constructor(
       val start = System.currentTimeMillis()
       val op = "search"
       try {
-        val cachedKey = CacheKey("search", "search_${query}_${categoryId}_$page", 1)
+        val key = CacheKey("search", "search_${query}_${categoryId}_$page", 1)
         var cacheHit = false
         if (!forceRefresh) {
-          val cached = cacheManager.get(cachedKey) { json -> Json.decodeFromString<List<RuTrackerSearchResult>>(json) }
+          val cached = cacheManager.get(key) { json -> Json.decodeFromString<List<RuTrackerSearchResult>>(json) }
           if (cached.isSuccess) {
             cacheHit = true
             val rt = System.currentTimeMillis() - start
@@ -825,9 +636,6 @@ constructor(
       }
     }
 
-  /**
-   * Enhanced details wrapper that also tracks metrics (delegates to getAudiobookDetails)
-   */
   suspend fun getAudiobookDetailsEnhanced(
     topicId: String,
     forceRefresh: Boolean = false,
@@ -837,10 +645,10 @@ constructor(
       val start = System.currentTimeMillis()
       val op = "details"
       try {
-        val cacheKey = CacheKey("details", "details_$topicId", 1)
+        val key = CacheKey("details", "details_$topicId", 1)
         var cacheHit = false
         if (!forceRefresh) {
-          val cached = cacheManager.get(cacheKey) { json -> Json.decodeFromString<RuTrackerTorrentDetails>(json) }
+          val cached = cacheManager.get(key) { json -> Json.decodeFromString<RuTrackerTorrentDetails>(json) }
           if (cached.isSuccess) {
             cacheHit = true
             val rt = System.currentTimeMillis() - start
@@ -861,9 +669,6 @@ constructor(
       }
     }
 
-  /**
-   * Export performance data for analytics
-   */
   suspend fun exportPerformanceData(): Map<String, Any> =
     mapOf(
       "timestamp" to System.currentTimeMillis(),
@@ -873,12 +678,6 @@ constructor(
       "circuitBreakerStates" to getCircuitBreakerStates(),
     )
 
-  /**
-   * Calculate running average
-   */
-  private fun calculateAverage(
-    currentAverage: Long,
-    count: Int,
-    newValue: Long,
-  ): Long = if (count == 0) newValue else (currentAverage * count + newValue) / (count + 1)
+  private fun calculateAverage(currentAverage: Long, count: Int, newValue: Long): Long =
+    if (count == 0) newValue else (currentAverage * count + newValue) / (count + 1)
 }

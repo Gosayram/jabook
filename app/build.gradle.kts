@@ -1,5 +1,3 @@
-
-
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -28,6 +26,8 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+        // НУЖНО для java.time на minSdk 24
+        isCoreLibraryDesugaringEnabled = true
     }
 
     defaultConfig {
@@ -39,24 +39,22 @@ android {
         versionName = "0.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        vectorDrawables {
-            useSupportLibrary = true
-        }
+        vectorDrawables { useSupportLibrary = true }
 
         // BuildConfig fields
         buildConfigField("String", "RU_TRACKER_BASE_URL", "\"https://rutracker.me\"")
         buildConfigField("String", "RU_TRACKER_BACKUP_URL", "\"https://rutracker.org\"")
         buildConfigField("String", "RU_TRACKER_LEGACY_URL", "\"https://rutracker.net\"")
-        buildConfigField("long", "CACHE_EXPIRATION_TIME", "86400000L") // 24 hours
-        buildConfigField("int", "MAX_CACHE_SIZE", "104857600") // 100 MB
+        buildConfigField("long", "CACHE_EXPIRATION_TIME", "86400000L")
+        buildConfigField("int", "MAX_CACHE_SIZE", "104857600")
         buildConfigField("int", "MAX_RETRY_ATTEMPTS", "3")
-        buildConfigField("long", "RETRY_DELAY_BASE", "1000L") // 1 second
+        buildConfigField("long", "RETRY_DELAY_BASE", "1000L")
         buildConfigField("float", "RETRY_DELAY_MULTIPLIER", "2.0f")
-        buildConfigField("long", "RATE_LIMIT_INTERVAL", "1000L") // 1 second
+        buildConfigField("long", "RATE_LIMIT_INTERVAL", "1000L")
         buildConfigField("int", "RATE_LIMIT_REQUESTS", "5")
-        buildConfigField("long", "CIRCUIT_BREAKER_TIMEOUT", "30000L") // 30 seconds
+        buildConfigField("long", "CIRCUIT_BREAKER_TIMEOUT", "30000L")
         buildConfigField("int", "CIRCUIT_BREAKER_FAILURE_THRESHOLD", "5")
-        buildConfigField("long", "CIRCUIT_BREAKER_RETRY_DELAY", "60000L") // 1 minute
+        buildConfigField("long", "CIRCUIT_BREAKER_RETRY_DELAY", "60000L")
 
         // Room schema location
         ksp {
@@ -74,46 +72,25 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-
-            // BuildConfig fields for release
             buildConfigField("boolean", "DEBUG", "false")
             buildConfigField("boolean", "ENABLE_LOGGING", "false")
-
-            // Res values for release
             resValue("string", "app_name", "JaBook")
-
-            // Signing config for release
             signingConfig = signingConfigs.getByName("debug")
         }
-
         debug {
             applicationIdSuffix = ".debug"
             versionNameSuffix = "-debug"
-
-            // BuildConfig fields for debug
             buildConfigField("boolean", "DEBUG", "true")
             buildConfigField("boolean", "ENABLE_LOGGING", "true")
-
-            // Res values for debug
             resValue("string", "app_name", "JaBook Debug")
-
-            // Enable debug features
             isDebuggable = true
         }
-
-        // Custom build type for staging
         create("staging") {
             applicationIdSuffix = ".staging"
             versionNameSuffix = "-staging"
-
-            // BuildConfig fields for staging
             buildConfigField("boolean", "DEBUG", "true")
             buildConfigField("boolean", "ENABLE_LOGGING", "true")
-
-            // Res values for staging
             resValue("string", "app_name", "JaBook Staging")
-
-            // Disable minify for staging
             isMinifyEnabled = false
             isShrinkResources = false
         }
@@ -152,14 +129,8 @@ android {
     }
 
     sourceSets {
-        // Add shared test resources
-        getByName("test") {
-            resources.srcDir("src/sharedTest/resources")
-        }
-
-        getByName("androidTest") {
-            resources.srcDir("src/sharedTest/resources")
-        }
+        getByName("test") { resources.srcDir("src/sharedTest/resources") }
+        getByName("androidTest") { resources.srcDir("src/sharedTest/resources") }
     }
 
     lint {
@@ -169,9 +140,12 @@ android {
 }
 
 dependencies {
+    coreLibraryDesugaring(libs.desugar.jdk.libs)
+
     implementation(libs.jsoup)
     implementation(libs.hilt.android)
     ksp(libs.hilt.android.compiler)
+
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.ui)
     implementation(libs.androidx.ui.graphics)
@@ -184,26 +158,33 @@ dependencies {
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.hilt.navigation.compose)
+
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
+
     implementation(libs.retrofit)
     implementation(libs.retrofit.gson)
     implementation(libs.okhttp)
     implementation(libs.okhttp.logging)
     implementation(libs.gson)
+
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.coroutines.android)
+
     implementation(libs.androidx.datastore.preferences)
+
     implementation(libs.androidx.work.runtime)
     implementation(libs.androidx.work.runtime.ktx)
+
     implementation(libs.coil3.core)
     implementation(libs.coil3.gif)
+
     implementation(libs.accompanist.systemuicontroller)
     implementation(libs.accompanist.permissions)
     implementation(libs.accompanist.placeholder)
+
     implementation(libs.androidx.constraintlayout)
-    implementation("org.threeten:threetenbp:${libs.versions.threetenbp.get()}")
 
     // Kotlinx Serialization
     implementation(libs.kotlinx.serialization.json)
@@ -215,8 +196,7 @@ dependencies {
     // Apache Commons
     implementation(libs.commons.lang3)
 
-
-    // Media3 ExoPlayer dependencies
+    // Media3 ExoPlayer
     implementation(libs.androidx.media3.common)
     implementation(libs.androidx.media3.exoplayer)
     implementation(libs.androidx.media3.exoplayer.hls)

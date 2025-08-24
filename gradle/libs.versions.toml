@@ -1,4 +1,5 @@
 [versions]
+desugarjdklibs = "2.1.2"
 threetenbp = "1.6.9:no-tzdb"
 agp = "8.10.0"
 kotlin = "2.2.10"
@@ -158,6 +159,9 @@ commons-lang3 = { module = "org.apache.commons:commons-lang3", version.ref = "co
 firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "firebase-bom" }
 firebase-analytics = { group = "com.google.firebase", name = "firebase-analytics" }
 firebase-crashlytics-library = { group = "com.google.firebase", name = "firebase-crashlytics" }
+
+# Desugaring library
+desugar-jdk-libs = { group = "com.android.tools", name = "desugar_jdk_libs", version.ref = "desugarjdklibs" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
