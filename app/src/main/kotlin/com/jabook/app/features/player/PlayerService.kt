@@ -12,9 +12,9 @@ import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
-import androidx.media3.session.MediaNotificationCompat
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
+import androidx.media3.session.MediaStyleCompat
 import com.jabook.app.R
 import com.jabook.app.core.domain.model.Audiobook
 import com.jabook.app.shared.debug.IDebugLogger
@@ -223,7 +223,7 @@ class PlayerService : MediaSessionService() {
       .addAction(playPauseAction)
       .addAction(nextAction)
       .setStyle(
-        MediaNotificationCompat.MediaStyle().setShowActionsInCompactView(0, 1, 2),
+        androidx.media3.session.MediaStyleCompat.Builder().setShowActionsInCompactView(0, 1, 2).build(),
       ).setContentIntent(createContentIntent())
       .setDeleteIntent(createDeleteIntent())
       .setOngoing(playbackState.isPlaying)

@@ -33,7 +33,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalClipboard
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -102,7 +101,7 @@ fun ActionButtons(
   audiobook: RuTrackerAudiobook,
   onDownload: (RuTrackerAudiobook) -> Unit,
 ) {
-  val clipboardManager = LocalClipboard.current
+  val clipboardManager = LocalClipboard.current as android.content.ClipboardManager
   val coroutineScope = rememberCoroutineScope()
 
   Row(
@@ -112,12 +111,9 @@ fun ActionButtons(
     if (magnetUri != null) {
       IconButton(
         onClick = {
-          coroutineScope.launch {
-            val clipboard = LocalContext.current.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-            clipboard.setPrimaryClip(
-              ClipData.newPlainText("Magnet Link", magnetUri),
-            )
-          }
+          clipboardManager.setPrimaryClip(
+            ClipData.newPlainText("Magnet Link", magnetUri),
+          )
         },
       ) {
         Icon(

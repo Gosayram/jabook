@@ -10,8 +10,6 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import org.jaudiotagger.audio.AudioFileIO
-import org.jaudiotagger.tag.FieldKey
 import java.io.File
 import java.io.FileOutputStream
 import java.net.URL
@@ -365,19 +363,15 @@ class StorageManagerImpl
 
         val format = AudioFormat.fromExtension(FileUtils.getFileExtension(file.name))
 
-        val audioFile = AudioFileIO.read(file)
-        val tag = audioFile.tag
-        val trackLength = audioFile.audioHeader.trackLength
-
         AudioFile(
           path = file.absolutePath,
           name = file.name,
           size = file.length(),
           format = format,
           chapterNumber = extractChapterNumber(file.name),
-          duration = trackLength.toLong(),
-          bitrate = audioFile.audioHeader.bitRate?.toInt() ?: 0,
-          title = tag.getFirst(FieldKey.TITLE),
+          duration = 0L, // Placeholder - would need audio parsing library
+          bitrate = 0,   // Placeholder - would need audio parsing library
+          title = file.nameWithoutExtension,
         )
       } catch (e: Exception) {
         DebugLogger.logError("Failed to create AudioFile for ${file.name}", e, "StorageManager")

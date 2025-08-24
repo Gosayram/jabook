@@ -100,7 +100,7 @@ fun DiscoveryScreen(
         title = { Text(stringResource(R.string.discovery_title)) },
         actions = {
           IconButton(onClick = { viewModel.refreshData() }) {
-            Icon(imageVector = Icons.Default.Refresh, contentDescription = stringResource(R.string.refresh))
+            Icon(imageVector = Icons.Default.Refresh, contentDescription = stringResource(R.string.action_refresh))
           }
           ThemeToggleButton(themeMode = themeMode, onToggle = { themeViewModel.toggleTheme() })
         },
@@ -192,7 +192,7 @@ private fun SearchBar(
     onValueChange = onQueryChange,
     modifier = modifier,
     placeholder = { Text(stringResource(R.string.search_audiobooks)) },
-    leadingIcon = { Icon(imageVector = Icons.Default.Search, contentDescription = stringResource(R.string.search)) },
+    leadingIcon = { Icon(imageVector = Icons.Default.Search, contentDescription = stringResource(R.string.navigation_search)) },
     trailingIcon = {
       if (query.isNotEmpty()) {
         IconButton(onClick = onClear) {
@@ -270,6 +270,7 @@ private fun AudiobookSection(
 private fun SearchResultsSection(
   uiState: DiscoveryUiState,
   onNavigateToAudiobook: (RuTrackerAudiobook) -> Unit,
+  onDownload: (RuTrackerAudiobook) -> Unit,
 ) {
   if (uiState.isSearchActive) {
     if (uiState.searchResults.isEmpty() && !uiState.isLoading) {
@@ -286,6 +287,7 @@ private fun SearchResultsSection(
             audiobook = audiobook,
             onClick = { onNavigateToAudiobook(audiobook) },
             isGuestMode = uiState.isGuestMode,
+            onDownload = onDownload,
             modifier = Modifier.fillMaxWidth(),
           )
         }

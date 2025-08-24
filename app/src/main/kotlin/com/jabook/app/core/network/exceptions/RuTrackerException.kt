@@ -168,7 +168,7 @@ sealed class RuTrackerException(
         "invalid_response" -> InvalidResponseException(message, cause)
         "configuration" -> ConfigurationException(message, cause)
         "security" -> SecurityException(message, cause)
-        else -> RuTrackerException(message, cause)
+        else -> ServiceUnavailableException(message, cause)
       }
   }
 }

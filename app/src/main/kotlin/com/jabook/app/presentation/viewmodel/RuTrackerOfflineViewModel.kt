@@ -4,7 +4,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jabook.app.core.domain.model.RuTrackerCategory
 import com.jabook.app.core.domain.model.RuTrackerSearchResult
-import com.jabook.app.core.network.RuTrackerParserEnhanced.RuTrackerTorrentDetails
 import com.jabook.app.core.offline.RuTrackerOfflineManager
 import com.jabook.app.core.offline.RuTrackerOfflineManager.OfflineDataStatistics
 import com.jabook.app.core.offline.RuTrackerOfflineManager.OfflineSearchAnalytics
@@ -50,8 +49,8 @@ class RuTrackerOfflineViewModel
     val categories: StateFlow<List<RuTrackerCategory>> = _categories.asStateFlow()
 
     // Torrent details
-    private val _torrentDetails = MutableStateFlow<RuTrackerTorrentDetails?>(null)
-    val torrentDetails: StateFlow<RuTrackerTorrentDetails?> = _torrentDetails.asStateFlow()
+    private val _torrentDetails = MutableStateFlow<Any?>(null)
+    val torrentDetails: StateFlow<Any?> = _torrentDetails.asStateFlow()
 
     // Loading states
     private val _isLoading = MutableStateFlow(false)
@@ -169,7 +168,8 @@ class RuTrackerOfflineViewModel
         try {
           val result = offlineManager.searchOffline(query, categoryId)
           if (result.isSuccess) {
-            _searchResults.value = result.getOrNull() ?: emptyList()
+            @Suppress("UNCHECKED_CAST")
+            _searchResults.value = (result.getOrNull() as? List<RuTrackerSearchResult>) ?: emptyList()
           } else {
             _errorMessage.value = "Search failed: ${result.exceptionOrNull()?.message}"
             _searchResults.value = emptyList()

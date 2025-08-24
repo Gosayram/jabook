@@ -48,7 +48,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.jabook.app.core.network.models.RuTrackerSearchResult
+import com.jabook.app.core.data.network.model.AudiobookSearchResult
+import com.jabook.app.core.domain.model.RuTrackerSearchResult
 import com.jabook.app.presentation.viewmodel.RuTrackerOfflineViewModel
 
 /**
@@ -478,7 +479,7 @@ fun SummaryItem(
 
 @Composable
 fun SearchResultItem(
-  result: RuTrackerSearchResult,
+  result: Any,
   modifier: Modifier = Modifier,
 ) {
   Card(
@@ -490,33 +491,84 @@ fun SearchResultItem(
     Column(
       modifier = Modifier.padding(12.dp),
     ) {
-      Text(
-        text = result.title,
-        style = MaterialTheme.typography.bodyMedium,
-        fontWeight = FontWeight.Bold,
-        maxLines = 2,
-      )
+      when (result) {
+        is AudiobookSearchResult -> {
+          Text(
+            text = result.title,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Bold,
+            maxLines = 2,
+          )
 
-      Spacer(modifier = Modifier.height(4.dp))
+          Spacer(modifier = Modifier.height(4.dp))
 
-      Text(
-        text = "Author: ${result.author}",
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-      )
+          Text(
+            text = "Author: ${result.author}",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+          )
 
-      Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-      ) {
-        Text(
-          text = "Size: ${formatFileSize(result.size)}",
-          style = MaterialTheme.typography.bodySmall,
-        )
-        Text(
-          text = "Seeders: ${result.seeders}",
-          style = MaterialTheme.typography.bodySmall,
-        )
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+          ) {
+            Text(
+              text = "Size: ${result.size}",
+              style = MaterialTheme.typography.bodySmall,
+            )
+            Text(
+              text = "Seeders: ${result.seeds}",
+              style = MaterialTheme.typography.bodySmall,
+            )
+          }
+        }
+        is RuTrackerSearchResult -> {
+          // RuTrackerSearchResult contains a list of audiobooks, show the first one or a summary
+          if (result.results.isNotEmpty()) {
+            val audiobook = result.results.first()
+            Text(
+              text = audiobook.title,
+              style = MaterialTheme.typography.bodyMedium,
+              fontWeight = FontWeight.Bold,
+              maxLines = 2,
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Text(
+              text = "Author: ${audiobook.author}",
+              style = MaterialTheme.typography.bodySmall,
+              color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            Row(
+              modifier = Modifier.fillMaxWidth(),
+              horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+              Text(
+                text = "Size: ${audiobook.size}",
+                style = MaterialTheme.typography.bodySmall,
+              )
+              Text(
+                text = "Seeders: ${audiobook.seeders}",
+                style = MaterialTheme.typography.bodySmall,
+              )
+            }
+          } else {
+            Text(
+              text = "No results found",
+              style = MaterialTheme.typography.bodyMedium,
+              color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+          }
+        }
+        else -> {
+          Text(
+            text = "Unknown result type",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+          )
+        }
       }
     }
   }

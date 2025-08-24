@@ -5,24 +5,24 @@
     <color name="primary_dark">#3700B3</color>
     <color name="primary_light">#BB86FC</color>
     <color name="primary_variant">#3700B3</color>
-    
+
     <!-- Secondary Colors -->
     <color name="secondary">#03DAC6</color>
     <color name="secondary_dark">#018786</color>
     <color name="secondary_light">#B2DFDB</color>
     <color name="secondary_variant">#018786</color>
-    
+
     <!-- Accent Colors -->
     <color name="accent">#03DAC6</color>
     <color name="accent_dark">#018786</color>
     <color name="accent_light">#B2DFDB</color>
-    
+
     <!-- Background Colors -->
     <color name="background">#FFFFFF</color>
     <color name="background_dark">#121212</color>
     <color name="background_variant">#F5F5F5</color>
     <color name="background_variant_dark">#1E1E1E</color>
-    
+
     <!-- Surface Colors -->
     <color name="surface">#FFFFFF</color>
     <color name="surface_dark">#121212</color>
@@ -30,7 +30,7 @@
     <color name="surface_variant_dark">#1E1E1E</color>
     <color name="surface_elevated">#FFFFFF</color>
     <color name="surface_elevated_dark">#1E1E1E</color>
-    
+
     <!-- Text Colors -->
     <color name="text_primary">#000000</color>
     <color name="text_primary_dark">#FFFFFF</color>
@@ -48,35 +48,35 @@
     <color name="text_on_surface_variant">#000000</color>
     <color name="text_on_surface_variant_dark">#FFFFFF</color>
     <color name="text_on_error">#FFFFFF</color>
-    
+
     <!-- Error Colors -->
     <color name="error">#B00020</color>
     <color name="error_dark">#CF6679</color>
     <color name="error_light">#EF9A9A</color>
     <color name="error_container">#FFDAD6</color>
     <color name="error_container_dark">#93000A</color>
-    
+
     <!-- Success Colors -->
     <color name="success">#4CAF50</color>
     <color name="success_dark">#388E3C</color>
     <color name="success_light">#C8E6C9</color>
     <color name="success_container">#B9F6CA</color>
     <color name="success_container_dark">#2E7D32</color>
-    
+
     <!-- Warning Colors -->
     <color name="warning">#FFC107</color>
     <color name="warning_dark">#F57C00</color>
     <color name="warning_light">#FFECB3</color>
     <color name="warning_container">#FFF8E1</color>
     <color name="warning_container_dark">#F57C00</color>
-    
+
     <!-- Info Colors -->
     <color name="info">#2196F3</color>
     <color name="info_dark">#1976D2</color>
     <color name="info_light">#BBDEFB</color>
     <color name="info_container">#E3F2FD</color>
     <color name="info_container_dark">#1976D2</color>
-    
+
     <!-- Player Colors -->
     <color name="player_background">#121212</color>
     <color name="player_controls">#FFFFFF</color>
@@ -88,33 +88,33 @@
     <color name="player_progress_dark">#BB86FC</color>
     <color name="player_scrubber_dark">#BB86FC</color>
     <color name="player_scrubber_active_dark">#FFFFFF</color>
-    
+
     <!-- Divider Colors -->
     <color name="divider">#BDBDBD</color>
     <color name="divider_dark">#424242</color>
-    
+
     <!-- Ripple Colors -->
     <color name="ripple_light">#1FFFFFFF</color>
     <color name="ripple_dark">#1FFFFFFF</color>
-    
+
     <!-- Shadow Colors -->
     <color name="shadow">#1F000000</color>
     <color name="shadow_dark">#1F000000</color>
-    
+
     <!-- Selection Colors -->
     <color name="selection">#40BB86FC</color>
     <color name="selection_dark">#40BB86FC</color>
-    
+
     <!-- Highlight Colors -->
     <color name="highlight">#BB86FC</color>
     <color name="highlight_dark">#BB86FC</color>
-    
+
     <!-- Disabled Colors -->
     <color name="disabled">#BDBDBD</color>
     <color name="disabled_dark">#424242</color>
     <color name="disabled_background">#E0E0E0</color>
     <color name="disabled_background_dark">#2E2E2E</color>
-    
+
     <!-- Button Colors -->
     <color name="button_background">#6200EE</color>
     <color name="button_background_dark">#BB86FC</color>
@@ -122,13 +122,13 @@
     <color name="button_text_dark">#000000</color>
     <color name="button_disabled">#BDBDBD</color>
     <color name="button_disabled_dark">#424242</color>
-    
+
     <!-- Card Colors -->
     <color name="card_background">#FFFFFF</color>
     <color name="card_background_dark">#1E1E1E</color>
     <color name="card_elevation">#1F000000</color>
     <color name="card_elevation_dark">#1F000000</color>
-    
+
     <!-- Chip Colors -->
     <color name="chip_background">#E0E0E0</color>
     <color name="chip_background_dark">#424242</color>
@@ -136,13 +136,13 @@
     <color name="chip_text_dark">#FFFFFF</color>
     <color name="chip_selected">#BB86FC</color>
     <color name="chip_selected_dark">#BB86FC</color>
-    
+
     <!-- Progress Colors -->
     <color name="progress_background">#E0E0E0</color>
     <color name="progress_background_dark">#424242</color>
     <color name="progress_foreground">#6200EE</color>
     <color name="progress_foreground_dark">#BB86FC</color>
-    
+
     <!-- Switch Colors -->
     <color name="switch_thumb">#FFFFFF</color>
     <color name="switch_thumb_dark">#FFFFFF</color>
@@ -152,19 +152,19 @@
     <color name="switch_thumb_checked_dark">#BB86FC</color>
     <color name="switch_track_checked">#BB86FC</color>
     <color name="switch_track_checked_dark">#6200EE</color>
-    
+
     <!-- Checkbox Colors -->
     <color name="checkbox_unchecked">#BDBDBD</color>
     <color name="checkbox_unchecked_dark">#424242</color>
     <color name="checkbox_checked">#6200EE</color>
     <color name="checkbox_checked_dark">#BB86FC</color>
-    
+
     <!-- RadioButton Colors -->
     <color name="radio_button_unchecked">#BDBDBD</color>
     <color name="radio_button_unchecked_dark">#424242</color>
     <color name="radio_button_checked">#6200EE</color>
     <color name="radio_button_checked_dark">#BB86FC</color>
-    
+
     <!-- Slider Colors -->
     <color name="slider_active">#6200EE</color>
     <color name="slider_active_dark">#BB86FC</color>
@@ -172,7 +172,7 @@
     <color name="slider_inactive_dark">#424242</color>
     <color name="slider_thumb">#6200EE</color>
     <color name="slider_thumb_dark">#BB86FC</color>
-    
+
     <!-- Bottom Navigation Colors -->
     <color name="bottom_navigation_background">#FFFFFF</color>
     <color name="bottom_navigation_background_dark">#121212</color>
@@ -180,7 +180,7 @@
     <color name="bottom_navigation_item_dark">#B0B0B0</color>
     <color name="bottom_navigation_item_selected">#6200EE</color>
     <color name="bottom_navigation_item_selected_dark">#BB86FC</color>
-    
+
     <!-- Toolbar Colors -->
     <color name="toolbar_background">#FFFFFF</color>
     <color name="toolbar_background_dark">#121212</color>
@@ -190,7 +190,7 @@
     <color name="toolbar_subtitle_dark">#B0B0B0</color>
     <color name="toolbar_icon">#000000</color>
     <color name="toolbar_icon_dark">#FFFFFF</color>
-    
+
     <!-- Tab Layout Colors -->
     <color name="tab_background">#FFFFFF</color>
     <color name="tab_background_dark">#121212</color>
@@ -200,7 +200,7 @@
     <color name="tab_text_selected_dark">#BB86FC</color>
     <color name="tab_indicator">#6200EE</color>
     <color name="tab_indicator_dark">#BB86FC</color>
-    
+
     <!-- Dialog Colors -->
     <color name="dialog_background">#FFFFFF</color>
     <color name="dialog_background_dark">#1E1E1E</color>
@@ -208,7 +208,7 @@
     <color name="dialog_title_dark">#FFFFFF</color>
     <color name="dialog_message">#757575</color>
     <color name="dialog_message_dark">#B0B0B0</color>
-    
+
     <!-- Search View Colors -->
     <color name="search_view_background">#E0E0E0</color>
     <color name="search_view_background_dark">#424242</color>
@@ -218,25 +218,25 @@
     <color name="search_view_hint_dark">#B0B0B0</color>
     <color name="search_view_icon">#757575</color>
     <color name="search_view_icon_dark">#B0B0B0</color>
-    
+
     <!-- Floating Action Button Colors -->
     <color name="fab_background">#6200EE</color>
     <color name="fab_background_dark">#BB86FC</color>
     <color name="fab_icon">#FFFFFF</color>
     <color name="fab_icon_dark">#000000</color>
-    
+
     <!-- Badge Colors -->
     <color name="badge_background">#B00020</color>
     <color name="badge_background_dark">#CF6679</color>
     <color name="badge_text">#FFFFFF</color>
     <color name="badge_text_dark">#000000</color>
-    
+
     <!-- Avatar Colors -->
     <color name="avatar_background">#E0E0E0</color>
     <color name="avatar_background_dark">#424242</color>
     <color name="avatar_text">#000000</color>
     <color name="avatar_text_dark">#FFFFFF</color>
-    
+
     <!-- Notification Colors -->
     <color name="notification_background">#FFFFFF</color>
     <color name="notification_background_dark">#1E1E1E</color>
@@ -246,7 +246,7 @@
     <color name="notification_text_dark">#B0B0B0</color>
     <color name="notification_icon">#6200EE</color>
     <color name="notification_icon_dark">#BB86FC</color>
-    
+
     <!-- Widget Colors -->
     <color name="widget_background">#FFFFFF</color>
     <color name="widget_background_dark">#121212</color>
@@ -254,13 +254,13 @@
     <color name="widget_title_dark">#FFFFFF</color>
     <color name="widget_text">#757575</color>
     <color name="widget_text_dark">#B0B0B0</color>
-    
+
     <!-- System Colors -->
     <color name="status_bar_background">#FFFFFF</color>
     <color name="status_bar_background_dark">#121212</color>
     <color name="navigation_bar_background">#FFFFFF</color>
     <color name="navigation_bar_background_dark">#121212</color>
-    
+
     <!-- Material You Colors (Dynamic) -->
     <color name="m3_sys_color_primary_light">#6750A4</color>
     <color name="m3_sys_color_on_primary_light">#FFFFFF</color>
@@ -286,7 +286,7 @@
     <color name="m3_sys_color_on_surface_variant_light">#49454E</color>
     <color name="m3_sys_color_outline_light">#79747E</color>
     <color name="m3_sys_color_outline_variant_light">#CAC4D0</color>
-    
+
     <color name="m3_sys_color_primary_dark">#D0BCFF</color>
     <color name="m3_sys_color_on_primary_dark">#381E72</color>
     <color name="m3_sys_color_primary_container_dark">#4F378B</color>
@@ -311,7 +311,7 @@
     <color name="m3_sys_color_on_surface_variant_dark">#CAC4D0</color>
     <color name="m3_sys_color_outline_dark">#938F99</color>
     <color name="m3_sys_color_outline_variant_dark">#49454E</color>
-    
+
     <!-- Basic Colors -->
     <color name="white">#FFFFFF</color>
     <color name="black">#000000</color>
@@ -326,7 +326,14 @@
     <color name="gray_700">#424242</color>
     <color name="gray_800">#303030</color>
     <color name="gray_900">#212121</color>
-    
+
+    <!-- Purple Colors -->
+    <color name="jb_purple">#35255E</color>
+    <color name="jb_purple_variant">#2A1E4D</color>
+    <color name="jb_amber">#F5B300</color>
+    <color name="jb_cream">#F2EDE6</color>
+    <color name="jb_on_purple">#FFFFFF</color>
+
     <!-- App Colors -->
     <color name="jabook_orange">#FF6F00</color>
 </resources>

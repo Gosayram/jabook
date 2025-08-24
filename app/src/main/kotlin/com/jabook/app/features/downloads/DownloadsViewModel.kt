@@ -51,21 +51,14 @@ class DownloadsViewModel
         isLoading,
         errorMessage,
         selectedTab,
-      ) {
-        active: List<DownloadProgress>,
-        completed: List<DownloadProgress>,
-        failed: List<DownloadProgress>,
-        loading: Boolean,
-        error: String?,
-        tab: DownloadsTab,
-        ->
+      ) { values ->
         DownloadsUiState(
-          activeDownloads = active,
-          completedDownloads = completed,
-          failedDownloads = failed,
-          isLoading = loading,
-          errorMessage = error,
-          selectedTab = tab,
+          activeDownloads = values[0] as List<DownloadProgress>,
+          completedDownloads = values[1] as List<DownloadProgress>,
+          failedDownloads = values[2] as List<DownloadProgress>,
+          isLoading = values[3] as Boolean,
+          errorMessage = values[4] as String?,
+          selectedTab = values[5] as DownloadsTab,
         )
       }.stateIn(
         scope = viewModelScope,

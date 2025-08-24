@@ -17,7 +17,12 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -176,14 +181,16 @@ class RuTrackerDomainManager
      * Check health for all domains
      */
     private suspend fun checkAllDomainsHealth() {
-      val checkJobs =
-        domains.map { (domain, config) ->
-          kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).async {
-            checkDomainHealth(domain, config)
+      coroutineScope {
+        val checkJobs =
+          domains.map { (domain, config) ->
+            async {
+              checkDomainHealth(domain, config)
+            }
           }
-        }
 
-      checkJobs.awaitAll()
+        checkJobs.awaitAll()
+      }
     }
 
     /**
@@ -265,7 +272,8 @@ class RuTrackerDomainManager
       domain: String,
       error: Exception,
     ) {
-      val failureCount = failureCounts[domain]?.incrementAndGet() ?: 1
+      val failureCount = (failureCounts[domain]?.get() ?: 0) + 1
+      failureCounts[domain]?.set(failureCount)
 
       if (failureCount >= MAX_CONSECUTIVE_FAILURES) {
         debugLogger.logWarning("RuTrackerDomainManager: Domain $domain has $failureCount consecutive failures, considering switch")
@@ -460,7 +468,7 @@ class RuTrackerDomainManager
     /**
      * Get domain statistics
      */
-    suspend fun getDomainStatistics(): Map<String, Map<String, Any>> =
+    suspend fun getDomainStatistics(): Map<String, Map<String, Any?>> =
       mutex.withLock {
         domains.mapValues { (domain, config) ->
           val status = healthStatus[domain]

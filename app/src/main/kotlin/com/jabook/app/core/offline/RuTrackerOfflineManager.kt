@@ -2,10 +2,11 @@ package com.jabook.app.core.offline
 
 import com.jabook.app.core.cache.CacheKey
 import com.jabook.app.core.cache.RuTrackerCacheManager
-import com.jabook.app.core.exceptions.RuTrackerException.OfflineException
-import com.jabook.app.core.network.models.RuTrackerCategory
-import com.jabook.app.core.network.models.RuTrackerSearchResult
-import com.jabook.app.core.network.models.RuTrackerTorrentDetails
+import com.jabook.app.core.network.exceptions.RuTrackerException.OfflineException
+import com.jabook.app.core.domain.model.RuTrackerCategory
+import com.jabook.app.core.domain.model.RuTrackerSearchResult
+import com.jabook.app.core.domain.model.RuTrackerAudiobook
+import com.jabook.app.core.network.RuTrackerApiServiceEnhanced.RuTrackerTorrentDetails
 import com.jabook.app.shared.debug.IDebugLogger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -39,7 +40,7 @@ class RuTrackerOfflineManager
     }
 
     // Offline data storage
-    private val offlineSearchResults = ConcurrentHashMap<String, List<RuTrackerSearchResult>>()
+    private val offlineSearchResults = ConcurrentHashMap<String, List<RuTrackerAudiobook>>()
     private val offlineCategories = mutableListOf<RuTrackerCategory>()
     private val offlineDetails = ConcurrentHashMap<String, RuTrackerTorrentDetails>()
     private val offlineSearchIndex = mutableMapOf<String, Set<String>>() // keyword -> topicIds
@@ -75,7 +76,7 @@ class RuTrackerOfflineManager
     suspend fun storeSearchResults(
       query: String,
       categoryId: Int?,
-      results: List<RuTrackerSearchResult>,
+      results: List<RuTrackerAudiobook>,
     ): Result<Unit> =
       withContext(Dispatchers.IO) {
         try {
@@ -200,7 +201,7 @@ class RuTrackerOfflineManager
     suspend fun searchOffline(
       query: String,
       categoryId: Int? = null,
-    ): Result<List<RuTrackerSearchResult>> =
+    ): Result<List<RuTrackerAudiobook>> =
       withContext(Dispatchers.IO) {
         try {
           if (!isOfflineModeEnabled()) {
@@ -422,7 +423,7 @@ class RuTrackerOfflineManager
      */
     private suspend fun updateSearchIndex(
       query: String,
-      results: List<RuTrackerSearchResult>,
+      results: List<RuTrackerAudiobook>,
     ) {
       try {
         // Extract keywords from query
@@ -431,7 +432,7 @@ class RuTrackerOfflineManager
         // Update index for each keyword
         for (keyword in keywords) {
           val existingTopicIds = offlineSearchIndex[keyword] ?: emptySet()
-          val newTopicIds = results.map { it.topicId }.toSet()
+          val newTopicIds = results.map { it.id }.toSet()
           offlineSearchIndex[keyword] = existingTopicIds + newTopicIds
         }
 
@@ -457,7 +458,7 @@ class RuTrackerOfflineManager
     /**
      * Search by keywords
      */
-    private suspend fun searchByKeywords(query: String): List<RuTrackerSearchResult> {
+    private suspend fun searchByKeywords(query: String): List<RuTrackerAudiobook> {
       try {
         val keywords = extractKeywords(query)
         val matchingTopicIds = mutableSetOf<String>()
@@ -473,8 +474,8 @@ class RuTrackerOfflineManager
 
         // Filter and sort by relevance
         return allResults
-          .filter { it.topicId in matchingTopicIds }
-          .distinctBy { it.topicId }
+          .filter { it.id in matchingTopicIds }
+          .distinctBy { it.id }
           .sortedByDescending { calculateRelevanceScore(it, query) }
           .take(MAX_OFFLINE_RESULTS)
       } catch (e: Exception) {
@@ -486,7 +487,7 @@ class RuTrackerOfflineManager
     /**
      * Fuzzy search implementation
      */
-    private suspend fun searchFuzzy(query: String): List<RuTrackerSearchResult> {
+    private suspend fun searchFuzzy(query: String): List<RuTrackerAudiobook> {
       try {
         val allResults = offlineSearchResults.values.flatten()
 
@@ -514,7 +515,7 @@ class RuTrackerOfflineManager
               }
 
             titleMatches > 0 || authorMatches > 0
-          }.distinctBy { it.topicId }
+          }.distinctBy { it.id }
           .sortedByDescending { calculateFuzzyMatchScore(it, query) }
           .take(MAX_OFFLINE_RESULTS)
       } catch (e: Exception) {
@@ -540,7 +541,7 @@ class RuTrackerOfflineManager
      * Calculate relevance score
      */
     private fun calculateRelevanceScore(
-      result: RuTrackerSearchResult,
+      result: RuTrackerAudiobook,
       query: String,
     ): Double {
       var score = 0.0
@@ -554,7 +555,7 @@ class RuTrackerOfflineManager
       }
 
       score += result.seeders * 0.1
-      score += (result.size / (1024 * 1024)) * 0.001
+      score += (result.sizeBytes / (1024 * 1024)) * 0.001
 
       return score
     }
@@ -563,7 +564,7 @@ class RuTrackerOfflineManager
      * Calculate fuzzy match score
      */
     private fun calculateFuzzyMatchScore(
-      result: RuTrackerSearchResult,
+      result: RuTrackerAudiobook,
       query: String,
     ): Double {
       var score = 0.0
@@ -722,7 +723,7 @@ class RuTrackerOfflineManager
     /**
      * Calculate total cache size
      */
-    private suspend fun calculateTotalCacheSize(): Long =
+    private fun calculateTotalCacheSize(): Long =
       try {
         // This would need to be implemented based on cache manager capabilities
         0L // Placeholder

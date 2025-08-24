@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -37,7 +38,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
-import androidx.compose.mutableStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -161,7 +162,7 @@ fun DomainStatusCard(
               when (circuitBreakerState) {
                 "CLOSED" -> Color.Green
                 "OPEN" -> Color.Red
-                "HALF_OPEN" -> Color.Orange
+                "HALF_OPEN" -> Color(255, 165, 0) // Orange
                 else -> Color.Gray
               },
           )
@@ -171,7 +172,7 @@ fun DomainStatusCard(
             Text(
               text = "Ошибок подряд: ${status.consecutiveFailures}",
               style = MaterialTheme.typography.bodySmall,
-              color = Color.Orange,
+              color = Color(255, 165, 0), // Orange
             )
           }
         }
@@ -300,7 +301,7 @@ fun ErrorReportCard(
                 .background(
                   when (errorReport.severity) {
                     ErrorSeverity.CRITICAL -> Color.Red
-                    ErrorSeverity.HIGH -> Color.Orange
+                    ErrorSeverity.HIGH -> Color(255, 165, 0) // Orange
                     ErrorSeverity.MEDIUM -> Color.Yellow
                     ErrorSeverity.LOW -> Color.Green
                   },
@@ -337,9 +338,9 @@ fun RuTrackerDomainManagementScreen(
   onNavigateBack: () -> Unit,
 ) {
   val uiState by viewModel.uiState.collectAsState()
-  var showErrors by remember { mutableStateOf(false) }
-  var showDetailsDialog by remember { mutableStateOf(false) }
-  var selectedDomain by remember { mutableStateOf("") }
+  var showErrors by remember { mutableStateOf<Boolean>(false) }
+  var showDetailsDialog by remember { mutableStateOf<Boolean>(false) }
+  var selectedDomain by remember { mutableStateOf<String>("") }
 
   Scaffold(
     topBar = {
@@ -552,7 +553,7 @@ fun DomainHealthSummary(
         SummaryItem(
           label = "Предупреждение",
           value = summary["warning"] ?: 0,
-          color = Color.Orange,
+          color = Color(255, 165, 0), // Orange
         )
 
         SummaryItem(

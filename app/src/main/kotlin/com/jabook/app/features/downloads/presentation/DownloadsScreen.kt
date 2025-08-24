@@ -73,7 +73,7 @@ data class DownloadsActions(
   val onRetry: (DownloadProgress) -> Unit,
 )
 
-@OptIn(ExperimentalMaterial3Api::class)
+
 @Composable
 fun DownloadsScreen(
   modifier: Modifier = Modifier,
@@ -108,7 +108,7 @@ fun DownloadsScreen(
             }
           }
           IconButton(onClick = { viewModel.refreshDownloads() }) {
-            Icon(imageVector = Icons.Default.Refresh, contentDescription = stringResource(R.string.refresh))
+            Icon(imageVector = Icons.Default.Refresh, contentDescription = stringResource(R.string.action_refresh))
           }
           ThemeToggleButton(themeMode = themeMode, onToggle = { themeViewModel.toggleTheme() })
         },
@@ -191,7 +191,7 @@ fun DownloadsScreen(
   }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+
 @Composable
 private fun DownloadsTabRow(
   selectedTab: DownloadsTab,
@@ -256,13 +256,13 @@ private fun DownloadsList(
     }
   }
 }
-
 @Composable
 private fun DownloadListItem(
   download: DownloadProgress,
   actions: DownloadsActions,
 ) {
   val dismissState =
+    @OptIn(ExperimentalMaterial3Api::class)
     rememberDismissState(
       confirmStateChange = { value ->
         when (value) {
@@ -282,6 +282,7 @@ private fun DownloadListItem(
         }
       },
     )
+  @OptIn(ExperimentalMaterial3Api::class)
   SwipeToDismiss(
     state = dismissState,
     background = {

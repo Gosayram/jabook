@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.TextButton
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -38,7 +40,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
-import androidx.compose.mutableStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -53,6 +55,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.viewModelScope
 import com.jabook.app.core.cache.CacheStatistics
 import com.jabook.app.presentation.viewmodel.RuTrackerCacheViewModel
 
@@ -379,11 +382,11 @@ fun RuTrackerCacheManagementScreen(
   onNavigateBack: () -> Unit,
 ) {
   val uiState by viewModel.uiState.collectAsState()
-  var showConfigDialog by remember { mutableStateOf(false) }
-  var showDebugDialog by remember { mutableStateOf(false) }
-  var selectedKey by remember { mutableStateOf("") }
-  var debugKey by remember { mutableStateOf("") }
-  var debugValue by remember { mutableStateOf("") }
+  var showConfigDialog by remember { mutableStateOf<Boolean>(false) }
+  var showDebugDialog by remember { mutableStateOf<Boolean>(false) }
+  var selectedKey by remember { mutableStateOf<String>("") }
+  var debugKey by remember { mutableStateOf<String>("") }
+  var debugValue by remember { mutableStateOf<String>("") }
 
   LaunchedEffect(uiState.selectedNamespace) {
     viewModel.loadCacheKeys()
@@ -465,7 +468,7 @@ fun RuTrackerCacheManagementScreen(
 
           Spacer(modifier = Modifier.width(8.dp))
 
-          var expanded by remember { mutableStateOf(false) }
+          var expanded by remember { mutableStateOf<Boolean>(false) }
           Box {
             OutlinedButton(onClick = { expanded = true }) {
               Text(uiState.selectedNamespace)
@@ -618,9 +621,11 @@ fun RuTrackerCacheManagementScreen(
           ) {
             Button(
               onClick = {
-                viewModel.putTestData(debugKey, debugValue)
-                debugKey = ""
-                debugValue = ""
+                kotlinx.coroutines.launch(viewModelScope.coroutineContext) {
+                  viewModel.putTestData(debugKey, debugValue)
+                  debugKey = ""
+                  debugValue = ""
+                }
               },
               modifier = Modifier.weight(1f),
             ) {
@@ -629,8 +634,10 @@ fun RuTrackerCacheManagementScreen(
 
             OutlinedButton(
               onClick = {
-                viewModel.getCacheEntryDebug(debugKey)?.let { value ->
-                  debugValue = value
+                kotlinx.coroutines.launch(viewModelScope.coroutineContext) {
+                  viewModel.getCacheEntryDebug(debugKey)?.let { value ->
+                    debugValue = value
+                  }
                 }
               },
               modifier = Modifier.weight(1f),

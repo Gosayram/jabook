@@ -75,7 +75,7 @@ fun JaBookNavigation(
       NavigationBar(containerColor = MaterialTheme.colorScheme.surfaceContainer, contentColor = MaterialTheme.colorScheme.onSurface) {
         val items =
           listOf(
-            Triple(Screen.Library, Icons.Default.Home, R.string.library_title),
+            Triple(Screen.Library, Icons.Default.Home, R.string.navigation_library),
             Triple(Screen.Discovery, Icons.Default.Search, R.string.discovery),
             Triple(Screen.Downloads, Icons.Default.Download, R.string.downloads),
             Triple(Screen.Player, Icons.Default.PlayArrow, R.string.player),
@@ -120,6 +120,7 @@ fun JaBookNavigation(
         composable(Screen.Discovery.route) {
           DiscoveryScreen(
             onNavigateToAudiobook = { audiobook -> navController.navigate(Screen.Player.route) },
+            onDownload = { /* TODO: Implement download functionality */ },
             themeViewModel = themeViewModel,
             themeMode = themeMode,
           )

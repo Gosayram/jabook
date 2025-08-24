@@ -179,6 +179,7 @@ dependencies {
 
     implementation(libs.coil3.core)
     implementation(libs.coil3.gif)
+    implementation(libs.coil3.compose)
 
     implementation(libs.accompanist.systemuicontroller)
     implementation(libs.accompanist.permissions)
