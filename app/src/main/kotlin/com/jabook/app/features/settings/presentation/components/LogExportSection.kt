@@ -42,7 +42,7 @@ fun LogExportSection(viewModel: RuTrackerSettingsViewModel) {
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
           }
 
-          val chooserTitle = stringResource(R.string.share_debug_log_file)
+          val chooserTitle = context.getString(R.string.share_debug_log_file)
           val chooser = Intent.createChooser(shareIntent, chooserTitle)
 
           try {
@@ -76,6 +76,7 @@ fun LogExportSection(viewModel: RuTrackerSettingsViewModel) {
     },
     modifier = Modifier.fillMaxWidth(),
   ) {
+    // В КОМПОЗИЦИИ можно stringResource — это ок
     Text(text = stringResource(R.string.export_debug_logs))
   }
 }

@@ -80,7 +80,7 @@ fun ModeToggleCard(
         Switch(
           checked = isGuestMode, // прямое соответствие: true = гость
           onCheckedChange = onModeChange,
-          modifier = Modifier.semantics { this.role = Role.Switch },
+          modifier = Modifier.semantics { role = androidx.compose.ui.semantics.Role.Switch },
         )
       }
     }

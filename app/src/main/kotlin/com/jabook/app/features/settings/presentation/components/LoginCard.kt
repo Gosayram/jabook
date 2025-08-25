@@ -24,7 +24,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardOptions as KeyboardOptions
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
@@ -98,7 +98,7 @@ fun LoginCard(
             modifier = Modifier.fillMaxWidth(),
             enabled = !state.isLoading,
             singleLine = true,
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+            keyboardOptions = androidx.compose.ui.text.input.KeyboardOptions(imeAction = ImeAction.Next),
             isError = state.usernameError != null,
             supportingText = {
               state.usernameError?.let { Text(text = it, color = MaterialTheme.colorScheme.error) }
@@ -124,7 +124,7 @@ fun LoginCard(
             modifier = Modifier.fillMaxWidth(),
             enabled = !state.isLoading,
             singleLine = true,
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+            keyboardOptions = androidx.compose.ui.text.input.KeyboardOptions(imeAction = ImeAction.Done),
             isError = state.passwordError != null,
             supportingText = {
               state.passwordError?.let { Text(text = it, color = MaterialTheme.colorScheme.error) }
