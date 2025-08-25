@@ -15,7 +15,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Delete
@@ -383,11 +383,11 @@ fun RuTrackerCacheManagementScreen(
   onNavigateBack: () -> Unit,
 ) {
   val uiState by viewModel.uiState.collectAsState()
-  var showConfigDialog by remember { mutableStateOf<Boolean>(false) }
-  var showDebugDialog by remember { mutableStateOf<Boolean>(false) }
-  var selectedKey by remember { mutableStateOf<String>("") }
-  var debugKey by remember { mutableStateOf<String>("") }
-  var debugValue by remember { mutableStateOf<String>("") }
+  var showConfigDialog by remember { mutableStateOf(false) }
+  var showDebugDialog by remember { mutableStateOf(false) }
+  var selectedKey by remember { mutableStateOf("") }
+  var debugKey by remember { mutableStateOf("") }
+  var debugValue by remember { mutableStateOf("") }
   val coroutineScope = rememberCoroutineScope()
 
   LaunchedEffect(uiState.selectedNamespace) {
@@ -400,7 +400,8 @@ fun RuTrackerCacheManagementScreen(
         title = { Text("Управление кэшем RuTracker") },
         navigationIcon = {
           IconButton(onClick = onNavigateBack) {
-            Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Back")
+            // заменено на AutoMirrored
+            Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
           }
         },
         actions = {
@@ -470,7 +471,7 @@ fun RuTrackerCacheManagementScreen(
 
           Spacer(modifier = Modifier.width(8.dp))
 
-          var expanded by remember { mutableStateOf<Boolean>(false) }
+          var expanded by remember { mutableStateOf(false) }
           Box {
             OutlinedButton(onClick = { expanded = true }) {
               Text(uiState.selectedNamespace)

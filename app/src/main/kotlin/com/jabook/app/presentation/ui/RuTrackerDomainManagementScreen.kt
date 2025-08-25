@@ -16,7 +16,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material.icons.filled.Error
@@ -348,7 +348,8 @@ fun RuTrackerDomainManagementScreen(
         title = { Text("Управление доменами RuTracker") },
         navigationIcon = {
           IconButton(onClick = onNavigateBack) {
-            Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Back")
+            // заменено на AutoMirrored
+            Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
           }
         },
         actions = {

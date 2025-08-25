@@ -100,13 +100,15 @@ android {
         compilerOptions {
             jvmToolchain(17)
             jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+            languageVersion.set(org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_1_9)
+            apiVersion.set(org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_1_9)
             freeCompilerArgs.addAll(
                 "-Xskip-prerelease-check",
                 "-opt-in=androidx.compose.material3.ExperimentalMaterial3Api",
                 "-opt-in=androidx.compose.foundation.ExperimentalFoundationApi",
                 "-opt-in=androidx.compose.animation.ExperimentalAnimationApi",
                 "-opt-in=androidx.compose.ui.ExperimentalComposeUiApi",
-                "-opt-in=coil.annotation.ExperimentalCoilApi",
+                "-opt-in=io.coil3.compose.ExperimentalCoilApi",
                 "-opt-in=kotlinx.coroutines.ExperimentalCoroutinesApi",
                 "-opt-in=kotlinx.coroutines.FlowPreview"
             )

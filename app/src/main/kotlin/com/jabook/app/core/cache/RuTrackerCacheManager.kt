@@ -91,7 +91,7 @@ class RuTrackerCacheManager
   constructor(
     private val debugLogger: IDebugLogger,
     private val cacheDir: File,
-    private val config: CacheConfig = CacheConfig(),
+    private val config: CacheConfig,
   ) {
     private val memoryCache = ConcurrentHashMap<String, CacheEntry<Any>>()
     private val accessCounts = ConcurrentHashMap<String, AtomicLong>()
