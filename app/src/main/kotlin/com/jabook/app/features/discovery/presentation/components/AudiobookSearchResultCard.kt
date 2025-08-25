@@ -2,7 +2,6 @@ package com.jabook.app.features.discovery.presentation.components
 
 import android.content.ClipData
 import android.content.ClipboardManager
-import android.content.Context
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -42,7 +41,6 @@ import coil3.compose.AsyncImage
 import com.jabook.app.R
 import com.jabook.app.core.domain.model.RuTrackerAudiobook
 import com.jabook.app.shared.utils.formatFileSize
-import kotlinx.coroutines.launch
 
 @Composable
 fun AudiobookCover(modifier: Modifier = Modifier) {

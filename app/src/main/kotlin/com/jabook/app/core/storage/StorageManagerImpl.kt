@@ -370,7 +370,7 @@ class StorageManagerImpl
           format = format,
           chapterNumber = extractChapterNumber(file.name),
           duration = 0L, // Placeholder - would need audio parsing library
-          bitrate = 0,   // Placeholder - would need audio parsing library
+          bitrate = 0, // Placeholder - would need audio parsing library
           title = file.nameWithoutExtension,
         )
       } catch (e: Exception) {

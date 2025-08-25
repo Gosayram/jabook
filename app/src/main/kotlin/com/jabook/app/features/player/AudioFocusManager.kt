@@ -44,6 +44,7 @@ class AudioFocusManager
           audioManager.requestAudioFocus(audioFocusRequest!!)
         } else {
           // For Android 6.0-7.1 we use the old API, but without @Suppress
+          @Suppress("DEPRECATION")
           audioManager.requestAudioFocus(
             listener,
             AudioManager.STREAM_MUSIC,
@@ -65,6 +66,7 @@ class AudioFocusManager
             ?: AudioManager.AUDIOFOCUS_REQUEST_FAILED
         } else {
           // For Android 6.0-7.1 we use the old API
+          @Suppress("DEPRECATION")
           audioManager.abandonAudioFocus(null)
         }
 

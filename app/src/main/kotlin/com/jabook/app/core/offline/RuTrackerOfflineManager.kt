@@ -2,11 +2,10 @@ package com.jabook.app.core.offline
 
 import com.jabook.app.core.cache.CacheKey
 import com.jabook.app.core.cache.RuTrackerCacheManager
-import com.jabook.app.core.network.exceptions.RuTrackerException.OfflineException
-import com.jabook.app.core.domain.model.RuTrackerCategory
-import com.jabook.app.core.domain.model.RuTrackerSearchResult
 import com.jabook.app.core.domain.model.RuTrackerAudiobook
+import com.jabook.app.core.domain.model.RuTrackerCategory
 import com.jabook.app.core.network.RuTrackerApiServiceEnhanced.RuTrackerTorrentDetails
+import com.jabook.app.core.network.exceptions.RuTrackerException.OfflineException
 import com.jabook.app.shared.debug.IDebugLogger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow

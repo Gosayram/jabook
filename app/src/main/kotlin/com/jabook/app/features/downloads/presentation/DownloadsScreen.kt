@@ -1,6 +1,6 @@
 @file:OptIn(
   androidx.compose.material3.ExperimentalMaterial3Api::class,
-  androidx.compose.material.ExperimentalMaterialApi::class
+  androidx.compose.material.ExperimentalMaterialApi::class,
 )
 
 package com.jabook.app.features.downloads.presentation
@@ -122,10 +122,11 @@ fun DownloadsScreen(
     snackbarHost = { SnackbarHost(snackbarHostState) },
   ) { paddingValues ->
     Column(
-      modifier = Modifier
-        .fillMaxSize()
-        .padding(horizontal = 20.dp, vertical = getDynamicVerticalPadding())
-        .padding(paddingValues)
+      modifier =
+        Modifier
+          .fillMaxSize()
+          .padding(horizontal = 20.dp, vertical = getDynamicVerticalPadding())
+          .padding(paddingValues),
     ) {
       // Tab Row
       DownloadsTabRow(
@@ -147,17 +148,19 @@ fun DownloadsScreen(
             DownloadsList(
               downloads = uiState.activeDownloads,
               isLoading = uiState.isLoading,
-              emptyState = DownloadsEmptyState(
-                EmptyStateType.EmptyDownloads,
-                stringResource(R.string.no_active_downloads),
-                stringResource(R.string.start_downloading_discovery),
-              ),
-              actions = DownloadsActions(
-                { viewModel.pauseDownload(it) },
-                { viewModel.resumeDownload(it) },
-                { viewModel.cancelDownload(it) },
-                { viewModel.retryDownload(it) }
-              ),
+              emptyState =
+                DownloadsEmptyState(
+                  EmptyStateType.EmptyDownloads,
+                  stringResource(R.string.no_active_downloads),
+                  stringResource(R.string.start_downloading_discovery),
+                ),
+              actions =
+                DownloadsActions(
+                  { viewModel.pauseDownload(it) },
+                  { viewModel.resumeDownload(it) },
+                  { viewModel.cancelDownload(it) },
+                  { viewModel.retryDownload(it) },
+                ),
               modifier = Modifier.fillMaxSize().padding(top = 8.dp),
             )
           }
@@ -165,17 +168,19 @@ fun DownloadsScreen(
             DownloadsList(
               downloads = uiState.completedDownloads,
               isLoading = uiState.isLoading,
-              emptyState = DownloadsEmptyState(
-                EmptyStateType.EmptyDownloads,
-                stringResource(R.string.no_completed_downloads),
-                stringResource(R.string.completed_downloads_appear_here),
-              ),
-              actions = DownloadsActions(
-                { viewModel.pauseDownload(it) },
-                { viewModel.resumeDownload(it) },
-                { viewModel.cancelDownload(it) },
-                { viewModel.retryDownload(it) }
-              ),
+              emptyState =
+                DownloadsEmptyState(
+                  EmptyStateType.EmptyDownloads,
+                  stringResource(R.string.no_completed_downloads),
+                  stringResource(R.string.completed_downloads_appear_here),
+                ),
+              actions =
+                DownloadsActions(
+                  { viewModel.pauseDownload(it) },
+                  { viewModel.resumeDownload(it) },
+                  { viewModel.cancelDownload(it) },
+                  { viewModel.retryDownload(it) },
+                ),
               modifier = Modifier.fillMaxSize().padding(top = 8.dp),
             )
           }
@@ -183,17 +188,19 @@ fun DownloadsScreen(
             DownloadsList(
               downloads = uiState.failedDownloads,
               isLoading = uiState.isLoading,
-              emptyState = DownloadsEmptyState(
-                EmptyStateType.GeneralError,
-                stringResource(R.string.no_failed_downloads),
-                stringResource(R.string.great_no_download_errors),
-              ),
-              actions = DownloadsActions(
-                { viewModel.pauseDownload(it) },
-                { viewModel.resumeDownload(it) },
-                { viewModel.cancelDownload(it) },
-                { viewModel.retryDownload(it) }
-              ),
+              emptyState =
+                DownloadsEmptyState(
+                  EmptyStateType.GeneralError,
+                  stringResource(R.string.no_failed_downloads),
+                  stringResource(R.string.great_no_download_errors),
+                ),
+              actions =
+                DownloadsActions(
+                  { viewModel.pauseDownload(it) },
+                  { viewModel.resumeDownload(it) },
+                  { viewModel.cancelDownload(it) },
+                  { viewModel.retryDownload(it) },
+                ),
               modifier = Modifier.fillMaxSize().padding(top = 8.dp),
             )
           }
@@ -212,11 +219,12 @@ private fun DownloadsTabRow(
   failedCount: Int,
   modifier: Modifier = Modifier,
 ) {
-  val tabs = listOf(
-    DownloadsTab.Active to stringResource(R.string.active_downloads, activeCount),
-    DownloadsTab.Completed to stringResource(R.string.completed_downloads, completedCount),
-    DownloadsTab.Failed to stringResource(R.string.failed_downloads, failedCount),
-  )
+  val tabs =
+    listOf(
+      DownloadsTab.Active to stringResource(R.string.active_downloads, activeCount),
+      DownloadsTab.Completed to stringResource(R.string.completed_downloads, completedCount),
+      DownloadsTab.Failed to stringResource(R.string.failed_downloads, failedCount),
+    )
 
   PrimaryTabRow(selectedTabIndex = selectedTab.ordinal, modifier = modifier) {
     tabs.forEachIndexed { _, (tab, title) ->
@@ -274,25 +282,26 @@ private fun DownloadListItem(
   download: DownloadProgress,
   actions: DownloadsActions,
 ) {
-  val dismissState = rememberDismissState(
-    confirmStateChange = { value ->
-      when (value) {
-        DismissValue.DismissedToEnd -> {
-          if (download.status == TorrentStatus.DOWNLOADING) {
-            actions.onPause(download.torrentId)
-          } else if (download.status == TorrentStatus.PAUSED) {
-            actions.onResume(download.torrentId)
+  val dismissState =
+    rememberDismissState(
+      confirmStateChange = { value ->
+        when (value) {
+          DismissValue.DismissedToEnd -> {
+            if (download.status == TorrentStatus.DOWNLOADING) {
+              actions.onPause(download.torrentId)
+            } else if (download.status == TorrentStatus.PAUSED) {
+              actions.onResume(download.torrentId)
+            }
+            false
           }
-          false
+          DismissValue.DismissedToStart -> {
+            actions.onCancel(download.torrentId)
+            false
+          }
+          else -> false
         }
-        DismissValue.DismissedToStart -> {
-          actions.onCancel(download.torrentId)
-          false
-        }
-        else -> false
-      }
-    },
-  )
+      },
+    )
 
   SwipeToDismiss(
     state = dismissState,
@@ -318,10 +327,11 @@ private fun DownloadListItem(
         }
 
       Box(
-        modifier = Modifier
-          .fillMaxSize()
-          .background(color, RoundedCornerShape(8.dp))
-          .padding(24.dp),
+        modifier =
+          Modifier
+            .fillMaxSize()
+            .background(color, RoundedCornerShape(8.dp))
+            .padding(24.dp),
         contentAlignment = if (direction == DismissDirection.StartToEnd) Alignment.CenterStart else Alignment.CenterEnd,
       ) {
         Icon(imageVector = icon, contentDescription = null, tint = contentTint)
