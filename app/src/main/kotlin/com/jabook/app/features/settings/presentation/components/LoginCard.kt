@@ -24,7 +24,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardOptions as KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardActions
+import androidx.compose.ui.text.input.KeyboardOptions
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
@@ -40,6 +41,7 @@ fun LoginCard(
   modifier: Modifier = Modifier,
 ) {
   var passwordVisible by remember { mutableStateOf(false) }
+  val canSubmit = state.username.isNotBlank() && state.password.isNotBlank() && !state.isLoading
 
   Card(
     modifier = modifier.fillMaxWidth(),
@@ -56,7 +58,6 @@ fun LoginCard(
         color = MaterialTheme.colorScheme.primary,
       )
 
-      // Общая ошибка (например, "Неверный пароль" или "Нет сети")
       state.generalError?.let { error ->
         Text(
           text = error,
@@ -66,13 +67,11 @@ fun LoginCard(
       }
 
       if (state.isAuthorized) {
-        // Logout section
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
           Text(
             text = stringResource(R.string.logged_in_as, state.username),
             style = MaterialTheme.typography.bodyMedium,
           )
-
           Button(
             onClick = onLogout,
             enabled = !state.isLoading,
@@ -89,7 +88,6 @@ fun LoginCard(
           }
         }
       } else {
-        // Login form
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
           OutlinedTextField(
             value = state.username,
@@ -98,7 +96,7 @@ fun LoginCard(
             modifier = Modifier.fillMaxWidth(),
             enabled = !state.isLoading,
             singleLine = true,
-            keyboardOptions = androidx.compose.ui.text.input.KeyboardOptions(imeAction = ImeAction.Next),
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
             isError = state.usernameError != null,
             supportingText = {
               state.usernameError?.let { Text(text = it, color = MaterialTheme.colorScheme.error) }
@@ -124,7 +122,10 @@ fun LoginCard(
             modifier = Modifier.fillMaxWidth(),
             enabled = !state.isLoading,
             singleLine = true,
-            keyboardOptions = androidx.compose.ui.text.input.KeyboardOptions(imeAction = ImeAction.Done),
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(
+              onDone = { if (canSubmit) onLogin() }
+            ),
             isError = state.passwordError != null,
             supportingText = {
               state.passwordError?.let { Text(text = it, color = MaterialTheme.colorScheme.error) }
@@ -133,7 +134,7 @@ fun LoginCard(
 
           Button(
             onClick = onLogin,
-            enabled = state.username.isNotBlank() && state.password.isNotBlank() && !state.isLoading,
+            enabled = canSubmit,
             modifier = Modifier.fillMaxWidth(),
           ) {
             if (state.isLoading) {
