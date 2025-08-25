@@ -18,11 +18,19 @@
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     
+    <!-- Android 13+ notification permission -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    
+    <!-- Android 13+ media permission -->
+    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+    
     <!-- Install packages permission for installing downloaded content -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     
-    <!-- Notification permission for showing media controls -->
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Samsung specific permissions -->
+    <uses-permission android:name="com.samsung.android.app.shealthd.permission.HEALTH_DATA" />
+    <uses-permission android:name="com.samsung.android.app.shealthd.permission.HEALTH_DATA_READ" />
     
     <!-- Vibration permission for haptic feedback -->
     <uses-permission android:name="android.permission.VIBRATE" />
@@ -46,11 +54,23 @@
         android:supportsRtl="true"
         android:theme="@style/AppTheme"
         android:usesCleartextTraffic="true"
+        android:hardwareAccelerated="true"
+        android:largeHeap="true"
         tools:targetApi="31">
+        
+        <!-- Samsung specific metadata -->
+        <meta-data
+            android:name="com.samsung.android.icon_container.has_icon_container"
+            android:value="true" />
+        
+        <!-- Android 13+ notification channel metadata -->
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="ca-app-pub-XXXXXXXXXXXXXXXX~YYYYYYYYYY" />
         
         <!-- Main Activity -->
         <activity
-            android:name=".presentation.MainActivity"
+            android:name=".MainActivity"
             android:exported="true"
             android:launchMode="singleTop"
             android:screenOrientation="portrait"
@@ -80,7 +100,7 @@
         
         <!-- Player Activity -->
         <activity
-            android:name=".presentation.player.PlayerActivity"
+            android:name=".features.player.PlayerActivity"
             android:exported="false"
             android:launchMode="singleTop"
             android:screenOrientation="portrait"
@@ -88,15 +108,7 @@
         
         <!-- Settings Activity -->
         <activity
-            android:name=".presentation.settings.SettingsActivity"
-            android:exported="false"
-            android:launchMode="singleTop"
-            android:screenOrientation="portrait"
-            android:theme="@style/AppTheme" />
-        
-        <!-- RuTracker Settings Activity -->
-        <activity
-            android:name=".presentation.rutracker.RuTrackerSettingsActivity"
+            android:name=".features.settings.RuTrackerSettingsScreen"
             android:exported="false"
             android:launchMode="singleTop"
             android:screenOrientation="portrait"
@@ -104,7 +116,7 @@
         
         <!-- Domain Management Activity -->
         <activity
-            android:name=".presentation.rutracker.RuTrackerDomainManagementActivity"
+            android:name=".presentation.ui.RuTrackerDomainManagementScreen"
             android:exported="false"
             android:launchMode="singleTop"
             android:screenOrientation="portrait"
@@ -112,7 +124,7 @@
         
         <!-- Cache Management Activity -->
         <activity
-            android:name=".presentation.cache.CacheManagementActivity"
+            android:name=".presentation.ui.RuTrackerCacheManagementScreen"
             android:exported="false"
             android:launchMode="singleTop"
             android:screenOrientation="portrait"
@@ -120,23 +132,7 @@
         
         <!-- Offline Management Activity -->
         <activity
-            android:name=".presentation.offline.OfflineManagementActivity"
-            android:exported="false"
-            android:launchMode="singleTop"
-            android:screenOrientation="portrait"
-            android:theme="@style/AppTheme" />
-        
-        <!-- Monitor Activity -->
-        <activity
-            android:name=".presentation.monitor.MonitorActivity"
-            android:exported="false"
-            android:launchMode="singleTop"
-            android:screenOrientation="portrait"
-            android:theme="@style/AppTheme" />
-        
-        <!-- Debug Activity -->
-        <activity
-            android:name=".presentation.debug.DebugActivity"
+            android:name=".presentation.ui.RuTrackerOfflineManagementScreen"
             android:exported="false"
             android:launchMode="singleTop"
             android:screenOrientation="portrait"
@@ -144,7 +140,7 @@
         
         <!-- Media Playback Service -->
         <service
-            android:name=".core.player.MediaPlaybackService"
+            android:name=".features.player.PlayerService"
             android:exported="false"
             android:foregroundServiceType="mediaPlayback">
             <intent-filter>
@@ -154,65 +150,22 @@
         
         <!-- Download Service -->
         <service
-            android:name=".core.download.DownloadService"
+            android:name=".features.downloads.DownloadsService"
             android:exported="false"
             android:foregroundServiceType="dataSync" />
         
-        <!-- Cache Service -->
-        <service
-            android:name=".core.cache.CacheService"
-            android:exported="false" />
-        
-        <!-- Monitor Service -->
-        <service
-            android:name=".core.monitor.MonitorService"
-            android:exported="false" />
-        
-        <!-- Widget Provider -->
-        <receiver
-            android:name=".presentation.widget.JaBookWidgetProvider"
-            android:exported="false">
-            <intent-filter>
-                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-            </intent-filter>
-            <meta-data
-                android:name="android.appwidget.provider"
-                android:resource="@xml/jabook_widget_info" />
-        </receiver>
-        
         <!-- Media Button Receiver -->
         <receiver
-            android:name=".core.player.MediaButtonReceiver"
+            android:name=".features.player.MediaButtonReceiver"
             android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.MEDIA_BUTTON" />
             </intent-filter>
         </receiver>
         
-        <!-- Boot Receiver for starting services on device boot -->
-        <receiver
-            android:name=".core.receiver.BootReceiver"
-            android:enabled="true"
-            android:exported="false">
-            <intent-filter>
-                <action android:name="android.intent.action.BOOT_COMPLETED" />
-                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
-            </intent-filter>
-        </receiver>
-        
-        <!-- Network Change Receiver -->
-        <receiver
-            android:name=".core.receiver.NetworkChangeReceiver"
-            android:enabled="true"
-            android:exported="false">
-            <intent-filter>
-                <action android:name="android.net.conn.CONNECTIVITY_CHANGE" />
-            </intent-filter>
-        </receiver>
-        
         <!-- Provider for database -->
         <provider
-            android:name=".core.database.JaBookProvider"
+            android:name=".core.database.JaBookDatabase"
             android:authorities="${applicationId}.provider"
             android:exported="false"
             android:grantUriPermissions="true" />

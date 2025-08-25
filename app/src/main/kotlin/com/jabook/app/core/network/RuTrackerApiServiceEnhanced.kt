@@ -451,7 +451,7 @@ class RuTrackerApiServiceEnhanced
             .addDefaultHeaders()
             .build()
         httpClient.newCall(request).execute().use { response ->
-          val body = response.body?.string().orEmpty()
+          val body = response.body.string().orEmpty()
           if (!response.isSuccessful) return Result.failure(NetworkException("HTTP ${response.code}: ${response.message}"))
           val results =
             try {
@@ -482,7 +482,7 @@ class RuTrackerApiServiceEnhanced
             .addDefaultHeaders()
             .build()
         httpClient.newCall(request).execute().use { response ->
-          val body = response.body?.string().orEmpty()
+          val body = response.body.string().orEmpty()
           if (!response.isSuccessful) return Result.failure(NetworkException("HTTP ${response.code}: ${response.message}"))
 
           // Fallback-парсинг без прямого вызова несуществующего метода парсера
@@ -517,7 +517,7 @@ class RuTrackerApiServiceEnhanced
             .addDefaultHeaders()
             .build()
         httpClient.newCall(request).execute().use { response ->
-          val body = response.body?.string().orEmpty()
+          val body = response.body.string().orEmpty()
           if (!response.isSuccessful) return Result.failure(NetworkException("HTTP ${response.code}: ${response.message}"))
           val categories =
             try {
@@ -547,7 +547,7 @@ class RuTrackerApiServiceEnhanced
             .addDefaultHeaders()
             .build()
         httpClient.newCall(request).execute().use { response ->
-          val body = response.body?.string().orEmpty()
+          val body = response.body.string().orEmpty()
           if (!response.isSuccessful) return Result.failure(NetworkException("HTTP ${response.code}: ${response.message}"))
 
           // Только fallback из HTML, без вызова parser.parseMagnetLink (которого может не быть)
@@ -585,7 +585,7 @@ class RuTrackerApiServiceEnhanced
             .addDefaultHeaders()
             .build()
         httpClient.newCall(loginPageRequest).execute().use { loginPageResponse ->
-          val loginPageBody = loginPageResponse.body?.string().orEmpty()
+          val loginPageBody = loginPageResponse.body.string().orEmpty()
           if (!loginPageResponse.isSuccessful) return Result.failure(NetworkException("Failed to get login page"))
 
           val csrfToken = extractCsrfToken(loginPageBody) ?: return Result.failure(ParseException("CSRF token not found"))
@@ -637,7 +637,7 @@ class RuTrackerApiServiceEnhanced
             .build()
         httpClient.newCall(request).execute().use { response ->
           if (!response.isSuccessful) return Result.failure(NetworkException("HTTP ${response.code}: ${response.message}"))
-          response.body?.byteStream()?.use { inputStream ->
+          response.body.byteStream().use { inputStream ->
             outputFile.outputStream().use { outputStream -> inputStream.copyTo(outputStream) }
           }
           Result.success(true)
@@ -797,18 +797,15 @@ class RuTrackerApiServiceEnhanced
       categoryId: Int? = null,
       page: Int = 0,
       forceRefresh: Boolean = false,
-      timeout: Long = DEFAULT_TIMEOUT,
     ): Result<List<RuTrackerAudiobook>> =
       withContext(Dispatchers.IO) {
         val start = System.currentTimeMillis()
         val op = "search"
         try {
           val key = CacheKey("search", "search_${query}_${categoryId}_$page", 1)
-          var cacheHit = false
           if (!forceRefresh) {
             val cached = cacheManager.get(key) { json -> Json.decodeFromString<List<RuTrackerAudiobook>>(json) }
             if (cached.isSuccess) {
-              cacheHit = true
               val rt = System.currentTimeMillis() - start
               updateOperationMetrics(op, true, rt, cacheHit = true)
               return@withContext cached
@@ -816,7 +813,7 @@ class RuTrackerApiServiceEnhanced
           }
           val res = searchAudiobooks(query, categoryId, page, forceRefresh)
           val rt = System.currentTimeMillis() - start
-          updateOperationMetrics(op, res.isSuccess, rt, cacheHit = cacheHit)
+          updateOperationMetrics(op, res.isSuccess, rt, cacheHit = false)
           res
         } catch (e: Exception) {
           val rt = System.currentTimeMillis() - start
@@ -830,18 +827,15 @@ class RuTrackerApiServiceEnhanced
     suspend fun getAudiobookDetailsEnhanced(
       topicId: String,
       forceRefresh: Boolean = false,
-      timeout: Long = DEFAULT_TIMEOUT,
     ): Result<RuTrackerTorrentDetails> =
       withContext(Dispatchers.IO) {
         val start = System.currentTimeMillis()
         val op = "details"
         try {
           val key = CacheKey("details", "details_$topicId", 1)
-          var cacheHit = false
           if (!forceRefresh) {
             val cached = cacheManager.get(key) { json -> Json.decodeFromString<RuTrackerTorrentDetails>(json) }
             if (cached.isSuccess) {
-              cacheHit = true
               val rt = System.currentTimeMillis() - start
               updateOperationMetrics(op, true, rt, cacheHit = true)
               return@withContext cached
@@ -849,7 +843,7 @@ class RuTrackerApiServiceEnhanced
           }
           val res = getAudiobookDetails(topicId, forceRefresh)
           val rt = System.currentTimeMillis() - start
-          updateOperationMetrics(op, res.isSuccess, rt, cacheHit = cacheHit)
+          updateOperationMetrics(op, res.isSuccess, rt, cacheHit = false)
           res
         } catch (e: Exception) {
           val rt = System.currentTimeMillis() - start

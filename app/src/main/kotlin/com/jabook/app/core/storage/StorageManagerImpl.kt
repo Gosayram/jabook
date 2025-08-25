@@ -101,12 +101,8 @@ class StorageManagerImpl
 
           when (FileUtils.getFileExtension(archivePath)) {
             "zip" -> extractZipFile(archiveFile, destination, audioFiles)
-            "rar" -> {
-              DebugLogger.logWarning("RAR extraction is not supported", "StorageManager")
-            }
-            "7z" -> {
-              DebugLogger.logWarning("7z extraction is not supported", "StorageManager")
-            }
+            "rar" -> extractRarFile()
+            "7z" -> extract7zFile()
             else -> {
               DebugLogger.logWarning("Unsupported archive format: $archivePath", "StorageManager")
             }
@@ -188,7 +184,7 @@ class StorageManagerImpl
       withContext(Dispatchers.IO) {
         return@withContext try {
           val totalSpace = baseDirectory.totalSpace
-          val usableSpace = baseDirectory.usableSpace
+          // val usableSpace = baseDirectory.usableSpace
           val freeSpace = baseDirectory.freeSpace
 
           val audiobooksSize = calculateDirectorySize(getAudiobooksDirectory())
@@ -339,19 +335,11 @@ class StorageManagerImpl
       }
     }
 
-    private fun extractRarFile(
-      archiveFile: File,
-      destination: File,
-      audioFiles: MutableList<AudioFile>,
-    ) {
+    private fun extractRarFile() {
       DebugLogger.logWarning("RAR extraction is not supported", "StorageManager")
     }
 
-    private fun extract7zFile(
-      archiveFile: File,
-      destination: File,
-      audioFiles: MutableList<AudioFile>,
-    ) {
+    private fun extract7zFile() {
       DebugLogger.logWarning("7z extraction is not supported", "StorageManager")
     }
 

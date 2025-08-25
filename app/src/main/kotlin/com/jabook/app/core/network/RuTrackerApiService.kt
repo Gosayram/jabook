@@ -71,7 +71,7 @@ class RuTrackerApiService
           debugLogger.logDebug("RuTrackerApiService: Request URL: ${request.url}")
           val response = httpClient.newCall(request).execute()
           val responseCode = response.code
-          val responseBody = response.body?.string() ?: ""
+          val responseBody = response.body.string()
 
           debugLogger.logDebug("RuTrackerApiService: HTTP Response Code: $responseCode")
           debugLogger.logDebug("RuTrackerApiService: Response Body Length: ${responseBody.length}")
@@ -126,7 +126,7 @@ class RuTrackerApiService
 
           val response = httpClient.newCall(request).execute()
           val responseCode = response.code
-          val responseBody = response.body?.string() ?: ""
+          val responseBody = response.body.string()
 
           debugLogger.logDebug("RuTrackerApiService: Details HTTP Response Code: $responseCode")
           debugLogger.logDebug("RuTrackerApiService: Details Response Body Length: ${responseBody.length}")
@@ -172,7 +172,7 @@ class RuTrackerApiService
 
           val response = httpClient.newCall(request).execute()
           val responseCode = response.code
-          val responseBody = response.body?.string() ?: ""
+          val responseBody = response.body.string()
 
           debugLogger.logDebug("RuTrackerApiService: Categories HTTP Response Code: $responseCode")
 
@@ -250,7 +250,7 @@ class RuTrackerApiService
         val url = urlBuilder.toString()
         val request = Request.Builder().url(url).build()
         val response = httpClient.newCall(request).execute()
-        val responseBody = response.body?.string() ?: ""
+        val responseBody = response.body.string()
         Result.success(responseBody)
       } catch (e: Exception) {
         Result.failure(e)
@@ -261,7 +261,7 @@ class RuTrackerApiService
         val url = "$CATEGORIES_URL?c=33"
         val request = Request.Builder().url(url).build()
         val response = httpClient.newCall(request).execute()
-        val responseBody = response.body?.string() ?: ""
+        val responseBody = response.body.string()
         Result.success(responseBody)
       } catch (e: Exception) {
         Result.failure(e)
@@ -272,7 +272,7 @@ class RuTrackerApiService
         val url = "$TOPIC_URL?t=$topicId"
         val request = Request.Builder().url(url).build()
         val response = httpClient.newCall(request).execute()
-        val responseBody = response.body?.string() ?: ""
+        val responseBody = response.body.string()
         Result.success(responseBody)
       } catch (e: Exception) {
         Result.failure(e)
@@ -280,10 +280,10 @@ class RuTrackerApiService
 
     suspend fun getTopAudiobooksGuest(limit: Int): Result<String> =
       try {
-        val url = "$BASE_URL/forum/viewforum.php?f=313&sk=t&sd=d"
+        val url = "$BASE_URL/forum/viewforum.php?f=313&sk=t&sd=d&limit=$limit"
         val request = Request.Builder().url(url).build()
         val response = httpClient.newCall(request).execute()
-        val responseBody = response.body?.string() ?: ""
+        val responseBody = response.body.string()
         Result.success(responseBody)
       } catch (e: Exception) {
         Result.failure(e)
@@ -291,10 +291,10 @@ class RuTrackerApiService
 
     suspend fun getNewAudiobooksGuest(limit: Int): Result<String> =
       try {
-        val url = "$BASE_URL/forum/viewforum.php?f=313"
+        val url = "$BASE_URL/forum/viewforum.php?f=313&limit=$limit"
         val request = Request.Builder().url(url).build()
         val response = httpClient.newCall(request).execute()
-        val responseBody = response.body?.string() ?: ""
+        val responseBody = response.body.string()
         Result.success(responseBody)
       } catch (e: Exception) {
         Result.failure(e)
@@ -317,7 +317,7 @@ class RuTrackerApiService
             .build()
 
         val loginPageResponse = httpClient.newCall(loginPageRequest).execute()
-        val loginPageBody = loginPageResponse.body?.string() ?: ""
+        val loginPageBody = loginPageResponse.body.string()
 
         if (loginPageResponse.code != 200) {
           debugLogger.logError("RuTrackerApiService: Failed to get login page, code: ${loginPageResponse.code}")
@@ -362,7 +362,7 @@ class RuTrackerApiService
             .build()
 
         val loginResponse = httpClient.newCall(loginRequest).execute()
-        val loginResponseBody = loginResponse.body?.string() ?: ""
+        val loginResponseBody = loginResponse.body.string()
 
         debugLogger.logDebug("RuTrackerApiService: Login response code: ${loginResponse.code}")
         debugLogger.logDebug("RuTrackerApiService: Login response headers: ${loginResponse.headers}")
@@ -482,10 +482,15 @@ class RuTrackerApiService
     ): Result<String> =
       try {
         val encodedQuery = URLEncoder.encode(query, "UTF-8")
-        val url = "$SEARCH_URL?nm=$encodedQuery&o=$sort&s=$order"
+        val urlBuilder = StringBuilder("$SEARCH_URL?nm=$encodedQuery&o=$sort&s=$order")
+        if (page > 1) {
+          val start = (page - 1) * 50
+          urlBuilder.append("&start=").append(start)
+        }
+        val url = urlBuilder.toString()
         val request = Request.Builder().url(url).build()
         val response = httpClient.newCall(request).execute()
-        val responseBody = response.body?.string() ?: ""
+        val responseBody = response.body.string()
         Result.success(responseBody)
       } catch (e: Exception) {
         Result.failure(e)
@@ -496,7 +501,7 @@ class RuTrackerApiService
         val url = "$BASE_URL/forum/dl.php?t=$topicId"
         val request = Request.Builder().url(url).build()
         val response = httpClient.newCall(request).execute()
-        val inputStream = response.body?.byteStream()
+        val inputStream = response.body.byteStream()
         Result.success(inputStream)
       } catch (e: Exception) {
         Result.failure(e)
@@ -507,7 +512,7 @@ class RuTrackerApiService
         val url = "$TOPIC_URL?t=$topicId"
         val request = Request.Builder().url(url).build()
         val response = httpClient.newCall(request).execute()
-        val responseBody = response.body?.string() ?: ""
+        val responseBody = response.body.string()
         Result.success(responseBody)
       } catch (e: Exception) {
         Result.failure(e)
@@ -518,7 +523,7 @@ class RuTrackerApiService
         val url = "$TOPIC_URL?t=$topicId"
         val request = Request.Builder().url(url).build()
         val response = httpClient.newCall(request).execute()
-        val responseBody = response.body?.string() ?: ""
+        val responseBody = response.body.string()
         val magnetLink = parser.extractMagnetLink(responseBody)
         Result.success(magnetLink)
       } catch (e: Exception) {

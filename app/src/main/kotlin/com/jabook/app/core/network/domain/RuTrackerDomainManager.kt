@@ -202,8 +202,8 @@ class RuTrackerDomainManager
     ) {
       return withContext(Dispatchers.IO) {
         val startTime = System.currentTimeMillis()
-        var isAvailable = false
-        var responseTime = 0L
+        var isAvailable: Boolean
+        var responseTime: Long
         var error: Exception? = null
 
         try {
@@ -242,7 +242,7 @@ class RuTrackerDomainManager
           } else {
             val exception = RuTrackerException.ServiceUnavailableException("Domain $domain returned HTTP ${response.code}")
             circuitBreaker.recordFailure(exception)
-            handleDomainFailure(domain, exception)
+            handleDomainFailure(domain)
             debugLogger.logWarning("RuTrackerDomainManager: Domain $domain is unhealthy (HTTP ${response.code})")
           }
         } catch (e: Exception) {
@@ -252,7 +252,7 @@ class RuTrackerDomainManager
 
           val circuitBreaker = circuitBreakers[domain]
           circuitBreaker?.recordFailure(e)
-          handleDomainFailure(domain, e)
+          handleDomainFailure(domain)
           debugLogger.logError("RuTrackerDomainManager: Health check failed for $domain", e)
         }
 
@@ -260,7 +260,6 @@ class RuTrackerDomainManager
           domain = domain,
           isAvailable = isAvailable,
           responseTime = responseTime,
-          error = error,
         )
       }
     }
@@ -270,7 +269,6 @@ class RuTrackerDomainManager
      */
     private suspend fun handleDomainFailure(
       domain: String,
-      error: Exception,
     ) {
       val failureCount = (failureCounts[domain]?.get() ?: 0) + 1
       failureCounts[domain]?.set(failureCount)
@@ -288,7 +286,6 @@ class RuTrackerDomainManager
       domain: String,
       isAvailable: Boolean,
       responseTime: Long,
-      error: Exception? = null,
     ) {
       mutex.withLock {
         val circuitBreaker = circuitBreakers[domain]
@@ -330,7 +327,7 @@ class RuTrackerDomainManager
 
         // Try to find next available domain
         attemptDomainSwitch()
-        return _currentDomain.value
+        _currentDomain.value
       }
     }
 
@@ -607,7 +604,6 @@ class RuTrackerDomainManager
       domain: String,
       success: Boolean,
       responseTime: Long,
-      error: Exception? = null,
     ) {
       mutex.withLock {
         val metrics = performanceMetrics[domain] ?: DomainPerformanceMetrics()
