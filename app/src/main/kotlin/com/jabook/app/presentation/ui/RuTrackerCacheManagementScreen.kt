@@ -46,7 +46,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -387,6 +389,7 @@ fun RuTrackerCacheManagementScreen(
   var selectedKey by remember { mutableStateOf<String>("") }
   var debugKey by remember { mutableStateOf<String>("") }
   var debugValue by remember { mutableStateOf<String>("") }
+  val coroutineScope = rememberCoroutineScope()
 
   LaunchedEffect(uiState.selectedNamespace) {
     viewModel.loadCacheKeys()
@@ -621,7 +624,7 @@ fun RuTrackerCacheManagementScreen(
           ) {
             Button(
               onClick = {
-                kotlinx.coroutines.launch(viewModelScope.coroutineContext) {
+                coroutineScope.launch {
                   viewModel.putTestData(debugKey, debugValue)
                   debugKey = ""
                   debugValue = ""
@@ -634,7 +637,7 @@ fun RuTrackerCacheManagementScreen(
 
             OutlinedButton(
               onClick = {
-                kotlinx.coroutines.launch(viewModelScope.coroutineContext) {
+                coroutineScope.launch {
                   viewModel.getCacheEntryDebug(debugKey)?.let { value ->
                     debugValue = value
                   }

@@ -38,7 +38,7 @@ abstract class JaBookDatabase : RoomDatabase() {
           val instance =
             Room
               .databaseBuilder(context.applicationContext, JaBookDatabase::class.java, DATABASE_NAME)
-              .fallbackToDestructiveMigration()
+              .fallbackToDestructiveMigration(true)
               .build()
 
           INSTANCE = instance

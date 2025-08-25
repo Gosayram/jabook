@@ -337,4 +337,10 @@
     <string name="write_test_log_failed">Не удалось добавить тестовую запись</string>
     <string name="write_test_log_entry">Добавить тестовую запись</string>
 
+    <!-- Widget Strings -->
+    <string name="widget_subtitle_placeholder">Нет информации</string>
+    <string name="cd_prev">Предыдущий трек</string>
+    <string name="cd_play_pause">Воспроизведение/Пауза</string>
+    <string name="cd_next">Следующий трек</string>
+
 </resources>

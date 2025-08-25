@@ -439,8 +439,8 @@ class RuTrackerParserEnhanced @Inject constructor(
     try {
       val matcher = SIZE_PATTERN.matcher(sizeText)
       if (matcher.find()) {
-        val size = matcher.group(1).toDouble()
-        val unit = matcher.group(2).uppercase(Locale.ROOT)
+        val size = matcher.group(1)?.toDouble() ?: 0.0
+        val unit = matcher.group(2)?.uppercase(Locale.ROOT) ?: ""
         return when (unit) {
           "KB" -> (size * 1024).toLong()
           "MB" -> (size * 1024 * 1024).toLong()

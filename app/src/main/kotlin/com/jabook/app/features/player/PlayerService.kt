@@ -14,7 +14,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
-import androidx.media3.session.MediaStyleCompat
+import androidx.media3.session.MediaStyleNotificationHelper
 import com.jabook.app.R
 import com.jabook.app.core.domain.model.Audiobook
 import com.jabook.app.shared.debug.IDebugLogger
@@ -28,11 +28,11 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import javax.inject.Inject
 
-/** Foreground service for background audio playbook Handles MediaSession and playback notifications */
+/** Foreground service for background audio playback. Handles MediaSession and playback notifications. */
 @AndroidEntryPoint
 class PlayerService : MediaSessionService() {
-  @Inject lateinit var playerManager: PlayerManager
 
+  @Inject lateinit var playerManager: PlayerManager
   @Inject lateinit var debugLogger: IDebugLogger
 
   private var mediaSession: MediaSession? = null
@@ -59,11 +59,10 @@ class PlayerService : MediaSessionService() {
     const val EXTRA_AUDIOBOOK = "audiobook"
 
     /** Start player service with audiobook */
-    fun startService(
-      context: Context,
-      audiobook: Audiobook,
-    ) {
-      val intent = Intent(context, PlayerService::class.java).apply { putExtra(EXTRA_AUDIOBOOK, audiobook) }
+    fun startService(context: Context, audiobook: Audiobook) {
+      val intent = Intent(context, PlayerService::class.java).apply {
+        putExtra(EXTRA_AUDIOBOOK, audiobook)
+      }
       ContextCompat.startForegroundService(context, intent)
     }
 
@@ -84,11 +83,7 @@ class PlayerService : MediaSessionService() {
     observePlaybackState()
   }
 
-  override fun onStartCommand(
-    intent: Intent?,
-    flags: Int,
-    startId: Int,
-  ): Int {
+  override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
     debugLogger.logDebug("PlayerService.onStartCommand: ${intent?.action}")
 
     when (intent?.action) {
@@ -100,15 +95,15 @@ class PlayerService : MediaSessionService() {
       }
       ACTION_NEXT -> playerManager.nextChapter()
       ACTION_PREVIOUS -> playerManager.previousChapter()
-      ACTION_SEEK_FORWARD -> playerManager.seekTo(playerManager.getCurrentPosition() + 30000)
-      ACTION_SEEK_BACKWARD -> playerManager.seekTo(playerManager.getCurrentPosition() - 15000)
+      ACTION_SEEK_FORWARD -> playerManager.seekTo(playerManager.getCurrentPosition() + 30_000)
+      ACTION_SEEK_BACKWARD -> playerManager.seekTo(playerManager.getCurrentPosition() - 15_000)
       else -> {
-        // Handle initial service start with audiobook
+        // Initial start with audiobook
         val audiobook =
           if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             intent?.getParcelableExtra(EXTRA_AUDIOBOOK, Audiobook::class.java)
           } else {
-            // For Android 6.0-12 we use the old API without @Suppress
+            @Suppress("DEPRECATION")
             intent?.getParcelableExtra(EXTRA_AUDIOBOOK)
           }
         audiobook?.let { initializePlayer(it) }
@@ -124,12 +119,10 @@ class PlayerService : MediaSessionService() {
 
   override fun onDestroy() {
     debugLogger.logInfo("PlayerService.onDestroy")
-
     playbackStateJob?.cancel()
     serviceScope.cancel()
     mediaSession?.release()
     mediaSession = null
-
     super.onDestroy()
   }
 
@@ -148,37 +141,36 @@ class PlayerService : MediaSessionService() {
   /** Initialize player with audiobook */
   private fun initializePlayer(audiobook: Audiobook) {
     debugLogger.logInfo("PlayerService.initializePlayer: ${audiobook.title}")
-
     currentAudiobook = audiobook
     playerManager.initializePlayer(audiobook)
-
-    // Update notification with audiobook info
     updateNotification()
   }
 
   /** Observe playback state changes */
   private fun observePlaybackState() {
     playbackStateJob =
-      playerManager
-        .getPlaybackState()
-        .onEach { playbackState ->
-          debugLogger.logDebug("PlayerService received playback state: ${playbackState.isPlaying}")
-          currentPlaybackState = playbackState
+      playerManager.getPlaybackState()
+        .onEach { state ->
+          debugLogger.logDebug("PlayerService received playback state: ${state.isPlaying}")
+          currentPlaybackState = state
           updateNotification()
-        }.launchIn(serviceScope)
+        }
+        .launchIn(serviceScope)
   }
 
   /** Create notification channel for Android O+ */
   private fun createNotificationChannel() {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-      val channel =
-        NotificationChannel(CHANNEL_ID, CHANNEL_NAME, NotificationManager.IMPORTANCE_LOW).apply {
-          description = "JaBook audio player notifications"
-          setShowBadge(false)
-        }
-
-      val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-      notificationManager.createNotificationChannel(channel)
+      val channel = NotificationChannel(
+        CHANNEL_ID,
+        CHANNEL_NAME,
+        NotificationManager.IMPORTANCE_LOW
+      ).apply {
+        description = "JaBook audio player notifications"
+        setShowBadge(false)
+      }
+      val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+      nm.createNotificationChannel(channel)
     }
   }
 
@@ -191,8 +183,8 @@ class PlayerService : MediaSessionService() {
   /** Update notification with current playback state */
   private fun updateNotification() {
     val notification = createNotification()
-    val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-    notificationManager.notify(NOTIFICATION_ID, notification)
+    val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+    nm.notify(NOTIFICATION_ID, notification)
   }
 
   /** Create notification for playback controls */
@@ -200,21 +192,18 @@ class PlayerService : MediaSessionService() {
     val audiobook = currentAudiobook
     val playbackState = currentPlaybackState
 
-    // Create notification actions
+    // Actions
     val playPauseAction =
       if (playbackState.isPlaying) {
         createNotificationAction(R.drawable.ic_pause_24, "Pause", ACTION_PAUSE)
       } else {
         createNotificationAction(R.drawable.ic_play_arrow_24, "Play", ACTION_PLAY)
       }
-
     val previousAction = createNotificationAction(R.drawable.ic_skip_previous_24, "Previous", ACTION_PREVIOUS)
-
     val nextAction = createNotificationAction(R.drawable.ic_skip_next_24, "Next", ACTION_NEXT)
 
-    // Build notification
-    return NotificationCompat
-      .Builder(this, CHANNEL_ID)
+    // Build
+    val builder = NotificationCompat.Builder(this, CHANNEL_ID)
       .setContentTitle(audiobook?.title ?: "JaBook")
       .setContentText(audiobook?.author ?: "No audiobook loaded")
       .setSmallIcon(R.drawable.ic_headphones_24)
@@ -222,32 +211,44 @@ class PlayerService : MediaSessionService() {
       .addAction(previousAction)
       .addAction(playPauseAction)
       .addAction(nextAction)
-      .setStyle(
-        androidx.media3.session.MediaStyleCompat.Builder().setShowActionsInCompactView(0, 1, 2).build(),
-      ).setContentIntent(createContentIntent())
+      .setCategory(NotificationCompat.CATEGORY_TRANSPORT)
+      .setContentIntent(createContentIntent())
       .setDeleteIntent(createDeleteIntent())
       .setOngoing(playbackState.isPlaying)
       .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-      .build()
+
+    // Use Media3 helper style with our MediaSession
+    mediaSession?.let { session ->
+      builder.setStyle(
+        MediaStyleNotificationHelper.MediaStyle(session)
+          .setShowActionsInCompactView(0, 1, 2)
+      )
+    }
+
+    return builder.build()
   }
 
   /** Create notification action */
-  private fun createNotificationAction(
-    iconRes: Int,
-    title: String,
-    action: String,
-  ): NotificationCompat.Action {
+  private fun createNotificationAction(iconRes: Int, title: String, action: String): NotificationCompat.Action {
     val intent = Intent(this, PlayerService::class.java).apply { this.action = action }
-    val pendingIntent =
-      PendingIntent.getService(this, action.hashCode(), intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-
+    val pendingIntent = PendingIntent.getService(
+      this,
+      action.hashCode(),
+      intent,
+      PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+    )
     return NotificationCompat.Action.Builder(iconRes, title, pendingIntent).build()
   }
 
   /** Create content intent to open the app */
   private fun createContentIntent(): PendingIntent {
     val intent = packageManager.getLaunchIntentForPackage(packageName)
-    return PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+    return PendingIntent.getActivity(
+      this,
+      0,
+      intent,
+      PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+    )
   }
 
   /** Create delete intent to stop the service */
@@ -257,7 +258,7 @@ class PlayerService : MediaSessionService() {
       this,
       ACTION_STOP.hashCode(),
       intent,
-      PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+      PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
     )
   }
 

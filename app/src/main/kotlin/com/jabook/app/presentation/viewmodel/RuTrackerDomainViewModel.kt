@@ -294,7 +294,9 @@ class RuTrackerDomainViewModel
     fun getDomainStatistics(): Map<String, Map<String, Any>> =
       runBlocking {
         try {
-          domainManager.getDomainStatistics().mapValues { it.value.mapValues { innerValue -> innerValue.value } }
+          domainManager.getDomainStatistics().mapValues { entry ->
+            entry.value.mapValues { valueEntry -> valueEntry.value ?: "" }
+          }
         } catch (e: Exception) {
           debugLogger.logError("RuTrackerDomainViewModel: Error getting domain statistics", e)
           emptyMap()
