@@ -304,19 +304,19 @@
     <string name="rutracker_enter_credentials">Введите данные RuTracker</string>
     <string name="rutracker_auth_success">Успешная авторизация RuTracker</string>
     <string name="rutracker_invalid_credentials">Неверные данные RuTracker</string>
-    <string name="rutracker_auth_error">Ошибка авторизации RuTracker</string>
+    <string name="rutracker_auth_error">Ошибка авторизации RuTracker: %s</string>
     <string name="rutracker_logout_success">Выход из RuTracker выполнен</string>
     <string name="rutracker_switched_to_guest">Переключен в гостевой режим</string>
     <string name="rutracker_switched_to_auth">Переключен в авторизованный режим</string>
     <string name="rutracker_available">RuTracker доступен</string>
     <string name="rutracker_not_available">RuTracker недоступен</string>
-    <string name="rutracker_availability_check_failed">Не удалось проверить доступность RuTracker</string>
-    <string name="rutracker_availability_error">Ошибка проверки доступности RuTracker</string>
+    <string name="rutracker_availability_check_failed">Не удалось проверить доступность RuTracker: %s</string>
+    <string name="rutracker_availability_error">Ошибка проверки доступности RuTracker: %s</string>
     <string name="rutracker_check_availability">Проверить доступность</string>
 
     <!-- Settings Components -->
     <string name="export_logs_success">Логи успешно экспортированы</string>
-    <string name="export_logs_failed">Не удалось экспортировать логи</string>
+    <string name="export_logs_failed">Не удалось экспортировать логи: %s</string>
     <string name="log_file_not_found">Файл логов не найден</string>
     <string name="export_debug_logs">Экспортировать отладочные логи</string>
     <string name="logged_in">Авторизован</string>
@@ -331,10 +331,10 @@
     <string name="log_folder_saf">Папка для логов (SAF)</string>
     <string name="log_file_will_appear">Файл логов появится здесь</string>
     <string name="log_file_path">Путь к файлу логов</string>
-    <string name="log_folder_selected">Папка выбрана</string>
+    <string name="log_folder_selected">Папка выбрана: %s</string>
     <string name="select_log_folder">Выбрать папку</string>
     <string name="test_log_written">Тестовая запись добавлена</string>
-    <string name="write_test_log_failed">Не удалось добавить тестовую запись</string>
+    <string name="write_test_log_failed">Не удалось добавить тестовую запись: %s</string>
     <string name="write_test_log_entry">Добавить тестовую запись</string>
 
     <!-- Widget Strings -->

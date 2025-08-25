@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
@@ -44,7 +45,7 @@
             android:layout_height="40dp"
             android:background="@android:color/transparent"
             android:src="@drawable/ic_skip_previous_24"
-            android:tint="@color/jb_cream"
+            app:tint="@color/jb_cream"
             android:contentDescription="@string/cd_prev" />
 
         <ImageButton
@@ -53,7 +54,7 @@
             android:layout_height="48dp"
             android:background="@android:color/transparent"
             android:src="@drawable/ic_play_arrow_24"
-            android:tint="@color/jb_amber"
+            app:tint="@color/jb_amber"
             android:layout_marginStart="12dp"
             android:layout_marginEnd="12dp"
             android:contentDescription="@string/cd_play_pause" />
@@ -64,7 +65,7 @@
             android:layout_height="40dp"
             android:background="@android:color/transparent"
             android:src="@drawable/ic_skip_next_24"
-            android:tint="@color/jb_cream"
+            app:tint="@color/jb_cream"
             android:contentDescription="@string/cd_next" />
 
     </LinearLayout>

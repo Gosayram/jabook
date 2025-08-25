@@ -1,6 +1,5 @@
 @file:OptIn(
   androidx.compose.material3.ExperimentalMaterial3Api::class,
-  androidx.compose.material.ExperimentalMaterialApi::class,
 )
 
 package com.jabook.app.features.downloads.presentation
@@ -18,16 +17,16 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.DismissDirection
-import androidx.compose.material.DismissValue
-import androidx.compose.material.ExperimentalMaterialApi
-import androidx.compose.material.SwipeToDismiss
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.filled.Pause
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.rememberDismissState
+import androidx.compose.material3.DismissDirection
+import androidx.compose.material3.DismissValue
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.SwipeToDismiss
+import androidx.compose.material3.icons.Icons
+import androidx.compose.material3.icons.filled.Clear
+import androidx.compose.material3.icons.filled.Pause
+import androidx.compose.material3.icons.filled.PlayArrow
+import androidx.compose.material3.icons.filled.Refresh
+import androidx.compose.material3.rememberDismissState
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon

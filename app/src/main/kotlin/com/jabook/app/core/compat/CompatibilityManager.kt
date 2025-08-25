@@ -156,9 +156,9 @@ object ThemeCompat {
 object AudioCompat {
   fun supportsAudioFocusRequest(): Boolean = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
 
-  fun supportsMediaSession(): Boolean = Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP
+  fun supportsMediaSession(): Boolean = true
 
-  fun supportsAudioAttributes(): Boolean = Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP
+  fun supportsAudioAttributes(): Boolean = true
 
   fun createAudioFocusRequest(
     focusGain: Int,

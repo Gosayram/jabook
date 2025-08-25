@@ -130,7 +130,7 @@ class RuTrackerPreferencesImpl
 
     private fun encryptPassword(password: String): String =
       try {
-        val cipher = Cipher.getInstance("AES")
+        val cipher = Cipher.getInstance("AES/CBC/PKCS5Padding")
         cipher.init(Cipher.ENCRYPT_MODE, encryptionKey)
         val encryptedBytes = cipher.doFinal(password.toByteArray())
         android.util.Base64.encodeToString(encryptedBytes, android.util.Base64.DEFAULT)
@@ -141,7 +141,7 @@ class RuTrackerPreferencesImpl
     private fun decryptPassword(encryptedPassword: String): String =
       try {
         val encryptedBytes = android.util.Base64.decode(encryptedPassword, android.util.Base64.DEFAULT)
-        val cipher = Cipher.getInstance("AES")
+        val cipher = Cipher.getInstance("AES/CBC/PKCS5Padding")
         cipher.init(Cipher.DECRYPT_MODE, encryptionKey)
         val decryptedBytes = cipher.doFinal(encryptedBytes)
         String(decryptedBytes)

@@ -52,31 +52,19 @@ fun Float.formatAsPercentage(): String = String.format(Locale.US, "%.1f%%", this
 fun Context.isNetworkAvailable(): Boolean {
   val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
 
-  return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-    val network = connectivityManager.activeNetwork ?: return false
-    val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
-    capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) ||
-      capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) ||
-      capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)
-  } else {
-    // For Android 6.0 we use the old API without @Suppress
-    val networkInfo = connectivityManager.activeNetworkInfo
-    networkInfo?.isConnected == true
-  }
+  val network = connectivityManager.activeNetwork ?: return false
+  val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
+  return capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) ||
+    capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) ||
+    capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)
 }
 
 fun Context.isWifiConnected(): Boolean {
   val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
 
-  return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-    val network = connectivityManager.activeNetwork ?: return false
-    val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
-    capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
-  } else {
-    // For Android 6.0 we use the old API without @Suppress
-    val networkInfo = connectivityManager.activeNetworkInfo
-    networkInfo?.type == ConnectivityManager.TYPE_WIFI && networkInfo.isConnected
-  }
+  val network = connectivityManager.activeNetwork ?: return false
+  val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
+  return capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
 }
 
 fun Context.shareText(

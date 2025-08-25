@@ -11,6 +11,7 @@ plugins {
     id("com.google.devtools.ksp")
     alias(libs.plugins.kotlin.parcelize)
     alias(libs.plugins.kotlin.serialization)
+    kotlin("kapt")
 }
 
 kotlinter {
