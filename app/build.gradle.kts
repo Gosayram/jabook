@@ -133,7 +133,7 @@ android {
             jvmToolchain(17)
             jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
             languageVersion.set(org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_2_2)
-            apiVersion.set(org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_2_2)
+            apiVersion.set(org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_1_9)
             freeCompilerArgs.addAll(
                 "-Xskip-prerelease-check",
                 "-opt-in=androidx.compose.material3.ExperimentalMaterial3Api",
