@@ -9,6 +9,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Text
+import androidx.compose.material3.menuAnchor
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -72,16 +73,20 @@ fun LibraryFilterChips(
       label = { Text(stringResource(R.string.filter_downloaded)) },
     )
 
-    // Category filter with dropdown
+    // Category filter with anchored dropdown
     if (categories.isNotEmpty()) {
       FilterChip(
         selected = currentFilter == LibraryFilter.CATEGORY,
         onClick = { showCategoryDropdown = true },
         label = { Text(text = selectedCategory ?: stringResource(R.string.discovery_categories)) },
+        modifier = Modifier.menuAnchor(), // anchor for the DropdownMenu
       )
 
-      DropdownMenu(expanded = showCategoryDropdown, onDismissRequest = { showCategoryDropdown = false }) {
-        for (category in categories) {
+      DropdownMenu(
+        expanded = showCategoryDropdown,
+        onDismissRequest = { showCategoryDropdown = false },
+      ) {
+        categories.forEach { category ->
           DropdownMenuItem(
             text = { Text(category) },
             onClick = {
