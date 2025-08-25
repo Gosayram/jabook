@@ -336,6 +336,19 @@
     <string name="test_log_written">Тестовая запись добавлена</string>
     <string name="write_test_log_failed">Не удалось добавить тестовую запись: %s</string>
     <string name="write_test_log_entry">Добавить тестовую запись</string>
+    <string name="log_folder_reset_done">Папка для логов сброшена</string>
+    <string name="reset_log_folder">Сбросить папку</string>
+
+    <!-- Missing string resources -->
+    <string name="share_debug_log_file">Поделиться файлом логов</string>
+    <string name="no_apps_to_share">Нет приложений для обмена</string>
+    <string name="hide_password">Скрыть пароль</string>
+    <string name="show_password">Показать пароль</string>
+    <string name="guest_mode_on">Гостевой режим включен</string>
+    <string name="guest_mode_off">Гостевой режим выключен</string>
+    <string name="guest_mode">Гостевой режим</string>
+    <string name="authorized_mode">Авторизованный режим</string>
+    <string name="log_folder_permission_failed">Ошибка разрешения папки: %s</string>
 
     <!-- Widget Strings -->
     <string name="widget_subtitle_placeholder">Нет информации</string>

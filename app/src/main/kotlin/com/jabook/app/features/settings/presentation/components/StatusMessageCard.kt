@@ -70,7 +70,7 @@ fun StatusMessageCard(
         // озвучиваем как "живой" регион — экран-ридеры сразу проговорят обновление
         .semantics { liveRegion = androidx.compose.ui.semantics.LiveRegionMode.Polite },
       elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-      colors = CardDefaults.cardColors(containerColor = container),
+      colors = CardDefaults.cardColors(containerColor = container as androidx.compose.ui.graphics.Color),
     ) {
       Row(
         modifier = Modifier
@@ -81,9 +81,9 @@ fun StatusMessageCard(
       ) {
         if (showIcon) {
           Icon(
-            imageVector = if (isError) icon as Icons.Filled.Error else Icons.Filled.Info, // запасная инфо-иконка
+            imageVector = if (isError) Icons.Filled.Error else Icons.Filled.Info, // запасная инфо-иконка
             contentDescription = null,
-            tint = iconTint as androidx.compose.ui.graphics.Color,
+            tint = iconTint,
             modifier = Modifier.size(20.dp),
           )
         }
@@ -91,7 +91,7 @@ fun StatusMessageCard(
         Text(
           text = message,
           style = MaterialTheme.typography.bodyMedium,
-          color = content as androidx.compose.ui.graphics.Color,
+          color = content,
           modifier = Modifier.weight(1f),
         )
 

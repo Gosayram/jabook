@@ -30,16 +30,6 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import com.jabook.app.R
 
-data class LoginCardState(
-  val isAuthorized: Boolean,
-  val username: String,
-  val password: String,
-  val isLoading: Boolean,
-  val usernameError: String? = null,
-  val passwordError: String? = null,
-  val generalError: String? = null,
-)
-
 @Composable
 fun LoginCard(
   state: LoginCardState,
