@@ -92,6 +92,7 @@ class PlayerService : MediaSessionService() {
     flags: Int,
     startId: Int,
   ): Int {
+    super.onStartCommand(intent, flags, startId)
     debugLogger.logDebug("PlayerService.onStartCommand: ${intent?.action}")
 
     when (intent?.action) {

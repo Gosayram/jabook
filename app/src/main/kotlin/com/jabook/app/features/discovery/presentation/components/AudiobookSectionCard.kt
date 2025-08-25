@@ -47,7 +47,7 @@ fun AudiobookSectionCard(
     Column(modifier = Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
       // Cover image
       AsyncImage(
-        model = null, // coverImageUrl not available in RuTrackerAudiobook
+        model = "", // coverImageUrl not available in RuTrackerAudiobook
         contentDescription = stringResource(R.string.audiobook_cover),
         modifier = Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(8.dp)),
         contentScale = ContentScale.Crop,
@@ -95,7 +95,7 @@ fun AudiobookSectionCard(
               imageVector = Icons.Default.People,
               contentDescription = null,
               modifier = Modifier.size(12.dp),
-              tint = if (audiobook.seeders > 0) Color(0xFF4CAF50) else MaterialTheme.colorScheme.onSurfaceVariant,
+              tint = if (audiobook.seeders > 0) Color.Green else MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
               text = "${audiobook.seeders}",
@@ -111,10 +111,10 @@ fun AudiobookSectionCard(
                 imageVector = Icons.Default.Star,
                 contentDescription = null,
                 modifier = Modifier.size(12.dp),
-                tint = Color(0xFFFFC107),
+                tint = Color.Yellow,
               )
               Text(
-                text = "%.1f".format(audiobook.rating),
+                text = String.format("%.1f", audiobook.rating),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
               )
