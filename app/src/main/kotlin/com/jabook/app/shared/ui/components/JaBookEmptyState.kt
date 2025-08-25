@@ -93,12 +93,12 @@ enum class EmptyStateType(
   val defaultSubtitle: String,
 ) {
   Loading(
-    icon = Icons.AutoMirrored.Default.LibraryBooks, // Not used for Loading
+    icon = Icons.AutoMirrored.filled.LibraryBooks, // Not used for Loading
     defaultTitle = "Загрузка...",
     defaultSubtitle = "Пожалуйста, подождите",
   ),
   EmptyLibrary(
-    icon = Icons.AutoMirrored.Default.LibraryBooks,
+    icon = Icons.AutoMirrored.filled.LibraryBooks,
     defaultTitle = "Библиотека пуста",
     defaultSubtitle = "Добавьте свою первую аудиокнигу, чтобы начать слушать",
   ),
@@ -118,12 +118,12 @@ enum class EmptyStateType(
     defaultSubtitle = "Что-то пошло не так. Попробуйте перезагрузить страницу",
   ),
   EmptyDownloads(
-    icon = Icons.AutoMirrored.Default.LibraryBooks,
+    icon = Icons.AutoMirrored.filled.LibraryBooks,
     defaultTitle = "Нет загрузок",
     defaultSubtitle = "Здесь будут отображаться ваши загруженные аудиокниги",
   ),
   EmptyCategory(
-    icon = Icons.AutoMirrored.Default.LibraryBooks,
+    icon = Icons.AutoMirrored.filled.LibraryBooks,
     defaultTitle = "Категория пуста",
     defaultSubtitle = "В этой категории пока нет аудиокниг",
   ),

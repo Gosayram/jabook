@@ -69,7 +69,7 @@ fun JaBookTheme(
   if (!view.isInEditMode) {
     SideEffect {
       val window = (view.context as Activity).window
-      window.statusBarColor = WindowCompat.getInsetsController(window, view).statusBarColor
+      window.statusBarColor = colorScheme.toArgb()
       WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = darkTheme
     }
   }

@@ -90,7 +90,7 @@ fun JaBookFilterChips(
             )
           },
           leadingIcon = {
-            Icon(imageVector = Icons.AutoMirrored.Default.Sort, contentDescription = "Сортировка", modifier = Modifier.size(16.dp))
+            Icon(imageVector = Icons.AutoMirrored.filled.Sort, contentDescription = "Сортировка", modifier = Modifier.size(16.dp))
           },
           colors =
             AssistChipDefaults.assistChipColors(

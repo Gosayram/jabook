@@ -86,7 +86,7 @@ fun RuTrackerOfflineManagementScreen(
         title = { Text("Offline Management") },
         navigationIcon = {
           IconButton(onClick = onBack) {
-            Icon(Icons.AutoMirrored.Default.ArrowBack, contentDescription = "Back")
+            Icon(Icons.AutoMirrored.filled.ArrowBack, contentDescription = "Back")
           }
         },
         actions = {

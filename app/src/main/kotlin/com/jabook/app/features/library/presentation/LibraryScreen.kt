@@ -85,7 +85,7 @@ fun LibraryScreen(
     )
 
     if (isSearchActive) {
-      SearchBar(
+      androidx.compose.material3.SearchBar(
         query = searchQuery,
         onQueryChange = { searchQuery = it },
         onSearch = {
@@ -96,35 +96,21 @@ fun LibraryScreen(
         onActiveChange = { isSearchActive = it },
         modifier = Modifier.padding(top = 8.dp, bottom = 4.dp), // Reduced padding
         placeholder = { Text(stringResource(R.string.search_placeholder)) },
-        inputField = {
-          // Search input field with placeholder
-          androidx.compose.material3.SearchBarDefaults.InputField(
-            query = searchQuery,
-            onQueryChange = { searchQuery = it },
-            onSearch = {
-              viewModel.searchAudiobooks(searchQuery)
-              isSearchActive = false
-            },
-            expanded = isSearchActive,
-            onExpandedChange = { isSearchActive = it },
-            placeholder = { Text(stringResource(R.string.search_placeholder)) },
-            leadingIcon = {
-              Icon(
-                imageVector = Icons.Default.Search,
-                contentDescription = stringResource(R.string.search_audiobooks)
-              )
-            },
-            trailingIcon = {
-              if (searchQuery.isNotEmpty()) {
-                IconButton(onClick = { searchQuery = "" }) {
-                  Icon(
-                    imageVector = androidx.compose.material.icons.Icons.Default.Close,
-                    contentDescription = "Clear search"
-                  )
-                }
-              }
-            }
+        leadingIcon = {
+          Icon(
+            imageVector = Icons.Default.Search,
+            contentDescription = stringResource(R.string.search_audiobooks)
           )
+        },
+        trailingIcon = {
+          if (searchQuery.isNotEmpty()) {
+            IconButton(onClick = { searchQuery = "" }) {
+              Icon(
+                imageVector = Icons.Default.Close,
+                contentDescription = "Clear search"
+              )
+            }
+          }
         }
       ) {
         // Search suggestions can be added here
