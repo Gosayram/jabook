@@ -24,6 +24,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
@@ -33,10 +35,9 @@ fun StatusMessageCard(
   modifier: Modifier = Modifier,
   errorMessage: String? = null,
   successMessage: String? = null,
-  onDismiss: (() -> Unit)? = null,      // опциональная кнопка закрытия
-  showIcon: Boolean = true,             // можно скрыть иконку при желании
+  onDismiss: (() -> Unit)? = null,   // опциональная кнопка закрытия
+  showIcon: Boolean = true,          // можно скрыть иконку при желании
 ) {
-  // Приоритет: ошибка > успех
   val isError = errorMessage != null
   val message = errorMessage ?: successMessage
 
@@ -47,30 +48,26 @@ fun StatusMessageCard(
   ) {
     if (message == null) return@AnimatedVisibility
 
-    val (container, content, icon, iconTint) =
-      if (isError) {
-        arrayOf(
-          MaterialTheme.colorScheme.errorContainer,
-          MaterialTheme.colorScheme.onErrorContainer,
-          Icons.Filled.Error,
-          MaterialTheme.colorScheme.onErrorContainer,
-        )
-      } else {
-        arrayOf(
-          MaterialTheme.colorScheme.primaryContainer,
-          MaterialTheme.colorScheme.onPrimaryContainer,
-          Icons.Filled.CheckCircle,
-          MaterialTheme.colorScheme.onPrimaryContainer,
-        )
-      }
+    // Строго типизированные значения
+    val containerColor: Color
+    val contentColor: Color
+    val leadingIcon =
+      if (isError) Icons.Filled.Error else Icons.Filled.CheckCircle
+
+    if (isError) {
+      containerColor = MaterialTheme.colorScheme.errorContainer
+      contentColor = MaterialTheme.colorScheme.onErrorContainer
+    } else {
+      containerColor = MaterialTheme.colorScheme.primaryContainer
+      contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+    }
 
     Card(
       modifier = modifier
         .fillMaxWidth()
-        // озвучиваем как "живой" регион — экран-ридеры сразу проговорят обновление
-        .semantics { liveRegion = androidx.compose.ui.semantics.LiveRegionMode.Polite },
+        .semantics { liveRegion = LiveRegionMode.Polite }, // экран-ридеры озвучат обновление
       elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-      colors = CardDefaults.cardColors(containerColor = container as androidx.compose.ui.graphics.Color),
+      colors = CardDefaults.cardColors(containerColor = containerColor),
     ) {
       Row(
         modifier = Modifier
@@ -81,9 +78,9 @@ fun StatusMessageCard(
       ) {
         if (showIcon) {
           Icon(
-            imageVector = if (isError) Icons.Filled.Error else Icons.Filled.Info, // запасная инфо-иконка
+            imageVector = if (isError) leadingIcon else Icons.Filled.Info, // для успеха можно оставить Info, если так задумано
             contentDescription = null,
-            tint = iconTint,
+            tint = contentColor,
             modifier = Modifier.size(20.dp),
           )
         }
@@ -91,7 +88,7 @@ fun StatusMessageCard(
         Text(
           text = message,
           style = MaterialTheme.typography.bodyMedium,
-          color = content,
+          color = contentColor,
           modifier = Modifier.weight(1f),
         )
 
@@ -100,7 +97,7 @@ fun StatusMessageCard(
             Icon(
               imageVector = Icons.Filled.Close,
               contentDescription = "Dismiss",
-              tint = content,
+              tint = contentColor,
             )
           }
         }
