@@ -29,9 +29,9 @@ object StorageModule {
   /** Provides cache directory for the application */
   @Provides
   @Singleton
-  fun provideCacheDir(@ApplicationContext context: Context): File {
-    return context.cacheDir
-  }
+  fun provideCacheDir(
+    @ApplicationContext context: Context,
+  ): File = context.cacheDir
 
   /** Provides cache configuration */
   @Provides

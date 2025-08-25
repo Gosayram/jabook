@@ -204,8 +204,6 @@ class RuTrackerDomainManager
         val startTime = System.currentTimeMillis()
         var isAvailable: Boolean
         var responseTime: Long
-        var error: Exception? = null
-
         try {
           val circuitBreaker = circuitBreakers[domain] ?: return@withContext
 
@@ -216,7 +214,6 @@ class RuTrackerDomainManager
               domain = domain,
               isAvailable = false,
               responseTime = 0,
-              error = RuTrackerException.CircuitBreakerOpenException("Circuit breaker open for $domain"),
             )
             return@withContext
           }
@@ -247,7 +244,6 @@ class RuTrackerDomainManager
           }
         } catch (e: Exception) {
           responseTime = System.currentTimeMillis() - startTime
-          error = e
           isAvailable = false
 
           val circuitBreaker = circuitBreakers[domain]
@@ -267,9 +263,7 @@ class RuTrackerDomainManager
     /**
      * Handle domain failure
      */
-    private suspend fun handleDomainFailure(
-      domain: String,
-    ) {
+    private suspend fun handleDomainFailure(domain: String) {
       val failureCount = (failureCounts[domain]?.get() ?: 0) + 1
       failureCounts[domain]?.set(failureCount)
 
