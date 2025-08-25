@@ -164,6 +164,9 @@ firebase-crashlytics-library = { group = "com.google.firebase", name = "firebase
 # Desugaring library
 desugar-jdk-libs = { group = "com.android.tools", name = "desugar_jdk_libs", version.ref = "desugarjdklibs" }
 
+androidx-foundation = { group = "androidx.compose.foundation", name = "foundation" }
+androidx-ui-text   = { group = "androidx.compose.ui",        name = "ui-text" }
+
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }

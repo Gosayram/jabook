@@ -266,4 +266,6 @@ dependencies {
     debugImplementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.ui.tooling.preview) // Add this for Preview annotation availability
     debugImplementation(libs.androidx.ui.test.manifest)
+    implementation(libs.androidx.foundation)
+    implementation(libs.androidx.ui.text)
 }
