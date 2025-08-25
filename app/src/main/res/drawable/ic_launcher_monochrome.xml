@@ -2,25 +2,14 @@
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp" android:height="108dp"
     android:viewportWidth="108" android:viewportHeight="108">
-
-    <!-- keyline: контент 72x72 внутри 108x108 -->
     <group
         android:scaleX="0.6667" android:scaleY="0.6667"
         android:translateX="18" android:translateY="18">
-
-        <!-- Книга -->
-        <path
-            android:fillColor="@color/jb_amber"
+        <path android:fillColor="#FFFFFFFF"
             android:pathData="M18,18 h48 a8,8 0,0 1 8,8 v36 a8,8 0,0 1 -8,8 h-48 a8,8 0,0 1 -8,-8 v-36 a8,8 0,0 1 8,-8 z"/>
-
-        <!-- Линия-страница -->
-        <path
-            android:fillColor="@color/jb_amber"
+        <path android:fillColor="#FFFFFFFF"
             android:pathData="M24,58 h36 a3,3 0,0 1 0,6 h-36 a3,3 0,0 1 0,-6 z"/>
-
-        <!-- Play -->
-        <path
-            android:fillColor="@color/jb_cream"
+        <path android:fillColor="#FFFFFFFF"
             android:pathData="M46,40 L62,50 L46,60 Z"/>
     </group>
 </vector>

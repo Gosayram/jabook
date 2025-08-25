@@ -2,56 +2,50 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- Internet permission for network requests -->
+    <!-- Network -->
     <uses-permission android:name="android.permission.INTERNET" />
-    
-    <!-- Network state permission for checking connectivity -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-    
-    <!-- Wake lock permission for background playback -->
-    <uses-permission android:name="android.permission.WAKE_LOCK" />
-    
-    <!-- Foreground service permission for media playback -->
+
+    <!-- Foreground media playback -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
-    
-    <!-- Storage permission for downloading and caching -->
-    <!-- Old permissions for Android 12 and below -->
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
-    
-    <!-- New permissions for Android 13+ -->
-    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
-    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
-    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
-    
-    <!-- Android 13+ notification permission -->
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    
-    <!-- Android 13+ media permission -->
-    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
-    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
-    
-    <!-- Android 14+ selected photos access permission -->
-    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" tools:targetApi="34" />
-    
-    <!-- Install packages permission for installing downloaded content -->
-    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
-    
-    <!-- Samsung specific permissions -->
-    <uses-permission android:name="com.samsung.android.app.shealthd.permission.HEALTH_DATA" />
-    <uses-permission android:name="com.samsung.android.app.shealthd.permission.HEALTH_DATA_READ" />
-    
-    <!-- Vibration permission for haptic feedback -->
+
+    <!-- Wake lock for playback -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+
+    <!-- Notifications (Android 13+) -->
+    <uses-permission
+        android:name="android.permission.POST_NOTIFICATIONS"
+        tools:targetApi="33" />
+
+    <!-- Storage (legacy до Android 9) -->
+    <uses-permission
+        android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28" />
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28" />
+
+    <!-- Scoped media (Android 13+) -->
+    <uses-permission
+        android:name="android.permission.READ_MEDIA_AUDIO"
+        tools:targetApi="33" />
+    <uses-permission
+        android:name="android.permission.READ_MEDIA_VIDEO"
+        tools:targetApi="33" />
+    <uses-permission
+        android:name="android.permission.READ_MEDIA_IMAGES"
+        tools:targetApi="33" />
+
+    <!-- Vibration feedback -->
     <uses-permission android:name="android.permission.VIBRATE" />
-    
-    <!-- Battery optimization exemption for background playback -->
+
+    <!-- Optional: battery optimizations (попросишь у пользователя явно, если нужно) -->
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
-    
-    <!-- Query all packages for checking installed apps -->
-    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" 
-        tools:ignore="QueryAllPackagesPermission" />
+
+    <!-- Optional: если реально устанавливаешь APK из приложения -->
+    <!-- <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" /> -->
 
     <application
         android:name=".JaBookApplication"
@@ -68,17 +62,7 @@
         android:hardwareAccelerated="true"
         android:largeHeap="true"
         tools:targetApi="31">
-        
-        <!-- Samsung specific metadata -->
-        <meta-data
-            android:name="com.samsung.android.icon_container.has_icon_container"
-            android:value="true" />
-        
-        <!-- Android 13+ notification channel metadata -->
-        <meta-data
-            android:name="com.google.android.gms.ads.APPLICATION_ID"
-            android:value="ca-app-pub-XXXXXXXXXXXXXXXX~YYYYYYYYYY" />
-        
+
         <!-- Main Activity -->
         <activity
             android:name=".MainActivity"
@@ -90,8 +74,8 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-            
-            <!-- Intent filter for handling torrent files -->
+
+            <!-- handle .torrent files -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -99,8 +83,8 @@
                 <data android:scheme="file" />
                 <data android:mimeType="application/x-bittorrent" />
             </intent-filter>
-            
-            <!-- Intent filter for handling magnet links -->
+
+            <!-- handle magnet: links -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -108,12 +92,7 @@
                 <data android:scheme="magnet" />
             </intent-filter>
         </activity>
-        
-        
-        
-        
-        
-        
+
         <!-- Media Playback Service -->
         <service
             android:name=".features.player.PlayerService"
@@ -123,11 +102,8 @@
                 <action android:name="android.media.browse.MediaBrowserService" />
             </intent-filter>
         </service>
-        
-        
-        
-        
-        <!-- File Provider for sharing files -->
+
+        <!-- File Provider -->
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
@@ -137,8 +113,8 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
         </provider>
-        
-        <!-- WorkManager Initialization -->
+
+        <!-- WorkManager -->
         <provider
             android:name="androidx.startup.InitializationProvider"
             android:authorities="${applicationId}.androidx-startup"
@@ -148,8 +124,8 @@
                 android:name="androidx.work.WorkManagerInitializer"
                 android:value="androidx.startup" />
         </provider>
-        
-        <!-- App Widget Provider -->
+
+        <!-- App Widget -->
         <receiver
             android:name=".features.widget.JaBookAppWidgetProvider"
             android:exported="false">
@@ -160,38 +136,25 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/jabook_widget_info" />
         </receiver>
-        
-        <!-- Crash Reporting -->
-        <meta-data
-            android:name="firebase_crashlytics_collection_enabled"
-            android:value="true" />
-        
-        <!-- Analytics -->
-        <meta-data
-            android:name="firebase_analytics_collection_enabled"
-            android:value="true" />
-        
-        <!-- AdMob App ID -->
-        <meta-data
-            android:name="com.google.android.gms.ads.APPLICATION_ID"
-            android:value="ca-app-pub-XXXXXXXXXXXXXXXX~YYYYYYYYYY" />
-        
+
+        <!-- Убираю всё про рекламу/аналитику/крашлитикс, чтобы соответствовать privacy-фокусу -->
+        <!-- Если это нужно вернуть — скажи, подключим осознанно и вынесем ключи в debug/ релизные манифесты -->
     </application>
 
     <queries>
-        <!-- Browser apps for opening links -->
+        <!-- открытие https-ссылок в браузерах -->
         <intent>
             <action android:name="android.intent.action.VIEW" />
             <data android:scheme="https" />
         </intent>
-        
-        <!-- Media player apps for external playback -->
+
+        <!-- внешние плееры -->
         <intent>
             <action android:name="android.intent.action.VIEW" />
             <data android:mimeType="audio/*" />
         </intent>
-        
-        <!-- File manager apps for opening files -->
+
+        <!-- менеджеры файлов для .torrent -->
         <intent>
             <action android:name="android.intent.action.VIEW" />
             <data android:mimeType="application/x-bittorrent" />
