@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <paths>
-    <!-- Grant access to the logs directory in internal storage -->
-    <files-path name="logs" path="logs/" />
-    <!-- Grant access to all files in external storage (getExternalFilesDir) -->
-    <external-files-path name="external_files" path="." />
-</paths> 
+    <!-- Даем доступ только к папке logs во внутреннем filesDir -->
+    <files-path
+        name="logs"
+        path="logs/" />
+</paths>
