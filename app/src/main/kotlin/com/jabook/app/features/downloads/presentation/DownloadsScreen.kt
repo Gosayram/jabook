@@ -61,7 +61,8 @@ import com.jabook.app.shared.ui.components.EmptyStateType
 import com.jabook.app.shared.ui.components.JaBookEmptyState
 import com.jabook.app.shared.ui.components.ThemeToggleButton
 import com.jabook.app.shared.ui.components.getDynamicVerticalPadding
-import androidx.compose.material3.icons.Icons as Material3Icons
+import androidx.compose.material3.icons.Icons
+import androidx.compose.material3.icons.filled
 
 data class DownloadsEmptyState(
   val type: EmptyStateType,
@@ -102,15 +103,15 @@ fun DownloadsScreen(
         actions = {
           if (uiState.selectedTab == DownloadsTab.Completed && uiState.completedDownloads.isNotEmpty()) {
             IconButton(onClick = { viewModel.clearCompleted() }) {
-              Icon(imageVector = Material3Icons.Filled.Clear, contentDescription = stringResource(R.string.clear_completed))
+              Icon(imageVector = Icons.Filled.Clear, contentDescription = stringResource(R.string.clear_completed))
             }
           } else if (uiState.selectedTab == DownloadsTab.Failed && uiState.failedDownloads.isNotEmpty()) {
             IconButton(onClick = { viewModel.clearFailed() }) {
-              Icon(imageVector = Material3Icons.Filled.Clear, contentDescription = stringResource(R.string.clear_failed))
+              Icon(imageVector = Icons.Filled.Clear, contentDescription = stringResource(R.string.clear_failed))
             }
           }
           IconButton(onClick = { viewModel.refreshDownloads() }) {
-            Icon(imageVector = Material3Icons.Filled.Refresh, contentDescription = stringResource(R.string.action_refresh))
+            Icon(imageVector = Icons.Filled.Refresh, contentDescription = stringResource(R.string.action_refresh))
           }
           ThemeToggleButton(themeMode = themeMode, onToggle = { themeViewModel.toggleTheme() })
         },
@@ -313,9 +314,9 @@ private fun DownloadListItem(
         }
       val icon =
         if (direction == DismissDirection.StartToEnd) {
-          if (download.status == TorrentStatus.PAUSED) Material3Icons.Filled.PlayArrow else Material3Icons.Filled.Pause
+          if (download.status == TorrentStatus.PAUSED) Icons.Filled.PlayArrow else Icons.Filled.Pause
         } else {
-          Material3Icons.Filled.Clear
+          Icons.Filled.Clear
         }
       val contentTint =
         if (direction == DismissDirection.StartToEnd) {
