@@ -101,19 +101,14 @@ fun RuTrackerOfflineManagementScreen(
     },
   ) { paddingValues ->
     Column(
-      modifier =
-        Modifier
-          .fillMaxSize()
-          .padding(paddingValues)
-          .padding(16.dp),
+      modifier = Modifier
+        .fillMaxSize()
+        .padding(paddingValues)
+        .padding(16.dp),
     ) {
       // Offline Mode Toggle
-      Card(
-        modifier = Modifier.fillMaxWidth(),
-      ) {
-        Column(
-          modifier = Modifier.padding(16.dp),
-        ) {
+      Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp)) {
           Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -127,7 +122,7 @@ fun RuTrackerOfflineManagementScreen(
               )
               Text(
                 text = if (isOfflineMode) "Enabled" else "Disabled",
-                style = MaterialTheme.typTypography.bodySmall,
+                style = MaterialTheme.typography.bodySmall, // <-- fixed typo
                 color = if (isOfflineMode) Color.Green else Color.Gray,
               )
             }
@@ -139,31 +134,23 @@ fun RuTrackerOfflineManagementScreen(
 
           Spacer(modifier = Modifier.height(8.dp))
 
-          if (isOfflineMode) {
-            Text(
-              text = "Offline mode is active. You can search and browse cached content.",
-              style = MaterialTheme.typography.bodySmall,
-              color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-          } else {
-            Text(
-              text = "Enable offline mode to access cached content without internet.",
-              style = MaterialTheme.typography.bodySmall,
-              color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-          }
+          Text(
+            text =
+              if (isOfflineMode)
+                "Offline mode is active. You can search and browse cached content."
+              else
+                "Enable offline mode to access cached content without internet.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+          )
         }
       }
 
       Spacer(modifier = Modifier.height(16.dp))
 
       // Data Status
-      Card(
-        modifier = Modifier.fillMaxWidth(),
-      ) {
-        Column(
-          modifier = Modifier.padding(16.dp),
-        ) {
+      Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp)) {
           Text(
             text = "Offline Data Status",
             style = MaterialTheme.typography.titleMedium,
@@ -171,22 +158,10 @@ fun RuTrackerOfflineManagementScreen(
             modifier = Modifier.padding(bottom = 8.dp),
           )
 
-          DataStatusItem(
-            label = "Search Results",
-            isAvailable = offlineDataStatus.hasSearchResults,
-          )
-          DataStatusItem(
-            label = "Categories",
-            isAvailable = offlineDataStatus.hasCategories,
-          )
-          DataStatusItem(
-            label = "Torrent Details",
-            isAvailable = offlineDataStatus.hasDetails,
-          )
-          DataStatusItem(
-            label = "Search Index",
-            isAvailable = offlineDataStatus.hasSearchIndex,
-          )
+          DataStatusItem(label = "Search Results", isAvailable = offlineDataStatus.hasSearchResults)
+          DataStatusItem(label = "Categories", isAvailable = offlineDataStatus.hasCategories)
+          DataStatusItem(label = "Torrent Details", isAvailable = offlineDataStatus.hasDetails)
+          DataStatusItem(label = "Search Index", isAvailable = offlineDataStatus.hasSearchIndex)
         }
       }
 
@@ -228,7 +203,10 @@ fun RuTrackerOfflineManagementScreen(
           onClick = { showClearConfirmation = true },
           modifier = Modifier.weight(1f),
           enabled = !isLoading,
-          colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+          colors = ButtonDefaults.buttonColors(
+            containerColor = MaterialTheme.colorScheme.error,
+            contentColor = MaterialTheme.colorScheme.onError,
+          ),
         ) {
           Icon(Icons.Filled.Delete, contentDescription = null)
           Spacer(modifier = Modifier.width(4.dp))
@@ -240,12 +218,8 @@ fun RuTrackerOfflineManagementScreen(
 
       // Search Analytics
       if (isOfflineMode) {
-        Card(
-          modifier = Modifier.fillMaxWidth(),
-        ) {
-          Column(
-            modifier = Modifier.padding(16.dp),
-          ) {
+        Card(modifier = Modifier.fillMaxWidth()) {
+          Column(modifier = Modifier.padding(16.dp)) {
             Text(
               text = "Search Analytics",
               style = MaterialTheme.typography.titleMedium,
@@ -253,22 +227,10 @@ fun RuTrackerOfflineManagementScreen(
               modifier = Modifier.padding(bottom = 8.dp),
             )
 
-            AnalyticsItem(
-              label = "Total Searches",
-              value = searchAnalytics.totalSearches.toString(),
-            )
-            AnalyticsItem(
-              label = "Successful Searches",
-              value = searchAnalytics.successfulSearches.toString(),
-            )
-            AnalyticsItem(
-              label = "Failed Searches",
-              value = searchAnalytics.failedSearches.toString(),
-            )
-            AnalyticsItem(
-              label = "Total Results",
-              value = searchAnalytics.totalResults.toString(),
-            )
+            AnalyticsItem(label = "Total Searches", value = searchAnalytics.totalSearches.toString())
+            AnalyticsItem(label = "Successful Searches", value = searchAnalytics.successfulSearches.toString())
+            AnalyticsItem(label = "Failed Searches", value = searchAnalytics.failedSearches.toString())
+            AnalyticsItem(label = "Total Results", value = searchAnalytics.totalResults.toString())
 
             if (searchAnalytics.totalSearches > 0) {
               val successRate =
@@ -286,12 +248,8 @@ fun RuTrackerOfflineManagementScreen(
 
       // Recent Search Results
       if (searchResults.isNotEmpty()) {
-        Card(
-          modifier = Modifier.fillMaxWidth(),
-        ) {
-          Column(
-            modifier = Modifier.padding(16.dp),
-          ) {
+        Card(modifier = Modifier.fillMaxWidth()) {
+          Column(modifier = Modifier.padding(16.dp)) {
             Text(
               text = "Recent Search Results",
               style = MaterialTheme.typography.titleMedium,
@@ -299,9 +257,7 @@ fun RuTrackerOfflineManagementScreen(
               modifier = Modifier.padding(bottom = 8.dp),
             )
 
-            LazyColumn(
-              modifier = Modifier.height(200.dp),
-            ) {
+            LazyColumn(modifier = Modifier.height(200.dp)) {
               items(searchResults.take(5)) { result ->
                 SearchResultItem(result = result)
               }
@@ -388,16 +344,17 @@ fun RuTrackerOfflineManagementScreen(
     AlertDialog(
       onDismissRequest = { showClearConfirmation = false },
       title = { Text("Clear Offline Data") },
-      text = {
-        Text("Are you sure you want to clear all offline data? This action cannot be undone.")
-      },
+      text = { Text("Are you sure you want to clear all offline data? This action cannot be undone.") },
       confirmButton = {
         Button(
           onClick = {
             viewModel.clearOfflineData()
             showClearConfirmation = false
           },
-          colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+          colors = ButtonDefaults.buttonColors(
+            containerColor = MaterialTheme.colorScheme.error,
+            contentColor = MaterialTheme.colorScheme.onError,
+          ),
         ) {
           Text("Clear")
         }
@@ -422,10 +379,7 @@ fun DataStatusItem(
     horizontalArrangement = Arrangement.SpaceBetween,
     verticalAlignment = Alignment.CenterVertically,
   ) {
-    Text(
-      text = label,
-      style = MaterialTheme.typography.bodyMedium,
-    )
+    Text(text = label, style = MaterialTheme.typography.bodyMedium)
     Icon(
       imageVector = if (isAvailable) Icons.Filled.CheckCircle else Icons.Filled.Cancel,
       contentDescription = null,
@@ -446,15 +400,8 @@ fun AnalyticsItem(
     horizontalArrangement = Arrangement.SpaceBetween,
     verticalAlignment = Alignment.CenterVertically,
   ) {
-    Text(
-      text = label,
-      style = MaterialTheme.typography.bodySmall,
-    )
-    Text(
-      text = value,
-      style = MaterialTheme.typography.bodySmall,
-      fontWeight = FontWeight.Bold,
-    )
+    Text(text = label, style = MaterialTheme.typography.bodySmall)
+    Text(text = value, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
   }
 }
 
@@ -469,15 +416,8 @@ fun SummaryItem(
     horizontalArrangement = Arrangement.SpaceBetween,
     verticalAlignment = Alignment.CenterVertically,
   ) {
-    Text(
-      text = label,
-      style = MaterialTheme.typography.bodyMedium,
-    )
-    Text(
-      text = value,
-      style = MaterialTheme.typography.bodyMedium,
-      fontWeight = FontWeight.Bold,
-    )
+    Text(text = label, style = MaterialTheme.typography.bodyMedium)
+    Text(text = value, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
   }
 }
 
@@ -487,14 +427,9 @@ fun SearchResultItem(
   modifier: Modifier = Modifier,
 ) {
   Card(
-    modifier =
-      modifier
-        .fillMaxWidth()
-        .padding(vertical = 4.dp),
+    modifier = modifier.fillMaxWidth().padding(vertical = 4.dp),
   ) {
-    Column(
-      modifier = Modifier.padding(12.dp),
-    ) {
+    Column(modifier = Modifier.padding(12.dp)) {
       when (result) {
         is AudiobookSearchResult -> {
           Text(
@@ -503,27 +438,18 @@ fun SearchResultItem(
             fontWeight = FontWeight.Bold,
             maxLines = 2,
           )
-
           Spacer(modifier = Modifier.height(4.dp))
-
           Text(
             text = "Author: ${result.author}",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
           )
-
           Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
           ) {
-            Text(
-              text = "Size: ${result.size}",
-              style = MaterialTheme.typography.bodySmall,
-            )
-            Text(
-              text = "Seeders: ${result.seeds}",
-              style = MaterialTheme.typography.bodySmall,
-            )
+            Text(text = "Size: ${result.size}", style = MaterialTheme.typography.bodySmall)
+            Text(text = "Seeders: ${result.seeds}", style = MaterialTheme.typography.bodySmall)
           }
         }
         is RuTrackerSearchResult -> {
@@ -535,27 +461,18 @@ fun SearchResultItem(
               fontWeight = FontWeight.Bold,
               maxLines = 2,
             )
-
             Spacer(modifier = Modifier.height(4.dp))
-
             Text(
               text = "Author: ${audiobook.author}",
               style = MaterialTheme.typography.bodySmall,
               color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-
             Row(
               modifier = Modifier.fillMaxWidth(),
               horizontalArrangement = Arrangement.SpaceBetween,
             ) {
-              Text(
-                text = "Size: ${audiobook.size}",
-                style = MaterialTheme.typography.bodySmall,
-              )
-              Text(
-                text = "Seeders: ${audiobook.seeders}",
-                style = MaterialTheme.typography.bodySmall,
-              )
+              Text(text = "Size: ${audiobook.size}", style = MaterialTheme.typography.bodySmall)
+              Text(text = "Seeders: ${audiobook.seeders}", style = MaterialTheme.typography.bodySmall)
             }
           } else {
             Text(

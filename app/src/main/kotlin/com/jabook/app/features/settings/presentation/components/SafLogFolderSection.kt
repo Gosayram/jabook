@@ -1,12 +1,17 @@
 package com.jabook.app.features.settings.presentation.components
 
+import android.content.Intent
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -24,59 +29,106 @@ import com.jabook.app.features.settings.presentation.RuTrackerSettingsViewModel
 fun SafLogFolderSection(viewModel: RuTrackerSettingsViewModel) {
   val context = LocalContext.current
 
-  // State to force recomposition when SAF Uri changes
+  // Состояние для отображения выбранной через SAF папки
   var safUriState by remember { mutableStateOf(viewModel.getLogFolderUri()) }
 
-  // Get SAF log folder Uri from ViewModel/SharedPreferences
+  // Текущая папка и имя файла логов
   val logFolderUriString = safUriState
   val logFileName = "debug_log.txt"
-  // Show log file path or SAF Uri
-  if (logFolderUriString != null) {
-    Text(
-      text = stringResource(R.string.log_folder_saf, logFolderUriString, logFileName),
-      style = MaterialTheme.typography.bodySmall,
-      modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
-    )
-    // Show a hint if log file is not found
-    if (viewModel.getLogFileUriFromSaf(logFileName) == null) {
+
+  // Текстовое описание текущего состояния
+  Column(modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 4.dp)) {
+    if (logFolderUriString != null) {
       Text(
-        text = stringResource(R.string.log_file_will_appear),
+        text = stringResource(R.string.log_folder_saf, logFolderUriString, logFileName),
         style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.error,
-        modifier = Modifier.padding(bottom = 4.dp),
+      )
+      // Подсказка, что файл появится после первой записи
+      if (viewModel.getLogFileUriFromSaf(logFileName) == null) {
+        Text(
+          text = stringResource(R.string.log_file_will_appear),
+          style = MaterialTheme.typography.bodySmall,
+          color = MaterialTheme.colorScheme.error,
+          modifier = Modifier.padding(top = 2.dp),
+        )
+      }
+    } else {
+      // SAF не выбран — показываем внутренний путь приложения (filesDir/logs)
+      val internalLogsHint = context.filesDir.resolve("logs").absolutePath
+      Text(
+        text = stringResource(R.string.log_file_path, "$internalLogsHint/$logFileName"),
+        style = MaterialTheme.typography.bodySmall,
       )
     }
-  } else {
-    val logFile = viewModel.exportLogs()
-    val logFilePath = logFile?.absolutePath ?: stringResource(R.string.log_file_not_found)
-    Text(
-      text = stringResource(R.string.log_file_path, logFilePath),
-      style = MaterialTheme.typography.bodySmall,
-      modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
-    )
   }
 
-  // SAF launcher for selecting log folder
+  // SAF launcher для выбора папки
   val logFolderLauncher =
     rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
       if (uri != null) {
-        // Pass the selected folder Uri to the ViewModel or save in preferences
-        viewModel.setLogFolderUri(uri.toString())
-        safUriState = uri.toString() // Force recomposition
-        Toast.makeText(context, context.getString(R.string.log_folder_selected, uri), Toast.LENGTH_SHORT).show()
-        android.util.Log.d("RuTrackerSettingsScreen", "SAF Uri saved: $uri")
-        // Write a test log entry to create the file immediately
-        viewModel.writeTestLogEntry()
+        try {
+          // Сохраняем постоянные разрешения на выбранную папку
+          val flags =
+            Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+          context.contentResolver.takePersistableUriPermission(uri, flags)
+
+          // Сохраняем URI в VM/SharedPreferences
+          viewModel.setLogFolderUri(uri.toString())
+          safUriState = uri.toString()
+
+          Toast.makeText(
+            context,
+            context.getString(R.string.log_folder_selected, uri),
+            Toast.LENGTH_SHORT,
+          ).show()
+
+          // Создадим тестовую запись, чтобы файл появился сразу
+          viewModel.writeTestLogEntry()
+        } catch (e: SecurityException) {
+          Toast.makeText(
+            context,
+            context.getString(R.string.log_folder_permission_failed, e.message ?: ""),
+            Toast.LENGTH_LONG,
+          ).show()
+        } catch (e: Exception) {
+          Toast.makeText(
+            context,
+            context.getString(R.string.export_logs_failed, e.message ?: ""),
+            Toast.LENGTH_LONG,
+          ).show()
+        }
       }
     }
 
-  // Button to select log folder via SAF
-  Button(
-    onClick = {
-      logFolderLauncher.launch(null)
-    },
-    modifier = Modifier.fillMaxWidth(),
+  // Кнопки действий
+  Row(
+    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+    horizontalArrangement = Arrangement.spacedBy(8.dp),
   ) {
-    Text(stringResource(R.string.select_log_folder))
+    Button(
+      onClick = { logFolderLauncher.launch(null) },
+      modifier = Modifier.weight(1f),
+    ) {
+      Text(stringResource(R.string.select_log_folder))
+    }
+
+    // Показываем "Сбросить" только если SAF уже выбран
+    if (logFolderUriString != null) {
+      OutlinedButton(
+        onClick = {
+          // Сбросить SAF: убираем сохранённый URI
+          viewModel.setLogFolderUri("")
+          safUriState = null
+          Toast.makeText(
+            context,
+            context.getString(R.string.log_folder_reset_done),
+            Toast.LENGTH_SHORT,
+          ).show()
+        },
+        modifier = Modifier.weight(1f),
+      ) {
+        Text(stringResource(R.string.reset_log_folder))
+      }
+    }
   }
 }
