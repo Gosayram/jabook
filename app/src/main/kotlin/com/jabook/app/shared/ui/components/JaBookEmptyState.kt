@@ -132,8 +132,8 @@ enum class EmptyStateType(
 /** Component for displaying loading with custom text */
 @Composable
 fun JaBookLoadingState(
-  message: String = "Загрузка...",
   modifier: Modifier = Modifier,
+  message: String = "Загрузка...",
 ) {
   Column(
     modifier = modifier.fillMaxSize().padding(32.dp),
@@ -156,10 +156,10 @@ fun JaBookLoadingState(
 /** Component for displaying error with retry button */
 @Composable
 fun JaBookErrorState(
+  modifier: Modifier = Modifier,
   title: String = "Произошла ошибка",
   subtitle: String = "Что-то пошло не так. Попробуйте еще раз",
   onRetry: (() -> Unit)? = null,
-  modifier: Modifier = Modifier,
 ) {
   JaBookEmptyState(
     state = EmptyStateType.GeneralError,

@@ -15,6 +15,7 @@ import androidx.core.content.ContextCompat
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import androidx.media3.session.MediaStyleNotificationHelper
+import androidx.media3.common.util.UnstableApi
 import com.jabook.app.R
 import com.jabook.app.core.domain.model.Audiobook
 import com.jabook.app.shared.debug.IDebugLogger
@@ -30,6 +31,7 @@ import javax.inject.Inject
 
 /** Foreground service for background audio playback. Handles MediaSession and playback notifications. */
 @AndroidEntryPoint
+@UnstableApi
 class PlayerService : MediaSessionService() {
   @Inject lateinit var playerManager: PlayerManager
 

@@ -12,9 +12,9 @@ import androidx.compose.ui.unit.dp
 
 @Composable
 fun StatusMessageCard(
+  modifier: Modifier = Modifier,
   errorMessage: String? = null,
   successMessage: String? = null,
-  modifier: Modifier = Modifier,
 ) {
   when {
     errorMessage != null -> {

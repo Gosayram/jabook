@@ -28,11 +28,11 @@ import java.util.Locale
 
 @Composable
 fun PlayerProgressBar(
+  modifier: Modifier = Modifier,
   currentPosition: Long,
   duration: Long,
   bookmarkPositions: List<Long> = emptyList(),
   onSeekTo: (Long) -> Unit,
-  modifier: Modifier = Modifier,
 ) {
   var isUserDragging by remember { mutableStateOf(false) }
   var dragPosition by remember { mutableFloatStateOf(0f) }

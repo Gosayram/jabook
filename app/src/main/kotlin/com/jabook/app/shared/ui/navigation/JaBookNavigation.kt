@@ -61,8 +61,8 @@ sealed class Screen(
 /** Main navigation composable with bottom navigation and animated transitions */
 @Composable
 fun JaBookNavigation(
-  navController: NavHostController = rememberNavController(),
   modifier: Modifier = Modifier,
+  navController: NavHostController = rememberNavController(),
   themeViewModel: ThemeViewModel,
   themeMode: AppThemeMode,
 ) {

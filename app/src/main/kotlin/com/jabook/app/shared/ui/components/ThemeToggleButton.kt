@@ -8,7 +8,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.jabook.app.shared.ui.AppThemeMode
@@ -19,8 +19,8 @@ import com.jabook.app.shared.ui.AppThemeMode
  */
 @Composable
 fun getDynamicVerticalPadding(): Dp {
-  val configuration = LocalConfiguration.current
-  val screenHeightDp = configuration.screenHeightDp
+  val containerSize = LocalWindowInfo.current.containerSize
+  val screenHeightDp = containerSize.height
   return when {
     screenHeightDp < 600 -> 12.dp
     screenHeightDp < 800 -> 16.dp

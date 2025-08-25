@@ -13,10 +13,18 @@
     
     <!-- Foreground service permission for media playback -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     
     <!-- Storage permission for downloading and caching -->
+    <!-- Old permissions for Android 12 and below -->
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    
+    <!-- New permissions for Android 13+ -->
+    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
     
     <!-- Android 13+ notification permission -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
@@ -24,6 +32,9 @@
     <!-- Android 13+ media permission -->
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
     <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+    
+    <!-- Android 14+ selected photos access permission -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" tools:targetApi="34" />
     
     <!-- Install packages permission for installing downloaded content -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
@@ -73,7 +84,7 @@
             android:name=".MainActivity"
             android:exported="true"
             android:launchMode="singleTop"
-            android:screenOrientation="portrait"
+            android:screenOrientation="unspecified"
             android:theme="@style/AppTheme">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -98,45 +109,10 @@
             </intent-filter>
         </activity>
         
-        <!-- Player Activity -->
-        <activity
-            android:name=".features.player.PlayerActivity"
-            android:exported="false"
-            android:launchMode="singleTop"
-            android:screenOrientation="portrait"
-            android:theme="@style/PlayerTheme" />
         
-        <!-- Settings Activity -->
-        <activity
-            android:name=".features.settings.RuTrackerSettingsScreen"
-            android:exported="false"
-            android:launchMode="singleTop"
-            android:screenOrientation="portrait"
-            android:theme="@style/AppTheme" />
         
-        <!-- Domain Management Activity -->
-        <activity
-            android:name=".presentation.ui.RuTrackerDomainManagementScreen"
-            android:exported="false"
-            android:launchMode="singleTop"
-            android:screenOrientation="portrait"
-            android:theme="@style/AppTheme" />
         
-        <!-- Cache Management Activity -->
-        <activity
-            android:name=".presentation.ui.RuTrackerCacheManagementScreen"
-            android:exported="false"
-            android:launchMode="singleTop"
-            android:screenOrientation="portrait"
-            android:theme="@style/AppTheme" />
         
-        <!-- Offline Management Activity -->
-        <activity
-            android:name=".presentation.ui.RuTrackerOfflineManagementScreen"
-            android:exported="false"
-            android:launchMode="singleTop"
-            android:screenOrientation="portrait"
-            android:theme="@style/AppTheme" />
         
         <!-- Media Playback Service -->
         <service
@@ -148,27 +124,8 @@
             </intent-filter>
         </service>
         
-        <!-- Download Service -->
-        <service
-            android:name=".features.downloads.DownloadsService"
-            android:exported="false"
-            android:foregroundServiceType="dataSync" />
         
-        <!-- Media Button Receiver -->
-        <receiver
-            android:name=".features.player.MediaButtonReceiver"
-            android:exported="false">
-            <intent-filter>
-                <action android:name="android.intent.action.MEDIA_BUTTON" />
-            </intent-filter>
-        </receiver>
         
-        <!-- Provider for database -->
-        <provider
-            android:name=".core.database.JaBookDatabase"
-            android:authorities="${applicationId}.provider"
-            android:exported="false"
-            android:grantUriPermissions="true" />
         
         <!-- File Provider for sharing files -->
         <provider

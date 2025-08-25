@@ -114,7 +114,7 @@ fun AudiobookSectionCard(
                 tint = Color.Yellow,
               )
               Text(
-                text = String.format("%.1f", audiobook.rating),
+                text = String.format(java.util.Locale.getDefault(), "%.1f", audiobook.rating),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
               )
