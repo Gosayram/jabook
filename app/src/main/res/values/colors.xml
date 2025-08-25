@@ -20,6 +20,8 @@
 
     <!-- Text Colors -->
     <color name="text_primary">#000000</color>
+    <color name="text_secondary">#757575</color>
+    <color name="text_tertiary">#9E9E9E</color>
 
     <!-- Success Colors -->
 

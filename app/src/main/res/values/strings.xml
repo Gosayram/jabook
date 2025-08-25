@@ -263,7 +263,7 @@
     <string name="resume_download">Продолжить загрузку</string>
     <string name="retry_download">Повторить загрузку</string>
     <string name="cancel_download">Отменить загрузку</string>
-    <string name="seeders_leechers">Сидеры: %d, Личеры: %d</string>
+    <string name="seeders_leechers" formatted="false">Сидеры: %d, Личеры: %d</string>
     <string name="status_completed">Завершено</string>
     <string name="status_paused">На паузе</string>
     <string name="status_seeding">Раздача</string>

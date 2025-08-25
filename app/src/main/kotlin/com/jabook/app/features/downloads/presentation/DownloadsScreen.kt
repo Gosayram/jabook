@@ -26,9 +26,13 @@ import androidx.compose.material3.icons.filled.Clear
 import androidx.compose.material3.icons.filled.Pause
 import androidx.compose.material3.icons.filled.PlayArrow
 import androidx.compose.material3.icons.filled.Refresh
+import androidx.compose.material3.icons.Icons as Material3Icons
+import androidx.compose.material3.icons.filled.Clear as FilledClear
+import androidx.compose.material3.icons.filled.Pause as FilledPause
+import androidx.compose.material3.icons.filled.PlayArrow as FilledPlayArrow
+import androidx.compose.material3.icons.filled.Refresh as FilledRefresh
 import androidx.compose.material3.rememberDismissState
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -103,15 +107,15 @@ fun DownloadsScreen(
         actions = {
           if (uiState.selectedTab == DownloadsTab.Completed && uiState.completedDownloads.isNotEmpty()) {
             IconButton(onClick = { viewModel.clearCompleted() }) {
-              Icon(imageVector = Icons.Default.Clear, contentDescription = stringResource(R.string.clear_completed))
+              Icon(imageVector = Material3Icons.Filled.Clear, contentDescription = stringResource(R.string.clear_completed))
             }
           } else if (uiState.selectedTab == DownloadsTab.Failed && uiState.failedDownloads.isNotEmpty()) {
             IconButton(onClick = { viewModel.clearFailed() }) {
-              Icon(imageVector = Icons.Default.Clear, contentDescription = stringResource(R.string.clear_failed))
+              Icon(imageVector = Material3Icons.Filled.Clear, contentDescription = stringResource(R.string.clear_failed))
             }
           }
           IconButton(onClick = { viewModel.refreshDownloads() }) {
-            Icon(imageVector = Icons.Default.Refresh, contentDescription = stringResource(R.string.action_refresh))
+            Icon(imageVector = Material3Icons.Filled.Refresh, contentDescription = stringResource(R.string.action_refresh))
           }
           ThemeToggleButton(themeMode = themeMode, onToggle = { themeViewModel.toggleTheme() })
         },
@@ -314,9 +318,9 @@ private fun DownloadListItem(
         }
       val icon =
         if (direction == DismissDirection.StartToEnd) {
-          if (download.status == TorrentStatus.PAUSED) Icons.Default.PlayArrow else Icons.Default.Pause
+          if (download.status == TorrentStatus.PAUSED) Material3Icons.Filled.PlayArrow else Material3Icons.Filled.Pause
         } else {
-          Icons.Default.Clear
+          Material3Icons.Filled.Clear
         }
       val contentTint =
         if (direction == DismissDirection.StartToEnd) {

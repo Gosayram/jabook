@@ -27,7 +27,7 @@ tasks.named("lintKotlin").configure {
 
 android {
     namespace = "com.jabook.app"
-    compileSdk = 34
+    compileSdk = 35
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -76,8 +76,8 @@ android {
         manifestPlaceholders["appLabel"] = "JaBook"
         applicationId = "com.jabook.app"
         minSdk = 24
-        targetSdk = 34
-        versionCode = 1
+        targetSdk = 35
+        versionCode = 132
         versionName = "0.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
