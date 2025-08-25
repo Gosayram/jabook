@@ -139,6 +139,21 @@ android {
         abortOnError = false
         checkReleaseBuilds = false
     }
+
+    packaging {
+        resources {
+            excludes += "/META-INF/{AL2.0,LGPL2.1}"
+            excludes += "META-INF/DEPENDENCIES"
+            excludes += "META-INF/LICENSE"
+            excludes += "META-INF/LICENSE.txt"
+            excludes += "META-INF/NOTICE"
+            excludes += "META-INF/NOTICE.txt"
+            excludes += "COPYRIGHT.txt"
+            excludes += "**/kotlin/**"
+            excludes += "**/attach_hotspot_windows.dll"
+            excludes += "META-INF/versions/9/OSGI-INF/MANIFEST.MF"
+        }
+    }
 }
 
 dependencies {
