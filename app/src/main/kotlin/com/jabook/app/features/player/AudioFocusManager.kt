@@ -14,7 +14,7 @@ import javax.inject.Singleton
 class AudioFocusManager
   @Inject
   constructor(
-    @ApplicationContext private val context: Context,
+    @param:ApplicationContext private val context: Context,
     private val debugLogger: IDebugLogger,
   ) {
     private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager

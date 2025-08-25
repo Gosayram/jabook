@@ -94,8 +94,38 @@ fun LibraryScreen(
         },
         active = isSearchActive,
         onActiveChange = { isSearchActive = it },
-        placeholder = { Text(stringResource(R.string.search_placeholder)) },
         modifier = Modifier.padding(top = 8.dp, bottom = 4.dp), // Reduced padding
+        placeholder = { Text(stringResource(R.string.search_placeholder)) },
+        inputField = {
+          // Search input field with placeholder
+          androidx.compose.material3.SearchBarDefaults.InputField(
+            query = searchQuery,
+            onQueryChange = { searchQuery = it },
+            onSearch = {
+              viewModel.searchAudiobooks(searchQuery)
+              isSearchActive = false
+            },
+            expanded = isSearchActive,
+            onExpandedChange = { isSearchActive = it },
+            placeholder = { Text(stringResource(R.string.search_placeholder)) },
+            leadingIcon = {
+              Icon(
+                imageVector = Icons.Default.Search,
+                contentDescription = stringResource(R.string.search_audiobooks)
+              )
+            },
+            trailingIcon = {
+              if (searchQuery.isNotEmpty()) {
+                IconButton(onClick = { searchQuery = "" }) {
+                  Icon(
+                    imageVector = androidx.compose.material.icons.Icons.Default.Close,
+                    contentDescription = "Clear search"
+                  )
+                }
+              }
+            }
+          )
+        }
       ) {
         // Search suggestions can be added here
       }

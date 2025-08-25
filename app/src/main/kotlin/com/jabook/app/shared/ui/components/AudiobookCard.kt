@@ -107,7 +107,7 @@ private fun GridCardContent(
       if (showProgress && audiobook.progressPercentage > 0) {
         Column(modifier = Modifier.padding(top = 8.dp)) {
           LinearProgressIndicator(
-            progress = audiobook.progressPercentage,
+            progress = { audiobook.progressPercentage },
             modifier = Modifier.fillMaxWidth(),
             trackColor = MaterialTheme.colorScheme.surfaceVariant,
             color = MaterialTheme.colorScheme.primary,
@@ -179,7 +179,7 @@ private fun ListCardContent(
       if (showProgress && audiobook.progressPercentage > 0) {
         Column(modifier = Modifier.padding(top = 8.dp)) {
           LinearProgressIndicator(
-            progress = audiobook.progressPercentage,
+            progress = { audiobook.progressPercentage },
             modifier = Modifier.fillMaxWidth(),
             trackColor = MaterialTheme.colorScheme.surfaceVariant,
             color = MaterialTheme.colorScheme.primary,

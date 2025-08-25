@@ -10,7 +10,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.Error
-import androidx.compose.material.icons.filled.LibraryBooks
+import androidx.compose.material.icons.autoMirrored.filled.LibraryBooks
 import androidx.compose.material.icons.filled.SearchOff
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -93,12 +93,12 @@ enum class EmptyStateType(
   val defaultSubtitle: String,
 ) {
   Loading(
-    icon = Icons.Default.LibraryBooks, // Not used for Loading
+    icon = Icons.AutoMirrored.Default.LibraryBooks, // Not used for Loading
     defaultTitle = "Загрузка...",
     defaultSubtitle = "Пожалуйста, подождите",
   ),
   EmptyLibrary(
-    icon = Icons.Default.LibraryBooks,
+    icon = Icons.AutoMirrored.Default.LibraryBooks,
     defaultTitle = "Библиотека пуста",
     defaultSubtitle = "Добавьте свою первую аудиокнигу, чтобы начать слушать",
   ),
@@ -118,12 +118,12 @@ enum class EmptyStateType(
     defaultSubtitle = "Что-то пошло не так. Попробуйте перезагрузить страницу",
   ),
   EmptyDownloads(
-    icon = Icons.Default.LibraryBooks,
+    icon = Icons.AutoMirrored.Default.LibraryBooks,
     defaultTitle = "Нет загрузок",
     defaultSubtitle = "Здесь будут отображаться ваши загруженные аудиокниги",
   ),
   EmptyCategory(
-    icon = Icons.Default.LibraryBooks,
+    icon = Icons.AutoMirrored.Default.LibraryBooks,
     defaultTitle = "Категория пуста",
     defaultSubtitle = "В этой категории пока нет аудиокниг",
   ),

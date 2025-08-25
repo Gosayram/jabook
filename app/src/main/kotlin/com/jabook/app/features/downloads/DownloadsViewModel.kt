@@ -53,9 +53,9 @@ class DownloadsViewModel
         selectedTab,
       ) { values ->
         DownloadsUiState(
-          activeDownloads = values[0] as List<DownloadProgress>,
-          completedDownloads = values[1] as List<DownloadProgress>,
-          failedDownloads = values[2] as List<DownloadProgress>,
+          activeDownloads = values[0] as? List<DownloadProgress> ?: emptyList(),
+          completedDownloads = values[1] as? List<DownloadProgress> ?: emptyList(),
+          failedDownloads = values[2] as? List<DownloadProgress> ?: emptyList(),
           isLoading = values[3] as Boolean,
           errorMessage = values[4] as String?,
           selectedTab = values[5] as DownloadsTab,

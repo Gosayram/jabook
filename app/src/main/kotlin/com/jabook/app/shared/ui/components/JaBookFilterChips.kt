@@ -11,7 +11,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.FilterList
-import androidx.compose.material.icons.filled.Sort
+import androidx.compose.material.icons.autoMirrored.filled.Sort
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.FilterChip
@@ -90,7 +90,7 @@ fun JaBookFilterChips(
             )
           },
           leadingIcon = {
-            Icon(imageVector = Icons.Default.Sort, contentDescription = "Сортировка", modifier = Modifier.size(16.dp))
+            Icon(imageVector = Icons.AutoMirrored.Default.Sort, contentDescription = "Сортировка", modifier = Modifier.size(16.dp))
           },
           colors =
             AssistChipDefaults.assistChipColors(

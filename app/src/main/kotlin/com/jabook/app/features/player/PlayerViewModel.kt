@@ -23,7 +23,7 @@ import javax.inject.Inject
 class PlayerViewModel
   @Inject
   constructor(
-    @ApplicationContext private val context: Context,
+    @param:ApplicationContext private val context: Context,
     private val playerManager: PlayerManager,
     private val audiobookRepository: AudiobookRepository,
     private val debugLogger: IDebugLogger,
@@ -56,7 +56,7 @@ class PlayerViewModel
         val sleepTimerMinutes = flows[3] as Int
         val isSpeedDialogVisible = flows[4] as Boolean
         val isSleepTimerDialogVisible = flows[5] as Boolean
-        val bookmarks = flows[6] as List<Bookmark>
+        val bookmarks = flows[6] as? List<Bookmark> ?: emptyList()
         val isBookmarksSheetVisible = flows[7] as Boolean
 
         PlayerUiState(
