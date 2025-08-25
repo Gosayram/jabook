@@ -67,7 +67,7 @@ fun PlayerScreen(
 
   Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
     TopAppBar(
-      title = { Text(stringResource(R.string.now_playing)) },
+      title = { Text("Now Playing") },
       actions = {
         ThemeToggleButton(themeMode = themeMode, onToggle = { themeViewModel.toggleTheme() })
       },
@@ -166,7 +166,7 @@ private fun PlayerCoverSection() {
       ) {
         Icon(
           imageVector = Icons.Filled.Book,
-          contentDescription = stringResource(R.string.cd_cover_art),
+          contentDescription = "CD cover art",
           modifier = Modifier.size(100.dp),
           tint = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -251,7 +251,7 @@ private fun PlayerControlsSection(params: PlayerControlsSectionParams) {
 private fun PlayerEmptyState() {
   Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
     Text(
-      text = stringResource(R.string.player_empty_state),
+      text = "No audiobook selected",
       style = MaterialTheme.typography.bodyLarge,
       color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
@@ -328,7 +328,7 @@ private fun BookmarksSheetSection(
               IconButton(onClick = { /* TODO: remove bookmark */ }) {
                 Icon(
                   imageVector = Icons.Filled.Clear,
-                  contentDescription = stringResource(R.string.remove_bookmark_cd),
+                  contentDescription = "Remove bookmark",
                 )
               }
             }
