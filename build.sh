@@ -95,6 +95,16 @@ install_apk() {
     log_info "$build_type APK установлен успешно!"
 }
 
+# Функция для генерации keystore
+generate_keystore() {
+    log_info "Генерация keystore..."
+    if [ -f "keystore/jabook-release.jks" ]; then
+        log_warn "Keystore уже существует. Удалите его перед генерацией нового."
+        return 1
+    fi
+    ./generate-keystore.sh
+}
+
 # Основная логика
 main() {
     local action=$1
@@ -109,12 +119,20 @@ main() {
             echo "  $0 install [type]    - Установить APK (debug|release)"
             echo "  $0 clean             - Очистить сборочные файлы"
             echo "  $0 info              - Показать информацию о проекте"
+            echo "  $0 keystore          - Сгенерировать keystore"
             ;;
         "deps")
             check_dependencies
             ;;
         "build")
             check_dependencies
+            # Для release и signed-release проверяем наличие keystore
+            if [ "$build_type" = "release" ] || [ "$build_type" = "signed-release" ]; then
+                if [ ! -f "keystore/jabook-release.jks" ]; then
+                    log_info "Keystore не найден. Генерация..."
+                    generate_keystore
+                fi
+            fi
             build_apk $build_type
             ;;
         "install")
@@ -129,6 +147,10 @@ main() {
         "info")
             log_info "Информация о проекте:"
             make info
+            ;;
+        "keystore")
+            check_dependencies
+            generate_keystore
             ;;
         *)
             log_error "Неизвестная команда: $action"

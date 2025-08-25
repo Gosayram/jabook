@@ -68,6 +68,11 @@ release: check-config
 		echo "$(RED)Ошибка: Файл $(PROPERTIES_FILE) не найден!$(NC)"; \
 		exit 1; \
 	fi
+	@if [ ! -f "$(KEYSTORE_FILE)" ]; then \
+		echo "$(YELLOW)Предупреждение: Файл $(KEYSTORE_FILE) не найден. Генерация keystore...$(NC)"; \
+		./generate-keystore.sh; \
+	fi
+	@echo "$(GREEN)Используется keystore: $(KEYSTORE_FILE)$(NC)"
 	$(GRADLE_WRAPPER) assembleRelease
 	@echo "$(GREEN)Release APK готов: app/build/outputs/apk/release/app-release.apk$(NC)"
 
@@ -79,8 +84,8 @@ signed-release: check-config
 		exit 1; \
 	fi
 	@if [ ! -f "$(KEYSTORE_FILE)" ]; then \
-		echo "$(YELLOW)Предупреждение: Файл $(KEYSTORE_FILE) не найден.$(NC)"; \
-		echo "$(YELLOW)Используется debug подпись.$(NC)"; \
+		echo "$(YELLOW)Предупреждение: Файл $(KEYSTORE_FILE) не найден. Генерация keystore...$(NC)"; \
+		./generate-keystore.sh; \
 	fi
 	@echo "$(GREEN)Используется keystore: $(KEYSTORE_FILE)$(NC)"
 	$(GRADLE_WRAPPER) bundleRelease

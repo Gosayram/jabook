@@ -83,7 +83,7 @@ generate_keystore() {
         -alias "$key_alias" \
         -keypass "$key_password" \
         -keyalg RSA \
-        -keysize 2048 \
+        -keysize 4096 \
         -validity 10000 \
         -dname "CN=JaBook, OU=JaBook, O=JaBook, L=Almaty, ST=Almaty, C=KZ" \
         -ext "san=dns:localhost,ip:127.0.0.1"
@@ -114,16 +114,19 @@ main() {
         exit 1
     fi
 
-    read_properties "$keystore_properties" "KEYSTORE_"
+    read_properties "$keystore_properties" ""
 
     # Проверяем наличие необходимых свойств
-    if [ -z "$KEYSTORE_storeFile" ] || [ -z "$KEYSTORE_storePassword" ] || [ -z "$KEYSTORE_keyAlias" ] || [ -z "$KEYSTORE_keyPassword" ]; then
+    if [ -z "$storeFile" ] || [ -z "$storePassword" ] || [ -z "$keyAlias" ] || [ -z "$keyPassword" ]; then
         log_error "Некоторые свойства отсутствуют в keystore.properties"
         exit 1
     fi
 
     # Определяем путь к keystore
-    local keystore_file="$KEYSTORE_storeFile"
+    local keystore_file="$storeFile"
+
+    # Создаем директорию если не существует
+    mkdir -p "$(dirname "$keystore_file")"
 
     # Проверяем, существует ли keystore
     if [ -f "$keystore_file" ]; then
@@ -133,10 +136,10 @@ main() {
     fi
 
     # Генерируем keystore
-    generate_keystore "$keystore_file" "$KEYSTORE_storePassword" "$KEYSTORE_keyAlias" "$KEYSTORE_keyPassword"
+    generate_keystore "$keystore_file" "$storePassword" "$keyAlias" "$keyPassword"
 
     log_info "Генерация keystore завершена"
-    log_info "Теперь вы можете использовать команду 'make release' для сборки подписанного APK"
+    log_info "Теперь вы можете использовать команду 'make release' или 'make signed-release' для сборки подписанного APK"
 }
 
 # Запуск основной функции

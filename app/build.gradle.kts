@@ -1,8 +1,6 @@
-// --- imports должны быть САМЫМИ первыми ---
 import java.util.Properties
 import java.io.FileInputStream
 import java.io.File
-// ------------------------------------------
 
 plugins {
     alias(libs.plugins.android.application)
@@ -16,6 +14,7 @@ plugins {
 }
 
 kotlinter {
+    // Keep output readable in CI/local
     reporters = arrayOf("checkstyle", "plain")
     ignoreFormatFailures = false
     ignoreLintFailures = false
@@ -32,20 +31,41 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+        // Required for java.time on minSdk 24
         isCoreLibraryDesugaringEnabled = true
     }
 
     signingConfigs {
         create("release") {
-            val keystoreProperties = Properties()
-            val keystoreFile = File(rootDir, "keystore.properties")
-            if (keystoreFile.exists()) {
-                keystoreProperties.load(FileInputStream(keystoreFile))
-                storeFile = File(rootDir, keystoreProperties.getProperty("storeFile"))
-                storePassword = keystoreProperties.getProperty("storePassword")
-                keyAlias = keystoreProperties.getProperty("keyAlias")
-                keyPassword = keystoreProperties.getProperty("keyPassword")
+            // Load keystore from keystore.properties if present; otherwise fall back to debug config
+            val keystorePropertiesFile = File(rootDir, "keystore.properties")
+            if (keystorePropertiesFile.exists()) {
+                val props = Properties()
+                FileInputStream(keystorePropertiesFile).use { props.load(it) }
+
+                val storeFilePath = props.getProperty("storeFile") ?: ""
+                val resolvedStoreFile = if (storeFilePath.startsWith("/")) {
+                    File(storeFilePath)
+                } else {
+                    File(rootDir, storeFilePath)
+                }
+
+                storeFile = resolvedStoreFile
+                storePassword = props.getProperty("storePassword")
+                keyAlias = props.getProperty("keyAlias")
+                keyPassword = props.getProperty("keyPassword")
+
+                // Use a local val to avoid smart-cast issues on the mutable Gradle property
+                val sf: File? = storeFile
+                if (sf != null && sf.exists()) {
+                    println("Using keystore: ${sf.absolutePath}")
+                } else {
+                    println("Warning: keystore file not found: ${sf?.absolutePath}")
+                    println("Using debug signing config")
+                    initWith(signingConfigs.getByName("debug"))
+                }
             } else {
+                println("Warning: keystore.properties not found, using debug signing config")
                 initWith(signingConfigs.getByName("debug"))
             }
         }
@@ -114,8 +134,8 @@ android {
         compilerOptions {
             jvmToolchain(17)
             jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
-            languageVersion.set(org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_2_0)
-            apiVersion.set(org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_2_0)
+            languageVersion.set(org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_1_9)
+            apiVersion.set(org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_1_9)
             freeCompilerArgs.addAll(
                 "-Xskip-prerelease-check",
                 "-opt-in=androidx.compose.material3.ExperimentalMaterial3Api",
@@ -156,6 +176,7 @@ android {
 
     packaging {
         resources {
+            // Do not exclude Kotlin metadata; exclude only known redundant files
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
             excludes += "META-INF/DEPENDENCIES"
             excludes += "META-INF/LICENSE"
@@ -169,6 +190,7 @@ android {
     }
 }
 
+// KSP arguments kept at top-level for clarity
 ksp {
     arg("room.schemaLocation", "$projectDir/schemas")
     arg("room.incremental", "true")
@@ -242,6 +264,7 @@ dependencies {
     implementation(libs.androidx.media3.session)
     implementation(libs.androidx.media3.exoplayer.workmanager)
 
-    debugImplementation(libs.androidx.ui.tooling)
+    debugImplementation("androidx.compose.ui:ui-tooling")
+    debugImplementation("androidx.compose.ui:ui-tooling-preview")
     debugImplementation(libs.androidx.ui.test.manifest)
 }
