@@ -1,7 +1,6 @@
 package com.jabook.app.shared.ui.compat
 
 import android.content.Context
-import android.os.Build
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
@@ -200,8 +199,7 @@ object ViewFallbacks {
     fun getCompatColor(
       context: Context,
       colorRes: Int,
-    ): Int =
-      context.getColor(colorRes)
+    ): Int = context.getColor(colorRes)
 
     /** Applies compatible styles to View */
     fun applyCompatStyles(

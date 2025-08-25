@@ -4,7 +4,6 @@ import android.content.Context
 import android.content.Intent
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
-import android.os.Build
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale

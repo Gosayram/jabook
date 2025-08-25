@@ -17,22 +17,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DismissDirection
 import androidx.compose.material3.DismissValue
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.SwipeToDismiss
-import androidx.compose.material3.icons.Icons
-import androidx.compose.material3.icons.filled.Clear
-import androidx.compose.material3.icons.filled.Pause
-import androidx.compose.material3.icons.filled.PlayArrow
-import androidx.compose.material3.icons.filled.Refresh
-import androidx.compose.material3.icons.Icons as Material3Icons
-import androidx.compose.material3.icons.filled.Clear as FilledClear
-import androidx.compose.material3.icons.filled.Pause as FilledPause
-import androidx.compose.material3.icons.filled.PlayArrow as FilledPlayArrow
-import androidx.compose.material3.icons.filled.Refresh as FilledRefresh
-import androidx.compose.material3.rememberDismissState
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -40,10 +28,16 @@ import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SwipeToDismiss
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.icons.filled.Clear
+import androidx.compose.material3.icons.filled.Pause
+import androidx.compose.material3.icons.filled.PlayArrow
+import androidx.compose.material3.icons.filled.Refresh
+import androidx.compose.material3.rememberDismissState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -67,6 +61,7 @@ import com.jabook.app.shared.ui.components.EmptyStateType
 import com.jabook.app.shared.ui.components.JaBookEmptyState
 import com.jabook.app.shared.ui.components.ThemeToggleButton
 import com.jabook.app.shared.ui.components.getDynamicVerticalPadding
+import androidx.compose.material3.icons.Icons as Material3Icons
 
 data class DownloadsEmptyState(
   val type: EmptyStateType,
