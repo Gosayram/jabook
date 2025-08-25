@@ -45,7 +45,12 @@ fun DownloadItemCard(
     elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
   ) {
-    Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(
+      modifier = Modifier
+        .fillMaxWidth()
+        .padding(16.dp),
+      verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
       DownloadItemHeader(download, onPause, onResume, onCancel, onRetry)
       DownloadItemStatus(download)
       DownloadItemProgress(download)
@@ -82,7 +87,7 @@ private fun DownloadItemHeader(
         TorrentStatus.DOWNLOADING -> {
           IconButton(onClick = onPause) {
             Icon(
-              imageVector = Icons.Default.Pause,
+              imageVector = Icons.Filled.Pause,
               contentDescription = stringResource(R.string.pause_download),
               tint = MaterialTheme.colorScheme.primary,
             )
@@ -91,7 +96,7 @@ private fun DownloadItemHeader(
         TorrentStatus.PAUSED -> {
           IconButton(onClick = onResume) {
             Icon(
-              imageVector = Icons.Default.PlayArrow,
+              imageVector = Icons.Filled.PlayArrow,
               contentDescription = stringResource(R.string.resume_download),
               tint = Color(0xFF4CAF50),
             )
@@ -100,18 +105,18 @@ private fun DownloadItemHeader(
         TorrentStatus.ERROR, TorrentStatus.STOPPED -> {
           IconButton(onClick = onRetry) {
             Icon(
-              imageVector = Icons.Default.Refresh,
+              imageVector = Icons.Filled.Refresh,
               contentDescription = stringResource(R.string.retry_download),
               tint = MaterialTheme.colorScheme.primary,
             )
           }
         }
-        else -> {}
+        else -> Unit
       }
       if (download.status != TorrentStatus.COMPLETED) {
         IconButton(onClick = onCancel) {
           Icon(
-            imageVector = Icons.Default.Cancel,
+            imageVector = Icons.Filled.Cancel,
             contentDescription = stringResource(R.string.cancel_download),
             tint = Color(0xFFF44336),
             modifier = Modifier.size(20.dp),
@@ -156,7 +161,7 @@ private fun DownloadItemProgress(download: DownloadProgress) {
     download.status == TorrentStatus.SEEDING
   ) {
     LinearProgressIndicator(
-      progress = { download.progress },
+      progress = { download.progress }, // Compose 1.7.x сигнатура
       modifier = Modifier.fillMaxWidth(),
       color = getProgressColor(download.status),
       trackColor = MaterialTheme.colorScheme.surfaceVariant,

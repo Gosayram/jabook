@@ -53,7 +53,7 @@ fun AudiobookListItem(
   audiobook: Audiobook,
   onClick: () -> Unit,
   onFavoriteClick: () -> Unit,
-  onRatingChange: (Float) -> Unit,
+  onRatingChange: (Float) -> Unit, // reserved for future rating UI
   onMarkCompleted: () -> Unit,
   onResetPlayback: () -> Unit,
   modifier: Modifier = Modifier,
@@ -65,7 +65,10 @@ fun AudiobookListItem(
     elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
   ) {
-    Row(modifier = Modifier.fillMaxWidth().padding(12.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+    Row(
+      modifier = Modifier.fillMaxWidth().padding(12.dp),
+      horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
       // Cover Image
       AudiobookCover(
         coverUrl = audiobook.coverUrl,
@@ -109,7 +112,10 @@ fun AudiobookListItem(
         if (audiobook.progressPercentage > 0) {
           LinearProgressIndicator(
             progress = { audiobook.progressPercentage },
-            modifier = Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp)),
+            modifier = Modifier
+              .fillMaxWidth()
+              .height(4.dp)
+              .clip(RoundedCornerShape(2.dp)),
             color = MaterialTheme.colorScheme.primary,
             trackColor = MaterialTheme.colorScheme.surfaceVariant,
           )
@@ -145,31 +151,20 @@ fun AudiobookListItem(
         // Favorite Button
         IconButton(onClick = onFavoriteClick) {
           Icon(
-            imageVector =
-              if (audiobook.isFavorite) {
-                Icons.Default.Favorite
-              } else {
-                Icons.Default.FavoriteBorder
-              },
-            contentDescription =
-              if (audiobook.isFavorite) {
-                stringResource(R.string.remove_from_favorites)
-              } else {
-                stringResource(R.string.add_to_favorites)
-              },
-            tint =
-              if (audiobook.isFavorite) {
-                MaterialTheme.colorScheme.error
-              } else {
-                MaterialTheme.colorScheme.onSurfaceVariant
-              },
+            imageVector = if (audiobook.isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+            contentDescription = if (audiobook.isFavorite) {
+              stringResource(R.string.remove_from_favorites)
+            } else {
+              stringResource(R.string.add_to_favorites)
+            },
+            tint = if (audiobook.isFavorite) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
           )
         }
 
         // More Options Menu
         Box {
           IconButton(onClick = { showMenu = true }) {
-            Icon(imageVector = Icons.Default.MoreVert, contentDescription = "More options")
+            Icon(imageVector = Icons.Filled.MoreVert, contentDescription = "More options")
           }
 
           DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
@@ -208,7 +203,10 @@ private fun AudiobookCover(
   modifier: Modifier = Modifier,
 ) {
   Box(
-    modifier = modifier.aspectRatio(1f).clip(RoundedCornerShape(8.dp)).background(MaterialTheme.colorScheme.surfaceVariant),
+    modifier = modifier
+      .aspectRatio(1f)
+      .clip(RoundedCornerShape(8.dp))
+      .background(MaterialTheme.colorScheme.surfaceVariant),
     contentAlignment = Alignment.Center,
   ) {
     val imageUrl = localCoverPath ?: coverUrl
@@ -250,18 +248,12 @@ private fun DownloadStatusBadge(
 
   if (text.isNotEmpty()) {
     Text(
-      text =
-        if (status == DownloadStatus.DOWNLOADING) {
-          "$text ${(progress * 100).toInt()}%"
-        } else {
-          text
-        },
+      text = if (status == DownloadStatus.DOWNLOADING) "$text ${(progress * 100).toInt()}%" else text,
       style = MaterialTheme.typography.labelSmall,
       color = color,
-      modifier =
-        Modifier
-          .background(color = color.copy(alpha = 0.1f), shape = RoundedCornerShape(4.dp))
-          .padding(horizontal = 6.dp, vertical = 2.dp),
+      modifier = Modifier
+        .background(color = color.copy(alpha = 0.1f), shape = RoundedCornerShape(4.dp))
+        .padding(horizontal = 6.dp, vertical = 2.dp),
     )
   }
 }
