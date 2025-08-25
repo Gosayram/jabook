@@ -120,6 +120,11 @@ main() {
             echo "  $0 clean             - Очистить сборочные файлы"
             echo "  $0 info              - Показать информацию о проекте"
             echo "  $0 keystore          - Сгенерировать keystore"
+            echo ""
+            echo "Типы сборки:"
+            echo "  debug               - Отладочная версия APK"
+            echo "  release             - Релизная версия APK (подписанная)"
+            echo "  signed-release      - Релизная версия APK (полностью подписанная)"
             ;;
         "deps")
             check_dependencies

@@ -9,7 +9,7 @@ GRADLE_WRAPPER = ./gradlew
 PROPERTIES_FILE = keystore.properties
 KEYSTORE_FILE = keystore/jabook-release.jks
 APK_OUTPUT_DIR = app/build/outputs/apk/release
-APK_NAME = $(APP_NAME)-release.apk
+APK_NAME = app-release.apk
 SIGNED_APK = $(APK_OUTPUT_DIR)/$(APK_NAME)
 AAB_OUTPUT_DIR = app/build/outputs/bundle/release
 AAB_NAME = $(APP_NAME)-release.aab
@@ -28,6 +28,7 @@ help:
 	@echo "$(YELLOW)make clean$(NC)        - Очистить сборочные файлы"
 	@echo "$(YELLOW)make debug$(NC)        - Собрать debug APK"
 	@echo "$(YELLOW)make release$(NC)      - Собрать release APK (подписанный)"
+	@echo "$(YELLOW)make signed-release$(NC) - Собрать и подписать release APK"
 	@echo "$(YELLOW)make install$(NC)      - Установить debug APK на устройство"
 	@echo "$(YELLOW)make release-install$(NC) - Установить release APK на устройство"
 	@echo ""
@@ -78,7 +79,7 @@ release: check-config
 
 # Сборка и подписание release APK
 signed-release: check-config
-	@echo "$(GREEN)Сборка и подписание release AAB...$(NC)"
+	@echo "$(GREEN)Сборка и подписание release APK...$(NC)"
 	@if [ ! -f "$(PROPERTIES_FILE)" ]; then \
 		echo "$(RED)Ошибка: Файл $(PROPERTIES_FILE) не найден!$(NC)"; \
 		exit 1; \
@@ -88,10 +89,8 @@ signed-release: check-config
 		./generate-keystore.sh; \
 	fi
 	@echo "$(GREEN)Используется keystore: $(KEYSTORE_FILE)$(NC)"
-	$(GRADLE_WRAPPER) bundleRelease
-	@echo "$(GREEN)Подписанный AAB готов: $(SIGNED_AAB)$(NC)"
-	@echo "$(YELLOW)Для создания APK из AAB используйте:$(NC)"
-	@echo "  bundletool build-apk --bundle $(SIGNED_AAB) --output $(SIGNED_APK)"
+	$(GRADLE_WRAPPER) assembleRelease
+	@echo "$(GREEN)Подписанный APK готов: $(SIGNED_APK)$(NC)"
 
 # Установка debug APK
 install: debug
