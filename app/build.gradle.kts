@@ -1,3 +1,9 @@
+// --- imports должны быть САМЫМИ первыми ---
+import java.util.Properties
+import java.io.FileInputStream
+import java.io.File
+// ------------------------------------------
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -15,8 +21,8 @@ kotlinter {
     ignoreLintFailures = false
 }
 
-tasks.lintKotlinMain {
-    dependsOn(tasks.formatKotlinMain)
+tasks.named("lintKotlin").configure {
+    dependsOn(tasks.named("formatKotlin"))
 }
 
 android {
@@ -26,8 +32,23 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
-        // НУЖНО для java.time на minSdk 24
         isCoreLibraryDesugaringEnabled = true
+    }
+
+    signingConfigs {
+        create("release") {
+            val keystoreProperties = Properties()
+            val keystoreFile = File(rootDir, "keystore.properties")
+            if (keystoreFile.exists()) {
+                keystoreProperties.load(FileInputStream(keystoreFile))
+                storeFile = File(rootDir, keystoreProperties.getProperty("storeFile"))
+                storePassword = keystoreProperties.getProperty("storePassword")
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+            } else {
+                initWith(signingConfigs.getByName("debug"))
+            }
+        }
     }
 
     defaultConfig {
@@ -55,13 +76,6 @@ android {
         buildConfigField("long", "CIRCUIT_BREAKER_TIMEOUT", "30000L")
         buildConfigField("int", "CIRCUIT_BREAKER_FAILURE_THRESHOLD", "5")
         buildConfigField("long", "CIRCUIT_BREAKER_RETRY_DELAY", "60000L")
-
-        // Room schema location
-        ksp {
-            arg("room.schemaLocation", "$projectDir/schemas")
-            arg("room.incremental", "true")
-            arg("room.expandProjection", "true")
-        }
     }
 
     buildTypes {
@@ -75,7 +89,7 @@ android {
             buildConfigField("boolean", "DEBUG", "false")
             buildConfigField("boolean", "ENABLE_LOGGING", "false")
             resValue("string", "app_name", "JaBook")
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("release")
         }
         debug {
             applicationIdSuffix = ".debug"
@@ -100,8 +114,8 @@ android {
         compilerOptions {
             jvmToolchain(17)
             jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
-            languageVersion.set(org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_1_9)
-            apiVersion.set(org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_1_9)
+            languageVersion.set(org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_2_0)
+            apiVersion.set(org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_2_0)
             freeCompilerArgs.addAll(
                 "-Xskip-prerelease-check",
                 "-opt-in=androidx.compose.material3.ExperimentalMaterial3Api",
@@ -149,11 +163,16 @@ android {
             excludes += "META-INF/NOTICE"
             excludes += "META-INF/NOTICE.txt"
             excludes += "COPYRIGHT.txt"
-            excludes += "**/kotlin/**"
             excludes += "**/attach_hotspot_windows.dll"
             excludes += "META-INF/versions/9/OSGI-INF/MANIFEST.MF"
         }
     }
+}
+
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
+    arg("room.incremental", "true")
+    arg("room.expandProjection", "true")
 }
 
 dependencies {
