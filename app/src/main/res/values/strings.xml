@@ -48,7 +48,7 @@
     <string name="cache_cleared">Кэш очищен</string>
 
     <!-- Search -->
-    <string name="search_hint">Поиск аудиокниг...</string>
+    <string name="search_hint">Поиск аудиокниг…</string>
     <string name="search_results">Результаты поиска</string>
     <string name="search_no_results">Нет результатов</string>
     <string name="search_error">Ошибка поиска</string>
@@ -111,9 +111,9 @@
     <string name="error_report">Сообщить об ошибке</string>
 
     <!-- Status Messages -->
-    <string name="status_loading">Загрузка...</string>
-    <string name="status_processing">Обработка...</string>
-    <string name="status_downloading">Скачивание...</string>
+    <string name="status_loading">Загрузка…</string>
+    <string name="status_processing">Обработка…</string>
+    <string name="status_downloading">Скачивание…</string>
     <string name="status_ready">Готово</string>
     <string name="status_offline">Офлайн</string>
     <string name="status_online">Онлайн</string>
@@ -203,10 +203,10 @@
     <string name="empty_player">Выберите аудиокнигу для прослушивания</string>
 
     <!-- Loading States -->
-    <string name="loading_search">Поиск аудиокниг...</string>
-    <string name="loading_library">Загрузка библиотеки...</string>
-    <string name="loading_downloads">Загрузка загрузок...</string>
-    <string name="loading_player">Загрузка плеера...</string>
+    <string name="loading_search">Поиск аудиокниг…</string>
+    <string name="loading_library">Загрузка библиотеки…</string>
+    <string name="loading_downloads">Загрузка загрузок…</string>
+    <string name="loading_player">Загрузка плеера…</string>
 
     <!-- Error States -->
     <string name="error_search_failed">Не удалось выполнить поиск</string>
@@ -273,7 +273,7 @@
     <string name="status_pending">В ожидании</string>
 
     <!-- Library Screen -->
-    <string name="search_placeholder">Поиск в библиотеке...</string>
+    <string name="search_placeholder">Поиск в библиотеке…</string>
     <string name="empty_library_message">Ваша библиотека пуста</string>
     <string name="empty_favorites_message">Нет избранных аудиокниг</string>
     <string name="empty_currently_playing_message">Сейчас ничего не играет</string>

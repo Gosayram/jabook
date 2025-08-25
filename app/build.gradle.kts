@@ -109,7 +109,6 @@ android {
             )
             buildConfigField("boolean", "DEBUG", "false")
             buildConfigField("boolean", "ENABLE_LOGGING", "false")
-            resValue("string", "app_name", "JaBook")
             signingConfig = signingConfigs.getByName("release")
         }
         debug {
@@ -117,7 +116,6 @@ android {
             versionNameSuffix = "-debug"
             buildConfigField("boolean", "DEBUG", "true")
             buildConfigField("boolean", "ENABLE_LOGGING", "true")
-            resValue("string", "app_name", "JaBook Debug")
             isDebuggable = true
         }
         create("staging") {
@@ -125,7 +123,6 @@ android {
             versionNameSuffix = "-staging"
             buildConfigField("boolean", "DEBUG", "true")
             buildConfigField("boolean", "ENABLE_LOGGING", "true")
-            resValue("string", "app_name", "JaBook Staging")
             isMinifyEnabled = false
             isShrinkResources = false
         }

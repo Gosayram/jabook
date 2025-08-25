@@ -4,78 +4,24 @@
     <color name="primary">#6200EE</color>
     <color name="primary_dark">#3700B3</color>
     <color name="primary_light">#BB86FC</color>
-    <color name="primary_variant">#3700B3</color>
 
     <!-- Secondary Colors -->
-    <color name="secondary">#03DAC6</color>
-    <color name="secondary_dark">#018786</color>
-    <color name="secondary_light">#B2DFDB</color>
-    <color name="secondary_variant">#018786</color>
 
     <!-- Accent Colors -->
     <color name="accent">#03DAC6</color>
-    <color name="accent_dark">#018786</color>
-    <color name="accent_light">#B2DFDB</color>
 
     <!-- Background Colors -->
     <color name="background">#FFFFFF</color>
-    <color name="background_dark">#121212</color>
-    <color name="background_variant">#F5F5F5</color>
-    <color name="background_variant_dark">#1E1E1E</color>
 
     <!-- Surface Colors -->
     <color name="surface">#FFFFFF</color>
-    <color name="surface_dark">#121212</color>
-    <color name="surface_variant">#F5F5F5</color>
-    <color name="surface_variant_dark">#1E1E1E</color>
     <color name="surface_elevated">#FFFFFF</color>
     <color name="surface_elevated_dark">#1E1E1E</color>
 
     <!-- Text Colors -->
     <color name="text_primary">#000000</color>
-    <color name="text_primary_dark">#FFFFFF</color>
-    <color name="text_secondary">#6200EE</color>
-    <color name="text_secondary_dark">#BB86FC</color>
-    <color name="text_tertiary">#757575</color>
-    <color name="text_tertiary_dark">#B0B0B0</color>
-    <color name="text_on_primary">#FFFFFF</color>
-    <color name="text_on_secondary">#000000</color>
-    <color name="text_on_accent">#000000</color>
-    <color name="text_on_background">#000000</color>
-    <color name="text_on_background_dark">#FFFFFF</color>
-    <color name="text_on_surface">#000000</color>
-    <color name="text_on_surface_dark">#FFFFFF</color>
-    <color name="text_on_surface_variant">#000000</color>
-    <color name="text_on_surface_variant_dark">#FFFFFF</color>
-    <color name="text_on_error">#FFFFFF</color>
-
-    <!-- Error Colors -->
-    <color name="error">#B00020</color>
-    <color name="error_dark">#CF6679</color>
-    <color name="error_light">#EF9A9A</color>
-    <color name="error_container">#FFDAD6</color>
-    <color name="error_container_dark">#93000A</color>
 
     <!-- Success Colors -->
-    <color name="success">#4CAF50</color>
-    <color name="success_dark">#388E3C</color>
-    <color name="success_light">#C8E6C9</color>
-    <color name="success_container">#B9F6CA</color>
-    <color name="success_container_dark">#2E7D32</color>
-
-    <!-- Warning Colors -->
-    <color name="warning">#FFC107</color>
-    <color name="warning_dark">#F57C00</color>
-    <color name="warning_light">#FFECB3</color>
-    <color name="warning_container">#FFF8E1</color>
-    <color name="warning_container_dark">#F57C00</color>
-
-    <!-- Info Colors -->
-    <color name="info">#2196F3</color>
-    <color name="info_dark">#1976D2</color>
-    <color name="info_light">#BBDEFB</color>
-    <color name="info_container">#E3F2FD</color>
-    <color name="info_container_dark">#1976D2</color>
 
     <!-- Player Colors -->
     <color name="player_background">#121212</color>

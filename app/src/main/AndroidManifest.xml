@@ -149,6 +149,18 @@
                 android:value="androidx.startup" />
         </provider>
         
+        <!-- App Widget Provider -->
+        <receiver
+            android:name=".features.widget.JaBookAppWidgetProvider"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/jabook_widget_info" />
+        </receiver>
+        
         <!-- Crash Reporting -->
         <meta-data
             android:name="firebase_crashlytics_collection_enabled"
