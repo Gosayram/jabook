@@ -10,7 +10,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.Error
-import androidx.compose.material.icons.autoMirrored.filled.LibraryBooks
+import androidx.compose.material.icons.filled.LibraryBooks
 import androidx.compose.material.icons.filled.SearchOff
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -44,7 +44,11 @@ fun JaBookEmptyState(
     // State icon
     when (state) {
       EmptyStateType.Loading -> {
-        CircularProgressIndicator(modifier = Modifier.size(48.dp), color = MaterialTheme.colorScheme.primary, strokeWidth = 4.dp)
+        CircularProgressIndicator(
+          modifier = Modifier.size(48.dp),
+          color = MaterialTheme.colorScheme.primary,
+          strokeWidth = 4.dp,
+        )
       }
       else -> {
         Icon(
@@ -93,37 +97,37 @@ enum class EmptyStateType(
   val defaultSubtitle: String,
 ) {
   Loading(
-    icon = Icons.AutoMirrored.filled.LibraryBooks, // Not used for Loading
+    icon = Icons.Filled.LibraryBooks, // Not used for Loading
     defaultTitle = "Загрузка...",
     defaultSubtitle = "Пожалуйста, подождите",
   ),
   EmptyLibrary(
-    icon = Icons.AutoMirrored.filled.LibraryBooks,
+    icon = Icons.Filled.LibraryBooks,
     defaultTitle = "Библиотека пуста",
     defaultSubtitle = "Добавьте свою первую аудиокнигу, чтобы начать слушать",
   ),
   EmptySearch(
-    icon = Icons.Default.SearchOff,
+    icon = Icons.Filled.SearchOff,
     defaultTitle = "Ничего не найдено",
     defaultSubtitle = "Попробуйте изменить запрос или воспользуйтесь другими ключевыми словами",
   ),
   NetworkError(
-    icon = Icons.Default.CloudOff,
+    icon = Icons.Filled.CloudOff,
     defaultTitle = "Нет подключения",
     defaultSubtitle = "Проверьте интернет-соединение и попробуйте снова",
   ),
   GeneralError(
-    icon = Icons.Default.Error,
+    icon = Icons.Filled.Error,
     defaultTitle = "Произошла ошибка",
     defaultSubtitle = "Что-то пошло не так. Попробуйте перезагрузить страницу",
   ),
   EmptyDownloads(
-    icon = Icons.AutoMirrored.filled.LibraryBooks,
+    icon = Icons.Filled.LibraryBooks,
     defaultTitle = "Нет загрузок",
     defaultSubtitle = "Здесь будут отображаться ваши загруженные аудиокниги",
   ),
   EmptyCategory(
-    icon = Icons.AutoMirrored.filled.LibraryBooks,
+    icon = Icons.Filled.LibraryBooks,
     defaultTitle = "Категория пуста",
     defaultSubtitle = "В этой категории пока нет аудиокниг",
   ),
@@ -140,7 +144,11 @@ fun JaBookLoadingState(
     verticalArrangement = Arrangement.Center,
     horizontalAlignment = Alignment.CenterHorizontally,
   ) {
-    CircularProgressIndicator(modifier = Modifier.size(48.dp), color = MaterialTheme.colorScheme.primary, strokeWidth = 4.dp)
+    CircularProgressIndicator(
+      modifier = Modifier.size(48.dp),
+      color = MaterialTheme.colorScheme.primary,
+      strokeWidth = 4.dp,
+    )
 
     Spacer(modifier = Modifier.height(16.dp))
 

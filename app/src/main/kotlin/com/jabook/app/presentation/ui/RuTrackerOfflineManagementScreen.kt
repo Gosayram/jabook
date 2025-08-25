@@ -13,7 +13,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.autoMirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
@@ -76,7 +76,7 @@ fun RuTrackerOfflineManagementScreen(
 
   LaunchedEffect(errorMessage) {
     if (errorMessage != null) {
-      // Handle error (e.g., show snackbar)
+      // TODO: show snackbar, log, etc.
     }
   }
 
@@ -86,12 +86,15 @@ fun RuTrackerOfflineManagementScreen(
         title = { Text("Offline Management") },
         navigationIcon = {
           IconButton(onClick = onBack) {
-            Icon(Icons.AutoMirrored.filled.ArrowBack, contentDescription = "Back")
+            Icon(
+              imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+              contentDescription = "Back",
+            )
           }
         },
         actions = {
           IconButton(onClick = { showDataSummary = true }) {
-            Icon(Icons.Default.Info, contentDescription = "Data Summary")
+            Icon(Icons.Filled.Info, contentDescription = "Data Summary")
           }
         },
       )
@@ -124,7 +127,7 @@ fun RuTrackerOfflineManagementScreen(
               )
               Text(
                 text = if (isOfflineMode) "Enabled" else "Disabled",
-                style = MaterialTheme.typography.bodySmall,
+                style = MaterialTheme.typTypography.bodySmall,
                 color = if (isOfflineMode) Color.Green else Color.Gray,
               )
             }
@@ -205,7 +208,7 @@ fun RuTrackerOfflineManagementScreen(
               strokeWidth = 2.dp,
             )
           } else {
-            Icon(Icons.Default.Refresh, contentDescription = null)
+            Icon(Icons.Filled.Refresh, contentDescription = null)
             Spacer(modifier = Modifier.width(4.dp))
             Text("Refresh")
           }
@@ -216,7 +219,7 @@ fun RuTrackerOfflineManagementScreen(
           modifier = Modifier.weight(1f),
           enabled = isOfflineMode && offlineDataStatus.hasSearchResults,
         ) {
-          Icon(Icons.Default.Search, contentDescription = null)
+          Icon(Icons.Filled.Search, contentDescription = null)
           Spacer(modifier = Modifier.width(4.dp))
           Text("Search")
         }
@@ -227,7 +230,7 @@ fun RuTrackerOfflineManagementScreen(
           enabled = !isLoading,
           colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
         ) {
-          Icon(Icons.Default.Delete, contentDescription = null)
+          Icon(Icons.Filled.Delete, contentDescription = null)
           Spacer(modifier = Modifier.width(4.dp))
           Text("Clear")
         }
@@ -268,7 +271,8 @@ fun RuTrackerOfflineManagementScreen(
             )
 
             if (searchAnalytics.totalSearches > 0) {
-              val successRate = (searchAnalytics.successfulSearches.toFloat() / searchAnalytics.totalSearches) * 100
+              val successRate =
+                (searchAnalytics.successfulSearches.toFloat() / searchAnalytics.totalSearches) * 100
               AnalyticsItem(
                 label = "Success Rate",
                 value = "%.1f%%".format(successRate),
@@ -423,7 +427,7 @@ fun DataStatusItem(
       style = MaterialTheme.typography.bodyMedium,
     )
     Icon(
-      imageVector = if (isAvailable) Icons.Default.CheckCircle else Icons.Default.Cancel,
+      imageVector = if (isAvailable) Icons.Filled.CheckCircle else Icons.Filled.Cancel,
       contentDescription = null,
       tint = if (isAvailable) Color.Green else Color.Red,
       modifier = Modifier.size(16.dp),
@@ -523,7 +527,6 @@ fun SearchResultItem(
           }
         }
         is RuTrackerSearchResult -> {
-          // RuTrackerSearchResult contains a list of audiobooks, show the first one or a summary
           if (result.results.isNotEmpty()) {
             val audiobook = result.results.first()
             Text(
@@ -586,7 +589,6 @@ private fun formatTimestamp(timestamp: Long): String =
   if (timestamp > 0) {
     val now = System.currentTimeMillis()
     val diff = now - timestamp
-
     when {
       diff < 60 * 1000 -> "Just now"
       diff < 60 * 60 * 1000 -> "${diff / (60 * 1000)} minutes ago"

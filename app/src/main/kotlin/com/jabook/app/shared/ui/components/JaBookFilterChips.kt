@@ -11,7 +11,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.FilterList
-import androidx.compose.material.icons.autoMirrored.filled.Sort
+import androidx.compose.material.icons.filled.Sort
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.FilterChip
@@ -24,7 +24,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
-/** Компонент для отображения фильтров и сортировки Поддерживает адаптивную компоновку для разных размеров экрана */
+/** Компонент для отображения фильтров и сортировки. Поддерживает адаптивную компоновку для разных размеров экрана. */
 @Composable
 fun JaBookFilterChips(
   filters: List<FilterChip>,
@@ -43,7 +43,7 @@ fun JaBookFilterChips(
     // Иконка фильтра (опционально)
     if (showSortIcon) {
       Icon(
-        imageVector = Icons.Default.FilterList,
+        imageVector = Icons.Filled.FilterList,
         contentDescription = "Фильтры",
         tint = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.size(20.dp),
@@ -59,7 +59,7 @@ fun JaBookFilterChips(
           label = { Text(text = filter.label, style = MaterialTheme.typography.bodyMedium) },
           leadingIcon =
             if (filter.isSelected) {
-              { Icon(imageVector = Icons.Default.Check, contentDescription = "Выбрано", modifier = Modifier.size(16.dp)) }
+              { Icon(imageVector = Icons.Filled.Check, contentDescription = "Выбрано", modifier = Modifier.size(16.dp)) }
             } else {
               null
             },
@@ -90,7 +90,11 @@ fun JaBookFilterChips(
             )
           },
           leadingIcon = {
-            Icon(imageVector = Icons.AutoMirrored.filled.Sort, contentDescription = "Сортировка", modifier = Modifier.size(16.dp))
+            Icon(
+              imageVector = Icons.Filled.Sort, // <- правильная иконка сортировки
+              contentDescription = "Сортировка",
+              modifier = Modifier.size(16.dp),
+            )
           },
           colors =
             AssistChipDefaults.assistChipColors(
@@ -137,7 +141,7 @@ fun JaBookCategoryChips(
         label = { Text(text = "Все", style = MaterialTheme.typography.bodyMedium) },
         leadingIcon =
           if (selectedCategory == null) {
-            { Icon(imageVector = Icons.Default.Check, contentDescription = "Выбрано", modifier = Modifier.size(16.dp)) }
+            { Icon(imageVector = Icons.Filled.Check, contentDescription = "Выбрано", modifier = Modifier.size(16.dp)) }
           } else {
             null
           },
@@ -158,7 +162,7 @@ fun JaBookCategoryChips(
         label = { Text(text = category, style = MaterialTheme.typography.bodyMedium) },
         leadingIcon =
           if (selectedCategory == category) {
-            { Icon(imageVector = Icons.Default.Check, contentDescription = "Выбрано", modifier = Modifier.size(16.dp)) }
+            { Icon(imageVector = Icons.Filled.Check, contentDescription = "Выбрано", modifier = Modifier.size(16.dp)) }
           } else {
             null
           },
