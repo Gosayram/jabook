@@ -24,11 +24,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardActions
 import androidx.compose.ui.text.input.KeyboardOptions
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.text.KeyboardActions
 import com.jabook.app.R
 
 @Composable
@@ -123,9 +123,7 @@ fun LoginCard(
             enabled = !state.isLoading,
             singleLine = true,
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-            keyboardActions = KeyboardActions(
-              onDone = { if (canSubmit) onLogin() }
-            ),
+            keyboardActions = KeyboardActions(onDone = { if (canSubmit) onLogin() }),
             isError = state.passwordError != null,
             supportingText = {
               state.passwordError?.let { Text(text = it, color = MaterialTheme.colorScheme.error) }
