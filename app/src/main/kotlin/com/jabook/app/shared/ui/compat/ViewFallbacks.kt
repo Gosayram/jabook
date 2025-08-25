@@ -22,7 +22,7 @@ import com.jabook.app.shared.ui.theme.JaBookTheme
 object ViewFallbacks {
   /** Checks support for Compose on this device */
   fun isComposeSupported(): Boolean {
-    return Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP // API 21+
+    return true // Always supported since minSdk is 24
   }
 
   /** Creates a button with automatic selection between Compose and View */
@@ -201,27 +201,18 @@ object ViewFallbacks {
       context: Context,
       colorRes: Int,
     ): Int =
-      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-        context.getColor(colorRes)
-      } else {
-        // For Android 6.0 we use the old API without @Suppress
-        context.resources.getColor(colorRes)
-      }
+      context.getColor(colorRes)
 
     /** Applies compatible styles to View */
     fun applyCompatStyles(
       view: View,
       context: Context,
     ) {
-      // Apply elevation for API 21+
-      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-        view.elevation = 8f
-      }
+      // Apply elevation (always supported since minSdk is 24)
+      view.elevation = 8f
 
-      // Apply rounded corners for API 21+
-      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-        view.clipToOutline = true
-      }
+      // Apply rounded corners (always supported since minSdk is 24)
+      view.clipToOutline = true
     }
 
     /** Creates adaptive layout for different screen sizes */
