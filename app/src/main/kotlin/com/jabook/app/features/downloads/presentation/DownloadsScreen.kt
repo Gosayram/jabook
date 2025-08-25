@@ -17,9 +17,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DismissDirection
-import androidx.compose.material3.DismissValue
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -28,16 +31,13 @@ import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.SwipeToDismiss
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.icons.filled.Clear
-import androidx.compose.material3.icons.filled.Pause
-import androidx.compose.material3.icons.filled.PlayArrow
-import androidx.compose.material3.icons.filled.Refresh
-import androidx.compose.material3.rememberDismissState
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -61,8 +61,6 @@ import com.jabook.app.shared.ui.components.EmptyStateType
 import com.jabook.app.shared.ui.components.JaBookEmptyState
 import com.jabook.app.shared.ui.components.ThemeToggleButton
 import com.jabook.app.shared.ui.components.getDynamicVerticalPadding
-import androidx.compose.material3.icons.Icons
-import androidx.compose.material3.icons.filled
 
 data class DownloadsEmptyState(
   val type: EmptyStateType,
@@ -87,7 +85,6 @@ fun DownloadsScreen(
   val uiState by viewModel.uiState.collectAsStateWithLifecycle()
   val snackbarHostState = remember { SnackbarHostState() }
 
-  // Handle error messages
   LaunchedEffect(uiState.errorMessage) {
     uiState.errorMessage?.let { message ->
       snackbarHostState.showSnackbar(message)
@@ -103,15 +100,15 @@ fun DownloadsScreen(
         actions = {
           if (uiState.selectedTab == DownloadsTab.Completed && uiState.completedDownloads.isNotEmpty()) {
             IconButton(onClick = { viewModel.clearCompleted() }) {
-              Icon(imageVector = Icons.Filled.Clear, contentDescription = stringResource(R.string.clear_completed))
+              Icon(imageVector = Icons.Default.Clear, contentDescription = stringResource(R.string.clear_completed))
             }
           } else if (uiState.selectedTab == DownloadsTab.Failed && uiState.failedDownloads.isNotEmpty()) {
             IconButton(onClick = { viewModel.clearFailed() }) {
-              Icon(imageVector = Icons.Filled.Clear, contentDescription = stringResource(R.string.clear_failed))
+              Icon(imageVector = Icons.Default.Clear, contentDescription = stringResource(R.string.clear_failed))
             }
           }
           IconButton(onClick = { viewModel.refreshDownloads() }) {
-            Icon(imageVector = Icons.Filled.Refresh, contentDescription = stringResource(R.string.action_refresh))
+            Icon(imageVector = Icons.Default.Refresh, contentDescription = stringResource(R.string.action_refresh))
           }
           ThemeToggleButton(themeMode = themeMode, onToggle = { themeViewModel.toggleTheme() })
         },
@@ -127,7 +124,6 @@ fun DownloadsScreen(
           .padding(horizontal = 20.dp, vertical = getDynamicVerticalPadding())
           .padding(paddingValues),
     ) {
-      // Tab Row
       DownloadsTabRow(
         selectedTab = uiState.selectedTab,
         onTabSelected = viewModel::selectTab,
@@ -137,10 +133,8 @@ fun DownloadsScreen(
         modifier = Modifier.fillMaxWidth(),
       )
 
-      // нормальный Spacer (исправила странную квалификацию)
       Spacer(modifier = Modifier.height(16.dp))
 
-      // Content based on selected tab
       Box(modifier = Modifier.fillMaxSize().weight(1f)) {
         when (uiState.selectedTab) {
           DownloadsTab.Active -> {
@@ -282,61 +276,67 @@ private fun DownloadListItem(
   actions: DownloadsActions,
 ) {
   val dismissState =
-    rememberDismissState(
-      confirmStateChange = { value ->
+    rememberSwipeToDismissBoxState(
+      confirmValueChange = { value ->
         when (value) {
-          DismissValue.DismissedToEnd -> {
+          SwipeToDismissBoxValue.StartToEnd -> {
             if (download.status == TorrentStatus.DOWNLOADING) {
               actions.onPause(download.torrentId)
             } else if (download.status == TorrentStatus.PAUSED) {
               actions.onResume(download.torrentId)
             }
+            // Return false to reset after handling the action
             false
           }
-          DismissValue.DismissedToStart -> {
+          SwipeToDismissBoxValue.EndToStart -> {
             actions.onCancel(download.torrentId)
+            // Return false to reset after handling the action
             false
           }
-          else -> false
+          SwipeToDismissBoxValue.Settled -> false
         }
       },
     )
 
-  SwipeToDismiss(
+  SwipeToDismissBox(
     state = dismissState,
-    background = {
-      val direction = dismissState.dismissDirection ?: return@SwipeToDismiss
-      val color =
-        if (direction == DismissDirection.StartToEnd) {
-          MaterialTheme.colorScheme.primary
-        } else {
-          MaterialTheme.colorScheme.error
-        }
-      val icon =
-        if (direction == DismissDirection.StartToEnd) {
-          if (download.status == TorrentStatus.PAUSED) Icons.Filled.PlayArrow else Icons.Filled.Pause
-        } else {
-          Icons.Filled.Clear
-        }
-      val contentTint =
-        if (direction == DismissDirection.StartToEnd) {
-          MaterialTheme.colorScheme.onPrimary
-        } else {
-          MaterialTheme.colorScheme.onError
+    backgroundContent = {
+      val target = dismissState.targetValue
+      val (bgColor, icon, tint, alignment) =
+        when (target) {
+          SwipeToDismissBoxValue.StartToEnd -> arrayOf(
+            MaterialTheme.colorScheme.primary,
+            if (download.status == TorrentStatus.PAUSED) Icons.Default.PlayArrow else Icons.Default.Pause,
+            MaterialTheme.colorScheme.onPrimary,
+            Alignment.CenterStart,
+          )
+          SwipeToDismissBoxValue.EndToStart -> arrayOf(
+            MaterialTheme.colorScheme.error,
+            Icons.Default.Clear,
+            MaterialTheme.colorScheme.onError,
+            Alignment.CenterEnd,
+          )
+          SwipeToDismissBoxValue.Settled -> arrayOf(
+            MaterialTheme.colorScheme.surfaceVariant,
+            if (download.status == TorrentStatus.PAUSED) Icons.Default.PlayArrow else Icons.Default.Pause,
+            MaterialTheme.colorScheme.onSurfaceVariant,
+            Alignment.CenterStart,
+          )
         }
 
       Box(
         modifier =
           Modifier
             .fillMaxSize()
-            .background(color, RoundedCornerShape(8.dp))
+            .background(bgColor as androidx.compose.ui.graphics.Color, RoundedCornerShape(8.dp))
             .padding(24.dp),
-        contentAlignment = if (direction == DismissDirection.StartToEnd) Alignment.CenterStart else Alignment.CenterEnd,
+        contentAlignment = alignment as Alignment,
       ) {
-        Icon(imageVector = icon, contentDescription = null, tint = contentTint)
+        Icon(imageVector = icon as androidx.compose.ui.graphics.vector.ImageVector, contentDescription = null, tint = tint as androidx.compose.ui.graphics.Color)
       }
     },
-    directions = setOf(DismissDirection.StartToEnd, DismissDirection.EndToStart),
+    enableDismissFromStartToEnd = true,
+    enableDismissFromEndToStart = true,
   ) {
     DownloadItemCard(
       download = download,
