@@ -8,7 +8,7 @@ APP_NAME := JaBook
 VERSION := $(shell grep versionName app/build.gradle.kts | cut -d'"' -f2)
 BUILD_TYPE ?= debug
 GRADLE := ./gradlew
-GRADLE_OPTS := --no-daemon --parallel
+GRADLE_OPTS := --parallel
 
 # Default target
 all: debug
