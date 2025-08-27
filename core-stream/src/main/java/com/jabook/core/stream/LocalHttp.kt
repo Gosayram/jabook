@@ -26,10 +26,10 @@ class LocalHttp(private val context: Context) : NanoHTTPD(17171) {
     private var serverThread: Thread? = null
     
     // Mock data for development
-    private val mockUser = mapOf(
-        "loggedIn" to true,
-        "username" to "testuser",
-        "id" to "12345"
+    private var mockUser = mapOf(
+        "loggedIn" to false,
+        "username" to null,
+        "id" to null
     )
     
     private val mockEndpoints = listOf(
@@ -109,7 +109,7 @@ class LocalHttp(private val context: Context) : NanoHTTPD(17171) {
                 newFixedLengthResponse(
                     Response.Status.OK,
                     "application/json",
-                    mockUser.toString()
+                    gson.toJson(mockUser)
                 )
             }
             
@@ -138,19 +138,181 @@ class LocalHttp(private val context: Context) : NanoHTTPD(17171) {
                 }
             }
             
-            "/api/endpoints" -> {
+            "/api/login" -> {
                 if (method == Method.POST) {
-                    // Handle adding new endpoint
+                    // Handle login
+                    val params = parsePostParameters(session)
+                    val username = params["username"] ?: ""
+                    val password = params["password"] ?: ""
+                    
+                    if (username.isNotEmpty() && password.isNotEmpty()) {
+                        // Mock successful login
+                        mockUser = mapOf(
+                            "loggedIn" to true,
+                            "username" to username,
+                            "id" to "user_${System.currentTimeMillis()}"
+                        )
+                        
+                        newFixedLengthResponse(
+                            Response.Status.OK,
+                            "application/json",
+                            gson.toJson(mapOf("success" to true, "message" to "Login successful"))
+                        )
+                    } else {
+                        newFixedLengthResponse(
+                            Response.Status.BAD_REQUEST,
+                            "application/json",
+                            gson.toJson(mapOf("success" to false, "error" to "Username and password required"))
+                        )
+                    }
+                } else {
+                    newFixedLengthResponse(
+                        Response.Status.METHOD_NOT_ALLOWED,
+                        "application/json",
+                        gson.toJson(mapOf("error" to "Method not allowed"))
+                    )
+                }
+            }
+            
+            "/api/logout" -> {
+                if (method == Method.POST) {
+                    // Handle logout
+                    mockUser = mapOf(
+                        "loggedIn" to false,
+                        "username" to null,
+                        "id" to null
+                    )
+                    
                     newFixedLengthResponse(
                         Response.Status.OK,
                         "application/json",
-                        """{"message": "Endpoint added", "url": "mock-url"}"""
+                        gson.toJson(mapOf("success" to true, "message" to "Logout successful"))
                     )
                 } else {
                     newFixedLengthResponse(
                         Response.Status.METHOD_NOT_ALLOWED,
                         "application/json",
-                        """{"error": "Method not allowed"}"""
+                        gson.toJson(mapOf("error" to "Method not allowed"))
+                    )
+                }
+            }
+            
+            "/api/search" -> {
+                if (method == Method.GET) {
+                    val query = session.parameters["q"]?.firstOrNull() ?: ""
+                    val page = session.parameters["page"]?.firstOrNull()?.toIntOrNull() ?: 1
+                    
+                    if (mockUser["loggedIn"] != true) {
+                        newFixedLengthResponse(
+                            Response.Status.UNAUTHORIZED,
+                            "application/json",
+                            gson.toJson(mapOf("error" to "Authentication required"))
+                        )
+                    } else if (query.isBlank()) {
+                        newFixedLengthResponse(
+                            Response.Status.BAD_REQUEST,
+                            "application/json",
+                            gson.toJson(mapOf("error" to "Search query required"))
+                        )
+                    } else {
+                        // Mock search results
+                        val results = (1..10).map { i ->
+                            mapOf(
+                                "id" to "${System.currentTimeMillis()}_$i",
+                                "title" to "Search Result $i: $query",
+                                "author" to "Author $i",
+                                "size" to (100 + i * 50) * 1024 * 1024L, // MB to bytes
+                                "seeds" to (10 + i),
+                                "leeches" to (5 + i % 3),
+                                "magnetUrl" to "magnet:?xt=urn:btih:${"1234567890abcdef".repeat(2)}&dn=result$i",
+                                "torrentUrl" to null,
+                                "description" to "Description for search result $i"
+                            )
+                        }
+                        
+                        newFixedLengthResponse(
+                            Response.Status.OK,
+                            "application/json",
+                            gson.toJson(mapOf(
+                                "success" to true,
+                                "query" to query,
+                                "page" to page,
+                                "results" to results,
+                                "total" to 100
+                            ))
+                        )
+                    }
+                } else {
+                    newFixedLengthResponse(
+                        Response.Status.METHOD_NOT_ALLOWED,
+                        "application/json",
+                        gson.toJson(mapOf("error" to "Method not allowed"))
+                    )
+                }
+            }
+            
+            "/api/topic" -> {
+                if (method == Method.GET) {
+                    val topicId = session.parameters["id"]?.firstOrNull()
+                    
+                    if (mockUser["loggedIn"] != true) {
+                        newFixedLengthResponse(
+                            Response.Status.UNAUTHORIZED,
+                            "application/json",
+                            gson.toJson(mapOf("error" to "Authentication required"))
+                        )
+                    } else if (topicId == null) {
+                        newFixedLengthResponse(
+                            Response.Status.BAD_REQUEST,
+                            "application/json",
+                            gson.toJson(mapOf("error" to "Topic ID required"))
+                        )
+                    } else {
+                        // Mock topic details
+                        val topic = mapOf(
+                            "id" to topicId,
+                            "title" to "Sample Audiobook Topic",
+                            "author" to "Sample Author",
+                            "description" to "This is a detailed description of the audiobook topic. It contains multiple files and information about the content.",
+                            "files" to listOf(
+                                mapOf(
+                                    "name" to "01 Introduction.mp3",
+                                    "size" to 10 * 1024 * 1024L,
+                                    "type" to "audio"
+                                ),
+                                mapOf(
+                                    "name" to "02 Chapter 1.mp3",
+                                    "size" to 25 * 1024 * 1024L,
+                                    "type" to "audio"
+                                ),
+                                mapOf(
+                                    "name" to "03 Chapter 2.mp3",
+                                    "size" to 30 * 1024 * 1024L,
+                                    "type" to "audio"
+                                )
+                            ),
+                            "magnetUrl" to "magnet:?xt=urn:btih:${"1234567890abcdef".repeat(2)}&dn=sample_audiobook",
+                            "torrentUrl" to null,
+                            "totalSize" to 65 * 1024 * 1024L,
+                            "postDate" to "2024-01-15 14:30:00",
+                            "viewCount" to 1234,
+                            "replyCount" to 56
+                        )
+                        
+                        newFixedLengthResponse(
+                            Response.Status.OK,
+                            "application/json",
+                            gson.toJson(mapOf(
+                                "success" to true,
+                                "topic" to topic
+                            ))
+                        )
+                    }
+                } else {
+                    newFixedLengthResponse(
+                        Response.Status.METHOD_NOT_ALLOWED,
+                        "application/json",
+                        gson.toJson(mapOf("error" to "Method not allowed"))
                     )
                 }
             }
@@ -306,6 +468,27 @@ class LocalHttp(private val context: Context) : NanoHTTPD(17171) {
         }
         
         return null
+    }
+    
+    /**
+     * Gson instance for JSON serialization
+     */
+    private val gson = com.google.gson.Gson()
+    
+    /**
+     * Parses POST parameters from session
+     */
+    private fun parsePostParameters(session: IHTTPSession): Map<String, String> {
+        val params = mutableMapOf<String, String>()
+        try {
+            session.parseBody(mapOf())
+            session.parms.forEach { (key, value) ->
+                params[key] = value.firstOrNull() ?: ""
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to parse POST parameters", e)
+        }
+        return params
     }
     
     /**

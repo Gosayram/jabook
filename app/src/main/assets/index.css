@@ -1,33 +1,38 @@
-/* JaBook App Styles */
+/* JaBook App Styles - Branded Theme */
 :root {
-    /* Primary Colors */
-    --color-primary: #6200EE;
-    --color-primary-dark: #3700B3;
-    --color-primary-light: #BB86FC;
-    
-    /* Secondary Colors */
-    --color-secondary: #03DAC5;
-    --color-secondary-dark: #018786;
-    --color-secondary-light: #80DEEA;
-    
-    /* Status Colors */
-    --color-success: #4CAF50;
-    --color-warning: #FFC107;
-    --color-error: #F44336;
-    --color-info: #2196F3;
-    
-    /* Neutral Colors */
-    --color-background: #FFFFFF;
-    --color-background-dark: #121212;
-    --color-surface: #FFFFFF;
-    --color-surface-dark: #1E1E1E;
-    --color-surface-light: #F5F5F5;
+    /* JaBook Brand Palette */
+    --color-primary: #3E2A53;      /* Violet - Primary background */
+    --color-primary-light: #4E3A63; /* Lighter violet */
+    --color-primary-dark: #2E1A43;  /* Darker violet */
     
     /* Text Colors */
-    --color-text-primary: #212121;
-    --color-text-secondary: #757575;
-    --color-text-primary-inverse: #FFFFFF;
-    --color-text-secondary-inverse: #BDBDBD;
+    --color-text-primary: #E6D9C6;  /* Beige - Primary text/icons */
+    --color-text-secondary: #CBBFAE; /* Light beige - Secondary text/details */
+    --color-text-primary-inverse: #3E2A53; /* Violet text on light background */
+    --color-text-secondary-inverse: #E6D9C6; /* Beige text on dark background */
+    
+    /* Accent Colors */
+    --color-accent: #E59C28;        /* Orange - Accent color */
+    --color-accent-light: #E5AC48;  /* Lighter orange */
+    --color-accent-dark: #C58418;   /* Darker orange */
+    
+    /* Status Colors */
+    --color-success: #6BBF59;       /* Green */
+    --color-warning: #F2B950;       /* Amber */
+    --color-error: #D75C58;         /* Red */
+    --color-info: #E59C28;          /* Orange for info */
+    
+    /* Surface Colors */
+    --color-background: #3E2A53;    /* Violet - Main background */
+    --color-background-dark: #2E1A43; /* Darker violet */
+    --color-surface: #3E2A53;       /* Violet - Card backgrounds */
+    --color-surface-light: #4E3A63; /* Lighter violet */
+    --color-surface-lighter: #5E4A73; /* Even lighter violet */
+    
+    /* Neutral Colors */
+    --color-neutral: #2E1A43;       /* Dark violet */
+    --color-neutral-light: #3E2A53; /* Violet */
+    --color-neutral-lighter: #4E3A63; /* Lighter violet */
     
     /* Spacing */
     --spacing-xs: 4px;
@@ -53,18 +58,18 @@
     --transition-slow: 500ms ease;
 }
 
-/* Dark Theme */
+/* Dark Theme (JaBook uses same colors, just adjusted for contrast) */
 @media (prefers-color-scheme: dark) {
     :root {
-        --color-background: #121212;
-        --color-background-dark: #000000;
-        --color-surface: #1E1E1E;
-        --color-surface-dark: #121212;
-        --color-surface-light: #2D2D2D;
-        --color-text-primary: #FFFFFF;
-        --color-text-secondary: #BDBDBD;
-        --color-text-primary-inverse: #000000;
-        --color-text-secondary-inverse: #757575;
+        --color-background: #2E1A43;    /* Darker violet */
+        --color-background-dark: #1E0A33; /* Darkest violet */
+        --color-surface: #3E2A53;       /* Violet */
+        --color-surface-dark: #2E1A43;  /* Darker violet */
+        --color-surface-light: #4E3A63; /* Lighter violet */
+        --color-text-primary: #E6D9C6;  /* Beige (unchanged) */
+        --color-text-secondary: #CBBFAE; /* Light beige (unchanged) */
+        --color-text-primary-inverse: #3E2A53; /* Violet text */
+        --color-text-secondary-inverse: #E6D9C6; /* Beige text */
     }
 }
 
@@ -112,7 +117,7 @@ body {
 .nav-title {
     font-size: 1.5rem;
     font-weight: 600;
-    color: var(--color-primary);
+    color: var(--color-text-primary);
 }
 
 .nav-menu {
@@ -134,8 +139,8 @@ body {
 }
 
 .nav-item.active {
-    background-color: var(--color-primary);
-    color: white;
+    background-color: var(--color-accent);
+    color: var(--color-text-primary-inverse);
 }
 
 /* Main Content */
@@ -195,12 +200,12 @@ body {
 }
 
 .btn-primary {
-    background-color: var(--color-primary);
-    color: white;
+    background-color: var(--color-accent);
+    color: var(--color-text-primary-inverse);
 }
 
 .btn-primary:hover {
-    background-color: var(--color-primary-dark);
+    background-color: var(--color-accent-dark);
 }
 
 .btn-secondary {
@@ -214,13 +219,13 @@ body {
 
 .btn-outline {
     background-color: transparent;
-    color: var(--color-primary);
-    border: 1px solid var(--color-primary);
+    color: var(--color-accent);
+    border: 1px solid var(--color-accent);
 }
 
 .btn-outline:hover {
-    background-color: var(--color-primary);
-    color: white;
+    background-color: var(--color-accent);
+    color: var(--color-text-primary-inverse);
 }
 
 .btn-danger {
@@ -271,8 +276,8 @@ body {
 
 .form-input:focus {
     outline: none;
-    border-color: var(--color-primary);
-    box-shadow: 0 0 0 2px rgba(98, 0, 238, 0.2);
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 2px rgba(229, 156, 40, 0.3);
 }
 
 .form-textarea {
@@ -379,7 +384,7 @@ body {
 .text-center { text-align: center; }
 .text-left { text-align: left; }
 .text-right { text-align: right; }
-.text-primary { color: var(--color-primary); }
+.text-primary { color: var(--color-accent); }
 .text-secondary { color: var(--color-text-secondary); }
 .text-success { color: var(--color-success); }
 .text-warning { color: var(--color-warning); }

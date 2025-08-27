@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Base application theme. -->
+    <style name="Theme.JaBook.SplashScreen" parent="Theme.SplashScreen">
+        <!-- Set the splash screen background. -->
+        <item name="windowSplashScreenBackground">@color/jabook_primary</item>
+        
+        <!-- Set the splash screen background animation. -->
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
+        
+        <!-- Set the splash screen animation duration. -->
+        <item name="windowSplashScreenAnimationDuration">1000</item>
+        
+        <!-- Set the status bar color. -->
+        <item name="windowSplashScreenStatusBarColor">@color/jabook_primary</item>
+        
+        <!-- Set the navigation bar color. -->
+        <item name="windowSplashScreenNavigationBarColor">@color/jabook_primary</item>
+        
+        <!-- Set the status bar text color. -->
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+</resources>

@@ -5,20 +5,17 @@ import okhttp3.Interceptor
 import okhttp3.Response
 
 /**
- * User-Agent interceptor for OkHttp
- * Ensures consistent User-Agent between WebView and OkHttp requests
+ * User-Agent Interceptor for OkHttp
+ * Ensures consistent User-Agent across all HTTP requests
  */
-class UaInterceptor(
-    private val userAgentRepository: UserAgentRepository
-) : Interceptor {
+class UaInterceptor(private val userAgentRepository: UserAgentRepository) : Interceptor {
     
     override fun intercept(chain: Interceptor.Chain): Response {
-        val request = chain.request()
-        val userAgent = userAgentRepository.get()
+        val originalRequest = chain.request()
         
         // Add User-Agent header if not already present
-        val newRequest = request.newBuilder()
-            .header("User-Agent", userAgent)
+        val newRequest = originalRequest.newBuilder()
+            .header("User-Agent", userAgentRepository.get())
             .build()
         
         return chain.proceed(newRequest)

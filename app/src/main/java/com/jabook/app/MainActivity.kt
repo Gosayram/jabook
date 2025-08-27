@@ -23,6 +23,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import com.jabook.core.net.interceptor.UaInterceptor
 import com.jabook.core.net.repository.UserAgentRepository
 import com.jabook.ui.theme.JaBookTheme
+import com.jabook.app.WebViewAssetLoaderHelper
 
 /**
  * Main Activity for JaBook app
@@ -36,6 +37,9 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        
+        // Initialize WebViewAssetLoaderHelper
+        WebViewAssetLoaderHelper.initialize(this)
         
         userAgentRepository = UserAgentRepository(this)
         
@@ -94,6 +98,20 @@ class MainActivity : ComponentActivity() {
     private fun WebView.setupWebView(userAgentRepository: UserAgentRepository) {
         this@MainActivity.webView = this
         
+        // Setup WebViewAssetLoader for local assets
+        val assetLoader = WebViewAssetLoaderHelper.getAssetLoader()
+        webViewClient = object : WebViewClient() {
+            override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
+                return assetLoader.shouldOverrideUrlLoading(request)
+            }
+            
+            override fun onPageFinished(view: WebView?, url: String?) {
+                super.onPageFinished(view, url)
+                // Inject JavaScript bridge for communication between WebView and native code
+                injectJavaScriptInterface()
+            }
+        }
+        
         // Enable JavaScript
         settings.javaScriptEnabled = true
         
@@ -118,24 +136,6 @@ class MainActivity : ComponentActivity() {
         settings.setRenderPriority(WebSettings.RenderPriority.HIGH)
         settings.setEnableSmoothTransition(true)
         
-        // Set WebView client
-        webViewClient = object : WebViewClient() {
-            override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
-                // Handle custom schemes or local URLs
-                if (url?.startsWith("https://appassets.androidplatform.net/") == true) {
-                    return false // Let WebView handle local assets
-                }
-                
-                // Handle external URLs if needed
-                return false
-            }
-            
-            override onPageFinished(view: WebView?, url: String?) {
-                super.onPageFinished(view, url)
-                // Handle page load completion
-            }
-        }
-        
         // Set Chrome client for handling JavaScript dialogs, etc.
         webChromeClient = object : WebChromeClient() {
             override fun onProgressChanged(view: WebView?, newProgress: Int) {
@@ -146,6 +146,62 @@ class MainActivity : ComponentActivity() {
         
         // Load the Svelte SPA from assets
         loadUrl("https://appassets.androidplatform.net/assets/index.html")
+    }
+    
+    /**
+     * Injects JavaScript interface for WebView-Svelte communication
+     */
+    private fun WebView.injectJavaScriptInterface() {
+        // Create JavaScript bridge object
+        val bridge = """
+            (function() {
+                window.JaBook = {
+                    api: {
+                        ping: function() {
+                            return fetch('/api/ping')
+                                .then(response => response.json())
+                                .then(data => ({ success: true, data }))
+                                .catch(error => ({ success: false, error: error.message }));
+                        },
+                        getEndpoints: function() {
+                            return fetch('/api/endpoints')
+                                .then(response => response.json())
+                                .then(data => ({ success: true, data }))
+                                .catch(error => ({ success: false, error: error.message }));
+                        },
+                        addEndpoint: function(url) {
+                            return fetch('/api/endpoints', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ url })
+                            })
+                            .then(response => response.json())
+                            .then(data => ({ success: true, data }))
+                            .catch(error => ({ success: false, error: error.message }));
+                        },
+                        getActiveEndpoint: function() {
+                            return fetch('/api/endpoints/active')
+                                .then(response => response.json())
+                                .then(data => ({ success: true, data }))
+                                .catch(error => ({ success: false, error: error.message }));
+                        }
+                    },
+                    utils: {
+                        getPlatform: function() {
+                            return 'android';
+                        },
+                        getVersion: function() {
+                            return '1.0.0';
+                        },
+                        isOnline: function() {
+                            return navigator.onLine;
+                        }
+                    }
+                };
+            })();
+        """.trimIndent()
+        
+        evaluateJavascript(bridge, null)
     }
     
     /**
