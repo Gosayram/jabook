@@ -19,12 +19,14 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "jabook"
-include(":app")
-include(":core-net")
-include(":core-endpoints")
-include(":core-auth")
-include(":core-parse")
-include(":core-torrent")
-include(":core-stream")
-include(":core-player")
-include(":core-logging")
+include(
+    ":app",
+    ":core-net",
+    ":core-endpoints",
+    ":core-auth",
+    ":core-parse",
+    ":core-torrent",
+    ":core-stream",
+    ":core-player",
+    ":core-logging"
+)

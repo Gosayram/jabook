@@ -1,91 +1,96 @@
 package com.jabook.core.net.repository
 
 import android.content.Context
+import android.content.SharedPreferences
 import android.webkit.WebSettings
 import android.webkit.WebView
-import androidx.preference.PreferenceManager
 
 /**
- * User-Agent repository for managing consistent User-Agent across WebView and OkHttp
- * Stores and retrieves User-Agent from SharedPreferences
+ * Stores and retrieves a consistent User-Agent for WebView / OkHttp.
+ * Avoids androidx.preference dependency; uses app SharedPreferences instead.
  */
 class UserAgentRepository(
-    private val context: Context
+    context: Context
 ) {
-    
-    private val prefs = PreferenceManager.getDefaultSharedPreferences(context)
-    private val KEY_USER_AGENT = "user_agent"
-    
+
+    private val appContext: Context = context.applicationContext
+    private val prefs: SharedPreferences =
+        appContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+
     /**
-     * Gets the current User-Agent
-     * @return User-Agent string or default if not set
+     * Returns current stored User-Agent or a computed default.
      */
     fun get(): String {
-        return prefs.getString(KEY_USER_AGENT, getDefaultUserAgent()) ?: getDefaultUserAgent()
+        return prefs.getString(KEY_USER_AGENT, null) ?: computeDefaultUserAgent().also {
+            // Cache the computed default so further calls are cheap
+            prefs.edit().putString(KEY_USER_AGENT, it).apply()
+        }
     }
-    
+
     /**
-     * Sets the User-Agent
-     * @param userAgent User-Agent string to store
+     * Persists a custom User-Agent string.
      */
     fun set(userAgent: String) {
         prefs.edit().putString(KEY_USER_AGENT, userAgent).apply()
     }
-    
+
     /**
-     * Gets the default User-Agent for the device
-     * @return Default User-Agent string
+     * Updates stored UA if it differs from current device UA.
+     * @param webView Optional WebView if you already have one on UI thread.
+     * @return true if updated.
      */
-    private fun getDefaultUserAgent(): String {
-        return try {
-            // Try to get the default User-Agent from WebSettings
-            WebSettings.getDefaultUserAgent(context)
-        } catch (e: Exception) {
-            // Fallback to WebView settings if getDefaultUserAgent fails
-            try {
-                WebView(context).settings.userAgentString
-            } catch (e: Exception) {
-                // Final fallback to a generic User-Agent
-                "Mozilla/5.0 (Linux; Android) AppleWebKit/537.36 (KHTML, like Gecko) Mobile Safari/537.36"
-            }
+    fun updateIfNeeded(webView: WebView? = null): Boolean {
+        val current = computeDefaultUserAgent(webView)
+        val stored = prefs.getString(KEY_USER_AGENT, null)
+        return if (!current.isNullOrBlank() && current != stored) {
+            prefs.edit().putString(KEY_USER_AGENT, current).apply()
+            true
+        } else {
+            false
         }
     }
-    
+
     /**
-     * Updates the User-Agent if it has changed
-     * @param webView WebView instance to get current User-Agent from
-     * @return true if User-Agent was updated, false otherwise
-     */
-    fun updateIfNeeded(webView: WebView): Boolean {
-        val current = try {
-            WebSettings.getDefaultUserAgent(context)
-        } catch (e: Exception) {
-            webView.settings.userAgentString
-        }
-        
-        val stored = get()
-        
-        if (current.isNotBlank() && current != stored) {
-            set(current)
-            return true
-        }
-        
-        return false
-    }
-    
-    /**
-     * Clears the stored User-Agent
+     * Clears stored UA forcing recomputation next time.
      */
     fun clear() {
         prefs.edit().remove(KEY_USER_AGENT).apply()
     }
-    
+
     /**
-     * Checks if the stored User-Agent is valid
-     * @return true if User-Agent is valid, false otherwise
+     * Simple sanity check for stored UA.
      */
     fun isValid(): Boolean {
         val ua = get()
-        return ua.isNotBlank() && ua.contains("Mozilla") && ua.contains("Android")
+        return ua.isNotBlank() && "Mozilla" in ua
+    }
+
+    // ---- internals ----
+
+    /**
+     * Computes a reasonable default UA.
+     * If called off the main thread, avoids constructing a WebView.
+     */
+    private fun computeDefaultUserAgent(webView: WebView? = null): String {
+        // 1) Fast path: WebSettings API (works off main thread)
+        val fromWebSettings = runCatching { WebSettings.getDefaultUserAgent(appContext) }.getOrNull()
+        if (!fromWebSettings.isNullOrBlank()) return fromWebSettings
+
+        // 2) If caller passed a WebView (UI thread), use it
+        if (webView != null) {
+            runCatching { webView.settings.userAgentString }.getOrNull()?.let { return it }
+        }
+
+        // 3) Fallback: system http.agent or generic UA
+        val sys = System.getProperty("http.agent")
+        if (!sys.isNullOrBlank()) return sys
+
+        // 4) Last resort generic
+        return "Mozilla/5.0 (Linux; Android) AppleWebKit/537.36 (KHTML, like Gecko) Mobile Safari/537.36"
+    }
+
+    companion object {
+        private const val PREFS_NAME = "ua_prefs"
+        private const val KEY_USER_AGENT = "user_agent"
     }
 }
