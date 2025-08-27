@@ -55,7 +55,7 @@ install:
 # Clean build artifacts
 clean:
 	@echo "Cleaning build artifacts..."
-	$(GRADLE) $(GRADLE_OPTS) clean
+	$(GRADLE) --stop && $(GRADLE) $(GRADLE_OPTS) clean
 	@echo "Build artifacts cleaned!"
 
 # Generate release notes
@@ -71,11 +71,11 @@ release-notes:
 	@echo "- Improved performance" >> packaging/release-notes.md
 	@echo "" >> packaging/release-notes.md
 	@echo "### Downloads" >> packaging/release-notes.md
-	@echo "- [APK (Universal)](https://github.com/yourusername/jabook/releases/download/v$(VERSION)/jabook-$(VERSION)-universal.apk)" >> packaging/release-notes.md
-	@echo "- [APK (arm64-v8a)](https://github.com/yourusername/jabook/releases/download/v$(VERSION)/jabook-$(VERSION)-arm64-v8a.apk)" >> packaging/release-notes.md
-	@echo "- [APK (armeabi-v7a)](https://github.com/yourusername/jabook/releases/download/v$(VERSION)/jabook-$(VERSION)-armeabi-v7a.apk)" >> packaging/release-notes.md
-	@echo "- [APK (x86)](https://github.com/yourusername/jabook/releases/download/v$(VERSION)/jabook-$(VERSION)-x86.apk)" >> packaging/release-notes.md
-	@echo "- [APK (x86_64)](https://github.com/yourusername/jabook/releases/download/v$(VERSION)/jabook-$(VERSION)-x86_64.apk)" >> packaging/release-notes.md
+	@echo "- [APK (Universal)](https://github.com/Gosayram/jabook/releases/download/v$(VERSION)/jabook-$(VERSION)-universal.apk)" >> packaging/release-notes.md
+	@echo "- [APK (arm64-v8a)](https://github.com/Gosayram/jabook/releases/download/v$(VERSION)/jabook-$(VERSION)-arm64-v8a.apk)" >> packaging/release-notes.md
+	@echo "- [APK (armeabi-v7a)](https://github.com/Gosayram/jabook/releases/download/v$(VERSION)/jabook-$(VERSION)-armeabi-v7a.apk)" >> packaging/release-notes.md
+	@echo "- [APK (x86)](https://github.com/Gosayram/jabook/releases/download/v$(VERSION)/jabook-$(VERSION)-x86.apk)" >> packaging/release-notes.md
+	@echo "- [APK (x86_64)](https://github.com/Gosayram/jabook/releases/download/v$(VERSION)/jabook-$(VERSION)-x86_64.apk)" >> packaging/release-notes.md
 	@echo "" >> packaging/release-notes.md
 	@echo "### SHA256 Checksums" >> packaging/release-notes.md
 	@cd app/build/outputs/apk/release && sha256sum *.apk >> ../../../../packaging/release-notes.md
