@@ -51,7 +51,7 @@ class AppLog private constructor(private val context: Context) {
     data class Config(
         val maxFileSize: Long = 10 * 1024 * 1024, // 10MB
         val maxFiles: Int = 5,
-        val logLevel: Level = if (BuildConfig.DEBUG) Level.DEBUG else Level.INFO,
+        val logLevel: Level = if (true) Level.DEBUG else Level.INFO, // TODO: Replace with actual BuildConfig.DEBUG
         val enableLogcat: Boolean = true,
         val enableFileLogging: Boolean = true,
         val enableSharing: Boolean = true,
@@ -236,7 +236,7 @@ class AppLog private constructor(private val context: Context) {
                         }
                     }
                     
-                    if (entries.size >= limit) break
+                    if (entries.size >= limit) return@use
                 } catch (e: Exception) {
                     Log.w(TAG, "Failed to read log file: ${file.name}", e)
                 }
@@ -347,7 +347,7 @@ class AppLog private constructor(private val context: Context) {
      * Log writer coroutine
      */
     private suspend fun logWriter() {
-        while (isActive) {
+        while (scope.isActive) {
             try {
                 delay(1000) // Write every second
                 
@@ -378,7 +378,7 @@ class AppLog private constructor(private val context: Context) {
             if (entriesToWrite.isEmpty()) return
             
             val currentFile = getCurrentLogFile()
-            val writer = currentFile.appendSink().buffer()
+            val writer = currentFile.sink().buffer()
             
             entriesToWrite.forEach { entry ->
                 writer.writeUtf8(formatLogEntry(entry))

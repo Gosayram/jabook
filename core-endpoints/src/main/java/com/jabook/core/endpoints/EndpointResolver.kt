@@ -8,6 +8,9 @@ import com.jabook.core.net.repository.UserAgentRepository
 import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONObject
@@ -35,7 +38,7 @@ class EndpointResolver(
     
     // Mirror storage
     private val mirrors = mutableListOf<Mirror>()
-    private val activeMirror = mutableStateOf<Mirror?>(null)
+    private var activeMirror by mutableStateOf<Mirror?>(null)
     private val healthCheckMutex = Mutex()
     
     // HTTP client for health checks
@@ -74,7 +77,7 @@ class EndpointResolver(
         
         // Set first mirror as active
         if (mirrors.isNotEmpty()) {
-            activeMirror.value = mirrors[0]
+            activeMirror = mirrors[0]
         }
         
         Log.i(TAG, "Loaded ${mirrors.size} mirrors")
@@ -91,14 +94,14 @@ class EndpointResolver(
      * Gets the currently active mirror
      */
     fun getActiveMirror(): Mirror? {
-        return activeMirror.value
+        return activeMirror
     }
     
     /**
      * Sets a mirror as active
      */
     fun setActiveMirror(mirror: Mirror) {
-        activeMirror.value = mirror
+        activeMirror = mirror
         Log.i(TAG, "Set active mirror: ${mirror.url}")
     }
     
@@ -141,9 +144,9 @@ class EndpointResolver(
      */
     fun removeMirror(mirror: Mirror) {
         mirrors.remove(mirror)
-        if (activeMirror.value == mirror) {
+        if (activeMirror == mirror) {
             // Set next available mirror as active
-            activeMirror.value = mirrors.firstOrNull()
+            activeMirror = mirrors.firstOrNull()
         }
         Log.i(TAG, "Removed mirror: ${mirror.url}")
     }
@@ -159,7 +162,7 @@ class EndpointResolver(
         
         // Set first mirror as active
         if (mirrors.isNotEmpty()) {
-            activeMirror.value = mirrors[0]
+            activeMirror = mirrors[0]
         }
         
         Log.i(TAG, "Reset to ${mirrors.size} default mirrors")
@@ -218,7 +221,7 @@ class EndpointResolver(
                 mirror.healthy = isHealthy
                 mirror.responseTime = responseTime
                 mirror.lastChecked = System.currentTimeMillis()
-                mirror.status = if (isHealthy) "healthy" else else "unhealthy"
+                mirror.status = if (isHealthy) "healthy" else "unhealthy"
                 mirror.error = if (!isHealthy) "HTTP ${response.code}" else null
                 
                 response.close()
@@ -253,11 +256,11 @@ class EndpointResolver(
             
             if (healthyMirrors.isNotEmpty()) {
                 val bestMirror = healthyMirrors.minByOrNull { it.responseTime } ?: healthyMirrors[0]
-                activeMirror.value = bestMirror
+                activeMirror = bestMirror
                 Log.i(TAG, "Updated active mirror: ${bestMirror.url} (${bestMirror.responseTime}ms)")
             } else {
                 // No healthy mirrors, use first available
-                activeMirror.value = mirrors.firstOrNull()
+                activeMirror = mirrors.firstOrNull()
                 Log.w(TAG, "No healthy mirrors available")
             }
         }
@@ -284,7 +287,7 @@ class EndpointResolver(
      * Gets the current active URL
      */
     fun getActiveUrl(): String? {
-        return activeMirror.value?.url
+        return activeMirror?.url
     }
     
     /**
@@ -306,8 +309,8 @@ class EndpointResolver(
             "total" to total,
             "healthy" to healthy,
             "unhealthy" to unhealthy,
-            "active" to activeMirror.value?.url,
-            "lastCheck" to mirrors.maxOfOrNull { it.lastChecked } ?: 0L
+            "active" to activeMirror?.url,
+            "lastCheck" to (mirrors.maxOfOrNull { it.lastChecked } ?: 0L)
         )
     }
     

@@ -2,6 +2,7 @@ package com.jabook.core.stream
 
 import android.content.Context
 import android.util.Log
+import com.google.gson.Gson
 import fi.iki.elonen.NanoHTTPD
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -27,9 +28,9 @@ class LocalHttp(private val context: Context) : NanoHTTPD(17171) {
     
     // Mock data for development
     private var mockUser = mapOf(
-        "loggedIn" to false,
-        "username" to null,
-        "id" to null
+        "loggedIn" to false as Boolean?,
+        "username" to null as String?,
+        "id" to null as String?
     )
     
     private val mockEndpoints = listOf(
@@ -61,8 +62,8 @@ class LocalHttp(private val context: Context) : NanoHTTPD(17171) {
         }
     }
     
-    override fun start(port: Int, daemon: Boolean): NanoHTTPD {
-        return try {
+    override fun start(port: Int, daemon: Boolean) {
+        try {
             super.start(port, daemon)
         } catch (e: IOException) {
             Log.e(TAG, "Failed to start server on port $port", e)
@@ -473,7 +474,7 @@ class LocalHttp(private val context: Context) : NanoHTTPD(17171) {
     /**
      * Gson instance for JSON serialization
      */
-    private val gson = com.google.gson.Gson()
+    private val gson = Gson()
     
     /**
      * Parses POST parameters from session
@@ -483,7 +484,7 @@ class LocalHttp(private val context: Context) : NanoHTTPD(17171) {
         try {
             session.parseBody(mapOf())
             session.parms.forEach { (key, value) ->
-                params[key] = value.firstOrNull() ?: ""
+                params[key] = (value.firstOrNull() ?: "") as String
             }
         } catch (e: Exception) {
             Log.w(TAG, "Failed to parse POST parameters", e)

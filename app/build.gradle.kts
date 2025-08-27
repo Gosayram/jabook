@@ -30,7 +30,7 @@ android {
             val props = Properties().apply {
                 load(rootProject.file("keystore.properties").inputStream())
             }
-            storeFile = file(props.getProperty("storeFile"))
+            storeFile = file(rootProject.file(props.getProperty("storeFile")))
             storePassword = props.getProperty("storePassword")
             keyAlias = props.getProperty("keyAlias")
             keyPassword = props.getProperty("keyPassword")
@@ -125,7 +125,7 @@ dependencies {
     // Media3
     implementation(libs.androidx.media3.exoplayer)
     implementation(libs.androidx.media3.exoplayer.hls)
-    implementation(libs.androidx.media3.exoplayer.media.session)
+    // Remove this line as androidx.media3:media3-exoplayer-media-session doesn't exist
     implementation(libs.androidx.media3.ui)
     implementation(libs.androidx.media3.session)
     

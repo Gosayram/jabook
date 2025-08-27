@@ -42,6 +42,9 @@ android {
 
 dependencies {
     implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.nanohttpd)
+    implementation(libs.nanohttpd.websocket)
+    implementation(libs.json)
     
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
