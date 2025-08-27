@@ -11,7 +11,7 @@ help:  ## Show this help message
 	@awk 'BEGIN {FS = ":.*##"; printf "%-20s %s\n", "Target", "Description"} /^[a-zA-Z_-]+:.*?##/ { printf "%-20s %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
 
 clean:  ## Clean all build artifacts
-	./gradlew clean
+	./gradlew --stop && ./gradlew clean
 
 debug:  ## Build debug APK
 	./gradlew :$(APP_MODULE):assembleDebug

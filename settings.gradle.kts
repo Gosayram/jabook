@@ -15,8 +15,6 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
-        // For libtorrent4j
-        maven { url = uri("https://jitpack.io") }
     }
 }
 
