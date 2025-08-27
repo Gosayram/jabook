@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- JaBook Brand Palette -->
+    <!-- Primary background -->
+    <color name="jabook_primary">#3E2A53</color>
+    
+    <!-- Primary text/icons -->
+    <color name="jabook_text">#E6D9C6</color>
+    
+    <!-- Accent -->
+    <color name="jabook_accent">#E59C28</color>
+    
+    <!-- Success -->
+    <color name="jabook_success">#6BBF59</color>
+    
+    <!-- Error -->
+    <color name="jabook_error">#D75C58</color>
+    
+    <!-- Warning -->
+    <color name="jabook_warning">#F2B950</color>
+    
+    <!-- Secondary text/details -->
+    <color name="jabook_text_secondary">#CBBFAE</color>
+    
+    <!-- Legacy colors for compatibility -->
+    <color name="purple_500">#3E2A53</color>
+    <color name="purple_700">#3E2A53</color>
+    <color name="purple_800">#3E2A53</color>
+    <color name="purple_200">#E6D9C6</color>
+    
+    <!-- Secondary colors -->
+    <color name="teal_200">#E59C28</color>
+    <color name="teal_700">#E59C28</color>
+    <color name="teal_800">#E59C28</color>
+    
+    <!-- Tertiary colors -->
+    <color name="orange_500">#E59C28</color>
+    <color name="orange_200">#E59C28</color>
+    
+    <!-- Error colors -->
+    <color name="red_500">#D75C58</color>
+    <color name="red_400">#D75C58</color>
+    
+    <!-- Neutral colors -->
+    <color name="black">#000000</color>
+    <color name="white">#FFFFFF</color>
+    <color name="gray_900">#3E2A53</color>
+    
+    <!-- Background colors -->
+    <color name="background_light">#FFFFFF</color>
+    <color name="background_dark">#3E2A53</color>
+    
+    <!-- Surface colors -->
+    <color name="surface_light">#FFFFFF</color>
+    <color name="surface_dark">#3E2A53</color>
+    
+    <!-- Text colors -->
+    <color name="text_primary">#E6D9C6</color>
+    <color name="text_secondary">#CBBFAE</color>
+    <color name="text_primary_inverse">#FFFFFF</color>
+    <color name="text_secondary_inverse">#E6D9C6</color>
+    
+    <!-- Status colors -->
+    <color name="success">#6BBF59</color>
+    <color name="warning">#F2B950</color>
+    <color name="error">#D75C58</color>
+    <color name="info">#E59C28</color>
+    
+    <!-- Mirror status colors -->
+    <color name="mirror_healthy">#6BBF59</color>
+    <color name="mirror_warning">#F2B950</color>
+    <color name="mirror_unhealthy">#D75C58</color>
+    
+    <!-- Player colors -->
+    <color name="player_background">#3E2A53</color>
+    <color name="player_progress">#E59C28</color>
+    <color name="player_scrubber">#E6D9C6</color>
+    
+    <!-- WebView background -->
+    <color name="webview_background">#3E2A53</color>
+    
+    <!-- Debug colors -->
+    <color name="debug_trace">#E6D9C6</color>
+    <color name="debug_debug">#B3A89A</color>
+    <color name="debug_info">#E6D9C6</color>
+    <color name="debug_warn">#F2B950</color>
+    <color name="debug_error">#D75C58</color>
+</resources>
