@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace = "com.jabook.app"
+    namespace = "com.jabook.core.stream"
     compileSdk = 35
 
     defaultConfig {
