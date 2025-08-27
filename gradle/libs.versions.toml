@@ -1,20 +1,24 @@
 [versions]
-agp = "8.7.2"
-kotlin = "2.1.0"
+agp = "8.12.1"
+kotlin = "2.2.10"
 coreKtx = "1.15.0"
-lifecycleRuntimeKtx = "2.8.7"
+lifecycleRuntimeKtx = "2.9.2"
 activity = "1.9.3"
-fragment = "1.8.5"
+fragment = "1.8.8"
 webView = "1.12.1"
-media3 = "1.4.1"
+media3 = "1.8.0"
 okhttp = "5.1.0"
-jsoup = "1.18.1"
+jsoup = "1.21.2"
 libtorrent4j = "2.1.0-37"
-nanohttpd = "2.3.0"
-kotlinxCoroutines = "1.9.0"
-kotlinxSerialization = "1.7.3"
+nanohttpd = "2.3.1"
+kotlinxCoroutines = "1.10.2"
+kotlinxSerialization = "1.9.0"
 koin = "3.5.6"
 timber = "5.0.1"
+composeBom = "2025.08.00"
+junit = "4.13.2"
+junitVersion = "1.2.1"
+espresso = "3.6.1"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -27,12 +31,28 @@ androidx-media3-exoplayer-hls = { group = "androidx.media3", name = "media3-exop
 androidx-media3-exoplayer-media-session = { group = "androidx.media3", name = "media3-exoplayer-media-session", version.ref = "media3" }
 androidx-media3-ui = { group = "androidx.media3", name = "media3-ui", version.ref = "media3" }
 androidx-media3-session = { group = "androidx.media3", name = "media3-session", version.ref = "media3" }
+
+# Compose BOM
+androidx-compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "composeBom" }
+androidx-compose-ui = { group = "androidx.compose.ui", name = "ui" }
+androidx-compose-ui-graphics = { group = "androidx.compose.ui", name = "ui-graphics" }
+androidx-compose-ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling" }
+androidx-compose-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-tooling-preview" }
+androidx-compose-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest" }
+androidx-compose-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4" }
+androidx-compose-material3 = { group = "androidx.compose.material3", name = "material3" }
+androidx-compose-material = { group = "androidx.compose.material", name = "material" }
+
+# Testing
+junit = { group = "junit", name = "junit", version.ref = "junit" }
+androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junit" }
+androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espresso" }
 okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttp" }
 okhttp-sse = { group = "com.squareup.okhttp3", name = "okhttp-sse", version.ref = "okhttp" }
 okhttp-logging = { group = "com.squareup.okhttp3", name = "logging-interceptor", version.ref = "okhttp" }
 jsoup = { group = "org.jsoup", name = "jsoup", version.ref = "jsoup" }
-libtorrent4j-core = { group = "com.github.ed-avis", name = "libtorrent4j-core", version.ref = "libtorrent4j" }
-libtorrent4j-android = { group = "com.github.ed-avis", name = "libtorrent4j-android", version.ref = "libtorrent4j" }
+libtorrent4j-core = { group = "org.libtorrent4j", name = "libtorrent4j-core", version.ref = "libtorrent4j" }
+libtorrent4j-android = { group = "org.libtorrent4j", name = "libtorrent4j-android", version.ref = "libtorrent4j" }
 nanohttpd = { group = "org.nanohttpd", name = "nanohttpd", version.ref = "nanohttpd" }
 nanohttpd-websocket = { group = "org.nanohttpd", name = "nanohttpd-websocket", version.ref = "nanohttpd" }
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "kotlinxCoroutines" }
@@ -43,6 +63,7 @@ timber = { group = "com.jakewharton.timber", name = "timber", version.ref = "tim
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
+android-library = { id = "com.android.library", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 kotlin-parcelize = { id = "org.jetbrains.kotlin.plugin.parcelize", version.ref = "kotlin" }

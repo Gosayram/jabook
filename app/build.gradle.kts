@@ -6,6 +6,8 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
 }
 
+import java.util.Properties
+
 android {
     namespace = "com.jabook.app"
     compileSdk = 35
@@ -28,10 +30,10 @@ android {
             val props = Properties().apply {
                 load(rootProject.file("keystore.properties").inputStream())
             }
-            storeFile = file(props["storeFile"] as String)
-            storePassword = props["storePassword"] as String
-            keyAlias = props["keyAlias"] as String
-            keyPassword = props["keyPassword"] as String
+            storeFile = file(props.getProperty("storeFile"))
+            storePassword = props.getProperty("storePassword")
+            keyAlias = props.getProperty("keyAlias")
+            keyPassword = props.getProperty("keyPassword")
             enableV3Signing = true
             enableV4Signing = true
         }
@@ -54,12 +56,20 @@ android {
     }
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = "11"
+    kotlin {
+        compilerOptions {
+            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+        }
+    }
+
+    java {
+        toolchain {
+            languageVersion.set(JavaLanguageVersion.of(17))
+        }
     }
 
     buildFeatures {

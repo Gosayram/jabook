@@ -11,12 +11,7 @@ plugins {
 
 // Apply common configurations to all modules
 allprojects {
-    repositories {
-        google()
-        mavenCentral()
-        // For libtorrent4j
-        maven { url = uri("https://jitpack.io") }
-    }
+    // Common configurations can be added here if needed
 }
 
 // Configure build optimizations
