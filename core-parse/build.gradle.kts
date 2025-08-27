@@ -50,10 +50,10 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.ktx)
     
     // HTML parsing
-    implementation("org.jsoup:jsoup:1.17.2")
+    implementation(libs.jsoup)
     
     // JSON processing
-    implementation("org.json:json:20240303")
+    implementation(libs.json)
     
     // Testing dependencies
     testImplementation(libs.junit)

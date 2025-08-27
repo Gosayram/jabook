@@ -4,8 +4,8 @@ kotlin = "2.2.10"
 coreKtx = "1.15.0"
 lifecycleRuntimeKtx = "2.9.2"
 activity = "1.9.3"
-fragment = "1.8.8"
-webView = "1.12.1"
+fragment = "1.8.9"
+webView = "1.13.0"
 media3 = "1.8.0"
 okhttp = "5.1.0"
 jsoup = "1.21.2"
@@ -13,12 +13,15 @@ libtorrent4j = "2.1.0-37"
 nanohttpd = "2.3.1"
 kotlinxCoroutines = "1.10.2"
 kotlinxSerialization = "1.9.0"
-koin = "3.5.6"
+koin = "4.1.0"
 timber = "5.0.1"
 composeBom = "2025.08.00"
 junit = "4.13.2"
 junitVersion = "1.2.1"
-espresso = "3.6.1"
+espresso = "3.7.0"
+okio = "3.9.0"
+glide = "4.16.0"
+json = "20250517"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -31,6 +34,10 @@ androidx-media3-exoplayer-hls = { group = "androidx.media3", name = "media3-exop
 androidx-media3-exoplayer-media-session = { group = "androidx.media3", name = "media3-exoplayer-media-session", version.ref = "media3" }
 androidx-media3-ui = { group = "androidx.media3", name = "media3-ui", version.ref = "media3" }
 androidx-media3-session = { group = "androidx.media3", name = "media3-session", version.ref = "media3" }
+androidx-media3-exoplayer-dash = { group = "androidx.media3", name = "media3-exoplayer-dash", version.ref = "media3" }
+androidx-media3-exoplayer-rtsp = { group = "androidx.media3", name = "media3-exoplayer-rtsp", version.ref = "media3" }
+androidx-media3-common = { group = "androidx.media3", name = "media3-common", version.ref = "media3" }
+androidx-media3-datasource-okhttp = { group = "androidx.media3", name = "media3-datasource-okhttp", version.ref = "media3" }
 
 # Compose BOM
 androidx-compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "composeBom" }
@@ -60,6 +67,10 @@ kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-
 koin-android = { group = "io.insert-koin", name = "koin-android", version.ref = "koin" }
 koin-androidx-compose = { group = "io.insert-koin", name = "koin-androidx-compose", version.ref = "koin" }
 timber = { group = "com.jakewharton.timber", name = "timber", version.ref = "timber" }
+okio = { group = "com.squareup.okio", name = "okio", version.ref = "okio" }
+glide = { group = "com.github.bumptech.glide", name = "glide", version.ref = "glide" }
+glide-compiler = { group = "com.github.bumptech.glide", name = "compiler", version.ref = "glide" }
+json = { group = "org.json", name = "json", version.ref = "json" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
