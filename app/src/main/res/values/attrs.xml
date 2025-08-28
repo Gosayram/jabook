@@ -1,7 +1,0 @@
-<resources>
-    <attr name="colorPlayerBackground" format="color" />
-    <attr name="colorPlayerProgress" format="color" />
-    <attr name="colorPlayerText" format="color" />
-    <attr name="colorDebugBackground" format="color" />
-    <attr name="colorDebugText" format="color" />
-</resources>
