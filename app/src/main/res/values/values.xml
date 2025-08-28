@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Material3 theme attributes -->
+    <attr name="colorOnPrimary" format="color" />
+    <attr name="colorPrimaryContainer" format="color" />
+    <attr name="colorOnPrimaryContainer" format="color" />
+    <attr name="colorSecondary" format="color" />
+    <attr name="colorOnSecondary" format="color" />
+    <attr name="colorSecondaryContainer" format="color" />
+    <attr name="colorOnSecondaryContainer" format="color" />
+    <attr name="colorTertiary" format="color" />
+    <attr name="colorOnTertiary" format="color" />
+    <attr name="colorBackground" format="color" />
+    <attr name="colorOnBackground" format="color" />
+    <attr name="colorSurface" format="color" />
+    <attr name="colorOnSurface" format="color" />
+    <attr name="colorOnError" format="color" />
+    
+    <!-- Material3 component styles -->
+    <attr name="materialButtonStyle" format="reference" />
+    <attr name="materialButtonOutlinedStyle" format="reference" />
+    <attr name="materialButtonToggleGroupStyle" format="reference" />
+    <attr name="materialCardViewStyle" format="reference" />
+    
+    <!-- Custom player attributes -->
+    <attr name="colorPlayerBackground" format="color" />
+    <attr name="colorPlayerProgress" format="color" />
+    <attr name="colorPlayerText" format="color" />
+    <attr name="colorDebugBackground" format="color" />
+    <attr name="colorDebugText" format="color" />
+    
+    <!-- Card attributes -->
+    <attr name="cardCornerRadius" format="dimension" />
+    <attr name="cardElevation" format="dimension" />
+    
+    <!-- Splash screen attributes -->
+    <attr name="windowSplashScreenBackground" format="color" />
+    <attr name="windowSplashScreenAnimatedIcon" format="reference" />
+    <attr name="windowSplashScreenAnimationDuration" format="integer" />
+    <attr name="windowSplashScreenStatusBarColor" format="color" />
+    <attr name="windowSplashScreenNavigationBarColor" format="color" />
+</resources>

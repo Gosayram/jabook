@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Splash screen theme for API 31+ -->
+    <style name="Theme.SplashScreen" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/jabook_primary</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/splash_screen</item>
+        <item name="windowSplashScreenAnimationDuration">1000</item>
+        <item name="windowSplashScreenStatusBarColor">@color/jabook_primary</item>
+        <item name="windowSplashScreenNavigationBarColor">@color/jabook_primary</item>
+    </style>
+</resources>
