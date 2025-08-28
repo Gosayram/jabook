@@ -219,7 +219,7 @@ class AppLog private constructor(private val context: Context) {
         return withContext(Dispatchers.IO) {
             val entries = mutableListOf<LogEntry>()
             
-            logFiles.forEach { file ->
+            for (file in logFiles) {
                 try {
                     file.source().buffer().use { source ->
                         while (true) {

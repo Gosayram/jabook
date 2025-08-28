@@ -12,16 +12,12 @@ import android.media.AudioAttributes
 import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.os.Build
-import androidx.media3.common.util.Log
-import androidx.media3.session.MediaSession
-import androidx.media3.session.SessionCommand
-import androidx.media3.session.SessionError
-import androidx.media3.session.SessionResult
 import androidx.core.app.NotificationCompat
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.common.util.Log as Media3Log
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.audio.AudioSink
 import androidx.media3.exoplayer.audio.DefaultAudioSink
@@ -32,11 +28,16 @@ import androidx.media3.exoplayer.source.TrackGroupArray
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.exoplayer.trackselection.ExoTrackSelection
 import androidx.media3.exoplayer.trackselection.TrackSelectionArray
+import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
+import androidx.media3.session.SessionCommand
+import androidx.media3.session.SessionError
+import androidx.media3.session.SessionResult
 import com.bumptech.glide.Glide
 import com.bumptech.glide.request.target.CustomTarget
 import com.bumptech.glide.request.transition.Transition
-import com.jabook.app.MainActivity
+// Note: MainActivity import removed - core modules should not depend on app module
+// Consider using a base activity interface or context-only approach
 import kotlinx.coroutines.*
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -149,9 +150,9 @@ class PlayerService : MediaSessionService(), Player.Listener {
             serviceStarted.set(true)
             startForeground(NOTIFICATION_ID, createNotification())
             
-            Log.i(TAG, "Player initialized successfully")
+            Media3Log.i(TAG, "Player initialized successfully")
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to initialize player", e)
+            Media3Log.e(TAG, "Failed to initialize player", e)
         }
     }
     
@@ -250,7 +251,7 @@ class PlayerService : MediaSessionService(), Player.Listener {
     fun play() {
         try {
             if (!requestAudioFocus()) {
-                Log.w(TAG, "Could not get audio focus")
+                Media3Log.w(TAG, "Could not get audio focus")
                 return
             }
             
@@ -259,7 +260,7 @@ class PlayerService : MediaSessionService(), Player.Listener {
             updatePlaybackState()
             updateNotification()
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to play", e)
+            Media3Log.e(TAG, "Failed to play", e)
         }
     }
     
@@ -274,7 +275,7 @@ class PlayerService : MediaSessionService(), Player.Listener {
             updateNotification()
             abandonAudioFocus()
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to pause", e)
+            Media3Log.e(TAG, "Failed to pause", e)
         }
     }
     
@@ -293,7 +294,7 @@ class PlayerService : MediaSessionService(), Player.Listener {
             abandonAudioFocus()
             stopSelf()
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to stop", e)
+            Media3Log.e(TAG, "Failed to stop", e)
         }
     }
     
@@ -311,7 +312,7 @@ class PlayerService : MediaSessionService(), Player.Listener {
             updateMediaSessionMetadata(mediaItem)
             updateNotification()
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to set media item", e)
+            Media3Log.e(TAG, "Failed to set media item", e)
         }
     }
     
@@ -395,7 +396,7 @@ class PlayerService : MediaSessionService(), Player.Listener {
      * Creates notification for foreground service
      */
     private fun createNotification(): Notification {
-        val intent = Intent(this, MainActivity::class.java).apply {
+        val intent = Intent(this, Class.forName("com.jabook.app.MainActivity")).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
         
@@ -500,9 +501,9 @@ class PlayerService : MediaSessionService(), Player.Listener {
             serviceStarted.set(false)
             isInitialized.set(false)
             
-            Log.i(TAG, "Player service cleaned up")
+            Media3Log.i(TAG, "Player service cleaned up")
         } catch (e: Exception) {
-            Log.e(TAG, "Error during cleanup", e)
+            Media3Log.e(TAG, "Error during cleanup", e)
         }
     }
     

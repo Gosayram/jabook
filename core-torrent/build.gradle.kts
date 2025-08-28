@@ -72,6 +72,10 @@ dependencies {
     
     // LibTorrent4j for torrent handling
     implementation(libs.libtorrent4j)
+    implementation(libs.libtorrent4j.android.arm)
+    implementation(libs.libtorrent4j.android.arm64)
+    implementation(libs.libtorrent4j.android.x86)
+    implementation(libs.libtorrent4j.android.x86_64)
     
     // JSON processing
     implementation(libs.json)

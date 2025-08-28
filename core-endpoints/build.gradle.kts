@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "com.jabook.app"
+    namespace = "com.jabook.core.endpoints"
     compileSdk = 35
 
     defaultConfig {

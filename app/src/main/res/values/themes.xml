@@ -25,7 +25,7 @@
         <!-- Material (Views) styles -->
         <item name="materialButtonStyle">@style/Widget.Material3.Button</item>
         <item name="materialButtonOutlinedStyle">@style/Widget.Material3.Button.OutlinedButton</item>
-        <item name="materialButtonToggleGroupStyle">@style/Widget.MaterialComponents.MaterialButtonToggleGroup</item>
+        <item name="materialButtonToggleGroupStyle">@style/Widget.Material3.MaterialButtonToggleGroup</item>
         <item name="materialCardViewStyle">@style/Widget.Material3.CardView</item>
 
         <!-- Custom theme attrs (declare in attrs.xml) -->
