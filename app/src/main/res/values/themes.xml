@@ -1,6 +1,7 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <style name="Theme.JaBook" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- JaBook brand colors -->
+
+    <style name="Theme.JaBook" parent="Theme.Material3.DayNight">
+        <!-- Brand colors -->
         <item name="colorPrimary">@color/jabook_primary</item>
         <item name="colorOnPrimary">@color/jabook_text</item>
         <item name="colorPrimaryContainer">@color/jabook_primary</item>
@@ -22,13 +23,15 @@
         <item name="android:statusBarColor" tools:targetApi="l">@color/jabook_primary</item>
         <item name="android:windowLightStatusBar" tools:targetApi="m">true</item>
 
-        <!-- Material (Views) styles -->
-        <item name="materialButtonStyle">@style/Widget.Material3.Button</item>
-        <item name="materialButtonOutlinedStyle">@style/Widget.Material3.Button.OutlinedButton</item>
-        <item name="materialButtonToggleGroupStyle">@style/Widget.Material3.MaterialButtonToggleGroup</item>
-        <item name="materialCardViewStyle">@style/Widget.Material3.CardView</item>
+        <item name="materialButtonStyle">@style/Widget.JaBook.Button</item>
+        <item name="materialButtonOutlinedStyle">@style/Widget.JaBook.Button.Outlined</item>
+        <item name="materialButtonToggleGroupStyle">@style/Widget.JaBook.ButtonToggleGroup</item>
+        <item name="materialCardViewStyle">@style/Widget.JaBook.Card.Elevated</item>
 
-        <!-- Custom theme attrs (declare in attrs.xml) -->
+        <!-- MaterialAlertDialog -->
+        <item name="materialAlertDialogTheme">@style/ThemeOverlay.JaBook.MaterialAlertDialog</item>
+
+        <!-- Custom attrs -->
         <item name="colorPlayerBackground">@color/jabook_primary</item>
         <item name="colorPlayerProgress">@color/jabook_accent</item>
         <item name="colorPlayerText">@color/jabook_text</item>
@@ -45,4 +48,5 @@
         <item name="colorSurface">@color/jabook_primary</item>
         <item name="colorOnSurface">@color/jabook_text</item>
     </style>
+
 </resources>

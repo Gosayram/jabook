@@ -15,15 +15,18 @@ kotlinxCoroutines = "1.10.2"
 kotlinxSerialization = "1.9.0"
 koin = "4.1.0"
 timber = "5.0.1"
-composeBom = "2025.08.00"
+composeBom = "2024.12.01"
 junit = "4.13.2"
 junitVersion = "1.2.1"
 espresso = "3.7.0"
 okio = "3.9.0"
 glide = "4.16.0"
 json = "20250517"
+material = "1.13.0"
 
 [libraries]
+material = { group = "com.google.android.material", name = "material", version.ref = "material" }
+
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 androidx-lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version.ref = "lifecycleRuntimeKtx" }
 androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activity" }

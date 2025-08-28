@@ -1,6 +1,6 @@
 <resources>
-    <!-- Material3 Button Styles -->
-    <style name="Widget.Material3.Button" parent="Widget.Material3.Button">
+
+    <style name="Widget.JaBook.Button" parent="Widget.Material3.Button">
         <item name="android:textSize">14sp</item>
         <item name="android:textStyle">bold</item>
         <item name="android:paddingStart">24dp</item>
@@ -9,7 +9,7 @@
         <item name="android:paddingBottom">10dp</item>
     </style>
 
-    <style name="Widget.Material3.Button.OutlinedButton" parent="Widget.Material3.Button.OutlinedButton">
+    <style name="Widget.JaBook.Button.Outlined" parent="Widget.Material3.Button.OutlinedButton">
         <item name="android:textSize">14sp</item>
         <item name="android:textStyle">bold</item>
         <item name="android:paddingStart">24dp</item>
@@ -18,20 +18,20 @@
         <item name="android:paddingBottom">10dp</item>
     </style>
 
-    <style name="Widget.Material3.ButtonToggleGroup" parent="Widget.Material3.ButtonToggleGroup">
+    <style name="Widget.JaBook.ButtonToggleGroup" parent="Widget.MaterialComponents.MaterialButtonToggleGroup">
         <item name="android:textSize">14sp</item>
         <item name="android:textStyle">bold</item>
     </style>
 
-    <!-- Material3 CardView Style -->
-    <style name="Widget.Material3.CardView.Elevated" parent="Widget.Material3.CardView">
+    <style name="Widget.JaBook.Card.Elevated" parent="Widget.Material3.CardView">
         <item name="cardCornerRadius">12dp</item>
         <item name="cardElevation">4dp</item>
     </style>
 
-    <!-- Material3 AlertDialog Theme -->
-    <style name="ThemeOverlay.Material3.MaterialAlertDialog" parent="ThemeOverlay.Material3.MaterialAlertDialog">
+    <!-- MATERIAL ALERT DIALOG OVERLAY -->
+    <style name="ThemeOverlay.JaBook.MaterialAlertDialog" parent="ThemeOverlay.Material3.MaterialAlertDialog">
         <item name="android:background">@color/jabook_primary</item>
         <item name="android:textColor">@color/jabook_text</item>
     </style>
+
 </resources>

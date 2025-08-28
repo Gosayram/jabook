@@ -483,7 +483,7 @@ class LocalHttp(private val context: Context) : NanoHTTPD(17171) {
         val params = mutableMapOf<String, String>()
         try {
             session.parseBody(mapOf())
-            session.parms.forEach { (key, value) ->
+            session.parameters.forEach { (key, value) ->
                 params[key] = (value.firstOrNull() ?: "").toString()
             }
         } catch (e: Exception) {

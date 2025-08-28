@@ -142,7 +142,7 @@ class PlayerService : MediaSessionService(), Player.Listener {
                     }
                 })
                 
-                mediaSession?.isActive = true
+                isActive = true
             }
             
             isInitialized.set(true)
@@ -352,7 +352,7 @@ class PlayerService : MediaSessionService(), Player.Listener {
                 .setTitle(mediaItem.mediaMetadata.title?.toString() ?: "")
                 .setArtist(mediaItem.mediaMetadata.artist?.toString() ?: "")
                 .setAlbumTitle(mediaItem.mediaMetadata.albumTitle?.toString() ?: "")
-                .setDuration(mediaItem.mediaMetadata.durationMillis ?: C.TIME_UNSET.toLong())
+                .setDurationMillis(mediaItem.mediaMetadata.durationMillis ?: C.TIME_UNSET.toLong())
                 .build()
         )
     }

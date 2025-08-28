@@ -134,6 +134,10 @@ dependencies {
     
     // Timber for logging
     implementation(libs.timber)
+
+    // Material
+    implementation(libs.material)
+    
     
     // Testing
     testImplementation(libs.junit)
