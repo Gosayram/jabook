@@ -12,11 +12,11 @@ import android.media.AudioAttributes
 import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.os.Build
-import android.support.v4.media.MediaBrowserCompat
-import android.support.v4.media.MediaDescriptionCompat
-import android.support.v4.media.MediaMetadataCompat
-import android.support.v4.media.session.MediaSessionCompat
-import android.support.v4.media.session.PlaybackStateCompat
+import androidx.media3.common.util.Log
+import androidx.media3.session.MediaSession
+import androidx.media3.session.SessionCommand
+import androidx.media3.session.SessionError
+import androidx.media3.session.SessionResult
 import androidx.core.app.NotificationCompat
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
@@ -117,13 +117,8 @@ class PlayerService : MediaSessionService(), Player.Listener {
                 }
             
             // Create media session
-            val mediaButtonIntent = Intent(Intent.ACTION_MEDIA_BUTTON)
-            val mediaButtonReceiver = PendingIntent.getBroadcast(
-                this, 0, mediaButtonIntent, PendingIntent.FLAG_IMMUTABLE
-            )
-            
-            mediaSession = MediaSessionCompat(this, "JaBookPlayer").apply {
-                setCallback(object : MediaSessionCompat.Callback() {
+            mediaSession = MediaSession.Builder(this, exoPlayer!!).build().apply {
+                setCallback(object : MediaSession.Callback() {
                     override fun onPlay() {
                         play()
                     }
@@ -147,19 +142,7 @@ class PlayerService : MediaSessionService(), Player.Listener {
                     override fun onStop() {
                         stop()
                     }
-                    
-                    override fun onSkipToQueueItem(itemId: Long) {
-                        // Handle queue item selection
-                    }
                 })
-                
-                setFlags(MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS or MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS)
-                setMediaButtonReceiver(mediaButtonReceiver)
-                setSessionActivity(PendingIntent.getActivity(
-                    this@PlayerService, 0,
-                    Intent(this@PlayerService, MainActivity::class.java),
-                    PendingIntent.FLAG_IMMUTABLE
-                ))
                 
                 isActive = true
             }
@@ -371,12 +354,11 @@ class PlayerService : MediaSessionService(), Player.Listener {
      */
     private fun updateMediaSessionMetadata(mediaItem: MediaItem) {
         mediaSession?.setMetadata(
-            MediaMetadataCompat.Builder()
-                .putString(MediaMetadataCompat.METADATA_KEY_TITLE, mediaItem.mediaMetadata.title?.toString())
-                .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, mediaItem.mediaMetadata.artist?.toString())
-                .putString(MediaMetadataCompat.METADATA_KEY_ALBUM, mediaItem.mediaMetadata.albumTitle?.toString())
-                .putLong(MediaMetadataCompat.METADATA_KEY_DURATION, mediaItem.mediaMetadata.durationMillis ?: C.TIME_UNSET.toLong())
-                .putBitmap(MediaMetadataCompat.METADATA_KEY_ART_BITMAP, null)
+            androidx.media3.common.MediaMetadata.Builder()
+                .setTitle(mediaItem.mediaMetadata.title?.toString())
+                .setArtist(mediaItem.mediaMetadata.artist?.toString())
+                .setAlbumTitle(mediaItem.mediaMetadata.albumTitle?.toString())
+                .setDuration(mediaItem.mediaMetadata.durationMillis ?: C.TIME_UNSET.toLong())
                 .build()
         )
     }
@@ -385,22 +367,27 @@ class PlayerService : MediaSessionService(), Player.Listener {
      * Updates playback state
      */
     private fun updatePlaybackState() {
-        val stateBuilder = PlaybackStateCompat.Builder()
-            .setActions(PlaybackStateCompat.ACTION_PLAY or
-                       PlaybackStateCompat.ACTION_PAUSE or
-                       PlaybackStateCompat.ACTION_SKIP_TO_NEXT or
-                       PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS or
-                       PlaybackStateCompat.ACTION_SEEK_TO or
-                       PlaybackStateCompat.ACTION_STOP)
+        val stateBuilder = androidx.media3.session.PlaybackState.Builder()
+            .setAvailableCommands(
+                androidx.media3.session.Commands.Builder()
+                    .addAll(
+                        androidx.media3.session.Command.COMMAND_PLAY_PAUSE,
+                        androidx.media3.session.Command.COMMAND_SEEK_TO,
+                        androidx.media3.session.Command.COMMAND_SEEK_FORWARD,
+                        androidx.media3.session.Command.COMMAND_SEEK_BACKWARD,
+                        androidx.media3.session.Command.COMMAND_STOP
+                    )
+                    .build()
+            )
         
         if (currentMediaItem != null) {
             stateBuilder.setState(
-                if (isPlaying) PlaybackStateCompat.STATE_PLAYING else PlaybackStateCompat.STATE_PAUSED,
+                if (isPlaying) Player.STATE_PLAYING else Player.STATE_PAUSED,
                 exoPlayer?.currentPosition ?: 0L,
                 1.0f
             )
         } else {
-            stateBuilder.setState(PlaybackStateCompat.STATE_NONE, 0L, 1.0f)
+            stateBuilder.setState(Player.STATE_IDLE, 0L, 1.0f)
         }
         
         mediaSession?.setPlaybackState(stateBuilder.build())

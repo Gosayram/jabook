@@ -8,9 +8,6 @@ import com.jabook.core.net.repository.UserAgentRepository
 import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONObject
@@ -38,7 +35,7 @@ class EndpointResolver(
     
     // Mirror storage
     private val mirrors = mutableListOf<Mirror>()
-    private var activeMirror by mutableStateOf<Mirror?>(null)
+    private var activeMirror: Mirror? = null
     private val healthCheckMutex = Mutex()
     
     // HTTP client for health checks
@@ -309,7 +306,7 @@ class EndpointResolver(
             "total" to total,
             "healthy" to healthy,
             "unhealthy" to unhealthy,
-            "active" to activeMirror?.url,
+            "active" to (activeMirror?.url ?: "none"),
             "lastCheck" to (mirrors.maxOfOrNull { it.lastChecked } ?: 0L)
         )
     }

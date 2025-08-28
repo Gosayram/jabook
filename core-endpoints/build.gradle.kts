@@ -44,12 +44,16 @@ android {
 
 dependencies {
     implementation(project(":core-net"))
-    implementation(project(":core-auth"))
+    // Removed core-auth dependency to avoid circular dependency
     
     implementation(libs.okhttp)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.androidx.lifecycle.runtime.ktx)
+    
+    // Add Compose dependencies for mutableStateOf
+    implementation(platform(libs.androidx.compose.bom))
+    implementation(libs.androidx.compose.runtime)
     
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

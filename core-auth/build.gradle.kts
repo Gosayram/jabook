@@ -42,11 +42,15 @@ android {
 
 dependencies {
     implementation(project(":core-net"))
-    implementation(project(":core-endpoints"))
     
     // Core Android dependencies
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
+    
+    // HTTP and networking
+    implementation(libs.okhttp)
+    implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.kotlinx.serialization.json)
     
     // Testing dependencies
     testImplementation(libs.junit)

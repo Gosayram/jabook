@@ -1,21 +1,17 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- Base application theme -->
+    <!-- Base application theme with Material3 -->
     <style name="Theme.JaBook" parent="Theme.Material3.DayNight.NoActionBar">
+        <!-- Remove action bar -->
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
+        
         <!-- JaBook brand colors -->
         <item name="colorPrimary">@color/jabook_primary</item>
         <item name="colorOnPrimary">@color/jabook_text</item>
-        
-        <!-- Secondary brand color -->
-        <item name="colorSecondary">@color/jabook_accent</item>
-        <item name="colorOnSecondary">@color/jabook_text</item>
-        
-        <!-- Status bar color -->
-        <item name="android:statusBarColor" tools:targetApi="l">@color/jabook_primary</item>
-        <item name="android:windowLightStatusBar" tools:targetApi="m">true</item>
-        
-        <!-- Customize your theme here -->
         <item name="colorPrimaryContainer">@color/jabook_primary</item>
         <item name="colorOnPrimaryContainer">@color/jabook_text</item>
+        <item name="colorSecondary">@color/jabook_accent</item>
+        <item name="colorOnSecondary">@color/jabook_text</item>
         <item name="colorSecondaryContainer">@color/jabook_accent</item>
         <item name="colorOnSecondaryContainer">@color/jabook_text</item>
         <item name="colorTertiary">@color/jabook_accent</item>
@@ -27,12 +23,15 @@
         <item name="colorError">@color/jabook_error</item>
         <item name="colorOnError">@color/jabook_text</item>
         
-        <!-- Material3 specific -->
+        <!-- Status bar color -->
+        <item name="android:statusBarColor" tools:targetApi="l">@color/jabook_primary</item>
+        <item name="android:windowLightStatusBar" tools:targetApi="m">true</item>
+        
+        <!-- Material3 specific styles -->
         <item name="materialButtonStyle">@style/Widget.Material3.Button</item>
         <item name="materialButtonOutlinedStyle">@style/Widget.Material3.Button.OutlinedButton</item>
         <item name="materialButtonToggleGroupStyle">@style/Widget.Material3.ButtonToggleGroup</item>
         <item name="materialCardViewStyle">@style/Widget.Material3.CardView.Elevated</item>
-        <item name="materialAlertDialogTheme">@style/ThemeOverlay.Material3.MaterialAlertDialog</item>
         
         <!-- Custom attributes for JaBook theme -->
         <item name="colorPlayerBackground">@color/jabook_primary</item>

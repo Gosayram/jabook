@@ -5,7 +5,6 @@ import android.util.Log
 import com.jabook.core.net.Http
 import com.jabook.core.net.interceptor.UaInterceptor
 import com.jabook.core.net.repository.UserAgentRepository
-import com.jabook.core.endpoints.EndpointResolver
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.*
@@ -22,7 +21,7 @@ import java.util.concurrent.TimeUnit
 class AuthService(
     private val context: Context,
     private val userAgentRepository: UserAgentRepository,
-    private val endpointResolver: EndpointResolver
+    private val activeUrl: String? = null
 ) {
     
     private val TAG = "AuthService"
@@ -50,7 +49,7 @@ class AuthService(
     suspend fun loginWithWebView(username: String, password: String): Result<LoginStatus> {
         return withContext(Dispatchers.IO) {
             try {
-                val activeUrl = endpointResolver.getActiveUrl()
+                val activeUrl = activeUrl
                     ?: return@withContext Result.failure(Exception("No active endpoint available"))
                 
                 // Create login form data
@@ -101,8 +100,8 @@ class AuthService(
     suspend fun loginWithOkHttp(username: String, password: String): Result<LoginStatus> {
         return withContext(Dispatchers.IO) {
             try {
-                val activeUrl = endpointResolver.getActiveUrl()
-                    ?: return@withResult Result.failure(Exception("No active endpoint available"))
+                val activeUrl = activeUrl
+                    ?: return@withContext Result.failure(Exception("No active endpoint available"))
                 
                 // Create login request
                 val loginData = JSONObject().apply {
@@ -112,7 +111,7 @@ class AuthService(
                 }
                 
                 val requestBody = loginData.toString().toRequestBody("application/json".toMediaType())
-                val url = "$activeApiUrl/api/login"
+                val url = "$activeUrl/api/login"
                 
                 val request = Request.Builder()
                     .url(url)
@@ -174,7 +173,7 @@ class AuthService(
     suspend fun getLoginStatus(): LoginStatus {
         return withContext(Dispatchers.IO) {
             try {
-                val activeUrl = endpointResolver.getActiveUrl()
+                val activeUrl = activeUrl
                     ?: return@withContext LoginStatus(loggedIn = false)
                 
                 val url = "$activeUrl/api/me"
@@ -246,7 +245,7 @@ class AuthService(
         if (cookies.isNotEmpty()) {
             // Store cookies for future requests
             val domain = response.request.url.host
-            cookieStore[domain] = cookies.map { Cookie.parse(response.request.url, it) }
+            cookieStore[domain] = cookies.mapNotNull { Cookie.parse(response.request.url, it) }
         }
         
         // Try to extract user info from response

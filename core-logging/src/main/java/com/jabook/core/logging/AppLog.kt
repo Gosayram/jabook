@@ -236,7 +236,7 @@ class AppLog private constructor(private val context: Context) {
                         }
                     }
                     
-                    if (entries.size >= limit) return@use
+                    if (entries.size >= limit) break
                 } catch (e: Exception) {
                     Log.w(TAG, "Failed to read log file: ${file.name}", e)
                 }
