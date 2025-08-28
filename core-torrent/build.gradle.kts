@@ -43,10 +43,6 @@ android {
         compose = true
     }
     
-    composeOptions {
-        kotlinCompilerExtensionVersion = libs.versions.kotlin.get()
-    }
-    
     packaging {
         jniLibs {
             keepDebugSymbols += "**/*.so"
@@ -75,7 +71,7 @@ dependencies {
     implementation(libs.libtorrent4j.android.arm)
     implementation(libs.libtorrent4j.android.arm64)
     implementation(libs.libtorrent4j.android.x86)
-    implementation(libs.libtorrent4j.android.x86_64)
+    implementation(libs.libtorrent4j.android.x64)
     
     // JSON processing
     implementation(libs.json)
