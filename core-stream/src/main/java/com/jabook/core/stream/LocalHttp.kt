@@ -484,7 +484,7 @@ class LocalHttp(private val context: Context) : NanoHTTPD(17171) {
         try {
             session.parseBody(mapOf())
             session.parms.forEach { (key, value) ->
-                params[key] = (value.firstOrNull() ?: "") as String
+                params[key] = (value.firstOrNull() ?: "").toString()
             }
         } catch (e: Exception) {
             Log.w(TAG, "Failed to parse POST parameters", e)

@@ -125,7 +125,6 @@ dependencies {
     // Media3
     implementation(libs.androidx.media3.exoplayer)
     implementation(libs.androidx.media3.exoplayer.hls)
-    // Remove this line as androidx.media3:media3-exoplayer-media-session doesn't exist
     implementation(libs.androidx.media3.ui)
     implementation(libs.androidx.media3.session)
     

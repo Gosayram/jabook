@@ -21,7 +21,6 @@ import androidx.media3.common.util.Log as Media3Log
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.audio.AudioSink
 import androidx.media3.exoplayer.audio.DefaultAudioSink
-import androidx.media3.exoplayer.audio.TunnelingAudioSink
 import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import androidx.media3.exoplayer.source.TrackGroupArray
@@ -84,7 +83,7 @@ class PlayerService : MediaSessionService(), Player.Listener {
     
     override fun onTaskRemoved(rootIntent: Intent?) {
         super.onTaskRemoved(rootIntent)
-        if (!exoPlayer?.playWhenReady == true) {
+        if (exoPlayer?.playWhenReady != true) {
             stopSelf()
         }
     }
@@ -143,7 +142,7 @@ class PlayerService : MediaSessionService(), Player.Listener {
                     }
                 })
                 
-                isActive = true
+                mediaSession?.isActive = true
             }
             
             isInitialized.set(true)
@@ -157,22 +156,18 @@ class PlayerService : MediaSessionService(), Player.Listener {
     }
     
     /**
-     * Creates audio sink with tunneling support
+     * Creates audio sink with modern configuration
      */
     private fun createAudioSink(): AudioSink {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            TunnelingAudioSink.Builder(this).build()
-        } else {
-            DefaultAudioSink.Builder(this)
-                .setAudioAttributes(
-                    AudioAttributes.Builder()
-                        .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-                        .setUsage(AudioAttributes.USAGE_MEDIA)
-                        .build()
-                )
-                .setOffloadEnabled(false)
-                .build()
-        }
+        return DefaultAudioSink.Builder(this)
+            .setAudioAttributes(
+                AudioAttributes.Builder()
+                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                    .setUsage(AudioAttributes.USAGE_MEDIA)
+                    .build()
+            )
+            .setOffloadEnabled(Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+            .build()
     }
     
     /**
@@ -354,9 +349,9 @@ class PlayerService : MediaSessionService(), Player.Listener {
     private fun updateMediaSessionMetadata(mediaItem: MediaItem) {
         mediaSession?.setMetadata(
             androidx.media3.common.MediaMetadata.Builder()
-                .setTitle(mediaItem.mediaMetadata.title?.toString())
-                .setArtist(mediaItem.mediaMetadata.artist?.toString())
-                .setAlbumTitle(mediaItem.mediaMetadata.albumTitle?.toString())
+                .setTitle(mediaItem.mediaMetadata.title?.toString() ?: "")
+                .setArtist(mediaItem.mediaMetadata.artist?.toString() ?: "")
+                .setAlbumTitle(mediaItem.mediaMetadata.albumTitle?.toString() ?: "")
                 .setDuration(mediaItem.mediaMetadata.durationMillis ?: C.TIME_UNSET.toLong())
                 .build()
         )
@@ -379,15 +374,10 @@ class PlayerService : MediaSessionService(), Player.Listener {
                     .build()
             )
         
-        if (currentMediaItem != null) {
-            stateBuilder.setState(
-                if (isPlaying) Player.STATE_PLAYING else Player.STATE_PAUSED,
-                exoPlayer?.currentPosition ?: 0L,
-                1.0f
-            )
-        } else {
-            stateBuilder.setState(Player.STATE_IDLE, 0L, 1.0f)
-        }
+        val state = if (isPlaying) Player.STATE_PLAYING else Player.STATE_PAUSED
+        val position = exoPlayer?.currentPosition ?: 0L
+        
+        stateBuilder.setState(state, position, 1.0f)
         
         mediaSession?.setPlaybackState(stateBuilder.build())
     }
@@ -451,7 +441,7 @@ class PlayerService : MediaSessionService(), Player.Listener {
     /**
      * Player listener callbacks
      */
-    override fun onPlaybackStateChanged(playbackState: Player.State) {
+    override fun onPlaybackStateChanged(playbackState: Int) {
         when (playbackState) {
             Player.STATE_READY -> {
                 if (exoPlayer?.playWhenReady == true) {
@@ -476,8 +466,8 @@ class PlayerService : MediaSessionService(), Player.Listener {
         updateNotification()
     }
     
-    override fun onPositionDiscontinuity(reason: Player.PositionDiscontinuityReason) {
-        if (reason == Player.PositionDiscontinuityReason.SEEK) {
+    override fun onPositionDiscontinuity(oldPosition: Player.PositionInfo, newPosition: Player.PositionInfo, reason: Int) {
+        if (reason == Player.POSITION_DISCONTINUITY_REASON_SEEK) {
             playbackPosition = exoPlayer?.currentPosition ?: 0L
             updatePlaybackState()
         }

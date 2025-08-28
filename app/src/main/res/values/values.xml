@@ -39,4 +39,13 @@
     <attr name="windowSplashScreenAnimationDuration" format="integer" />
     <attr name="windowSplashScreenStatusBarColor" format="color" />
     <attr name="windowSplashScreenNavigationBarColor" format="color" />
+    <!-- Material3 Widget Styles -->
+    <style name="Widget.Material3.MaterialButtonToggleGroup" parent="Widget.Material3.MaterialButtonToggleGroup">
+        <item name="android:layout_margin">4dp</item>
+    </style>
+    
+    <style name="Widget.Material3.CardView" parent="Widget.Material3.CardView">
+        <item name="cardCornerRadius">12dp</item>
+        <item name="cardElevation">4dp</item>
+    </style>
 </resources>
