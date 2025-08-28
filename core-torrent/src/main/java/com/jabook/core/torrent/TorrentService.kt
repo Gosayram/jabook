@@ -16,6 +16,7 @@ import org.libtorrent4j.alerts.AlertType.*
 import org.libtorrent4j.alerts.TorrentAddedAlert
 import org.libtorrent4j.alerts.TorrentFinishedAlert
 import org.libtorrent4j.alerts.TorrentRemovedAlert
+import org.libtorrent4j.SessionManager
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
@@ -82,8 +83,8 @@ class TorrentService(
             // Initialize libtorrent4j session
             sessionManager = SessionManager().apply {
                 // Set session parameters
-                settings().setDownloadRateLimit(-1) // No limit
-                settings().setUploadRateLimit(-1) // No limit
+                settings().setDownloadRateLimit(-1L) // No limit
+                settings().setUploadRateLimit(-1L) // No limit
                 settings().setActiveDownloads(5)
                 settings().setActiveSeeding(3)
                 settings().setAllowDht(true)
@@ -93,40 +94,44 @@ class TorrentService(
                 
                 // Set alert listener
                 setAlertListener(object : AlertListener {
-                    override fun alert(alert: Alert) {
+                    override fun alert(alert: Alert<*>) {
                         when (alert.type()) {
-                            TORRENT_ADDED -> {
+                            TORRENT_ADDED.value() -> {
                                 val addedAlert = alert as TorrentAddedAlert
                                 val torrentId = addedAlert.handle.infoHash().toHex()
                                 Log.i(TAG, "Torrent added: $torrentId")
                             }
-                            TORRENT_FINISHED -> {
+                            TORRENT_FINISHED.value() -> {
                                 val finishedAlert = alert as TorrentFinishedAlert
                                 val torrentId = finishedAlert.handle.infoHash().toHex()
                                 Log.i(TAG, "Torrent finished: $torrentId")
                                 notifyFinished(torrentId)
                             }
-                            TORRENT_REMOVED -> {
+                            TORRENT_REMOVED.value() -> {
                                 val removedAlert = alert as TorrentRemovedAlert
                                 val torrentId = removedAlert.infoHash.toHex()
                                 Log.i(TAG, "Torrent removed: $torrentId")
                                 activeTorrents.remove(torrentId)
                             }
-                            ERROR -> {
+                            ERROR.value() -> {
                                 Log.e(TAG, "Libtorrent error: ${alert.message()}")
                             }
                             else -> {
                                 // Log other alerts for debugging
-                                if (alert.severity() >= AlertType.LOG_LEVEL_ERROR.value()) {
+                                if (alert.severity() >= AlertType.ERROR.value()) {
                                     Log.w(TAG, "Libtorrent alert: ${alert.type()} - ${alert.message()}")
                                 }
                             }
                         }
                     }
                     
-                    override fun types(): Int {
-                        return TORRENT_ADDED.value() or TORRENT_FINISHED.value() or 
-                               TORRENT_REMOVED.value() or ERROR.value()
+                    override fun types(): IntArray {
+                        return intArrayOf(
+                            TORRENT_ADDED.value(),
+                            TORRENT_FINISHED.value(),
+                            TORRENT_REMOVED.value(),
+                            ERROR.value()
+                        )
                     }
                 })
                 
@@ -159,7 +164,7 @@ class TorrentService(
                     .setSavePath(getTorrentsDirectory().absolutePath)
                     .setPaused(false)
                     .setSequentialDownload(sequential)
-                    .setPriority(AddTorrentParams.PRIORITY_NORMAL)
+                    .setPriority(1) // PRIORITY_NORMAL = 1
                 
                 val handle = session.addTorrent(params)
                 val torrentId = handle.infoHash().toHex()
@@ -189,16 +194,16 @@ class TorrentService(
                 val session = sessionManager ?: return@withContext Result.failure(Exception("Session not available"))
                 
                 // Load torrent info
-                val torrentInfo = TorrentInfo(torrentFile)
-                val infoHash = torrentInfo.infoHash()
+                val libtorrentInfo = org.libtorrent4j.TorrentInfo(torrentFile)
+                val infoHash = libtorrentInfo.infoHash()
                 
                 // Create torrent handle
                 val params = AddTorrentParams()
-                    .setTi(torrentInfo)
+                    .setTi(libtorrentInfo)
                     .setSavePath(getTorrentsDirectory().absolutePath)
                     .setPaused(false)
                     .setSequentialDownload(sequential)
-                    .setPriority(AddTorrentParams.PRIORITY_NORMAL)
+                    .setPriority(1) // PRIORITY_NORMAL = 1
                 
                 val handle = session.addTorrent(params)
                 val torrentId = infoHash.toHex()
@@ -297,7 +302,7 @@ class TorrentService(
                 }
                 
                 val status = handle.status()
-                val torrentInfo = TorrentInfo(
+                val torrentInfoData = TorrentInfo(
                     id = torrentId,
                     name = handle.name(),
                     size = handle.torrentFile()?.size() ?: 0L,
@@ -310,7 +315,7 @@ class TorrentService(
                     finished = status.finished()
                 )
                 
-                Result.success(torrentInfo)
+                Result.success(torrentInfoData)
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to get torrent info: $torrentId", e)
                 Result.failure(e)

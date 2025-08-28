@@ -25,7 +25,6 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.audio.AudioSink
 import androidx.media3.exoplayer.audio.DefaultAudioSink
-import androidx.media3.exoplayer.audio.HardwareOutputDeviceRendererEventListener
 import androidx.media3.exoplayer.audio.TunnelingAudioSink
 import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
@@ -34,7 +33,6 @@ import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.exoplayer.trackselection.ExoTrackSelection
 import androidx.media3.exoplayer.trackselection.TrackSelectionArray
 import androidx.media3.session.MediaSessionService
-import androidx.media3.session.SessionActivityCallback
 import com.bumptech.glide.Glide
 import com.bumptech.glide.request.target.CustomTarget
 import com.bumptech.glide.request.transition.Transition
@@ -55,7 +53,7 @@ class PlayerService : MediaSessionService(), Player.Listener {
     
     // Player components
     private var exoPlayer: ExoPlayer? = null
-    private var mediaSession: MediaSessionCompat? = null
+    private var mediaSession: MediaSession? = null
     private var notificationManager: NotificationManager? = null
     
     // Audio focus
@@ -79,7 +77,7 @@ class PlayerService : MediaSessionService(), Player.Listener {
         setupNotificationChannel()
     }
     
-    override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSessionCompat? {
+    override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? {
         return mediaSession
     }
     

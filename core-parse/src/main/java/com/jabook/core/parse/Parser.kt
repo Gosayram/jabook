@@ -294,7 +294,7 @@ class Parser(
             if (leechText == null) {
                 val cells = element?.select("td")
                 if (cells?.size ?: 0 >= 4) {
-                    leechText = cells[3].text().trim()
+                    leechText = cells!![3].text().trim()
                 }
             }
             
@@ -396,8 +396,8 @@ class Parser(
      */
     private fun extractTotalSize(doc: Document): Long {
         return try {
-            val sizeText = doc.selectFirst(".total-size, .topic-size, [title*=\"total size\"]")?.text()?.trim()
-            extractSize(sizeText)
+            val sizeElement = doc.selectFirst(".total-size, .topic-size, [title*=\"total size\"]")
+            extractSize(sizeElement)
         } catch (e: Exception) {
             Log.w(TAG, "Failed to extract total size", e)
             0L
