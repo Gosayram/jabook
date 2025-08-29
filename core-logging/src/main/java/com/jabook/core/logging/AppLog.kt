@@ -501,7 +501,7 @@ class AppLog private constructor(private val context: Context) {
                 subsystem = json.getString("subsystem"),
                 message = json.getString("msg"),
                 thread = json.optString("thread", "unknown"),
-                cause = json.optString("cause", null) ?: null
+                cause = json.optString("cause", null) ?: ""
             )
         } catch (e: Exception) {
             null

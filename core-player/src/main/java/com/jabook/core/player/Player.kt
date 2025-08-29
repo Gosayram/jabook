@@ -111,7 +111,6 @@ class PlayerService : MediaSessionService(), Player.Listener {
                 .build()
                 .apply {
                     addListener(this@PlayerService)
-                    setHandleAudioBecomingNoisy(true)
                 }
             
             // Create media session
@@ -142,7 +141,7 @@ class PlayerService : MediaSessionService(), Player.Listener {
                     }
                 })
                 
-                isActive = true
+                setActive(true)
             }
             
             isInitialized.set(true)
@@ -161,9 +160,9 @@ class PlayerService : MediaSessionService(), Player.Listener {
     private fun createAudioSink(): AudioSink {
         return DefaultAudioSink.Builder(this)
             .setAudioAttributes(
-                AudioAttributes.Builder()
-                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-                    .setUsage(AudioAttributes.USAGE_MEDIA)
+                androidx.media3.common.AudioAttributes.Builder()
+                    .setContentType(androidx.media3.common.C.CONTENT_TYPE_MUSIC)
+                    .setUsage(androidx.media3.common.C.USAGE_MEDIA)
                     .build()
             )
             .setOffloadEnabled(Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
@@ -347,12 +346,12 @@ class PlayerService : MediaSessionService(), Player.Listener {
      * Updates media session metadata
      */
     private fun updateMediaSessionMetadata(mediaItem: MediaItem) {
-        mediaSession?.setMetadata(
+        mediaSession?.setPlayerMetadata(
             androidx.media3.common.MediaMetadata.Builder()
                 .setTitle(mediaItem.mediaMetadata.title?.toString() ?: "")
                 .setArtist(mediaItem.mediaMetadata.artist?.toString() ?: "")
                 .setAlbumTitle(mediaItem.mediaMetadata.albumTitle?.toString() ?: "")
-                .setDurationMillis(mediaItem.mediaMetadata.durationMillis ?: C.TIME_UNSET.toLong())
+                .setDurationMs(mediaItem.mediaMetadata.durationMillis ?: C.TIME_UNSET.toLong())
                 .build()
         )
     }
@@ -361,25 +360,22 @@ class PlayerService : MediaSessionService(), Player.Listener {
      * Updates playback state
      */
     private fun updatePlaybackState() {
-        val stateBuilder = androidx.media3.session.PlaybackState.Builder()
-            .setAvailableCommands(
-                androidx.media3.session.Commands.Builder()
-                    .addAll(
-                        androidx.media3.session.Command.COMMAND_PLAY_PAUSE,
-                        androidx.media3.session.Command.COMMAND_SEEK_TO,
-                        androidx.media3.session.Command.COMMAND_SEEK_FORWARD,
-                        androidx.media3.session.Command.COMMAND_SEEK_BACKWARD,
-                        androidx.media3.session.Command.COMMAND_STOP
-                    )
-                    .build()
-            )
-        
-        val state = if (isPlaying) Player.STATE_PLAYING else Player.STATE_PAUSED
+        val state = if (isPlaying) Player.STATE_READY else Player.STATE_IDLE
         val position = exoPlayer?.currentPosition ?: 0L
         
-        stateBuilder.setState(state, position, 1.0f)
-        
-        mediaSession?.setPlaybackState(stateBuilder.build())
+        mediaSession?.setPlayerState(
+            Player.Commands.Builder()
+                .addAll(
+                    Player.COMMAND_PLAY_PAUSE,
+                    Player.COMMAND_SEEK_FORWARD,
+                    Player.COMMAND_SEEK_BACKWARD,
+                    Player.COMMAND_STOP
+                )
+                .build(),
+            state,
+            position,
+            1.0f
+        )
     }
     
     /**
@@ -467,7 +463,7 @@ class PlayerService : MediaSessionService(), Player.Listener {
     }
     
     override fun onPositionDiscontinuity(oldPosition: Player.PositionInfo, newPosition: Player.PositionInfo, reason: Int) {
-        if (reason == Player.POSITION_DISCONTINUITY_REASON_SEEK) {
+        if (reason == Player.DISCONTINUITY_REASON_SEEK) {
             playbackPosition = exoPlayer?.currentPosition ?: 0L
             updatePlaybackState()
         }
