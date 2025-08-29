@@ -83,7 +83,7 @@ class TorrentService(
                 settings().downloadRateLimit(-1L) // No limit
                 settings().uploadRateLimit(-1L) // No limit
                 settings().activeDownloads(5)
-                settings().activeSeeding(3)
+                settings().setActiveSeeding(3)
                 settings().setDhtEnabled(true)
                 settings().setLsdEnabled(true)
                 settings().setPeXEnabled(true)
