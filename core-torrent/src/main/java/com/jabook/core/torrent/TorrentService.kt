@@ -115,7 +115,7 @@ class TorrentService(
                             }
                             else -> {
                                 // Log other alerts for debugging
-                                if (alert.severity() >= AlertType.ERROR_ALERT.severityValue()) {
+                                if (alert.severity() >= AlertType.ERROR_ALERT.severity()) {
                                     Log.w(TAG, "Libtorrent alert: ${alert.type()} - ${alert.message()}")
                                 }
                             }
@@ -157,7 +157,7 @@ class TorrentService(
                 
                 // Create torrent handle
                 val params = AddTorrentParams()
-                    .setUrl(magnetUrl)
+                    .url(magnetUrl)
                     .setSavePath(getTorrentsDirectory().absolutePath)
                     .setPaused(false)
                     .setSequentialDownload(sequential)
@@ -196,7 +196,7 @@ class TorrentService(
                 
                 // Create torrent handle
                 val params = AddTorrentParams()
-                    .setTi(libtorrentInfo)
+                    .ti(libtorrentInfo)
                     .setSavePath(getTorrentsDirectory().absolutePath)
                     .setPaused(false)
                     .setSequentialDownload(sequential)
@@ -302,12 +302,12 @@ class TorrentService(
                 val torrentInfoData = TorrentInfo(
                     id = handle.infoHash().toHex(),
                     name = handle.name().toString(),
-                    size = status.totalWanted().toLong(),
+                    size = status.totalWanted(),
                     progress = status.progress(),
-                    downloadSpeed = status.downloadRate(),
-                    uploadSpeed = status.uploadRate(),
-                    priority = handle.status().downloadPriority().toInt(),
-                    sequential = handle.status().sequentialDownload(),
+                    downloadSpeed = status.downloadRate().toLong(),
+                    uploadSpeed = status.uploadRate().toLong(),
+                    priority = 1,
+                    sequential = false,
                     paused = status.paused(),
                     finished = status.finished()
                 )
@@ -331,10 +331,10 @@ class TorrentService(
                     TorrentInfo(
                         id = handle.infoHash().toHex(),
                         name = handle.name().toString(),
-                        size = status.totalWanted(),
+                        size = status.totalWanted().toLong(),
                         progress = status.progress(),
-                        downloadSpeed = status.downloadRate(),
-                        uploadSpeed = status.uploadRate(),
+                        downloadSpeed = status.downloadRate().toLong(),
+                        uploadSpeed = status.uploadRate().toLong(),
                         priority = 1,
                         sequential = false,
                         paused = status.paused(),

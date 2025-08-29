@@ -109,13 +109,13 @@ class PlayerService : MediaSessionService(), Player.Listener {
                 .setAudioSink(audioSink)
                 .setUseLazyPreparation(true)
                 .build()
-                .apply {
-                    addListener(this@PlayerService)
+                .also {
+                    it.addListener(this@PlayerService)
                 }
             
             // Create media session
-            mediaSession = MediaSession.Builder(this, exoPlayer!!).build().apply {
-                setCallback(object : MediaSession.Callback() {
+            mediaSession = MediaSession.Builder(this, exoPlayer!!).build().also {
+                it.setCallback(object : MediaSession.Callback() {
                     override fun onPlay() {
                         play()
                     }
@@ -141,7 +141,7 @@ class PlayerService : MediaSessionService(), Player.Listener {
                     }
                 })
                 
-                setActive(true)
+                it.setActive(true)
             }
             
             isInitialized.set(true)
