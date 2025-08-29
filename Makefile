@@ -1,7 +1,7 @@
 # JaBook Build Makefile
 # Based on IDEA.md specifications
 
-.PHONY: debug release apk splits aab clean install
+.PHONY: debug release apk splits aab clean install check-all
 
 # Variables
 APP_NAME := JaBook
@@ -113,6 +113,12 @@ test:
 check: lint test
 	@echo "All checks completed!"
 
+# Run all checks using gradlew
+check-all:
+	@echo "Running all checks with gradlew..."
+	$(GRADLE) $(GRADLE_OPTS) check
+	@echo "All checks completed!"
+
 # Generate documentation
 docs:
 	@echo "Generating documentation..."
@@ -159,7 +165,8 @@ help:
 	@echo "  sign           - Build and sign APK"
 	@echo "  lint           - Run lint checks"
 	@echo "  test           - Run tests"
-	@echo "  check          - Run all checks"
+	@echo "  check          - Run all checks (make)"
+	@echo "  check-all      - Run all checks (gradlew)"
 	@echo "  docs           - Generate documentation"
 	@echo "  run            - Build, install and run app"
 	@echo "  stop           - Stop the app"
