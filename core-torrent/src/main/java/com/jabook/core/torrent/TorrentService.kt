@@ -80,10 +80,10 @@ class TorrentService(
             // Initialize libtorrent4j session
             sessionManager = SessionManager().apply {
                 // Set session parameters using the correct API
-                settings().downloadRateLimit(-1L) // No limit
-                settings().uploadRateLimit(-1L) // No limit
+                settings().downloadRateLimit(-1) // No limit
+                settings().uploadRateLimit(-1) // No limit
                 settings().activeDownloads(5)
-                settings().setActiveSeeding(3)
+                settings().activeSeeding(3)
                 settings().setDhtEnabled(true)
                 settings().setLsdEnabled(true)
                 settings().setPeXEnabled(true)
@@ -331,7 +331,7 @@ class TorrentService(
                     TorrentInfo(
                         id = handle.infoHash().toHex(),
                         name = handle.name().toString(),
-                        size = status.totalWanted().toLong(),
+                        size = status.totalWanted(),
                         progress = status.progress(),
                         downloadSpeed = status.downloadRate().toLong(),
                         uploadSpeed = status.uploadRate().toLong(),

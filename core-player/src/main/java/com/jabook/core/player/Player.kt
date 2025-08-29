@@ -109,8 +109,8 @@ class PlayerService : MediaSessionService(), Player.Listener {
                 .setAudioSink(audioSink)
                 .setUseLazyPreparation(true)
                 .build()
-                .also {
-                    it.addListener(this@PlayerService)
+                .also { player ->
+                    player.addListener(this@PlayerService)
                 }
             
             // Create media session
@@ -351,7 +351,7 @@ class PlayerService : MediaSessionService(), Player.Listener {
                 .setTitle(mediaItem.mediaMetadata.title?.toString() ?: "")
                 .setArtist(mediaItem.mediaMetadata.artist?.toString() ?: "")
                 .setAlbumTitle(mediaItem.mediaMetadata.albumTitle?.toString() ?: "")
-                .setDurationMs(mediaItem.mediaMetadata.durationMillis ?: C.TIME_UNSET.toLong())
+                .setDurationMillis(mediaItem.mediaMetadata.durationMillis ?: C.TIME_UNSET.toLong())
                 .build()
         )
     }
@@ -363,7 +363,7 @@ class PlayerService : MediaSessionService(), Player.Listener {
         val state = if (isPlaying) Player.STATE_READY else Player.STATE_IDLE
         val position = exoPlayer?.currentPosition ?: 0L
         
-        mediaSession?.setPlayerState(
+        mediaSession?.player?.setPlayerState(
             Player.Commands.Builder()
                 .addAll(
                     Player.COMMAND_PLAY_PAUSE,
