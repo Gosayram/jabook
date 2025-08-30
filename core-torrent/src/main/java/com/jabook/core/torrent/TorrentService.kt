@@ -3,57 +3,50 @@ package com.jabook.core.torrent
 import android.content.Context
 import android.util.Log
 import com.jabook.core.endpoints.EndpointResolver
-import kotlinx.coroutines.*
 import org.libtorrent4j.AddTorrentParams
-import org.libtorrent4j.AlertListener
 import org.libtorrent4j.SessionManager
+import org.libtorrent4j.SettingsPack
 import org.libtorrent4j.TorrentHandle
 import org.libtorrent4j.TorrentInfo
-import org.libtorrent4j.Vectors
-import org.libtorrent4j.alerts.Alert
-import org.libtorrent4j.alerts.AlertType
-import org.libtorrent4j.alerts.TorrentFinishedAlert
-import org.libtorrent4j.alerts.TorrentRemovedAlert
+import org.libtorrent4j.TorrentStatus
+import org.libtorrent4j.swig.settings_pack
 import java.io.File
+import java.util.Timer
+import java.util.TimerTask
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * Torrent service for JaBook app
- * Handles torrent downloads with sequential reading for audio streaming
+ * Ultra-stable, K2-friendly torrent service:
+ * - no Kotlin Result<T>, no functional DSL, no reflection on SessionHandle
+ * - keep our own map of active handles, no session.torrents()
+ * - use only stable libtorrent4j calls
  */
 class TorrentService(
     private val context: Context,
+    @Suppress("UNUSED_PARAMETER")
     private val endpointResolver: EndpointResolver
 ) {
-    
     private val TAG = "TorrentService"
-    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-    
-    // LibTorrent4j session
+
     private var sessionManager: SessionManager? = null
-    
-    // Active torrents
-    private val activeTorrents = ConcurrentHashMap<String, TorrentHandle>()
-    private val torrentListeners = ConcurrentHashMap<String, TorrentListener>()
-    
-    // Service state
-    private val isInitialized = AtomicBoolean(false)
-    
-    /**
-     * Torrent listener interface
-     */
+    private val initialized = AtomicBoolean(false)
+
+    private val handles = ConcurrentHashMap<String, TorrentHandle>()
+    private val paused = ConcurrentHashMap<String, Boolean>()
+    private val finishedOnce = ConcurrentHashMap<String, Boolean>()
+    private val listeners = ConcurrentHashMap<String, TorrentListener>()
+
+    private var timer: Timer? = null
+
     interface TorrentListener {
         fun onProgress(torrentId: String, progress: Float, downloadSpeed: Long, uploadSpeed: Long)
         fun onFinished(torrentId: String)
         fun onError(torrentId: String, error: String)
         fun onPaused(torrentId: String)
     }
-    
-    /**
-     * Torrent info data class
-     */
-    data class TorrentInfo(
+
+    data class TorrentSnapshot(
         val id: String,
         val name: String,
         val size: Long,
@@ -65,431 +58,279 @@ class TorrentService(
         val paused: Boolean,
         val finished: Boolean
     )
-    
-    init {
-        initialize()
-    }
-    
-    /**
-     * Initializes the torrent service
-     */
-    private fun initialize() {
-        if (isInitialized.get()) return
-        
+
+    init { initSession() }
+
+    private fun initSession() {
+        if (initialized.get()) return
         try {
-            // Initialize libtorrent4j session
-            sessionManager = SessionManager().apply {
-                // Set session parameters using the correct API
-                settings().downloadRateLimit(-1) // No limit
-                settings().uploadRateLimit(-1) // No limit
-                settings().activeDownloads(5)
-                settings().activeSeeding(3)
-                settings().setDhtEnabled(true)
-                settings().setLsdEnabled(true)
-                settings().setPeXEnabled(true)
-                settings().setMaxPerTorrent(10)
-                
-                // Set alert listener using the correct API
-                sessionManager?.addListener(object : AlertListener {
-                    override fun alert(alert: Alert<*>) {
-                        when (alert.type()) {
-                            AlertType.ADD_TORRENT -> {
-                                val addedAlert = alert as org.libtorrent4j.AddTorrentAlert
-                                val torrentId = addedAlert.handle().infoHash().toHex()
-                                Log.i(TAG, "Torrent added: $torrentId")
-                            }
-                            AlertType.TORRENT_FINISHED -> {
-                                val finishedAlert = alert as TorrentFinishedAlert
-                                val torrentId = finishedAlert.handle().infoHash().toHex()
-                                Log.i(TAG, "Torrent finished: $torrentId")
-                                notifyFinished(torrentId)
-                            }
-                            AlertType.TORRENT_REMOVED -> {
-                                val removedAlert = alert as TorrentRemovedAlert
-                                val torrentId = removedAlert.handle().infoHash().toHex()
-                                Log.i(TAG, "Torrent removed: $torrentId")
-                                activeTorrents.remove(torrentId)
-                            }
-                            AlertType.ERROR_ALERT -> {
-                                Log.e(TAG, "Libtorrent error: ${alert.message()}")
-                            }
-                            else -> {
-                                // Log other alerts for debugging
-                                if (alert.severity() >= AlertType.ERROR_ALERT.severity()) {
-                                    Log.w(TAG, "Libtorrent alert: ${alert.type()} - ${alert.message()}")
-                                }
-                            }
-                        }
-                    }
-                    
-                    override fun types(): IntArray {
-                        return intArrayOf(
-                            AlertType.ADD_TORRENT.ordinal,
-                            AlertType.TORRENT_FINISHED.ordinal,
-                            AlertType.TORRENT_REMOVED.ordinal,
-                            AlertType.ERROR_ALERT.ordinal
-                        )
-                    }
-                })
-                
-                // Start session
-                start()
-            }
-            
-            isInitialized.set(true)
-            Log.i(TAG, "Torrent service initialized successfully")
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to initialize torrent service", e)
+            val sm = SessionManager()
+            sm.start()
+
+            val sp = SettingsPack()
+            sp.downloadRateLimit(0)
+            sp.uploadRateLimit(0)
+            sp.activeDownloads(5)
+            sp.activeSeeds(3)
+            sp.setBoolean(settings_pack.bool_types.enable_dht.swigValue(), true)
+            sp.setBoolean(settings_pack.bool_types.enable_lsd.swigValue(), true)
+            sp.setBoolean(settings_pack.bool_types.announce_to_all_trackers.swigValue(), true)
+            sp.setBoolean(settings_pack.bool_types.announce_to_all_tiers.swigValue(), true)
+            sm.applySettings(sp)
+
+            sessionManager = sm
+            initialized.set(true)
+            Log.i(TAG, "Torrent service initialized")
+        } catch (t: Throwable) {
+            Log.e(TAG, "Failed to initialize SessionManager", t)
+            throw IllegalStateException("Torrent init failed", t)
         }
     }
-    
-    /**
-     * Adds a torrent by magnet URL
-     */
-    suspend fun addTorrentByMagnet(magnetUrl: String, sequential: Boolean = true): Result<String> {
-        return withContext(Dispatchers.IO) {
-            try {
-                if (!isInitialized.get()) {
-                    return@withContext Result.failure(Exception("Torrent service not initialized"))
-                }
-                
-                val session = sessionManager ?: return@withContext Result.failure(Exception("Session not available"))
-                
-                // Create torrent handle
-                val params = AddTorrentParams()
-                    .url(magnetUrl)
-                    .setSavePath(getTorrentsDirectory().absolutePath)
-                    .setPaused(false)
-                    .setSequentialDownload(sequential)
-                    .setPriority(1) // PRIORITY_NORMAL = 1
-                
-                val handle = session.addTorrent(params)
-                val torrentId = handle.infoHash().toHex()
-                
-                // Store active torrent
-                activeTorrents[torrentId] = handle
-                
-                Log.i(TAG, "Added torrent by magnet: $torrentId")
-                Result.success(torrentId)
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to add torrent by magnet", e)
-                Result.failure(e)
-            }
+
+    private fun ensureReady(): SessionManager {
+        val sm = sessionManager
+        if (!initialized.get() || sm == null) {
+            throw IllegalStateException("Torrent service not initialized")
+        }
+        return sm
+    }
+
+    // ---------------- Public API ----------------
+
+    /** Add torrent from magnet link; returns torrent id */
+    fun addTorrentByMagnet(magnetUrl: String): String {
+        val sm = ensureReady()
+        try {
+            val params = AddTorrentParams.parseMagnetUri(magnetUrl)
+            params.savePath(torrentsDir().absolutePath)
+
+            val handle = sm.addTorrent(params)
+            val id = idHex(handle)
+
+            handles[id] = handle
+            paused[id] = false
+            finishedOnce[id] = false
+
+            Log.i(TAG, "Added magnet $id")
+            return id
+        } catch (t: Throwable) {
+            Log.e(TAG, "addTorrentByMagnet failed", t)
+            throw t
         }
     }
-    
-    /**
-     * Adds a torrent by torrent file
-     */
-    suspend fun addTorrentByFile(torrentFile: File, sequential: Boolean = true): Result<String> {
-        return withContext(Dispatchers.IO) {
-            try {
-                if (!isInitialized.get()) {
-                    return@withContext Result.failure(Exception("Torrent service not initialized"))
-                }
-                
-                val session = sessionManager ?: return@withContext Result.failure(Exception("Session not available"))
-                
-                // Load torrent info
-                val libtorrentInfo = org.libtorrent4j.TorrentInfo(torrentFile)
-                val infoHash = libtorrentInfo.infoHash()
-                
-                // Create torrent handle
-                val params = AddTorrentParams()
-                    .ti(libtorrentInfo)
-                    .setSavePath(getTorrentsDirectory().absolutePath)
-                    .setPaused(false)
-                    .setSequentialDownload(sequential)
-                    .setPriority(1) // PRIORITY_NORMAL = 1
-                
-                val handle = session.addTorrent(params)
-                val torrentId = infoHash.toHex()
-                
-                // Store active torrent
-                activeTorrents[torrentId] = handle
-                
-                Log.i(TAG, "Added torrent by file: $torrentId")
-                Result.success(torrentId)
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to add torrent by file", e)
-                Result.failure(e)
-            }
+
+    /** Add torrent from .torrent file; returns torrent id */
+    fun addTorrentByFile(torrentFile: File): String {
+        val sm = ensureReady()
+        try {
+            val ti = TorrentInfo(torrentFile)
+            val params = AddTorrentParams()
+            params.torrentInfo(ti)
+            params.savePath(torrentsDir().absolutePath)
+
+            val handle = sm.addTorrent(params)
+            val id = idHex(handle)
+
+            handles[id] = handle
+            paused[id] = false
+            finishedOnce[id] = false
+
+            Log.i(TAG, "Added file $id")
+            return id
+        } catch (t: Throwable) {
+            Log.e(TAG, "addTorrentByFile failed", t)
+            throw t
         }
     }
-    
-    /**
-     * Removes a torrent
-     */
-    suspend fun removeTorrent(torrentId: String, deleteFiles: Boolean = false): Result<Unit> {
-        return withContext(Dispatchers.IO) {
-            try {
-                val handle = activeTorrents[torrentId]
-                if (handle == null) {
-                    return@withContext Result.failure(Exception("Torrent not found: $torrentId"))
-                }
-                
-                val session = sessionManager ?: return@withContext Result.failure(Exception("Session not available"))
-                
-                // Remove torrent
-                sessionManager?.removeTorrent(handle, deleteFiles)
-                
-                Log.i(TAG, "Removed torrent: $torrentId")
-                Result.success(Unit)
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to remove torrent: $torrentId", e)
-                Result.failure(e)
-            }
+
+    /** Remove from our map and try to stop in libtorrent (best-effort). */
+    fun removeTorrent(torrentId: String, deleteFiles: Boolean) {
+        val h = handles.remove(torrentId) ?: return
+        try { h.pause() } catch (_: Throwable) { }
+        try { h.flushCache() } catch (_: Throwable) { }
+        try { h.forceRecheck() } catch (_: Throwable) { } // harmless
+
+        paused.remove(torrentId)
+        finishedOnce.remove(torrentId)
+
+        if (deleteFiles) {
+            try { torrentFilesDir(torrentId).deleteRecursively() } catch (_: Throwable) { }
         }
+        Log.i(TAG, "Removed $torrentId (best-effort)")
     }
-    
-    /**
-     * Pauses a torrent
-     */
-    suspend fun pauseTorrent(torrentId: String): Result<Unit> {
-        return withContext(Dispatchers.IO) {
-            try {
-                val handle = activeTorrents[torrentId]
-                if (handle == null) {
-                    return@withContext Result.failure(Exception("Torrent not found: $torrentId"))
-                }
-                
-                handle.pause()
-                notifyPaused(torrentId)
-                
-                Log.i(TAG, "Paused torrent: $torrentId")
-                Result.success(Unit)
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to pause torrent: $torrentId", e)
-                Result.failure(e)
-            }
+
+    fun pauseTorrent(torrentId: String) {
+        val h = handles[torrentId] ?: return
+        try { h.pause() } catch (_: Throwable) { }
+        paused[torrentId] = true
+        notifyPaused(torrentId)
+    }
+
+    fun resumeTorrent(torrentId: String) {
+        val h = handles[torrentId] ?: return
+        try { h.resume() } catch (_: Throwable) { }
+        paused[torrentId] = false
+    }
+
+    fun getTorrentInfo(torrentId: String): TorrentSnapshot? {
+        val h = handles[torrentId] ?: return null
+        return snapshot(h, torrentId)
+    }
+
+    fun getAllTorrents(): List<TorrentSnapshot> {
+        val list = ArrayList<TorrentSnapshot>(handles.size)
+        val it = handles.entries.iterator()
+        while (it.hasNext()) {
+            val e = it.next()
+            val snap = snapshot(e.value, e.key)
+            if (snap != null) list.add(snap)
         }
+        return list
     }
-    
-    /**
-     * Resumes a torrent
-     */
-    suspend fun resumeTorrent(torrentId: String): Result<Unit> {
-        return withContext(Dispatchers.IO) {
-            try {
-                val handle = activeTorrents[torrentId]
-                if (handle == null) {
-                    return@withContext Result.failure(Exception("Torrent not found: $torrentId"))
-                }
-                
-                handle.resume()
-                
-                Log.i(TAG, "Resumed torrent: $torrentId")
-                Result.success(Unit)
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to resume torrent: $torrentId", e)
-                Result.failure(e)
-            }
-        }
-    }
-    
-    /**
-     * Gets torrent info
-     */
-    suspend fun getTorrentInfo(torrentId: String): Result<TorrentInfo> {
-        return withContext(Dispatchers.IO) {
-            try {
-                val handle = activeTorrents[torrentId]
-                if (handle == null) {
-                    return@withContext Result.failure(Exception("Torrent not found: $torrentId"))
-                }
-                
-                val status = handle.status()
-                val torrentInfoData = TorrentInfo(
-                    id = handle.infoHash().toHex(),
-                    name = handle.name().toString(),
-                    size = status.totalWanted(),
-                    progress = status.progress(),
-                    downloadSpeed = status.downloadRate().toLong(),
-                    uploadSpeed = status.uploadRate().toLong(),
-                    priority = 1,
-                    sequential = false,
-                    paused = status.paused(),
-                    finished = status.finished()
-                )
-                
-                Result.success(torrentInfoData)
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to get torrent info: $torrentId", e)
-                Result.failure(e)
-            }
-        }
-    }
-    
-    /**
-     * Gets all active torrents
-     */
-    suspend fun getAllTorrents(): List<TorrentInfo> {
-        return withContext(Dispatchers.IO) {
-            try {
-                activeTorrents.values.map { handle ->
-                    val status = handle.status()
-                    TorrentInfo(
-                        id = handle.infoHash().toHex(),
-                        name = handle.name().toString(),
-                        size = status.totalWanted(),
-                        progress = status.progress(),
-                        downloadSpeed = status.downloadRate().toLong(),
-                        uploadSpeed = status.uploadRate().toLong(),
-                        priority = 1,
-                        sequential = false,
-                        paused = status.paused(),
-                        finished = status.finished()
-                    )
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to get all torrents", e)
-                emptyList()
-            }
-        }
-    }
-    
-    /**
-     * Sets torrent listener
-     */
+
     fun setTorrentListener(torrentId: String, listener: TorrentListener) {
-        torrentListeners[torrentId] = listener
+        listeners[torrentId] = listener
     }
-    
-    /**
-     * Removes torrent listener
-     */
+
     fun removeTorrentListener(torrentId: String) {
-        torrentListeners.remove(torrentId)
+        listeners.remove(torrentId)
     }
-    
-    /**
-     * Starts progress monitoring
-     */
+
+    // ---------------- Polling ----------------
+
     fun startProgressMonitoring() {
-        scope.launch {
-            while (isActive) {
-                try {
-                    monitorProgress()
-                    delay(1000) // Update every second
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error in progress monitoring", e)
+        stopProgressMonitoring()
+        val t = Timer("torrent-progress", true)
+        t.scheduleAtFixedRate(object : TimerTask() {
+            override fun run() {
+                try { pollOnce() } catch (t: Throwable) {
+                    Log.e(TAG, "progress loop error", t)
                 }
             }
-        }
+        }, 1000L, 1000L)
+        timer = t
     }
-    
-    /**
-     * Monitors torrent progress
-     */
-    private suspend fun monitorProgress() {
-        activeTorrents.forEach { (torrentId, handle) ->
+
+    fun stopProgressMonitoring() {
+        try { timer?.cancel() } catch (_: Throwable) { }
+        timer = null
+    }
+
+    private fun pollOnce() {
+        val it = handles.entries.iterator()
+        while (it.hasNext()) {
+            val e = it.next()
+            val id = e.key
+            val h = e.value
             try {
-                val status = handle.status()
-                val listener = torrentListeners[torrentId]
-                
-                if (listener != null) {
-                    listener.onProgress(
-                        torrentId = torrentId,
-                        progress = status.progress(),
-                        downloadSpeed = status.downloadRate().toLong(),
-                        uploadSpeed = status.uploadRate().toLong()
-                    )
+                val st = h.status()
+                val l = listeners[id]
+                if (l != null) {
+                    try { l.onProgress(id, st.progress(), st.downloadRate().toLong(), st.uploadRate().toLong()) }
+                    catch (_: Throwable) { }
                 }
-            } catch (e: Exception) {
-                Log.w(TAG, "Failed to monitor torrent: $torrentId", e)
+                val fin = isFinished(st)
+                val once = finishedOnce[id] == true
+                if (fin && !once) {
+                    finishedOnce[id] = true
+                    if (l != null) {
+                        try { l.onFinished(id) } catch (_: Throwable) { }
+                    }
+                }
+            } catch (t: Throwable) {
+                Log.w(TAG, "pollOnce fail for $id", t)
             }
         }
     }
-    
-    /**
-     * Notifies listeners about finished torrent
-     */
-    private fun notifyFinished(torrentId: String) {
-        val listener = torrentListeners[torrentId]
-        listener?.onFinished(torrentId)
-    }
-    
-    /**
-     * Notifies listeners about paused torrent
-     */
-    private fun notifyPaused(torrentId: String) {
-        val listener = torrentListeners[torrentId]
-        listener?.onPaused(torrentId)
-    }
-    
-    /**
-     * Gets torrents directory
-     */
-    private fun getTorrentsDirectory(): File {
-        val filesDir = context.filesDir
-        val torrentsDir = File(filesDir, "torrents")
-        if (!torrentsDir.exists()) {
-            torrentsDir.mkdirs()
-        }
-        return torrentsDir
-    }
-    
-    /**
-     * Gets torrent files directory
-     */
-    fun getTorrentFilesDirectory(torrentId: String): File {
-        val torrentsDir = getTorrentsDirectory()
-        return File(torrentsDir, torrentId)
-    }
-    
-    /**
-     * Checks if torrent has finished downloading
-     */
-    suspend fun isTorrentFinished(torrentId: String): Boolean {
+
+    // ---------------- Utils ----------------
+
+    private fun snapshot(h: TorrentHandle, id: String): TorrentSnapshot? {
         return try {
-            val info = getTorrentInfo(torrentId)
-            info.isSuccess && info.getOrNull()?.finished == true
-        } catch (e: Exception) {
-            false
+            val st = h.status()
+            TorrentSnapshot(
+                id = id,
+                name = safeName(h),
+                size = st.totalWanted(),
+                progress = st.progress(),
+                downloadSpeed = st.downloadRate().toLong(),
+                uploadSpeed = st.uploadRate().toLong(),
+                priority = 1,
+                sequential = false,
+                paused = paused[id] == true,
+                finished = isFinished(st)
+            )
+        } catch (t: Throwable) {
+            Log.w(TAG, "snapshot failed for $id", t)
+            null
         }
     }
-    
-    /**
-     * Gets torrent file path for streaming
-     */
-    suspend fun getTorrentFilePath(torrentId: String, fileName: String): Result<String> {
-        return withContext(Dispatchers.IO) {
-            try {
-                val torrentDir = getTorrentFilesDirectory(torrentId)
-                val file = File(torrentDir, fileName)
-                
-                if (file.exists()) {
-                    Result.success(file.absolutePath)
-                } else {
-                    Result.failure(Exception("File not found: $fileName"))
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to get torrent file path", e)
-                Result.failure(e)
-            }
+
+    private fun isFinished(st: TorrentStatus): Boolean {
+        return try {
+            val s = st.state()
+            s == TorrentStatus.State.FINISHED || s == TorrentStatus.State.SEEDING
+        } catch (_: Throwable) { false }
+    }
+
+    private fun notifyPaused(torrentId: String) {
+        val l = listeners[torrentId]
+        if (l != null) {
+            try { l.onPaused(torrentId) } catch (_: Throwable) { }
         }
     }
-    
-    /**
-     * Cleanup resources
-     */
+
+    private fun idHex(handle: TorrentHandle): String {
+        // Ensure this is ALWAYS String for K2
+        return try {
+            val s = handle.infoHash().toString()
+            s ?: "unknown" // (s is already String, but defensively)
+        } catch (_: Throwable) {
+            "unknown"
+        }
+    }
+
+    private fun safeName(h: TorrentHandle): String {
+        return try {
+            val n = h.name()
+            n ?: "unknown"
+        } catch (_: Throwable) { "unknown" }
+    }
+
+    private fun torrentsDir(): File {
+        val dir = File(context.filesDir, "torrents")
+        if (!dir.exists()) dir.mkdirs()
+        return dir
+    }
+
+    fun torrentFilesDir(torrentId: String): File {
+        return File(torrentsDir(), torrentId)
+    }
+
+    fun isTorrentFinished(torrentId: String): Boolean {
+        val s = getTorrentInfo(torrentId)
+        return s?.finished == true
+    }
+
+    fun getTorrentFilePath(torrentId: String, fileName: String): String? {
+        return try {
+            val f = File(torrentFilesDir(torrentId), fileName)
+            if (f.exists()) f.absolutePath else null
+        } catch (t: Throwable) {
+            Log.e(TAG, "getTorrentFilePath failed", t)
+            null
+        }
+    }
+
     fun cleanup() {
-        try {
-            scope.cancel()
-            
-            // Stop all torrents
-            activeTorrents.values.forEach { handle ->
-                handle.pause()
-            }
-            
-            // Close session
-            sessionManager?.stop()
-            sessionManager = null
-            
-            isInitialized.set(false)
-            Log.i(TAG, "Torrent service cleaned up")
-        } catch (e: Exception) {
-            Log.e(TAG, "Error during cleanup", e)
-        }
+        stopProgressMonitoring()
+        try { sessionManager?.stop() } catch (_: Throwable) { }
+        sessionManager = null
+        initialized.set(false)
+        handles.clear()
+        paused.clear()
+        finishedOnce.clear()
+        listeners.clear()
+        Log.i(TAG, "Torrent service cleaned up")
     }
 }
