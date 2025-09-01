@@ -10,21 +10,18 @@ import 'package:rxdart/rxdart.dart';
 class AudioServiceHandler {
   /// Internal audio player instance for media playback.
   final AudioPlayer _audioPlayer = AudioPlayer();
-  
+
   /// Stream controller for playback state updates.
   final BehaviorSubject<PlaybackState> _playbackState = BehaviorSubject();
 
   /// Gets the stream of playback state updates.
   ///
-  /// This stream can be listened to by UI components to react
-  /// to changes in the audio playback state.
+  /// UI layers can listen to this stream to react to changes in playback state.
   Stream<PlaybackState> get playbackState => _playbackState.stream;
 
   /// Initializes and starts the audio service.
   ///
-  /// This method sets up the audio service with proper configuration,
-  /// initializes the audio player, and sets up event listeners and
-  /// audio focus handling.
+  /// Sets up the audio service, initializes the player, and registers listeners.
   ///
   /// Throws [AudioFailure] if the service cannot be started.
   Future<void> startService() async {
@@ -42,7 +39,7 @@ class AudioServiceHandler {
 
       // Set up audio player event listener
       _setupAudioPlayer();
-      
+
       // Handle audio focus policies
       await _setupAudioFocus();
     } on Exception {
@@ -50,13 +47,9 @@ class AudioServiceHandler {
     }
   }
 
-  /// Sets up the audio player event listener.
-  ///
-  /// This method listens to audio player events and updates the
-  /// playback state stream accordingly.
+  /// Registers a listener for player events and emits [PlaybackState] updates.
   void _setupAudioPlayer() {
     _audioPlayer.playbackEventStream.listen((event) {
-      // Create a simple playback state
       final state = PlaybackState(
         processingState: _getProcessingState(),
         updatePosition: _audioPlayer.position,
@@ -68,13 +61,7 @@ class AudioServiceHandler {
     });
   }
 
-  /// Maps the internal processing state to AudioService state.
-  ///
-  /// This method converts the just_audio processing state to
-  /// the corresponding AudioService processing state.
-  ///
-  /// Returns the appropriate [AudioProcessingState] based on
-  /// the current audio player state.
+  /// Maps the just_audio processing state to [AudioProcessingState].
   AudioProcessingState _getProcessingState() {
     if (_audioPlayer.playing) {
       return AudioProcessingState.ready;
@@ -87,22 +74,12 @@ class AudioServiceHandler {
     }
   }
 
-  /// Sets up audio focus handling for interruptions.
-  ///
-  /// This method should be implemented using the audio_session package
-  /// to handle audio focus requests from other applications and
-  /// manage interruptions properly.
+  /// Sets up audio focus management (interruptions, ducking, etc).
   Future<void> _setupAudioFocus() async {
-    // TODO: Implement audio focus handling using audio_session package
-    // This will handle interruptions from other apps
+    // TODO: Implement audio focus handling using audio_session.
   }
 
-  /// Starts playing media from the specified URL.
-  ///
-  /// This method sets the audio source to the provided URL and
-  /// begins playback.
-  ///
-  /// The [url] parameter is the URL of the audio file to play.
+  /// Starts playback for the provided media URL.
   ///
   /// Throws [AudioFailure] if playback cannot be started.
   Future<void> playMedia(String url) async {
@@ -114,10 +91,7 @@ class AudioServiceHandler {
     }
   }
 
-  /// Pauses the currently playing media.
-  ///
-  /// This method pauses the audio player and maintains the current
-  /// playback position for resuming later.
+  /// Pauses the current playback.
   ///
   /// Throws [AudioFailure] if pausing fails.
   Future<void> pauseMedia() async {
@@ -128,10 +102,7 @@ class AudioServiceHandler {
     }
   }
 
-  /// Stops the currently playing media.
-  ///
-  /// This method stops the audio player and resets the playback
-  /// position to the beginning.
+  /// Stops the current playback.
   ///
   /// Throws [AudioFailure] if stopping fails.
   Future<void> stopMedia() async {
@@ -142,12 +113,7 @@ class AudioServiceHandler {
     }
   }
 
-  /// Seeks to the specified position in the current media.
-  ///
-  /// This method changes the playback position to the specified
-  /// duration.
-  ///
-  /// The [position] parameter is the time position to seek to.
+  /// Seeks to a specific [position] in the current media.
   ///
   /// Throws [AudioFailure] if seeking fails.
   Future<void> seekTo(Duration position) async {
@@ -158,14 +124,9 @@ class AudioServiceHandler {
     }
   }
 
-  /// Sets the playback speed for the current media.
+  /// Sets the playback [speed].
   ///
-  /// This method changes the speed at which the audio is played,
-  /// allowing for faster or slower playback.
-  ///
-  /// The [speed] parameter is the playback speed multiplier (1.0 = normal speed).
-  ///
-  /// Throws [AudioFailure] if setting speed fails.
+  /// Throws [AudioFailure] if changing speed fails.
   Future<void> setSpeed(double speed) async {
     try {
       await _audioPlayer.setSpeed(speed);
@@ -174,10 +135,7 @@ class AudioServiceHandler {
     }
   }
 
-  /// Cleans up resources when the handler is no longer needed.
-  ///
-  /// This method disposes the audio player and closes the playback
-  /// state stream to prevent memory leaks.
+  /// Releases resources held by this handler.
   Future<void> dispose() async {
     await _audioPlayer.dispose();
     await _playbackState.drain();
@@ -185,35 +143,28 @@ class AudioServiceHandler {
   }
 }
 
-/// Audio service handler that implements BaseAudioHandler.
+/// Bridges audio_service callbacks to the just_audio player.
 ///
-/// This class provides the interface between the audio service
-/// and the just_audio player, handling all audio service callbacks.
+/// Implements [BaseAudioHandler] methods expected by audio_service.
 class AudioPlayerHandler extends BaseAudioHandler {
-
-  /// Creates a new AudioPlayerHandler instance.
+  /// Creates a new [AudioPlayerHandler].
   ///
-  /// The [audioPlayer] parameter is the just_audio player instance
-  /// that will handle the actual audio playback.
+  /// [audioPlayer] is the just_audio instance used for playback.
   AudioPlayerHandler(this._audioPlayer);
-  
-  /// The just_audio player instance for media playback.
+
+  /// just_audio player instance used for media playback.
   final AudioPlayer _audioPlayer;
 
   @override
-  /// Starts or resumes playback of the current media.
   Future<void> play() => _audioPlayer.play();
 
   @override
-  /// Pauses playback of the current media.
   Future<void> pause() => _audioPlayer.pause();
 
   @override
-  /// Stops playback and resets to the beginning.
   Future<void> stop() => _audioPlayer.stop();
 
+  // NOTE: BaseAudioHandler defines `seek(Duration position)`, not `seekTo`.
   @override
-  /// Seeks to the specified position in the current media.
-  Future<void> seekTo(Duration position) => _audioPlayer.seek(position);
-
+  Future<void> seek(Duration position) => _audioPlayer.seek(position);
 }

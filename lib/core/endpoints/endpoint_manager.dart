@@ -84,13 +84,19 @@ class EndpointManager {
     }
   }
 
+  /// Validates the response signature from RuTracker endpoint.
+  ///
+  /// Placeholder: returns true by default.
   bool _validateSignature(Headers? headers) => true;
 
+  /// Persists the updated endpoints into the database.
   Future<void> _updateEndpoints(List<Map<String, dynamic>> endpoints) async {
     await _endpointsRef.put(_db, {'endpoints': endpoints});
   }
 
   /// Gets the currently active (highest priority healthy) endpoint.
+  ///
+  /// Throws [NetworkFailure] if no healthy endpoints are available.
   Future<String> getActiveEndpoint() async {
     final record = await _endpointsRef.get(_db);
     final endpoints =
@@ -121,16 +127,17 @@ class EndpointManager {
     final endpoints =
         List<Map<String, dynamic>>.from((record?['endpoints'] as List?) ?? []);
 
-    endpoints.add({
-      'url': url,
-      'priority': priority,
-      'rtt': 0,
-      'last_ok': null,
-      'signature_ok': false,
-      'enabled': true,
-    });
-
-    await _updateEndpoints(endpoints);
+    await _updateEndpoints(
+      endpoints
+        ..add({
+          'url': url,
+          'priority': priority,
+          'rtt': 0,
+          'last_ok': null,
+          'signature_ok': false,
+          'enabled': true,
+        }),
+    );
   }
 
   /// Removes an endpoint from the configuration.
@@ -139,7 +146,8 @@ class EndpointManager {
     final endpoints =
         List<Map<String, dynamic>>.from((record?['endpoints'] as List?) ?? []);
 
-    endpoints.removeWhere((e) => e['url'] == url);
-    await _updateEndpoints(endpoints);
+    await _updateEndpoints(
+      endpoints..removeWhere((e) => e['url'] == url),
+    );
   }
 }

@@ -5,6 +5,15 @@ import 'package:jabook/core/errors/failures.dart';
 import 'package:jabook/core/net/dio_client.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
+/// Constants for RuTracker endpoints
+class RuTrackerUrls {
+  /// URL for the RuTracker login page.
+  static const String login = 'https://rutracker.me/forum/login.php';
+
+  /// URL for the RuTracker profile page (used to verify auth state).
+  static const String profile = 'https://rutracker.me/forum/profile.php';
+}
+
 /// Handles authentication with RuTracker forum.
 ///
 /// This class provides methods for login, logout, and checking authentication
@@ -35,46 +44,54 @@ class RuTrackerAuth {
       // Create controller
       final controller = WebViewController();
 
-      // IMPORTANT: these can return Future in your plugin version → await them
       await controller.setJavaScriptMode(JavaScriptMode.unrestricted);
-      controller.setNavigationDelegate(
+
+      BuildContext? dialogContext;
+
+      await controller.setNavigationDelegate(
         NavigationDelegate(
-          onPageFinished: (url) async {
-            // Check if login was successful by looking for user-specific content
+          onPageFinished: (url) {
             if (url.contains('profile.php')) {
-              // if you ever make _syncCookies async, await it here
               _syncCookies();
-              if (_context.mounted) {
-                Navigator.of(_context).pop(true);
+              // use_if_null_to_convert_nulls_to_bools
+              if (dialogContext?.mounted ?? false) {
+                Navigator.of(dialogContext!).pop(true);
               }
             }
           },
         ),
       );
-      await controller.loadRequest(Uri.parse('https://rutracker.me/forum/login.php'));
 
-      // Show login dialog
+      await controller.loadRequest(Uri.parse(RuTrackerUrls.login));
+
+      // use_build_context_synchronously: check if context is still valid
+      if (!_context.mounted) {
+        return false;
+      }
+
       final result = await showDialog<bool>(
         context: _context,
-        builder: (context) => AlertDialog(
-          title: const Text('Login to RuTracker'),
-          content: SizedBox(
-            width: double.maxFinite,
-            height: 400,
-            child: WebViewWidget(controller: controller),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancel'),
+        builder: (ctx) {
+          dialogContext = ctx;
+          return AlertDialog(
+            title: const Text('Login to RuTracker'),
+            content: SizedBox(
+              width: double.maxFinite,
+              height: 400,
+              child: WebViewWidget(controller: controller),
             ),
-          ],
-        ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: const Text('Cancel'),
+              ),
+            ],
+          );
+        },
       );
 
       return result ?? false;
     } on Exception catch (e) {
-      // Requires AuthFailure to implement Exception (see patch below)
       throw AuthFailure('Login failed: ${e.toString()}');
     }
   }
@@ -84,13 +101,8 @@ class RuTrackerAuth {
   /// Throws [AuthFailure] if logout fails.
   Future<void> logout() async {
     try {
-      // Clear WebView cookies (returns Future<bool>)
       await _cookieManager.clearCookies();
-
-      // Clear CookieJar
       await _cookieJar.deleteAll();
-
-      // TODO: Add any additional logout logic
     } on Exception {
       throw const AuthFailure('Logout failed');
     }
@@ -102,14 +114,12 @@ class RuTrackerAuth {
   Future<bool> get isLoggedIn async {
     try {
       final response = await DioClient.instance.get(
-        'https://rutracker.me/forum/profile.php',
+        RuTrackerUrls.profile,
         options: Options(
           receiveTimeout: const Duration(seconds: 5),
           validateStatus: (status) => status != null && status < 500,
         ),
       );
-
-      // If we get a 200 response, we're likely authenticated
       return response.statusCode == 200;
     } on Exception {
       return false;
@@ -118,6 +128,6 @@ class RuTrackerAuth {
 
   /// Synchronizes cookies between WebView and Dio client.
   void _syncCookies() {
-    // Cookies are already managed by WebViewCookieManager and DioClient's CookieManager interceptor.
+    // Cookies are handled by WebViewCookieManager and DioClient's CookieManager interceptor.
   }
 }
