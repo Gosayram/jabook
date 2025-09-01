@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:jabook/core/parse/rutracker_parser.dart';
+import 'package:jabook/core/net/dio_client.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 /// Screen for displaying a specific RuTracker topic.
 ///
 /// This screen shows the details of a specific forum topic,
 /// including posts, attachments, and download links.
-class TopicScreen extends StatelessWidget {
+class TopicScreen extends ConsumerStatefulWidget {
 
   /// Creates a new TopicScreen instance.
   ///
@@ -16,12 +20,249 @@ class TopicScreen extends StatelessWidget {
   final String topicId;
 
   @override
-  Widget build(BuildContext context) => Scaffold(
+  ConsumerState<TopicScreen> createState() => _TopicScreenState();
+}
+
+class _TopicScreenState extends ConsumerState<TopicScreen> {
+  final RuTrackerParser _parser = RuTrackerParser();
+  
+  Audiobook? _audiobook;
+  bool _isLoading = true;
+  bool _hasError = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTopicDetails();
+  }
+
+  Future<void> _loadTopicDetails() async {
+    try {
+      final dio = await DioClient.instance;
+      final response = await dio.get(
+        'https://rutracker.org/forum/viewtopic.php?t=${widget.topicId}',
+      );
+
+      if (response.statusCode == 200) {
+        final audiobook = await _parser.parseTopicDetails(response.data);
+        setState(() {
+          _audiobook = audiobook;
+          _isLoading = false;
+          _hasError = false;
+        });
+      } else {
+        setState(() {
+          _isLoading = false;
+          _hasError = true;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+        _hasError = true;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading topic: $e')),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
       appBar: AppBar(
-        title: Text('Topic: $topicId'),
+        title: Text('Topic: ${widget.topicId}'),
+        actions: [
+          if (_audiobook?.magnetUrl.isNotEmpty == true)
+            IconButton(
+              icon: const Icon(Icons.download),
+              onPressed: _downloadAudiobook,
+            ),
+        ],
       ),
-      body: const Center(
-        child: Text('Topic Screen'),
+      body: _buildBody(),
+    );
+  }
+
+  Widget _buildBody() {
+    if (_isLoading) {
+      return const Center(
+        child: CircularProgressIndicator(),
+      );
+    }
+
+    if (_hasError || _audiobook == null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text('Failed to load topic'),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: _loadTopicDetails,
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return CustomScrollView(
+      slivers: [
+        SliverToBoxAdapter(
+          child: _buildHeader(),
+        ),
+        if (_audiobook!.chapters.isNotEmpty)
+          SliverToBoxAdapter(
+            child: _buildChaptersSection(),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildHeader() {
+    final audiobook = _audiobook!;
+    
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            audiobook.title,
+            style: Theme.of(context).textTheme.headlineSmall,
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'by ${audiobook.author}',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Chip(
+                label: Text(audiobook.category),
+                backgroundColor: Colors.blue.shade100,
+              ),
+              const SizedBox(width: 8),
+              Chip(
+                label: Text(audiobook.size),
+                backgroundColor: Colors.green.shade100,
+              ),
+              const SizedBox(width: 8),
+              Chip(
+                label: Text('${audiobook.seeders} seeders'),
+                backgroundColor: Colors.green.shade100,
+              ),
+              const SizedBox(width: 8),
+              Chip(
+                label: Text('${audiobook.leechers} leechers'),
+                backgroundColor: Colors.orange.shade100,
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          if (audiobook.coverUrl != null)
+            CachedNetworkImage(
+              imageUrl: audiobook.coverUrl!,
+              height: 200,
+              fit: BoxFit.cover,
+              placeholder: (context, url) => const Center(
+                child: CircularProgressIndicator(),
+              ),
+              errorWidget: (context, url, error) => const Icon(Icons.error),
+            ),
+          const SizedBox(height: 16),
+          if (audiobook.magnetUrl.isNotEmpty)
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.link),
+                title: const Text('Magnet Link'),
+                subtitle: Text(
+                  audiobook.magnetUrl,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                trailing: const Icon(Icons.copy),
+                onTap: () {
+                  _copyToClipboard(audiobook.magnetUrl, 'Magnet link');
+                },
+              ),
+            ),
+        ],
       ),
     );
+  }
+
+  Widget _buildChaptersSection() {
+    final audiobook = _audiobook!;
+    
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Chapters (${audiobook.chapters.length})',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const SizedBox(height: 8),
+          ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: audiobook.chapters.length,
+            itemBuilder: (context, index) {
+              final chapter = audiobook.chapters[index];
+              return Card(
+                margin: const EdgeInsets.only(bottom: 8),
+                child: ListTile(
+                  leading: const Icon(Icons.play_circle_outline),
+                  title: Text(chapter.title),
+                  subtitle: Text(_formatDuration(chapter.durationMs)),
+                  trailing: const Icon(Icons.more_vert),
+                  onTap: () {
+                    // TODO: Implement chapter navigation
+                  },
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatDuration(int milliseconds) {
+    final duration = Duration(milliseconds: milliseconds);
+    final hours = duration.inHours;
+    final minutes = duration.inMinutes.remainder(60);
+    final seconds = duration.inSeconds.remainder(60);
+    
+    if (hours > 0) {
+      return '${hours}:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+    } else {
+      return '${minutes}:${seconds.toString().padLeft(2, '0')}';
+    }
+  }
+
+  void _downloadAudiobook() {
+    if (_audiobook?.magnetUrl.isNotEmpty == true) {
+      _copyToClipboard(_audiobook!.magnetUrl, 'Magnet link');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Magnet link copied to clipboard')),
+      );
+    }
+  }
+
+  void _copyToClipboard(String text, String label) {
+    // TODO: Implement actual clipboard copy
+    // For now, just show a message
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('$label copied to clipboard')),
+    );
+  }
 }

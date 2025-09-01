@@ -1,6 +1,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 /// Main screen for displaying the user's audiobook library.
 ///
@@ -22,12 +23,14 @@ class LibraryScreen extends ConsumerWidget {
             icon: const Icon(Icons.search),
             onPressed: () {
               // Navigate to search screen
+              context.go('/search');
             },
           ),
           IconButton(
             icon: const Icon(Icons.filter_list),
             onPressed: () {
-              // Show filter options
+              // Show filter options - navigate to settings for now
+              context.go('/settings');
             },
           ),
         ],
@@ -36,6 +39,9 @@ class LibraryScreen extends ConsumerWidget {
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           // TODO: Implement add book functionality
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Add book functionality coming soon!')),
+          );
         },
         child: const Icon(Icons.add),
       ),

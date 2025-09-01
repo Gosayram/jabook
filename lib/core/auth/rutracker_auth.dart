@@ -113,7 +113,7 @@ class RuTrackerAuth {
   /// Returns `true` if authenticated, `false` otherwise.
   Future<bool> get isLoggedIn async {
     try {
-      final response = await DioClient.instance.get(
+      final response = await (await DioClient.instance).get(
         RuTrackerUrls.profile,
         options: Options(
           receiveTimeout: const Duration(seconds: 5),

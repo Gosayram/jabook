@@ -235,3 +235,11 @@ firebase_app_id_file.json
 
 android/
 .metadata
+
+# Secret key template
+.key-generate.conf
+android/key.properties
+android/signing/
+*.keystore
+*.jks
+*.p12

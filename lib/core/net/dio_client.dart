@@ -1,6 +1,7 @@
 import 'package:cookie_jar/cookie_jar.dart';
 import 'package:dio/dio.dart';
 import 'package:dio_cookie_manager/dio_cookie_manager.dart';
+import 'package:jabook/core/net/user_agent_manager.dart';
 
 /// HTTP client for making requests to RuTracker APIs.
 ///
@@ -17,16 +18,23 @@ class DioClient {
   /// and cookie management for RuTracker API calls.
   ///
   /// Returns a configured Dio instance ready for use.
-  static Dio get instance => Dio()
-    ..options = BaseOptions(
+  static Future<Dio> get instance async {
+    final dio = Dio();
+    final userAgentManager = UserAgentManager();
+    
+    // Apply User-Agent from manager
+    await userAgentManager.applyUserAgentToDio(dio);
+    
+    dio.options = BaseOptions(
       connectTimeout: const Duration(seconds: 30),
       receiveTimeout: const Duration(seconds: 30),
       sendTimeout: const Duration(seconds: 30),
-      headers: {
-        'User-Agent': _getUserAgent(),
-      },
-    )
-    ..interceptors.add(CookieManager(CookieJar()));
+    );
+    
+    dio.interceptors.add(CookieManager(CookieJar()));
+    
+    return dio;
+  }
 
   /// Gets the user agent string for HTTP requests.
   ///
@@ -34,9 +42,10 @@ class DioClient {
   /// to ensure compatibility with RuTracker's anti-bot measures.
   ///
   /// Returns a user agent string for HTTP requests.
-  static String _getUserAgent() =>
-    // TODO: Extract from WebView on first init
-    'Mozilla/5.0 (Linux; Android 10; SM-G973F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.120 Mobile Safari/537.36';
+  static Future<String> getUserAgent() async {
+    final userAgentManager = UserAgentManager();
+    return await userAgentManager.getUserAgent();
+  }
 
   /// Synchronizes cookies from WebView to the Dio client.
   ///

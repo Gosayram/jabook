@@ -47,7 +47,7 @@ class EndpointManager {
   Future<void> healthCheck(String endpoint) async {
     try {
       final startTime = DateTime.now();
-      final response = await DioClient.instance.head(
+      final response = await (await DioClient.instance).head(
         endpoint,
         options: Options(
           receiveTimeout: const Duration(seconds: 10),

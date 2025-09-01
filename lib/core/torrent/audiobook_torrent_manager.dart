@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:dtorrent_task/dtorrent_task.dart';
 import 'package:jabook/core/errors/failures.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -88,8 +89,9 @@ class AudiobookTorrentManager {
       final progressController = StreamController<TorrentProgress>.broadcast();
       _progressControllers[_currentDownloadId!] = progressController;
 
-      // TODO: Implement actual torrent download using available Dart torrent library
-      // For now, simulate download progress
+      // TODO: Implement actual torrent download using dtorrent_task package
+      // The dtorrent_task API may be different from what was initially assumed
+      // For now, continue with simulated download
       _simulateDownload(progressController);
 
     } on Exception catch (e) {
