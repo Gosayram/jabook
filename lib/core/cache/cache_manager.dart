@@ -78,11 +78,20 @@ class CacheManager {
     final store = StoreRef<String, Map<String, dynamic>>('cache');
     final records = await store.find(_db!);
 
-    for (final record in records) {
-      final expiresAt = DateTime.parse(record.value['expires_at'] as String);
-      if (DateTime.now().isAfter(expiresAt)) {
-        await store.record(record.key).delete(_db!);
+    // Process in smaller batches to avoid blocking UI
+    const batchSize = 50;
+    for (var i = 0; i < records.length; i += batchSize) {
+      final batch = records.sublist(i, i + batchSize > records.length ? records.length : i + batchSize);
+      
+      for (final record in batch) {
+        final expiresAt = DateTime.parse(record.value['expires_at'] as String);
+        if (DateTime.now().isAfter(expiresAt)) {
+          await store.record(record.key).delete(_db!);
+        }
       }
+      
+      // Allow event loop to process UI events between batches
+      await Future.delayed(const Duration(milliseconds: 10));
     }
   }
 

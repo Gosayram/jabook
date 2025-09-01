@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -79,7 +82,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           'nm': query,
           'o=1': '1', // Sort by relevance
         },
-      );
+      ).timeout(const Duration(seconds: 30));
 
       if (response.statusCode == 200) {
         final results = await _parser.parseSearchResults(response.data);
@@ -105,11 +108,29 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           );
         }
       }
-    } on Exception catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
+    } on TimeoutException {
       if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Request timed out. Please check your connection.')),
+        );
+      }
+    } on DioException catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Network error: ${e.message}')),
+        );
+      }
+    } on Exception catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error: $e')),
         );

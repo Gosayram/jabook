@@ -60,8 +60,8 @@ flutter:
     - assets/icons/app_icon.png
     - assets/icons/app_icon_adaptive_bg.png
     - assets/icons/app_icon_adaptive_fg.png
-    - lib/l10n/app_en.arb
-    - lib/l10n/app_ru.arb
+    - assets/lib/l10n/app_en.arb
+    - assets/lib/l10n/app_ru.arb
   
 
 flutter_launcher_icons:

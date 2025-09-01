@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -63,7 +66,7 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
       final dio = await DioClient.instance;
       final response = await dio.get(
         'https://rutracker.me/forum/viewtopic.php?t=${widget.topicId}',
-      );
+      ).timeout(const Duration(seconds: 30));
 
       if (response.statusCode == 200) {
         final audiobook = await _parser.parseTopicDetails(response.data);
@@ -75,29 +78,53 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
           await _cacheService.cacheTopicDetails(widget.topicId, audiobookMap);
         }
         
-        setState(() {
-          // Convert Audiobook object to map for UI
-          if (audiobook != null) {
-            _audiobook = _audiobookToMap(audiobook);
-          } else {
-            _audiobook = null;
-          }
-          _isLoading = false;
-          _hasError = false;
-          _isFromCache = false;
-        });
+        if (mounted) {
+          setState(() {
+            // Convert Audiobook object to map for UI
+            if (audiobook != null) {
+              _audiobook = _audiobookToMap(audiobook);
+            } else {
+              _audiobook = null;
+            }
+            _isLoading = false;
+            _hasError = false;
+            _isFromCache = false;
+          });
+        }
       } else {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+            _hasError = true;
+          });
+        }
+      }
+    } on TimeoutException {
+      if (mounted) {
         setState(() {
           _isLoading = false;
           _hasError = true;
         });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Request timed out. Please check your connection.')),
+        );
+      }
+    } on DioException catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _hasError = true;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Network error: ${e.message}')),
+        );
       }
     } on Exception catch (e) {
-      setState(() {
-        _isLoading = false;
-        _hasError = true;
-      });
       if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _hasError = true;
+        });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error loading topic: $e')),
         );

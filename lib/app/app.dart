@@ -43,7 +43,8 @@ class _JaBookAppState extends ConsumerState<JaBookApp> {
   @override
   void initState() {
     super.initState();
-    _initializeApp();
+    // Run initialization in the background to avoid blocking UI
+    Future.microtask(_initializeApp);
   }
 
   Future<void> _initializeApp() async {

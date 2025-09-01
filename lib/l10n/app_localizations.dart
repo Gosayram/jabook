@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -25,10 +26,10 @@ class AppLocalizations {
   Future<bool> load() async {
     try {
       final jsonString = await rootBundle.loadString(
-        'packages/jabook/lib/l10n/app_${locale.languageCode}.arb',
+        'assets/lib/l10n/app_${locale.languageCode}.arb',
       );
       
-      final jsonMap = Map<String, dynamic>.from(await _parseArb(jsonString));
+      final jsonMap = json.decode(jsonString) as Map<String, dynamic>;
       
       _localizedStrings = jsonMap.map((key, value) {
         if (key.startsWith('@')) return MapEntry(key, value.toString());
@@ -39,34 +40,6 @@ class AppLocalizations {
     } on Exception catch (_) {
       return false;
     }
-  }
-
-  Future<Map<String, dynamic>> _parseArb(String jsonString) async {
-    // Simple ARB parser - in production, use proper JSON parsing
-    final result = <String, dynamic>{};
-    final lines = jsonString.split('\n');
-    
-    for (final line in lines) {
-      if (line.trim().isEmpty ||
-          line.trim().startsWith('//') ||
-          line.trim().startsWith('/*')) {
-        continue;
-      }
-      
-      if (line.contains(':')) {
-        final parts = line.split(':');
-        if (parts.length >= 2) {
-          final key = parts[0].trim().replaceAll('"', '').replaceAll(',', '');
-          final value = parts[1].trim().replaceAll('"', '').replaceAll(',', '');
-          
-          if (key.isNotEmpty && value.isNotEmpty) {
-            result[key] = value;
-          }
-        }
-      }
-    }
-    
-    return result;
   }
 
   /// Translates the given key to the current locale.
