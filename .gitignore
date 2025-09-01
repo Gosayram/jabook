@@ -228,3 +228,6 @@ firebase_app_id_file.json
 *.jks
 *.bak
 *.orig
+
+# ENV files
+.env
