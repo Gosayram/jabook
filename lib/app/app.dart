@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:jabook/app/router/app_router.dart';
@@ -7,6 +8,7 @@ import 'package:jabook/core/cache/rutracker_cache_service.dart';
 import 'package:jabook/core/config/app_config.dart';
 import 'package:jabook/core/logging/environment_logger.dart';
 import 'package:jabook/data/db/app_database.dart';
+import 'package:jabook/l10n/app_localizations.dart';
 
 /// Main application widget for JaBook audiobook player.
 ///
@@ -154,6 +156,17 @@ class _JaBookAppState extends ConsumerState<JaBookApp> {
       routerConfig: router,
       debugShowCheckedModeBanner: config.isDebug,
       scaffoldMessengerKey: config.isDebug ? _scaffoldMessengerKey : null,
+      localizationsDelegates: const [
+        AppLocalizations.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [
+        Locale('en', 'US'), // English
+        Locale('ru', 'RU'), // Russian
+      ],
+      locale: const Locale('ru', 'RU'), // Default to Russian
     );
   }
 }

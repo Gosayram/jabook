@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:jabook/core/cache/rutracker_cache_service.dart';
 import 'package:jabook/core/net/dio_client.dart';
 import 'package:jabook/core/parse/rutracker_parser.dart';
+import 'package:jabook/l10n/app_localizations.dart';
 
 /// Screen for searching audiobooks on RuTracker.
 ///
@@ -100,7 +101,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         });
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Failed to search')),
+            SnackBar(content: Text(AppLocalizations.of(context)!.failedToSearch)),
           );
         }
       }
@@ -119,7 +120,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
-      title: const Text('Search Audiobooks'),
+      title: Text(AppLocalizations.of(context)!.searchAudiobooks),
       actions: [
         IconButton(
           icon: const Icon(Icons.search),
@@ -134,8 +135,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           child: TextField(
             controller: _searchController,
             decoration: InputDecoration(
-              labelText: 'Search audiobooks...',
-              hintText: 'Enter title, author, or keywords',
+              labelText: AppLocalizations.of(context)!.searchPlaceholder,
+              hintText: AppLocalizations.of(context)!.searchPlaceholder,
               suffixIcon: IconButton(
                 icon: const Icon(Icons.clear),
                 onPressed: () {
@@ -170,7 +171,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                         Icon(Icons.cached, size: 16, color: Colors.blue[700]),
                         const SizedBox(width: 8),
                         Text(
-                          'Results from cache',
+                          AppLocalizations.of(context)!.resultsFromCache,
                           style: TextStyle(
                             color: Colors.blue[700],
                             fontSize: 12,
@@ -186,9 +187,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             ),
           )
         else
-          const Expanded(
+          Expanded(
             child: Center(
-              child: Text('Enter a search term to begin'),
+              child: Text(AppLocalizations.of(context)!.enterSearchTerm),
             ),
           ),
       ],
@@ -197,8 +198,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
   Widget _buildSearchResults() {
     if (_searchResults.isEmpty) {
-      return const Center(
-        child: Text('No results found'),
+      return Center(
+        child: Text(AppLocalizations.of(context)!.noResults),
       );
     }
 
@@ -206,9 +207,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       itemCount: _searchResults.length,
       itemBuilder: (context, index) {
         final audiobook = _searchResults[index];
-        final title = audiobook['title'] as String? ?? 'Unknown Title';
-        final author = audiobook['author'] as String? ?? 'Unknown Author';
-        final size = audiobook['size'] as String? ?? 'Unknown Size';
+        final title = audiobook['title'] as String? ?? AppLocalizations.of(context)!.unknownTitle;
+        final author = audiobook['author'] as String? ?? AppLocalizations.of(context)!.unknownAuthor;
+        final size = audiobook['size'] as String? ?? AppLocalizations.of(context)!.unknownSize;
         final seeders = audiobook['seeders'] as int? ?? 0;
         final leechers = audiobook['leechers'] as int? ?? 0;
         final id = audiobook['id'] as String? ?? '';
@@ -224,8 +225,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Author: $author'),
-                Text('Size: $size'),
+                Text('${AppLocalizations.of(context)!.authorLabel}$author'),
+                Text('${AppLocalizations.of(context)!.sizeLabel}$size'),
                 Row(
                   children: [
                     Icon(
@@ -234,7 +235,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                       color: seeders > 0 ? Colors.green : Colors.grey,
                     ),
                     const SizedBox(width: 4),
-                    Text('$seeders seeders'),
+                    Text('$seeders${AppLocalizations.of(context)!.seedersLabel}'),
                     const SizedBox(width: 16),
                     Icon(
                       Icons.person_off,
@@ -242,7 +243,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                       color: leechers > 0 ? Colors.orange : Colors.grey,
                     ),
                     const SizedBox(width: 4),
-                    Text('$leechers leechers'),
+                    Text('$leechers${AppLocalizations.of(context)!.leechersLabel}'),
                   ],
                 ),
               ],

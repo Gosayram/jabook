@@ -1,0 +1,108 @@
+{
+  "@@locale": "ru",
+  "appTitle": "JaBook",
+  "searchAudiobooks": "Поиск аудиокниг",
+  "@searchAudiobooks": {
+    "description": "Заголовок экрана поиска"
+  },
+  "searchPlaceholder": "Введите название, автора или ключевые слова",
+  "@searchPlaceholder": {
+    "description": "Текст-заполнитель для поля поиска"
+  },
+  "libraryTitle": "Библиотека",
+  "@libraryTitle": {
+    "description": "Заголовок экрана библиотеки"
+  },
+  "playerTitle": "Плеер",
+  "@playerTitle": {
+    "description": "Заголовок экрана плеера"
+  },
+  "settingsTitle": "Настройки",
+  "@settingsTitle": {
+    "description": "Заголовок экрана настроек"
+  },
+  "debugTitle": "Отладка",
+  "@debugTitle": {
+    "description": "Заголовок экрана отладки"
+  },
+  "mirrorsTitle": "Зеркала",
+  "@mirrorsTitle": {
+    "description": "Заголовок экрана зеркал"
+  },
+  "topicTitle": "Топик",
+  "@topicTitle": {
+    "description": "Заголовок экрана топика"
+  },
+  "noResults": "Результатов не найдено",
+  "@noResults": {
+    "description": "Сообщение при отсутствии результатов поиска"
+  },
+  "loading": "Загрузка...",
+  "@loading": {
+    "description": "Текст индикатора загрузки"
+  },
+  "error": "Ошибка",
+  "@error": {
+    "description": "Заголовок сообщения об ошибке"
+  },
+  "retry": "Повторить",
+  "@retry": {
+    "description": "Текст кнопки повтора"
+  },
+  "language": "Язык",
+  "@language": {
+    "description": "Надпись настройки языка"
+  },
+  "english": "Английский",
+  "@english": {
+    "description": "Опция английского языка"
+  },
+  "russian": "Русский",
+  "@russian": {
+    "description": "Опция русского языка"
+  },
+  "systemDefault": "Системный по умолчанию",
+  "@systemDefault": {
+    "description": "Использовать системные настройки языка"
+    "failedToSearch": "Не удалось выполнить поиск",
+    "@failedToSearch": {
+      "description": "Сообщение об ошибке при неудачном поиске"
+    },
+    "resultsFromCache": "Результаты из кэша",
+    "@resultsFromCache": {
+      "description": "Индикатор что результаты из кэша"
+    },
+    "enterSearchTerm": "Введите поисковый запрос чтобы начать",
+    "@enterSearchTerm": {
+      "description": "Приглашение начать поиск"
+    },
+    "authorLabel": "Автор: ",
+    "@authorLabel": {
+      "description": "Метка для поля автора"
+    },
+    "sizeLabel": "Размер: ",
+    "@sizeLabel": {
+      "description": "Метка для поля размера"
+    },
+    "seedersLabel": " сидеров",
+    "@seedersLabel": {
+      "description": "Метка для количества сидеров"
+    },
+    "leechersLabel": " личеров",
+    "@leechersLabel": {
+      "description": "Метка для количества личеров"
+    },
+    "unknownTitle": "Неизвестное название",
+    "@unknownTitle": {
+      "description": "Запасной вариант для отсутствующего названия"
+    },
+    "unknownAuthor": "Неизвестный автор",
+    "@unknownAuthor": {
+      "description": "Запасной вариант для отсутствующего автора"
+    },
+    "unknownSize": "Неизвестный размер",
+    "@unknownSize": {
+      "description": "Запасной вариант для отсутствующего размера"
+    }
+  }
+}

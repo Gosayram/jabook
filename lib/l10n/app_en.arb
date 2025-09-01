@@ -1,0 +1,108 @@
+{
+  "@@locale": "en",
+  "appTitle": "JaBook",
+  "searchAudiobooks": "Search Audiobooks",
+  "@searchAudiobooks": {
+    "description": "Title for search screen"
+  },
+  "searchPlaceholder": "Enter title, author, or keywords",
+  "@searchPlaceholder": {
+    "description": "Placeholder text for search field"
+  },
+  "libraryTitle": "Library",
+  "@libraryTitle": {
+    "description": "Title for library screen"
+  },
+  "playerTitle": "Player",
+  "@playerTitle": {
+    "description": "Title for player screen"
+  },
+  "settingsTitle": "Settings",
+  "@settingsTitle": {
+    "description": "Title for settings screen"
+  },
+  "debugTitle": "Debug",
+  "@debugTitle": {
+    "description": "Title for debug screen"
+  },
+  "mirrorsTitle": "Mirrors",
+  "@mirrorsTitle": {
+    "description": "Title for mirrors screen"
+  },
+  "topicTitle": "Topic",
+  "@topicTitle": {
+    "description": "Title for topic screen"
+  },
+  "noResults": "No results found",
+  "@noResults": {
+    "description": "Message when no search results"
+  },
+  "loading": "Loading...",
+  "@loading": {
+    "description": "Loading indicator text"
+  },
+  "error": "Error",
+  "@error": {
+    "description": "Error message title"
+  },
+  "retry": "Retry",
+  "@retry": {
+    "description": "Retry button text"
+  },
+  "language": "Language",
+  "@language": {
+    "description": "Language setting label"
+  },
+  "english": "English",
+  "@english": {
+    "description": "English language option"
+  },
+  "russian": "Russian",
+  "@russian": {
+    "description": "Russian language option"
+  },
+  "systemDefault": "System Default",
+  "@systemDefault": {
+    "description": "Use system language setting"
+    "failedToSearch": "Failed to search",
+    "@failedToSearch": {
+      "description": "Error message when search fails"
+    },
+    "resultsFromCache": "Results from cache",
+    "@resultsFromCache": {
+      "description": "Indicator that results are from cache"
+    },
+    "enterSearchTerm": "Enter a search term to begin",
+    "@enterSearchTerm": {
+      "description": "Prompt to start searching"
+    },
+    "authorLabel": "Author: ",
+    "@authorLabel": {
+      "description": "Label for author field"
+    },
+    "sizeLabel": "Size: ",
+    "@sizeLabel": {
+      "description": "Label for size field"
+    },
+    "seedersLabel": " seeders",
+    "@seedersLabel": {
+      "description": "Label for seeders count"
+    },
+    "leechersLabel": " leechers",
+    "@leechersLabel": {
+      "description": "Label for leechers count"
+    },
+    "unknownTitle": "Unknown Title",
+    "@unknownTitle": {
+      "description": "Fallback for missing title"
+    },
+    "unknownAuthor": "Unknown Author",
+    "@unknownAuthor": {
+      "description": "Fallback for missing author"
+    },
+    "unknownSize": "Unknown Size",
+    "@unknownSize": {
+      "description": "Fallback for missing size"
+    }
+  }
+}
