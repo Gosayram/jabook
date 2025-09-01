@@ -44,18 +44,3 @@ build-apk:
 	@echo "$(GREEN)APK собран: $(PROJECT_DIR)/build/app/outputs/flutter-apk/app-release.apk$(NC)"
 	mkdir -p .bin
 	mv $(PROJECT_DIR)/build/app/outputs/flutter-apk/app-release.apk .bin/jabook.apk
-
-# check-keys:
-# 	@if [ -d "$(PROJECT_DIR)" ]; then \
-# 		echo "$(GREEN)Проверка ключей подписи для $(PROJECT_DIR)...$(NC)"; \
-# 		if [ -f "$(KEYSTORE_PATH)" ]; then \
-# 			echo "$(GREEN)Проверка ключа: $(KEYSTORE_PATH)$(NC)"; \
-# 			keytool -list -v -keystore "$(KEYSTORE_PATH)" -alias "$(KEYSTORE_ALIAS)" | head -20; \
-# 			echo "$(GREEN)Проверка ключей завершена$(NC)"; \
-# 		else \
-# 			echo "$(RED)Ошибка: Ключ $(KEYSTORE_PATH) не найден$(NC)"; \
-# 			exit 1; \
-# 		fi; \
-# 	else \
-# 		echo "$(YELLOW)Предупреждение: Папка $(PROJECT_DIR) не найдена. Сначала создайте проект: make create-android$(NC)"; \
-# 	fi
