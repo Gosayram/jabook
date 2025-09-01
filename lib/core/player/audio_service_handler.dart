@@ -30,7 +30,7 @@ class AudioServiceHandler {
       await AudioService.init(
         builder: () => AudioPlayerHandler(_audioPlayer),
         config: const AudioServiceConfig(
-          androidNotificationChannelId: 'com.example.jabook.audio',
+          androidNotificationChannelId: 'com.jabook.app',
           androidNotificationChannelName: 'JaBook Audio',
           androidNotificationChannelDescription: 'JaBook Audiobook Player',
           androidNotificationOngoing: true,
