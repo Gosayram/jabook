@@ -64,19 +64,32 @@ flutter:
           weight: 700
 
 flutter_launcher_icons:
-  android: "ic_launcher"
+  # Common properties
+  image_path: assets/icons/app_icon.png
+
+  # Enable/disable platforms
+  android: true
   ios: true
-  image_path: "assets/icons/app_icon.png"
-  min_sdk_android: 24
   web:
     generate: true
-    image_path: "assets/icons/app_icon.png"
-  windows:
-    generate: true
-    image_path: "assets/icons/app_icon.png"
+    image_path: assets/icons/app_icon.png
+    # favicon, pwa icons are generated automatically
   macos:
     generate: true
-    image_path: "assets/icons/app_icon.png"
+    image_path: assets/icons/app_icon.png
+  windows:
+    generate: true
+    image_path: assets/icons/app_icon.png
+  linux:
+    generate: true
+    image_path: assets/icons/app_icon.png
+
+  # Android adaptive launcher icon (recommended)
+  adaptive_icon_background: assets/icons/app_icon_adaptive_bg.png
+  adaptive_icon_foreground: assets/icons/app_icon_adaptive_fg.png
+
+  # iOS options
+  remove_alpha_ios: true  # important: iOS does not like alpha in icons
 
 flutter_native_splash:
   color: "#1E1B4B"
