@@ -231,3 +231,4 @@ firebase_app_id_file.json
 
 # ENV files
 .env
+.bin/

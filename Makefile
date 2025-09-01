@@ -2,14 +2,11 @@
 
 .PHONY: help analyze create-android check-keys
 
-APP_NAME = jabook_android
+APP_NAME = jabook
 ORG_NAME = com.jabook.app
 PLATFORMS = android
 ANDROID_LANG = kotlin
 PROJECT_DIR = $(APP_NAME)
-
-KEYSTORE_PATH = ~/my-release-key.jks
-KEYSTORE_ALIAS = my-key-alias
 
 GREEN = \033[0;32m
 YELLOW = \033[1;33m
@@ -41,17 +38,24 @@ create-android:
 	flutter create $(PROJECT_DIR) --org $(ORG_NAME) --platforms=$(PLATFORMS) -a $(ANDROID_LANG)
 	@echo "$(GREEN)Android проект создан: $(PROJECT_DIR)$(NC)"
 
-check-keys:
-	@if [ -d "$(PROJECT_DIR)" ]; then \
-		echo "$(GREEN)Проверка ключей подписи для $(PROJECT_DIR)...$(NC)"; \
-		if [ -f "$(KEYSTORE_PATH)" ]; then \
-			echo "$(GREEN)Проверка ключа: $(KEYSTORE_PATH)$(NC)"; \
-			keytool -list -v -keystore "$(KEYSTORE_PATH)" -alias "$(KEYSTORE_ALIAS)" | head -20; \
-			echo "$(GREEN)Проверка ключей завершена$(NC)"; \
-		else \
-			echo "$(RED)Ошибка: Ключ $(KEYSTORE_PATH) не найден$(NC)"; \
-			exit 1; \
-		fi; \
-	else \
-		echo "$(YELLOW)Предупреждение: Папка $(PROJECT_DIR) не найдена. Сначала создайте проект: make create-android$(NC)"; \
-	fi
+build-apk:
+	@echo "$(GREEN)Сборка APK для $(APP_NAME)...$(NC)"
+	cd $(PROJECT_DIR) && flutter pub get && flutter build apk --release
+	@echo "$(GREEN)APK собран: $(PROJECT_DIR)/build/app/outputs/flutter-apk/app-release.apk$(NC)"
+	mkdir -p .bin
+	mv $(PROJECT_DIR)/build/app/outputs/flutter-apk/app-release.apk .bin/jabook.apk
+
+# check-keys:
+# 	@if [ -d "$(PROJECT_DIR)" ]; then \
+# 		echo "$(GREEN)Проверка ключей подписи для $(PROJECT_DIR)...$(NC)"; \
+# 		if [ -f "$(KEYSTORE_PATH)" ]; then \
+# 			echo "$(GREEN)Проверка ключа: $(KEYSTORE_PATH)$(NC)"; \
+# 			keytool -list -v -keystore "$(KEYSTORE_PATH)" -alias "$(KEYSTORE_ALIAS)" | head -20; \
+# 			echo "$(GREEN)Проверка ключей завершена$(NC)"; \
+# 		else \
+# 			echo "$(RED)Ошибка: Ключ $(KEYSTORE_PATH) не найден$(NC)"; \
+# 			exit 1; \
+# 		fi; \
+# 	else \
+# 		echo "$(YELLOW)Предупреждение: Папка $(PROJECT_DIR) не найдена. Сначала создайте проект: make create-android$(NC)"; \
+# 	fi
