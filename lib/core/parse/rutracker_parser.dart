@@ -4,8 +4,16 @@ import 'package:html/parser.dart' as parser;
 import 'package:jabook/core/errors/failures.dart';
 import 'package:windows1251/windows1251.dart';
 
+/// Represents an audiobook with metadata from RuTracker.
+///
+/// This class contains all the information needed to display and
+/// manage an audiobook, including basic metadata, torrent information,
+/// and chapter details.
 class Audiobook {
 
+  /// Creates a new Audiobook instance.
+  ///
+  /// All parameters are required to ensure complete audiobook information.
   Audiobook({
     required this.id,
     required this.title,
@@ -19,21 +27,50 @@ class Audiobook {
     required this.chapters,
     required this.addedDate,
   });
+  
+  /// Unique identifier for the audiobook.
   final String id;
+  
+  /// Title of the audiobook.
   final String title;
+  
+  /// Author or narrator of the audiobook.
   final String author;
+  
+  /// Category the audiobook belongs to.
   final String category;
+  
+  /// File size of the audiobook.
   final String size;
+  
+  /// Number of seeders for the torrent.
   final int seeders;
+  
+  /// Number of leechers for the torrent.
   final int leechers;
+  
+  /// Magnet URL for downloading the audiobook.
   final String magnetUrl;
+  
+  /// URL of the cover image, if available.
   final String? coverUrl;
+  
+  /// List of chapters in the audiobook.
   final List<Chapter> chapters;
+  
+  /// Date when the audiobook was added to RuTracker.
   final DateTime addedDate;
 }
 
+/// Represents a chapter within an audiobook.
+///
+/// This class contains information about a specific chapter,
+/// including its title, duration, and byte range for streaming.
 class Chapter {
 
+  /// Creates a new Chapter instance.
+  ///
+  /// All parameters are required to define a complete chapter.
   Chapter({
     required this.title,
     required this.durationMs,
@@ -41,21 +78,46 @@ class Chapter {
     required this.startByte,
     required this.endByte,
   });
+  
+  /// Title of the chapter.
   final String title;
+  
+  /// Duration of the chapter in milliseconds.
   final int durationMs;
+  
+  /// Index of the file containing this chapter.
   final int fileIndex;
+  
+  /// Starting byte position of the chapter in the file.
   final int startByte;
+  
+  /// Ending byte position of the chapter in the file.
   final int endByte;
 }
 
+/// Parser for extracting audiobook information from RuTracker HTML.
+///
+/// This class provides methods to parse search results and topic details
+/// from RuTracker forum pages, handling both UTF-8 and Windows-1251 encoding.
 class RuTrackerParser {
+  /// Parses search results from RuTracker search page HTML.
+  ///
+  /// This method takes HTML content from a search results page and extracts
+  /// audiobook information including titles, authors, magnet links, etc.
+  /// It automatically handles character encoding (UTF-8 or Windows-1251).
+  ///
+  /// The [html] parameter contains the HTML content of the search results page.
+  ///
+  /// Returns a list of [Audiobook] objects found in the search results.
+  ///
+  /// Throws [ParsingFailure] if the HTML cannot be parsed.
   Future<List<Audiobook>> parseSearchResults(String html) async {
     try {
       // Try UTF-8 first, fallback to cp1251
       String decodedHtml;
       try {
         decodedHtml = utf8.decode(html.codeUnits);
-      } on FormatException {
+      } on FormatException catch (e) {
         decodedHtml = windows1251.decode(html.codeUnits);
       }
 
@@ -94,18 +156,30 @@ class RuTrackerParser {
       }
 
       return results;
-    } catch (e) {
-      throw ParsingFailure('Failed to parse search results: ${e.toString()}');
+    } on Exception {
+      throw ParsingFailure('Failed to parse search results');
     }
   }
 
+  /// Parses detailed information from a RuTracker topic page.
+  ///
+  /// This method takes HTML content from a topic page and extracts
+  /// comprehensive audiobook information including chapters, cover art,
+  /// and detailed metadata. It automatically handles character encoding.
+  ///
+  /// The [html] parameter contains the HTML content of the topic page.
+  ///
+  /// Returns an [Audiobook] object with detailed information, or `null`
+  /// if the page cannot be parsed or doesn't contain valid audiobook data.
+  ///
+  /// Throws [ParsingFailure] if the HTML cannot be parsed.
   Future<Audiobook?> parseTopicDetails(String html) async {
     try {
       // Try UTF-8 first, fallback to cp1251
       String decodedHtml;
       try {
         decodedHtml = utf8.decode(html.codeUnits);
-      } on FormatException {
+      } on FormatException catch (e) {
         decodedHtml = windows1251.decode(html.codeUnits);
       }
 
@@ -136,8 +210,8 @@ class RuTrackerParser {
           final durationParts = duration.split(':');
           var durationMs = 0;
           if (durationParts.length == 3) {
-            durationMs = (int.parse(durationParts[0]) * 3600 + 
-                         int.parse(durationParts[1]) * 60 + 
+            durationMs = (int.parse(durationParts[0]) * 3600 +
+                         int.parse(durationParts[1]) * 60 +
                          int.parse(durationParts[2])) * 1000;
           }
 
@@ -164,9 +238,21 @@ class RuTrackerParser {
         chapters: chapters,
         addedDate: DateTime.now(),
       );
-    } catch (e) {
-      throw ParsingFailure('Failed to parse topic details: ${e.toString()}');
+    } on Exception {
+      throw ParsingFailure('Failed to parse topic details');
     }
   }
+}
 
+/// A failure that occurs during parsing operations.
+///
+/// This exception is thrown when parsing operations fail,
+/// such as when parsing HTML content from RuTracker pages.
+class ParsingFailure extends Failure {
+  /// Creates a new ParsingFailure instance.
+  ///
+  /// The [message] parameter describes the parsing-related failure.
+  /// The optional [exception] parameter contains the original exception
+  /// that caused this failure, if any.
+  const ParsingFailure(super.message, [super.exception]);
 }

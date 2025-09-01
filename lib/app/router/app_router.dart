@@ -10,6 +10,10 @@ import 'package:jabook/features/search/presentation/screens/search_screen.dart';
 import 'package:jabook/features/settings/presentation/screens/settings_screen.dart';
 import 'package:jabook/features/topic/presentation/screens/topic_screen.dart';
 
+/// Provides the main application router configuration.
+///
+/// This provider sets up the navigation structure for the app using GoRouter,
+/// defining all available routes and their corresponding builders.
 final appRouterProvider = Provider<GoRouter>((ref) => GoRouter(
   routes: [
     GoRoute(

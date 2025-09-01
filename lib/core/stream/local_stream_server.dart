@@ -6,14 +6,32 @@ import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart';
 import 'package:shelf_static/shelf_static.dart';
 
+/// Local HTTP server for streaming audiobook files.
+///
+/// This class provides a local web server that can stream audiobook files
+/// to media players, supporting range requests for progressive playback.
 class LocalStreamServer {
+  /// HTTP server instance.
   HttpServer? _server;
+  
+  /// Host address for the server (localhost only).
   final String _host = '127.0.0.1';
+  
+  /// Port number for the server.
   final int _port = 17171;
+  
+  /// Flag indicating whether the server is currently running.
   bool _isRunning = false;
 
+  /// Gets whether the server is currently running.
   bool get isRunning => _isRunning;
 
+  /// Starts the local stream server.
+  ///
+  /// This method initializes and starts the HTTP server on the configured
+  /// host and port. The server will handle streaming requests and static file serving.
+  ///
+  /// Throws [StreamFailure] if the server cannot be started.
   Future<void> start() async {
     if (_isRunning) return;
 
@@ -29,11 +47,16 @@ class LocalStreamServer {
 
       // ignore: avoid_print
       print('Local stream server started on http://$_host:$_port');
-    } catch (e) {
+    } on Exception catch (e) {
       throw StreamFailure('Failed to start stream server: ${e.toString()}');
     }
   }
 
+  /// Stops the local stream server.
+  ///
+  /// This method gracefully shuts down the HTTP server and cleans up resources.
+  ///
+  /// Throws [StreamFailure] if the server cannot be stopped.
   Future<void> stop() async {
     if (!_isRunning || _server == null) return;
 
@@ -43,11 +66,17 @@ class LocalStreamServer {
       _isRunning = false;
       // ignore: avoid_print
       print('Local stream server stopped');
-    } catch (e) {
+    } on Exception catch (e) {
       throw StreamFailure('Failed to stop stream server: ${e.toString()}');
     }
   }
 
+  /// Creates the request handler for the server.
+  ///
+  /// This method returns a handler function that routes incoming requests
+  /// to the appropriate handler based on the URL path.
+  ///
+  /// Returns a [Handler] function for processing HTTP requests.
   Handler _createHandler() => (request) async {
     final uri = request.url;
     
@@ -60,6 +89,15 @@ class LocalStreamServer {
     return _handleStaticRequest(request);
   };
 
+  /// Handles streaming requests for audiobook files.
+  ///
+  /// This method processes requests to the `/stream` endpoint, validates
+  /// required parameters, and serves the requested audiobook file.
+  /// It supports range requests for progressive playback.
+  ///
+  /// The [request] parameter contains the HTTP request details.
+  ///
+  /// Returns an appropriate [Response] based on the request outcome.
   Future<Response> _handleStreamRequest(Request request) async {
     try {
       final queryParams = request.url.queryParameters;
@@ -104,6 +142,15 @@ class LocalStreamServer {
     }
   }
 
+  /// Handles HTTP range requests for partial content.
+  ///
+  /// This method processes Range headers to serve partial file content,
+  /// enabling progressive playback and seeking in large audio files.
+  ///
+  /// The [filePath] parameter is the path to the requested file.
+  /// The [rangeHeader] parameter contains the Range header value.
+  ///
+  /// Returns a [Response] with the partial content or appropriate error.
   Future<Response> _handleRangeRequest(String filePath, String rangeHeader) async {
     try {
       final file = File(filePath);
@@ -141,6 +188,14 @@ class LocalStreamServer {
     }
   }
 
+  /// Handles static file requests.
+  ///
+  /// This method serves static files from the assets directory and
+  /// provides placeholder responses for API endpoints.
+  ///
+  /// The [request] parameter contains the HTTP request details.
+  ///
+  /// Returns an appropriate [Response] for static files or API endpoints.
   Future<Response> _handleStaticRequest(Request request) async {
     try {
       // Use shelf_static to serve static files
@@ -164,15 +219,41 @@ class LocalStreamServer {
     }
   }
 
-  String _getFilePath(String bookId, int fileIndex) {
+  /// Gets the file path for the specified audiobook file.
+  ///
+  /// This method should be implemented to resolve the actual file path
+  /// based on the book ID and file index. Currently returns a placeholder.
+  ///
+  /// The [bookId] parameter is the unique identifier for the audiobook.
+  /// The [fileIndex] parameter is the index of the file within the audiobook.
+  ///
+  /// Returns the file path as a string.
+  String _getFilePath(String bookId, int fileIndex) =>
     // TODO: Implement actual file path resolution based on book ID and file index
     // This is a placeholder implementation
-    return '/path/to/downloads/$bookId/file_$fileIndex.mp3';
-  }
+    '/path/to/downloads/$bookId/file_$fileIndex.mp3';
 
+  /// Gets the streaming URL for the specified audiobook file.
+  ///
+  /// This method constructs the full URL for streaming a specific file
+  /// from the local server.
+  ///
+  /// The [bookId] parameter is the unique identifier for the audiobook.
+  /// The [fileIndex] parameter is the index of the file within the audiobook.
+  ///
+  /// Returns the streaming URL as a string.
   String getStreamUrl(String bookId, int fileIndex) => 'http://$_host:$_port/stream?id=$bookId&file=$fileIndex';
 }
 
+/// Represents a failure related to streaming operations.
+///
+/// This exception is thrown when errors occur during streaming
+/// server operations, such as starting or stopping the server.
 class StreamFailure extends Failure {
+  /// Creates a new StreamFailure instance.
+  ///
+  /// The [message] parameter describes the streaming-related failure.
+  /// The optional [exception] parameter contains the original exception
+  /// that caused this failure, if any.
   const StreamFailure(super.message, [super.exception]);
 }

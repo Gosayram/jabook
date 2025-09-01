@@ -2,7 +2,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+/// Main screen for displaying the user's audiobook library.
+///
+/// This screen shows the user's collection of downloaded and favorited
+/// audiobooks, with options to search, filter, and add new books.
 class LibraryScreen extends ConsumerWidget {
+  /// Creates a new LibraryScreen instance.
+  ///
+  /// The [key] parameter is optional and can be used to identify
+  /// this widget in the widget tree.
   const LibraryScreen({super.key});
 
   @override
@@ -34,7 +42,12 @@ class LibraryScreen extends ConsumerWidget {
     );
 }
 
+/// Private widget for displaying the main library content.
+///
+/// This widget contains the actual content of the library screen,
+/// including the list of audiobooks and any filtering/sorting options.
 class _LibraryContent extends ConsumerWidget {
+  /// Creates a new _LibraryContent instance.
   const _LibraryContent();
 
   @override
