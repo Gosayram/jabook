@@ -1,8 +1,10 @@
 // Root Gradle build script used only for utility tasks in a Flutter project.
 // Tasks are configuration-cache friendly.
 
-import org.gradle.api.tasks.Exec
+import org.gradle.api.DefaultTask
 import org.gradle.api.tasks.Delete
+import org.gradle.api.tasks.Exec
+import org.gradle.api.tasks.Copy
 
 val verificationGroup = "verification"
 val buildGroup = "build"
@@ -39,6 +41,56 @@ tasks.register("clean") {
     dependsOn("cleanAll")
 }
 
+// --- Bootstrap: generate android/ via `flutter create jabook_android ...` and move it ---
+
+// 1) Run flutter create jabook_android --org com.jabook.app --platforms=android -a kotlin
+val flutterCreateAndroid by tasks.registering(Exec::class) {
+    description = "Create temporary Flutter project in jabook_android with Android platform"
+    group = flutterGroup
+    // Only if android/ is missing
+    onlyIf {
+        val androidDir = file("android")
+        !androidDir.exists()
+    }
+    commandLine(
+        "flutter", "create",
+        "jabook_android",
+        "--org", "com.jabook.app",
+        "--platforms=android",
+        "-a", "kotlin"
+    )
+}
+
+// 2) Copy jabook_android/android -> android
+val moveCreatedAndroid by tasks.registering(Copy::class) {
+    description = "Move generated Android folder into project root"
+    group = flutterGroup
+    dependsOn(flutterCreateAndroid)
+    onlyIf {
+        val src = file("jabook_android/android")
+        val dst = file("android")
+        src.exists() && !dst.exists()
+    }
+    from("jabook_android/android")
+    into("android")
+}
+
+// 3) Cleanup jabook_android temp dir
+val cleanupTempAndroid by tasks.registering(Delete::class) {
+    description = "Cleanup temporary jabook_android"
+    group = flutterGroup
+    dependsOn(moveCreatedAndroid)
+    onlyIf { file("jabook_android").exists() }
+    delete("jabook_android")
+}
+
+// 4) Aggregate bootstrap task
+val ensureAndroid by tasks.registering(DefaultTask::class) {
+    description = "Ensure android/ exists by creating it via flutter and moving it from jabook_android"
+    group = flutterGroup
+    dependsOn(flutterCreateAndroid, moveCreatedAndroid, cleanupTempAndroid)
+}
+
 // --- Flutter tasks (Exec) ---
 
 tasks.register<Exec>("flutterAnalyze") {
@@ -50,12 +102,14 @@ tasks.register<Exec>("flutterAnalyze") {
 tasks.register<Exec>("flutterBuildApk") {
     description = "Build a debug APK via Flutter"
     group = buildGroup
+    dependsOn(ensureAndroid)
     commandLine("flutter", "build", "apk", "--debug")
 }
 
 tasks.register<Exec>("flutterBuildAppbundle") {
     description = "Build a release AAB via Flutter"
     group = buildGroup
+    dependsOn(ensureAndroid)
     commandLine("flutter", "build", "appbundle", "--release")
 }
 
@@ -66,9 +120,8 @@ tasks.register<Exec>("flutterBuildAppbundle") {
 tasks.register<Exec>("flutterBuildApkReleaseSigned") {
     description = "Build a signed release APK via Flutter"
     group = buildGroup
+    dependsOn(ensureAndroid)
 
-    // Optional safety: fail early if signing files are missing.
-    // (This does not break configuration cache.)
     val ksProps = file("keystore.properties")
     val ksFile = file("keystore/jabook-release.jks")
     inputs.files(ksProps, ksFile)
@@ -93,6 +146,7 @@ fun gradlewName(): String =
 tasks.register<Exec>("androidAssembleDebug") {
     description = "Assemble Android debug via android/gradle"
     group = buildGroup
+    dependsOn(ensureAndroid)
     workingDir = file("android")
     commandLine(gradlewName(), "assembleDebug")
 }
@@ -100,6 +154,7 @@ tasks.register<Exec>("androidAssembleDebug") {
 tasks.register<Exec>("androidAssembleRelease") {
     description = "Assemble Android release via android/gradle (signed if configured)"
     group = buildGroup
+    dependsOn(ensureAndroid)
     workingDir = file("android")
     commandLine(gradlewName(), "assembleRelease")
 }
@@ -107,6 +162,7 @@ tasks.register<Exec>("androidAssembleRelease") {
 tasks.register<Exec>("androidTest") {
     description = "Run Android unit tests via android/gradle"
     group = verificationGroup
+    dependsOn(ensureAndroid)
     workingDir = file("android")
     commandLine(gradlewName(), "testDebugUnitTest")
 }
