@@ -1,9 +1,9 @@
 /// Base failure class for all domain errors
 abstract class Failure {
-  final String message;
-  final Exception? exception;
 
   const Failure(this.message, [this.exception]);
+  final String message;
+  final Exception? exception;
 
   @override
   bool operator ==(Object other) {

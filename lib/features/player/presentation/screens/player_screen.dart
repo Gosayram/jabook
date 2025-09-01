@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 
 class PlayerScreen extends StatelessWidget {
-  final String bookId;
 
   const PlayerScreen({super.key, required this.bookId});
+  final String bookId;
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
+  Widget build(BuildContext context) => Scaffold(
       appBar: AppBar(
         title: Text('Player: $bookId'),
       ),
@@ -15,5 +14,4 @@ class PlayerScreen extends StatelessWidget {
         child: Text('Player Screen'),
       ),
     );
-  }
 }

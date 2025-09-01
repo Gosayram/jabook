@@ -12,7 +12,6 @@ class JaBookApp extends ConsumerWidget {
     title: 'JaBook',
     theme: AppTheme.lightTheme,
     darkTheme: AppTheme.darkTheme,
-    themeMode: ThemeMode.system,
     routerConfig: ref.watch(appRouterProvider),
   );
 }

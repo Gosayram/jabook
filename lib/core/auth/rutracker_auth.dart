@@ -1,19 +1,18 @@
 import 'package:cookie_jar/cookie_jar.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:jabook/core/errors/failures.dart';
+import 'package:jabook/core/net/dio_client.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
-import '../errors/failures.dart';
-import '../net/dio_client.dart';
-
 class RuTrackerAuth {
-  final WebViewCookieManager _cookieManager = WebViewCookieManager();
-  final CookieJar _cookieJar = CookieJar();
-  final BuildContext _context;
 
   RuTrackerAuth._(this._context);
 
   factory RuTrackerAuth(BuildContext context) => RuTrackerAuth._(context);
+  final WebViewCookieManager _cookieManager = WebViewCookieManager();
+  final CookieJar _cookieJar = CookieJar();
+  final BuildContext _context;
 
   Future<bool> login(String username, String password) async {
     try {
@@ -69,7 +68,7 @@ class RuTrackerAuth {
       // Reset authentication state
       // TODO: Add any additional logout logic
     } on Exception {
-      throw AuthFailure('Logout failed');
+      throw const AuthFailure('Logout failed');
     }
   }
 

@@ -1,10 +1,17 @@
 import 'dart:convert';
 import 'dart:io';
+
+import 'package:jabook/core/errors/failures.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
-import '../errors/failures.dart';
 
 class StructuredLogger {
+
+  StructuredLogger({
+    String? logDirectory,
+    String? logFileName,
+  }) : _logDirectory = logDirectory ?? 'logs',
+       _logFileName = logFileName ?? 'jabook.ndjson';
   static const int _maxLogSize = 10 * 1024 * 1024; // 10MB
   static const int _maxLogFiles = 5;
   static const int _maxLogAgeDays = 7;
@@ -12,12 +19,6 @@ class StructuredLogger {
   File? _logFile;
   final String _logDirectory;
   final String _logFileName;
-
-  StructuredLogger({
-    String? logDirectory,
-    String? logFileName,
-  }) : _logDirectory = logDirectory ?? 'logs',
-       _logFileName = logFileName ?? 'jabook.ndjson';
 
   Future<void> initialize() async {
     try {
@@ -112,7 +113,7 @@ class StructuredLogger {
         allFiles.sort((a, b) => b.path.compareTo(a.path));
       }
 
-      for (int i = _maxLogFiles; i < allFiles.length; i++) {
+      for (var i = _maxLogFiles; i < allFiles.length; i++) {
         await allFiles[i].delete();
       }
 
@@ -133,7 +134,7 @@ class StructuredLogger {
 
     try {
       final logDir = _logFile!.parent;
-      final cutoffDate = DateTime.now().subtract(Duration(days: _maxLogAgeDays));
+      final cutoffDate = DateTime.now().subtract(const Duration(days: _maxLogAgeDays));
       
       final logFiles = logDir.listSync()
         ..whereType<File>()
@@ -235,6 +236,5 @@ class StructuredLogger {
 }
 
 class LoggingFailure extends Failure {
-  const LoggingFailure(String message, [Exception? exception])
-      : super(message, exception);
+  const LoggingFailure(super.message, [super.exception]);
 }

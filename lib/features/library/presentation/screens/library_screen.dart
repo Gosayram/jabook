@@ -6,8 +6,7 @@ class LibraryScreen extends ConsumerWidget {
   const LibraryScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return Scaffold(
+  Widget build(BuildContext context, WidgetRef ref) => Scaffold(
       appBar: AppBar(
         title: const Text('My Library'),
         actions: [
@@ -33,16 +32,13 @@ class LibraryScreen extends ConsumerWidget {
         child: const Icon(Icons.add),
       ),
     );
-  }
 }
 
 class _LibraryContent extends ConsumerWidget {
   const _LibraryContent();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return const Center(
+  Widget build(BuildContext context, WidgetRef ref) => const Center(
       child: Text('Library content will be displayed here'),
     );
-  }
 }

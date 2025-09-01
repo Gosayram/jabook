@@ -1,16 +1,15 @@
 import 'package:dio/dio.dart';
+import 'package:jabook/core/errors/failures.dart';
+import 'package:jabook/core/net/dio_client.dart';
 import 'package:sembast/sembast.dart';
 
-import '../errors/failures.dart';
-import '../net/dio_client.dart';
-
 class EndpointManager {
-  final Database _db;
-  final StoreRef<String, Map<String, dynamic>> _store = StoreRef.main();
 
   EndpointManager._(this._db);
 
   factory EndpointManager(Database db) => EndpointManager._(db);
+  final Database _db;
+  final StoreRef<String, Map<String, dynamic>> _store = StoreRef.main();
 
   // Database structure: { url, priority, rtt, last_ok, signature_ok, enabled }
   static const String _storeKey = 'endpoints';

@@ -1,21 +1,10 @@
 import 'dart:convert';
+
 import 'package:html/parser.dart' as parser;
+import 'package:jabook/core/errors/failures.dart';
 import 'package:windows1251/windows1251.dart';
 
-import '../errors/failures.dart';
-
 class Audiobook {
-  final String id;
-  final String title;
-  final String author;
-  final String category;
-  final String size;
-  final int seeders;
-  final int leechers;
-  final String magnetUrl;
-  final String? coverUrl;
-  final List<Chapter> chapters;
-  final DateTime addedDate;
 
   Audiobook({
     required this.id,
@@ -30,14 +19,20 @@ class Audiobook {
     required this.chapters,
     required this.addedDate,
   });
+  final String id;
+  final String title;
+  final String author;
+  final String category;
+  final String size;
+  final int seeders;
+  final int leechers;
+  final String magnetUrl;
+  final String? coverUrl;
+  final List<Chapter> chapters;
+  final DateTime addedDate;
 }
 
 class Chapter {
-  final String title;
-  final int durationMs;
-  final int fileIndex;
-  final int startByte;
-  final int endByte;
 
   Chapter({
     required this.title,
@@ -46,6 +41,11 @@ class Chapter {
     required this.startByte,
     required this.endByte,
   });
+  final String title;
+  final int durationMs;
+  final int fileIndex;
+  final int startByte;
+  final int endByte;
 }
 
 class RuTrackerParser {
@@ -86,7 +86,6 @@ class RuTrackerParser {
             seeders: int.tryParse(seedersElement?.text.trim() ?? '0') ?? 0,
             leechers: int.tryParse(leechersElement?.text.trim() ?? '0') ?? 0,
             magnetUrl: magnetElement.attributes['href'] ?? '',
-            coverUrl: null,
             chapters: [],
             addedDate: DateTime.now(),
           );

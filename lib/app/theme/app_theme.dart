@@ -10,17 +10,14 @@ class AppTheme {
   static ThemeData get lightTheme => _buildLightTheme();
   static ThemeData get darkTheme => _buildDarkTheme();
 
-  static ThemeData _buildLightTheme() {
-    return ThemeData(
+  static ThemeData _buildLightTheme() => ThemeData(
       useMaterial3: true,
-      colorScheme: ColorScheme.light(
+      colorScheme: const ColorScheme.light(
         primary: _primaryColor,
         secondary: _accentColor,
         surface: _surfaceColor,
         onSurface: _onSurfaceColor,
         error: Colors.red,
-        onError: Colors.white,
-        brightness: Brightness.light,
       ),
       appBarTheme: const AppBarTheme(
         backgroundColor: _primaryColor,
@@ -47,19 +44,16 @@ class AppTheme {
         ),
       ),
     );
-  }
 
-  static ThemeData _buildDarkTheme() {
-    return ThemeData(
+  static ThemeData _buildDarkTheme() => ThemeData(
       useMaterial3: true,
-      colorScheme: ColorScheme.dark(
+      colorScheme: const ColorScheme.dark(
         primary: _primaryColor,
         secondary: _accentColor,
         surface: _surfaceColor,
         onSurface: _onSurfaceColor,
         error: Colors.red,
         onError: Colors.white,
-        brightness: Brightness.dark,
       ),
       appBarTheme: const AppBarTheme(
         backgroundColor: _backgroundColor,
@@ -86,5 +80,4 @@ class AppTheme {
         ),
       ),
     );
-  }
 }

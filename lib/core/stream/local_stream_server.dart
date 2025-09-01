@@ -1,10 +1,10 @@
 import 'dart:async';
 import 'dart:io';
+
+import 'package:jabook/core/errors/failures.dart';
 import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart';
 import 'package:shelf_static/shelf_static.dart';
-
-import '../errors/failures.dart';
 
 class LocalStreamServer {
   HttpServer? _server;
@@ -19,7 +19,7 @@ class LocalStreamServer {
 
     try {
       // Create a shelf handler
-      final handler = Pipeline()
+      final handler = const Pipeline()
           .addMiddleware(logRequests())
           .addHandler(_createHandler());
 
@@ -48,7 +48,7 @@ class LocalStreamServer {
     }
   }
 
-  Handler _createHandler() => (Request request) async {
+  Handler _createHandler() => (request) async {
     final uri = request.url;
     
     // Handle streaming requests

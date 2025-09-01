@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 
 class TopicScreen extends StatelessWidget {
-  final String topicId;
 
   const TopicScreen({super.key, required this.topicId});
+  final String topicId;
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
+  Widget build(BuildContext context) => Scaffold(
       appBar: AppBar(
         title: Text('Topic: $topicId'),
       ),
@@ -15,5 +14,4 @@ class TopicScreen extends StatelessWidget {
         child: Text('Topic Screen'),
       ),
     );
-  }
 }
