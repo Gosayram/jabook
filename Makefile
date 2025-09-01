@@ -6,6 +6,7 @@ PROJECT_NAME = jabook
 FLAVORS = dev stage prod
 ANDROID_BUILD_VARIANTS = $(addsuffix $(FLAVOR), $(FLAVORS))
 IOS_BUILD_VARIANTS = $(addprefix $(PROJECT_NAME)-, $(FLAVORS))
+SIGNING_SCRIPT = scripts/signing.sh
 
 # Default target
 .PHONY: help
@@ -22,6 +23,7 @@ help:
 	@echo "  make setup-android    - Setup Android project configuration"
 	@echo "  make setup-ios        - Setup iOS project configuration"
 	@echo "  make setup           - Setup both Android and iOS projects"
+	@echo "  make sign-android    - Generate signing keys and setup Android signing"
 	@echo ""
 	@echo "Build Commands:"
 	@echo "  make build-android-dev    - Build Android dev variant"
@@ -30,6 +32,7 @@ help:
 	@echo "  make build-ios-dev        - Build iOS dev variant"
 	@echo "  make build-ios-stage      - Build iOS stage variant"
 	@echo "  make build-ios-prod       - Build iOS production variant"
+	@echo "  make build-android-signed-apk - Build signed universal APK for all architectures"
 	@echo ""
 	@echo "Testing Commands:"
 	@echo "  make test               - Run all tests"
@@ -43,7 +46,7 @@ help:
 	@echo "  make lint               - Run linting"
 	@echo ""
 	@echo "Release Commands:"
-	@echo "  make release-android    - Build all Android release variants"
+	@echo "  make release-android    - Build all signed Android release variants"
 	@echo "  make release-ios       - Build all iOS release variants"
 	@echo "  make release           - Build all release variants"
 
@@ -65,34 +68,61 @@ clean:
 
 .PHONY: run-dev
 run-dev:
-	flutter run --flavor dev --target lib/main.dart
+	flutter run --target lib/main.dart
 
 .PHONY: run-stage
 run-stage:
-	flutter run --flavor stage --target lib/main.dart
+	flutter run --target lib/main.dart
 
 .PHONY: run-prod
 run-prod:
-	flutter run --flavor prod --target lib/main.dart
+	flutter run --target lib/main.dart
 
 # Android build commands
 .PHONY: build-android-dev
 build-android-dev:
-	flutter build apk --flavor dev --target lib/main.dart --debug
+	flutter build apk --target lib/main.dart --debug
 
 .PHONY: build-android-stage
 build-android-stage:
-	flutter build apk --flavor stage --target lib/main.dart --release
+	flutter build apk --target lib/main.dart --release
 
 .PHONY: build-android-prod
 build-android-prod:
-	flutter build apk --flavor prod --target lib/main.dart --release
-	@echo "Android production APK built at: build/app/outputs/flutter-apk/app-prod-release.apk"
+	flutter build apk --target lib/main.dart --release
+	@echo "Android production APK built at: build/app/outputs/flutter-apk/app-release.apk"
+
+.PHONY: sign-android
+sign-android:
+	@echo "Generating Android signing keys..."
+	@if [ -f "$(SIGNING_SCRIPT)" ]; then \
+		$(SIGNING_SCRIPT); \
+		echo "Android signing configured successfully"; \
+	else \
+		echo "Error: Signing script not found at $(SIGNING_SCRIPT)"; \
+		echo "Please create .key-generate.conf from .key-generate.example.conf"; \
+		exit 1; \
+	fi
 
 .PHONY: build-android-bundle
 build-android-bundle:
-	flutter build appbundle --flavor prod --target lib/main.dart --release
-	@echo "Android App Bundle built at: build/app/outputs/bundle/app-prod-release.aab"
+	@if [ ! -f "android/key.properties" ]; then \
+		echo "Warning: android/key.properties not found, building unsigned bundle"; \
+		flutter build appbundle --target lib/main.dart --release; \
+	else \
+		flutter build appbundle --target lib/main.dart --release; \
+		echo "Android App Bundle built at: build/app/outputs/bundle/release/app-release.aab"; \
+	fi
+
+.PHONY: build-android-signed
+build-android-signed: sign-android build-android-bundle
+	@echo "Signed Android App Bundle built successfully"
+
+.PHONY: build-android-signed-apk
+build-android-signed-apk: sign-android
+	@echo "Building signed universal APK..."
+	flutter build apk --target lib/main.dart --release
+	@echo "Signed universal APK built at: build/app/outputs/apk/release/app-release.apk"
 
 # iOS build commands
 .PHONY: build-ios-dev
@@ -148,8 +178,8 @@ release-android:
 	make build-android-stage
 	@echo "Building production variant..."
 	make build-android-prod
-	@echo "Building Android App Bundle..."
-	make build-android-bundle
+	@echo "Building signed Android App Bundle..."
+	make build-android-signed
 	@echo "Android release builds complete!"
 
 .PHONY: release-ios
@@ -236,7 +266,7 @@ setup: setup-android setup-ios
 # Platform-specific builds
 .PHONY: build-android
 build-android:
-	make build-android-prod
+	make build-android-signed
 
 .PHONY: build-ios
 build-ios:
@@ -248,7 +278,7 @@ dev: clean install run-dev
 
 # Production build
 .PHONY: build
-build: clean install release
+build: clean install sign-android release
 
 # Check code quality
 .PHONY: check
