@@ -494,3 +494,132 @@ JaBook represents a modern approach to audiobook management on Android, rebuilt 
 The Flutter implementation ensures cross-platform compatibility, modern UI capabilities, and maintainable codebase while preserving all the original features and adding new functionality like local HTTP streaming and structured logging.
 
 The project follows Flutter best practices and modern development patterns, ensuring maintainability, scalability, and user satisfaction across all supported Android versions.
+
+## Network Connectivity Issues Analysis - UPDATED
+
+### Current Problems Identified (Based on Log Analysis):
+1. **✅ HTTPS & CloudFlare Working**: Requests succeed with status 200, CloudFlare headers present
+2. **❌ Authentication Required**: Rutracker redirects to login page (`/forum/login.php?redirect=...`)
+3. **❌ Cookie Synchronization Missing**: No valid session cookies for authenticated requests
+4. **❌ Redirect Handling**: Requests to protected resources get redirected to login instead of failing gracefully
+
+### Root Cause:
+The application can connect to rutracker.me successfully (HTTPS + CloudFlare work fine), but requires proper authentication cookies to access protected resources. Without valid session cookies, rutracker redirects all requests to the login page.
+
+### Solutions to Implement:
+
+#### 1. Complete Cookie Synchronization (CRITICAL)
+```dart
+// Implement proper cookie sync between WebView and Dio
+Future<void> syncCookiesFromWebView() async {
+  try {
+    final webViewCookies = await WebViewCookieManager().getCookies();
+    final cookieJar = CookieJar();
+    
+    for (final cookie in webViewCookies) {
+      if (cookie.domain?.contains('rutracker') ?? false) {
+        await cookieJar.saveFromResponse(
+          Uri.parse('https://${cookie.domain}'),
+          [Cookie(cookie.name, cookie.value)
+            ..domain = cookie.domain
+            ..path = cookie.path
+            ..expires = cookie.expires
+            ..secure = cookie.isSecure
+            ..httpOnly = cookie.isHttpOnly],
+        );
+      }
+    }
+  } catch (e) {
+    print('Cookie sync failed: $e');
+  }
+}
+```
+
+#### 2. Authentication State Management
+```dart
+// Add authentication state checking
+Future<bool> checkAuthentication() async {
+  try {
+    final response = await (await DioClient.instance).get(
+      'https://rutracker.me/forum/profile.php',
+      options: Options(validateStatus: (status) => status != null && status < 500),
+    );
+    
+    // Check if we're redirected to login or see profile page
+    final isAuthenticated = !response.realUri.toString().contains('login.php') &&
+                           response.data.toString().contains('profile');
+    
+    return isAuthenticated;
+  } catch (e) {
+    return false;
+  }
+}
+```
+
+#### 3. Redirect Handling & Error Management
+```dart
+// Add interceptor to handle authentication redirects
+dio.interceptors.add(InterceptorsWrapper(
+  onResponse: (response, handler) {
+    if (response.realUri.toString().contains('login.php') &&
+        response.requestOptions.uri.toString().contains('tracker')) {
+      // This is an authentication redirect - handle appropriately
+      return handler.reject(DioException(
+        requestOptions: response.requestOptions,
+        error: 'Authentication required',
+        type: DioExceptionType.unknown,
+      ));
+    }
+    return handler.next(response);
+  },
+));
+```
+
+#### 4. User Feedback for Authentication Issues
+```dart
+// Show user-friendly messages when authentication is required
+void showAuthenticationPrompt(BuildContext context) {
+  showDialog(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: const Text('Authentication Required'),
+      content: const Text('Please login to RuTracker to access search functionality.'),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(ctx),
+          child: const Text('Cancel'),
+        ),
+        TextButton(
+          onPressed: () {
+            Navigator.pop(ctx);
+            // Navigate to login screen
+            context.push('/login');
+          },
+          child: const Text('Login'),
+        ),
+      ],
+    ),
+  );
+}
+```
+
+### Implementation Priority:
+1. **CRITICAL**: Implement proper cookie synchronization between WebView and Dio
+2. **HIGH**: Add authentication state checking before making protected requests
+3. **MEDIUM**: Handle authentication redirects gracefully with user feedback
+4. **LOW**: Add retry logic for temporary authentication issues
+
+### Testing Strategy:
+- Verify cookie synchronization after WebView login
+- Test authentication state detection
+- Check that protected requests fail gracefully when not authenticated
+- Ensure user gets appropriate prompts to login
+- Monitor authentication success rates
+
+### Status Update:
+- ✅ CloudFlare bypass headers working correctly
+- ✅ Updated User-Agent implemented
+- ✅ HTTPS connections successful
+- ❌ Cookie synchronization needed
+- ❌ Authentication state management required
+- ❌ User feedback for login prompts needed
