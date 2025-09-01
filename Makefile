@@ -19,6 +19,9 @@ help:
 	@echo "  make run-dev         - Run app in development mode"
 	@echo "  make run-stage       - Run app in stage mode"
 	@echo "  make run-prod        - Run app in production mode"
+	@echo "  make setup-android    - Setup Android project configuration"
+	@echo "  make setup-ios        - Setup iOS project configuration"
+	@echo "  make setup           - Setup both Android and iOS projects"
 	@echo ""
 	@echo "Build Commands:"
 	@echo "  make build-android-dev    - Build Android dev variant"
@@ -210,6 +213,23 @@ install-android:
 .PHONY: install-ios
 install-ios:
 	cd ios && pod install
+
+# Project setup commands
+.PHONY: setup-android
+setup-android:
+	@echo "Setting up Android project configuration..."
+	flutter create --android-project . --org com.jabook.app --platforms=android -a kotlin
+	@echo "Android project setup complete!"
+
+.PHONY: setup-ios
+setup-ios:
+	@echo "Setting up iOS project configuration..."
+	flutter create --ios-project . --org com.jabook.app --platforms=ios
+	@echo "iOS project setup complete!"
+
+.PHONY: setup
+setup: setup-android setup-ios
+	@echo "Project setup complete for both platforms!"
 
 # Platform-specific builds
 .PHONY: build-android
