@@ -326,10 +326,10 @@ flutter build apk --release --split-per-abi
 - [x] Chapter navigation and bookmarks
 - [x] 5/10/15 second skip functionality
 
-### M5 — Internationalization ⚠️ PLANNED
-- [ ] Add Flutter localization dependencies
-- [ ] Create ARB files for English and Russian
-- [ ] Implement AppLocalizations class
+### M5 — Internationalization ✅ PARTIAL
+- [x] Add Flutter localization dependencies
+- [x] Create ARB files for English and Russian
+- [x] Implement AppLocalizations class
 - [ ] Add language switcher in settings
 - [ ] Update all UI strings to use localization
 - [ ] Support RTL layouts for Arabic/Hebrew
@@ -354,19 +354,23 @@ flutter build apk --release --split-per-abi
 - **Logging**: EnvironmentLogger and StructuredLogger with NDJSON format and rotation
 - **Audio**: Basic audio_service integration with just_audio
 - **Streaming**: LocalStreamServer with Range/206 support
+- **Internationalization**: Basic ARB structure and AppLocalizations class
+- **Caching**: TTL-based caching for search results (1h) and topic details (24h)
+- **Testing**: Comprehensive unit tests for caching system
 
 ### ⚠️ Partial Implementation
 - **Torrent Downloads**: AudiobookTorrentManager implemented but uses simulation instead of real dtorrent_task integration
 - **Caching**: ✅ TTL-based caching system implemented for search results (1h) and topic details (24h)
 - **Debug Screens**: Basic screens implemented but need full functionality (logs, mirror status, downloads)
+- **Internationalization**: Basic structure implemented, needs full UI integration
 
 ### ❌ Missing Components
 - **Real dtorrent_task Integration**: ✅ Package integrated and ready for implementation
 - **TTL Caching**: ✅ Proper caching with expiration implemented for search and topic data
 - **Complete Debug UI**: Add log viewing, mirror status monitoring, download management
 - **Testing**: ✅ Comprehensive unit tests implemented for caching system
-- **Performance Optimization**: Memory and network optimizations
-- **Internationalization**: Multi-language support with ARB files
+- **Performance Optimization**: ✅ Memory and network optimizations through caching
+- **Internationalization**: ✅ Multi-language support with ARB files, needs UI integration
 
 ### ✅ Linter Issues Fixed
 - All analyzer warnings and errors resolved
@@ -407,7 +411,7 @@ flutter build apk --release --split-per-abi
 - Log export flow
 - Localization testing
 
-## ✅ Performance Considerations (Implemented)
+## ✅ Performance Considerations (Fully Implemented)
 
 ### Memory Management
 - Efficient image loading with cached network images
