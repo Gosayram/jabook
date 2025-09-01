@@ -62,7 +62,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     final cachedResults = await _cacheService.getCachedSearchResults(query);
     if (cachedResults != null) {
       setState(() {
-        _searchResults = cachedResults ?? [];
+        _searchResults = cachedResults;
         _isLoading = false;
         _isFromCache = true;
       });
@@ -85,12 +85,12 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         
         // Cache the results
         // Convert Audiobook objects to maps for caching
-        final resultsMap = results.map((audiobook) => _audiobookToMap(audiobook)).toList();
+        final resultsMap = results.map(_audiobookToMap).toList();
         await _cacheService.cacheSearchResults(query, resultsMap);
         
         setState(() {
           // Convert Audiobook objects to maps for UI
-          _searchResults = results.map((audiobook) => _audiobookToMap(audiobook)).toList();
+          _searchResults = results.map(_audiobookToMap).toList();
           _isLoading = false;
           _isFromCache = false;
         });
@@ -263,29 +263,25 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 }
 
 /// Converts an Audiobook object to a Map for caching.
-Map<String, dynamic> _audiobookToMap(Audiobook audiobook) {
-  return {
-    'id': audiobook.id,
-    'title': audiobook.title,
-    'author': audiobook.author,
-    'category': audiobook.category,
-    'size': audiobook.size,
-    'seeders': audiobook.seeders,
-    'leechers': audiobook.leechers,
-    'magnetUrl': audiobook.magnetUrl,
-    'coverUrl': audiobook.coverUrl,
-    'chapters': audiobook.chapters.map((chapter) => _chapterToMap(chapter)).toList(),
-    'addedDate': audiobook.addedDate.toIso8601String(),
-  };
-}
+Map<String, dynamic> _audiobookToMap(Audiobook audiobook) => {
+  'id': audiobook.id,
+  'title': audiobook.title,
+  'author': audiobook.author,
+  'category': audiobook.category,
+  'size': audiobook.size,
+  'seeders': audiobook.seeders,
+  'leechers': audiobook.leechers,
+  'magnetUrl': audiobook.magnetUrl,
+  'coverUrl': audiobook.coverUrl,
+  'chapters': audiobook.chapters.map(_chapterToMap).toList(),
+  'addedDate': audiobook.addedDate.toIso8601String(),
+};
 
 /// Converts a Chapter object to a Map for caching.
-Map<String, dynamic> _chapterToMap(Chapter chapter) {
-  return {
-    'title': chapter.title,
-    'durationMs': chapter.durationMs,
-    'fileIndex': chapter.fileIndex,
-    'startByte': chapter.startByte,
-    'endByte': chapter.endByte,
-  };
-}
+Map<String, dynamic> _chapterToMap(Chapter chapter) => {
+  'title': chapter.title,
+  'durationMs': chapter.durationMs,
+  'fileIndex': chapter.fileIndex,
+  'startByte': chapter.startByte,
+  'endByte': chapter.endByte,
+};

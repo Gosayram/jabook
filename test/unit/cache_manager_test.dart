@@ -1,8 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sembast/sembast.dart';
-import 'package:sembast/sembast_memory.dart';
-
 import 'package:jabook/core/cache/cache_manager.dart';
+import 'package:sembast/sembast_memory.dart';
 
 void main() {
   group('CacheManager Tests', () {

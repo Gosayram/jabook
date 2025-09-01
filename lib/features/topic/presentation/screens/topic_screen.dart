@@ -176,7 +176,7 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
     final leechers = audiobook['leechers'] as int? ?? 0;
     final coverUrl = audiobook['coverUrl'] as String?;
     final magnetUrl = audiobook['magnetUrl'] as String? ?? '';
-    final chapters = audiobook['chapters'] as List<dynamic>? ?? [];
+    // Chapters variable is not used, removed to fix lint warning
     
     return Padding(
       padding: const EdgeInsets.all(16.0),
@@ -221,7 +221,7 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
           const SizedBox(height: 16),
           if (coverUrl != null)
             CachedNetworkImage(
-              imageUrl: coverUrl!,
+              imageUrl: coverUrl,
               height: 200,
               fit: BoxFit.cover,
               placeholder: (context, url) => const Center(
@@ -324,29 +324,25 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
 }
 
 /// Converts an Audiobook object to a Map for caching.
-Map<String, dynamic> _audiobookToMap(Audiobook audiobook) {
-  return {
-    'id': audiobook.id,
-    'title': audiobook.title,
-    'author': audiobook.author,
-    'category': audiobook.category,
-    'size': audiobook.size,
-    'seeders': audiobook.seeders,
-    'leechers': audiobook.leechers,
-    'magnetUrl': audiobook.magnetUrl,
-    'coverUrl': audiobook.coverUrl,
-    'chapters': audiobook.chapters.map((chapter) => _chapterToMap(chapter)).toList(),
-    'addedDate': audiobook.addedDate.toIso8601String(),
-  };
-}
+Map<String, dynamic> _audiobookToMap(Audiobook audiobook) => {
+  'id': audiobook.id,
+  'title': audiobook.title,
+  'author': audiobook.author,
+  'category': audiobook.category,
+  'size': audiobook.size,
+  'seeders': audiobook.seeders,
+  'leechers': audiobook.leechers,
+  'magnetUrl': audiobook.magnetUrl,
+  'coverUrl': audiobook.coverUrl,
+  'chapters': audiobook.chapters.map(_chapterToMap).toList(),
+  'addedDate': audiobook.addedDate.toIso8601String(),
+};
 
 /// Converts a Chapter object to a Map for caching.
-Map<String, dynamic> _chapterToMap(Chapter chapter) {
-  return {
-    'title': chapter.title,
-    'durationMs': chapter.durationMs,
-    'fileIndex': chapter.fileIndex,
-    'startByte': chapter.startByte,
-    'endByte': chapter.endByte,
-  };
-}
+Map<String, dynamic> _chapterToMap(Chapter chapter) => {
+  'title': chapter.title,
+  'durationMs': chapter.durationMs,
+  'fileIndex': chapter.fileIndex,
+  'startByte': chapter.startByte,
+  'endByte': chapter.endByte,
+};
