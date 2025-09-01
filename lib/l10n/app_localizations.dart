@@ -152,6 +152,12 @@ class AppLocalizations {
 
   /// Returns the localized fallback text for unknown size.
   String get unknownSize => translate('unknownSize');
+
+  /// Returns the localized message for upcoming add book feature.
+  String get addBookComingSoon => translate('addBookComingSoon');
+
+  /// Returns the localized placeholder text for library screen.
+  String get libraryContentPlaceholder => translate('libraryContentPlaceholder');
 }
 
 /// Delegate for loading AppLocalizations instances.

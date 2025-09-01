@@ -64,45 +64,53 @@
   "systemDefault": "System Default",
   "@systemDefault": {
     "description": "Use system language setting"
-    "failedToSearch": "Failed to search",
-    "@failedToSearch": {
-      "description": "Error message when search fails"
-    },
-    "resultsFromCache": "Results from cache",
-    "@resultsFromCache": {
-      "description": "Indicator that results are from cache"
-    },
-    "enterSearchTerm": "Enter a search term to begin",
-    "@enterSearchTerm": {
-      "description": "Prompt to start searching"
-    },
-    "authorLabel": "Author: ",
-    "@authorLabel": {
-      "description": "Label for author field"
-    },
-    "sizeLabel": "Size: ",
-    "@sizeLabel": {
-      "description": "Label for size field"
-    },
-    "seedersLabel": " seeders",
-    "@seedersLabel": {
-      "description": "Label for seeders count"
-    },
-    "leechersLabel": " leechers",
-    "@leechersLabel": {
-      "description": "Label for leechers count"
-    },
-    "unknownTitle": "Unknown Title",
-    "@unknownTitle": {
-      "description": "Fallback for missing title"
-    },
-    "unknownAuthor": "Unknown Author",
-    "@unknownAuthor": {
-      "description": "Fallback for missing author"
-    },
-    "unknownSize": "Unknown Size",
-    "@unknownSize": {
-      "description": "Fallback for missing size"
-    }
+  },
+  "failedToSearch": "Failed to search",
+  "@failedToSearch": {
+    "description": "Error message when search fails"
+  },
+  "resultsFromCache": "Results from cache",
+  "@resultsFromCache": {
+    "description": "Indicator that results are from cache"
+  },
+  "enterSearchTerm": "Enter a search term to begin",
+  "@enterSearchTerm": {
+    "description": "Prompt to start searching"
+  },
+  "authorLabel": "Author: ",
+  "@authorLabel": {
+    "description": "Label for author field"
+  },
+  "sizeLabel": "Size: ",
+  "@sizeLabel": {
+    "description": "Label for size field"
+  },
+  "seedersLabel": " seeders",
+  "@seedersLabel": {
+    "description": "Label for seeders count"
+  },
+  "leechersLabel": " leechers",
+  "@leechersLabel": {
+    "description": "Label for leechers count"
+  },
+  "unknownTitle": "Unknown Title",
+  "@unknownTitle": {
+    "description": "Fallback for missing title"
+  },
+  "unknownAuthor": "Unknown Author",
+  "@unknownAuthor": {
+    "description": "Fallback for missing author"
+  },
+  "unknownSize": "Unknown Size",
+  "@unknownSize": {
+    "description": "Fallback for missing size"
+  },
+  "addBookComingSoon": "Add book functionality coming soon!",
+  "@addBookComingSoon": {
+    "description": "Message for upcoming add book feature"
+  },
+  "libraryContentPlaceholder": "Library content will be displayed here",
+  "@libraryContentPlaceholder": {
+    "description": "Placeholder text for library screen"
   }
 }

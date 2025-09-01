@@ -7,8 +7,10 @@
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/material.dart';
 
 import 'package:jabook/app/app.dart';
+import 'package:jabook/l10n/app_localizations.dart';
 
 void main() {
   testWidgets('Library screen loads correctly', (tester) async {
@@ -19,8 +21,12 @@ void main() {
       ),
     );
 
-    // Verify that the library screen loads correctly.
-    expect(find.text('My Library'), findsOneWidget);
+    // Wait for localization to load
+    await tester.pumpAndSettle();
+
+    // Verify that the library screen loads correctly with localized text.
+    expect(find.text('Library'), findsOneWidget);
     expect(find.text('Library content will be displayed here'), findsOneWidget);
   });
+
 }

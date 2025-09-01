@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:jabook/l10n/app_localizations.dart';
+
 /// Main screen for displaying the user's audiobook library.
 ///
 /// This screen shows the user's collection of downloaded and favorited
@@ -17,7 +19,7 @@ class LibraryScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) => Scaffold(
       appBar: AppBar(
-        title: const Text('My Library'),
+        title: Text(AppLocalizations.of(context)!.libraryTitle),
         actions: [
           IconButton(
             icon: const Icon(Icons.search),
@@ -40,7 +42,7 @@ class LibraryScreen extends ConsumerWidget {
         onPressed: () {
           // TODO: Implement add book functionality
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Add book functionality coming soon!')),
+            SnackBar(content: Text(AppLocalizations.of(context)!.addBookComingSoon)),
           );
         },
         child: const Icon(Icons.add),
