@@ -218,13 +218,13 @@ install-ios:
 .PHONY: setup-android
 setup-android:
 	@echo "Setting up Android project configuration..."
-	flutter create --android-project . --org com.jabook.app --platforms=android -a kotlin
+	flutter create . --org com.jabook.app --platforms=android -a kotlin
 	@echo "Android project setup complete!"
 
 .PHONY: setup-ios
 setup-ios:
 	@echo "Setting up iOS project configuration..."
-	flutter create --ios-project . --org com.jabook.app --platforms=ios
+	flutter create . --org com.jabook.app --platforms=ios
 	@echo "iOS project setup complete!"
 
 .PHONY: setup
