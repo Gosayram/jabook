@@ -29,7 +29,7 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
   final RuTrackerParser _parser = RuTrackerParser();
   final RuTrackerCacheService _cacheService = RuTrackerCacheService();
   
-  Audiobook? _audiobook;
+  Map<String, dynamic>? _audiobook;
   bool _isLoading = true;
   bool _hasError = false;
   bool _isFromCache = false;
@@ -70,11 +70,18 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
         
         if (audiobook != null) {
           // Cache the topic details
-          await _cacheService.cacheTopicDetails(widget.topicId, audiobook);
+          // Convert Audiobook object to map for caching
+          final audiobookMap = _audiobookToMap(audiobook);
+          await _cacheService.cacheTopicDetails(widget.topicId, audiobookMap);
         }
         
         setState(() {
-          _audiobook = audiobook;
+          // Convert Audiobook object to map for UI
+          if (audiobook != null) {
+            _audiobook = _audiobookToMap(audiobook);
+          } else {
+            _audiobook = null;
+          }
           _isLoading = false;
           _hasError = false;
           _isFromCache = false;
@@ -113,7 +120,7 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
               );
             },
           ),
-        if (_audiobook != null && _audiobook!.magnetUrl.isNotEmpty)
+        if (_audiobook != null && (_audiobook!['magnetUrl'] as String).isNotEmpty)
           IconButton(
             icon: const Icon(Icons.download),
             onPressed: _downloadAudiobook,
@@ -151,7 +158,7 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
         SliverToBoxAdapter(
           child: _buildHeader(),
         ),
-        if (_audiobook!.chapters.isNotEmpty)
+        if ((_audiobook!['chapters'] as List).isNotEmpty)
           SliverToBoxAdapter(
             child: _buildChaptersSection(),
           ),
@@ -161,6 +168,15 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
 
   Widget _buildHeader() {
     final audiobook = _audiobook!;
+    final title = audiobook['title'] as String? ?? 'Unknown Title';
+    final author = audiobook['author'] as String? ?? 'Unknown Author';
+    final category = audiobook['category'] as String? ?? 'Unknown Category';
+    final size = audiobook['size'] as String? ?? 'Unknown Size';
+    final seeders = audiobook['seeders'] as int? ?? 0;
+    final leechers = audiobook['leechers'] as int? ?? 0;
+    final coverUrl = audiobook['coverUrl'] as String?;
+    final magnetUrl = audiobook['magnetUrl'] as String? ?? '';
+    final chapters = audiobook['chapters'] as List<dynamic>? ?? [];
     
     return Padding(
       padding: const EdgeInsets.all(16.0),
@@ -168,44 +184,44 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            audiobook.title,
+            title,
             style: Theme.of(context).textTheme.headlineSmall,
             maxLines: 3,
             overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: 8),
           Text(
-            'by ${audiobook.author}',
+            'by $author',
             style: Theme.of(context).textTheme.titleMedium,
           ),
           const SizedBox(height: 16),
           Row(
             children: [
               Chip(
-                label: Text(audiobook.category),
+                label: Text(category),
                 backgroundColor: Colors.blue.shade100,
               ),
               const SizedBox(width: 8),
               Chip(
-                label: Text(audiobook.size),
+                label: Text(size),
                 backgroundColor: Colors.green.shade100,
               ),
               const SizedBox(width: 8),
               Chip(
-                label: Text('${audiobook.seeders} seeders'),
+                label: Text('$seeders seeders'),
                 backgroundColor: Colors.green.shade100,
               ),
               const SizedBox(width: 8),
               Chip(
-                label: Text('${audiobook.leechers} leechers'),
+                label: Text('$leechers leechers'),
                 backgroundColor: Colors.orange.shade100,
               ),
             ],
           ),
           const SizedBox(height: 16),
-          if (audiobook.coverUrl != null)
+          if (coverUrl != null)
             CachedNetworkImage(
-              imageUrl: audiobook.coverUrl!,
+              imageUrl: coverUrl!,
               height: 200,
               fit: BoxFit.cover,
               placeholder: (context, url) => const Center(
@@ -214,19 +230,19 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
               errorWidget: (context, url, error) => const Icon(Icons.error),
             ),
           const SizedBox(height: 16),
-          if (audiobook.magnetUrl.isNotEmpty)
+          if (magnetUrl.isNotEmpty)
             Card(
               child: ListTile(
                 leading: const Icon(Icons.link),
                 title: const Text('Magnet Link'),
                 subtitle: Text(
-                  audiobook.magnetUrl,
+                  magnetUrl,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
                 trailing: const Icon(Icons.copy),
                 onTap: () {
-                  _copyToClipboard(audiobook.magnetUrl, 'Magnet link');
+                  _copyToClipboard(magnetUrl, 'Magnet link');
                 },
               ),
             ),
@@ -237,6 +253,7 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
 
   Widget _buildChaptersSection() {
     final audiobook = _audiobook!;
+    final chapters = audiobook['chapters'] as List<dynamic>? ?? [];
     
     return Padding(
       padding: const EdgeInsets.all(16.0),
@@ -244,22 +261,24 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Chapters (${audiobook.chapters.length})',
+            'Chapters (${chapters.length})',
             style: Theme.of(context).textTheme.titleLarge,
           ),
           const SizedBox(height: 8),
           ListView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            itemCount: audiobook.chapters.length,
+            itemCount: chapters.length,
             itemBuilder: (context, index) {
-              final chapter = audiobook.chapters[index];
+              final chapter = chapters[index] as Map<String, dynamic>;
+              final chapterTitle = chapter['title'] as String? ?? 'Unknown Chapter';
+              final durationMs = chapter['durationMs'] as int? ?? 0;
               return Card(
                 margin: const EdgeInsets.only(bottom: 8),
                 child: ListTile(
                   leading: const Icon(Icons.play_circle_outline),
-                  title: Text(chapter.title),
-                  subtitle: Text(_formatDuration(chapter.durationMs)),
+                  title: Text(chapterTitle),
+                  subtitle: Text(_formatDuration(durationMs)),
                   trailing: const Icon(Icons.more_vert),
                   onTap: () {
                     // TODO: Implement chapter navigation
@@ -287,8 +306,8 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
   }
 
   void _downloadAudiobook() {
-    if (_audiobook != null && _audiobook!.magnetUrl.isNotEmpty) {
-      _copyToClipboard(_audiobook!.magnetUrl, 'Magnet link');
+    if (_audiobook != null && (_audiobook!['magnetUrl'] as String).isNotEmpty) {
+      _copyToClipboard(_audiobook!['magnetUrl'] as String, 'Magnet link');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Magnet link copied to clipboard')),
       );
@@ -302,4 +321,32 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
       SnackBar(content: Text('$label copied to clipboard')),
     );
   }
+}
+
+/// Converts an Audiobook object to a Map for caching.
+Map<String, dynamic> _audiobookToMap(Audiobook audiobook) {
+  return {
+    'id': audiobook.id,
+    'title': audiobook.title,
+    'author': audiobook.author,
+    'category': audiobook.category,
+    'size': audiobook.size,
+    'seeders': audiobook.seeders,
+    'leechers': audiobook.leechers,
+    'magnetUrl': audiobook.magnetUrl,
+    'coverUrl': audiobook.coverUrl,
+    'chapters': audiobook.chapters.map((chapter) => _chapterToMap(chapter)).toList(),
+    'addedDate': audiobook.addedDate.toIso8601String(),
+  };
+}
+
+/// Converts a Chapter object to a Map for caching.
+Map<String, dynamic> _chapterToMap(Chapter chapter) {
+  return {
+    'title': chapter.title,
+    'durationMs': chapter.durationMs,
+    'fileIndex': chapter.fileIndex,
+    'startByte': chapter.startByte,
+    'endByte': chapter.endByte,
+  };
 }

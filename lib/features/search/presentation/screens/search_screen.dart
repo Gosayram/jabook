@@ -25,7 +25,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   final RuTrackerParser _parser = RuTrackerParser();
   final RuTrackerCacheService _cacheService = RuTrackerCacheService();
   
-  List<Audiobook> _searchResults = [];
+  List<Map<String, dynamic>> _searchResults = [];
   bool _isLoading = false;
   bool _hasSearched = false;
   bool _isFromCache = false;
@@ -62,7 +62,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     final cachedResults = await _cacheService.getCachedSearchResults(query);
     if (cachedResults != null) {
       setState(() {
-        _searchResults = cachedResults;
+        _searchResults = cachedResults ?? [];
         _isLoading = false;
         _isFromCache = true;
       });
@@ -84,10 +84,13 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         final results = await _parser.parseSearchResults(response.data);
         
         // Cache the results
-        await _cacheService.cacheSearchResults(query, results);
+        // Convert Audiobook objects to maps for caching
+        final resultsMap = results.map((audiobook) => _audiobookToMap(audiobook)).toList();
+        await _cacheService.cacheSearchResults(query, resultsMap);
         
         setState(() {
-          _searchResults = results;
+          // Convert Audiobook objects to maps for UI
+          _searchResults = results.map((audiobook) => _audiobookToMap(audiobook)).toList();
           _isLoading = false;
           _isFromCache = false;
         });
@@ -203,37 +206,43 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       itemCount: _searchResults.length,
       itemBuilder: (context, index) {
         final audiobook = _searchResults[index];
+        final title = audiobook['title'] as String? ?? 'Unknown Title';
+        final author = audiobook['author'] as String? ?? 'Unknown Author';
+        final size = audiobook['size'] as String? ?? 'Unknown Size';
+        final seeders = audiobook['seeders'] as int? ?? 0;
+        final leechers = audiobook['leechers'] as int? ?? 0;
+        final id = audiobook['id'] as String? ?? '';
         return Card(
           margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: ListTile(
             leading: const Icon(Icons.audiotrack),
             title: Text(
-              audiobook.title,
+              title,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Author: ${audiobook.author}'),
-                Text('Size: ${audiobook.size}'),
+                Text('Author: $author'),
+                Text('Size: $size'),
                 Row(
                   children: [
                     Icon(
                       Icons.people,
                       size: 16,
-                      color: audiobook.seeders > 0 ? Colors.green : Colors.grey,
+                      color: seeders > 0 ? Colors.green : Colors.grey,
                     ),
                     const SizedBox(width: 4),
-                    Text('${audiobook.seeders} seeders'),
+                    Text('$seeders seeders'),
                     const SizedBox(width: 16),
                     Icon(
                       Icons.person_off,
                       size: 16,
-                      color: audiobook.leechers > 0 ? Colors.orange : Colors.grey,
+                      color: leechers > 0 ? Colors.orange : Colors.grey,
                     ),
                     const SizedBox(width: 4),
-                    Text('${audiobook.leechers} leechers'),
+                    Text('$leechers leechers'),
                   ],
                 ),
               ],
@@ -243,7 +252,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               // Navigate to topic details
               Navigator.pushNamed(
                 context,
-                '/topic/${audiobook.id}',
+                '/topic/$id',
               );
             },
           ),
@@ -251,4 +260,32 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       },
     );
   }
+}
+
+/// Converts an Audiobook object to a Map for caching.
+Map<String, dynamic> _audiobookToMap(Audiobook audiobook) {
+  return {
+    'id': audiobook.id,
+    'title': audiobook.title,
+    'author': audiobook.author,
+    'category': audiobook.category,
+    'size': audiobook.size,
+    'seeders': audiobook.seeders,
+    'leechers': audiobook.leechers,
+    'magnetUrl': audiobook.magnetUrl,
+    'coverUrl': audiobook.coverUrl,
+    'chapters': audiobook.chapters.map((chapter) => _chapterToMap(chapter)).toList(),
+    'addedDate': audiobook.addedDate.toIso8601String(),
+  };
+}
+
+/// Converts a Chapter object to a Map for caching.
+Map<String, dynamic> _chapterToMap(Chapter chapter) {
+  return {
+    'title': chapter.title,
+    'durationMs': chapter.durationMs,
+    'fileIndex': chapter.fileIndex,
+    'startByte': chapter.startByte,
+    'endByte': chapter.endByte,
+  };
 }

@@ -1,5 +1,4 @@
 import 'package:jabook/core/cache/cache_manager.dart';
-import 'package:jabook/core/parse/rutracker_parser.dart';
 import 'package:sembast/sembast.dart';
 
 /// Service for caching RuTracker search results and topic details.
@@ -33,8 +32,8 @@ class RuTrackerCacheService {
   /// Caches search results with TTL.
   ///
   /// The [query] parameter is the search query.
-  /// The [results] parameter is the list of audiobooks to cache.
-  Future<void> cacheSearchResults(String query, List<Audiobook> results) async {
+  /// The [results] parameter is the list of audiobook maps to cache.
+  Future<void> cacheSearchResults(String query, List<Map<String, dynamic>> results) async {
     final key = _getSearchResultsKey(query);
     await _cacheManager.storeWithTTL(key, results, searchResultsTTL);
   }
@@ -43,12 +42,12 @@ class RuTrackerCacheService {
   ///
   /// The [query] parameter is the search query.
   /// Returns the cached results or `null` if expired or not found.
-  Future<List<Audiobook>?> getCachedSearchResults(String query) async {
+  Future<List<Map<String, dynamic>>?> getCachedSearchResults(String query) async {
     final key = _getSearchResultsKey(query);
     final cachedData = await _cacheManager.getIfNotExpired(key);
     
     if (cachedData is List) {
-      return cachedData.cast<Audiobook>();
+      return cachedData.cast<Map<String, dynamic>>();
     }
     
     return null;
@@ -57,8 +56,8 @@ class RuTrackerCacheService {
   /// Caches topic details with TTL.
   ///
   /// The [topicId] parameter is the topic identifier.
-  /// The [audiobook] parameter is the audiobook details to cache.
-  Future<void> cacheTopicDetails(String topicId, Audiobook audiobook) async {
+  /// The [audiobook] parameter is the audiobook details map to cache.
+  Future<void> cacheTopicDetails(String topicId, Map<String, dynamic> audiobook) async {
     final key = _getTopicDetailsKey(topicId);
     await _cacheManager.storeWithTTL(key, audiobook, topicDetailsTTL);
   }
@@ -66,12 +65,12 @@ class RuTrackerCacheService {
   /// Retrieves cached topic details if available and not expired.
   ///
   /// The [topicId] parameter is the topic identifier.
-  /// Returns the cached audiobook or `null` if expired or not found.
-  Future<Audiobook?> getCachedTopicDetails(String topicId) async {
+  /// Returns the cached audiobook map or `null` if expired or not found.
+  Future<Map<String, dynamic>?> getCachedTopicDetails(String topicId) async {
     final key = _getTopicDetailsKey(topicId);
     final cachedData = await _cacheManager.getIfNotExpired(key);
     
-    if (cachedData is Audiobook) {
+    if (cachedData is Map<String, dynamic>) {
       return cachedData;
     }
     
