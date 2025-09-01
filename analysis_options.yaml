@@ -1,0 +1,54 @@
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  plugins:
+    - dart_code_metrics
+  exclude:
+    - "**/*.g.dart"
+    - "**/*.freezed.dart"
+    - "build/**"
+
+linter:
+  rules:
+    # Best practices
+    - prefer_const_constructors
+    - prefer_const_literals_to_create_immutables
+    - prefer_final_locals
+    - always_use_package_imports
+    - avoid_print
+    - unnecessary_await_in_return
+    - use_super_parameters
+
+    # Style & readability
+    - prefer_single_quotes
+    - sort_child_properties_last
+    - always_declare_return_types
+    - type_annotate_public_apis
+
+dart_code_metrics:
+  metrics:
+    cyclomatic-complexity: 20
+    number-of-parameters: 4
+    maximum-nesting-level: 5
+    source-lines-of-code: 100
+    weight-of-class: 500
+
+  metrics-exclude:
+    - test/**
+    - "**/*.g.dart"
+    - "**/*.freezed.dart"
+
+  rules:
+    - avoid-unused-parameters
+    - newline-before-return
+    - prefer-trailing-comma
+    - avoid-unnecessary-type-assertions
+    - no-equal-then-else
+    - avoid-nested-conditional-expressions
+    - avoid-long-functions
+    - avoid-late-keyword
+    - member-ordering-extended
+
+  anti-patterns:
+    - long-method
+    - long-parameter-list

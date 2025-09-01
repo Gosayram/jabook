@@ -1,0 +1,187 @@
+name: jabook
+description: A modern audiobook player rebuilt as a 100% Flutter application.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.2.0 <4.0.0'
+  flutter: "3.35.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_riverpod: ^2.5.1
+  go_router: ^14.2.0
+  just_audio: ^0.10.4
+  audio_service: ^0.18.18
+  just_audio_background: ^0.0.1-beta.17
+  audio_session: ^0.2.2
+  dio: ^5.9.0
+  dio_cookie_manager: ^3.2.0
+  cookie_jar: ^4.0.6
+  webview_flutter: ^4.13.0
+  webview_cookie_manager: ^2.0.6
+  html: ^0.15.4
+  windows1251: ^2.0.0
+  shelf: ^1.4.2
+  shelf_static: ^1.1.3
+  sembast: ^3.8.0
+  dtorrent_task: ^0.4.0
+  share_plus: ^10.0.2
+  path_provider: ^2.1.4
+  permission_handler: ^12.0.1
+  device_info_plus: ^11.5.0
+  flutter_native_splash: ^2.4.6
+  flutter_launcher_icons: ^0.14.1
+  rxdart: ^0.27.7
+  cached_network_image: ^3.3.1
+  intl: ^0.19.0
+  logger: ^2.0.2+1
+  freezed_annotation: ^2.4.1
+  json_serializable: ^6.7.1
+  build_runner: ^2.4.7
+  flutter_lints: ^4.0.0
+  dart_code_metrics: ^5.10.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  integration_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true
+  
+  assets:
+    - assets/images/
+    - assets/web/
+  
+  fonts:
+    - family: Roboto
+      fonts:
+        - asset: assets/fonts/Roboto-Regular.ttf
+        - asset: assets/fonts/Roboto-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Roboto-Bold.ttf
+          weight: 700
+
+flutter_launcher_icons:
+  android: "ic_launcher"
+  ios: true
+  image_path: "assets/icons/app_icon.png"
+  min_sdk_android: 24
+  web:
+    generate: true
+    image_path: "assets/icons/app_icon.png"
+  windows:
+    generate: true
+    image_path: "assets/icons/app_icon.png"
+  macos:
+    generate: true
+    image_path: "assets/icons/app_icon.png"
+
+flutter_native_splash:
+  color: "#1E1B4B"
+  image: assets/icons/splash_icon.png
+  android_12:
+    image: assets/icons/splash_icon.png
+    color: "#1E1B4B"
+    android_gravity: center
+    fullscreen: true
+
+analyzer:
+  exclude:
+    - "**/*.g.dart"
+    - "**/*.freezed.dart"
+    - "**/*.build.dart"
+    - "**/*.build.dart.dart"
+
+linter:
+  rules:
+    - prefer_const_constructors
+    - prefer_final_locals
+    - avoid_print
+    - always_use_package_imports
+    - public_member_api_docs
+    - avoid_unused_parameters
+    - avoid_empty_else
+    - cascade_invocations
+    - no_leading_underscores_for_local_identifiers
+    - sort_child_properties_last
+    - use_colored_box
+    - use_decorated_box
+    - use_raw_strings
+    - use_super_parameters
+    - valid_types
+    - avoid_unnecessary_containers
+    - avoid_multiple_decorators_per_element
+    - avoid_redundant_argument_values
+    - avoid_types_as_parameter_names
+    - no_logic_in_create_state
+    - no_duplicate_case_values
+    - prefer_single_quotes
+    - sort_unnamed_constructors_first
+    - unnecessary_lambdas
+    - unnecessary_string_escapes
+    - use_if_null_to_convert_nulls_to_bools
+    - use_key_in_widget_constructors
+    - use_string_in_conditionals
+
+dart_code_metrics:
+  anti-patterns:
+    - long-method
+    - long-parameter-list
+    - large-class
+    - complex-conditional
+  metrics:
+    cyclomatic-complexity: 15
+    lines-of-code: 120
+    number-of-parameters: 4
+    method-length: 50
+    class-type-parameters: 2
+  metrics-exclude:
+    - "**/*.g.dart"
+    - "**/*.freezed.dart"
+    - "**/*.build.dart"
+    - "lib/**/*.freezed.dart"
+    - "lib/**/*.g.dart"
+    - "lib/**/*.build.dart"
+  exclude:
+    - "**/*.freezed.dart"
+    - "**/*.g.dart"
+    - "**/*.build.dart"
+    - "**/*.generated.dart"
+    - "**/*.gr.dart"
+    - "**/*.pb.dart"
+    - "**/*.pbjson.dart"
+    - "**/*.pbenum.dart"
+    - "**/*.pbserver.dart"
+    - "**/*.pbgrpc.dart"
+    - "**/*.pbmap.dart"
+    - "**/*.shim.dart"
+    - "**/*.config.dart"
+    - "**/*.theme.dart"
+    - "**/*.l10n.dart"
+    - "**/*.auto_route.dart"
+    - "**/*.gr.dart"
+    - "**/*.freezed.dart"
+    - "**/*.g.dart"
+    - "**/*.build.dart"
+    - "**/*.generated.dart"
+    - "**/*.gr.dart"
+    - "**/*.shim.dart"
+    - "**/*.config.dart"
+    - "**/*.theme.dart"
+    - "**/*.l10n.dart"
+    - "**/*.auto_route.dart"
+    - "**/*.gr.dart"
+    - "**/*.freezed.dart"
+    - "**/*.g.dart"
+    - "**/*.build.dart"
+    - "**/*.generated.dart"
+    - "**/*.gr.dart"
+    - "**/*.shim.dart"
+    - "**/*.config.dart"
+    - "**/*.theme.dart"
+    - "**/*.l10n.dart"
+    - "**/*.auto_route.dart"
