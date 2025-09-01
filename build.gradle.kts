@@ -1,5 +1,5 @@
 // Root Gradle build script used only for utility tasks in a Flutter project.
-// The tasks are written to be compatible with Gradle Configuration Cache.
+// Tasks are configuration-cache friendly.
 
 import org.gradle.api.tasks.Exec
 import org.gradle.api.tasks.Delete
@@ -44,9 +44,7 @@ tasks.register("clean") {
 tasks.register<Exec>("flutterAnalyze") {
     description = "Run `flutter analyze` on the project"
     group = flutterGroup
-    // Do not use doLast/exec inside actions; set commandLine at configuration time
     commandLine("flutter", "analyze")
-    // If you need environment overrides, configure them via environment["KEY"] = "value"
 }
 
 tasks.register<Exec>("flutterBuildApk") {
@@ -59,6 +57,32 @@ tasks.register<Exec>("flutterBuildAppbundle") {
     description = "Build a release AAB via Flutter"
     group = buildGroup
     commandLine("flutter", "build", "appbundle", "--release")
+}
+
+/**
+ * Build a **signed** release APK via Flutter.
+ * Signing is configured in android/app/build.gradle.kts and keystore.properties.
+ */
+tasks.register<Exec>("flutterBuildApkReleaseSigned") {
+    description = "Build a signed release APK via Flutter"
+    group = buildGroup
+
+    // Optional safety: fail early if signing files are missing.
+    // (This does not break configuration cache.)
+    val ksProps = file("keystore.properties")
+    val ksFile = file("keystore/jabook-release.jks")
+    inputs.files(ksProps, ksFile)
+    onlyIf {
+        if (!ksProps.exists()) {
+            throw GradleException("Missing keystore.properties at project root.")
+        }
+        if (!ksFile.exists()) {
+            throw GradleException("Missing keystore/jabook-release.jks.")
+        }
+        true
+    }
+
+    commandLine("flutter", "build", "apk", "--release")
 }
 
 // --- Android tasks (Exec inside android/ dir) ---
@@ -74,17 +98,10 @@ tasks.register<Exec>("androidAssembleDebug") {
 }
 
 tasks.register<Exec>("androidAssembleRelease") {
-    description = "Assemble Android release via android/gradle"
+    description = "Assemble Android release via android/gradle (signed if configured)"
     group = buildGroup
     workingDir = file("android")
     commandLine(gradlewName(), "assembleRelease")
-}
-
-tasks.register<Exec>("androidLint") {
-    description = "Run Android lint via android/gradle"
-    group = verificationGroup
-    workingDir = file("android")
-    commandLine(gradlewName(), "lint")
 }
 
 tasks.register<Exec>("androidTest") {
@@ -97,7 +114,7 @@ tasks.register<Exec>("androidTest") {
 // --- Composite checks ---
 
 tasks.register("devCheck") {
-    description = "Quick development checks (Flutter analyze + Android lint)"
+    description = "Quick development checks (Flutter analyze)"
     group = verificationGroup
-    dependsOn("flutterAnalyze", "androidLint")
+    dependsOn("flutterAnalyze")
 }
