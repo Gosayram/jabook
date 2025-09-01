@@ -280,41 +280,79 @@ flutter build apk --release --split-per-abi
 
 ## Development Milestones
 
-### M1 — Skeleton (Foundation)
-- [ ] Flutter project setup with minSdk=24, compile/target=35
-- [ ] Package dependencies installation (pubspec.yaml)
-- [ ] Theme implementation (Violet/Beige/Orange palette)
-- [ ] App routing and navigation
-- [ ] WebView login screen skeleton
-- [ ] User-Agent sync system
-- [ ] Shelf server basic setup
+### M1 — Skeleton (Foundation) ✅ COMPLETED
+- [x] Flutter project setup with minSdk=24, compile/target=35
+- [x] Package dependencies installation (pubspec.yaml)
+- [x] Theme implementation (Violet/Beige/Orange palette)
+- [x] App routing and navigation
+- [x] WebView login screen skeleton
+- [x] User-Agent sync system
+- [x] Shelf server basic setup
 
-### M2 — Search/Topic Integration
-- [ ] Dio + CookieJar integration
-- [ ] HTML parsing with cp1251 fallback
-- [ ] Mirror manager with health checks
-- [ ] Search functionality implementation
-- [ ] Topic details view
-- [ ] Caching system (search TTL=1h, topic TTL=24h)
-- [ ] Error handling and retry logic
+### M2 — Search/Topic Integration ✅ COMPLETED
+- [x] Dio + CookieJar integration
+- [x] HTML parsing with cp1251 fallback
+- [x] Mirror manager with health checks
+- [x] Search functionality implementation
+- [x] Topic details view
+- [ ] Caching system (search TTL=1h, topic TTL=24h) - PENDING
+- [x] Error handling and retry logic
 
-### M3 — Torrent/Stream/Player
-- [ ] dtorrent_task wrapper with sequential policy
-- [ ] Session persistence implementation
-- [ ] Local HTTP server with Range/206 support
-- [ ] just_audio + audio_service integration
-- [ ] Background playback with lock-screen controls
-- [ ] Chapter navigation and bookmarks
-- [ ] 5/10/15 second skip functionality
+### M3 — Torrent/Stream/Player ⚠️ PARTIAL
+- [ ] dtorrent_task wrapper with sequential policy - SIMULATION ONLY
+- [x] Session persistence implementation
+- [x] Local HTTP server with Range/206 support
+- [x] just_audio + audio_service integration
+- [x] Background playback with lock-screen controls
+- [x] Chapter navigation and bookmarks
+- [x] 5/10/15 second skip functionality
 
-### M4 — Debug/Release
-- [ ] NDJSON logging with rotation
-- [ ] Log export via share_plus
-- [ ] Splash screen and launcher icons
-- [ ] Per-ABI APK builds
-- [ ] GitHub Release automation
-- [ ] Comprehensive testing
-- [ ] Performance optimization
+### M4 — Debug/Release ✅ COMPLETED
+- [x] NDJSON logging with rotation
+- [x] Log export via share_plus
+- [x] Splash screen and launcher icons
+- [x] Per-ABI APK builds
+- [x] GitHub Release automation
+- [ ] Comprehensive testing - PENDING
+- [ ] Performance optimization - PENDING
+
+## Current Implementation Status
+
+### ✅ Completed Features
+- **Core Architecture**: Riverpod state management, GoRouter navigation, AppConfig with flavor support
+- **Networking**: DioClient with CookieJar, UserAgentManager, EndpointManager with health checks
+- **Parsing**: RuTrackerParser with UTF-8/cp1251 fallback support
+- **UI Screens**: SearchScreen, TopicScreen, PlayerScreen with full functionality
+- **Logging**: EnvironmentLogger and StructuredLogger with NDJSON format and rotation
+- **Audio**: Basic audio_service integration with just_audio
+- **Streaming**: LocalStreamServer with Range/206 support
+
+### ⚠️ Partial Implementation
+- **Torrent Downloads**: AudiobookTorrentManager implemented but uses simulation instead of real dtorrent_task integration
+- **Caching**: Missing TTL-based caching system for search results (1h) and topic details (24h)
+- **Debug Screens**: Basic screens implemented but need full functionality (logs, mirror status, downloads)
+
+### ❌ Missing Components
+- **Real dtorrent_task Integration**: Need to replace simulation with actual torrent library
+- **TTL Caching**: Implement proper caching with expiration for search and topic data
+- **Complete Debug UI**: Add log viewing, mirror status monitoring, download management
+- **Testing**: Comprehensive unit and integration tests
+- **Performance Optimization**: Memory and network optimizations
+
+### 🔧 Linter Issues to Fix
+- Multiple `avoid_catches_without_on_clauses` violations in [`user_agent_manager.dart`](lib/core/net/user_agent_manager.dart)
+- `directives_ordering` issues in several files
+- `body_might_complete_normally` errors in return type handling
+- `empty_catches` violations throughout the codebase
+
+## Next Steps Priority
+
+1. **Fix Linter Errors** - Address all analyzer warnings and errors
+2. **Real Torrent Integration** - Replace simulation with actual dtorrent_task implementation
+3. **TTL Caching System** - Implement caching with expiration for search and topic data
+4. **Complete Debug Screens** - Add full functionality to Debug, Settings, Library, and Mirrors screens
+5. **Testing Implementation** - Add comprehensive test suite
+6. **Performance Optimization** - Optimize memory usage and network requests
 
 ## Testing Strategy
 
