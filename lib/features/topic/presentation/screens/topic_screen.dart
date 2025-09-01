@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:jabook/core/cache/rutracker_cache_service.dart';
 import 'package:jabook/core/net/dio_client.dart';
 import 'package:jabook/core/parse/rutracker_parser.dart';
 
@@ -26,18 +27,38 @@ class TopicScreen extends ConsumerStatefulWidget {
 
 class _TopicScreenState extends ConsumerState<TopicScreen> {
   final RuTrackerParser _parser = RuTrackerParser();
+  final RuTrackerCacheService _cacheService = RuTrackerCacheService();
   
   Audiobook? _audiobook;
   bool _isLoading = true;
   bool _hasError = false;
+  bool _isFromCache = false;
 
   @override
   void initState() {
     super.initState();
+    _initializeCache();
     _loadTopicDetails();
   }
 
+  Future<void> _initializeCache() async {
+    // Cache service initialization would typically happen at app startup
+  }
+
   Future<void> _loadTopicDetails() async {
+    // First try to get from cache
+    final cachedAudiobook = await _cacheService.getCachedTopicDetails(widget.topicId);
+    if (cachedAudiobook != null) {
+      setState(() {
+        _audiobook = cachedAudiobook;
+        _isLoading = false;
+        _hasError = false;
+        _isFromCache = true;
+      });
+      return;
+    }
+
+    // If not in cache, fetch from network
     try {
       final dio = await DioClient.instance;
       final response = await dio.get(
@@ -46,10 +67,17 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
 
       if (response.statusCode == 200) {
         final audiobook = await _parser.parseTopicDetails(response.data);
+        
+        if (audiobook != null) {
+          // Cache the topic details
+          await _cacheService.cacheTopicDetails(widget.topicId, audiobook);
+        }
+        
         setState(() {
           _audiobook = audiobook;
           _isLoading = false;
           _hasError = false;
+          _isFromCache = false;
         });
       } else {
         setState(() {
@@ -75,6 +103,16 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
     appBar: AppBar(
       title: Text('Topic: ${widget.topicId}'),
       actions: [
+        if (_isFromCache)
+          IconButton(
+            icon: const Icon(Icons.cached),
+            tooltip: 'Loaded from cache',
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Data loaded from cache')),
+              );
+            },
+          ),
         if (_audiobook != null && _audiobook!.magnetUrl.isNotEmpty)
           IconButton(
             icon: const Icon(Icons.download),

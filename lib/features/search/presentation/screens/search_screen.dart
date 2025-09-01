@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:jabook/core/cache/rutracker_cache_service.dart';
 import 'package:jabook/core/net/dio_client.dart';
 import 'package:jabook/core/parse/rutracker_parser.dart';
 
@@ -22,15 +23,28 @@ class SearchScreen extends ConsumerStatefulWidget {
 class _SearchScreenState extends ConsumerState<SearchScreen> {
   final TextEditingController _searchController = TextEditingController();
   final RuTrackerParser _parser = RuTrackerParser();
+  final RuTrackerCacheService _cacheService = RuTrackerCacheService();
   
   List<Audiobook> _searchResults = [];
   bool _isLoading = false;
   bool _hasSearched = false;
+  bool _isFromCache = false;
 
   @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeCache();
+  }
+
+  Future<void> _initializeCache() async {
+    // Cache service initialization would typically happen at app startup
+    // For now, we'll handle it here
   }
 
   Future<void> _performSearch() async {
@@ -39,23 +53,43 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     setState(() {
       _isLoading = true;
       _hasSearched = true;
+      _isFromCache = false;
     });
 
+    final query = _searchController.text.trim();
+
+    // First try to get from cache
+    final cachedResults = await _cacheService.getCachedSearchResults(query);
+    if (cachedResults != null) {
+      setState(() {
+        _searchResults = cachedResults;
+        _isLoading = false;
+        _isFromCache = true;
+      });
+      return;
+    }
+
+    // If not in cache, fetch from network
     try {
       final dio = await DioClient.instance;
       final response = await dio.get(
         'https://rutracker.me/forum/tracker.php',
         queryParameters: {
-          'nm': _searchController.text.trim(),
+          'nm': query,
           'o=1': '1', // Sort by relevance
         },
       );
 
       if (response.statusCode == 200) {
         final results = await _parser.parseSearchResults(response.data);
+        
+        // Cache the results
+        await _cacheService.cacheSearchResults(query, results);
+        
         setState(() {
           _searchResults = results;
           _isLoading = false;
+          _isFromCache = false;
         });
       } else {
         setState(() {
@@ -122,7 +156,31 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           )
         else if (_hasSearched)
           Expanded(
-            child: _buildSearchResults(),
+            child: Column(
+              children: [
+                if (_isFromCache)
+                  Container(
+                    padding: const EdgeInsets.all(8.0),
+                    color: Colors.blue[50],
+                    child: Row(
+                      children: [
+                        Icon(Icons.cached, size: 16, color: Colors.blue[700]),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Results from cache',
+                          style: TextStyle(
+                            color: Colors.blue[700],
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                Expanded(
+                  child: _buildSearchResults(),
+                ),
+              ],
+            ),
           )
         else
           const Expanded(

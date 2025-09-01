@@ -68,6 +68,7 @@ class AudiobookTorrentManager {
   
   /// Map of download progress controllers for active downloads.
   final Map<String, StreamController<TorrentProgress>> _progressControllers = {};
+  
 
   /// Starts a sequential torrent download for an audiobook.
   ///
@@ -88,10 +89,28 @@ class AudiobookTorrentManager {
       final progressController = StreamController<TorrentProgress>.broadcast();
       _progressControllers[_currentDownloadId!] = progressController;
 
-      // TODO: Implement actual torrent download using dtorrent_task package
-      // The dtorrent_task API may be different from what was initially assumed
-      // For now, continue with simulated download
+      // Parse magnet URL to extract info hash
+      final uri = Uri.parse(magnetUrl);
+      final xtParam = uri.queryParameters['xt'];
+      if (xtParam == null || !xtParam.startsWith('urn:btih:')) {
+        throw const TorrentFailure('Invalid magnet URL: missing info hash');
+      }
+      
+      final infoHash = xtParam.substring('urn:btih:'.length);
+      if (infoHash.length != 40) {
+        throw const TorrentFailure('Invalid info hash length');
+      }
+
+      // Create metadata downloader for magnet links
+      // TODO: Implement real magnet link download
+      // For now, continue with simulated download as the metadata downloader
+      // requires additional dependencies and setup that may not be compatible
+      // with Flutter environment
       _simulateDownload(progressController);
+
+      // TODO: Replace with real dtorrent_task implementation
+      // The current implementation uses simulation due to complexity
+      // of integrating the full dtorrent_task library with Flutter
 
     } on Exception catch (e) {
       throw TorrentFailure('Failed to start download: ${e.toString()}');
@@ -140,8 +159,8 @@ class AudiobookTorrentManager {
     try {
       // TODO: Implement pause functionality
       throw UnimplementedError('Pause download not implemented');
-    } on Exception {
-      throw const TorrentFailure('Failed to pause download');
+    } on Exception catch (e) {
+      throw TorrentFailure('Failed to pause download: ${e.toString()}');
     }
   }
 
@@ -157,8 +176,8 @@ class AudiobookTorrentManager {
     try {
       // TODO: Implement resume functionality
       throw UnimplementedError('Resume download not implemented');
-    } on Exception {
-      throw const TorrentFailure('Failed to resume download');
+    } on Exception catch (e) {
+      throw TorrentFailure('Failed to resume download: ${e.toString()}');
     }
   }
 
@@ -174,8 +193,8 @@ class AudiobookTorrentManager {
     try {
       await _progressControllers[downloadId]?.close();
       _progressControllers.remove(downloadId);
-    } on Exception {
-      throw const TorrentFailure('Failed to remove download');
+    } on Exception catch (e) {
+      throw TorrentFailure('Failed to remove download: ${e.toString()}');
     }
   }
 
@@ -209,8 +228,8 @@ class AudiobookTorrentManager {
     try {
       // TODO: Implement actual active downloads retrieval
       return [];
-    } on Exception {
-      throw const TorrentFailure('Failed to get active downloads');
+    } on Exception catch (e) {
+      throw TorrentFailure('Failed to get active downloads: ${e.toString()}');
     }
   }
 
@@ -225,8 +244,8 @@ class AudiobookTorrentManager {
     try {
       await Future.wait(_progressControllers.values.map((controller) => controller.close()));
       _progressControllers.clear();
-    } on Exception {
-      throw const TorrentFailure('Failed to shutdown torrent manager');
+    } on Exception catch (e) {
+      throw TorrentFailure('Failed to shutdown torrent manager: ${e.toString()}');
     }
   }
 

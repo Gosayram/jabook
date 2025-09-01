@@ -54,7 +54,7 @@ class UserAgentManager {
 
       // Fall back to default
       return _defaultUserAgent;
-    } on Exception catch (_) {
+    } on Exception {
       // If anything goes wrong, return default User-Agent
       return _defaultUserAgent;
     }
@@ -96,7 +96,7 @@ class UserAgentManager {
       await controller.loadRequest(Uri.parse('about:blank'));
       
       return userAgent;
-    } on Exception catch (_) {
+    } on Exception {
       return null;
     }
   }
@@ -111,7 +111,7 @@ class UserAgentManager {
         'user_agent': userAgent, 
         'updated_at': DateTime.now().toIso8601String(),
       });
-    } on Exception catch (_) {
+    } on Exception {
       // Log error but don't fail the operation
       // TODO: Use proper logger instead of print
     }
@@ -125,7 +125,7 @@ class UserAgentManager {
       final store = StoreRef<String, Map<String, dynamic>>.main();
       final record = await store.record(_userAgentKey).get(_db!);
       return record?['user_agent'] as String?;
-    } on Exception catch (_) {
+    } on Exception {
       return null;
     }
   }
@@ -137,7 +137,7 @@ class UserAgentManager {
       
       final store = StoreRef<String, Map<String, dynamic>>.main();
       await store.record(_userAgentKey).delete(_db!);
-    } on Exception catch (_) {
+    } on Exception {
       // Log error but don't fail the operation
       // TODO: Use proper logger instead of print
     }
@@ -159,7 +159,7 @@ class UserAgentManager {
     try {
       final userAgent = await getUserAgent();
       dio.options.headers['User-Agent'] = userAgent;
-    } on Exception catch (_) {
+    } on Exception {
       // If anything goes wrong, use the default User-Agent
       dio.options.headers['User-Agent'] = _defaultUserAgent;
     }
