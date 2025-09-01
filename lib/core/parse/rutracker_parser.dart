@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:html/parser.dart' as parser;
 import 'package:windows1251/windows1251.dart';
+
 import '../errors/failures.dart';
 
 class Audiobook {
@@ -54,7 +55,7 @@ class RuTrackerParser {
       String decodedHtml;
       try {
         decodedHtml = utf8.decode(html.codeUnits);
-      } on FormatException catch (e) {
+      } on FormatException {
         decodedHtml = windows1251.decode(html.codeUnits);
       }
 
@@ -105,7 +106,7 @@ class RuTrackerParser {
       String decodedHtml;
       try {
         decodedHtml = utf8.decode(html.codeUnits);
-      } on FormatException catch (e) {
+      } on FormatException {
         decodedHtml = windows1251.decode(html.codeUnits);
       }
 
@@ -122,7 +123,7 @@ class RuTrackerParser {
         return null;
       }
 
-      final List<Chapter> chapters = [];
+      final chapters = <Chapter>[];
       if (chaptersElement != null) {
         // Parse chapters from the chapters section
         // This needs to be adapted to actual RuTracker HTML structure
@@ -134,7 +135,7 @@ class RuTrackerParser {
           
           // Parse duration (e.g., "1:23:45" to milliseconds)
           final durationParts = duration.split(':');
-          int durationMs = 0;
+          var durationMs = 0;
           if (durationParts.length == 3) {
             durationMs = (int.parse(durationParts[0]) * 3600 + 
                          int.parse(durationParts[1]) * 60 + 

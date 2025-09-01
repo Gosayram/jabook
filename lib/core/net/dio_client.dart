@@ -3,14 +3,13 @@ import 'package:cookie_jar/cookie_jar.dart';
 import 'package:dio_cookie_manager/dio_cookie_manager.dart';
 
 class DioClient {
-  static Dio? _instance;
-  static CookieJar? _cookieJar;
+  const DioClient._();
 
   static Dio get instance {
-    _instance ??= Dio();
-    _cookieJar ??= CookieJar();
+    final dio = Dio();
+    final cookieJar = CookieJar();
     
-    _instance!.options = BaseOptions(
+    dio.options = BaseOptions(
       connectTimeout: const Duration(seconds: 30),
       receiveTimeout: const Duration(seconds: 30),
       sendTimeout: const Duration(seconds: 30),
@@ -19,9 +18,9 @@ class DioClient {
       },
     );
     
-    _instance!.interceptors.add(CookieManager(_cookieJar!));
+    dio.interceptors.add(CookieManager(cookieJar));
     
-    return _instance!;
+    return dio;
   }
 
   static String _getUserAgent() {
@@ -36,8 +35,7 @@ class DioClient {
   }
 
   static Future<void> clearCookies() async {
-    if (_cookieJar != null) {
-      await _cookieJar!.deleteAll();
-    }
+    final cookieJar = CookieJar();
+    await cookieJar.deleteAll();
   }
 }

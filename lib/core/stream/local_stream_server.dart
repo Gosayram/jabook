@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart';
 import 'package:shelf_static/shelf_static.dart';
+
 import '../errors/failures.dart';
 
 class LocalStreamServer {
@@ -26,6 +27,7 @@ class LocalStreamServer {
       _server = await serve(handler, _host, _port);
       _isRunning = true;
 
+      // ignore: avoid_print
       print('Local stream server started on http://$_host:$_port');
     } catch (e) {
       throw StreamFailure('Failed to start stream server: ${e.toString()}');
@@ -39,25 +41,24 @@ class LocalStreamServer {
       await _server!.close();
       _server = null;
       _isRunning = false;
+      // ignore: avoid_print
       print('Local stream server stopped');
     } catch (e) {
       throw StreamFailure('Failed to stop stream server: ${e.toString()}');
     }
   }
 
-  Handler _createHandler() {
-    return (Request request) async {
-      final uri = request.url;
-      
-      // Handle streaming requests
-      if (uri.pathSegments.isNotEmpty && uri.pathSegments.first == 'stream') {
-        return _handleStreamRequest(request);
-      }
+  Handler _createHandler() => (Request request) async {
+    final uri = request.url;
+    
+    // Handle streaming requests
+    if (uri.pathSegments.isNotEmpty && uri.pathSegments.first == 'stream') {
+      return _handleStreamRequest(request);
+    }
 
-      // Handle other requests with static file serving
-      return _handleStaticRequest(request);
-    };
-  }
+    // Handle other requests with static file serving
+    return _handleStaticRequest(request);
+  };
 
   Future<Response> _handleStreamRequest(Request request) async {
     try {
@@ -98,8 +99,8 @@ class LocalStreamServer {
           HttpHeaders.contentLengthHeader: fileBytes.length.toString(),
         },
       );
-    } on Exception catch (e) {
-      return Response.internalServerError(body: 'Streaming error: ${e.toString()}');
+    } on Exception {
+      return Response.internalServerError(body: 'Streaming error');
     }
   }
 
@@ -135,8 +136,8 @@ class LocalStreamServer {
           HttpHeaders.contentRangeHeader: 'bytes $start-$end/$fileSize',
         },
       );
-    } on Exception catch (e) {
-      return Response.internalServerError(body: 'Range request error: ${e.toString()}');
+    } on Exception {
+      return Response.internalServerError(body: 'Range request error');
     }
   }
 
@@ -158,8 +159,8 @@ class LocalStreamServer {
 
       // For other static requests, use the static handler
       return await staticHandler(request);
-    } on Exception catch (e) {
-      return Response.internalServerError(body: 'Static file error: ${e.toString()}');
+    } on Exception {
+      return Response.internalServerError(body: 'Static file error');
     }
   }
 
@@ -169,9 +170,7 @@ class LocalStreamServer {
     return '/path/to/downloads/$bookId/file_$fileIndex.mp3';
   }
 
-  String getStreamUrl(String bookId, int fileIndex) {
-    return 'http://$_host:$_port/stream?id=$bookId&file=$fileIndex';
-  }
+  String getStreamUrl(String bookId, int fileIndex) => 'http://$_host:$_port/stream?id=$bookId&file=$fileIndex';
 }
 
 class StreamFailure extends Failure {

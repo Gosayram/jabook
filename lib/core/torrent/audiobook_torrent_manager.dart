@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
+
 import '../errors/failures.dart';
 
 class TorrentProgress {
@@ -29,7 +30,9 @@ class AudiobookTorrentManager {
   String? _currentDownloadId;
   final Map<String, StreamController<TorrentProgress>> _progressControllers = {};
 
-  AudiobookTorrentManager();
+  AudiobookTorrentManager._();
+
+  factory AudiobookTorrentManager() => AudiobookTorrentManager._();
 
   Future<void> downloadSequential(String magnetUrl, String savePath) async {
     try {
@@ -50,7 +53,7 @@ class AudiobookTorrentManager {
   }
 
   void _simulateDownload(StreamController<TorrentProgress> progressController) {
-    double progress = 0.0;
+    var progress = 0.0;
     const downloadSpeed = 1024.0; // 1 KB/s
     const totalBytes = 100 * 1024 * 1024; // 100 MB
     
@@ -84,7 +87,7 @@ class AudiobookTorrentManager {
       // TODO: Implement pause functionality
       throw UnimplementedError('Pause download not implemented');
     } catch (e) {
-      throw TorrentFailure('Failed to pause download: ${e.toString()}');
+      throw TorrentFailure('Failed to pause download');
     }
   }
 
@@ -93,7 +96,7 @@ class AudiobookTorrentManager {
       // TODO: Implement resume functionality
       throw UnimplementedError('Resume download not implemented');
     } catch (e) {
-      throw TorrentFailure('Failed to resume download: ${e.toString()}');
+      throw TorrentFailure('Failed to resume download');
     }
   }
 
@@ -102,7 +105,7 @@ class AudiobookTorrentManager {
       _progressControllers[downloadId]?.close();
       _progressControllers.remove(downloadId);
     } catch (e) {
-      throw TorrentFailure('Failed to remove download: ${e.toString()}');
+      throw TorrentFailure('Failed to remove download');
     }
   }
 
@@ -119,7 +122,7 @@ class AudiobookTorrentManager {
       // TODO: Implement actual active downloads retrieval
       return [];
     } catch (e) {
-      throw TorrentFailure('Failed to get active downloads: ${e.toString()}');
+      throw TorrentFailure('Failed to get active downloads');
     }
   }
 
@@ -128,7 +131,7 @@ class AudiobookTorrentManager {
       _progressControllers.forEach((_, controller) => controller.close());
       _progressControllers.clear();
     } catch (e) {
-      throw TorrentFailure('Failed to shutdown torrent manager: ${e.toString()}');
+      throw TorrentFailure('Failed to shutdown torrent manager');
     }
   }
 

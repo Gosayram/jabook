@@ -1,16 +1,19 @@
-import 'package:flutter/material.dart';
-import 'package:webview_flutter/webview_flutter.dart';
 import 'package:cookie_jar/cookie_jar.dart';
 import 'package:dio/dio.dart';
-import '../net/dio_client.dart';
+import 'package:flutter/material.dart';
+import 'package:webview_flutter/webview_flutter.dart';
+
 import '../errors/failures.dart';
+import '../net/dio_client.dart';
 
 class RuTrackerAuth {
   final WebViewCookieManager _cookieManager = WebViewCookieManager();
   final CookieJar _cookieJar = CookieJar();
   final BuildContext _context;
 
-  RuTrackerAuth(this._context);
+  RuTrackerAuth._(this._context);
+
+  factory RuTrackerAuth(BuildContext context) => RuTrackerAuth._(context);
 
   Future<bool> login(String username, String password) async {
     try {
@@ -19,7 +22,7 @@ class RuTrackerAuth {
         ..setJavaScriptMode(JavaScriptMode.unrestricted)
         ..setNavigationDelegate(
           NavigationDelegate(
-            onPageFinished: (String url) {
+            onPageFinished: (url) {
               // Check if login was successful by looking for user-specific content
               if (url.contains('profile.php')) {
                 _syncCookies();
@@ -65,8 +68,8 @@ class RuTrackerAuth {
       
       // Reset authentication state
       // TODO: Add any additional logout logic
-    } on Exception catch (e) {
-      throw AuthFailure('Logout failed: ${e.toString()}');
+    } on Exception {
+      throw AuthFailure('Logout failed');
     }
   }
 
@@ -83,7 +86,7 @@ class RuTrackerAuth {
       
       // If we get a 200 response, we're likely authenticated
       return response.statusCode == 200;
-    } on Exception catch (e) {
+    } on Exception {
       return false;
     }
   }

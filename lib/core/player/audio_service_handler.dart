@@ -1,6 +1,7 @@
 import 'package:audio_service/audio_service.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:rxdart/rxdart.dart';
+
 import '../errors/failures.dart';
 
 class AudioServiceHandler {
@@ -30,7 +31,7 @@ class AudioServiceHandler {
       // Handle audio focus policies
       await _setupAudioFocus();
     } catch (e) {
-      throw AudioFailure('Failed to start audio service: ${e.toString()}');
+      throw AudioFailure('Failed to start audio service');
     }
   }
 
@@ -70,7 +71,7 @@ class AudioServiceHandler {
       await _audioPlayer.setUrl(url);
       await _audioPlayer.play();
     } catch (e) {
-      throw AudioFailure('Failed to play media: ${e.toString()}');
+      throw AudioFailure('Failed to play media');
     }
   }
 
@@ -78,7 +79,7 @@ class AudioServiceHandler {
     try {
       await _audioPlayer.pause();
     } catch (e) {
-      throw AudioFailure('Failed to pause media: ${e.toString()}');
+      throw AudioFailure('Failed to pause media');
     }
   }
 
@@ -86,7 +87,7 @@ class AudioServiceHandler {
     try {
       await _audioPlayer.stop();
     } catch (e) {
-      throw AudioFailure('Failed to stop media: ${e.toString()}');
+      throw AudioFailure('Failed to stop media');
     }
   }
 
@@ -94,7 +95,7 @@ class AudioServiceHandler {
     try {
       await _audioPlayer.seek(position);
     } catch (e) {
-      throw AudioFailure('Failed to seek: ${e.toString()}');
+      throw AudioFailure('Failed to seek');
     }
   }
 
@@ -102,7 +103,7 @@ class AudioServiceHandler {
     try {
       await _audioPlayer.setSpeed(speed);
     } catch (e) {
-      throw AudioFailure('Failed to set speed: ${e.toString()}');
+      throw AudioFailure('Failed to set speed');
     }
   }
 
@@ -130,9 +131,4 @@ class AudioPlayerHandler extends BaseAudioHandler {
   @override
   Future<void> seekTo(Duration position) => _audioPlayer.seek(position);
 
-  @override
-  Future<void> seekToNext() => _audioPlayer.seekToNext();
-
-  @override
-  Future<void> seekToPrevious() => _audioPlayer.seekToPrevious();
 }

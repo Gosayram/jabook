@@ -7,77 +7,84 @@ class AppTheme {
   static const Color _onSurfaceColor = Color(0xFFF5F5DC); // Beige
   static const Color _accentColor = Color(0xFFFF6B35); // Orange
 
-  static ThemeData lightTheme = ThemeData(
-    useMaterial3: true,
-    colorScheme: ColorScheme.light(
-      primary: _primaryColor,
-      secondary: _accentColor,
-      surface: _surfaceColor,
-      onSurface: _onSurfaceColor,
-      error: Colors.red,
-      onError: Colors.white,
-      brightness: Brightness.light,
-    ),
-    appBarTheme: const AppBarTheme(
-      backgroundColor: _primaryColor,
-      foregroundColor: Colors.white,
-      elevation: 0,
-    ),
-    elevatedButtonTheme: ElevatedButtonThemeData(
-      style: ElevatedButton.styleFrom(
-        backgroundColor: _accentColor,
-        foregroundColor: Colors.white,
-        elevation: 2,
-      ),
-    ),
-    textTheme: const TextTheme(
-      bodyLarge: TextStyle(color: _onSurfaceColor),
-      bodyMedium: TextStyle(color: _onSurfaceColor),
-      bodySmall: TextStyle(color: _onSurfaceColor),
-    ),
-    cardTheme: CardThemeData(
-      color: _surfaceColor,
-      elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
-    ),
-  );
+  static ThemeData get lightTheme => _buildLightTheme();
+  static ThemeData get darkTheme => _buildDarkTheme();
 
-  static ThemeData darkTheme = ThemeData(
-    useMaterial3: true,
-    colorScheme: ColorScheme.dark(
-      primary: _primaryColor,
-      secondary: _accentColor,
-      surface: _surfaceColor,
-      onSurface: _onSurfaceColor,
-      error: Colors.red,
-      onError: Colors.white,
-      brightness: Brightness.dark,
-    ),
-    appBarTheme: const AppBarTheme(
-      backgroundColor: _backgroundColor,
-      foregroundColor: _onSurfaceColor,
-      elevation: 0,
-    ),
-    elevatedButtonTheme: ElevatedButtonThemeData(
-      style: ElevatedButton.styleFrom(
-        backgroundColor: _accentColor,
+  static ThemeData _buildLightTheme() {
+    return ThemeData(
+      useMaterial3: true,
+      colorScheme: ColorScheme.light(
+        primary: _primaryColor,
+        secondary: _accentColor,
+        surface: _surfaceColor,
+        onSurface: _onSurfaceColor,
+        error: Colors.red,
+        onError: Colors.white,
+        brightness: Brightness.light,
+      ),
+      appBarTheme: const AppBarTheme(
+        backgroundColor: _primaryColor,
         foregroundColor: Colors.white,
+        elevation: 0,
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: _accentColor,
+          foregroundColor: Colors.white,
+          elevation: 2,
+        ),
+      ),
+      textTheme: const TextTheme(
+        bodyLarge: TextStyle(color: _onSurfaceColor),
+        bodyMedium: TextStyle(color: _onSurfaceColor),
+        bodySmall: TextStyle(color: _onSurfaceColor),
+      ),
+      cardTheme: CardThemeData(
+        color: _surfaceColor,
         elevation: 2,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
       ),
-    ),
-    textTheme: const TextTheme(
-      bodyLarge: TextStyle(color: _onSurfaceColor),
-      bodyMedium: TextStyle(color: _onSurfaceColor),
-      bodySmall: TextStyle(color: _onSurfaceColor),
-    ),
-    cardTheme: CardThemeData(
-      color: _surfaceColor,
-      elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+    );
+  }
+
+  static ThemeData _buildDarkTheme() {
+    return ThemeData(
+      useMaterial3: true,
+      colorScheme: ColorScheme.dark(
+        primary: _primaryColor,
+        secondary: _accentColor,
+        surface: _surfaceColor,
+        onSurface: _onSurfaceColor,
+        error: Colors.red,
+        onError: Colors.white,
+        brightness: Brightness.dark,
       ),
-    ),
-  );
+      appBarTheme: const AppBarTheme(
+        backgroundColor: _backgroundColor,
+        foregroundColor: _onSurfaceColor,
+        elevation: 0,
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: _accentColor,
+          foregroundColor: Colors.white,
+          elevation: 2,
+        ),
+      ),
+      textTheme: const TextTheme(
+        bodyLarge: TextStyle(color: _onSurfaceColor),
+        bodyMedium: TextStyle(color: _onSurfaceColor),
+        bodySmall: TextStyle(color: _onSurfaceColor),
+      ),
+      cardTheme: CardThemeData(
+        color: _surfaceColor,
+        elevation: 2,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+      ),
+    );
+  }
 }

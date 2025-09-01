@@ -1,14 +1,16 @@
-import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:sembast/sembast.dart';
-import '../net/dio_client.dart';
+
 import '../errors/failures.dart';
+import '../net/dio_client.dart';
 
 class EndpointManager {
   final Database _db;
   final StoreRef<String, Map<String, dynamic>> _store = StoreRef.main();
 
-  EndpointManager(this._db);
+  EndpointManager._(this._db);
+
+  factory EndpointManager(Database db) => EndpointManager._(db);
 
   // Database structure: { url, priority, rtt, last_ok, signature_ok, enabled }
   static const String _storeKey = 'endpoints';
@@ -41,7 +43,7 @@ class EndpointManager {
       final rtt = endTime.difference(startTime).inMilliseconds;
 
       final record = await _store.record(_storeKey).get(_db);
-      final endpoints = List<Map<String, dynamic>>.from((record as Map<String, dynamic>?)?['endpoints'] ?? []);
+      final endpoints = List<Map<String, dynamic>>.from((record?['endpoints'] as List?) ?? []);
 
       final endpointIndex = endpoints.indexWhere((e) => e['url'] == endpoint);
       if (endpointIndex != -1) {
@@ -56,7 +58,7 @@ class EndpointManager {
     } catch (e) {
       // Mark endpoint as unhealthy
       final record = await _store.record(_storeKey).get(_db);
-      final endpoints = List<Map<String, dynamic>>.from((record as Map<String, dynamic>?)?['endpoints'] ?? []);
+      final endpoints = List<Map<String, dynamic>>.from((record?['endpoints'] as List?) ?? []);
 
       final endpointIndex = endpoints.indexWhere((e) => e['url'] == endpoint);
       if (endpointIndex != -1) {
@@ -71,9 +73,13 @@ class EndpointManager {
     return true;
   }
 
+  Future<void> _updateEndpoints(List<Map<String, dynamic>> endpoints) async {
+    await _store.record(_storeKey).put(_db, {'endpoints': endpoints});
+  }
+
   Future<String> getActiveEndpoint() async {
     final record = await _store.record(_storeKey).get(_db);
-    final endpoints = List<Map<String, dynamic>>.from((record as Map<String, dynamic>?)?['endpoints'] ?? []);
+    final endpoints = List<Map<String, dynamic>>.from((record?['endpoints'] as List?) ?? []);
 
     // Filter enabled endpoints and sort by priority
     final enabledEndpoints = endpoints
@@ -91,12 +97,12 @@ class EndpointManager {
 
   Future<List<Map<String, dynamic>>> getAllEndpoints() async {
     final record = await _store.record(_storeKey).get(_db);
-    return List<Map<String, dynamic>>.from((record as Map<String, dynamic>?)?['endpoints'] ?? []);
+    return List<Map<String, dynamic>>.from((record?['endpoints'] as List?) ?? []);
   }
 
   Future<void> addEndpoint(String url, int priority) async {
     final record = await _store.record(_storeKey).get(_db);
-    final endpoints = List<Map<String, dynamic>>.from((record as Map<String, dynamic>?)?['endpoints'] ?? []);
+    final endpoints = List<Map<String, dynamic>>.from((record?['endpoints'] as List?) ?? []);
 
     endpoints.add({
       'url': url,
@@ -107,14 +113,14 @@ class EndpointManager {
       'enabled': true,
     });
 
-    await _store.record(_storeKey).put(_db, {'endpoints': endpoints});
+    await _updateEndpoints(endpoints);
   }
 
   Future<void> removeEndpoint(String url) async {
     final record = await _store.record(_storeKey).get(_db);
-    final endpoints = List<Map<String, dynamic>>.from((record as Map<String, dynamic>?)?['endpoints'] ?? []);
+    final endpoints = List<Map<String, dynamic>>.from((record?['endpoints'] as List?) ?? []);
 
     endpoints.removeWhere((e) => e['url'] == url);
-    await _store.record(_storeKey).put(_db, {'endpoints': endpoints});
+    await _updateEndpoints(endpoints);
   }
 }
