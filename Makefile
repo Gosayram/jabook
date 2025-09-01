@@ -98,6 +98,9 @@ sign-android:
 	@if [ -f "$(SIGNING_SCRIPT)" ]; then \
 		$(SIGNING_SCRIPT); \
 		echo "Android signing configured successfully"; \
+		echo "Patching Gradle configuration..."; \
+		scripts/patch-gradle-signing.sh; \
+		echo "Gradle configuration patched successfully"; \
 	else \
 		echo "Error: Signing script not found at $(SIGNING_SCRIPT)"; \
 		echo "Please create .key-generate.conf from .key-generate.example.conf"; \
