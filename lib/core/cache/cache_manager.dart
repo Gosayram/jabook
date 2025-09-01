@@ -34,7 +34,7 @@ class CacheManager {
       throw StateError('CacheManager not initialized');
     }
 
-    final store = StoreRef<String, Map<String, dynamic>>.main();
+    final store = StoreRef<String, Map<String, dynamic>>('cache');
     final expirationTime = DateTime.now().add(Duration(seconds: ttlSeconds));
 
     await store.record(key).put(_db!, {
@@ -52,7 +52,7 @@ class CacheManager {
       throw StateError('CacheManager not initialized');
     }
 
-    final store = StoreRef<String, Map<String, dynamic>>.main();
+    final store = StoreRef<String, Map<String, dynamic>>('cache');
     final record = await store.record(key).get(_db!);
 
     if (record == null) {
@@ -75,7 +75,7 @@ class CacheManager {
       throw StateError('CacheManager not initialized');
     }
 
-    final store = StoreRef<String, Map<String, dynamic>>.main();
+    final store = StoreRef<String, Map<String, dynamic>>('cache');
     final records = await store.find(_db!);
 
     for (final record in records) {
@@ -92,7 +92,7 @@ class CacheManager {
       throw StateError('CacheManager not initialized');
     }
 
-    final store = StoreRef<String, Map<String, dynamic>>.main();
+    final store = StoreRef<String, Map<String, dynamic>>('cache');
     await store.delete(_db!);
   }
 
@@ -102,7 +102,7 @@ class CacheManager {
       throw StateError('CacheManager not initialized');
     }
 
-    final store = StoreRef<String, Map<String, dynamic>>.main();
+    final store = StoreRef<String, Map<String, dynamic>>('cache');
     await store.record(key).delete(_db!);
   }
 
@@ -112,7 +112,7 @@ class CacheManager {
       throw StateError('CacheManager not initialized');
     }
 
-    final store = StoreRef<String, Map<String, dynamic>>.main();
+    final store = StoreRef<String, Map<String, dynamic>>('cache');
     final record = await store.record(key).get(_db!);
 
     if (record == null) {
@@ -128,7 +128,7 @@ class CacheManager {
       throw StateError('CacheManager not initialized');
     }
 
-    final store = StoreRef<String, Map<String, dynamic>>.main();
+    final store = StoreRef<String, Map<String, dynamic>>('cache');
     final record = await store.record(key).get(_db!);
 
     if (record == null) {

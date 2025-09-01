@@ -3,8 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:jabook/app/router/app_router.dart';
 import 'package:jabook/app/theme/app_theme.dart';
+import 'package:jabook/core/cache/rutracker_cache_service.dart';
 import 'package:jabook/core/config/app_config.dart';
 import 'package:jabook/core/logging/environment_logger.dart';
+import 'package:jabook/data/db/app_database.dart';
 
 /// Main application widget for JaBook audiobook player.
 ///
@@ -29,6 +31,8 @@ class JaBookApp extends ConsumerStatefulWidget {
 class _JaBookAppState extends ConsumerState<JaBookApp> {
   final AppConfig config = AppConfig();
   final EnvironmentLogger logger = EnvironmentLogger();
+  final AppDatabase database = AppDatabase();
+  final RuTrackerCacheService cacheService = RuTrackerCacheService();
 
   // Avoid recreating the key on every build.
   final GlobalKey<ScaffoldMessengerState> _scaffoldMessengerKey =
@@ -47,6 +51,9 @@ class _JaBookAppState extends ConsumerState<JaBookApp> {
 
       // Log startup details (single receiver via cascade inside helper)
       _logStartupDetails();
+
+      // Initialize database and cache
+      await _initializeDatabase();
 
       // Initialize configuration based on flavor
       await _initializeEnvironment();
@@ -85,6 +92,13 @@ class _JaBookAppState extends ConsumerState<JaBookApp> {
         logger.w('Unknown flavor: ${config.flavor}, falling back to dev');
         await _initializeDevEnvironment();
     }
+  }
+
+  Future<void> _initializeDatabase() async {
+    logger.i('Initializing database...');
+    await database.initialize();
+    await cacheService.initialize(database.database);
+    logger.i('Database and cache initialized successfully');
   }
 
   Future<void> _initializeDevEnvironment() async {
