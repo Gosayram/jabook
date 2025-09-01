@@ -1,278 +1,320 @@
-# JaBook - Android Audiobook Player
+# JaBook - Flutter Audiobook Player
 
 ## Project Overview
 
-JaBook is a modern Android audiobook player designed as a successor to discontinued audiobook applications. The app provides seamless integration with RuTracker.net for discovering and downloading audiobooks via torrent protocol.
+JaBook is a modern audiobook player rebuilt as a **100% Flutter** application (no Kotlin code), designed as a successor to discontinued audiobook applications. The app provides seamless integration with RuTracker.net for discovering and downloading audiobooks via torrent protocol, with full background playback, local HTTP streaming, and comprehensive debugging capabilities.
 
 ## Core Features
 
-### 1. Audio Playback
-- **ExoPlayer Integration**: High-quality audio playback with Media3
-- **Chapter Navigation**: Seamless chapter-to-chapter playback
+### 1. Audio Playback & Background
+- **just_audio Integration**: High-quality audio playback with chapter navigation
+- **Background Service**: `audio_service` + `just_audio_background` for lock-screen controls
+- **Audio Focus Management**: `audio_session` for proper interruption handling
+- **Headset Controls**: Physical button support and Bluetooth controls
+- **Android Auto**: Full integration with Android Auto system
 - **Playback Controls**: Play, pause, seek, speed control (0.5x - 3.0x)
 - **Sleep Timer**: Automatic playback stop after specified time
-- **Background Playback**: MediaSession integration for system controls
-- **Audio Focus Management**: Proper handling of audio interruptions
+- **Chapter Navigation**: Seamless chapter-to-chapter playback
+- **Custom Skip**: 5/10/15 second skip buttons
 
 ### 2. Library Management
-- **Local Storage**: Organized audiobook collection with metadata
+- **Local Storage**: Organized audiobook collection with metadata using `sembast`
 - **Smart Filtering**: By author, category, download status, completion
 - **Search Functionality**: Full-text search across titles and authors
 - **Favorites System**: Mark and filter favorite audiobooks
 - **Progress Tracking**: Resume playback from last position
+- **Bookmarks**: `{bookId, fileIndex, positionMs, createdAt, note?}`
+- **Continue Listening**: Last played {bookId, fileIndex, positionMs}
 
 ### 3. RuTracker Integration
-- **Dual Mode Support**: Guest browsing + authenticated downloads
+- **WebView Login**: `webview_flutter` for real RuTracker authentication
+- **Cookie Sync**: `webview_cookie_manager` → `CookieJar` → Dio client
 - **Guest Mode**: Browse and view magnet links without registration
 - **Authenticated Mode**: Full access with user credentials
 - **Search & Discovery**: Advanced search with filters and sorting
 - **Category Browsing**: Navigate through audiobook categories
 - **Real-time Updates**: Live seeder/leecher information
+- **Mirror Support**: Automatic endpoint failover with health checks
 
-### 4. Download Management
-- **Torrent Engine**: LibTorrent4j integration for downloads
+### 4. Torrent Downloads
+- **Pure Dart Engine**: `dtorrent_task` for sequential audiobook downloads
 - **Progress Tracking**: Real-time download progress and speed
 - **Queue Management**: Pause, resume, prioritize downloads
-- **File Extraction**: Automatic archive extraction and organization
-- **Storage Management**: Smart space allocation and cleanup
+- **Session Persistence**: Resume data stored in app directory
+- **Sequential Priority**: Prioritize audio file pieces for progressive playback
+- **Piece Availability**: Index-based tracking for optimal download strategy
 
-### 5. User Interface
+### 5. Local HTTP Streaming
+- **Shelf Server**: Local HTTP server on `127.0.0.1:17171`
+- **Range/206 Support**: `shelf_static` with `useHeaderBytesRange: true`
+- **Progressive Streaming**: Stream partially downloaded files
+- **File Mapping**: `/stream/{id}?file={n}` URL scheme for player
+- **Dynamic Content**: Handle growing files with partial content strategy
+
+### 6. Debugging & Logging
+- **NDJSON Logging**: Structured logs with rotation
+- **Log Export**: Share logs as .txt files via `share_plus`
+- **Real-time Tail**: Live log viewing with filtering
+- **Debug UI**: Monospace log view with color-coded levels
+- **Log Rotation**: Size/date-based rotation with configurable retention
+
+### 7. User Interface
 - **Material Design 3**: Modern, adaptive UI with dynamic theming
+- **Custom Palette**: Violet background, Beige text, Orange accents
 - **Dark/Light/Auto Themes**: System theme following with manual override
 - **Responsive Design**: Optimized for phones and tablets
 - **Accessibility**: Screen reader support and high contrast modes
 - **Animations**: Smooth transitions and micro-interactions
+- **Branding**: Custom splash screen and launcher icons
 
 ## Technical Architecture
 
 ### Technology Stack
-- **Language**: Kotlin 2.2.x targeting JVM 17
-- **UI Framework**: Jetpack Compose with Material Design 3
-- **Architecture**: MVVM with Clean Architecture principles
-- **Dependency Injection**: Hilt/Dagger
-- **Database**: Room with SQLite for local storage
-- **Audio**: ExoPlayer (Media3) for playback
-- **Networking**: Retrofit2 + OkHttp3 for API calls
-- **Image Loading**: Coil for cover art
-- **Torrent**: LibTorrent4j for download management
+- **Framework**: Flutter 3.35 (Dart 3.9)
+- **State Management**: `flutter_riverpod: ^2.5.1`
+- **UI Framework**: Flutter Material Design 3
+- **Audio**: `just_audio: ^0.10.4` + `audio_service: ^0.18.18`
+- **Background**: `just_audio_background: ^0.0.1-beta.17`
+- **Session**: `audio_session: ^0.2.2`
+- **Networking**: `dio: ^5.9.0` + `dio_cookie_manager: ^3.2.0`
+- **Cookies**: `cookie_jar: ^4.0.6`
+- **WebView**: `webview_flutter: ^4.13.0` + `webview_cookie_manager: ^2.0.6`
+- **Parsing**: `html: ^0.15.4` + `windows1251: ^2.0.0`
+- **Local Server**: `shelf: ^1.4.2` + `shelf_static: ^1.1.3`
+- **Database**: `sembast: ^3.8.0` for local storage
+- **Torrent**: `dtorrent_task: ^0.4.0` (pure Dart)
+- **Utilities**: `share_plus: ^10.0.2`, `path_provider: ^2.1.4`
+- **Permissions**: `permission_handler: ^12.0.1`
+- **Device Info**: `device_info_plus: ^11.5.0`
+- **Branding**: `flutter_native_splash: ^2.4.6`, `flutter_launcher_icons: ^0.14.1`
 
-### Module Structure
+### Android Configuration
+- **minSdkVersion**: 24 (Android 7.0)
+- **compileSdkVersion**: 35 (Android 15)
+- **targetSdkVersion**: 35 (Android 15)
+- **ABIs**: `armeabi-v7a`, `arm64-v8a`, `x86_64`
+- **Distribution**: GitHub Releases only (no Play Store)
+
+### Project Structure
 ```
-app/
-├── core/
-│   ├── network/          # RuTracker API client
-│   ├── database/         # Room database entities
-│   ├── torrent/          # Torrent download engine
-│   ├── storage/          # File management
-│   └── compat/           # Android version compatibility
-├── features/
-│   ├── library/          # Book library & organization
-│   ├── player/           # Audio player functionality
-│   ├── discovery/        # RuTracker browsing
-│   └── downloads/        # Download management
-└── shared/
-    ├── ui/               # Common UI components
-    ├── utils/            # Utilities & extensions
-    └── debug/            # Debug tools & logging
+/lib
+├─ main.dart
+├─ app_router.dart                 # routes / deep links
+├─ theme/                          # palette + typography
+├─ features/
+│  ├─ library/                     # local items, history, storage stats
+│  ├─ search/                      # online search (requires login)
+│  ├─ topic/                       # topic details, files/parts
+│  ├─ player/                      # player UI, chapters/marks
+│  ├─ mirrors/                     # endpoints list, health, failover
+│  ├─ debug/                       # logs tail, filters, export
+│  └─ settings/                    # theme, logs verbosity, UA view, export
+├─ core/
+│  ├─ net/                         # Dio + UA + CookieJar + interceptors
+│  ├─ endpoints/                   # resolver, health-checks, RTT
+│  ├─ auth/                        # WebView login, cookie sync
+│  ├─ parse/                       # HTML parsing + cp1251 fallback
+│  ├─ torrent/                     # dtorrent_task wrapper (sequential)
+│  ├─ stream/                      # shelf: /api/*, /stream/* (Range/206)
+│  ├─ player/                      # just_audio + audio_service bindings
+│  └─ logging/                     # NDJSON, rotation, share
+└─ data/
+   ├─ db/                          # sembast stores (library, cache, mirrors)
+   └─ models/                      # DTO / entities / adapters
 ```
 
 ### Data Flow
-1. **Discovery**: RuTracker API → Domain Models → UI
-2. **Download**: Torrent Engine → File Manager → Database
-3. **Playback**: Database → ExoPlayer → Audio Focus
-4. **Library**: Database → Repository → UI
+1. **Discovery**: WebView + Dio + HTML Parser → Riverpod State → UI
+2. **Download**: dtorrent_task → Progress Tracking → File System → Database
+3. **Playback**: just_audio → audio_service → Local HTTP Server → Range/206
+4. **Library**: sembast → Repository → Riverpod → UI
 
-## RuTracker API Integration Plan
+## Implementation Details
 
-### Current Issues
-- Не работает получение данных с rutracker.net
-- Отсутствует поддержка аутентификации пользователей
-- Нет возможности просматривать magnet ссылки в гостевом режиме
-- Ограниченная функциональность поиска и фильтрации
+### 1. Unified User-Agent Management
+- **WebView Integration**: Extract `navigator.userAgent` on first WebView init
+- **Global Sync**: Store UA in `sembast` database and apply to Dio headers
+- **Auto-Refresh**: Update stored UA on app start (Chromium updates)
 
-### Proposed Solution
-
-#### 1. Dual Mode Architecture
-- **Guest Mode**: Без регистрации, только просмотр и magnet ссылки
-- **Authenticated Mode**: Полный доступ с учетными данными пользователя
-
-#### 2. API Client Redesign
-```kotlin
-interface RuTrackerApiClient {
-    // Guest mode operations
-    suspend fun searchGuest(query: String, category: String? = null): List<RuTrackerAudiobook>
-    suspend fun getCategoriesGuest(): List<RuTrackerCategory>
-    suspend fun getAudiobookDetailsGuest(topicId: String): RuTrackerAudiobook?
-    suspend fun getMagnetLinkGuest(topicId: String): String?
-    
-    // Authenticated mode operations
-    suspend fun login(username: String, password: String): Boolean
-    suspend fun searchAuthenticated(query: String, sort: String = "seeds", order: String = "desc"): List<RuTrackerAudiobook>
-    suspend fun downloadTorrent(topicId: String): InputStream?
-    suspend fun getMagnetLinkAuthenticated(topicId: String): String?
-    suspend fun logout()
-    
-    // Common operations
-    fun isAuthenticated(): Boolean
-    fun getCurrentUser(): String?
+### 2. RuTracker Authorization System
+```dart
+class RuTrackerAuth {
+  final WebViewCookieManager _cookieManager = WebViewCookieManager();
+  final CookieJar _cookieJar = CookieJar();
+  
+  Future<bool> login(String username, String password) async {
+    // Open WebView to rutracker.me
+    // Extract cookies after successful login
+    // Sync to CookieJar for Dio requests
+  }
+  
+  Future<void> logout() async {
+    // Clear WebView cookies
+    // Clear CookieJar
+    // Reset authentication state
+  }
 }
 ```
 
-#### 3. User Preferences Management
-```kotlin
-interface RuTrackerPreferences {
-    suspend fun setCredentials(username: String, password: String)
-    suspend fun getCredentials(): Pair<String, String>?
-    suspend fun clearCredentials()
-    suspend fun setGuestMode(enabled: Boolean)
-    suspend fun isGuestMode(): Boolean
+### 3. Mirror/Endpoint Manager
+```dart
+class EndpointManager {
+  final Database _db;
+  
+  // Database structure: { url, priority, rtt, last_ok, signature_ok, enabled }
+  Future<void> healthCheck(String endpoint) async {
+    // HEAD/fast GET + content-type/signature validation
+    // Calculate RTT and update database
+    // Auto-failover on error
+  }
+  
+  Future<String> getActiveEndpoint() async {
+    // Return highest priority healthy endpoint
+  }
 }
 ```
 
-#### 4. Enhanced Domain Models
-```kotlin
-data class RuTrackerAudiobook(
-    val id: String,
-    val title: String,
-    val author: String,
-    val narrator: String? = null,
-    val description: String,
-    val category: String,
-    val categoryId: String,
-    val year: Int? = null,
-    val quality: String? = null,
-    val duration: String? = null,
-    val size: String,
-    val sizeBytes: Long,
-    val magnetUri: String? = null, // Available in guest mode
-    val torrentUrl: String? = null, // Available in authenticated mode
-    val seeders: Int,
-    val leechers: Int,
-    val completed: Int,
-    val addedDate: String,
-    val lastUpdate: String? = null,
-    val coverUrl: String? = null,
-    val rating: Float? = null,
-    val genreList: List<String> = emptyList(),
-    val tags: List<String> = emptyList(),
-    val isVerified: Boolean = false,
-    val state: TorrentState = TorrentState.APPROVED,
-    val downloads: Int = 0,
-    val registered: Date? = null
-)
-
-enum class TorrentState {
-    APPROVED,        // проверено
-    NOT_APPROVED,    // не проверено
-    NEED_EDIT,       // недооформлено
-    DUBIOUSLY,       // сомнительно
-    CONSUMED,        // поглощена
-    TEMPORARY        // временная
+### 4. HTML Parsing with Fallback
+```dart
+class RuTrackerParser {
+  Future<List<Audiobook>> parseSearchResults(String html) async {
+    // Try UTF-8 first, fallback to cp1251
+    // Use package:html selectors for topic/magnet/seeds/leeches
+    // Normalize size to bytes
+  }
+  
+  Future<Audiobook?> parseTopicDetails(String html) async {
+    // Extract full audiobook information
+    // Parse chapter/part structure
+    // Extract cover images
+  }
 }
 ```
 
-#### 5. UI Components for Authentication
-- **Settings Screen**: Переключатель режимов и поля для учетных данных
-- **Login Dialog**: Модальное окно для ввода логина/пароля
-- **Mode Indicator**: Индикатор текущего режима в UI
-- **Authentication Status**: Отображение статуса авторизации
-
-#### 6. Implementation Phases
-
-**Phase 1: Guest Mode Implementation**
-- Реализовать базовый API клиент для гостевого режима
-- Добавить парсинг HTML страниц rutracker.net
-- Реализовать поиск и получение magnet ссылок
-- Добавить UI для переключения режимов
-
-**Phase 2: Authentication System**
-- Реализовать систему аутентификации с сохранением сессии
-- Добавить безопасное хранение учетных данных
-- Реализовать полный API для аутентифицированного режима
-- Добавить обработку ошибок авторизации
-
-**Phase 3: Enhanced Features**
-- Добавить расширенный поиск с фильтрами
-- Реализовать категории и подкатегории
-- Добавить статистику и рейтинги
-- Улучшить UI/UX для обоих режимов
-
-#### 7. Security Considerations
-- Шифрование сохраненных учетных данных
-- Безопасная передача данных через HTTPS
-- Обработка ошибок авторизации
-- Автоматический logout при ошибках
-
-#### 8. Error Handling
-- Network connectivity issues
-- Authentication failures
-- Rate limiting protection
-- Malformed response handling
-- User-friendly error messages
-
-### Implementation Details
-
-#### HTML Parsing Strategy
-```kotlin
-interface RuTrackerParser {
-    suspend fun parseSearchResults(html: String): List<RuTrackerAudiobook>
-    suspend fun parseAudiobookDetails(html: String): RuTrackerAudiobook?
-    suspend fun parseCategories(html: String): List<RuTrackerCategory>
-    suspend fun extractMagnetLink(html: String): String?
-    suspend fun extractTorrentLink(html: String): String?
-    suspend fun parseTorrentState(html: String): TorrentState
+### 5. Torrent Engine (Sequential)
+```dart
+class AudiobookTorrentManager {
+  final dtorrent_task _torrentEngine;
+  
+  Future<void> downloadSequential(String magnetUrl, String savePath) async {
+    // Add magnet/torrent with sequential piece priority
+    // Maintain piece-availability index
+    // Expose progress per file
+    // Persist session data
+  }
+  
+  Stream<TorrentProgress> get progressStream => _torrentEngine.progress;
 }
 ```
 
-#### Network Configuration
-```kotlin
-@Module
-@InstallIn(SingletonComponent::class)
-object RuTrackerNetworkModule {
-    @Provides
-    @Singleton
-    fun provideRuTrackerOkHttpClient(): OkHttpClient {
-        return OkHttpClient.Builder()
-            .addInterceptor(UserAgentInterceptor("JaBook/1.0"))
-            .addInterceptor(RateLimitInterceptor())
-            .connectTimeout(30, TimeUnit.SECONDS)
-            .readTimeout(30, TimeUnit.SECONDS)
-            .build()
-    }
+### 6. Local HTTP Server with Range Support
+```dart
+class LocalStreamServer {
+  final HttpServer _server;
+  
+  Future<void> start() async {
+    // shelf server on 127.0.0.1:17171
+    // /stream/{id}?file={n} endpoint handler
+    // Range/206 support for partial content
+    // Handle growing files with custom logic
+  }
 }
 ```
 
-This comprehensive plan addresses all current limitations and provides a robust foundation for RuTracker integration with both guest and authenticated modes.
+### 7. Audio Service Integration
+```dart
+class AudioServiceHandler {
+  final AudioHandler _handler;
+  
+  Future<void> startService() async {
+    // Initialize audio_service with just_audio
+    // Configure notification and lock-screen controls
+    // Handle audio focus policies
+    // Set up 5/10/15 second skip actions
+  }
+}
+```
 
-## Development Phases
+### 8. NDJSON Logging System
+```dart
+class StructuredLogger {
+  final File _logFile;
+  
+  Future<void> log({
+    required String level,
+    required String subsystem,
+    required String message,
+    String? cause,
+  }) async {
+    // NDJSON format: {"ts": "...", "level": "...", "subsystem": "...", "msg": "..."}
+    // Rotation by size/date
+    // Export via share_plus
+  }
+}
+```
 
-### Phase 1: Foundation (Completed)
-- ✅ Project setup with Kotlin 2.2.x
-- ✅ Clean Architecture implementation
-- ✅ Basic UI with Jetpack Compose
-- ✅ Database setup with Room
-- ✅ Dependency injection with Hilt
+## Build & Release
 
-### Phase 2: Core Features (Completed)
-- ✅ Audio playback with ExoPlayer
-- ✅ Library management
-- ✅ Basic RuTracker integration
-- ✅ Download system foundation
-- ✅ UI/UX improvements
+### Per-ABI APK Generation
+```bash
+flutter build apk --release --split-per-abi
+```
 
-### Phase 3: Advanced Features (In Progress)
-- 🔄 Enhanced RuTracker API integration
-- 🔄 Dual mode authentication system
-- 🔄 Advanced download management
-- 🔄 Performance optimizations
-- 🔄 Comprehensive testing
+**Artifacts**:
+- `*-arm64-v8a.apk` (64-bit ARM)
+- `*-armeabi-v7a.apk` (32-bit ARM)
+- `*-x86_64.apk` (64-bit x86)
+- `*-universal.apk` (optional, all architectures)
 
-### Phase 4: Polish & Release
-- ⏳ Final UI/UX refinements
-- ⏳ Performance optimization
-- ⏳ Comprehensive testing
-- ⏳ Documentation completion
-- ⏳ Release preparation
+**Release Process**:
+1. Sign APKs with `key.properties`
+2. Upload to GitHub Releases
+3. Attach artifacts + release notes
+4. Upload mapping files for crash reporting
+
+### Version Management
+- **Source**: `.release-version` file
+- **Git Tags**: Drive CI/CD pipeline
+- **Build Config**: Inject version from single source
+- **SBOM**: Generate software bill of materials
+
+## Development Milestones
+
+### M1 — Skeleton (Foundation)
+- [ ] Flutter project setup with minSdk=24, compile/target=35
+- [ ] Package dependencies installation (pubspec.yaml)
+- [ ] Theme implementation (Violet/Beige/Orange palette)
+- [ ] App routing and navigation
+- [ ] WebView login screen skeleton
+- [ ] User-Agent sync system
+- [ ] Shelf server basic setup
+
+### M2 — Search/Topic Integration
+- [ ] Dio + CookieJar integration
+- [ ] HTML parsing with cp1251 fallback
+- [ ] Mirror manager with health checks
+- [ ] Search functionality implementation
+- [ ] Topic details view
+- [ ] Caching system (search TTL=1h, topic TTL=24h)
+- [ ] Error handling and retry logic
+
+### M3 — Torrent/Stream/Player
+- [ ] dtorrent_task wrapper with sequential policy
+- [ ] Session persistence implementation
+- [ ] Local HTTP server with Range/206 support
+- [ ] just_audio + audio_service integration
+- [ ] Background playback with lock-screen controls
+- [ ] Chapter navigation and bookmarks
+- [ ] 5/10/15 second skip functionality
+
+### M4 — Debug/Release
+- [ ] NDJSON logging with rotation
+- [ ] Log export via share_plus
+- [ ] Splash screen and launcher icons
+- [ ] Per-ABI APK builds
+- [ ] GitHub Release automation
+- [ ] Comprehensive testing
+- [ ] Performance optimization
 
 ## Testing Strategy
 
@@ -281,45 +323,48 @@ This comprehensive plan addresses all current limitations and provides a robust 
 - Use case testing
 - Domain model validation
 - API client testing
+- Parser testing
 
 ### Integration Tests
-- Database operations
-- Network API calls
-- File system operations
-- Audio playback integration
+- Database operations (sembast)
+- Network API calls (Dio)
+- WebView authentication
+- Audio service integration
+- Local server functionality
 
 ### UI Tests
 - Navigation testing
 - User interaction testing
 - Theme switching
 - Accessibility testing
+- Log export flow
 
 ## Performance Considerations
 
 ### Memory Management
-- Efficient image loading with Coil
-- Proper lifecycle management
+- Efficient image loading with cached network images
+- Proper lifecycle management for streams
 - Background task optimization
 - Memory leak prevention
 
 ### Network Optimization
-- Request caching
-- Rate limiting
+- Request caching with TTL
+- Rate limiting and retry logic
 - Connection pooling
-- Error retry logic
+- Mirror failover strategies
 
 ### Storage Optimization
-- Efficient database queries
-- File compression
+- Efficient database queries (sembast)
+- File compression for downloads
 - Cache management
-- Storage cleanup
+- Storage cleanup utilities
 
 ## Security Considerations
 
 ### Data Protection
 - Encrypted storage for credentials
-- Secure network communication
-- Input validation
+- Secure network communication via HTTPS
+- Input validation and sanitization
 - Error message sanitization
 
 ### Privacy
@@ -328,56 +373,52 @@ This comprehensive plan addresses all current limitations and provides a robust 
 - User consent for features
 - Data deletion options
 
+### Android Version Guards
+```dart
+if (await DeviceInfo().androidSdkInt >= 33) {
+  // Request notification permission
+}
+if (await DeviceInfo().androidSdkInt >= 29) {
+  // Handle scoped storage
+}
+if (await DeviceInfo().androidSdkInt >= 34) {
+  // Apply foreground service policies
+}
+```
+
+## Error Handling & Observability
+
+### Central Error Mapping
+- Network errors with retry strategies
+- Authentication failures with clear feedback
+- Parsing errors with fallback mechanisms
+- Storage errors with recovery options
+
+### Logging Strategy
+- **Debug builds**: Verbose human-readable logs
+- **Release builds**: JSON structured logs (NDJSON)
+- **Crash reporting**: Upload mapping files without PII
+- **Performance monitoring**: Track slow operations
+
 ## Future Enhancements
 
 ### Planned Features
-- Cloud sync support
-- Multiple audio format support
+- iOS support (future expansion)
 - Advanced audio effects
 - Social features (ratings, reviews)
-- Offline mode improvements
+- Cloud sync support
+- Multiple audio format support
 
 ### Technical Improvements
-- Kotlin Multiplatform support
-- Performance monitoring
+- Performance monitoring integration
 - Advanced caching strategies
 - Enhanced error handling
+- Automated testing improvements
 
 ## Conclusion
 
-JaBook represents a modern approach to audiobook management on Android, combining powerful playback capabilities with seamless content discovery. The dual-mode RuTracker integration ensures accessibility while providing enhanced features for registered users.
+JaBook represents a modern approach to audiobook management on Android, rebuilt as a 100% Flutter application. The app combines powerful playback capabilities with seamless content discovery, comprehensive background support, and robust debugging tools.
 
-The project follows Android best practices and modern development patterns, ensuring maintainability, scalability, and user satisfaction. 
+The Flutter implementation ensures cross-platform compatibility, modern UI capabilities, and maintainable codebase while preserving all the original features and adding new functionality like local HTTP streaming and structured logging.
 
-# UI/UX and Functional Improvements Plan (Samsung S23 FE)
-
-## 1. Guest Mode: Real-Time Content Search
-- [ ] Implement real-time search and display of audiobook topics in guest mode (no login required)
-- [ ] Ensure guest mode fetches and displays top books and categories from RuTracker API
-- [ ] Show clear error messages if network is unavailable or API fails
-
-## 2. Status and Feedback
-- [ ] Localize all status messages (e.g., "Success", "Switched to guest mode") to match app language
-- [ ] Use consistent, user-friendly phrasing for all feedback and error states
-- [ ] Visually distinguish between success and error states (color, icon)
-
-## 3. Forms and Controls
-- [ ] Improve input field contrast and placeholder text for better readability
-- [ ] Enable login button only when both fields are non-empty
-- [ ] Add password visibility toggle to password field
-- [ ] Add loading indicator to login button during authentication
-
-## 4. Navigation and Empty States
-- [ ] Add onboarding or tooltip for first-time users in empty library/downloads
-- [ ] Improve empty state illustrations and messages (e.g., "No content available", "No active downloads")
-- [ ] Add retry button for failed content loads
-
-## 5. Visual Consistency
-- [ ] Unify card and button corner radius, padding, and elevation across all screens
-- [ ] Fix alignment and spacing in settings and forms
-- [ ] Ensure all icons and text are visually balanced and accessible
-
-## 6. General
-- [ ] Audit all screens for dark mode compliance and color contrast
-- [ ] Add accessibility labels for all interactive elements
-- [ ] Update all English/Russian strings for clarity and consistency
+The project follows Flutter best practices and modern development patterns, ensuring maintainability, scalability, and user satisfaction across all supported Android versions.
