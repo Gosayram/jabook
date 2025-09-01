@@ -10,7 +10,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  flutter_riverpod: ^2.5.1
+  flutter_riverpod: ^2.6.1
   go_router: ^16.2.1
   just_audio: ^0.10.4
   audio_service: ^0.18.18
@@ -41,13 +41,16 @@ dependencies:
   json_serializable: ^6.7.1
   build_runner: ^2.4.7
   flutter_lints: ^6.0.0
+  analyzer: ^8.1.1
+  material_color_utilities: ^0.11.0
+  meta: ^1.16.0
+  mime: ^1.0.4
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   integration_test:
     sdk: flutter
-  test: ^1.26.2
 
 flutter:
   uses-material-design: true
