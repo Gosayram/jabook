@@ -7,10 +7,8 @@
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter/material.dart';
 
 import 'package:jabook/app/app.dart';
-import 'package:jabook/l10n/app_localizations.dart';
 
 void main() {
   testWidgets('Library screen loads correctly', (tester) async {
