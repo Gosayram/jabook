@@ -46,19 +46,19 @@ awk '
 }
 /release.*signingConfig.*debug/ {
     # Replace debug signing with release signing
-    gsub(/signingConfig.*debug/, "signingConfig = signingConfigs.getByName(\"release\")")
+    gsub(/signingConfig\s*signingConfigs\.debug/, "signingConfig = signingConfigs.getByName(\"release\")")
     print $0
     next
 }
 /signingConfigs\.getByName.*debug/ {
     # Replace debug signing with release signing
-    gsub(/signingConfigs\.getByName.*debug/, "signingConfigs.getByName(\"release\")")
+    gsub(/signingConfigs\.getByName\(.*debug.*\)/, "signingConfigs.getByName(\"release\")")
     print $0
     next
 }
 /signingConfig.*debug/ {
     # Replace debug signing with release signing
-    gsub(/signingConfig.*debug/, "signingConfig = signingConfigs.getByName(\"release\")")
+    gsub(/signingConfig\s*=\s*signingConfigs\.debug/, "signingConfig = signingConfigs.getByName(\"release\")")
     print $0
     next
 }
