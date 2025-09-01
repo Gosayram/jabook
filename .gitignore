@@ -161,3 +161,70 @@ keystore.properties
 
 # Kotlin Compiler
 kotlin-compiler-*
+
+# Flutter
+.flutter-plugins-dependencies
+.dart_tool/
+.packages
+.pub-cache/
+.pub/
+build/
+coverage/
+flutter_*.png
+linked_*.ds
+unlinked.ds
+*.g.dart
+
+# Android
+.gradle/
+**/gradle-wrapper.jar
+**/local.properties
+**/GeneratedPluginRegistrant.java
+**/GeneratedPluginRegistrant.kt
+captures/
+outputs/
+*.apk
+*.aar
+*.ap_
+
+# iOS / Xcode
+**/Pods/
+**/Podfile.lock
+**/Podfile
+**/Podfile.*
+**/Flutter/Flutter.framework
+**/Flutter/Flutter.podspec
+**/Generated.xcconfig
+**/flutter_export_environment.sh
+**/ServiceDefinitions.json
+**/Runner/GeneratedPluginRegistrant.*
+
+# macOS
+**/xcuserdata/
+**/DerivedData/
+**/build/
+**/.generated/
+
+# Linux
+*.so
+*.dylib
+
+# Web
+lib/generated_plugin_registrant.dart
+
+# Crashlytics / Firebase
+*.log
+*.pot
+*.mo
+firebase_app_id_file.json
+
+# Misc
+*.lock
+*.log
+*.tmp
+*.swp
+*.DS_Store
+*.keystore
+*.jks
+*.bak
+*.orig

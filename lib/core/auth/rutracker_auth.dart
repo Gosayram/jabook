@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
-import 'package:webview_cookie_manager/webview_cookie_manager.dart';
-import 'package:dio_cookie_manager/dio_cookie_manager.dart';
 import 'package:cookie_jar/cookie_jar.dart';
+import 'package:dio/dio.dart';
 import '../net/dio_client.dart';
 import '../errors/failures.dart';
 
@@ -29,7 +28,7 @@ class RuTrackerAuth {
             },
           ),
         )
-        ..loadRequest(Uri.parse('https://rutracker.org/forum/login.php'));
+        ..loadRequest(Uri.parse('https://rutracker.me/forum/login.php'));
 
       // Show login dialog
       final result = await showDialog<bool>(
@@ -59,24 +58,32 @@ class RuTrackerAuth {
   Future<void> logout() async {
     try {
       // Clear WebView cookies
-      await _cookieManager.clearCookies();
+      _cookieManager.clearCookies();
       
       // Clear CookieJar
       await _cookieJar.deleteAll();
       
       // Reset authentication state
       // TODO: Add any additional logout logic
-    } catch (e) {
+    } on Exception catch (e) {
       throw AuthFailure('Logout failed: ${e.toString()}');
     }
   }
 
   Future<bool> get isLoggedIn async {
     try {
-      final cookies = await _cookieManager.getCookies('https://rutracker.org');
-      return cookies.any((cookie) => 
-        cookie.name == 'bb_data' || cookie.name == 'bb_session');
-    } catch (e) {
+      // Try to access a protected page to check if we're authenticated
+      final response = await DioClient.instance.get(
+        'https://rutracker.org/forum/profile.php',
+        options: Options(
+          receiveTimeout: const Duration(seconds: 5),
+          validateStatus: (status) => status! < 500,
+        ),
+      );
+      
+      // If we get a 200 response, we're likely authenticated
+      return response.statusCode == 200;
+    } on Exception catch (e) {
       return false;
     }
   }

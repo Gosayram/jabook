@@ -42,4 +42,7 @@ class _LibraryContent extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return const Center(
-      child: Text('Library content will
+      child: Text('Library content will be displayed here'),
+    );
+  }
+}

@@ -96,13 +96,24 @@ class StructuredLogger {
       final baseName = fileName.replaceAll('.ndjson', '');
 
       // Delete old log files if we have too many
-      final logFiles = logDir.listSync()
-        ..whereType<File>()
-        ..where((file) => file.path.contains(baseName))
-        ..sort((a, b) => b.lastModifiedSync().compareTo(a.lastModifiedSync()));
+      final allFiles = await logDir.list().where((entity) =>
+        entity is File && entity.path.contains(baseName)).cast<File>().toList();
+      
+      // Sort by last modified date (newest first) - use lastModified if available
+      try {
+        allFiles.sort((a, b) {
+          // Try to use lastModifiedSync first
+          final aMod = a.statSync().modified;
+          final bMod = b.statSync().modified;
+          return bMod.compareTo(aMod);
+        });
+      } catch (e) {
+        // Fallback to simple name-based sorting
+        allFiles.sort((a, b) => b.path.compareTo(a.path));
+      }
 
-      for (int i = _maxLogFiles; i < logFiles.length; i++) {
-        await logFiles[i].delete();
+      for (int i = _maxLogFiles; i < allFiles.length; i++) {
+        await allFiles[i].delete();
       }
 
       // Rename current log file with timestamp
@@ -129,8 +140,14 @@ class StructuredLogger {
         ..where((file) => file.path.contains(_logFileName));
 
       for (final file in logFiles) {
-        if (file.lastModifiedSync().isBefore(cutoffDate)) {
-          await file.delete();
+        try {
+          final modifiedDate = file.statSync().modified;
+          if (modifiedDate.isBefore(cutoffDate)) {
+            await file.delete();
+          }
+        } catch (e) {
+          // Skip files that can't be accessed
+          continue;
         }
       }
     } catch (e) {

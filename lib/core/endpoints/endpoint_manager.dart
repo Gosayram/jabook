@@ -15,14 +15,15 @@ class EndpointManager {
 
   Future<void> initializeDefaultEndpoints() async {
     final defaultEndpoints = [
-      {'url': 'https://rutracker.org', 'priority': 1, 'enabled': true},
-      {'url': 'https://rutracker.net', 'priority': 2, 'enabled': true},
-      {'url': 'https://rutracker.nl', 'priority': 3, 'enabled': true},
+      {'url': 'https://rutracker.me', 'priority': 1, 'enabled': true},
+      {'url': 'https://rutracker.org', 'priority': 2, 'enabled': true},
+      {'url': 'https://rutracker.net', 'priority': 3, 'enabled': true},
+      {'url': 'https://rutracker.nl', 'priority': 4, 'enabled': true},
     ];
 
     final record = await _store.record(_storeKey).get(_db);
     if (record == null) {
-      await _store.record(_storeKey).put(_db, defaultEndpoints);
+      await _store.record(_storeKey).put(_db, {'endpoints': defaultEndpoints});
     }
   }
 
@@ -40,7 +41,7 @@ class EndpointManager {
       final rtt = endTime.difference(startTime).inMilliseconds;
 
       final record = await _store.record(_storeKey).get(_db);
-      final endpoints = List<Map<String, dynamic>>.from(record ?? []);
+      final endpoints = List<Map<String, dynamic>>.from((record as Map<String, dynamic>?)?['endpoints'] ?? []);
 
       final endpointIndex = endpoints.indexWhere((e) => e['url'] == endpoint);
       if (endpointIndex != -1) {
@@ -50,29 +51,29 @@ class EndpointManager {
           'signature_ok': _validateSignature(response.headers),
           'enabled': true,
         });
-        await _store.record(_storeKey).put(_db, endpoints);
+        await _store.record(_storeKey).put(_db, {'endpoints': endpoints});
       }
     } catch (e) {
       // Mark endpoint as unhealthy
       final record = await _store.record(_storeKey).get(_db);
-      final endpoints = List<Map<String, dynamic>>.from(record ?? []);
+      final endpoints = List<Map<String, dynamic>>.from((record as Map<String, dynamic>?)?['endpoints'] ?? []);
 
       final endpointIndex = endpoints.indexWhere((e) => e['url'] == endpoint);
       if (endpointIndex != -1) {
         endpoints[endpointIndex]['enabled'] = false;
-        await _store.record(_storeKey).put(_db, endpoints);
+        await _store.record(_storeKey).put(_db, {'endpoints': endpoints});
       }
     }
   }
 
-  bool _validateSignature(Map<String, dynamic>? headers) {
+  bool _validateSignature(Headers? headers) {
     // TODO: Implement signature validation based on RuTracker response
     return true;
   }
 
   Future<String> getActiveEndpoint() async {
     final record = await _store.record(_storeKey).get(_db);
-    final endpoints = List<Map<String, dynamic>>.from(record ?? []);
+    final endpoints = List<Map<String, dynamic>>.from((record as Map<String, dynamic>?)?['endpoints'] ?? []);
 
     // Filter enabled endpoints and sort by priority
     final enabledEndpoints = endpoints
@@ -90,12 +91,12 @@ class EndpointManager {
 
   Future<List<Map<String, dynamic>>> getAllEndpoints() async {
     final record = await _store.record(_storeKey).get(_db);
-    return List<Map<String, dynamic>>.from(record ?? []);
+    return List<Map<String, dynamic>>.from((record as Map<String, dynamic>?)?['endpoints'] ?? []);
   }
 
   Future<void> addEndpoint(String url, int priority) async {
     final record = await _store.record(_storeKey).get(_db);
-    final endpoints = List<Map<String, dynamic>>.from(record ?? []);
+    final endpoints = List<Map<String, dynamic>>.from((record as Map<String, dynamic>?)?['endpoints'] ?? []);
 
     endpoints.add({
       'url': url,
@@ -106,14 +107,14 @@ class EndpointManager {
       'enabled': true,
     });
 
-    await _store.record(_storeKey).put(_db, endpoints);
+    await _store.record(_storeKey).put(_db, {'endpoints': endpoints});
   }
 
   Future<void> removeEndpoint(String url) async {
     final record = await _store.record(_storeKey).get(_db);
-    final endpoints = List<Map<String, dynamic>>.from(record ?? []);
+    final endpoints = List<Map<String, dynamic>>.from((record as Map<String, dynamic>?)?['endpoints'] ?? []);
 
     endpoints.removeWhere((e) => e['url'] == url);
-    await _store.record(_storeKey).put(_db, endpoints);
+    await _store.record(_storeKey).put(_db, {'endpoints': endpoints});
   }
 }

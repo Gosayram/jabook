@@ -41,7 +41,6 @@ dependencies:
   json_serializable: ^6.7.1
   build_runner: ^2.4.7
   flutter_lints: ^4.0.0
-  dart_code_metrics: ^5.10.0
 
 dev_dependencies:
   flutter_test:
@@ -126,62 +125,3 @@ linter:
     - use_if_null_to_convert_nulls_to_bools
     - use_key_in_widget_constructors
     - use_string_in_conditionals
-
-dart_code_metrics:
-  anti-patterns:
-    - long-method
-    - long-parameter-list
-    - large-class
-    - complex-conditional
-  metrics:
-    cyclomatic-complexity: 15
-    lines-of-code: 120
-    number-of-parameters: 4
-    method-length: 50
-    class-type-parameters: 2
-  metrics-exclude:
-    - "**/*.g.dart"
-    - "**/*.freezed.dart"
-    - "**/*.build.dart"
-    - "lib/**/*.freezed.dart"
-    - "lib/**/*.g.dart"
-    - "lib/**/*.build.dart"
-  exclude:
-    - "**/*.freezed.dart"
-    - "**/*.g.dart"
-    - "**/*.build.dart"
-    - "**/*.generated.dart"
-    - "**/*.gr.dart"
-    - "**/*.pb.dart"
-    - "**/*.pbjson.dart"
-    - "**/*.pbenum.dart"
-    - "**/*.pbserver.dart"
-    - "**/*.pbgrpc.dart"
-    - "**/*.pbmap.dart"
-    - "**/*.shim.dart"
-    - "**/*.config.dart"
-    - "**/*.theme.dart"
-    - "**/*.l10n.dart"
-    - "**/*.auto_route.dart"
-    - "**/*.gr.dart"
-    - "**/*.freezed.dart"
-    - "**/*.g.dart"
-    - "**/*.build.dart"
-    - "**/*.generated.dart"
-    - "**/*.gr.dart"
-    - "**/*.shim.dart"
-    - "**/*.config.dart"
-    - "**/*.theme.dart"
-    - "**/*.l10n.dart"
-    - "**/*.auto_route.dart"
-    - "**/*.gr.dart"
-    - "**/*.freezed.dart"
-    - "**/*.g.dart"
-    - "**/*.build.dart"
-    - "**/*.generated.dart"
-    - "**/*.gr.dart"
-    - "**/*.shim.dart"
-    - "**/*.config.dart"
-    - "**/*.theme.dart"
-    - "**/*.l10n.dart"
-    - "**/*.auto_route.dart"

@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:html/parser.dart' as parser;
 import 'package:windows1251/windows1251.dart';
 import '../errors/failures.dart';
@@ -53,7 +54,7 @@ class RuTrackerParser {
       String decodedHtml;
       try {
         decodedHtml = utf8.decode(html.codeUnits);
-      } catch (e) {
+      } on FormatException catch (e) {
         decodedHtml = windows1251.decode(html.codeUnits);
       }
 
@@ -104,7 +105,7 @@ class RuTrackerParser {
       String decodedHtml;
       try {
         decodedHtml = utf8.decode(html.codeUnits);
-      } catch (e) {
+      } on FormatException catch (e) {
         decodedHtml = windows1251.decode(html.codeUnits);
       }
 
@@ -168,27 +169,4 @@ class RuTrackerParser {
     }
   }
 
-  int _parseSizeToBytes(String sizeStr) {
-    // Parse size string like "1.2 GB" or "450 MB" to bytes
-    final parts = sizeStr.trim().split(' ');
-    if (parts.length != 2) return 0;
-
-    final size = double.tryParse(parts[0]) ?? 0.0;
-    final unit = parts[1].toUpperCase();
-
-    switch (unit) {
-      case 'B':
-        return size.toInt();
-      case 'KB':
-        return (size * 1024).toInt();
-      case 'MB':
-        return (size * 1024 * 1024).toInt();
-      case 'GB':
-        return (size * 1024 * 1024 * 1024).toInt();
-      case 'TB':
-        return (size * 1024 * 1024 * 1024 * 1024).toInt();
-      default:
-        return 0;
-    }
-  }
 }

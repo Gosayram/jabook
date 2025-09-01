@@ -69,6 +69,10 @@ class LocalStreamServer {
         return Response.badRequest(body: 'Missing book ID parameter');
       }
 
+      if (fileIndex == null) {
+        return Response.badRequest(body: 'Invalid file index parameter');
+      }
+
       // TODO: Implement actual streaming logic
       // This is a placeholder implementation
       final filePath = _getFilePath(bookId, fileIndex);
@@ -94,7 +98,7 @@ class LocalStreamServer {
           HttpHeaders.contentLengthHeader: fileBytes.length.toString(),
         },
       );
-    } catch (e) {
+    } on Exception catch (e) {
       return Response.internalServerError(body: 'Streaming error: ${e.toString()}');
     }
   }
@@ -115,14 +119,15 @@ class LocalStreamServer {
       final end = int.tryParse(rangeMatch.group(2) ?? (fileSize - 1).toString()) ?? fileSize - 1;
 
       if (start >= fileSize || end >= fileSize || start > end) {
-        return Response.requestedRangeNotSatisfiable();
+        return Response(416, body: 'Requested range not satisfiable');
       }
 
       final contentLength = end - start + 1;
       final rangeBytes = fileBytes.sublist(start, end + 1);
 
-      return Response.partialContent(
-        rangeBytes,
+      return Response(
+        206, // Partial Content
+        body: rangeBytes,
         headers: {
           HttpHeaders.contentTypeHeader: 'audio/mpeg',
           HttpHeaders.contentLengthHeader: contentLength.toString(),
@@ -130,7 +135,7 @@ class LocalStreamServer {
           HttpHeaders.contentRangeHeader: 'bytes $start-$end/$fileSize',
         },
       );
-    } catch (e) {
+    } on Exception catch (e) {
       return Response.internalServerError(body: 'Range request error: ${e.toString()}');
     }
   }
@@ -142,12 +147,18 @@ class LocalStreamServer {
       
       // For API endpoints, return appropriate responses
       if (request.url.path.startsWith('api/')) {
-        return Response.json({'message': 'API endpoint not implemented yet'});
+        return Response(
+          200,
+          body: '{"message": "API endpoint not implemented yet"}',
+          headers: {
+            HttpHeaders.contentTypeHeader: 'application/json',
+          },
+        );
       }
 
       // For other static requests, use the static handler
       return await staticHandler(request);
-    } catch (e) {
+    } on Exception catch (e) {
       return Response.internalServerError(body: 'Static file error: ${e.toString()}');
     }
   }

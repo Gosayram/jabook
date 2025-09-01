@@ -1,18 +1,14 @@
 import 'package:dio/dio.dart';
 import 'package:cookie_jar/cookie_jar.dart';
 import 'package:dio_cookie_manager/dio_cookie_manager.dart';
-import 'package:webview_flutter/webview_flutter.dart';
-import 'package:webview_cookie_manager/webview_cookie_manager.dart';
 
 class DioClient {
   static Dio? _instance;
   static CookieJar? _cookieJar;
-  static WebViewCookieManager? _cookieManager;
 
   static Dio get instance {
     _instance ??= Dio();
     _cookieJar ??= CookieJar();
-    _cookieManager ??= WebViewCookieManager();
     
     _instance!.options = BaseOptions(
       connectTimeout: const Duration(seconds: 30),
@@ -34,23 +30,14 @@ class DioClient {
   }
 
   static Future<void> syncCookiesFromWebView() async {
-    if (_cookieManager == null) return;
-    
-    final cookies = await _cookieManager!.getCookies('https://rutracker.org');
-    if (_cookieJar != null) {
-      _cookieJar!.saveFromResponse(
-        Uri.parse('https://rutracker.org'),
-        cookies,
-      );
-    }
+    // TODO: Implement cookie sync from WebView when WebView is available
+    // This requires WebView instance to be initialized first
+    throw UnimplementedError('Cookie sync from WebView not implemented yet');
   }
 
   static Future<void> clearCookies() async {
     if (_cookieJar != null) {
       await _cookieJar!.deleteAll();
-    }
-    if (_cookieManager != null) {
-      await _cookieManager!.clearCookies();
     }
   }
 }

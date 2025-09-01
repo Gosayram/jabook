@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../features/library/presentation/screens/library_screen.dart';
-import '../../features/search/presentation/screens/search_screen.dart';
-import '../../features/topic/presentation/screens/topic_screen.dart';
-import '../../features/player/presentation/screens/player_screen.dart';
-import '../../features/mirrors/presentation/screens/mirrors_screen.dart';
-import '../../features/debug/presentation/screens/debug_screen.dart';
-import '../../features/settings/presentation/screens/settings_screen.dart';
+import 'package:jabook/features/library/presentation/screens/library_screen.dart';
+import 'package:jabook/features/search/presentation/screens/search_screen.dart';
+import 'package:jabook/features/topic/presentation/screens/topic_screen.dart';
+import 'package:jabook/features/player/presentation/screens/player_screen.dart';
+import 'package:jabook/features/mirrors/presentation/screens/mirrors_screen.dart';
+import 'package:jabook/features/debug/presentation/screens/debug_screen.dart';
+import 'package:jabook/features/settings/presentation/screens/settings_screen.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
