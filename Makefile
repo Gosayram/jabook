@@ -219,6 +219,8 @@ install-ios:
 setup-android:
 	@echo "Setting up Android project configuration..."
 	flutter create . --org com.jabook.app --platforms=android -a kotlin
+	@echo "Generating custom launcher icons..."
+	dart run flutter_launcher_icons:main
 	@echo "Android project setup complete!"
 
 .PHONY: setup-ios
