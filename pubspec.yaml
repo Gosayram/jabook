@@ -59,16 +59,6 @@ flutter:
     - assets/icons/app_icon_adaptive_bg.png
     - assets/icons/app_icon_adaptive_fg.png
   
-  fonts:
-    # Note: Font files are referenced but don't exist in the assets directory
-    # You'll need to create the assets/fonts/ directory and add the font files
-    - family: Roboto
-      fonts:
-        - asset: assets/fonts/Roboto-Regular.ttf
-        - asset: assets/fonts/Roboto-Medium.ttf
-          weight: 500
-        - asset: assets/fonts/Roboto-Bold.ttf
-          weight: 700
 
 flutter_launcher_icons:
   # Common properties

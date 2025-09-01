@@ -16,3 +16,8 @@ build-apk:
 	mkdir -p .bin
 	cp build/app/outputs/flutter-apk/app-release.apk .bin/$(APP_NAME).apk
 	@echo "\033[0;32mГотово: .bin/$(APP_NAME).apk\033[0m"
+
+clean-apk:
+	@echo "\033[0;32mОчистка сборок APK...\033[0m"
+	rm -f .bin/$(APP_NAME).apk
+	flutter clean
