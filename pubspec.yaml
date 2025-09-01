@@ -1,5 +1,5 @@
 name: jabook
-description: A modern audiobook player rebuilt as a 100% Flutter application.
+description: A modern audiobook player for Torrent trackers.
 publish_to: 'none'
 version: 1.0.0+1
 
@@ -52,9 +52,14 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   
-  assets: []
+  assets:
+    - assets/icons/app_icon.png
+    - assets/icons/app_icon_adaptive_bg.png
+    - assets/icons/app_icon_adaptive_fg.png
   
   fonts:
+    # Note: Font files are referenced but don't exist in the assets directory
+    # You'll need to create the assets/fonts/ directory and add the font files
     - family: Roboto
       fonts:
         - asset: assets/fonts/Roboto-Regular.ttf
@@ -67,22 +72,17 @@ flutter_launcher_icons:
   # Common properties
   image_path: assets/icons/app_icon.png
 
-  # Enable/disable platforms
+  # Enable/disable platforms - Android only
   android: true
-  ios: true
+  ios: false
   web:
-    generate: true
-    image_path: assets/icons/app_icon.png
-    # favicon, pwa icons are generated automatically
+    generate: false
   macos:
-    generate: true
-    image_path: assets/icons/app_icon.png
+    generate: false
   windows:
-    generate: true
-    image_path: assets/icons/app_icon.png
+    generate: false
   linux:
-    generate: true
-    image_path: assets/icons/app_icon.png
+    generate: false
 
   # Android adaptive launcher icon (recommended)
   adaptive_icon_background: assets/icons/app_icon_adaptive_bg.png
@@ -93,9 +93,11 @@ flutter_launcher_icons:
 
 flutter_native_splash:
   color: "#1E1B4B"
-  image: assets/icons/splash_icon.png
+  # Note: splash_icon.png doesn't exist in assets directory
+  # Using app_icon.png as fallback for now
+  image: assets/icons/app_icon.png
   android_12:
-    image: assets/icons/splash_icon.png
+    image: assets/icons/app_icon.png
     color: "#1E1B4B"
     android_gravity: center
     fullscreen: true
