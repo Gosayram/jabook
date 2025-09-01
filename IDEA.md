@@ -87,6 +87,7 @@ JaBook is a modern audiobook player rebuilt as a **100% Flutter** application (n
 - **Permissions**: `permission_handler: ^12.0.1`
 - **Device Info**: `device_info_plus: ^11.5.0`
 - **Branding**: `flutter_native_splash: ^2.4.6`, `flutter_launcher_icons: ^0.14.1`
+- **Localization**: `flutter_localizations: ^0.8.0`, `intl: ^0.20.2`
 
 ### Android Configuration
 - **minSdkVersion**: 24 (Android 7.0)
@@ -235,7 +236,25 @@ class AudioServiceHandler {
 }
 ```
 
-### 8. NDJSON Logging System
+### 8. Internationalization & Localization
+```dart
+class AppLocalizations {
+  static Future<AppLocalizations> load(Locale locale) async {
+    // Load ARB files for the given locale
+  }
+  
+  String get(String key) {
+    // Return localized string for the key
+  }
+  
+  // Generated methods for each string
+  String get searchAudiobooks => get('searchAudiobooks');
+  String get settingsTitle => get('settingsTitle');
+  // ... other string keys
+}
+```
+
+### 9. NDJSON Logging System
 ```dart
 class StructuredLogger {
   final File _logFile;
@@ -307,6 +326,15 @@ flutter build apk --release --split-per-abi
 - [x] Chapter navigation and bookmarks
 - [x] 5/10/15 second skip functionality
 
+### M5 — Internationalization ⚠️ PLANNED
+- [ ] Add Flutter localization dependencies
+- [ ] Create ARB files for English and Russian
+- [ ] Implement AppLocalizations class
+- [ ] Add language switcher in settings
+- [ ] Update all UI strings to use localization
+- [ ] Support RTL layouts for Arabic/Hebrew
+- [ ] Add language detection from device settings
+
 ### M4 — Debug/Release ✅ COMPLETED
 - [x] NDJSON logging with rotation
 - [x] Log export via share_plus
@@ -338,6 +366,7 @@ flutter build apk --release --split-per-abi
 - **Complete Debug UI**: Add log viewing, mirror status monitoring, download management
 - **Testing**: ✅ Comprehensive unit tests implemented for caching system
 - **Performance Optimization**: Memory and network optimizations
+- **Internationalization**: Multi-language support with ARB files
 
 ### ✅ Linter Issues Fixed
 - All analyzer warnings and errors resolved
@@ -352,6 +381,7 @@ flutter build apk --release --split-per-abi
 4. **Complete Debug Screens** - Add full functionality to Debug, Settings, Library, and Mirrors screens
 5. **✅ Testing Implementation** - Unit tests implemented for caching system
 6. **✅ Performance Optimization** - Memory and network optimizations through caching
+7. **Internationalization Support** - Add multi-language support with Russian and English
 
 ## Testing Strategy
 
@@ -375,6 +405,7 @@ flutter build apk --release --split-per-abi
 - Theme switching
 - Accessibility testing
 - Log export flow
+- Localization testing
 
 ## ✅ Performance Considerations (Implemented)
 
