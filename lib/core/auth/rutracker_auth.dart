@@ -128,6 +128,6 @@ class RuTrackerAuth {
 
   /// Synchronizes cookies between WebView and Dio client.
   void _syncCookies() {
-    // Cookies are handled by WebViewCookieManager and DioClient's CookieManager interceptor.
+    // Cookies are handled by WebView's built-in WebViewCookieManager and DioClient's CookieManager interceptor.
   }
 }

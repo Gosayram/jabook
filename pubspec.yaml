@@ -20,7 +20,6 @@ dependencies:
   dio_cookie_manager: ^3.2.0
   cookie_jar: ^4.0.6
   webview_flutter: ^4.13.0
-  webview_cookie_manager: ^2.0.6
   html: ^0.15.4
   windows1251: ^2.0.0
   shelf: ^1.4.2
