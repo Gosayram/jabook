@@ -44,7 +44,7 @@ class DioClient {
   /// Returns a user agent string for HTTP requests.
   static Future<String> getUserAgent() async {
     final userAgentManager = UserAgentManager();
-    return await userAgentManager.getUserAgent();
+    return userAgentManager.getUserAgent();
   }
 
   /// Synchronizes cookies from WebView to the Dio client.

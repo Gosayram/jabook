@@ -74,13 +74,13 @@ class EnvironmentLogger {
         name: 'JaBook',
       );
     } else {
-      // Release mode - use print or send to analytics
-      print(formattedMessage);
+      // Release mode - use developer.log for consistency
+      developer.log(formattedMessage, name: 'JaBook');
       if (error != null) {
-        print('Error: $error');
+        developer.log('Error: $error', name: 'JaBook');
       }
       if (stackTrace != null) {
-        print('Stack trace: $stackTrace');
+        developer.log('Stack trace: $stackTrace', name: 'JaBook');
       }
     }
 
@@ -108,14 +108,12 @@ class EnvironmentLogger {
     }
     
     // Get from environment configuration
-    const String logLevel = String.fromEnvironment('LOG_LEVEL', defaultValue: 'INFO');
+    const logLevel = String.fromEnvironment('LOG_LEVEL', defaultValue: 'INFO');
     return logLevel;
   }
 
   /// Checks if we're in debug mode.
-  bool _isDebugMode() {
-    return kDebugMode;
-  }
+  bool _isDebugMode() => kDebugMode;
 
   /// Sends error information to crash reporting service.
   void _sendToCrashReporting(
@@ -128,32 +126,15 @@ class EnvironmentLogger {
     // This could integrate with Firebase Crashlytics, Sentry, or other services
     
     // For now, just log to console in release builds
-    print('[CRASH_REPORTING] Level: $level, Message: $message');
+    developer.log('[CRASH_REPORTING] Level: $level, Message: $message', name: 'JaBook');
     if (error != null) {
-      print('[CRASH_REPORTING] Error: $error');
+      developer.log('[CRASH_REPORTING] Error: $error', name: 'JaBook');
     }
     if (stackTrace != null) {
-      print('[CRASH_REPORTING] Stack trace: $stackTrace');
+      developer.log('[CRASH_REPORTING] Stack trace: $stackTrace', name: 'JaBook');
     }
   }
 
-  /// Creates a structured log entry for analytics.
-  Map<String, dynamic> _createStructuredLog(
-    String level,
-    String message, {
-    dynamic error,
-    StackTrace? stackTrace,
-  }) {
-    return {
-      'timestamp': DateTime.now().toIso8601String(),
-      'level': level,
-      'message': message,
-      'error': error?.toString(),
-      'stackTrace': stackTrace?.toString(),
-      'platform': 'android', // Could be iOS as well
-      'appVersion': '1.0.0', // TODO: Get from package info
-    };
-  }
 
   /// Initializes the logger for the current environment.
   void initialize() {
@@ -167,9 +148,9 @@ class EnvironmentLogger {
   }
 
   /// Clears all cached logs (if any).
-  void clearLogs() {
+  void clearLogs() =>
     // TODO: Implement log clearing if using persistent logging
-  }
+    {};
 
   /// Gets the current log level as a user-friendly string.
   String getLogLevelName() {

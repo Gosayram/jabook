@@ -1,7 +1,6 @@
-import 'package:webview_flutter/webview_flutter.dart';
-import 'package:sembast/sembast.dart';
-import 'package:sembast/sembast_io.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:sembast/sembast_io.dart';
+import 'package:webview_flutter/webview_flutter.dart';
 
 /// Manages User-Agent synchronization between WebView and HTTP requests.
 ///
@@ -12,17 +11,17 @@ class UserAgentManager {
   /// Private constructor for singleton pattern.
   UserAgentManager._();
 
-  /// Singleton instance of the UserAgentManager.
-  static final UserAgentManager _instance = UserAgentManager._();
-
   /// Factory constructor to get the singleton instance.
   factory UserAgentManager() => _instance;
+
+  /// Singleton instance of the UserAgentManager.
+  static final UserAgentManager _instance = UserAgentManager._();
 
   /// Key for storing User-Agent in the database.
   static const String _userAgentKey = 'user_agent';
 
   /// Default User-Agent string to use as fallback.
-  static const String _defaultUserAgent = 
+  static const String _defaultUserAgent =
       'Mozilla/5.0 (Linux; Android 10; SM-G973F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.120 Mobile Safari/537.36';
 
   /// Database instance for storing User-Agent data.
@@ -55,7 +54,7 @@ class UserAgentManager {
 
       // Fall back to default
       return _defaultUserAgent;
-    } catch (e) {
+    } on Exception catch (_) {
       // If anything goes wrong, return default User-Agent
       return _defaultUserAgent;
     }
@@ -97,7 +96,7 @@ class UserAgentManager {
       await controller.loadRequest(Uri.parse('about:blank'));
       
       return userAgent;
-    } catch (e) {
+    } on Exception catch (_) {
       return null;
     }
   }
@@ -112,9 +111,9 @@ class UserAgentManager {
         'user_agent': userAgent, 
         'updated_at': DateTime.now().toIso8601String(),
       });
-    } catch (e) {
+    } on Exception catch (_) {
       // Log error but don't fail the operation
-      print('Failed to store User-Agent: $e');
+      // TODO: Use proper logger instead of print
     }
   }
 
@@ -126,7 +125,7 @@ class UserAgentManager {
       final store = StoreRef<String, Map<String, dynamic>>.main();
       final record = await store.record(_userAgentKey).get(_db!);
       return record?['user_agent'] as String?;
-    } catch (e) {
+    } on Exception catch (_) {
       return null;
     }
   }
@@ -138,9 +137,9 @@ class UserAgentManager {
       
       final store = StoreRef<String, Map<String, dynamic>>.main();
       await store.record(_userAgentKey).delete(_db!);
-    } catch (e) {
+    } on Exception catch (_) {
       // Log error but don't fail the operation
-      print('Failed to clear User-Agent: $e');
+      // TODO: Use proper logger instead of print
     }
   }
 
@@ -160,7 +159,7 @@ class UserAgentManager {
     try {
       final userAgent = await getUserAgent();
       dio.options.headers['User-Agent'] = userAgent;
-    } catch (e) {
+    } on Exception catch (_) {
       // If anything goes wrong, use the default User-Agent
       dio.options.headers['User-Agent'] = _defaultUserAgent;
     }

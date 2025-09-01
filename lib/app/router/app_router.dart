@@ -67,9 +67,9 @@ final appRouterProvider = Provider<GoRouter>((ref) => GoRouter(
 
 /// Widget that provides bottom navigation for the main app screens.
 class _MainNavigationWrapper extends ConsumerStatefulWidget {
-  final Widget child;
-
   const _MainNavigationWrapper({required this.child});
+
+  final Widget child;
 
   @override
   ConsumerState<_MainNavigationWrapper> createState() => _MainNavigationWrapperState();
@@ -130,13 +130,21 @@ class _MainNavigationWrapperState extends ConsumerState<_MainNavigationWrapper> 
 
 /// Data class for navigation items.
 class NavigationItem {
-  final String title;
-  final IconData icon;
-  final String route;
-
+  /// Creates a new navigation item.
+  ///
+  /// All parameters are required.
   const NavigationItem({
     required this.title,
     required this.icon,
     required this.route,
   });
+
+  /// The title of the navigation item.
+  final String title;
+
+  /// The icon to display for this navigation item.
+  final IconData icon;
+
+  /// The route path associated with this navigation item.
+  final String route;
 }

@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:jabook/core/parse/rutracker_parser.dart';
+
 import 'package:jabook/core/net/dio_client.dart';
+import 'package:jabook/core/parse/rutracker_parser.dart';
 
 /// Screen for searching audiobooks on RuTracker.
 ///
@@ -66,7 +67,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           );
         }
       }
-    } catch (e) {
+    } on Exception catch (e) {
       setState(() {
         _isLoading = false;
       });
@@ -79,61 +80,59 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Search Audiobooks'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.search),
-            onPressed: _performSearch,
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                labelText: 'Search audiobooks...',
-                hintText: 'Enter title, author, or keywords',
-                suffixIcon: IconButton(
-                  icon: const Icon(Icons.clear),
-                  onPressed: () {
-                    _searchController.clear();
-                    setState(() {
-                      _searchResults = [];
-                      _hasSearched = false;
-                    });
-                  },
-                ),
-                border: const OutlineInputBorder(),
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(
+      title: const Text('Search Audiobooks'),
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.search),
+          onPressed: _performSearch,
+        ),
+      ],
+    ),
+    body: Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: TextField(
+            controller: _searchController,
+            decoration: InputDecoration(
+              labelText: 'Search audiobooks...',
+              hintText: 'Enter title, author, or keywords',
+              suffixIcon: IconButton(
+                icon: const Icon(Icons.clear),
+                onPressed: () {
+                  _searchController.clear();
+                  setState(() {
+                    _searchResults = [];
+                    _hasSearched = false;
+                  });
+                },
               ),
-              onSubmitted: (_) => _performSearch(),
+              border: const OutlineInputBorder(),
+            ),
+            onSubmitted: (_) => _performSearch(),
+          ),
+        ),
+        if (_isLoading)
+          const Expanded(
+            child: Center(
+              child: CircularProgressIndicator(),
+            ),
+          )
+        else if (_hasSearched)
+          Expanded(
+            child: _buildSearchResults(),
+          )
+        else
+          const Expanded(
+            child: Center(
+              child: Text('Enter a search term to begin'),
             ),
           ),
-          if (_isLoading)
-            const Expanded(
-              child: Center(
-                child: CircularProgressIndicator(),
-              ),
-            )
-          else if (_hasSearched)
-            Expanded(
-              child: _buildSearchResults(),
-            )
-          else
-            const Expanded(
-              child: Center(
-                child: Text('Enter a search term to begin'),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
+      ],
+    ),
+  );
 
   Widget _buildSearchResults() {
     if (_searchResults.isEmpty) {

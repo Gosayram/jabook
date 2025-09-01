@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:dtorrent_task/dtorrent_task.dart';
 import 'package:jabook/core/errors/failures.dart';
 import 'package:path_provider/path_provider.dart';
 

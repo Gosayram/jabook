@@ -13,7 +13,7 @@ class AppConfig {
 
   /// Gets the current build flavor.
   String get flavor {
-    const String flavor = String.fromEnvironment('FLAVOR', defaultValue: 'dev');
+    const flavor = String.fromEnvironment('FLAVOR', defaultValue: 'dev');
     return flavor;
   }
 
@@ -98,8 +98,8 @@ class AppConfig {
 
   /// Gets the app version for the current environment.
   String get appVersion {
-    const String version = String.fromEnvironment('VERSION', defaultValue: '1.0.0');
-    return '$version-${flavor}';
+    const version = String.fromEnvironment('VERSION', defaultValue: '1.0.0');
+    return '$version-$flavor';
   }
 
   /// Gets the app name for the current environment.

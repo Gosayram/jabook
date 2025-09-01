@@ -1,8 +1,9 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:jabook/core/parse/rutracker_parser.dart';
+
 import 'package:jabook/core/net/dio_client.dart';
-import 'package:cached_network_image/cached_network_image.dart';
+import 'package:jabook/core/parse/rutracker_parser.dart';
 
 /// Screen for displaying a specific RuTracker topic.
 ///
@@ -40,7 +41,7 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
     try {
       final dio = await DioClient.instance;
       final response = await dio.get(
-        'https://rutracker.org/forum/viewtopic.php?t=${widget.topicId}',
+        'https://rutracker.me/forum/viewtopic.php?t=${widget.topicId}',
       );
 
       if (response.statusCode == 200) {
@@ -56,7 +57,7 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
           _hasError = true;
         });
       }
-    } catch (e) {
+    } on Exception catch (e) {
       setState(() {
         _isLoading = false;
         _hasError = true;
@@ -70,21 +71,19 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Topic: ${widget.topicId}'),
-        actions: [
-          if (_audiobook?.magnetUrl.isNotEmpty == true)
-            IconButton(
-              icon: const Icon(Icons.download),
-              onPressed: _downloadAudiobook,
-            ),
-        ],
-      ),
-      body: _buildBody(),
-    );
-  }
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(
+      title: Text('Topic: ${widget.topicId}'),
+      actions: [
+        if (_audiobook != null && _audiobook!.magnetUrl.isNotEmpty)
+          IconButton(
+            icon: const Icon(Icons.download),
+            onPressed: _downloadAudiobook,
+          ),
+      ],
+    ),
+    body: _buildBody(),
+  );
 
   Widget _buildBody() {
     if (_isLoading) {
@@ -243,14 +242,14 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
     final seconds = duration.inSeconds.remainder(60);
     
     if (hours > 0) {
-      return '${hours}:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+      return '$hours:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
     } else {
-      return '${minutes}:${seconds.toString().padLeft(2, '0')}';
+      return '$minutes:${seconds.toString().padLeft(2, '0')}';
     }
   }
 
   void _downloadAudiobook() {
-    if (_audiobook?.magnetUrl.isNotEmpty == true) {
+    if (_audiobook != null && _audiobook!.magnetUrl.isNotEmpty) {
       _copyToClipboard(_audiobook!.magnetUrl, 'Magnet link');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Magnet link copied to clipboard')),

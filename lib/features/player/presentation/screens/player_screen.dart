@@ -1,10 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:just_audio/just_audio.dart';
 import 'package:jabook/core/parse/rutracker_parser.dart';
 import 'package:jabook/core/stream/local_stream_server.dart';
-import 'package:jabook/core/torrent/audiobook_torrent_manager.dart';
+import 'package:just_audio/just_audio.dart';
 
 /// Main audiobook player screen.
 ///
@@ -27,9 +26,7 @@ class PlayerScreen extends ConsumerStatefulWidget {
 
 class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   final AudioPlayer _audioPlayer = AudioPlayer();
-  final RuTrackerParser _parser = RuTrackerParser();
   final LocalStreamServer _streamServer = LocalStreamServer();
-  final AudiobookTorrentManager _torrentManager = AudiobookTorrentManager();
   
   Audiobook? _audiobook;
   Duration _currentPosition = Duration.zero;
@@ -116,7 +113,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         _isLoading = false;
         _hasError = false;
       });
-    } catch (e) {
+    } on Exception catch (_) {
       setState(() {
         _isLoading = false;
         _hasError = true;
@@ -127,7 +124,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   Future<void> _startStreamServer() async {
     try {
       await _streamServer.start();
-    } catch (e) {
+    } on Exception catch (_) {
       // Handle server start error
     }
   }
@@ -152,20 +149,18 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Player: ${widget.bookId}'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.download),
-            onPressed: _downloadAudiobook,
-          ),
-        ],
-      ),
-      body: _buildBody(),
-    );
-  }
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(
+      title: Text('Player: ${widget.bookId}'),
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.download),
+          onPressed: _downloadAudiobook,
+        ),
+      ],
+    ),
+    body: _buildBody(),
+  );
 
   Widget _buildBody() {
     if (_isLoading) {
@@ -243,8 +238,6 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                     ? _currentPosition.inMilliseconds / _totalDuration.inMilliseconds
                     : 0.0,
                 onChanged: _seekToPosition,
-                min: 0.0,
-                max: 1.0,
               ),
             ],
           ),
@@ -315,7 +308,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   String _formatDuration(Duration duration) {
     final minutes = duration.inMinutes.remainder(60);
     final seconds = duration.inSeconds.remainder(60);
-    return '${minutes}:${seconds.toString().padLeft(2, '0')}';
+    return '$minutes:${seconds.toString().padLeft(2, '0')}';
   }
 
   void _downloadAudiobook() {
