@@ -334,6 +334,11 @@ flutter build apk --release --split-per-abi
 - [ ] Update all UI strings to use localization
 - [ ] Support RTL layouts for Arabic/Hebrew
 - [ ] Add language detection from device settings
+- [ ] Add language indicator in app bar (flag icon)
+- [ ] Persist user language preference across app restarts
+- [ ] Support dynamic language switching without app restart
+- [ ] Localize all tab labels and navigation elements
+- [ ] Add comprehensive language support for error messages
 
 ### M4 — Debug/Release ✅ COMPLETED
 - [x] NDJSON logging with rotation
@@ -362,7 +367,7 @@ flutter build apk --release --split-per-abi
 - **Torrent Downloads**: AudiobookTorrentManager implemented but uses simulation instead of real dtorrent_task integration
 - **Caching**: ✅ TTL-based caching system implemented for search results (1h) and topic details (24h)
 - **Debug Screens**: Basic screens implemented but need full functionality (logs, mirror status, downloads)
-- **Internationalization**: Basic structure implemented, needs full UI integration
+- **Internationalization**: Basic structure implemented, needs full UI integration including tab labels and language switching
 
 ### ❌ Missing Components
 - **Real dtorrent_task Integration**: ✅ Package integrated and ready for implementation
@@ -385,7 +390,7 @@ flutter build apk --release --split-per-abi
 4. **Complete Debug Screens** - Add full functionality to Debug, Settings, Library, and Mirrors screens
 5. **✅ Testing Implementation** - Unit tests implemented for caching system
 6. **✅ Performance Optimization** - Memory and network optimizations through caching
-7. **Internationalization Support** - Add multi-language support with Russian and English
+7. **Internationalization Support** - Add multi-language support with Russian and English, including language switcher and persistent preferences
 
 ## Testing Strategy
 
