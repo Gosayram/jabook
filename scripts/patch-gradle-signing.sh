@@ -22,6 +22,23 @@ fi
 # Create backup
 cp "$GRADLE_FILE" "$GRADLE_FILE.backup"
 
+# Check if java.util.Properties import already exists
+if ! grep -q "import java.util.Properties" "$GRADLE_FILE"; then
+    # Add import at the beginning of the file
+    awk '
+    /^plugins/ {
+        # Insert import before plugins section
+        print "import java.util.Properties"
+        print ""
+        print $0
+        next
+    }
+    { print }
+    ' "$GRADLE_FILE" > "$TEMP_FILE"
+    mv "$TEMP_FILE" "$GRADLE_FILE"
+    echo "Added java.util.Properties import to $GRADLE_FILE"
+fi
+
 # Find the buildTypes section and add signing config before it
 awk '
 /buildTypes/ {
@@ -30,7 +47,7 @@ awk '
     print "        create(\"release\") {"
     print "            val keystorePropertiesFile = rootProject.file(\"key.properties\")"
     print "            if (keystorePropertiesFile.exists()) {"
-    print "                val keystoreProperties = java.util.Properties()"
+    print "                val keystoreProperties = Properties()"
     print "                keystoreProperties.load(keystorePropertiesFile.inputStream())"
     print "                "
     print "                storeFile = file(keystoreProperties.getProperty(\"storeFile\"))"
