@@ -7,6 +7,7 @@ import 'package:jabook/app/theme/app_theme.dart';
 import 'package:jabook/core/cache/rutracker_cache_service.dart';
 import 'package:jabook/core/config/app_config.dart';
 import 'package:jabook/core/config/language_manager.dart';
+import 'package:jabook/core/config/language_provider.dart';
 import 'package:jabook/core/logging/environment_logger.dart';
 import 'package:jabook/data/db/app_database.dart';
 import 'package:jabook/l10n/app_localizations.dart';
@@ -151,6 +152,8 @@ class _JaBookAppState extends ConsumerState<JaBookApp> {
   @override
   Widget build(BuildContext context) {
     final router = ref.watch(appRouterProvider);
+    // Watch for language changes to trigger rebuild
+    ref.watch(languageProvider);
 
     return FutureBuilder<Locale>(
       future: languageManager.getLocale(),

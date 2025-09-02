@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:jabook/core/config/language_manager.dart';
+import 'package:jabook/core/config/language_provider.dart';
 import 'package:jabook/l10n/app_localizations.dart';
 
 /// Screen for application settings and preferences.
@@ -35,8 +36,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     });
   }
 
-  Future<void> _changeLanguage(String languageCode) async {
-    await _languageManager.setLanguage(languageCode);
+  Future<void> _changeLanguage(String languageCode, WidgetRef ref) async {
+    final languageNotifier = ref.read(languageProvider.notifier);
+    await languageNotifier.changeLanguage(languageCode);
     setState(() {
       _selectedLanguage = languageCode;
     });
@@ -118,7 +120,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         trailing: _selectedLanguage == language['code']
             ? const Icon(Icons.check, color: Colors.blue)
             : null,
-        onTap: () => _changeLanguage(language['code']!),
+        onTap: () => _changeLanguage(language['code']!, ref),
       );
 
   Widget _buildThemeSection(BuildContext context) {

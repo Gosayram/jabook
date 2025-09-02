@@ -44,13 +44,13 @@ class AppConfig {
   String get rutrackerUrl {
     switch (flavor) {
       case 'dev':
-        return 'https://rutracker.dev';
+        return 'https://rutracker.me'; // Use working domain for dev
       case 'stage':
-        return 'https://rutracker.stage';
+        return 'https://rutracker.me'; // Use working domain for stage
       case 'prod':
-        return 'https://rutracker.org';
+        return 'https://rutracker.me';
       default:
-        return 'https://rutracker.org';
+        return 'https://rutracker.me';
     }
   }
 
