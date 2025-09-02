@@ -42,6 +42,7 @@ dependencies:
   intl: ^0.20.2
   flutter_localizations:
     sdk: flutter
+  cupertino_icons: ^1.0.8
   logger: ^2.0.2+1
   freezed_annotation: ^3.1.0
   json_serializable: ^6.7.1
