@@ -131,6 +131,18 @@ class AppLocalizations {
 
   /// Returns the localized placeholder text for library screen.
   String get libraryContentPlaceholder => translate('libraryContentPlaceholder');
+
+  /// Returns the localized authentication required title.
+  String get authenticationRequired => translate('authenticationRequired');
+
+  /// Returns the localized login required message for search.
+  String get loginRequiredForSearch => translate('loginRequiredForSearch');
+
+  /// Returns the localized cancel button text.
+  String get cancel => translate('cancel');
+
+  /// Returns the localized login button text.
+  String get login => translate('login');
 }
 
 /// Delegate for loading AppLocalizations instances.

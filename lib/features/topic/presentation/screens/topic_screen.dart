@@ -10,6 +10,7 @@ import 'package:jabook/core/config/app_config.dart';
 import 'package:jabook/core/endpoints/url_constants.dart';
 import 'package:jabook/core/net/dio_client.dart';
 import 'package:jabook/core/parse/rutracker_parser.dart';
+import 'package:jabook/l10n/app_localizations.dart';
 
 /// Screen for displaying a specific RuTracker topic.
 ///
@@ -117,9 +118,15 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
           _isLoading = false;
           _hasError = true;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Network error: ${e.message}')),
-        );
+        
+        // Handle authentication errors specifically
+        if (e.message?.contains('Authentication required') ?? false) {
+          _showAuthenticationPrompt(context);
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Network error: ${e.message}')),
+          );
+        }
       }
     } on Exception catch (e) {
       if (mounted) {
@@ -375,3 +382,28 @@ Map<String, dynamic> _chapterToMap(Chapter chapter) => {
   'startByte': chapter.startByte,
   'endByte': chapter.endByte,
 };
+
+/// Shows authentication prompt when login is required.
+void _showAuthenticationPrompt(BuildContext context) {
+  showDialog(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: Text(AppLocalizations.of(context)!.authenticationRequired),
+      content: Text(AppLocalizations.of(context)!.loginRequiredForSearch),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(ctx),
+          child: Text(AppLocalizations.of(context)!.cancel),
+        ),
+        TextButton(
+          onPressed: () {
+            Navigator.pop(ctx);
+            // Navigate to login screen
+            Navigator.pushNamed(context, '/login');
+          },
+          child: Text(AppLocalizations.of(context)!.login),
+        ),
+      ],
+    ),
+  );
+}

@@ -112,5 +112,21 @@
   "libraryContentPlaceholder": "Содержимое библиотеки будет отображаться здесь",
   "@libraryContentPlaceholder": {
     "description": "Текст-заполнитель для экрана библиотеки"
+  },
+  "authenticationRequired": "Требуется аутентификация",
+  "@authenticationRequired": {
+    "description": "Заголовок диалога аутентификации"
+  },
+  "loginRequiredForSearch": "Пожалуйста, войдите в RuTracker для доступа к функции поиска.",
+  "@loginRequiredForSearch": {
+    "description": "Сообщение о необходимости входа для поиска"
+  },
+  "cancel": "Отмена",
+  "@cancel": {
+    "description": "Текст кнопки отмены"
+  },
+  "login": "Войти",
+  "@login": {
+    "description": "Текст кнопки входа"
   }
 }

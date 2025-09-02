@@ -124,9 +124,15 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         setState(() {
           _isLoading = false;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Network error: ${e.message}')),
-        );
+        
+        // Handle authentication errors specifically
+        if (e.message?.contains('Authentication required') ?? false) {
+          _showAuthenticationPrompt(context);
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Network error: ${e.message}')),
+          );
+        }
       }
     } on Exception catch (e) {
       if (mounted) {
@@ -309,3 +315,28 @@ Map<String, dynamic> _chapterToMap(Chapter chapter) => {
   'startByte': chapter.startByte,
   'endByte': chapter.endByte,
 };
+
+/// Shows authentication prompt when login is required.
+void _showAuthenticationPrompt(BuildContext context) {
+  showDialog(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: Text(AppLocalizations.of(context)!.authenticationRequired),
+      content: Text(AppLocalizations.of(context)!.loginRequiredForSearch),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(ctx),
+          child: Text(AppLocalizations.of(context)!.cancel),
+        ),
+        TextButton(
+          onPressed: () {
+            Navigator.pop(ctx);
+            // Navigate to login screen
+            Navigator.pushNamed(context, '/login');
+          },
+          child: Text(AppLocalizations.of(context)!.login),
+        ),
+      ],
+    ),
+  );
+}
