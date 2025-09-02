@@ -69,7 +69,6 @@ class CredentialManager {
           final authenticated = await _localAuth.authenticate(
             localizedReason: 'Authenticate to access your RuTracker credentials',
             options: const AuthenticationOptions(
-              useErrorDialogs: true,
               stickyAuth: true,
             ),
           );
@@ -133,7 +132,7 @@ class CredentialManager {
   Future<String> exportCredentials({String format = 'json'}) async {
     final credentials = await getCredentials();
     if (credentials == null) {
-      throw AuthFailure('No credentials to export');
+      throw const AuthFailure('No credentials to export');
     }
 
     switch (format.toLowerCase()) {
@@ -154,10 +153,10 @@ class CredentialManager {
       switch (format.toLowerCase()) {
         case 'csv':
           final lines = data.split('\n');
-          if (lines.length < 2) throw FormatException('Invalid CSV format');
+          if (lines.length < 2) throw const FormatException('Invalid CSV format');
           
           final values = lines[1].split(',');
-          if (values.length != 2) throw FormatException('Invalid CSV data');
+          if (values.length != 2) throw const FormatException('Invalid CSV data');
           
           credentials = {
             'username': values[0],
@@ -176,7 +175,7 @@ class CredentialManager {
           final passwordMatch = RegExp(r'"password":"([^"]+)"').firstMatch(jsonData);
           
           if (usernameMatch == null || passwordMatch == null) {
-            throw FormatException('Invalid JSON format');
+            throw const FormatException('Invalid JSON format');
           }
           
           credentials = {
@@ -192,7 +191,6 @@ class CredentialManager {
       await saveCredentials(
         username: credentials['username']!,
         password: credentials['password']!,
-        rememberMe: true,
       );
     } on Exception catch (e) {
       throw AuthFailure('Failed to import credentials: ${e.toString()}');
@@ -202,7 +200,7 @@ class CredentialManager {
 
 /// Local authentication wrapper with error handling.
 class LocalAuth {
-  final LocalAuthentication _auth = const LocalAuthentication();
+  final LocalAuthentication _auth = LocalAuthentication();
 
   /// Checks if biometric authentication is available.
   Future<bool> canCheckBiometrics() async {
@@ -227,7 +225,6 @@ class LocalAuth {
         localizedReason: localizedReason,
         options: const AuthenticationOptions(
           biometricOnly: true,
-          useErrorDialogs: true,
           stickyAuth: true,
         ),
       );

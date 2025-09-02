@@ -148,64 +148,64 @@ class RuTrackerAuth {
         return false; // Redirected to login - not authenticated
       }
     
-      /// Attempts to login using stored credentials with optional biometric authentication.
-      ///
-      /// Returns `true` if login was successful using stored credentials,
-      /// `false` if no stored credentials or authentication failed.
-      Future<bool> loginWithStoredCredentials({bool useBiometric = false}) async {
-        try {
-          final credentials = await _credentialManager.getCredentials(
-            requireBiometric: useBiometric,
-          );
-          
-          if (credentials == null) {
-            return false;
-          }
-          
-          return await login(credentials['username']!, credentials['password']!);
-        } catch (e) {
-          return false;
-        }
-      }
-    
-      /// Saves credentials for future automatic login.
-      Future<void> saveCredentials({
-        required String username,
-        required String password,
-        bool rememberMe = true,
-        bool useBiometric = false,
-      }) async {
-        await _credentialManager.saveCredentials(
-          username: username,
-          password: password,
-          rememberMe: rememberMe,
-        );
-      }
-    
-      /// Checks if stored credentials are available.
-      Future<bool> hasStoredCredentials() => _credentialManager.hasStoredCredentials();
-    
-      /// Checks if biometric authentication is available on the device.
-      Future<bool> isBiometricAvailable() => _credentialManager.isBiometricAvailable();
-    
-      /// Clears all stored credentials.
-      Future<void> clearStoredCredentials() async {
-        await _credentialManager.clearCredentials();
-      }
-    
-      /// Exports stored credentials in specified format.
-      Future<String> exportCredentials({String format = 'json'}) =>
-          _credentialManager.exportCredentials(format: format);
-    
-      /// Imports credentials from specified format.
-      Future<void> importCredentials(String data, {String format = 'json'}) async {
-        await _credentialManager.importCredentials(data, format: format);
-      }
-    
       return false;
     } on Exception {
       return false;
     }
+  }
+
+  /// Attempts to login using stored credentials with optional biometric authentication.
+  ///
+  /// Returns `true` if login was successful using stored credentials,
+  /// `false` if no stored credentials or authentication failed.
+  Future<bool> loginWithStoredCredentials({bool useBiometric = false}) async {
+    try {
+      final credentials = await _credentialManager.getCredentials(
+        requireBiometric: useBiometric,
+      );
+      
+      if (credentials == null) {
+        return false;
+      }
+      
+      return await login(credentials['username']!, credentials['password']!);
+    } on Exception {
+      return false;
+    }
+  }
+
+  /// Saves credentials for future automatic login.
+  Future<void> saveCredentials({
+    required String username,
+    required String password,
+    bool rememberMe = true,
+    bool useBiometric = false,
+  }) async {
+    await _credentialManager.saveCredentials(
+      username: username,
+      password: password,
+      rememberMe: rememberMe,
+    );
+  }
+
+  /// Checks if stored credentials are available.
+  Future<bool> hasStoredCredentials() => _credentialManager.hasStoredCredentials();
+
+  /// Checks if biometric authentication is available on the device.
+  Future<bool> isBiometricAvailable() => _credentialManager.isBiometricAvailable();
+
+  /// Clears all stored credentials.
+  Future<void> clearStoredCredentials() async {
+    await _credentialManager.clearCredentials();
+  }
+
+  /// Exports stored credentials in specified format.
+  Future<String> exportCredentials({String format = 'json'}) =>
+      _credentialManager.exportCredentials(format: format);
+
+  /// Imports credentials from specified format.
+  Future<void> importCredentials(String data, {String format = 'json'}) async {
+    await _credentialManager.importCredentials(data, format: format);
   }
 
   /// Synchronizes cookies between WebView and Dio client using JavaScript bridge.
