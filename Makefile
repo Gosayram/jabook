@@ -115,8 +115,6 @@ use-existing-android-cert:
 		if [ -f ".signing/release.keystore" ]; then \
 			echo "Existing certificate found, updating configuration..."; \
 			scripts/signing.sh; \
-			echo "Patching Gradle configuration..."; \
-			scripts/patch-gradle-signing.sh; \
 			echo "Android signing configuration updated with existing certificate"; \
 		else \
 			echo "Error: No existing certificate found in .signing/release.keystore"; \
@@ -125,6 +123,17 @@ use-existing-android-cert:
 		fi \
 	else \
 		echo "Error: Signing script not found at $(SIGNING_SCRIPT)"; \
+		exit 1; \
+	fi
+
+.PHONY: patch-gradle-signing
+patch-gradle-signing:
+	@echo "Patching Gradle configuration..."
+	@if [ -f "scripts/patch-gradle-signing.sh" ]; then \
+		scripts/patch-gradle-signing.sh; \
+		echo "Gradle configuration patched successfully"; \
+	else \
+		echo "Error: Patch script not found at scripts/patch-gradle-signing.sh"; \
 		exit 1; \
 	fi
 
@@ -139,11 +148,11 @@ build-android-bundle:
 	fi
 
 .PHONY: build-android-signed
-build-android-signed: use-existing-android-cert build-android-bundle
+build-android-signed: use-existing-android-cert patch-gradle-signing build-android-bundle
 	@echo "Signed Android App Bundle built successfully"
 
 .PHONY: build-android-signed-apk
-build-android-signed-apk: use-existing-android-cert
+build-android-signed-apk: use-existing-android-cert patch-gradle-signing
 	@echo "Building signed universal APK..."
 	flutter build apk --target lib/main.dart --release
 	@echo "Signed universal APK built at: build/app/outputs/apk/release/app-release.apk"
