@@ -124,4 +124,7 @@ class RuTrackerCacheService {
   Future<void> clearExpired() async {
     await _cacheManager.clearExpired();
   }
+
+  /// Gets cache statistics including total entries and memory usage.
+  Future<Map<String, dynamic>> getStatistics() => _cacheManager.getStatistics();
 }

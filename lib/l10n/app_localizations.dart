@@ -1,268 +1,543 @@
 import 'dart:async';
-import 'dart:convert';
 
-import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:intl/intl.dart' as intl;
 
-/// Localization class for handling multi-language support in JaBook app.
-class AppLocalizations {
-  /// Creates a new AppLocalizations instance for the given locale.
-  AppLocalizations(this.locale);
+import 'app_localizations_en.dart';
+import 'app_localizations_ru.dart';
 
-  /// The locale for which this localization instance provides translations.
-  final Locale locale;
+// ignore_for_file: type=lint
 
-  /// Retrieves the AppLocalizations instance from the build context.
-  static AppLocalizations? of(BuildContext context) =>
-      Localizations.of<AppLocalizations>(context, AppLocalizations);
+/// Callers can lookup localized strings with an instance of AppLocalizations
+/// returned by `AppLocalizations.of(context)`.
+///
+/// Applications need to include `AppLocalizations.delegate()` in their app's
+/// `localizationDelegates` list, and the locales they support in the app's
+/// `supportedLocales` list. For example:
+///
+/// ```dart
+/// import 'l10n/app_localizations.dart';
+///
+/// return MaterialApp(
+///   localizationsDelegates: AppLocalizations.localizationsDelegates,
+///   supportedLocales: AppLocalizations.supportedLocales,
+///   home: MyApplicationHome(),
+/// );
+/// ```
+///
+/// ## Update pubspec.yaml
+///
+/// Please make sure to update your pubspec.yaml to include the following
+/// packages:
+///
+/// ```yaml
+/// dependencies:
+///   # Internationalization support.
+///   flutter_localizations:
+///     sdk: flutter
+///   intl: any # Use the pinned version from flutter_localizations
+///
+///   # Rest of dependencies
+/// ```
+///
+/// ## iOS Applications
+///
+/// iOS applications define key application metadata, including supported
+/// locales, in an Info.plist file that is built into the application bundle.
+/// To configure the locales supported by your app, you’ll need to edit this
+/// file.
+///
+/// First, open your project’s ios/Runner.xcworkspace Xcode workspace file.
+/// Then, in the Project Navigator, open the Info.plist file under the Runner
+/// project’s Runner folder.
+///
+/// Next, select the Information Property List item, select Add Item from the
+/// Editor menu, then select Localizations from the pop-up menu.
+///
+/// Select and expand the newly-created Localizations item then, for each
+/// locale your application supports, add a new item and select the locale
+/// you wish to add from the pop-up menu in the Value field. This list should
+/// be consistent with the languages listed in the AppLocalizations.supportedLocales
+/// property.
+abstract class AppLocalizations {
+  AppLocalizations(String locale) : localeName = intl.Intl.canonicalizedLocale(locale.toString());
 
-  /// The delegate for loading AppLocalizations instances.
-  static const LocalizationsDelegate<AppLocalizations> delegate =
-      _AppLocalizationsDelegate();
+  final String localeName;
 
-  Map<String, String>? _localizedStrings;
-
-  /// Loads the localization strings for the current locale.
-  Future<bool> load() async {
-    try {
-      final jsonString = await rootBundle.loadString(
-        'assets/lib/l10n/app_${locale.languageCode}.arb',
-      );
-      
-      final jsonMap = json.decode(jsonString) as Map<String, dynamic>;
-      
-      _localizedStrings = jsonMap.map((key, value) {
-        if (key.startsWith('@')) return MapEntry(key, value.toString());
-        return MapEntry(key, value.toString());
-      });
-      
-      return true;
-    } on Exception catch (_) {
-      return false;
-    }
+  static AppLocalizations? of(BuildContext context) {
+    return Localizations.of<AppLocalizations>(context, AppLocalizations);
   }
 
-  /// Translates the given key to the current locale.
-  String translate(String key) => _localizedStrings?[key] ?? key;
-
-  /// Returns the localized app title.
-  String get appTitle => translate('appTitle');
-
-  /// Returns the localized search screen title.
-  String get searchAudiobooks => translate('searchAudiobooks');
-
-  /// Returns the localized library screen title.
-  String get libraryTitle => translate('libraryTitle');
-
-  /// Returns the localized player screen title.
-  String get playerTitle => translate('playerTitle');
-
-  /// Returns the localized settings screen title.
-  String get settingsTitle => translate('settingsTitle');
-
-  /// Returns the localized debug screen title.
-  String get debugTitle => translate('debugTitle');
-
-  /// Returns the localized mirrors screen title.
-  String get mirrorsTitle => translate('mirrorsTitle');
-
-  /// Returns the localized topic screen title.
-  String get topicTitle => translate('topicTitle');
-
-  /// Returns the localized search placeholder text.
-  String get searchPlaceholder => translate('searchPlaceholder');
-
-  /// Returns the localized error message for failed search.
-  String get failedToSearch => translate('failedToSearch');
-
-  /// Returns the localized indicator for cached results.
-  String get resultsFromCache => translate('resultsFromCache');
-
-  /// Returns the localized prompt to start searching.
-  String get enterSearchTerm => translate('enterSearchTerm');
-
-  /// Returns the localized message for no results found.
-  String get noResults => translate('noResults');
-
-  /// Returns the localized loading text.
-  String get loading => translate('loading');
-
-  /// Returns the localized error message title.
-  String get error => translate('error');
-
-  /// Returns the localized retry button text.
-  String get retry => translate('retry');
-
-  /// Returns the localized language setting label.
-  String get language => translate('language');
-
-  /// Returns the localized English language option.
-  String get english => translate('english');
-
-  /// Returns the localized Russian language option.
-  String get russian => translate('russian');
-
-  /// Returns the localized system default language option.
-  String get systemDefault => translate('systemDefault');
-
-  /// Returns the localized author field label.
-  String get authorLabel => translate('authorLabel');
-
-  /// Returns the localized size field label.
-  String get sizeLabel => translate('sizeLabel');
-
-  /// Returns the localized seeders count label.
-  String get seedersLabel => translate('seedersLabel');
-
-  /// Returns the localized leechers count label.
-  String get leechersLabel => translate('leechersLabel');
-
-  /// Returns the localized fallback text for unknown title.
-  String get unknownTitle => translate('unknownTitle');
-
-  /// Returns the localized fallback text for unknown author.
-  String get unknownAuthor => translate('unknownAuthor');
-
-  /// Returns the localized fallback text for unknown size.
-  String get unknownSize => translate('unknownSize');
-
-  /// Returns the localized message for upcoming add book feature.
-  String get addBookComingSoon => translate('addBookComingSoon');
-
-  /// Returns the localized placeholder text for library screen.
-  String get libraryContentPlaceholder => translate('libraryContentPlaceholder');
-
-  /// Returns the localized authentication required title.
-  String get authenticationRequired => translate('authenticationRequired');
-
-  /// Returns the localized login required message for search.
-  String get loginRequiredForSearch => translate('loginRequiredForSearch');
-
-  /// Returns the localized cancel button text.
-  String get cancel => translate('cancel');
-
-  /// Returns the localized login button text.
-  String get login => translate('login');
-
-  /// Returns the localized language description.
-  String get languageDescription => translate('languageDescription');
-
-  /// Returns the localized theme section title.
-  String get themeTitle => translate('themeTitle');
-
-  /// Returns the localized theme section description.
-  String get themeDescription => translate('themeDescription');
-
-  /// Returns the localized dark mode setting label.
-  String get darkMode => translate('darkMode');
-
-  /// Returns the localized high contrast setting label.
-  String get highContrast => translate('highContrast');
-
-  /// Returns the localized audio section title.
-  String get audioTitle => translate('audioTitle');
-
-  /// Returns the localized audio section description.
-  String get audioDescription => translate('audioDescription');
-
-  /// Returns the localized playback speed setting label.
-  String get playbackSpeed => translate('playbackSpeed');
-
-  /// Returns the localized skip duration setting label.
-  String get skipDuration => translate('skipDuration');
-
-  /// Returns the localized downloads section title.
-  String get downloadsTitle => translate('downloadsTitle');
-
-  /// Returns the localized downloads section description.
-  String get downloadsDescription => translate('downloadsDescription');
-
-  /// Returns the localized download location setting label.
-  String get downloadLocation => translate('downloadLocation');
-
-  /// Returns the localized Wi-Fi only downloads setting label.
-  String get wifiOnlyDownloads => translate('wifiOnlyDownloads');
-
-  /// Returns the localized debug tools title.
-  String get debugTools => translate('debugTools');
-
-  /// Returns the localized logs tab label.
-  String get logsTab => translate('logsTab');
-
-  /// Returns the localized mirrors tab label.
-  String get mirrorsTab => translate('mirrorsTab');
-
-  /// Returns the localized downloads tab label.
-  String get downloadsTab => translate('downloadsTab');
-
-  /// Returns the localized cache tab label.
-  String get cacheTab => translate('cacheTab');
-
-  /// Returns the localized test all mirrors button text.
-  String get testAllMirrors => translate('testAllMirrors');
-
-  /// Returns the localized status label.
-  String get statusLabel => translate('statusLabel');
-
-  /// Returns the localized active status text.
-  String get activeStatus => translate('activeStatus');
-
-  /// Returns the localized disabled status text.
-  String get disabledStatus => translate('disabledStatus');
-
-  /// Returns the localized last OK label.
-  String get lastOkLabel => translate('lastOkLabel');
-
-  /// Returns the localized RTT label.
-  String get rttLabel => translate('rttLabel');
-
-  /// Returns the localized milliseconds abbreviation.
-  String get milliseconds => translate('milliseconds');
-
-  /// Returns the localized cache statistics title.
-  String get cacheStatistics => translate('cacheStatistics');
-
-  /// Returns the localized total entries label.
-  String get totalEntries => translate('totalEntries');
-
-  /// Returns the localized search cache label.
-  String get searchCache => translate('searchCache');
-
-  /// Returns the localized topic cache label.
-  String get topicCache => translate('topicCache');
-
-  /// Returns the localized memory usage label.
-  String get memoryUsage => translate('memoryUsage');
-
-  /// Returns the localized clear all cache button text.
-  String get clearAllCache => translate('clearAllCache');
-
-  /// Returns the localized cache cleared success message.
-  String get cacheClearedSuccessfully => translate('cacheClearedSuccessfully');
-
-  /// Returns the localized mirror health check completion message.
-  String get mirrorHealthCheckCompleted => translate('mirrorHealthCheckCompleted');
-
-  /// Returns the localized export functionality coming soon message.
-  String get exportFunctionalityComingSoon => translate('exportFunctionalityComingSoon');
+  static const LocalizationsDelegate<AppLocalizations> delegate = _AppLocalizationsDelegate();
+
+  /// A list of this localizations delegate along with the default localizations
+  /// delegates.
+  ///
+  /// Returns a list of localizations delegates containing this delegate along with
+  /// GlobalMaterialLocalizations.delegate, GlobalCupertinoLocalizations.delegate,
+  /// and GlobalWidgetsLocalizations.delegate.
+  ///
+  /// Additional delegates can be added by appending to this list in
+  /// MaterialApp. This list does not have to be used at all if a custom list
+  /// of delegates is preferred or required.
+  static const List<LocalizationsDelegate<dynamic>> localizationsDelegates = <LocalizationsDelegate<dynamic>>[
+    delegate,
+    GlobalMaterialLocalizations.delegate,
+    GlobalCupertinoLocalizations.delegate,
+    GlobalWidgetsLocalizations.delegate,
+  ];
+
+  /// A list of this localizations delegate's supported locales.
+  static const List<Locale> supportedLocales = <Locale>[
+    Locale('en'),
+    Locale('ru')
+  ];
+
+  /// No description provided for @appTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'JaBook'**
+  String get appTitle;
+
+  /// Title for search screen
+  ///
+  /// In en, this message translates to:
+  /// **'Search Audiobooks'**
+  String get searchAudiobooks;
+
+  /// Placeholder text for search field
+  ///
+  /// In en, this message translates to:
+  /// **'Enter title, author, or keywords'**
+  String get searchPlaceholder;
+
+  /// Title for library screen
+  ///
+  /// In en, this message translates to:
+  /// **'Library'**
+  String get libraryTitle;
+
+  /// Title for player screen
+  ///
+  /// In en, this message translates to:
+  /// **'Player'**
+  String get playerTitle;
+
+  /// Title for settings screen
+  ///
+  /// In en, this message translates to:
+  /// **'Settings'**
+  String get settingsTitle;
+
+  /// Title for debug screen
+  ///
+  /// In en, this message translates to:
+  /// **'Debug'**
+  String get debugTitle;
+
+  /// Title for mirrors screen
+  ///
+  /// In en, this message translates to:
+  /// **'Mirrors'**
+  String get mirrorsTitle;
+
+  /// Title for topic screen
+  ///
+  /// In en, this message translates to:
+  /// **'Topic'**
+  String get topicTitle;
+
+  /// Message when no search results
+  ///
+  /// In en, this message translates to:
+  /// **'No results found'**
+  String get noResults;
+
+  /// Loading indicator text
+  ///
+  /// In en, this message translates to:
+  /// **'Loading...'**
+  String get loading;
+
+  /// Error message title
+  ///
+  /// In en, this message translates to:
+  /// **'Error'**
+  String get error;
+
+  /// Retry button text
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get retry;
+
+  /// Language setting label
+  ///
+  /// In en, this message translates to:
+  /// **'Language'**
+  String get language;
+
+  /// English language option
+  ///
+  /// In en, this message translates to:
+  /// **'English'**
+  String get english;
+
+  /// Russian language option
+  ///
+  /// In en, this message translates to:
+  /// **'Russian'**
+  String get russian;
+
+  /// Use system language setting
+  ///
+  /// In en, this message translates to:
+  /// **'System Default'**
+  String get systemDefault;
+
+  /// Description for language settings section
+  ///
+  /// In en, this message translates to:
+  /// **'Choose your preferred language for the app interface'**
+  String get languageDescription;
+
+  /// Error message when search fails
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to search'**
+  String get failedToSearch;
+
+  /// Indicator that results are from cache
+  ///
+  /// In en, this message translates to:
+  /// **'Results from cache'**
+  String get resultsFromCache;
+
+  /// Prompt to start searching
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a search term to begin'**
+  String get enterSearchTerm;
+
+  /// Label for author field
+  ///
+  /// In en, this message translates to:
+  /// **'Author: '**
+  String get authorLabel;
+
+  /// Label for size field
+  ///
+  /// In en, this message translates to:
+  /// **'Size: '**
+  String get sizeLabel;
+
+  /// Label for seeders count
+  ///
+  /// In en, this message translates to:
+  /// **' seeders'**
+  String get seedersLabel;
+
+  /// Label for leechers count
+  ///
+  /// In en, this message translates to:
+  /// **' leechers'**
+  String get leechersLabel;
+
+  /// Fallback for missing title
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown Title'**
+  String get unknownTitle;
+
+  /// Fallback for missing author
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown Author'**
+  String get unknownAuthor;
+
+  /// Fallback for missing size
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown Size'**
+  String get unknownSize;
+
+  /// Message for upcoming add book feature
+  ///
+  /// In en, this message translates to:
+  /// **'Add book functionality coming soon!'**
+  String get addBookComingSoon;
+
+  /// Placeholder text for library screen
+  ///
+  /// In en, this message translates to:
+  /// **'Library content will be displayed here'**
+  String get libraryContentPlaceholder;
+
+  /// Title for authentication prompt dialog
+  ///
+  /// In en, this message translates to:
+  /// **'Authentication Required'**
+  String get authenticationRequired;
+
+  /// Message explaining that login is required for search
+  ///
+  /// In en, this message translates to:
+  /// **'Please login to RuTracker to access search functionality.'**
+  String get loginRequiredForSearch;
+
+  /// Cancel button text
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get cancel;
+
+  /// Login button text
+  ///
+  /// In en, this message translates to:
+  /// **'Login'**
+  String get login;
+
+  /// Title for theme settings section
+  ///
+  /// In en, this message translates to:
+  /// **'Theme'**
+  String get themeTitle;
+
+  /// Description for theme settings section
+  ///
+  /// In en, this message translates to:
+  /// **'Customize the appearance of the app'**
+  String get themeDescription;
+
+  /// Dark mode toggle label
+  ///
+  /// In en, this message translates to:
+  /// **'Dark Mode'**
+  String get darkMode;
+
+  /// High contrast mode toggle label
+  ///
+  /// In en, this message translates to:
+  /// **'High Contrast'**
+  String get highContrast;
+
+  /// Title for audio settings section
+  ///
+  /// In en, this message translates to:
+  /// **'Audio'**
+  String get audioTitle;
+
+  /// Description for audio settings section
+  ///
+  /// In en, this message translates to:
+  /// **'Configure audio playback settings'**
+  String get audioDescription;
+
+  /// Playback speed setting label
+  ///
+  /// In en, this message translates to:
+  /// **'Playback Speed'**
+  String get playbackSpeed;
+
+  /// Skip duration setting label
+  ///
+  /// In en, this message translates to:
+  /// **'Skip Duration'**
+  String get skipDuration;
+
+  /// Title for downloads settings section
+  ///
+  /// In en, this message translates to:
+  /// **'Downloads'**
+  String get downloadsTitle;
+
+  /// Description for downloads settings section
+  ///
+  /// In en, this message translates to:
+  /// **'Manage download preferences and storage'**
+  String get downloadsDescription;
+
+  /// Download location setting label
+  ///
+  /// In en, this message translates to:
+  /// **'Download Location'**
+  String get downloadLocation;
+
+  /// Wi-Fi only downloads toggle label
+  ///
+  /// In en, this message translates to:
+  /// **'Wi-Fi Only Downloads'**
+  String get wifiOnlyDownloads;
+
+  /// Title for debug screen
+  ///
+  /// In en, this message translates to:
+  /// **'Debug Tools'**
+  String get debugTools;
+
+  /// Logs tab label
+  ///
+  /// In en, this message translates to:
+  /// **'Logs'**
+  String get logsTab;
+
+  /// Mirrors tab label
+  ///
+  /// In en, this message translates to:
+  /// **'Mirrors'**
+  String get mirrorsTab;
+
+  /// Downloads tab label
+  ///
+  /// In en, this message translates to:
+  /// **'Downloads'**
+  String get downloadsTab;
+
+  /// Cache tab label
+  ///
+  /// In en, this message translates to:
+  /// **'Cache'**
+  String get cacheTab;
+
+  /// Test all mirrors button text
+  ///
+  /// In en, this message translates to:
+  /// **'Test All Mirrors'**
+  String get testAllMirrors;
+
+  /// Status label text
+  ///
+  /// In en, this message translates to:
+  /// **'Status: '**
+  String get statusLabel;
+
+  /// Active status text
+  ///
+  /// In en, this message translates to:
+  /// **'Active'**
+  String get activeStatus;
+
+  /// Disabled status text
+  ///
+  /// In en, this message translates to:
+  /// **'Disabled'**
+  String get disabledStatus;
+
+  /// Last OK label text
+  ///
+  /// In en, this message translates to:
+  /// **'Last OK: '**
+  String get lastOkLabel;
+
+  /// RTT label text
+  ///
+  /// In en, this message translates to:
+  /// **'RTT: '**
+  String get rttLabel;
+
+  /// Milliseconds abbreviation
+  ///
+  /// In en, this message translates to:
+  /// **'ms'**
+  String get milliseconds;
+
+  /// Cache statistics title
+  ///
+  /// In en, this message translates to:
+  /// **'Cache Statistics'**
+  String get cacheStatistics;
+
+  /// Total entries label
+  ///
+  /// In en, this message translates to:
+  /// **'Total entries: '**
+  String get totalEntries;
+
+  /// Search cache label
+  ///
+  /// In en, this message translates to:
+  /// **'Search cache: '**
+  String get searchCache;
+
+  /// Topic cache label
+  ///
+  /// In en, this message translates to:
+  /// **'Topic cache: '**
+  String get topicCache;
+
+  /// Memory usage label
+  ///
+  /// In en, this message translates to:
+  /// **'Memory usage: '**
+  String get memoryUsage;
+
+  /// Clear all cache button text
+  ///
+  /// In en, this message translates to:
+  /// **'Clear All Cache'**
+  String get clearAllCache;
+
+  /// Cache cleared success message
+  ///
+  /// In en, this message translates to:
+  /// **'Cache cleared successfully'**
+  String get cacheClearedSuccessfully;
+
+  /// Mirror health check completion message
+  ///
+  /// In en, this message translates to:
+  /// **'Mirror health check completed'**
+  String get mirrorHealthCheckCompleted;
+
+  /// Export functionality coming soon message
+  ///
+  /// In en, this message translates to:
+  /// **'Export functionality coming soon'**
+  String get exportFunctionalityComingSoon;
+
+  /// Logs exported success message
+  ///
+  /// In en, this message translates to:
+  /// **'Logs exported successfully'**
+  String get logsExportedSuccessfully;
+
+  /// Logs export failure message
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to export logs'**
+  String get failedToExportLogs;
 }
 
-/// Delegate for loading AppLocalizations instances.
-class _AppLocalizationsDelegate
-    extends LocalizationsDelegate<AppLocalizations> {
-  /// Creates a new _AppLocalizationsDelegate instance.
+class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {
   const _AppLocalizationsDelegate();
 
   @override
-  bool isSupported(Locale locale) => ['en', 'ru'].contains(locale.languageCode);
-
-  @override
-  Future<AppLocalizations> load(Locale locale) async {
-    final localizations = AppLocalizations(locale);
-    await localizations.load();
-    return localizations;
+  Future<AppLocalizations> load(Locale locale) {
+    return SynchronousFuture<AppLocalizations>(lookupAppLocalizations(locale));
   }
 
   @override
+  bool isSupported(Locale locale) => <String>['en', 'ru'].contains(locale.languageCode);
+
+  @override
   bool shouldReload(_AppLocalizationsDelegate old) => false;
+}
+
+AppLocalizations lookupAppLocalizations(Locale locale) {
+
+
+  // Lookup logic when only language code is specified.
+  switch (locale.languageCode) {
+    case 'en': return AppLocalizationsEn();
+    case 'ru': return AppLocalizationsRu();
+  }
+
+  throw FlutterError(
+    'AppLocalizations.delegate failed to load unsupported locale "$locale". This is likely '
+    'an issue with the localizations generation tool. Please file an issue '
+    'on GitHub with a reproducible sample app and the gen-l10n configuration '
+    'that was used.'
+  );
 }

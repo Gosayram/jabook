@@ -147,4 +147,53 @@ class CacheManager {
     final expiresAt = DateTime.parse(record['expires_at'] as String);
     return !DateTime.now().isAfter(expiresAt);
   }
+
+  /// Gets cache statistics including total entries and memory usage estimation.
+  Future<Map<String, dynamic>> getStatistics() async {
+    if (_db == null) {
+      throw StateError('CacheManager not initialized');
+    }
+
+    final store = StoreRef<String, Map<String, dynamic>>('cache');
+    final records = await store.find(_db!);
+
+    var searchEntries = 0;
+    var topicEntries = 0;
+    var totalSizeBytes = 0;
+
+    for (final record in records) {
+      final key = record.key;
+      final data = record.value;
+
+      // Count by type
+      if (key.startsWith('search:')) {
+        searchEntries++;
+      } else if (key.startsWith('topic:')) {
+        topicEntries++;
+      }
+
+      // Estimate size by converting to JSON string
+      final jsonString = data.toString();
+      totalSizeBytes += jsonString.length * 2; // Approximate UTF-16 size
+    }
+
+    return {
+      'total_entries': records.length,
+      'search_cache_size': searchEntries,
+      'topic_cache_size': topicEntries,
+      'memory_usage_bytes': totalSizeBytes,
+      'memory_usage': _formatBytes(totalSizeBytes),
+    };
+  }
+
+  /// Formats bytes into human-readable format.
+  String _formatBytes(int bytes) {
+    if (bytes < 1024) {
+      return '$bytes B';
+    } else if (bytes < 1024 * 1024) {
+      return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    } else {
+      return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+    }
+  }
 }

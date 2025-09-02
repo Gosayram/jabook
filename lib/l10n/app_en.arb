@@ -264,5 +264,13 @@
   "exportFunctionalityComingSoon": "Export functionality coming soon",
   "@exportFunctionalityComingSoon": {
     "description": "Export functionality coming soon message"
+  },
+  "logsExportedSuccessfully": "Logs exported successfully",
+  "@logsExportedSuccessfully": {
+    "description": "Logs exported success message"
+  },
+  "failedToExportLogs": "Failed to export logs",
+  "@failedToExportLogs": {
+    "description": "Logs export failure message"
   }
 }

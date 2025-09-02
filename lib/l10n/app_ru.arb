@@ -264,5 +264,13 @@
   "exportFunctionalityComingSoon": "Функция экспорта скоро появится",
   "@exportFunctionalityComingSoon": {
     "description": "Сообщение о скором появлении функции экспорта"
+  },
+  "logsExportedSuccessfully": "Логи успешно экспортированы",
+  "@logsExportedSuccessfully": {
+    "description": "Сообщение об успешном экспорте логов"
+  },
+  "failedToExportLogs": "Не удалось экспортировать логи",
+  "@failedToExportLogs": {
+    "description": "Сообщение о неудачном экспорте логов"
   }
 }

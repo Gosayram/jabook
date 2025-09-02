@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:jabook/core/cache/rutracker_cache_service.dart';
 import 'package:jabook/core/endpoints/endpoint_manager.dart';
 import 'package:jabook/core/logging/environment_logger.dart';
+import 'package:jabook/core/logging/structured_logger.dart';
 import 'package:jabook/core/torrent/audiobook_torrent_manager.dart';
 import 'package:jabook/data/db/app_database.dart';
 import 'package:jabook/l10n/app_localizations.dart';
@@ -62,15 +63,36 @@ class _DebugScreenState extends ConsumerState<DebugScreen> with SingleTickerProv
   }
 
   Future<void> _loadLogs() async {
-    // TODO: Implement log loading from EnvironmentLogger
-    setState(() {
-      _logEntries = [
-        'INFO: App started at ${DateTime.now()}',
-        'DEBUG: Cache initialized successfully',
-        'WARNING: No active downloads found',
-        'ERROR: Failed to connect to mirror rutracker.me',
-      ];
-    });
+    try {
+      final structuredLogger = StructuredLogger();
+      await structuredLogger.initialize();
+      
+      final logs = await structuredLogger.getLogs(limit: 50);
+      
+      setState(() {
+        _logEntries = logs.map((logEntry) {
+          final level = logEntry['level'] ?? 'INFO';
+          final subsystem = logEntry['subsystem'] ?? 'unknown';
+          final message = logEntry['msg'] ?? 'No message';
+          final timestamp = logEntry['ts'] ?? DateTime.now().toIso8601String();
+          final cause = logEntry['cause'];
+          
+          return '$level: $subsystem - $message${cause != null ? ' (Cause: $cause)' : ''} [$timestamp]';
+        }).toList();
+      });
+    } on Exception catch (e) {
+      _logger.e('Failed to load logs: $e');
+      // Fallback to placeholder logs
+      setState(() {
+        _logEntries = [
+          'INFO: App started at ${DateTime.now()}',
+          'DEBUG: Cache initialized successfully',
+          'WARNING: No active downloads found',
+          'ERROR: Failed to connect to mirror rutracker.me',
+          'ERROR: Failed to load logs: $e',
+        ];
+      });
+    }
   }
 
   Future<void> _loadMirrors() async {
@@ -100,16 +122,45 @@ class _DebugScreenState extends ConsumerState<DebugScreen> with SingleTickerProv
     }
   }
 
+  Future<void> _exportLogs(BuildContext context) async {
+    final currentLocalizations = AppLocalizations.of(context);
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    try {
+      final structuredLogger = StructuredLogger();
+      await structuredLogger.initialize();
+      await structuredLogger.shareLogs();
+      
+      if (!mounted) return;
+      scaffoldMessenger.showSnackBar(
+        SnackBar(content: Text(currentLocalizations?.logsExportedSuccessfully ?? 'Logs exported successfully')),
+      );
+    } on Exception catch (e) {
+      _logger.e('Failed to export logs: $e');
+      if (!mounted) return;
+      scaffoldMessenger.showSnackBar(
+        SnackBar(content: Text('${currentLocalizations?.failedToExportLogs ?? 'Failed to export logs'}: $e')),
+      );
+    }
+  }
+
   Future<void> _loadCacheStats() async {
-    // TODO: Implement cache statistics
-    setState(() {
-      _cacheStats = {
-        'total_entries': 42,
-        'search_cache_size': 15,
-        'topic_cache_size': 27,
-        'memory_usage': '2.3 MB',
-      };
-    });
+    try {
+      final stats = await _cacheService.getStatistics();
+      setState(() {
+        _cacheStats = stats;
+      });
+    } on Exception catch (e) {
+      _logger.e('Failed to load cache stats: $e');
+      // Fallback to placeholder stats
+      setState(() {
+        _cacheStats = {
+          'total_entries': 0,
+          'search_cache_size': 0,
+          'topic_cache_size': 0,
+          'memory_usage': '0 B',
+        };
+      });
+    }
   }
 
   Future<void> _clearCache(BuildContext context) async {
@@ -343,10 +394,7 @@ class _DebugScreenState extends ConsumerState<DebugScreen> with SingleTickerProv
     ],
   );
 
-  Widget _buildFloatingActionButtons(BuildContext context) {
-    final localizations = AppLocalizations.of(context);
-    
-    return Column(
+  Widget _buildFloatingActionButtons(BuildContext context) => Column(
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
         FloatingActionButton(
@@ -359,15 +407,9 @@ class _DebugScreenState extends ConsumerState<DebugScreen> with SingleTickerProv
         FloatingActionButton(
           heroTag: 'export',
           mini: true,
-          onPressed: () {
-            // TODO: Implement log export
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(localizations?.exportFunctionalityComingSoon ?? 'Export functionality coming soon')),
-            );
-          },
+          onPressed: () => _exportLogs(context),
           child: const Icon(Icons.file_download),
         ),
       ],
     );
   }
-}

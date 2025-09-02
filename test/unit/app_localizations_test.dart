@@ -4,54 +4,54 @@ import 'package:jabook/l10n/app_localizations.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  
   group('AppLocalizations', () {
-    test('should return correct English translations', () async {
-      final localizations = AppLocalizations(const Locale('en', 'US'));
-      await localizations.load();
-
-      expect(localizations.appTitle, equals('JaBook'));
-      expect(localizations.searchAudiobooks, equals('Search Audiobooks'));
-      expect(localizations.searchPlaceholder, equals('Enter title author or keywords'));
-      expect(localizations.failedToSearch, equals('Failed to search'));
-      expect(localizations.resultsFromCache, equals('Results from cache'));
-      expect(localizations.noResults, equals('No results found'));
-    });
-
-    test('should return correct Russian translations', () async {
-      final localizations = AppLocalizations(const Locale('ru', 'RU'));
-      await localizations.load();
-
-      expect(localizations.appTitle, equals('JaBook'));
-      expect(localizations.searchAudiobooks, equals('Поиск аудиокниг'));
-      expect(localizations.searchPlaceholder, equals('Введите название автора или ключевые слова'));
-      expect(localizations.failedToSearch, equals('Не удалось выполнить поиск'));
-      expect(localizations.resultsFromCache, equals('Результаты из кэша'));
-      expect(localizations.noResults, equals('Результатов не найдено'));
-    });
-
-    test('should return key when translation not found', () {
-      final localizations = AppLocalizations(const Locale('en', 'US'));
-      
-      // Before loading, should return key
-      expect(localizations.translate('nonexistent_key'), equals('nonexistent_key'));
-    });
-
     test('delegate should support English and Russian locales', () {
       const delegate = AppLocalizations.delegate;
       
-      expect(delegate.isSupported(const Locale('en', 'US')), isTrue);
-      expect(delegate.isSupported(const Locale('ru', 'RU')), isTrue);
-      expect(delegate.isSupported(const Locale('fr', 'FR')), isFalse);
-      expect(delegate.isSupported(const Locale('de', 'DE')), isFalse);
+      expect(delegate.isSupported(const Locale('en')), isTrue);
+      expect(delegate.isSupported(const Locale('ru')), isTrue);
+      expect(delegate.isSupported(const Locale('fr')), isFalse);
+      expect(delegate.isSupported(const Locale('de')), isFalse);
     });
 
-    test('should handle loading errors gracefully', () async {
-      final localizations = AppLocalizations(const Locale('en', 'US'));
+    test('should load English translations correctly', () async {
+      const delegate = AppLocalizations.delegate;
+      final localizations = await delegate.load(const Locale('en'));
       
-      // Mock the load method to simulate an error
-      final result = await localizations.load();
-      // This should succeed for supported locales
-      expect(result, isTrue);
+      expect(localizations.appTitle, equals('JaBook'));
+      expect(localizations.searchAudiobooks, equals('Search Audiobooks'));
+      expect(localizations.searchPlaceholder, equals('Enter title, author, or keywords'));
+      expect(localizations.failedToSearch, equals('Failed to search'));
+      expect(localizations.resultsFromCache, equals('Results from cache'));
+      expect(localizations.noResults, equals('No results found'));
+      expect(localizations.logsExportedSuccessfully, equals('Logs exported successfully'));
+      expect(localizations.failedToExportLogs, equals('Failed to export logs'));
+    });
+
+    test('should load Russian translations correctly', () async {
+      const delegate = AppLocalizations.delegate;
+      final localizations = await delegate.load(const Locale('ru'));
+      
+      expect(localizations.appTitle, equals('JaBook'));
+      expect(localizations.searchAudiobooks, equals('Поиск аудиокниг'));
+      expect(localizations.searchPlaceholder, equals('Введите название, автора или ключевые слова'));
+      expect(localizations.failedToSearch, equals('Не удалось выполнить поиск'));
+      expect(localizations.resultsFromCache, equals('Результаты из кэша'));
+      expect(localizations.noResults, equals('Результатов не найдено'));
+      expect(localizations.logsExportedSuccessfully, equals('Логи успешно экспортированы'));
+      expect(localizations.failedToExportLogs, equals('Не удалось экспортировать логи'));
+    });
+
+    test('should have correct supported locales', () {
+      expect(AppLocalizations.supportedLocales.length, equals(2));
+      expect(AppLocalizations.supportedLocales.contains(const Locale('en')), isTrue);
+      expect(AppLocalizations.supportedLocales.contains(const Locale('ru')), isTrue);
+    });
+
+    test('should have correct localizations delegates', () {
+      expect(AppLocalizations.localizationsDelegates.length, equals(4));
+      expect(AppLocalizations.localizationsDelegates.contains(AppLocalizations.delegate), isTrue);
     });
   });
 }
