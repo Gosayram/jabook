@@ -242,4 +242,6 @@ android/key.properties
 android/signing/
 *.keystore
 *.jks
+# Signing directory
+.signing/
 *.p12

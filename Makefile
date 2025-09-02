@@ -24,6 +24,7 @@ help:
 	@echo "  make setup-ios        - Setup iOS project configuration"
 	@echo "  make setup           - Setup both Android and iOS projects"
 	@echo "  make sign-android    - Generate signing keys and setup Android signing"
+	@echo "  make use-existing-android-cert - Use existing Android certificate without regeneration"
 	@echo ""
 	@echo "Build Commands:"
 	@echo "  make build-android-dev    - Build Android dev variant"
@@ -107,6 +108,26 @@ sign-android:
 		exit 1; \
 	fi
 
+.PHONY: use-existing-android-cert
+use-existing-android-cert:
+	@echo "Using existing Android signing certificate..."
+	@if [ -f "$(SIGNING_SCRIPT)" ]; then \
+		if [ -f ".signing/release.keystore" ]; then \
+			echo "Existing certificate found, updating configuration..."; \
+			scripts/signing.sh; \
+			echo "Patching Gradle configuration..."; \
+			scripts/patch-gradle-signing.sh; \
+			echo "Android signing configuration updated with existing certificate"; \
+		else \
+			echo "Error: No existing certificate found in .signing/release.keystore"; \
+			echo "Run 'make sign-android' first to generate a certificate"; \
+			exit 1; \
+		fi \
+	else \
+		echo "Error: Signing script not found at $(SIGNING_SCRIPT)"; \
+		exit 1; \
+	fi
+
 .PHONY: build-android-bundle
 build-android-bundle:
 	@if [ ! -f "android/key.properties" ]; then \
@@ -118,11 +139,11 @@ build-android-bundle:
 	fi
 
 .PHONY: build-android-signed
-build-android-signed: sign-android build-android-bundle
+build-android-signed: use-existing-android-cert build-android-bundle
 	@echo "Signed Android App Bundle built successfully"
 
 .PHONY: build-android-signed-apk
-build-android-signed-apk: sign-android
+build-android-signed-apk: use-existing-android-cert
 	@echo "Building signed universal APK..."
 	flutter build apk --target lib/main.dart --release
 	@echo "Signed universal APK built at: build/app/outputs/apk/release/app-release.apk"
