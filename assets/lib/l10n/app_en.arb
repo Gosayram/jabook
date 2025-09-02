@@ -112,5 +112,21 @@
   "libraryContentPlaceholder": "Library content will be displayed here",
   "@libraryContentPlaceholder": {
     "description": "Placeholder text for library screen"
+  },
+  "authenticationRequired": "Authentication Required",
+  "@authenticationRequired": {
+    "description": "Title for authentication prompt dialog"
+  },
+  "loginRequiredForSearch": "Please login to RuTracker to access search functionality.",
+  "@loginRequiredForSearch": {
+    "description": "Message explaining that login is required for search"
+  },
+  "cancel": "Cancel",
+  "@cancel": {
+    "description": "Cancel button text"
+  },
+  "login": "Login",
+  "@login": {
+    "description": "Login button text"
   }
 }

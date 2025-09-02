@@ -6,6 +6,7 @@ import 'package:jabook/app/router/app_router.dart';
 import 'package:jabook/app/theme/app_theme.dart';
 import 'package:jabook/core/cache/rutracker_cache_service.dart';
 import 'package:jabook/core/config/app_config.dart';
+import 'package:jabook/core/config/language_manager.dart';
 import 'package:jabook/core/logging/environment_logger.dart';
 import 'package:jabook/data/db/app_database.dart';
 import 'package:jabook/l10n/app_localizations.dart';
@@ -35,6 +36,7 @@ class _JaBookAppState extends ConsumerState<JaBookApp> {
   final EnvironmentLogger logger = EnvironmentLogger();
   final AppDatabase database = AppDatabase();
   final RuTrackerCacheService cacheService = RuTrackerCacheService();
+  final LanguageManager languageManager = LanguageManager();
 
   // Avoid recreating the key on every build.
   final GlobalKey<ScaffoldMessengerState> _scaffoldMessengerKey =
@@ -150,24 +152,31 @@ class _JaBookAppState extends ConsumerState<JaBookApp> {
   Widget build(BuildContext context) {
     final router = ref.watch(appRouterProvider);
 
-    return MaterialApp.router(
-      title: config.appName,
-      theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.darkTheme,
-      routerConfig: router,
-      debugShowCheckedModeBanner: config.isDebug,
-      scaffoldMessengerKey: config.isDebug ? _scaffoldMessengerKey : null,
-      localizationsDelegates: const [
-        AppLocalizations.delegate,
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-      ],
-      supportedLocales: const [
-        Locale('en', 'US'), // English
-        Locale('ru', 'RU'), // Russian
-      ],
-      locale: const Locale('ru', 'RU'), // Default to Russian
+    return FutureBuilder<Locale>(
+      future: languageManager.getLocale(),
+      builder: (context, snapshot) {
+        final locale = snapshot.data ?? const Locale('en', 'US');
+        
+        return MaterialApp.router(
+          title: config.appName,
+          theme: AppTheme.lightTheme,
+          darkTheme: AppTheme.darkTheme,
+          routerConfig: router,
+          debugShowCheckedModeBanner: config.isDebug,
+          scaffoldMessengerKey: config.isDebug ? _scaffoldMessengerKey : null,
+          localizationsDelegates: const [
+            AppLocalizations.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: const [
+            Locale('en', 'US'), // English
+            Locale('ru', 'RU'), // Russian
+          ],
+          locale: locale,
+        );
+      },
     );
   }
 }
