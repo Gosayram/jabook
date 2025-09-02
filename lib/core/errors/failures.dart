@@ -36,6 +36,18 @@ class NetworkFailure extends Failure {
 class AuthFailure extends Failure {
   /// Creates a new [AuthFailure].
   const AuthFailure(super.message, [super.exception]);
+
+  /// Creates an authentication failure that requires user action (login).
+  const AuthFailure.loginRequired([Exception? exception])
+      : super('Authentication required. Please login to RuTracker.', exception);
+
+  /// Creates an authentication failure for expired session.
+  const AuthFailure.sessionExpired([Exception? exception])
+      : super('Session expired. Please login again.', exception);
+
+  /// Creates an authentication failure for invalid credentials.
+  const AuthFailure.invalidCredentials([Exception? exception])
+      : super('Invalid username or password. Please try again.', exception);
 }
 
 /// Parsing-related failures.
