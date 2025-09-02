@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:jabook/core/parse/rutracker_parser.dart';
 import 'package:jabook/core/stream/local_stream_server.dart';
+import 'package:jabook/l10n/app_localizations.dart';
 import 'package:just_audio/just_audio.dart';
 
 /// Main audiobook player screen.
@@ -151,7 +152,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
-      title: Text('Player: ${widget.bookId}'),
+      title: Text('${AppLocalizations.of(context)?.playerTitle ?? 'Player'}: ${widget.bookId}'),
       actions: [
         IconButton(
           icon: const Icon(Icons.download),
@@ -174,11 +175,11 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Text('Failed to load audiobook'),
+            Text(AppLocalizations.of(context)?.failedToLoadAudio ?? 'Failed to load audiobook'),
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: _initializePlayer,
-              child: const Text('Retry'),
+              child: Text(AppLocalizations.of(context)?.retry ?? 'Retry'),
             ),
           ],
         ),
@@ -279,7 +280,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Chapters',
+                    AppLocalizations.of(context)?.chaptersLabel ?? 'Chapters',
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
                   const SizedBox(height: 8),
@@ -314,7 +315,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   void _downloadAudiobook() {
     // TODO: Implement download functionality
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Download functionality coming soon!')),
+      SnackBar(content: Text(AppLocalizations.of(context)?.downloadFunctionalityComingSoon ?? 'Download functionality coming soon!')),
     );
   }
 }

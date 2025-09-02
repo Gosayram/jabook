@@ -214,4 +214,84 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get failedToExportLogs => 'Failed to export logs';
+
+  @override
+  String get requestTimedOut => 'Request timed out. Please check your connection.';
+
+  @override
+  String networkError(Object errorMessage) {
+    return 'Network error: $errorMessage';
+  }
+
+  @override
+  String get downloadFunctionalityComingSoon => 'Download functionality coming soon!';
+
+  @override
+  String get magnetLinkCopied => 'Magnet link copied to clipboard';
+
+  @override
+  String get dataLoadedFromCache => 'Data loaded from cache';
+
+  @override
+  String get failedToLoadTopic => 'Failed to load topic';
+
+  @override
+  String errorLoadingTopic(Object error) {
+    return 'Error loading topic: $error';
+  }
+
+  @override
+  String get unknownChapter => 'Unknown Chapter';
+
+  @override
+  String get chaptersLabel => 'Chapters';
+
+  @override
+  String get magnetLinkLabel => 'Magnet Link';
+
+  @override
+  String get downloadLabel => 'Download';
+
+  @override
+  String get playLabel => 'Play';
+
+  @override
+  String get pauseLabel => 'Pause';
+
+  @override
+  String get stopLabel => 'Stop';
+
+  @override
+  String get failedToLoadAudio => 'Failed to load audiobook';
+
+  @override
+  String get sampleAudiobook => 'Sample Audiobook';
+
+  @override
+  String get sampleAuthor => 'Sample Author';
+
+  @override
+  String get chapter1 => 'Chapter 1';
+
+  @override
+  String get chapter2 => 'Chapter 2';
+
+  @override
+  String get mirrorsScreenTitle => 'Mirrors Screen';
+
+  @override
+  String get downloadStatusUnknown => 'unknown';
+
+  @override
+  String downloadProgressLabel(Object progress) {
+    return 'Progress: $progress%';
+  }
+
+  @override
+  String get statusLabelNoColon => 'Status';
+
+  @override
+  String copyToClipboardLabel(Object label) {
+    return '$label copied to clipboard';
+  }
 }

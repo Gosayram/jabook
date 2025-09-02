@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:jabook/l10n/app_localizations.dart';
 
 /// Screen for displaying and managing RuTracker mirror URLs.
 ///
@@ -12,9 +13,9 @@ class MirrorsScreen extends StatelessWidget {
   const MirrorsScreen({super.key});
 
   @override
-  Widget build(BuildContext context) => const Scaffold(
+  Widget build(BuildContext context) => Scaffold(
       body: Center(
-        child: Text('Mirrors Screen'),
+        child: Text(AppLocalizations.of(context)?.mirrorsScreenTitle ?? 'Mirrors Screen'),
       ),
     );
 }

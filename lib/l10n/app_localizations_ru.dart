@@ -214,4 +214,84 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get failedToExportLogs => 'Не удалось экспортировать логи';
+
+  @override
+  String get requestTimedOut => 'Время запроса истекло. Пожалуйста, проверьте соединение.';
+
+  @override
+  String networkError(Object errorMessage) {
+    return 'Ошибка сети: $errorMessage';
+  }
+
+  @override
+  String get downloadFunctionalityComingSoon => 'Функция загрузки скоро появится!';
+
+  @override
+  String get magnetLinkCopied => 'Magnet-ссылка скопирована в буфер обмена';
+
+  @override
+  String get dataLoadedFromCache => 'Данные загружены из кэша';
+
+  @override
+  String get failedToLoadTopic => 'Не удалось загрузить топик';
+
+  @override
+  String errorLoadingTopic(Object error) {
+    return 'Ошибка загрузки топика: $error';
+  }
+
+  @override
+  String get unknownChapter => 'Неизвестная глава';
+
+  @override
+  String get chaptersLabel => 'Главы';
+
+  @override
+  String get magnetLinkLabel => 'Magnet-ссылка';
+
+  @override
+  String get downloadLabel => 'Скачать';
+
+  @override
+  String get playLabel => 'Воспроизвести';
+
+  @override
+  String get pauseLabel => 'Пауза';
+
+  @override
+  String get stopLabel => 'Стоп';
+
+  @override
+  String get failedToLoadAudio => 'Не удалось загрузить аудиокнигу';
+
+  @override
+  String get sampleAudiobook => 'Пример аудиокниги';
+
+  @override
+  String get sampleAuthor => 'Примерный автор';
+
+  @override
+  String get chapter1 => 'Глава 1';
+
+  @override
+  String get chapter2 => 'Глава 2';
+
+  @override
+  String get mirrorsScreenTitle => 'Экран зеркал';
+
+  @override
+  String get downloadStatusUnknown => 'неизвестно';
+
+  @override
+  String downloadProgressLabel(Object progress) {
+    return 'Прогресс: $progress%';
+  }
+
+  @override
+  String get statusLabelNoColon => 'Статус';
+
+  @override
+  String copyToClipboardLabel(Object label) {
+    return '$label скопировано в буфер обмена';
+  }
 }

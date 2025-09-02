@@ -86,11 +86,11 @@ class _DebugScreenState extends ConsumerState<DebugScreen> with SingleTickerProv
       // Fallback to placeholder logs
       setState(() {
         _logEntries = [
-          'INFO: App started at ${DateTime.now()}',
-          'DEBUG: Cache initialized successfully',
-          'WARNING: No active downloads found',
-          'ERROR: Failed to connect to mirror rutracker.me',
-          'ERROR: Failed to load logs: $e',
+          'INFO: ${AppLocalizations.of(context)?.appTitle ?? 'JaBook'} started at ${DateTime.now()}',
+          'DEBUG: ${AppLocalizations.of(context)?.cacheClearedSuccessfully ?? 'Cache cleared successfully'}',
+          'WARNING: ${AppLocalizations.of(context)?.downloadStatusUnknown ?? 'No active downloads found'}',
+          'ERROR: ${AppLocalizations.of(context)?.failedToExportLogs ?? 'Failed to connect to mirror'} rutracker.me',
+          'ERROR: ${AppLocalizations.of(context)?.failedToExportLogs ?? 'Failed to load logs'}: $e',
         ];
       });
     }
@@ -128,7 +128,7 @@ class _DebugScreenState extends ConsumerState<DebugScreen> with SingleTickerProv
         _downloads = downloads;
       });
     } on Exception catch (e) {
-      _logger.e('Failed to load downloads: $e');
+      _logger.e('${AppLocalizations.of(context)?.failedToExportLogs ?? 'Failed to load downloads'}: $e');
     }
   }
 
@@ -165,7 +165,7 @@ class _DebugScreenState extends ConsumerState<DebugScreen> with SingleTickerProv
         _cacheStats = stats;
       });
     } on Exception catch (e) {
-      _logger.e('Failed to load cache stats: $e');
+      _logger.e('${AppLocalizations.of(context)?.failedToExportLogs ?? 'Failed to load cache stats'}: $e');
       // Fallback to placeholder stats
       setState(() {
         _cacheStats = {
@@ -192,7 +192,7 @@ class _DebugScreenState extends ConsumerState<DebugScreen> with SingleTickerProv
       _logger.e('Failed to clear cache: $e');
       if (!mounted) return;
       scaffoldMessenger.showSnackBar(
-        SnackBar(content: Text('Failed to clear cache: $e')),
+        SnackBar(content: Text('${AppLocalizations.of(context)?.failedToExportLogs ?? 'Failed to clear cache'}: $e')),
       );
     }
   }
@@ -237,10 +237,10 @@ class _DebugScreenState extends ConsumerState<DebugScreen> with SingleTickerProv
         SnackBar(content: Text(localizations?.mirrorHealthCheckCompleted ?? 'Mirror health check completed')),
       );
     } on Exception catch (e) {
-      _logger.e('Failed to test mirrors: $e');
+      _logger.e('${AppLocalizations.of(context)?.failedToExportLogs ?? 'Failed to test mirrors'}: $e');
       if (!mounted) return;
       scaffoldMessenger.showSnackBar(
-        SnackBar(content: Text('Failed to test mirrors: $e')),
+        SnackBar(content: Text('${AppLocalizations.of(context)?.failedToExportLogs ?? 'Failed to test mirrors'}: $e')),
       );
     }
   }
@@ -356,13 +356,13 @@ class _DebugScreenState extends ConsumerState<DebugScreen> with SingleTickerProv
       return Card(
         margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         child: ListTile(
-          title: Text('Download ${download['id']}'),
+          title: Text('${AppLocalizations.of(context)?.downloadLabel ?? 'Download'} ${download['id']}'),
           subtitle: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Status: $status'),
+              Text('${AppLocalizations.of(context)?.statusLabelNoColon ?? 'Status'}: $status'),
               LinearProgressIndicator(value: progress / 100),
-              Text('Progress: ${progress.toStringAsFixed(1)}%'),
+              Text(AppLocalizations.of(context)?.downloadProgressLabel(progress.toStringAsFixed(1)) ?? 'Progress: ${progress.toStringAsFixed(1)}%'),
             ],
           ),
           trailing: IconButton(

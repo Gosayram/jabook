@@ -59,7 +59,7 @@ class _LibraryContent extends ConsumerWidget {
   const _LibraryContent();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) => const Center(
-      child: Text('Library content will be displayed here'),
+  Widget build(BuildContext context, WidgetRef ref) => Center(
+      child: Text(AppLocalizations.of(context)?.libraryContentPlaceholder ?? 'Library content will be displayed here'),
     );
 }

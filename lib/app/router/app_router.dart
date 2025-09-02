@@ -58,7 +58,7 @@ final appRouterProvider = Provider<GoRouter>((ref) => GoRouter(
   initialLocation: '/',
   errorBuilder: (context, state) => Scaffold(
     appBar: AppBar(
-      title: const Text('Error'),
+      title: Text(AppLocalizations.of(context)?.error ?? 'Error'),
     ),
     body: Center(
       child: Text(state.error.toString()),

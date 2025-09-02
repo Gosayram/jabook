@@ -508,6 +508,150 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Failed to export logs'**
   String get failedToExportLogs;
+
+  /// Network timeout error message
+  ///
+  /// In en, this message translates to:
+  /// **'Request timed out. Please check your connection.'**
+  String get requestTimedOut;
+
+  /// Generic network error message
+  ///
+  /// In en, this message translates to:
+  /// **'Network error: {errorMessage}'**
+  String networkError(Object errorMessage);
+
+  /// Download feature coming soon message
+  ///
+  /// In en, this message translates to:
+  /// **'Download functionality coming soon!'**
+  String get downloadFunctionalityComingSoon;
+
+  /// Magnet link copied success message
+  ///
+  /// In en, this message translates to:
+  /// **'Magnet link copied to clipboard'**
+  String get magnetLinkCopied;
+
+  /// Cache data loaded message
+  ///
+  /// In en, this message translates to:
+  /// **'Data loaded from cache'**
+  String get dataLoadedFromCache;
+
+  /// Topic loading failure message
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to load topic'**
+  String get failedToLoadTopic;
+
+  /// Topic loading error message
+  ///
+  /// In en, this message translates to:
+  /// **'Error loading topic: {error}'**
+  String errorLoadingTopic(Object error);
+
+  /// Fallback for missing chapter title
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown Chapter'**
+  String get unknownChapter;
+
+  /// Label for chapters section
+  ///
+  /// In en, this message translates to:
+  /// **'Chapters'**
+  String get chaptersLabel;
+
+  /// Label for magnet link
+  ///
+  /// In en, this message translates to:
+  /// **'Magnet Link'**
+  String get magnetLinkLabel;
+
+  /// Download button label
+  ///
+  /// In en, this message translates to:
+  /// **'Download'**
+  String get downloadLabel;
+
+  /// Play button label
+  ///
+  /// In en, this message translates to:
+  /// **'Play'**
+  String get playLabel;
+
+  /// Pause button label
+  ///
+  /// In en, this message translates to:
+  /// **'Pause'**
+  String get pauseLabel;
+
+  /// Stop button label
+  ///
+  /// In en, this message translates to:
+  /// **'Stop'**
+  String get stopLabel;
+
+  /// Audiobook loading failure message
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to load audiobook'**
+  String get failedToLoadAudio;
+
+  /// Sample audiobook title
+  ///
+  /// In en, this message translates to:
+  /// **'Sample Audiobook'**
+  String get sampleAudiobook;
+
+  /// Sample author name
+  ///
+  /// In en, this message translates to:
+  /// **'Sample Author'**
+  String get sampleAuthor;
+
+  /// Chapter 1 title
+  ///
+  /// In en, this message translates to:
+  /// **'Chapter 1'**
+  String get chapter1;
+
+  /// Chapter 2 title
+  ///
+  /// In en, this message translates to:
+  /// **'Chapter 2'**
+  String get chapter2;
+
+  /// Title for mirrors screen
+  ///
+  /// In en, this message translates to:
+  /// **'Mirrors Screen'**
+  String get mirrorsScreenTitle;
+
+  /// Unknown download status
+  ///
+  /// In en, this message translates to:
+  /// **'unknown'**
+  String get downloadStatusUnknown;
+
+  /// Download progress label
+  ///
+  /// In en, this message translates to:
+  /// **'Progress: {progress}%'**
+  String downloadProgressLabel(Object progress);
+
+  /// Status label without colon
+  ///
+  /// In en, this message translates to:
+  /// **'Status'**
+  String get statusLabelNoColon;
+
+  /// Copy to clipboard success message
+  ///
+  /// In en, this message translates to:
+  /// **'{label} copied to clipboard'**
+  String copyToClipboardLabel(Object label);
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

@@ -116,7 +116,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           _isLoading = false;
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Request timed out. Please check your connection.')),
+          SnackBar(content: Text(AppLocalizations.of(context)?.requestTimedOut ?? 'Request timed out. Please check your connection.')),
         );
       }
     } on DioException catch (e) {
@@ -130,7 +130,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           _showAuthenticationPrompt(context);
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Network error: ${e.message}')),
+            SnackBar(content: Text(AppLocalizations.of(context)?.networkError(e.message ?? 'Unknown error') ?? 'Network error: ${e.message}')),
           );
         }
       }
@@ -140,7 +140,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           _isLoading = false;
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
+          SnackBar(content: Text('${AppLocalizations.of(context)?.error ?? 'Error'}: $e')),
         );
       }
     }

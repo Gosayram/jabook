@@ -272,5 +272,101 @@
   "failedToExportLogs": "Failed to export logs",
   "@failedToExportLogs": {
     "description": "Logs export failure message"
+  },
+  "requestTimedOut": "Request timed out. Please check your connection.",
+  "@requestTimedOut": {
+    "description": "Network timeout error message"
+  },
+  "networkError": "Network error: {errorMessage}",
+  "@networkError": {
+    "description": "Generic network error message"
+  },
+  "downloadFunctionalityComingSoon": "Download functionality coming soon!",
+  "@downloadFunctionalityComingSoon": {
+    "description": "Download feature coming soon message"
+  },
+  "magnetLinkCopied": "Magnet link copied to clipboard",
+  "@magnetLinkCopied": {
+    "description": "Magnet link copied success message"
+  },
+  "dataLoadedFromCache": "Data loaded from cache",
+  "@dataLoadedFromCache": {
+    "description": "Cache data loaded message"
+  },
+  "failedToLoadTopic": "Failed to load topic",
+  "@failedToLoadTopic": {
+    "description": "Topic loading failure message"
+  },
+  "errorLoadingTopic": "Error loading topic: {error}",
+  "@errorLoadingTopic": {
+    "description": "Topic loading error message"
+  },
+  "unknownChapter": "Unknown Chapter",
+  "@unknownChapter": {
+    "description": "Fallback for missing chapter title"
+  },
+  "chaptersLabel": "Chapters",
+  "@chaptersLabel": {
+    "description": "Label for chapters section"
+  },
+  "magnetLinkLabel": "Magnet Link",
+  "@magnetLinkLabel": {
+    "description": "Label for magnet link"
+  },
+  "downloadLabel": "Download",
+  "@downloadLabel": {
+    "description": "Download button label"
+  },
+  "playLabel": "Play",
+  "@playLabel": {
+    "description": "Play button label"
+  },
+  "pauseLabel": "Pause",
+  "@pauseLabel": {
+    "description": "Pause button label"
+  },
+  "stopLabel": "Stop",
+  "@stopLabel": {
+    "description": "Stop button label"
+  },
+  "failedToLoadAudio": "Failed to load audiobook",
+  "@failedToLoadAudio": {
+    "description": "Audiobook loading failure message"
+  },
+  "sampleAudiobook": "Sample Audiobook",
+  "@sampleAudiobook": {
+    "description": "Sample audiobook title"
+  },
+  "sampleAuthor": "Sample Author",
+  "@sampleAuthor": {
+    "description": "Sample author name"
+  },
+  "chapter1": "Chapter 1",
+  "@chapter1": {
+    "description": "Chapter 1 title"
+  },
+  "chapter2": "Chapter 2",
+  "@chapter2": {
+    "description": "Chapter 2 title"
+  },
+  "mirrorsScreenTitle": "Mirrors Screen",
+  "@mirrorsScreenTitle": {
+    "description": "Title for mirrors screen"
+  },
+  "downloadStatusUnknown": "unknown",
+  "@downloadStatusUnknown": {
+    "description": "Unknown download status"
+  },
+  "downloadProgressLabel": "Progress: {progress}%",
+  "@downloadProgressLabel": {
+    "description": "Download progress label"
+  },
+  "statusLabelNoColon": "Status",
+  "@statusLabelNoColon": {
+    "description": "Status label without colon"
+  },
+  "copyToClipboardLabel": "{label} copied to clipboard",
+  "@copyToClipboardLabel": {
+    "description": "Copy to clipboard success message"
   }
 }

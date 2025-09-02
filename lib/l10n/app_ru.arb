@@ -272,5 +272,101 @@
   "failedToExportLogs": "Не удалось экспортировать логи",
   "@failedToExportLogs": {
     "description": "Сообщение о неудачном экспорте логов"
+  },
+  "requestTimedOut": "Время запроса истекло. Пожалуйста, проверьте соединение.",
+  "@requestTimedOut": {
+    "description": "Сообщение об ошибке таймаута сети"
+  },
+  "networkError": "Ошибка сети: {errorMessage}",
+  "@networkError": {
+    "description": "Общее сообщение об ошибке сети"
+  },
+  "downloadFunctionalityComingSoon": "Функция загрузки скоро появится!",
+  "@downloadFunctionalityComingSoon": {
+    "description": "Сообщение о скором появлении функции загрузки"
+  },
+  "magnetLinkCopied": "Magnet-ссылка скопирована в буфер обмена",
+  "@magnetLinkCopied": {
+    "description": "Сообщение об успешном копировании magnet-ссылки"
+  },
+  "dataLoadedFromCache": "Данные загружены из кэша",
+  "@dataLoadedFromCache": {
+    "description": "Сообщение о загрузке данных из кэша"
+  },
+  "failedToLoadTopic": "Не удалось загрузить топик",
+  "@failedToLoadTopic": {
+    "description": "Сообщение о неудачной загрузке топика"
+  },
+  "errorLoadingTopic": "Ошибка загрузки топика: {error}",
+  "@errorLoadingTopic": {
+    "description": "Сообщение об ошибке загрузки топика"
+  },
+  "unknownChapter": "Неизвестная глава",
+  "@unknownChapter": {
+    "description": "Запасной вариант для отсутствующего названия главы"
+  },
+  "chaptersLabel": "Главы",
+  "@chaptersLabel": {
+    "description": "Метка раздела глав"
+  },
+  "magnetLinkLabel": "Magnet-ссылка",
+  "@magnetLinkLabel": {
+    "description": "Метка для magnet-ссылки"
+  },
+  "downloadLabel": "Скачать",
+  "@downloadLabel": {
+    "description": "Метка кнопки скачивания"
+  },
+  "playLabel": "Воспроизвести",
+  "@playLabel": {
+    "description": "Метка кнопки воспроизведения"
+  },
+  "pauseLabel": "Пауза",
+  "@pauseLabel": {
+    "description": "Метка кнопки паузы"
+  },
+  "stopLabel": "Стоп",
+  "@stopLabel": {
+    "description": "Метка кнопки остановки"
+  },
+  "failedToLoadAudio": "Не удалось загрузить аудиокнигу",
+  "@failedToLoadAudio": {
+    "description": "Сообщение о неудачной загрузке аудиокниги"
+  },
+  "sampleAudiobook": "Пример аудиокниги",
+  "@sampleAudiobook": {
+    "description": "Название примерной аудиокниги"
+  },
+  "sampleAuthor": "Примерный автор",
+  "@sampleAuthor": {
+    "description": "Имя примерного автора"
+  },
+  "chapter1": "Глава 1",
+  "@chapter1": {
+    "description": "Название главы 1"
+  },
+  "chapter2": "Глава 2",
+  "@chapter2": {
+    "description": "Название главы 2"
+  },
+  "mirrorsScreenTitle": "Экран зеркал",
+  "@mirrorsScreenTitle": {
+    "description": "Заголовок экрана зеркал"
+  },
+  "downloadStatusUnknown": "неизвестно",
+  "@downloadStatusUnknown": {
+    "description": "Неизвестный статус загрузки"
+  },
+  "downloadProgressLabel": "Прогресс: {progress}%",
+  "@downloadProgressLabel": {
+    "description": "Метка прогресса загрузки"
+  },
+  "statusLabelNoColon": "Статус",
+  "@statusLabelNoColon": {
+    "description": "Метка статуса без двоеточия"
+  },
+  "copyToClipboardLabel": "{label} скопировано в буфер обмена",
+  "@copyToClipboardLabel": {
+    "description": "Сообщение об успешном копировании в буфер обмена"
   }
 }
