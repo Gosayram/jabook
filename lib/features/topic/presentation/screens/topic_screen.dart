@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:jabook/core/cache/rutracker_cache_service.dart';
+import 'package:jabook/core/config/app_config.dart';
+import 'package:jabook/core/endpoints/url_constants.dart';
 import 'package:jabook/core/net/dio_client.dart';
 import 'package:jabook/core/parse/rutracker_parser.dart';
 
@@ -65,7 +67,7 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
     try {
       final dio = await DioClient.instance;
       final response = await dio.get(
-        'https://rutracker.me/forum/viewtopic.php?t=${widget.topicId}',
+        UrlConstants.getTopicViewUrl(AppConfig().rutrackerUrl, widget.topicId),
       ).timeout(const Duration(seconds: 30));
 
       if (response.statusCode == 200) {

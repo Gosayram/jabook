@@ -2,17 +2,25 @@ import 'package:cookie_jar/cookie_jar.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:jabook/core/auth/credential_manager.dart';
+import 'package:jabook/core/config/app_config.dart';
+import 'package:jabook/core/endpoints/url_constants.dart';
 import 'package:jabook/core/errors/failures.dart';
 import 'package:jabook/core/net/dio_client.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 /// Constants for RuTracker endpoints
 class RuTrackerUrls {
-  /// URL for the RuTracker login page.
-  static const String login = 'https://rutracker.me/forum/login.php';
+  /// Private constructor to prevent instantiation.
+  RuTrackerUrls._();
 
-  /// URL for the RuTracker profile page (used to verify auth state).
-  static const String profile = 'https://rutracker.me/forum/profile.php';
+  /// Gets the URL for the RuTracker login page.
+  static String get login => UrlConstants.getLoginUrl(AppConfig().rutrackerUrl);
+
+  /// Gets the URL for the RuTracker profile page (used to verify auth state).
+  static String get profile => UrlConstants.getProfileUrl(AppConfig().rutrackerUrl);
+
+  /// Profile endpoint path (relative to base URL).
+  static const String profilePath = '/forum/profile.php';
 }
 
 /// Handles authentication with RuTracker forum.
