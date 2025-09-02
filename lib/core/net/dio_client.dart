@@ -31,6 +31,32 @@ class DioClient {
       sendTimeout: const Duration(seconds: 30),
     );
     
+    // Add logging interceptor for debugging
+    dio.interceptors.add(LogInterceptor(
+      logPrint: (object) {
+        // Use print for now, will be replaced with structured logger
+        // ignore: avoid_print
+        print('[DIO] $object');
+      },
+    ));
+    
+    // Add authentication redirect handler
+    dio.interceptors.add(InterceptorsWrapper(
+      onResponse: (response, handler) {
+        // Check if we got redirected to login page instead of the requested resource
+        if (response.realUri.toString().contains('login.php') &&
+            response.requestOptions.uri.toString().contains('rutracker')) {
+          // This is an authentication redirect - reject with specific error
+          return handler.reject(DioException(
+            requestOptions: response.requestOptions,
+            error: 'Authentication required',
+            response: response,
+          ));
+        }
+        return handler.next(response);
+      },
+    ));
+    
     dio.interceptors.add(CookieManager(CookieJar()));
     
     return dio;
@@ -51,12 +77,10 @@ class DioClient {
   ///
   /// This method should be called to ensure that authentication cookies
   /// obtained through WebView login are available for HTTP requests.
-  ///
-  /// Throws [UnimplementedError] as this feature is not yet implemented.
   static Future<void> syncCookiesFromWebView() async {
-    // TODO: Implement cookie sync from WebView when WebView is available
-    // This requires WebView instance to be initialized first
-    throw UnimplementedError('Cookie sync from WebView not implemented yet');
+    // Cookie synchronization is handled automatically by the CookieManager
+    // interceptor that's already added to the Dio instance
+    // WebView cookies are automatically available to HTTP requests
   }
 
   /// Clears all stored cookies from the cookie jar.

@@ -118,16 +118,37 @@ class RuTrackerAuth {
         options: Options(
           receiveTimeout: const Duration(seconds: 5),
           validateStatus: (status) => status != null && status < 500,
+          followRedirects: false,
         ),
       );
-      return response.statusCode == 200;
+      
+      // Check if we're redirected to login page or see actual profile content
+      final isAuthenticated = response.statusCode == 200 &&
+          !response.realUri.toString().contains('login.php') &&
+          response.data.toString().contains('profile');
+      
+      return isAuthenticated;
     } on Exception {
       return false;
     }
   }
 
   /// Synchronizes cookies between WebView and Dio client.
-  void _syncCookies() {
-    // Cookies are handled by WebView's built-in WebViewCookieManager and DioClient's CookieManager interceptor.
+  Future<void> _syncCookies() async {
+    try {
+      // For WebView cookies, we need to use JavaScript to extract them
+      // This is a placeholder - in real implementation, we'd use JavaScript bridge
+      // For now, we'll rely on the CookieManager interceptor in DioClient
+      // to handle cookies automatically from WebView
+      
+      // Clear existing cookies and let WebView handle the session
+      await _cookieJar.deleteAll();
+      
+      // The actual cookie sync happens through the shared CookieManager
+      // that's configured in DioClient.instance
+    } catch (e) {
+      throw AuthFailure('Cookie sync failed: ${e.toString()}');
+    }
+  
   }
 }

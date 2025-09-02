@@ -21,8 +21,9 @@ class UserAgentManager {
   static const String _userAgentKey = 'user_agent';
 
   /// Default User-Agent string to use as fallback.
+  /// Updated to more recent Chrome mobile browser to bypass CloudFlare protection.
   static const String _defaultUserAgent =
-      'Mozilla/5.0 (Linux; Android 10; SM-G973F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.120 Mobile Safari/537.36';
+      'Mozilla/5.0 (Linux; Android 13; SM-S911B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.6099.210 Mobile Safari/537.36';
 
   /// Database instance for storing User-Agent data.
   Database? _db;
