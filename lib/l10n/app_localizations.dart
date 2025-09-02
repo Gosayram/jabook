@@ -143,6 +143,108 @@ class AppLocalizations {
 
   /// Returns the localized login button text.
   String get login => translate('login');
+
+  /// Returns the localized language description.
+  String get languageDescription => translate('languageDescription');
+
+  /// Returns the localized theme section title.
+  String get themeTitle => translate('themeTitle');
+
+  /// Returns the localized theme section description.
+  String get themeDescription => translate('themeDescription');
+
+  /// Returns the localized dark mode setting label.
+  String get darkMode => translate('darkMode');
+
+  /// Returns the localized high contrast setting label.
+  String get highContrast => translate('highContrast');
+
+  /// Returns the localized audio section title.
+  String get audioTitle => translate('audioTitle');
+
+  /// Returns the localized audio section description.
+  String get audioDescription => translate('audioDescription');
+
+  /// Returns the localized playback speed setting label.
+  String get playbackSpeed => translate('playbackSpeed');
+
+  /// Returns the localized skip duration setting label.
+  String get skipDuration => translate('skipDuration');
+
+  /// Returns the localized downloads section title.
+  String get downloadsTitle => translate('downloadsTitle');
+
+  /// Returns the localized downloads section description.
+  String get downloadsDescription => translate('downloadsDescription');
+
+  /// Returns the localized download location setting label.
+  String get downloadLocation => translate('downloadLocation');
+
+  /// Returns the localized Wi-Fi only downloads setting label.
+  String get wifiOnlyDownloads => translate('wifiOnlyDownloads');
+
+  /// Returns the localized debug tools title.
+  String get debugTools => translate('debugTools');
+
+  /// Returns the localized logs tab label.
+  String get logsTab => translate('logsTab');
+
+  /// Returns the localized mirrors tab label.
+  String get mirrorsTab => translate('mirrorsTab');
+
+  /// Returns the localized downloads tab label.
+  String get downloadsTab => translate('downloadsTab');
+
+  /// Returns the localized cache tab label.
+  String get cacheTab => translate('cacheTab');
+
+  /// Returns the localized test all mirrors button text.
+  String get testAllMirrors => translate('testAllMirrors');
+
+  /// Returns the localized status label.
+  String get statusLabel => translate('statusLabel');
+
+  /// Returns the localized active status text.
+  String get activeStatus => translate('activeStatus');
+
+  /// Returns the localized disabled status text.
+  String get disabledStatus => translate('disabledStatus');
+
+  /// Returns the localized last OK label.
+  String get lastOkLabel => translate('lastOkLabel');
+
+  /// Returns the localized RTT label.
+  String get rttLabel => translate('rttLabel');
+
+  /// Returns the localized milliseconds abbreviation.
+  String get milliseconds => translate('milliseconds');
+
+  /// Returns the localized cache statistics title.
+  String get cacheStatistics => translate('cacheStatistics');
+
+  /// Returns the localized total entries label.
+  String get totalEntries => translate('totalEntries');
+
+  /// Returns the localized search cache label.
+  String get searchCache => translate('searchCache');
+
+  /// Returns the localized topic cache label.
+  String get topicCache => translate('topicCache');
+
+  /// Returns the localized memory usage label.
+  String get memoryUsage => translate('memoryUsage');
+
+  /// Returns the localized clear all cache button text.
+  String get clearAllCache => translate('clearAllCache');
+
+  /// Returns the localized cache cleared success message.
+  String get cacheClearedSuccessfully => translate('cacheClearedSuccessfully');
+
+  /// Returns the localized mirror health check completion message.
+  String get mirrorHealthCheckCompleted => translate('mirrorHealthCheckCompleted');
+
+  /// Returns the localized export functionality coming soon message.
+  String get exportFunctionalityComingSoon => translate('exportFunctionalityComingSoon');
 }
 
 /// Delegate for loading AppLocalizations instances.

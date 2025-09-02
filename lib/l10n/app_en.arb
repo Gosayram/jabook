@@ -65,6 +65,10 @@
   "@systemDefault": {
     "description": "Use system language setting"
   },
+  "languageDescription": "Choose your preferred language for the app interface",
+  "@languageDescription": {
+    "description": "Description for language settings section"
+  },
   "failedToSearch": "Failed to search",
   "@failedToSearch": {
     "description": "Error message when search fails"
@@ -128,5 +132,137 @@
   "login": "Login",
   "@login": {
     "description": "Login button text"
+  },
+  "themeTitle": "Theme",
+  "@themeTitle": {
+    "description": "Title for theme settings section"
+  },
+  "themeDescription": "Customize the appearance of the app",
+  "@themeDescription": {
+    "description": "Description for theme settings section"
+  },
+  "darkMode": "Dark Mode",
+  "@darkMode": {
+    "description": "Dark mode toggle label"
+  },
+  "highContrast": "High Contrast",
+  "@highContrast": {
+    "description": "High contrast mode toggle label"
+  },
+  "audioTitle": "Audio",
+  "@audioTitle": {
+    "description": "Title for audio settings section"
+  },
+  "audioDescription": "Configure audio playback settings",
+  "@audioDescription": {
+    "description": "Description for audio settings section"
+  },
+  "playbackSpeed": "Playback Speed",
+  "@playbackSpeed": {
+    "description": "Playback speed setting label"
+  },
+  "skipDuration": "Skip Duration",
+  "@skipDuration": {
+    "description": "Skip duration setting label"
+  },
+  "downloadsTitle": "Downloads",
+  "@downloadsTitle": {
+    "description": "Title for downloads settings section"
+  },
+  "downloadsDescription": "Manage download preferences and storage",
+  "@downloadsDescription": {
+    "description": "Description for downloads settings section"
+  },
+  "downloadLocation": "Download Location",
+  "@downloadLocation": {
+    "description": "Download location setting label"
+  },
+  "wifiOnlyDownloads": "Wi-Fi Only Downloads",
+  "@wifiOnlyDownloads": {
+    "description": "Wi-Fi only downloads toggle label"
+  },
+  "debugTools": "Debug Tools",
+  "@debugTools": {
+    "description": "Title for debug screen"
+  },
+  "logsTab": "Logs",
+  "@logsTab": {
+    "description": "Logs tab label"
+  },
+  "mirrorsTab": "Mirrors",
+  "@mirrorsTab": {
+    "description": "Mirrors tab label"
+  },
+  "downloadsTab": "Downloads",
+  "@downloadsTab": {
+    "description": "Downloads tab label"
+  },
+  "cacheTab": "Cache",
+  "@cacheTab": {
+    "description": "Cache tab label"
+  },
+  "testAllMirrors": "Test All Mirrors",
+  "@testAllMirrors": {
+    "description": "Test all mirrors button text"
+  },
+  "statusLabel": "Status: ",
+  "@statusLabel": {
+    "description": "Status label text"
+  },
+  "activeStatus": "Active",
+  "@activeStatus": {
+    "description": "Active status text"
+  },
+  "disabledStatus": "Disabled",
+  "@disabledStatus": {
+    "description": "Disabled status text"
+  },
+  "lastOkLabel": "Last OK: ",
+  "@lastOkLabel": {
+    "description": "Last OK label text"
+  },
+  "rttLabel": "RTT: ",
+  "@rttLabel": {
+    "description": "RTT label text"
+  },
+  "milliseconds": "ms",
+  "@milliseconds": {
+    "description": "Milliseconds abbreviation"
+  },
+  "cacheStatistics": "Cache Statistics",
+  "@cacheStatistics": {
+    "description": "Cache statistics title"
+  },
+  "totalEntries": "Total entries: ",
+  "@totalEntries": {
+    "description": "Total entries label"
+  },
+  "searchCache": "Search cache: ",
+  "@searchCache": {
+    "description": "Search cache label"
+  },
+  "topicCache": "Topic cache: ",
+  "@topicCache": {
+    "description": "Topic cache label"
+  },
+  "memoryUsage": "Memory usage: ",
+  "@memoryUsage": {
+    "description": "Memory usage label"
+  },
+  "clearAllCache": "Clear All Cache",
+  "@clearAllCache": {
+    "description": "Clear all cache button text"
+  },
+  "cacheClearedSuccessfully": "Cache cleared successfully",
+  "@cacheClearedSuccessfully": {
+    "description": "Cache cleared success message"
+  },
+  "mirrorHealthCheckCompleted": "Mirror health check completed",
+  "@mirrorHealthCheckCompleted": {
+    "description": "Mirror health check completion message"
+  },
+  "exportFunctionalityComingSoon": "Export functionality coming soon",
+  "@exportFunctionalityComingSoon": {
+    "description": "Export functionality coming soon message"
   }
 }

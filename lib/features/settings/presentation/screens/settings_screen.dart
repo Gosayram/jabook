@@ -42,14 +42,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     });
     
     // Show confirmation message
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Language changed to ${_languageManager.getLanguageName(languageCode)}',
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Language changed to ${_languageManager.getLanguageName(languageCode)}',
+          ),
+          duration: const Duration(seconds: 2),
         ),
-        duration: const Duration(seconds: 2),
-      ),
-    );
+      );
+    }
   }
 
   @override
@@ -98,136 +100,138 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ),
         const SizedBox(height: 8),
         Text(
-          'Choose your preferred language for the app interface',
+          localizations?.languageDescription ?? 'Choose your preferred language for the app interface',
           style: Theme.of(context).textTheme.bodySmall,
         ),
         const SizedBox(height: 16),
-        ...languages.map((language) => _buildLanguageTile(language)),
+        ...languages.map(_buildLanguageTile),
       ],
     );
   }
 
-  Widget _buildLanguageTile(Map<String, String> language) {
-    return ListTile(
-      leading: Text(
-        language['flag']!,
-        style: const TextStyle(fontSize: 24),
-      ),
-      title: Text(language['name']!),
-      trailing: _selectedLanguage == language['code']
-          ? const Icon(Icons.check, color: Colors.blue)
-          : null,
-      onTap: () => _changeLanguage(language['code']!),
-    );
-  }
+  Widget _buildLanguageTile(Map<String, String> language) => ListTile(
+        leading: Text(
+          language['flag']!,
+          style: const TextStyle(fontSize: 24),
+        ),
+        title: Text(language['name']!),
+        trailing: _selectedLanguage == language['code']
+            ? const Icon(Icons.check, color: Colors.blue)
+            : null,
+        onTap: () => _changeLanguage(language['code']!),
+      );
 
   Widget _buildThemeSection(BuildContext context) {
     final localizations = AppLocalizations.of(context);
-
+    
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Theme',
-          style: Theme.of(context).textTheme.titleLarge,
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Customize the appearance of the app',
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
-        const SizedBox(height: 16),
-        ListTile(
-          leading: const Icon(Icons.color_lens),
-          title: const Text('Dark Mode'),
-          trailing: Switch(
-            value: false,
-            onChanged: (value) {
-              // TODO: Implement theme switching
-            },
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            localizations?.themeTitle ?? 'Theme',
+            style: Theme.of(context).textTheme.titleLarge,
           ),
-        ),
-        ListTile(
-          leading: const Icon(Icons.contrast),
-          title: const Text('High Contrast'),
-          trailing: Switch(
-            value: false,
-            onChanged: (value) {
-              // TODO: Implement high contrast mode
-            },
+          const SizedBox(height: 8),
+          Text(
+            localizations?.themeDescription ?? 'Customize the appearance of the app',
+            style: Theme.of(context).textTheme.bodySmall,
           ),
-        ),
-      ],
-    );
+          const SizedBox(height: 16),
+          ListTile(
+            leading: const Icon(Icons.color_lens),
+            title: Text(localizations?.darkMode ?? 'Dark Mode'),
+            trailing: Switch(
+              value: false,
+              onChanged: (value) {
+                // TODO: Implement theme switching
+              },
+            ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.contrast),
+            title: Text(localizations?.highContrast ?? 'High Contrast'),
+            trailing: Switch(
+              value: false,
+              onChanged: (value) {
+                // TODO: Implement high contrast mode
+              },
+            ),
+          ),
+        ],
+      );
   }
 
   Widget _buildAudioSection(BuildContext context) {
+    final localizations = AppLocalizations.of(context);
+    
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Audio',
-          style: Theme.of(context).textTheme.titleLarge,
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Configure audio playback settings',
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
-        const SizedBox(height: 16),
-        ListTile(
-          leading: const Icon(Icons.speed),
-          title: const Text('Playback Speed'),
-          subtitle: const Text('1.0x'),
-          onTap: () {
-            // TODO: Implement playback speed selection
-          },
-        ),
-        ListTile(
-          leading: const Icon(Icons.skip_next),
-          title: const Text('Skip Duration'),
-          subtitle: const Text('15 seconds'),
-          onTap: () {
-            // TODO: Implement skip duration selection
-          },
-        ),
-      ],
-    );
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            localizations?.audioTitle ?? 'Audio',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            localizations?.audioDescription ?? 'Configure audio playback settings',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          const SizedBox(height: 16),
+          ListTile(
+            leading: const Icon(Icons.speed),
+            title: Text(localizations?.playbackSpeed ?? 'Playback Speed'),
+            subtitle: const Text('1.0x'),
+            onTap: () {
+              // TODO: Implement playback speed selection
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.skip_next),
+            title: Text(localizations?.skipDuration ?? 'Skip Duration'),
+            subtitle: const Text('15 seconds'),
+            onTap: () {
+              // TODO: Implement skip duration selection
+            },
+          ),
+        ],
+      );
   }
 
   Widget _buildDownloadSection(BuildContext context) {
+    final localizations = AppLocalizations.of(context);
+    
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Downloads',
-          style: Theme.of(context).textTheme.titleLarge,
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Manage download preferences and storage',
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
-        const SizedBox(height: 16),
-        ListTile(
-          leading: const Icon(Icons.storage),
-          title: const Text('Download Location'),
-          subtitle: const Text('/storage/emulated/0/Download'),
-          onTap: () {
-            // TODO: Implement download location selection
-          },
-        ),
-        ListTile(
-          leading: const Icon(Icons.wifi),
-          title: const Text('Wi-Fi Only Downloads'),
-          trailing: Switch(
-            value: true,
-            onChanged: (value) {
-              // TODO: Implement Wi-Fi only setting
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            localizations?.downloadsTitle ?? 'Downloads',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            localizations?.downloadsDescription ?? 'Manage download preferences and storage',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          const SizedBox(height: 16),
+          ListTile(
+            leading: const Icon(Icons.storage),
+            title: Text(localizations?.downloadLocation ?? 'Download Location'),
+            subtitle: const Text('/storage/emulated/0/Download'),
+            onTap: () {
+              // TODO: Implement download location selection
             },
           ),
-        ),
-      ],
-    );
+          ListTile(
+            leading: const Icon(Icons.wifi),
+            title: Text(localizations?.wifiOnlyDownloads ?? 'Wi-Fi Only Downloads'),
+            trailing: Switch(
+              value: true,
+              onChanged: (value) {
+                // TODO: Implement Wi-Fi only setting
+              },
+            ),
+          ),
+        ],
+      );
   }
 }

@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
 import 'package:jabook/core/cache/rutracker_cache_service.dart';
 import 'package:jabook/core/endpoints/endpoint_manager.dart';
 import 'package:jabook/core/logging/environment_logger.dart';
 import 'package:jabook/core/torrent/audiobook_torrent_manager.dart';
 import 'package:jabook/data/db/app_database.dart';
+import 'package:jabook/l10n/app_localizations.dart';
 
 /// Debug screen for development and troubleshooting purposes.
 ///
@@ -112,26 +112,28 @@ class _DebugScreenState extends ConsumerState<DebugScreen> with SingleTickerProv
     });
   }
 
-  Future<void> _clearCache() async {
+  Future<void> _clearCache(BuildContext context) async {
+    final localizations = AppLocalizations.of(context);
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
     try {
       await _cacheService.clearSearchResultsCache();
       await _loadCacheStats();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Cache cleared successfully')),
-        );
-      }
+      if (!mounted) return;
+      scaffoldMessenger.showSnackBar(
+        SnackBar(content: Text(localizations?.cacheClearedSuccessfully ?? 'Cache cleared successfully')),
+      );
     } on Exception catch (e) {
       _logger.e('Failed to clear cache: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to clear cache: $e')),
-        );
-      }
+      if (!mounted) return;
+      scaffoldMessenger.showSnackBar(
+        SnackBar(content: Text('Failed to clear cache: $e')),
+      );
     }
   }
 
-  Future<void> _testAllMirrors() async {
+  Future<void> _testAllMirrors(BuildContext context) async {
+    final localizations = AppLocalizations.of(context);
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
     try {
       // Health check for all mirrors
       final mirrors = await _endpointManager.getAllEndpoints();
@@ -142,46 +144,48 @@ class _DebugScreenState extends ConsumerState<DebugScreen> with SingleTickerProv
         }
       }
       await _loadMirrors();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Mirror health check completed')),
-        );
-      }
+      if (!mounted) return;
+      scaffoldMessenger.showSnackBar(
+        SnackBar(content: Text(localizations?.mirrorHealthCheckCompleted ?? 'Mirror health check completed')),
+      );
     } on Exception catch (e) {
       _logger.e('Failed to test mirrors: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to test mirrors: $e')),
-        );
-      }
+      if (!mounted) return;
+      scaffoldMessenger.showSnackBar(
+        SnackBar(content: Text('Failed to test mirrors: $e')),
+      );
     }
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(
-      title: const Text('Debug Tools'),
-      bottom: TabBar(
+  Widget build(BuildContext context) {
+    final localizations = AppLocalizations.of(context);
+    
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(localizations?.debugTools ?? 'Debug Tools'),
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: [
+            Tab(text: localizations?.logsTab ?? 'Logs'),
+            Tab(text: localizations?.mirrorsTab ?? 'Mirrors'),
+            Tab(text: localizations?.downloadsTab ?? 'Downloads'),
+            Tab(text: localizations?.cacheTab ?? 'Cache'),
+          ],
+        ),
+      ),
+      body: TabBarView(
         controller: _tabController,
-        tabs: const [
-          Tab(text: 'Logs'),
-          Tab(text: 'Mirrors'),
-          Tab(text: 'Downloads'),
-          Tab(text: 'Cache'),
+        children: [
+          _buildLogsTab(),
+          _buildMirrorsTab(localizations),
+          _buildDownloadsTab(),
+          _buildCacheTab(localizations),
         ],
       ),
-    ),
-    body: TabBarView(
-      controller: _tabController,
-      children: [
-        _buildLogsTab(),
-        _buildMirrorsTab(),
-        _buildDownloadsTab(),
-        _buildCacheTab(),
-      ],
-    ),
-    floatingActionButton: _buildFloatingActionButtons(),
-  );
+      floatingActionButton: _buildFloatingActionButtons(context),
+    );
+  }
 
   Widget _buildLogsTab() => ListView.builder(
     itemCount: _logEntries.length,
@@ -211,13 +215,13 @@ class _DebugScreenState extends ConsumerState<DebugScreen> with SingleTickerProv
     },
   );
 
-  Widget _buildMirrorsTab() => Column(
+  Widget _buildMirrorsTab(AppLocalizations? localizations) => Column(
     children: [
       Padding(
         padding: const EdgeInsets.all(8.0),
         child: ElevatedButton(
-          onPressed: _testAllMirrors,
-          child: const Text('Test All Mirrors'),
+          onPressed: () => _testAllMirrors(context),
+          child: Text(localizations?.testAllMirrors ?? 'Test All Mirrors'),
         ),
       ),
       Expanded(
@@ -237,9 +241,9 @@ class _DebugScreenState extends ConsumerState<DebugScreen> with SingleTickerProv
                 subtitle: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Status: ${isActive ? 'Active' : 'Disabled'}'),
-                    if (lastOk != null) Text('Last OK: $lastOk'),
-                    if (rtt != null) Text('RTT: ${rtt}ms'),
+                    Text('${localizations?.statusLabel ?? 'Status: '}${isActive ? localizations?.activeStatus ?? 'Active' : localizations?.disabledStatus ?? 'Disabled'}'),
+                    if (lastOk != null) Text('${localizations?.lastOkLabel ?? 'Last OK: '}$lastOk'),
+                    if (rtt != null) Text('${localizations?.rttLabel ?? 'RTT: '}$rtt${localizations?.milliseconds ?? 'ms'}'),
                   ],
                 ),
                 trailing: Icon(
@@ -284,7 +288,7 @@ class _DebugScreenState extends ConsumerState<DebugScreen> with SingleTickerProv
     },
   );
 
-  Widget _buildCacheTab() => Column(
+  Widget _buildCacheTab(AppLocalizations? localizations) => Column(
     children: [
       Padding(
         padding: const EdgeInsets.all(16.0),
@@ -294,36 +298,36 @@ class _DebugScreenState extends ConsumerState<DebugScreen> with SingleTickerProv
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Cache Statistics',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                Text(
+                  localizations?.cacheStatistics ?? 'Cache Statistics',
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 16),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text('Total entries:'),
+                    Text(localizations?.totalEntries ?? 'Total entries: '),
                     Text(_cacheStats['total_entries'].toString()),
                   ],
                 ),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text('Search cache:'),
+                    Text(localizations?.searchCache ?? 'Search cache: '),
                     Text(_cacheStats['search_cache_size'].toString()),
                   ],
                 ),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text('Topic cache:'),
+                    Text(localizations?.topicCache ?? 'Topic cache: '),
                     Text(_cacheStats['topic_cache_size'].toString()),
                   ],
                 ),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text('Memory usage:'),
+                    Text(localizations?.memoryUsage ?? 'Memory usage: '),
                     Text(_cacheStats['memory_usage'].toString()),
                   ],
                 ),
@@ -333,33 +337,37 @@ class _DebugScreenState extends ConsumerState<DebugScreen> with SingleTickerProv
         ),
       ),
       ElevatedButton(
-        onPressed: _clearCache,
-        child: const Text('Clear All Cache'),
+        onPressed: () => _clearCache(context),
+        child: Text(localizations?.clearAllCache ?? 'Clear All Cache'),
       ),
     ],
   );
 
-  Widget _buildFloatingActionButtons() => Column(
-    mainAxisAlignment: MainAxisAlignment.end,
-    children: [
-      FloatingActionButton(
-        heroTag: 'refresh',
-        mini: true,
-        onPressed: _loadDebugData,
-        child: const Icon(Icons.refresh),
-      ),
-      const SizedBox(height: 8),
-      FloatingActionButton(
-        heroTag: 'export',
-        mini: true,
-        onPressed: () {
-          // TODO: Implement log export
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Export functionality coming soon')),
-          );
-        },
-        child: const Icon(Icons.file_download),
-      ),
-    ],
-  );
+  Widget _buildFloatingActionButtons(BuildContext context) {
+    final localizations = AppLocalizations.of(context);
+    
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        FloatingActionButton(
+          heroTag: 'refresh',
+          mini: true,
+          onPressed: _loadDebugData,
+          child: const Icon(Icons.refresh),
+        ),
+        const SizedBox(height: 8),
+        FloatingActionButton(
+          heroTag: 'export',
+          mini: true,
+          onPressed: () {
+            // TODO: Implement log export
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(localizations?.exportFunctionalityComingSoon ?? 'Export functionality coming soon')),
+            );
+          },
+          child: const Icon(Icons.file_download),
+        ),
+      ],
+    );
+  }
 }

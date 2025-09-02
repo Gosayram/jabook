@@ -65,6 +65,10 @@
   "@systemDefault": {
     "description": "Использовать системные настройки языка"
   },
+  "languageDescription": "Выберите предпочитаемый язык для интерфейса приложения",
+  "@languageDescription": {
+    "description": "Описание раздела настроек языка"
+  },
   "failedToSearch": "Не удалось выполнить поиск",
   "@failedToSearch": {
     "description": "Сообщение об ошибке при неудачном поиске"
@@ -128,5 +132,137 @@
   "login": "Войти",
   "@login": {
     "description": "Текст кнопки входа"
+  },
+  "themeTitle": "Тема",
+  "@themeTitle": {
+    "description": "Заголовок раздела настроек темы"
+  },
+  "themeDescription": "Настройте внешний вид приложения",
+  "@themeDescription": {
+    "description": "Описание раздела настроек темы"
+  },
+  "darkMode": "Тёмная тема",
+  "@darkMode": {
+    "description": "Метка переключателя тёмной темы"
+  },
+  "highContrast": "Высокая контрастность",
+  "@highContrast": {
+    "description": "Метка переключателя высокой контрастности"
+  },
+  "audioTitle": "Аудио",
+  "@audioTitle": {
+    "description": "Заголовок раздела настроек аудио"
+  },
+  "audioDescription": "Настройте параметры воспроизведения аудио",
+  "@audioDescription": {
+    "description": "Описание раздела настроек аудио"
+  },
+  "playbackSpeed": "Скорость воспроизведения",
+  "@playbackSpeed": {
+    "description": "Метка настройки скорости воспроизведения"
+  },
+  "skipDuration": "Пропуск",
+  "@skipDuration": {
+    "description": "Метка настройки продолжительности пропуска"
+  },
+  "downloadsTitle": "Загрузки",
+  "@downloadsTitle": {
+    "description": "Заголовок раздела настроек загрузок"
+  },
+  "downloadsDescription": "Управление настройками загрузок и хранилищем",
+  "@downloadsDescription": {
+    "description": "Описание раздела настроек загрузок"
+  },
+  "downloadLocation": "Местоположение загрузок",
+  "@downloadLocation": {
+    "description": "Метка настройки местоположения загрузок"
+  },
+  "wifiOnlyDownloads": "Только по Wi-Fi",
+  "@wifiOnlyDownloads": {
+    "description": "Метка переключателя загрузок только по Wi-Fi"
+  },
+  "debugTools": "Инструменты отладки",
+  "@debugTools": {
+    "description": "Заголовок экрана отладки"
+  },
+  "logsTab": "Логи",
+  "@logsTab": {
+    "description": "Метка вкладки логов"
+  },
+  "mirrorsTab": "Зеркала",
+  "@mirrorsTab": {
+    "description": "Метка вкладки зеркал"
+  },
+  "downloadsTab": "Загрузки",
+  "@downloadsTab": {
+    "description": "Метка вкладки загрузок"
+  },
+  "cacheTab": "Кэш",
+  "@cacheTab": {
+    "description": "Метка вкладки кэша"
+  },
+  "testAllMirrors": "Проверить все зеркала",
+  "@testAllMirrors": {
+    "description": "Текст кнопки проверки всех зеркал"
+  },
+  "statusLabel": "Статус: ",
+  "@statusLabel": {
+    "description": "Текст метки статуса"
+  },
+  "activeStatus": "Активно",
+  "@activeStatus": {
+    "description": "Текст активного статуса"
+  },
+  "disabledStatus": "Отключено",
+  "@disabledStatus": {
+    "description": "Текст отключенного статуса"
+  },
+  "lastOkLabel": "Последний OK: ",
+  "@lastOkLabel": {
+    "description": "Текст метки последнего OK"
+  },
+  "rttLabel": "RTT: ",
+  "@rttLabel": {
+    "description": "Текст метки RTT"
+  },
+  "milliseconds": "мс",
+  "@milliseconds": {
+    "description": "Сокращение миллисекунд"
+  },
+  "cacheStatistics": "Статистика кэша",
+  "@cacheStatistics": {
+    "description": "Заголовок статистики кэша"
+  },
+  "totalEntries": "Всего записей: ",
+  "@totalEntries": {
+    "description": "Метка общего количества записей"
+  },
+  "searchCache": "Кэш поиска: ",
+  "@searchCache": {
+    "description": "Метка кэша поиска"
+  },
+  "topicCache": "Кэш топиков: ",
+  "@topicCache": {
+    "description": "Метка кэша топиков"
+  },
+  "memoryUsage": "Использование памяти: ",
+  "@memoryUsage": {
+    "description": "Метка использования памяти"
+  },
+  "clearAllCache": "Очистить весь кэш",
+  "@clearAllCache": {
+    "description": "Текст кнопки очистки всего кэша"
+  },
+  "cacheClearedSuccessfully": "Кэш успешно очищен",
+  "@cacheClearedSuccessfully": {
+    "description": "Сообщение об успешной очистке кэша"
+  },
+  "mirrorHealthCheckCompleted": "Проверка здоровья зеркал завершена",
+  "@mirrorHealthCheckCompleted": {
+    "description": "Сообщение о завершении проверки здоровья зеркал"
+  },
+  "exportFunctionalityComingSoon": "Функция экспорта скоро появится",
+  "@exportFunctionalityComingSoon": {
+    "description": "Сообщение о скором появлении функции экспорта"
   }
 }
