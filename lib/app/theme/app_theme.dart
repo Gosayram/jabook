@@ -14,8 +14,8 @@ mixin AppTheme {
   /// Surface color for cards and elevated components (Darker surface)
   static const Color _surfaceColor = Color(0xFF2D2A4A); // Darker surface
   
-  /// Text and icon color for surfaces (Beige)
-  static const Color _onSurfaceColor = Color(0xFFF5F5DC); // Beige
+  /// Text and icon color for surfaces (Light gray with better contrast)
+  static const Color _onSurfaceColor = Color(0xFFE8E8E8); // Light gray
   
   /// Accent color for highlights and secondary elements (Orange)
   static const Color _accentColor = Color(0xFFFF6B35); // Orange

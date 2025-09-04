@@ -34,6 +34,8 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
     try {
       final endpointManager = ref.read(endpointManagerProvider);
       final mirrors = await endpointManager.getAllEndpoints();
+      // Sort mirrors by priority (ascending)
+      mirrors.sort((a, b) => (a['priority'] as int).compareTo(b['priority'] as int));
       setState(() {
         _mirrors = mirrors;
         _isLoading = false;
@@ -223,18 +225,43 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      color: Theme.of(context).cardTheme.color,
       child: ListTile(
         leading: Icon(
           enabled ? Icons.check_circle : Icons.cancel,
           color: enabled ? Colors.green : Colors.grey,
         ),
-        title: Text(url),
+        title: Text(
+          url,
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurface,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Priority: $priority'),
-            if (rtt != null) Text('Response time: ${rtt}ms'),
-            if (lastOk != null) Text('Last successful: ${_formatDate(lastOk)}'),
+            Text(
+              'Priority: $priority',
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurface.withAlpha(204), // 0.8 opacity
+                fontSize: 14,
+              ),
+            ),
+            if (rtt != null) Text(
+              'Response time: ${rtt}ms',
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurface.withAlpha(204), // 0.8 opacity
+                fontSize: 14,
+              ),
+            ),
+            if (lastOk != null) Text(
+              'Last successful: ${_formatDate(lastOk)}',
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurface.withAlpha(204), // 0.8 opacity
+                fontSize: 14,
+              ),
+            ),
           ],
         ),
         trailing: Row(
@@ -243,7 +270,10 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
             IconButton(
               icon: (_testingStates[url] ?? false)
                   ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator())
-                  : const Icon(Icons.wifi),
+                  : Icon(
+                      Icons.wifi,
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
               onPressed: (_testingStates[url] ?? false)
                   ? null
                   : () => _testMirror(url),
