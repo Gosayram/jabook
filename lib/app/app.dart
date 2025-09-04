@@ -8,6 +8,7 @@ import 'package:jabook/core/cache/rutracker_cache_service.dart';
 import 'package:jabook/core/config/app_config.dart';
 import 'package:jabook/core/config/language_manager.dart';
 import 'package:jabook/core/config/language_provider.dart';
+import 'package:jabook/core/endpoints/endpoint_manager.dart';
 import 'package:jabook/core/logging/environment_logger.dart';
 import 'package:jabook/data/db/app_database.dart';
 import 'package:jabook/l10n/app_localizations.dart';
@@ -104,7 +105,12 @@ class _JaBookAppState extends ConsumerState<JaBookApp> {
     logger.i('Initializing database...');
     await database.initialize();
     await cacheService.initialize(database.database);
-    logger.i('Database and cache initialized successfully');
+    
+    // Initialize EndpointManager with default endpoints
+    final endpointManager = EndpointManager(database.database);
+    await endpointManager.initializeDefaultEndpoints();
+    
+    logger.i('Database, cache, and endpoints initialized successfully');
   }
 
   Future<void> _initializeDevEnvironment() async {

@@ -294,4 +294,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String copyToClipboardLabel(Object label) {
     return '$label copied to clipboard';
   }
+
+  @override
+  String get navSearch => 'Search';
+
+  @override
+  String get navLibrary => 'Library';
+
+  @override
+  String get navSettings => 'Settings';
+
+  @override
+  String get navDebug => 'Debug';
 }

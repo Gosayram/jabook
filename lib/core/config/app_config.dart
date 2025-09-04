@@ -12,10 +12,7 @@ class AppConfig {
   static final AppConfig _instance = AppConfig._();
 
   /// Gets the current build flavor.
-  String get flavor {
-    const flavor = String.fromEnvironment('FLAVOR', defaultValue: 'dev');
-    return flavor;
-  }
+  String get flavor => const String.fromEnvironment('FLAVOR', defaultValue: 'dev');
 
   /// Gets whether this is a debug build.
   bool get isDebug => flavor == 'dev';
@@ -41,18 +38,9 @@ class AppConfig {
   }
 
   /// Gets the RuTracker base URL.
-  String get rutrackerUrl {
-    switch (flavor) {
-      case 'dev':
-        return 'https://rutracker.me'; // Use working domain for dev
-      case 'stage':
-        return 'https://rutracker.me'; // Use working domain for stage
-      case 'prod':
-        return 'https://rutracker.me';
-      default:
-        return 'https://rutracker.me';
-    }
-  }
+  /// This method is deprecated - use EndpointManager instead for dynamic mirror selection.
+  @Deprecated('Use EndpointManager.getActiveEndpoint() for dynamic mirror selection')
+  String get rutrackerUrl => 'https://rutracker.org'; // Default fallback, but EndpointManager should be used
 
   /// Gets the logging level for the current environment.
   String get logLevel {

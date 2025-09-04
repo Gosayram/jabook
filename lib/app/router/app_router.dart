@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:jabook/core/config/app_config.dart';
 import 'package:jabook/features/debug/presentation/screens/debug_screen.dart';
 import 'package:jabook/features/library/presentation/screens/library_screen.dart';
 import 'package:jabook/features/mirrors/presentation/screens/mirrors_screen.dart';
@@ -15,8 +16,9 @@ import 'package:jabook/l10n/app_localizations.dart';
 ///
 /// This provider sets up the navigation structure for the app using GoRouter,
 /// defining all available routes and their corresponding builders.
-final appRouterProvider = Provider<GoRouter>((ref) => GoRouter(
-  routes: [
+final appRouterProvider = Provider<GoRouter>((ref) {
+  final config = AppConfig();
+  final routes = <RouteBase>[
     ShellRoute(
       routes: [
         GoRoute(
@@ -31,12 +33,17 @@ final appRouterProvider = Provider<GoRouter>((ref) => GoRouter(
           path: '/settings',
           builder: (context, state) => const SettingsScreen(),
         ),
-        GoRoute(
-          path: '/debug',
-          builder: (context, state) => const DebugScreen(),
-        ),
+        // Only include debug route if debug features are enabled
+        if (config.debugFeaturesEnabled)
+          GoRoute(
+            path: '/debug',
+            builder: (context, state) => const DebugScreen(),
+          ),
       ],
-      builder: (context, state, child) => _MainNavigationWrapper(child: child),
+      builder: (context, state, child) => _MainNavigationWrapper(
+        debugEnabled: config.debugFeaturesEnabled,
+        child: child,
+      ),
     ),
     GoRoute(
       path: '/topic/:topicId',
@@ -54,23 +61,31 @@ final appRouterProvider = Provider<GoRouter>((ref) => GoRouter(
       path: '/mirrors',
       builder: (context, state) => const MirrorsScreen(),
     ),
-  ],
-  initialLocation: '/',
-  errorBuilder: (context, state) => Scaffold(
-    appBar: AppBar(
-      title: Text(AppLocalizations.of(context)?.error ?? 'Error'),
+  ];
+
+  return GoRouter(
+    routes: routes,
+    initialLocation: '/',
+    errorBuilder: (context, state) => Scaffold(
+      appBar: AppBar(
+        title: Text(AppLocalizations.of(context)?.error ?? 'Error'),
+      ),
+      body: Center(
+        child: Text(state.error.toString()),
+      ),
     ),
-    body: Center(
-      child: Text(state.error.toString()),
-    ),
-  ),
-));
+  );
+});
 
 /// Widget that provides bottom navigation for the main app screens.
 class _MainNavigationWrapper extends ConsumerStatefulWidget {
-  const _MainNavigationWrapper({required this.child});
+  const _MainNavigationWrapper({
+    required this.child,
+    required this.debugEnabled,
+  });
 
   final Widget child;
+  final bool debugEnabled;
 
   @override
   ConsumerState<_MainNavigationWrapper> createState() => _MainNavigationWrapperState();
@@ -82,28 +97,36 @@ class _MainNavigationWrapperState extends ConsumerState<_MainNavigationWrapper> 
   List<NavigationItem> _buildNavigationItems(BuildContext context) {
     final localizations = AppLocalizations.of(context);
     
-    return [
+    final items = [
       NavigationItem(
-        title: localizations?.libraryTitle ?? 'Library',
+        title: localizations?.navLibrary ?? localizations?.libraryTitle ?? 'Library',
         icon: Icons.library_books,
         route: '/',
       ),
       NavigationItem(
-        title: localizations?.searchAudiobooks ?? 'Search',
+        title: localizations?.navSearch ?? localizations?.searchAudiobooks ?? 'Search',
         icon: Icons.search,
         route: '/search',
       ),
       NavigationItem(
-        title: localizations?.settingsTitle ?? 'Settings',
+        title: localizations?.navSettings ?? localizations?.settingsTitle ?? 'Settings',
         icon: Icons.settings,
         route: '/settings',
       ),
-      NavigationItem(
-        title: localizations?.debugTitle ?? 'Debug',
-        icon: Icons.bug_report,
-        route: '/debug',
-      ),
     ];
+
+    // Only add debug tab if debug features are enabled
+    if (widget.debugEnabled) {
+      items.add(
+        NavigationItem(
+          title: localizations?.navDebug ?? localizations?.debugTitle ?? 'Debug',
+          icon: Icons.bug_report,
+          route: '/debug',
+        ),
+      );
+    }
+
+    return items;
   }
 
   @override
@@ -116,19 +139,25 @@ class _MainNavigationWrapperState extends ConsumerState<_MainNavigationWrapper> 
 
     return Scaffold(
       body: widget.child,
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _selectedIndex,
-        onTap: (index) {
-          final route = navigationItems[index].route;
-          if (route != currentLocation) {
-            context.go(route);
-          }
-        },
-        type: BottomNavigationBarType.fixed,
-        items: navigationItems.map((item) => BottomNavigationBarItem(
-          icon: Icon(item.icon),
-          label: item.title,
-        )).toList(),
+      bottomNavigationBar: Semantics(
+        explicitChildNodes: true,
+        child: BottomNavigationBar(
+          currentIndex: _selectedIndex,
+          onTap: (index) {
+            final route = navigationItems[index].route;
+            if (route != currentLocation) {
+              context.go(route);
+            }
+          },
+          type: BottomNavigationBarType.fixed,
+          items: navigationItems.map((item) => BottomNavigationBarItem(
+            icon: Semantics(
+              label: item.title,
+              child: Icon(item.icon),
+            ),
+            label: item.title,
+          )).toList(),
+        ),
       ),
     );
   }

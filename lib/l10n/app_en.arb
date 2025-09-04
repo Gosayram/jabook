@@ -368,5 +368,21 @@
   "copyToClipboardLabel": "{label} copied to clipboard",
   "@copyToClipboardLabel": {
     "description": "Copy to clipboard success message"
+  },
+  "navSearch": "Search",
+  "@navSearch": {
+    "description": "Short navigation label for search"
+  },
+  "navLibrary": "Library",
+  "@navLibrary": {
+    "description": "Short navigation label for library"
+  },
+  "navSettings": "Settings",
+  "@navSettings": {
+    "description": "Short navigation label for settings"
+  },
+  "navDebug": "Debug",
+  "@navDebug": {
+    "description": "Short navigation label for debug"
   }
 }

@@ -1,9 +1,13 @@
 
+import 'dart:io';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-
 import 'package:jabook/l10n/app_localizations.dart';
+import 'package:path/path.dart' as path;
+import 'package:path_provider/path_provider.dart';
 
 /// Main screen for displaying the user's audiobook library.
 ///
@@ -27,6 +31,7 @@ class LibraryScreen extends ConsumerWidget {
               // Navigate to search screen
               context.go('/search');
             },
+            tooltip: AppLocalizations.of(context)!.searchAudiobooks,
           ),
           IconButton(
             icon: const Icon(Icons.filter_list),
@@ -34,17 +39,17 @@ class LibraryScreen extends ConsumerWidget {
               // Show filter options - navigate to settings for now
               context.go('/settings');
             },
+            tooltip: 'Filter library',
           ),
         ],
       ),
       body: const _LibraryContent(),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          // TODO: Implement add book functionality
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(AppLocalizations.of(context)!.addBookComingSoon)),
-          );
+          // Navigate to search screen for now - FAB functionality
+          context.go('/search');
         },
+        tooltip: 'Add audiobook',
         child: const Icon(Icons.add),
       ),
     );
@@ -60,6 +65,241 @@ class _LibraryContent extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) => Center(
-      child: Text(AppLocalizations.of(context)?.libraryContentPlaceholder ?? 'Library content will be displayed here'),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Semantics(
+            label: 'Empty library',
+            child: const Icon(Icons.library_books_outlined, size: 64, color: Colors.grey),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            AppLocalizations.of(context)?.libraryContentPlaceholder ?? 'Your library is empty',
+            style: Theme.of(context).textTheme.titleMedium,
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Add audiobooks to your library to start listening',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 24),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Semantics(
+                button: true,
+                label: 'Search for audiobooks',
+                child: _buildActionButton(
+                  context,
+                  icon: Icons.search,
+                  label: 'Search Audiobooks',
+                  onPressed: () => context.go('/search'),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Semantics(
+                button: true,
+                label: 'Import audiobooks from files',
+                child: _buildActionButton(
+                  context,
+                  icon: Icons.folder_open,
+                  label: 'Import from Files',
+                  onPressed: () => _showImportDialog(context),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Semantics(
+                button: true,
+                label: 'Scan folder for audiobooks',
+                child: _buildActionButton(
+                  context,
+                  icon: Icons.folder,
+                  label: 'Scan Folder',
+                  onPressed: () => _showScanDialog(context),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
+
+  Widget _buildActionButton(BuildContext context, {
+    required IconData icon,
+    required String label,
+    required VoidCallback onPressed,
+  }) => SizedBox(
+    width: 200,
+    child: OutlinedButton.icon(
+      icon: Icon(icon, size: 20),
+      label: Text(label),
+      onPressed: onPressed,
+      style: OutlinedButton.styleFrom(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+      ),
+    ),
+  );
+
+  // Removed unused method
+
+  void _showImportDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Import Audiobooks'),
+        content: const Text('Select audiobook files from your device to add to your library'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => _importAudiobookFiles(context),
+            child: const Text('Import'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _importAudiobookFiles(BuildContext context) async {
+    Navigator.pop(context);
+    
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.audio,
+        allowMultiple: true,
+        allowedExtensions: ['mp3', 'm4a', 'm4b', 'aac', 'flac', 'wav'],
+      );
+
+      if (result != null && result.files.isNotEmpty) {
+        final files = result.files;
+        final importedCount = await _copyAudioFilesToLibrary(files);
+        
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Imported $importedCount audiobook(s)')),
+          );
+        }
+      } else {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('No files selected')),
+          );
+        }
+      }
+    } on Exception catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to import: $e')),
+        );
+      }
+    }
+  }
+
+  void _showScanDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Scan Folder'),
+        content: const Text('Scan a folder on your device for audiobook files'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => _scanFolderForAudiobooks(context),
+            child: const Text('Scan'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _scanFolderForAudiobooks(BuildContext context) async {
+    Navigator.pop(context);
+    
+    try {
+      final directory = await FilePicker.platform.getDirectoryPath();
+      
+      if (directory != null) {
+        final dir = Directory(directory);
+        // Remove the torrent manager reference
+        
+        // Scan for audio files
+        final audioFiles = await dir.list()
+          .where((entity) => entity is File)
+          .map((entity) => entity as File)
+          .where((file) => _isAudioFile(file.path))
+          .toList();
+
+        if (audioFiles.isNotEmpty) {
+          final importedCount = await _copyAudioFilesToLibrary(audioFiles.map((file) => PlatformFile(
+            name: path.basename(file.path),
+            path: file.path,
+            size: file.lengthSync(),
+          )).toList());
+
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Found and imported $importedCount audiobook(s)')),
+            );
+          }
+        } else {
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('No audiobook files found in selected folder')),
+            );
+          }
+        }
+      } else {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('No folder selected')),
+          );
+        }
+      }
+    } on Exception catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to scan folder: $e')),
+        );
+      }
+    }
+  }
+
+  bool _isAudioFile(String path) {
+    final extensions = ['.mp3', '.m4a', '.m4b', '.aac', '.flac', '.wav'];
+    return extensions.any((ext) => path.toLowerCase().endsWith(ext));
+  }
+
+  Future<int> _copyAudioFilesToLibrary(List<PlatformFile> files) async {
+    var importedCount = 0;
+    final libraryDir = await getLibraryDirectory();
+    final audiobooksDir = Directory('${libraryDir.path}/audiobooks');
+    
+    if (!await audiobooksDir.exists()) {
+      await audiobooksDir.create(recursive: true);
+    }
+
+    for (final file in files) {
+      if (file.path != null && _isAudioFile(file.path!)) {
+        final sourceFile = File(file.path!);
+        final destFile = File('${audiobooksDir.path}/${file.name}');
+        
+        try {
+          await sourceFile.copy(destFile.path);
+          importedCount++;
+        } on Exception catch (e) {
+          // Log error but continue with other files
+          debugPrint('Failed to copy file ${file.name}: $e');
+        }
+      }
+    }
+    
+    return importedCount;
+  }
 }

@@ -128,7 +128,7 @@ class _DebugScreenState extends ConsumerState<DebugScreen> with SingleTickerProv
         _downloads = downloads;
       });
     } on Exception catch (e) {
-      _logger.e('${AppLocalizations.of(context)?.failedToExportLogs ?? 'Failed to load downloads'}: $e');
+      _logger.e('Failed to load downloads: $e');
     }
   }
 
@@ -165,7 +165,7 @@ class _DebugScreenState extends ConsumerState<DebugScreen> with SingleTickerProv
         _cacheStats = stats;
       });
     } on Exception catch (e) {
-      _logger.e('${AppLocalizations.of(context)?.failedToExportLogs ?? 'Failed to load cache stats'}: $e');
+      _logger.e('Failed to load cache stats: $e');
       // Fallback to placeholder stats
       setState(() {
         _cacheStats = {
@@ -192,7 +192,7 @@ class _DebugScreenState extends ConsumerState<DebugScreen> with SingleTickerProv
       _logger.e('Failed to clear cache: $e');
       if (!mounted) return;
       scaffoldMessenger.showSnackBar(
-        SnackBar(content: Text('${AppLocalizations.of(context)?.failedToExportLogs ?? 'Failed to clear cache'}: $e')),
+        SnackBar(content: Text('Failed to clear cache: $e')),
       );
     }
   }
@@ -255,10 +255,22 @@ class _DebugScreenState extends ConsumerState<DebugScreen> with SingleTickerProv
         bottom: TabBar(
           controller: _tabController,
           tabs: [
-            Tab(text: localizations?.logsTab ?? 'Logs'),
-            Tab(text: localizations?.mirrorsTab ?? 'Mirrors'),
-            Tab(text: localizations?.downloadsTab ?? 'Downloads'),
-            Tab(text: localizations?.cacheTab ?? 'Cache'),
+            Tab(
+              text: localizations?.logsTab ?? 'Logs',
+              icon: const Icon(Icons.description),
+            ),
+            Tab(
+              text: localizations?.mirrorsTab ?? 'Mirrors',
+              icon: const Icon(Icons.dns),
+            ),
+            Tab(
+              text: localizations?.downloadsTab ?? 'Downloads',
+              icon: const Icon(Icons.download),
+            ),
+            Tab(
+              text: localizations?.cacheTab ?? 'Cache',
+              icon: const Icon(Icons.cached),
+            ),
           ],
         ),
       ),
@@ -307,9 +319,13 @@ class _DebugScreenState extends ConsumerState<DebugScreen> with SingleTickerProv
     children: [
       Padding(
         padding: const EdgeInsets.all(8.0),
-        child: ElevatedButton(
-          onPressed: () => _testAllMirrors(context),
-          child: Text(localizations?.testAllMirrors ?? 'Test All Mirrors'),
+        child: Semantics(
+          button: true,
+          label: 'Test all mirrors',
+          child: ElevatedButton(
+            onPressed: () => _testAllMirrors(context),
+            child: Text(localizations?.testAllMirrors ?? 'Test All Mirrors'),
+          ),
         ),
       ),
       Expanded(
@@ -321,11 +337,14 @@ class _DebugScreenState extends ConsumerState<DebugScreen> with SingleTickerProv
             final lastOk = mirror['last_ok'];
             final rtt = mirror['rtt'];
 
-            return Card(
-              margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              color: isActive ? Colors.green.shade50 : Colors.grey.shade200,
-              child: ListTile(
-                title: Text(mirror['url'] ?? 'Unknown'),
+            return Semantics(
+              container: true,
+              label: 'Mirror: ${mirror['url'] ?? 'Unknown'}, Status: ${isActive ? 'Active' : 'Disabled'}',
+              child: Card(
+                margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                color: isActive ? Colors.green.shade50 : Colors.grey.shade200,
+                child: ListTile(
+                  title: Text(mirror['url'] ?? 'Unknown'),
                 subtitle: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -334,9 +353,13 @@ class _DebugScreenState extends ConsumerState<DebugScreen> with SingleTickerProv
                     if (rtt != null) Text('${localizations?.rttLabel ?? 'RTT: '}$rtt${localizations?.milliseconds ?? 'ms'}'),
                   ],
                 ),
-                trailing: Icon(
-                  isActive ? Icons.check_circle : Icons.cancel,
-                  color: isActive ? Colors.green : Colors.red,
+                  trailing: Semantics(
+                    label: isActive ? 'Active mirror' : 'Disabled mirror',
+                    child: Icon(
+                      isActive ? Icons.check_circle : Icons.cancel,
+                      color: isActive ? Colors.green : Colors.red,
+                    ),
+                  ),
                 ),
               ),
             );
@@ -353,23 +376,34 @@ class _DebugScreenState extends ConsumerState<DebugScreen> with SingleTickerProv
       final progress = download['progress'] ?? 0.0;
       final status = download['status'] ?? 'unknown';
 
-      return Card(
-        margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        child: ListTile(
-          title: Text('${AppLocalizations.of(context)?.downloadLabel ?? 'Download'} ${download['id']}'),
-          subtitle: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('${AppLocalizations.of(context)?.statusLabelNoColon ?? 'Status'}: $status'),
-              LinearProgressIndicator(value: progress / 100),
-              Text(AppLocalizations.of(context)?.downloadProgressLabel(progress.toStringAsFixed(1)) ?? 'Progress: ${progress.toStringAsFixed(1)}%'),
-            ],
-          ),
-          trailing: IconButton(
-            icon: const Icon(Icons.delete),
-            onPressed: () {
-              // TODO: Implement download removal
-            },
+      return Semantics(
+        container: true,
+        label: 'Download ${download['id']}, Status: $status, Progress: ${progress.toStringAsFixed(1)}%',
+        child: Card(
+          margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          child: ListTile(
+            title: Text('${AppLocalizations.of(context)?.downloadLabel ?? 'Download'} ${download['id']}'),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('${AppLocalizations.of(context)?.statusLabelNoColon ?? 'Status'}: $status'),
+                Semantics(
+                  value: '${progress.toStringAsFixed(1)}%',
+                  child: LinearProgressIndicator(value: progress / 100),
+                ),
+                Text(AppLocalizations.of(context)?.downloadProgressLabel(progress.toStringAsFixed(1)) ?? 'Progress: ${progress.toStringAsFixed(1)}%'),
+              ],
+            ),
+            trailing: Semantics(
+              button: true,
+              label: 'Delete download',
+              child: IconButton(
+                icon: const Icon(Icons.delete),
+                onPressed: () {
+                  // TODO: Implement download removal
+                },
+              ),
+            ),
           ),
         ),
       );
@@ -424,9 +458,38 @@ class _DebugScreenState extends ConsumerState<DebugScreen> with SingleTickerProv
           ),
         ),
       ),
-      ElevatedButton(
-        onPressed: () => _clearCache(context),
-        child: Text(localizations?.clearAllCache ?? 'Clear All Cache'),
+      const SizedBox(height: 16),
+      // Build Clear Cache button with proper disabled state
+      Builder(
+        builder: (context) {
+          final totalEntries = _cacheStats['total_entries'] as int? ?? 0;
+          final searchCacheSize = _cacheStats['search_cache_size'] as int? ?? 0;
+          final topicCacheSize = _cacheStats['topic_cache_size'] as int? ?? 0;
+          
+          final hasCache = totalEntries > 0 || searchCacheSize > 0 || topicCacheSize > 0;
+          
+          return Column(
+            children: [
+              Semantics(
+                button: true,
+                enabled: hasCache,
+                label: 'Clear all cache',
+                child: ElevatedButton(
+                  onPressed: hasCache ? () => _clearCache(context) : null,
+                  child: Text(localizations?.clearAllCache ?? 'Clear All Cache'),
+                ),
+              ),
+              if (!hasCache)
+                Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Text(
+                    localizations?.cacheClearedSuccessfully ?? 'Cache is empty',
+                    style: const TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
+                  ),
+                ),
+            ],
+          );
+        },
       ),
     ],
   );
@@ -434,18 +497,26 @@ class _DebugScreenState extends ConsumerState<DebugScreen> with SingleTickerProv
   Widget _buildFloatingActionButtons(BuildContext context) => Column(
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
-        FloatingActionButton(
-          heroTag: 'refresh',
-          mini: true,
-          onPressed: _loadDebugData,
-          child: const Icon(Icons.refresh),
+        Semantics(
+          button: true,
+          label: 'Refresh debug data',
+          child: FloatingActionButton(
+            heroTag: 'refresh',
+            mini: true,
+            onPressed: _loadDebugData,
+            child: const Icon(Icons.refresh),
+          ),
         ),
         const SizedBox(height: 8),
-        FloatingActionButton(
-          heroTag: 'export',
-          mini: true,
-          onPressed: () => _exportLogs(context),
-          child: const Icon(Icons.file_download),
+        Semantics(
+          button: true,
+          label: 'Export logs',
+          child: FloatingActionButton(
+            heroTag: 'export',
+            mini: true,
+            onPressed: () => _exportLogs(context),
+            child: const Icon(Icons.file_download),
+          ),
         ),
       ],
     );

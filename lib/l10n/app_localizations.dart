@@ -652,6 +652,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{label} copied to clipboard'**
   String copyToClipboardLabel(Object label);
+
+  /// Short navigation label for search
+  ///
+  /// In en, this message translates to:
+  /// **'Search'**
+  String get navSearch;
+
+  /// Short navigation label for library
+  ///
+  /// In en, this message translates to:
+  /// **'Library'**
+  String get navLibrary;
+
+  /// Short navigation label for settings
+  ///
+  /// In en, this message translates to:
+  /// **'Settings'**
+  String get navSettings;
+
+  /// Short navigation label for debug
+  ///
+  /// In en, this message translates to:
+  /// **'Debug'**
+  String get navDebug;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

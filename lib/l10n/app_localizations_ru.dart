@@ -294,4 +294,16 @@ class AppLocalizationsRu extends AppLocalizations {
   String copyToClipboardLabel(Object label) {
     return '$label скопировано в буфер обмена';
   }
+
+  @override
+  String get navSearch => 'Поиск';
+
+  @override
+  String get navLibrary => 'Библиотека';
+
+  @override
+  String get navSettings => 'Настройки';
+
+  @override
+  String get navDebug => 'Отладка';
 }

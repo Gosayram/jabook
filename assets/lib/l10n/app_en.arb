@@ -128,5 +128,61 @@
   "login": "Login",
   "@login": {
     "description": "Login button text"
+  },
+  "networkConnectionError": "Could not connect. Check your internet or choose another mirror in Settings → Sources.",
+  "@networkConnectionError": {
+    "description": "User-friendly network connection error message"
+  },
+  "connectionFailed": "Connection failed. Please check your internet connection or try a different mirror.",
+  "@connectionFailed": {
+    "description": "Generic connection failure message"
+  },
+  "chooseMirror": "Choose Mirror",
+  "@chooseMirror": {
+    "description": "Button text for choosing mirror"
+  },
+  "networkErrorUser": "Network connection issue",
+  "@networkErrorUser": {
+    "description": "User-friendly network error title"
+  },
+  "dnsError": "Could not resolve domain. This may be due to network restrictions or an inactive mirror.",
+  "@dnsError": {
+    "description": "DNS resolution error message"
+  },
+  "timeoutError": "Request took too long. Please check your connection and try again.",
+  "@timeoutError": {
+    "description": "Timeout error message"
+  },
+  "serverError": "Server is temporarily unavailable. Please try again later or choose another mirror.",
+  "@serverError": {
+    "description": "Server error message"
+  },
+  "recentSearches": "Recent Searches",
+  "@recentSearches": {
+    "description": "Title for recent searches section"
+  },
+  "searchExamples": "Try these examples",
+  "@searchExamples": {
+    "description": "Title for search examples section"
+  },
+  "quickActions": "Quick Actions",
+  "@quickActions": {
+    "description": "Title for quick actions section"
+  },
+  "scanLocalFiles": "Scan Local Files",
+  "@scanLocalFiles": {
+    "description": "Label for scan local files action"
+  },
+  "featureComingSoon": "Feature coming soon",
+  "@featureComingSoon": {
+    "description": "Message for upcoming features"
+  },
+  "changeMirror": "Change Mirror",
+  "@changeMirror": {
+    "description": "Label for change mirror action"
+  },
+  "checkConnection": "Check Connection",
+  "@checkConnection": {
+    "description": "Label for check connection action"
   }
 }

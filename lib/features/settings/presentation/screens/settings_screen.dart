@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:jabook/core/config/language_manager.dart';
 import 'package:jabook/core/config/language_provider.dart';
+import 'package:jabook/features/settings/presentation/screens/mirror_settings_screen.dart';
 import 'package:jabook/l10n/app_localizations.dart';
 
 /// Screen for application settings and preferences.
@@ -68,22 +69,47 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         padding: const EdgeInsets.all(16.0),
         children: [
           // Language Settings Section
-          _buildLanguageSection(context),
+          Semantics(
+            container: true,
+            label: 'Language settings',
+            child: _buildLanguageSection(context),
+          ),
+          
+          const SizedBox(height: 24),
+          
+          // Mirror Settings Section
+          Semantics(
+            container: true,
+            label: 'Mirror and source settings',
+            child: _buildMirrorSection(context),
+          ),
           
           const SizedBox(height: 24),
           
           // Theme Settings Section
-          _buildThemeSection(context),
+          Semantics(
+            container: true,
+            label: 'Theme settings',
+            child: _buildThemeSection(context),
+          ),
           
           const SizedBox(height: 24),
           
           // Audio Settings Section
-          _buildAudioSection(context),
+          Semantics(
+            container: true,
+            label: 'Audio playback settings',
+            child: _buildAudioSection(context),
+          ),
           
           const SizedBox(height: 24),
           
           // Download Settings Section
-          _buildDownloadSection(context),
+          Semantics(
+            container: true,
+            label: 'Download settings',
+            child: _buildDownloadSection(context),
+          ),
         ],
       ),
     );
@@ -123,6 +149,44 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         onTap: () => _changeLanguage(language['code']!, ref),
       );
 
+  Widget _buildMirrorSection(BuildContext context) {
+    final localizations = AppLocalizations.of(context);
+    
+    return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            localizations?.mirrorsScreenTitle ?? 'Mirrors & Sources',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Configure RuTracker mirrors for optimal search performance',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          const SizedBox(height: 16),
+          Semantics(
+            button: true,
+            label: 'Manage RuTracker mirrors',
+            child: ListTile(
+              leading: const Icon(Icons.dns),
+              title: Text(localizations?.mirrorsScreenTitle ?? 'Manage Mirrors'),
+              subtitle: const Text('Configure and test RuTracker mirrors'),
+              trailing: const Icon(Icons.arrow_forward_ios),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const MirrorSettingsScreen(),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      );
+  }
+
   Widget _buildThemeSection(BuildContext context) {
     final localizations = AppLocalizations.of(context);
     
@@ -142,21 +206,27 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ListTile(
             leading: const Icon(Icons.color_lens),
             title: Text(localizations?.darkMode ?? 'Dark Mode'),
-            trailing: Switch(
-              value: false,
-              onChanged: (value) {
-                // TODO: Implement theme switching
-              },
+            trailing: Semantics(
+              label: 'Dark mode toggle',
+              child: Switch(
+                value: false,
+                onChanged: (value) {
+                  // TODO: Implement theme switching
+                },
+              ),
             ),
           ),
           ListTile(
             leading: const Icon(Icons.contrast),
             title: Text(localizations?.highContrast ?? 'High Contrast'),
-            trailing: Switch(
-              value: false,
-              onChanged: (value) {
-                // TODO: Implement high contrast mode
-              },
+            trailing: Semantics(
+              label: 'High contrast mode toggle',
+              child: Switch(
+                value: false,
+                onChanged: (value) {
+                  // TODO: Implement high contrast mode
+                },
+              ),
             ),
           ),
         ],
@@ -179,21 +249,29 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: 16),
-          ListTile(
-            leading: const Icon(Icons.speed),
-            title: Text(localizations?.playbackSpeed ?? 'Playback Speed'),
-            subtitle: const Text('1.0x'),
-            onTap: () {
-              // TODO: Implement playback speed selection
-            },
+          Semantics(
+            button: true,
+            label: 'Set playback speed',
+            child: ListTile(
+              leading: const Icon(Icons.speed),
+              title: Text(localizations?.playbackSpeed ?? 'Playback Speed'),
+              subtitle: const Text('1.0x'),
+              onTap: () {
+                // TODO: Implement playback speed selection
+              },
+            ),
           ),
-          ListTile(
-            leading: const Icon(Icons.skip_next),
-            title: Text(localizations?.skipDuration ?? 'Skip Duration'),
-            subtitle: const Text('15 seconds'),
-            onTap: () {
-              // TODO: Implement skip duration selection
-            },
+          Semantics(
+            button: true,
+            label: 'Set skip duration',
+            child: ListTile(
+              leading: const Icon(Icons.skip_next),
+              title: Text(localizations?.skipDuration ?? 'Skip Duration'),
+              subtitle: const Text('15 seconds'),
+              onTap: () {
+                // TODO: Implement skip duration selection
+              },
+            ),
           ),
         ],
       );
@@ -215,22 +293,29 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: 16),
-          ListTile(
-            leading: const Icon(Icons.storage),
-            title: Text(localizations?.downloadLocation ?? 'Download Location'),
-            subtitle: const Text('/storage/emulated/0/Download'),
-            onTap: () {
-              // TODO: Implement download location selection
-            },
+          Semantics(
+            button: true,
+            label: 'Set download location',
+            child: ListTile(
+              leading: const Icon(Icons.storage),
+              title: Text(localizations?.downloadLocation ?? 'Download Location'),
+              subtitle: const Text('/storage/emulated/0/Download'),
+              onTap: () {
+                // TODO: Implement download location selection
+              },
+            ),
           ),
           ListTile(
             leading: const Icon(Icons.wifi),
             title: Text(localizations?.wifiOnlyDownloads ?? 'Wi-Fi Only Downloads'),
-            trailing: Switch(
-              value: true,
-              onChanged: (value) {
-                // TODO: Implement Wi-Fi only setting
-              },
+            trailing: Semantics(
+              label: 'Wi-Fi only downloads toggle',
+              child: Switch(
+                value: true,
+                onChanged: (value) {
+                  // TODO: Implement Wi-Fi only setting
+                },
+              ),
             ),
           ),
         ],

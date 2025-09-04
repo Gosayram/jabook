@@ -368,5 +368,21 @@
   "copyToClipboardLabel": "{label} скопировано в буфер обмена",
   "@copyToClipboardLabel": {
     "description": "Сообщение об успешном копировании в буфер обмена"
+  },
+  "navSearch": "Поиск",
+  "@navSearch": {
+    "description": "Короткая метка навигации для поиска"
+  },
+  "navLibrary": "Библиотека",
+  "@navLibrary": {
+    "description": "Короткая метка навигации для библиотеки"
+  },
+  "navSettings": "Настройки",
+  "@navSettings": {
+    "description": "Короткая метка навигации для настроек"
+  },
+  "navDebug": "Отладка",
+  "@navDebug": {
+    "description": "Короткая метка навигации для отладки"
   }
 }
