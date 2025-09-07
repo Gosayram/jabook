@@ -327,4 +327,31 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get mirrorLastCheck => 'Last checked';
+
+  @override
+  String get authTitle => 'RuTracker Connection';
+
+  @override
+  String get usernameLabel => 'Username';
+
+  @override
+  String get passwordLabel => 'Password';
+
+  @override
+  String get rememberMeLabel => 'Remember me';
+
+  @override
+  String get loginButton => 'Login';
+
+  @override
+  String get testConnectionButton => 'Test Connection';
+
+  @override
+  String get logoutButton => 'Logout';
+
+  @override
+  String get authHelpText => 'Login to RuTracker to access audiobook search and downloads. Your credentials are stored securely.';
+
+  @override
+  String get navAuth => 'Connect';
 }

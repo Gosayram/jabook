@@ -718,6 +718,60 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Last checked'**
   String get mirrorLastCheck;
+
+  /// Title for authentication screen
+  ///
+  /// In en, this message translates to:
+  /// **'RuTracker Connection'**
+  String get authTitle;
+
+  /// Label for username field
+  ///
+  /// In en, this message translates to:
+  /// **'Username'**
+  String get usernameLabel;
+
+  /// Label for password field
+  ///
+  /// In en, this message translates to:
+  /// **'Password'**
+  String get passwordLabel;
+
+  /// Label for remember me checkbox
+  ///
+  /// In en, this message translates to:
+  /// **'Remember me'**
+  String get rememberMeLabel;
+
+  /// Text for login button
+  ///
+  /// In en, this message translates to:
+  /// **'Login'**
+  String get loginButton;
+
+  /// Text for test connection button
+  ///
+  /// In en, this message translates to:
+  /// **'Test Connection'**
+  String get testConnectionButton;
+
+  /// Text for logout button
+  ///
+  /// In en, this message translates to:
+  /// **'Logout'**
+  String get logoutButton;
+
+  /// Help text for authentication screen
+  ///
+  /// In en, this message translates to:
+  /// **'Login to RuTracker to access audiobook search and downloads. Your credentials are stored securely.'**
+  String get authHelpText;
+
+  /// Short navigation label for authentication
+  ///
+  /// In en, this message translates to:
+  /// **'Connect'**
+  String get navAuth;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

@@ -412,5 +412,41 @@
   "mirrorLastCheck": "Last checked",
   "@mirrorLastCheck": {
     "description": "Label for last check time"
+  },
+  "authTitle": "RuTracker Connection",
+  "@authTitle": {
+    "description": "Title for authentication screen"
+  },
+  "usernameLabel": "Username",
+  "@usernameLabel": {
+    "description": "Label for username field"
+  },
+  "passwordLabel": "Password",
+  "@passwordLabel": {
+    "description": "Label for password field"
+  },
+  "rememberMeLabel": "Remember me",
+  "@rememberMeLabel": {
+    "description": "Label for remember me checkbox"
+  },
+  "loginButton": "Login",
+  "@loginButton": {
+    "description": "Text for login button"
+  },
+  "testConnectionButton": "Test Connection",
+  "@testConnectionButton": {
+    "description": "Text for test connection button"
+  },
+  "logoutButton": "Logout",
+  "@logoutButton": {
+    "description": "Text for logout button"
+  },
+  "authHelpText": "Login to RuTracker to access audiobook search and downloads. Your credentials are stored securely.",
+  "@authHelpText": {
+    "description": "Help text for authentication screen"
+  },
+  "navAuth": "Connect",
+  "@navAuth": {
+    "description": "Short navigation label for authentication"
   }
 }

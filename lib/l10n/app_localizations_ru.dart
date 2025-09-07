@@ -327,4 +327,31 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get mirrorLastCheck => 'Последняя проверка';
+
+  @override
+  String get authTitle => 'Подключение к RuTracker';
+
+  @override
+  String get usernameLabel => 'Имя пользователя';
+
+  @override
+  String get passwordLabel => 'Пароль';
+
+  @override
+  String get rememberMeLabel => 'Запомнить меня';
+
+  @override
+  String get loginButton => 'Войти';
+
+  @override
+  String get testConnectionButton => 'Проверить соединение';
+
+  @override
+  String get logoutButton => 'Выйти';
+
+  @override
+  String get authHelpText => 'Войдите в RuTracker для доступа к поиску и загрузке аудиокниг. Ваши учетные данные хранятся безопасно.';
+
+  @override
+  String get navAuth => 'Подключение';
 }

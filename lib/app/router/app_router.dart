@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:jabook/core/config/app_config.dart';
+import 'package:jabook/features/auth/presentation/screens/auth_screen.dart';
+import 'package:jabook/features/auth/presentation/widgets/auth_status_indicator.dart';
 import 'package:jabook/features/debug/presentation/screens/debug_screen.dart';
 import 'package:jabook/features/library/presentation/screens/library_screen.dart';
 import 'package:jabook/features/mirrors/presentation/screens/mirrors_screen.dart';
@@ -24,6 +26,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         GoRoute(
           path: '/',
           builder: (context, state) => const LibraryScreen(),
+        ),
+        GoRoute(
+          path: '/auth',
+          builder: (context, state) => const AuthScreen(),
         ),
         GoRoute(
           path: '/search',
@@ -104,6 +110,12 @@ class _MainNavigationWrapperState extends ConsumerState<_MainNavigationWrapper> 
         route: '/',
       ),
       NavigationItem(
+        title: localizations?.navAuth ?? 'Connect',
+        icon: Icons.link,
+        route: '/auth',
+        badge: const AuthStatusIndicator(),
+      ),
+      NavigationItem(
         title: localizations?.navSearch ?? localizations?.searchAudiobooks ?? 'Search',
         icon: Icons.search,
         route: '/search',
@@ -151,9 +163,19 @@ class _MainNavigationWrapperState extends ConsumerState<_MainNavigationWrapper> 
           },
           type: BottomNavigationBarType.fixed,
           items: navigationItems.map((item) => BottomNavigationBarItem(
-            icon: Semantics(
-              label: item.title,
-              child: Icon(item.icon),
+            icon: Stack(
+              children: [
+                Semantics(
+                  label: item.title,
+                  child: Icon(item.icon),
+                ),
+                if (item.badge != null)
+                  Positioned(
+                    top: 0,
+                    right: 0,
+                    child: item.badge!,
+                  ),
+              ],
             ),
             label: item.title,
           )).toList(),
@@ -166,12 +188,11 @@ class _MainNavigationWrapperState extends ConsumerState<_MainNavigationWrapper> 
 /// Data class for navigation items.
 class NavigationItem {
   /// Creates a new navigation item.
-  ///
-  /// All parameters are required.
   const NavigationItem({
     required this.title,
     required this.icon,
     required this.route,
+    this.badge,
   });
 
   /// The title of the navigation item.
@@ -182,4 +203,7 @@ class NavigationItem {
 
   /// The route path associated with this navigation item.
   final String route;
+
+  /// Optional badge widget to display on the navigation item.
+  final Widget? badge;
 }

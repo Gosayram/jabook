@@ -412,5 +412,41 @@
   "mirrorLastCheck": "Последняя проверка",
   "@mirrorLastCheck": {
     "description": "Метка для времени последней проверки"
+  },
+  "authTitle": "Подключение к RuTracker",
+  "@authTitle": {
+    "description": "Заголовок экрана аутентификации"
+  },
+  "usernameLabel": "Имя пользователя",
+  "@usernameLabel": {
+    "description": "Метка для поля имени пользователя"
+  },
+  "passwordLabel": "Пароль",
+  "@passwordLabel": {
+    "description": "Метка для поля пароля"
+  },
+  "rememberMeLabel": "Запомнить меня",
+  "@rememberMeLabel": {
+    "description": "Метка для чекбокса запомнить меня"
+  },
+  "loginButton": "Войти",
+  "@loginButton": {
+    "description": "Текст для кнопки входа"
+  },
+  "testConnectionButton": "Проверить соединение",
+  "@testConnectionButton": {
+    "description": "Текст для кнопки проверки соединения"
+  },
+  "logoutButton": "Выйти",
+  "@logoutButton": {
+    "description": "Текст для кнопки выхода"
+  },
+  "authHelpText": "Войдите в RuTracker для доступа к поиску и загрузке аудиокниг. Ваши учетные данные хранятся безопасно.",
+  "@authHelpText": {
+    "description": "Справка для экрана аутентификации"
+  },
+  "navAuth": "Подключение",
+  "@navAuth": {
+    "description": "Короткая метка навигации для аутентификации"
   }
 }
