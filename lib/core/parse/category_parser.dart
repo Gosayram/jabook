@@ -56,30 +56,27 @@ class CategoryParser {
       final document = parser.parse(decodedHtml);
       final categories = <AudiobookCategory>[];
 
-
-      // Find the specific audiobooks category (c=33)
+      // Find audiobooks category (c=33) in the main index page structure
       final audiobooksCategory = document.querySelector('#c-33');
       if (audiobooksCategory != null) {
-        // Extract forums from the audiobooks category table
-        final forumTable = audiobooksCategory.querySelector('table.forums');
-        if (forumTable != null) {
-          final rows = forumTable.querySelectorAll('tr');
-          for (final row in rows) {
-            final forumLink = row.querySelector('h4.forumlink a');
-            if (forumLink != null) {
-              final forumName = forumLink.text.trim();
-              final forumUrl = forumLink.attributes['href'] ?? '';
-              final forumId = _extractForumId(forumUrl);
+        // Extract forums from the category table
+        final forumRows = audiobooksCategory.querySelectorAll('tr[id^="f-"]');
+        
+        for (final row in forumRows) {
+          final forumLink = row.querySelector('h4.forumlink a');
+          if (forumLink != null) {
+            final forumName = forumLink.text.trim();
+            final forumUrl = forumLink.attributes['href'] ?? '';
+            final forumId = row.id.replaceFirst('f-', '');
 
-              // Skip unwanted forums (news, announcements, discussions)
-              if (forumId.isNotEmpty && !_shouldIgnoreForum(forumName)) {
-                categories.add(AudiobookCategory(
-                  id: forumId,
-                  name: forumName,
-                  url: forumUrl,
-                  subcategories: await _parseSubcategories(row),
-                ));
-              }
+            // Skip unwanted forums (news, announcements, discussions)
+            if (forumId.isNotEmpty && !_shouldIgnoreForum(forumName)) {
+              categories.add(AudiobookCategory(
+                id: forumId,
+                name: forumName,
+                url: forumUrl,
+                subcategories: await _parseSubcategories(row),
+              ));
             }
           }
         }
@@ -95,31 +92,29 @@ class CategoryParser {
   Future<List<AudiobookCategory>> _parseSubcategories(Element row) async {
     final subcategories = <AudiobookCategory>[];
     
-    // Look for subcategory links (usually in nested tables or lists)
-    final subcategoryLinks = row.querySelectorAll('a.subforum');
-    for (final link in subcategoryLinks) {
-      final name = link.text.trim();
-      final url = link.attributes['href'] ?? '';
-      final id = _extractCategoryId(url);
+    // Look for subcategory links in the subforums section
+    final subforumsElement = row.querySelector('.subforums');
+    if (subforumsElement != null) {
+      final subforumLinks = subforumsElement.querySelectorAll('a');
+      
+      for (final link in subforumLinks) {
+        final name = link.text.trim();
+        final url = link.attributes['href'] ?? '';
+        final id = _extractForumId(url);
 
-      if (id.isNotEmpty && !_shouldIgnoreCategory(name)) {
-        subcategories.add(AudiobookCategory(
-          id: id,
-          name: name,
-          url: url,
-        ));
+        if (id.isNotEmpty && !_shouldIgnoreCategory(name)) {
+          subcategories.add(AudiobookCategory(
+            id: id,
+            name: name,
+            url: url,
+          ));
+        }
       }
     }
 
     return subcategories;
   }
 
-  /// Extracts category ID from URL.
-  String _extractCategoryId(String url) {
-    final regex = RegExp(r'c=(\d+)');
-    final match = regex.firstMatch(url);
-    return match?.group(1) ?? '';
-  }
 
   /// Extracts forum ID from URL.
   String _extractForumId(String url) {
@@ -174,17 +169,20 @@ class CategoryParser {
       final document = parser.parse(decodedHtml);
       final topics = <Map<String, dynamic>>[];
 
-      // Find topic rows in the forum table
-      final topicRows = document.querySelectorAll('tr:has(.torTopic)');
+      // Find topic rows in the forum table using actual RuTracker structure
+      final topicRows = document.querySelectorAll('tr.hl-tr');
       
       for (final row in topicRows) {
-        final topicLink = row.querySelector('a.torTopic');
-        final authorLink = row.querySelector('a[href*="profile.php"]');
-        final sizeElement = row.querySelector('td:has(.small)');
-        final seedersElement = row.querySelector('td.seedmed, td.seedmed b');
-        final leechersElement = row.querySelector('td.leechmed, td.leechmed b');
+        final topicLink = row.querySelector('a.torTopic.tt-text');
+        final authorLink = row.querySelector('.topicAuthor');
+        final sizeElement = row.querySelector('a.f-dl.dl-stub');
+        final seedersElement = row.querySelector('span.seedmed b');
+        final leechersElement = row.querySelector('span.leechmed b');
+        final downloadsElement = row.querySelector('p.med[title*="Торрент скачан"] b');
 
         if (topicLink != null) {
+          final topicId = row.attributes['data-topic_id'] ?? _extractTopicId(topicLink.attributes['href'] ?? '');
+          
           final topic = {
             'title': topicLink.text.trim(),
             'url': topicLink.attributes['href'] ?? '',
@@ -192,7 +190,9 @@ class CategoryParser {
             'size': sizeElement?.text.trim() ?? '',
             'seeders': int.tryParse(seedersElement?.text.trim() ?? '0') ?? 0,
             'leechers': int.tryParse(leechersElement?.text.trim() ?? '0') ?? 0,
-            'id': _extractTopicId(topicLink.attributes['href'] ?? ''),
+            'downloads': int.tryParse(downloadsElement?.text.trim() ?? '0') ?? 0,
+            'id': topicId,
+            'added_date': _extractDateFromTopicRow(row),
           };
           topics.add(topic);
         }
@@ -210,4 +210,31 @@ class CategoryParser {
     final match = regex.firstMatch(url);
     return match?.group(1) ?? '';
   }
+}
+
+// Helper method to extract date from topic row
+DateTime _extractDateFromTopicRow(Element row) {
+  final dateElement = row.querySelector('.small');
+  if (dateElement != null) {
+    try {
+      final dateText = dateElement.text.trim();
+      final dateMatch = RegExp(r'(\d{2}-\w{3}-\d{2})').firstMatch(dateText);
+      if (dateMatch != null) {
+        return DateTime.parse('20${dateMatch.group(1)!.split('-')[2]}-'
+            '${_monthToNumber(dateMatch.group(1)!.split('-')[1])}-'
+            '${dateMatch.group(1)!.split('-')[0]}');
+      }
+    } on Exception {
+      // Fallback to current date
+    }
+  }
+  return DateTime.now();
+}
+
+int _monthToNumber(String month) {
+  const months = {
+    'янв': 1, 'фев': 2, 'мар': 3, 'апр': 4, 'май': 5, 'июн': 6,
+    'июл': 7, 'авг': 8, 'сен': 9, 'окт': 10, 'ноя': 11, 'дек': 12
+  };
+  return months[month.toLowerCase()] ?? 1;
 }

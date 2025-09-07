@@ -3,7 +3,6 @@ import 'package:dio/dio.dart';
 import 'package:dio_cookie_manager/dio_cookie_manager.dart';
 import 'package:flutter/material.dart';
 import 'package:jabook/core/auth/credential_manager.dart';
-import 'package:jabook/core/endpoints/url_constants.dart';
 import 'package:jabook/core/errors/failures.dart';
 import 'package:jabook/core/net/dio_client.dart';
 import 'package:webview_flutter/webview_flutter.dart';
@@ -14,10 +13,10 @@ class RuTrackerUrls {
   RuTrackerUrls._();
 
   /// Gets the URL for the RuTracker login page.
-  static String get login => UrlConstants.getLoginUrl('https://rutracker.org');
+  static String get login => 'https://rutracker.me/forum/login.php';
 
   /// Gets the URL for the RuTracker profile page (used to verify auth state).
-  static String get profile => UrlConstants.getProfileUrl('https://rutracker.org');
+  static String get profile => 'https://rutracker.me/forum/profile.php';
 
   /// Profile endpoint path (relative to base URL).
   static const String profilePath = '/forum/profile.php';

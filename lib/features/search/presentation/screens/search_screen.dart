@@ -6,7 +6,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:jabook/core/cache/rutracker_cache_service.dart';
 import 'package:jabook/core/endpoints/endpoint_provider.dart';
-import 'package:jabook/core/endpoints/url_constants.dart';
 import 'package:jabook/core/net/dio_client.dart';
 import 'package:jabook/core/parse/rutracker_parser.dart';
 import 'package:jabook/l10n/app_localizations.dart';
@@ -81,7 +80,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       final activeEndpoint = await endpointManager.getActiveEndpoint();
       final dio = await DioClient.instance;
       final response = await dio.get(
-        UrlConstants.getSearchUrl(activeEndpoint),
+        '$activeEndpoint/forum/search.php',
         queryParameters: {
           'nm': query,
           'o': '1', // Sort by relevance

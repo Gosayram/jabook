@@ -1,49 +1,77 @@
-/// Constants for RuTracker URL paths and endpoints.
-///
-/// This class provides centralized URL constants to avoid hardcoded values
-/// throughout the codebase and ensure consistency.
-class UrlConstants {
-  /// Private constructor to prevent instantiation.
-  UrlConstants._();
-
-  /// Base path for forum endpoints.
-  static const String forumBasePath = '/forum';
-
-  /// Search endpoint path.
-  static const String searchPath = '$forumBasePath/tracker.php';
-
-  /// Topic view endpoint path.
-  static const String topicViewPath = '$forumBasePath/viewtopic.php';
-
-  /// Login endpoint path.
-  static const String loginPath = '$forumBasePath/login.php';
-
-  /// Logout endpoint path.
-  static const String logoutPath = '$forumBasePath/logout.php';
-
-  /// Profile endpoint path.
-  static const String profilePath = '$forumBasePath/profile.php';
-
-  /// Download endpoint path.
-  static const String downloadPath = '$forumBasePath/dl.php';
-
-  /// Gets the full search URL by combining base URL with search path.
-  static String getSearchUrl(String baseUrl) => '$baseUrl$searchPath';
-
-  /// Gets the full topic view URL by combining base URL with topic path and ID.
-  static String getTopicViewUrl(String baseUrl, String topicId) => 
-      '$baseUrl$topicViewPath?t=$topicId';
-
-  /// Gets the full download URL by combining base URL with download path and ID.
-  static String getDownloadUrl(String baseUrl, String torrentId) => 
-      '$baseUrl$downloadPath?id=$torrentId';
-
-  /// Gets the full login URL by combining base URL with login path.
-  static String getLoginUrl(String baseUrl) => '$baseUrl$loginPath';
-
-  /// Gets the full logout URL by combining base URL with logout path.
-  static String getLogoutUrl(String baseUrl) => '$baseUrl$logoutPath';
-
-  /// Gets the full profile URL by combining base URL with profile path.
-  static String getProfileUrl(String baseUrl) => '$baseUrl$profilePath';
+/// URL constants for RuTracker endpoints
+class RuTrackerUrls {
+  /// Private constructor to prevent instantiation
+  RuTrackerUrls._();
+  
+  /// Base URL for RuTracker forum
+  static const String base = 'https://rutracker.me/forum';
+  
+  /// Main index page URL
+  static const String index = '$base/index.php';
+  
+  /// Tracker page URL
+  static const String tracker = '$base/tracker.php';
+  
+  /// Search page URL
+  static const String search = '$base/search.php';
+  
+  /// Forum view page URL
+  static const String viewForum = '$base/viewforum.php';
+  
+  /// Topic view page URL
+  static const String viewTopic = '$base/viewtopic.php';
+  
+  /// Login page URL
+  static const String login = '$base/login.php';
+  
+  /// Download page URL
+  static const String download = '$base/dl.php';
+  
+  /// Audiobooks category URL (c=33)
+  static const String audiobooksCategory = '$index?c=33';
+  
+  /// Radiospektakli category URL (f=574)
+  static const String radiospektakli = '$viewForum?f=574';
+  
+  /// Biographies category URL (f=1036)
+  static const String biographies = '$viewForum?f=1036';
+  
+  /// History category URL (f=400)
+  static const String history = '$viewForum?f=400';
+  
+  /// Atom feed URL for RuTracker
+  static const String atomFeed = 'https://feed.rutracker.cc/atom/f';
+  
+  /// OpenSearch URL for RuTracker
+  static const String opensearch = 'https://static.rutracker.cc/opensearch.xml';
+  
+  /// Builds category URL with forum ID
+  static String categoryUrl(String forumId) => '$viewForum?f=$forumId';
+  
+  /// Builds topic URL with topic ID
+  static String topicUrl(String topicId) => '$viewTopic?t=$topicId';
+  
+  /// Builds download URL with topic ID
+  static String downloadUrl(String topicId) => '$download?t=$topicId';
+  
+  /// Builds search URL with query and parameters
+  static String searchUrl(String query, {String? forumId, int start = 0}) {
+    final params = {
+      'nm': query,
+      if (forumId != null) 'f': forumId,
+      if (start > 0) 'start': start.toString(),
+    };
+    
+    final queryString = params.entries
+        .map((e) => '${e.key}=${Uri.encodeComponent(e.value)}')
+        .join('&');
+    
+    return '$search?$queryString';
+  }
+  
+  /// Builds paginated forum URL
+  static String paginatedForumUrl(String forumId, int page, {int perPage = 50}) {
+    final start = (page - 1) * perPage;
+    return '$viewForum?f=$forumId&start=$start';
+  }
 }

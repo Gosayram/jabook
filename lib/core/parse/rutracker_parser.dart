@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:html/dom.dart';
 import 'package:html/parser.dart' as parser;
 import 'package:jabook/core/errors/failures.dart';
 import 'package:windows1251/windows1251.dart';
@@ -122,32 +123,39 @@ class RuTrackerParser {
       final document = parser.parse(decodedHtml);
       final results = <Audiobook>[];
 
-      // TODO: Implement actual parsing logic based on RuTracker HTML structure
-      // Placeholder implementation
-      final rows = document.querySelectorAll('tr');
+      // Parse actual RuTracker topic rows structure
+      final topicRows = document.querySelectorAll('tr.hl-tr');
+      
+      for (final row in topicRows) {
+        final topicId = row.attributes['data-topic_id'];
+        final titleElement = row.querySelector('a.torTopic.tt-text');
+        final authorElement = row.querySelector('.topicAuthor');
+        final sizeElement = row.querySelector('a.f-dl.dl-stub');
+        final seedersElement = row.querySelector('span.seedmed b');
+        final leechersElement = row.querySelector('span.leechmed b');
+        final magnetElement = row.querySelector('a[href^="dl.php?t="]');
 
-      for (final row in rows) {
-        // Extract audiobook information from table rows
-        // This needs to be adapted to actual RuTracker HTML structure
-        final titleElement = row.querySelector('a.title');
-        final authorElement = row.querySelector('span.author');
-        final sizeElement = row.querySelector('span.size');
-        final seedersElement = row.querySelector('span.seeders');
-        final leechersElement = row.querySelector('span.leechers');
-        final magnetElement = row.querySelector('a[href^="magnet:"]');
+        if (titleElement != null && topicId != null) {
+          // Extract size from download link text (e.g., "40 MB")
+          final sizeText = sizeElement?.text.trim() ?? '0 MB';
+          
+          // Extract magnet URL from download link
+          final magnetUrl = magnetElement != null
+              ? 'magnet:?xt=urn:btih:${_extractInfoHashFromUrl(magnetElement.attributes['href'])}'
+              : '';
 
-        if (titleElement != null && magnetElement != null) {
           final audiobook = Audiobook(
-            id: row.attributes['id'] ?? '',
+            id: topicId,
             title: titleElement.text.trim(),
             author: authorElement?.text.trim() ?? 'Unknown',
-            category: 'Unknown',
-            size: sizeElement?.text.trim() ?? '0 MB',
+            category: _extractCategoryFromTitle(titleElement.text),
+            size: sizeText,
             seeders: int.tryParse(seedersElement?.text.trim() ?? '0') ?? 0,
             leechers: int.tryParse(leechersElement?.text.trim() ?? '0') ?? 0,
-            magnetUrl: magnetElement.attributes['href'] ?? '',
+            magnetUrl: magnetUrl,
+            coverUrl: _extractCoverUrl(row),
             chapters: [],
-            addedDate: DateTime.now(),
+            addedDate: _extractDateFromRow(row),
           );
           results.add(audiobook);
         }
@@ -183,62 +191,133 @@ class RuTrackerParser {
 
       final document = parser.parse(decodedHtml);
 
-      // TODO: Implement actual parsing logic based on RuTracker topic HTML structure
-      // Placeholder implementation
-      final titleElement = document.querySelector('h1.title');
-      final authorElement = document.querySelector('span.author');
-      final coverElement = document.querySelector('img.cover');
-      final chaptersElement = document.querySelector('div.chapters');
-
-      if (titleElement == null) {
+      // Parse actual RuTracker topic page structure
+      final titleElement = document.querySelector('h1.maintitle');
+      final postBody = document.querySelector('.post-body');
+      
+      if (titleElement == null || postBody == null) {
         return null;
       }
 
+      // Extract metadata from post content
+      final authorElement = postBody.querySelector('a[href*="profile.php"]');
+      final sizeMatch = RegExp(r'Размер[:\s]*([\d.,]+\s*[KMGT]?B)').firstMatch(postBody.text);
+      final seedersMatch = RegExp(r'Сиды[:\s]*(\d+)').firstMatch(postBody.text);
+      final leechersMatch = RegExp(r'Личи[:\s]*(\d+)').firstMatch(postBody.text);
+      
+      // Extract magnet link from download buttons
+      final magnetElement = document.querySelector('a[href^="dl.php?t="]');
+      final coverElement = document.querySelector('img.postimg');
+
       final chapters = <Chapter>[];
-      if (chaptersElement != null) {
-        // Parse chapters from the chapters section
-        // This needs to be adapted to actual RuTracker HTML structure
-        final chapterRows = chaptersElement.querySelectorAll('tr');
-        for (final row in chapterRows) {
-          final title = row.querySelector('td.title')?.text.trim() ?? '';
-          final duration = row.querySelector('td.duration')?.text.trim() ?? '0:00';
-          final fileIndex = int.tryParse(row.querySelector('td.file')?.text.trim() ?? '0') ?? 0;
-
-          // Parse duration (e.g., "1:23:45" to milliseconds)
-          final durationParts = duration.split(':');
-          var durationMs = 0;
-          if (durationParts.length == 3) {
-            durationMs = (int.parse(durationParts[0]) * 3600 +
-                    int.parse(durationParts[1]) * 60 +
-                    int.parse(durationParts[2])) *
-                1000;
-          }
-
-          chapters.add(Chapter(
-            title: title,
-            durationMs: durationMs,
-            fileIndex: fileIndex,
-            startByte: 0,
-            endByte: 0,
-          ));
+      // Try to parse chapters from description (common pattern)
+      final chapterMatches = RegExp(r'(\d+[.:]\s*[^\n]+?)\s*\(?(\d+:\d+(?::\d+)?)\)?').allMatches(postBody.text);
+      for (final match in chapterMatches) {
+        final title = match.group(1)?.trim() ?? '';
+        final duration = match.group(2)?.trim() ?? '0:00';
+        
+        final durationParts = duration.split(':');
+        var durationMs = 0;
+        if (durationParts.length == 2) {
+          durationMs = (int.parse(durationParts[0]) * 60 + int.parse(durationParts[1])) * 1000;
+        } else if (durationParts.length == 3) {
+          durationMs = (int.parse(durationParts[0]) * 3600 +
+                  int.parse(durationParts[1]) * 60 +
+                  int.parse(durationParts[2])) *
+              1000;
         }
+
+        chapters.add(Chapter(
+          title: title,
+          durationMs: durationMs,
+          fileIndex: 0,
+          startByte: 0,
+          endByte: 0,
+        ));
       }
 
       return Audiobook(
-        id: document.querySelector('meta[name="topic-id"]')?.attributes['content'] ?? '',
+        id: _extractTopicIdFromUrl(document.documentElement?.outerHtml ?? ''),
         title: titleElement.text.trim(),
         author: authorElement?.text.trim() ?? 'Unknown',
-        category: 'Unknown',
-        size: '0 MB',
-        seeders: 0,
-        leechers: 0,
-        magnetUrl: '',
+        category: _extractCategoryFromTitle(titleElement.text),
+        size: sizeMatch?.group(1)?.trim() ?? '0 MB',
+        seeders: int.tryParse(seedersMatch?.group(1) ?? '0') ?? 0,
+        leechers: int.tryParse(leechersMatch?.group(1) ?? '0') ?? 0,
+        magnetUrl: magnetElement != null
+            ? 'magnet:?xt=urn:btih:${_extractInfoHashFromUrl(magnetElement.attributes['href'])}'
+            : '',
         coverUrl: coverElement?.attributes['src'],
         chapters: chapters,
-        addedDate: DateTime.now(),
+        addedDate: _extractDateFromPost(postBody),
       );
     } on Exception {
       throw const ParsingFailure('Failed to parse topic details');
     }
   }
+}
+
+// Helper methods for parsing
+String _extractInfoHashFromUrl(String? url) {
+  if (url == null) return '';
+  final match = RegExp(r't=(\d+)').firstMatch(url);
+  return match?.group(1) ?? '';
+}
+
+String _extractCategoryFromTitle(String title) {
+  if (title.toLowerCase().contains('радиоспектакль')) return 'Радиоспектакль';
+  if (title.toLowerCase().contains('аудиокнига')) return 'Аудиокнига';
+  if (title.toLowerCase().contains('биография')) return 'Биография';
+  if (title.toLowerCase().contains('мемуары')) return 'Мемуары';
+  if (title.toLowerCase().contains('история')) return 'История';
+  return 'Другое';
+}
+
+String? _extractCoverUrl(Element row) {
+  final imgElement = row.querySelector('img[src*="static.rutracker"]');
+  return imgElement?.attributes['src'];
+}
+
+DateTime _extractDateFromRow(Element row) {
+  final dateElement = row.querySelector('.small');
+  if (dateElement != null) {
+    try {
+      final dateText = dateElement.text.trim();
+      final dateMatch = RegExp(r'(\d{2}-\w{3}-\d{2})').firstMatch(dateText);
+      if (dateMatch != null) {
+        return DateTime.parse('20${dateMatch.group(1)!.split('-')[2]}-'
+            '${_monthToNumber(dateMatch.group(1)!.split('-')[1])}-'
+            '${dateMatch.group(1)!.split('-')[0]}');
+      }
+    } on Exception {
+      // Fallback to current date
+    }
+  }
+  return DateTime.now();
+}
+
+DateTime _extractDateFromPost(Element postBody) {
+  final dateMatch = RegExp(r'Добавлено[:\s]*(\d{2}\.\d{2}\.\d{4})').firstMatch(postBody.text);
+  if (dateMatch != null) {
+    try {
+      final parts = dateMatch.group(1)!.split('.');
+      return DateTime.parse('${parts[2]}-${parts[1]}-${parts[0]}');
+    } on Exception {
+      // Fallback
+    }
+  }
+  return DateTime.now();
+}
+
+String _extractTopicIdFromUrl(String url) {
+  final match = RegExp(r't=(\d+)').firstMatch(url);
+  return match?.group(1) ?? '';
+}
+
+int _monthToNumber(String month) {
+  const months = {
+    'янв': 1, 'фев': 2, 'мар': 3, 'апр': 4, 'май': 5, 'июн': 6,
+    'июл': 7, 'авг': 8, 'сен': 9, 'окт': 10, 'ноя': 11, 'дек': 12
+  };
+  return months[month.toLowerCase()] ?? 1;
 }
