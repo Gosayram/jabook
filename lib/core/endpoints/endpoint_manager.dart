@@ -61,11 +61,23 @@ class EndpointManager {
 
     try {
       final startTime = DateTime.now();
-      final response = await (await DioClient.instance).head(
+      final response = await (await DioClient.instance).get(
         endpoint,
         options: Options(
-          receiveTimeout: const Duration(seconds: 5), // Shorter timeout for health checks
+          receiveTimeout: const Duration(seconds: 10), // Longer timeout for CloudFlare
           validateStatus: (status) => status != null && status < 500,
+          headers: {
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.5',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Connection': 'keep-alive',
+            'Upgrade-Insecure-Requests': '1',
+            'Sec-Fetch-Dest': 'document',
+            'Sec-Fetch-Mode': 'navigate',
+            'Sec-Fetch-Site': 'none',
+            'Sec-Fetch-User': '?1',
+            'Cache-Control': 'max-age=0',
+          },
         ),
       );
       final rtt = DateTime.now().difference(startTime).inMilliseconds;
