@@ -1,4 +1,5 @@
 import 'package:jabook/core/logging/environment_logger.dart';
+import 'package:jabook/core/net/cloudflare_utils.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sembast/sembast_io.dart';
 import 'package:webview_flutter/webview_flutter.dart';
@@ -22,9 +23,8 @@ class UserAgentManager {
   static const String _userAgentKey = 'user_agent';
 
   /// Default User-Agent string to use as fallback.
-  /// Updated to more recent Chrome mobile browser to bypass CloudFlare protection.
-  static const String _defaultUserAgent =
-      'Mozilla/5.0 (Linux; Android 13; SM-S911B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.6099.210 Mobile Safari/537.36';
+  /// Uses CloudFlare-compatible modern mobile browser User-Agent.
+  static String get _defaultUserAgent => CloudFlareUtils.getRandomMobileUserAgent();
 
   /// Database instance for storing User-Agent data.
   Database? _db;
@@ -72,10 +72,10 @@ class UserAgentManager {
     _db = await databaseFactoryIo.openDatabase(dbPath);
   }
 
-  /// Extracts User-Agent from WebView.
+  /// Extracts User-Agent from WebView using JavaScript execution.
   ///
-  /// Creates a temporary WebView to extract the User-Agent string
-  /// from the browser's navigator.userAgent property.
+  /// Creates a temporary WebView to extract the actual User-Agent string
+  /// from the browser's navigator.userAgent property via JavaScript.
   Future<String?> _extractUserAgentFromWebView() async {
     try {
       final controller = WebViewController();
@@ -83,23 +83,59 @@ class UserAgentManager {
       await controller.setJavaScriptMode(JavaScriptMode.unrestricted);
       
       String? userAgent;
+      var scriptExecuted = false;
       
       await controller.setNavigationDelegate(
         NavigationDelegate(
-          onPageFinished: (url) {
-            // For now, return a realistic mobile User-Agent
-            // In a real implementation, this would be extracted from JavaScript
-            userAgent = 'Mozilla/5.0 (Linux; Android 10; SM-G973F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.120 Mobile Safari/537.36';
+          onPageFinished: (url) async {
+            if (!scriptExecuted) {
+              try {
+                // Execute JavaScript to get the actual User-Agent
+                final extractedUa = await controller.runJavaScriptReturningResult(
+                  'navigator.userAgent'
+                ) as String?;
+                
+                if (extractedUa != null && extractedUa.isNotEmpty) {
+                  userAgent = extractedUa;
+                } else {
+                  // Fallback to CloudFlare-compatible User-Agent
+                  userAgent = CloudFlareUtils.getRandomMobileUserAgent();
+                }
+              } on Exception {
+                // If JavaScript execution fails, use CloudFlare-compatible User-Agent
+                userAgent = CloudFlareUtils.getRandomMobileUserAgent();
+              }
+              scriptExecuted = true;
+            }
           },
         ),
       );
 
-      // Load a blank page to get the User-Agent
-      await controller.loadRequest(Uri.parse('about:blank'));
+      // Load a simple page to ensure JavaScript execution
+      await controller.loadHtmlString(
+        '''
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        </head>
+        <body>
+            <script>
+                // Simple page to ensure User-Agent extraction works
+            </script>
+        </body>
+        </html>
+        '''
+      );
+      
+      // Wait for User-Agent extraction with timeout
+      await Future.delayed(const Duration(seconds: 2));
       
       return userAgent;
     } on Exception {
-      return null;
+      // Fallback to CloudFlare-compatible User-Agent
+      return CloudFlareUtils.getRandomMobileUserAgent();
     }
   }
 

@@ -2,6 +2,8 @@ import 'package:cookie_jar/cookie_jar.dart';
 import 'package:dio/dio.dart';
 import 'package:dio_cookie_manager/dio_cookie_manager.dart';
 import 'package:jabook/core/logging/structured_logger.dart';
+import 'package:jabook/core/net/cloudflare_turnstile_service.dart';
+import 'package:jabook/core/net/cloudflare_utils.dart';
 import 'package:jabook/core/net/user_agent_manager.dart';
 
 /// HTTP client for making requests to RuTracker APIs.
@@ -25,6 +27,9 @@ class DioClient {
     
     // Apply User-Agent from manager
     await userAgentManager.applyUserAgentToDio(dio);
+    
+    // Apply CloudFlare-specific headers
+    CloudFlareUtils.applyCloudFlareHeaders(dio);
     
     dio.options = BaseOptions(
       connectTimeout: const Duration(seconds: 30),
@@ -96,6 +101,53 @@ class DioClient {
         return handler.next(response);
       },
       onError: (error, handler) async {
+        // Handle CloudFlare-specific errors
+        if (error.response != null && CloudFlareUtils.isCloudFlareProtected(error.response!)) {
+          final turnstileService = CloudflareTurnstileService();
+          
+          // Check if this is a Turnstile challenge
+          final htmlContent = error.response!.data.toString();
+          final isTurnstileChallenge = await turnstileService.isTurnstileChallengePresent(htmlContent);
+          
+          if (isTurnstileChallenge) {
+            // Handle Turnstile challenge
+            try {
+              final turnstileParams = await turnstileService.handleTurnstileProtection(htmlContent);
+              if (turnstileParams != null) {
+                // Retry with Turnstile solution
+                await Future.delayed(const Duration(seconds: 2));
+                
+                final newOptions = error.requestOptions.copyWith(
+                  headers: {
+                    ...error.requestOptions.headers,
+                    ...turnstileParams,
+                  },
+                );
+                
+                return handler.resolve(await dio.fetch(newOptions));
+              }
+            } on Exception {
+              // Fall through to regular CloudFlare handling
+            }
+          }
+          
+          // Regular CloudFlare protection handling
+          final retryCount = error.requestOptions.extra['cloudflareRetryCount'] ?? 0;
+          if (retryCount < 2) {
+            await Future.delayed(Duration(seconds: 2 + retryCount as int));
+            
+            // Rotate User-Agent for retry
+            final userAgentManager = UserAgentManager();
+            await userAgentManager.applyUserAgentToDio(dio);
+            
+            final newOptions = error.requestOptions.copyWith(
+              extra: {...error.requestOptions.extra, 'cloudflareRetryCount': retryCount + 1},
+            );
+            
+            return handler.resolve(await dio.fetch(newOptions));
+          }
+        }
+        
         // Add retry logic for temporary network issues
         if (error.type == DioExceptionType.connectionTimeout ||
             error.type == DioExceptionType.receiveTimeout ||
