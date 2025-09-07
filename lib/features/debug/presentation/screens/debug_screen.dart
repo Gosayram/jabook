@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:jabook/core/cache/rutracker_cache_service.dart';
-// import 'package:jabook/core/endpoints/endpoint_manager.dart';
+import 'package:jabook/core/endpoints/endpoint_manager.dart';
 import 'package:jabook/core/logging/environment_logger.dart';
 import 'package:jabook/core/logging/structured_logger.dart';
 import 'package:jabook/core/torrent/audiobook_torrent_manager.dart';
@@ -25,7 +25,7 @@ class DebugScreen extends ConsumerStatefulWidget {
 
 class _DebugScreenState extends ConsumerState<DebugScreen> with SingleTickerProviderStateMixin {
   late EnvironmentLogger _logger;
-  // late EndpointManager _endpointManager;
+  late EndpointManager _endpointManager;
   late AudiobookTorrentManager _torrentManager;
   late RuTrackerCacheService _cacheService;
 
@@ -39,8 +39,7 @@ class _DebugScreenState extends ConsumerState<DebugScreen> with SingleTickerProv
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
-    _initializeServices();
-    _loadDebugData();
+    _initializeServices().then((_) => _loadDebugData());
   }
 
   @override
@@ -49,11 +48,14 @@ class _DebugScreenState extends ConsumerState<DebugScreen> with SingleTickerProv
     super.dispose();
   }
 
-  void _initializeServices() {
+  Future<void> _initializeServices() async {
     _logger = EnvironmentLogger();
     _torrentManager = AudiobookTorrentManager();
     _cacheService = RuTrackerCacheService();
-    // EndpointManager will be initialized when needed
+    // Initialize EndpointManager with database
+    final appDatabase = AppDatabase();
+    await appDatabase.initialize();
+    _endpointManager = EndpointManager(appDatabase.database);
   }
 
   Future<void> _loadDebugData() async {
@@ -98,25 +100,15 @@ class _DebugScreenState extends ConsumerState<DebugScreen> with SingleTickerProv
 
   Future<void> _loadMirrors() async {
     try {
-      // Use default endpoints instead of database for now
-      final defaultEndpoints = [
-        {'url': 'https://rutracker.org', 'priority': 1, 'enabled': true, 'last_ok': DateTime.now().toIso8601String(), 'rtt': 150},
-        {'url': 'https://rutracker.net', 'priority': 2, 'enabled': true, 'last_ok': DateTime.now().toIso8601String(), 'rtt': 200},
-        {'url': 'https://rutracker.nl', 'priority': 3, 'enabled': true, 'last_ok': DateTime.now().toIso8601String(), 'rtt': 180},
-        {'url': 'https://rutracker.me', 'priority': 4, 'enabled': false, 'last_ok': null, 'rtt': null},
-      ];
-      
+      final mirrors = await _endpointManager.getAllEndpointsWithHealth();
       setState(() {
-        _mirrors = defaultEndpoints;
+        _mirrors = mirrors;
       });
     } on Exception catch (e) {
       _logger.e('Failed to load mirrors: $e');
-      // Fallback to placeholder mirrors
+      // Fallback to empty list
       setState(() {
-        _mirrors = [
-          {'url': 'https://rutracker.org', 'priority': 1, 'enabled': true, 'last_ok': DateTime.now().toIso8601String(), 'rtt': 150},
-          {'url': 'https://rutracker.net', 'priority': 2, 'enabled': true, 'last_ok': DateTime.now().toIso8601String(), 'rtt': 200},
-        ];
+        _mirrors = [];
       });
     }
   }
@@ -201,46 +193,25 @@ class _DebugScreenState extends ConsumerState<DebugScreen> with SingleTickerProv
     final localizations = AppLocalizations.of(context);
     final scaffoldMessenger = ScaffoldMessenger.of(context);
     try {
-      // Simulate health check for all mirrors
-      final updatedMirrors = _mirrors.map((mirror) {
-        final url = mirror['url'] as String?;
-        if (url != null && url.contains('rutracker.org')) {
-          return {
-            ...mirror,
-            'enabled': true,
-            'last_ok': DateTime.now().toIso8601String(),
-            'rtt': 150 + DateTime.now().millisecond % 100,
-          };
-        } else if (url != null && url.contains('rutracker.net')) {
-          return {
-            ...mirror,
-            'enabled': true,
-            'last_ok': DateTime.now().toIso8601String(),
-            'rtt': 200 + DateTime.now().millisecond % 100,
-          };
-        } else {
-          return {
-            ...mirror,
-            'enabled': false,
-            'last_ok': null,
-            'rtt': null,
-          };
-        }
-      }).toList();
+      // Test all mirrors using EndpointManager
+      final mirrors = await _endpointManager.getAllEndpoints();
+      for (final mirror in mirrors) {
+        final url = mirror['url'] as String;
+        await _endpointManager.healthCheck(url);
+      }
       
-      setState(() {
-        _mirrors = updatedMirrors;
-      });
+      // Reload updated mirror status
+      await _loadMirrors();
       
       if (!mounted) return;
       scaffoldMessenger.showSnackBar(
         SnackBar(content: Text(localizations?.mirrorHealthCheckCompleted ?? 'Mirror health check completed')),
       );
     } on Exception catch (e) {
-      _logger.e('${AppLocalizations.of(context)?.failedToExportLogs ?? 'Failed to test mirrors'}: $e');
+      _logger.e('${localizations?.failedToExportLogs ?? 'Failed to test mirrors'}: $e');
       if (!mounted) return;
       scaffoldMessenger.showSnackBar(
-        SnackBar(content: Text('${AppLocalizations.of(context)?.failedToExportLogs ?? 'Failed to test mirrors'}: $e')),
+        SnackBar(content: Text('${localizations?.failedToExportLogs ?? 'Failed to test mirrors'}: $e')),
       );
     }
   }

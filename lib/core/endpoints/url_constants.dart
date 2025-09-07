@@ -1,9 +1,11 @@
+import 'package:jabook/core/constants/category_constants.dart';
+
 /// URL constants for RuTracker endpoints
 class RuTrackerUrls {
   /// Private constructor to prevent instantiation
   RuTrackerUrls._();
-  
-  /// Base URL for RuTracker forum
+
+  /// Base URL for RuTracker forum (primary mirror)
   static const String base = 'https://rutracker.me/forum';
   
   /// Main index page URL
@@ -23,20 +25,23 @@ class RuTrackerUrls {
   
   /// Login page URL
   static const String login = '$base/login.php';
-  
+
+  /// Profile page URL
+  static const String profile = '$base/profile.php';
+
   /// Download page URL
   static const String download = '$base/dl.php';
   
-  /// Audiobooks category URL (c=33)
-  static const String audiobooksCategory = '$index?c=33';
-  
-  /// Radiospektakli category URL (f=574)
+  /// Audiobooks category URL
+  static const String audiobooksCategory = '$index?c=${CategoryConstants.audiobooksCategoryId}';
+
+  /// Radiospektakli category URL
   static const String radiospektakli = '$viewForum?f=574';
-  
-  /// Biographies category URL (f=1036)
+
+  /// Biographies category URL
   static const String biographies = '$viewForum?f=1036';
-  
-  /// History category URL (f=400)
+
+  /// History category URL
   static const String history = '$viewForum?f=400';
   
   /// Atom feed URL for RuTracker

@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:jabook/core/constants/category_constants.dart';
 import 'package:jabook/core/endpoints/url_constants.dart';
 import 'package:jabook/core/errors/failures.dart';
 import 'package:jabook/core/net/dio_client.dart';
@@ -31,7 +32,7 @@ class RuTrackerRepositoryImpl implements RuTrackerRepository {
       final dio = await DioClient.instance;
       
       // Build search URL with proper RuTracker parameters
-      final searchUrl = '${RuTrackerUrls.search}?nm=$query&f=33&start=${(page - 1) * 50}';
+      final searchUrl = '${RuTrackerUrls.search}?nm=$query&f=${CategoryConstants.audiobooksCategoryId}&start=${(page - 1) * CategoryConstants.searchResultsPerPage}';
       
       final response = await dio.get(
         searchUrl,
@@ -197,33 +198,21 @@ class RuTrackerRepositoryImpl implements RuTrackerRepository {
       );
       return _rutrackerService.parseSortingOptions(html);
     } on Exception {
-      return [
-        {'value': '0', 'label': 'Посл. сообщение'},
-        {'value': '1', 'label': 'Название темы'},
-        {'value': '2', 'label': 'Время размещения'},
-      ];
+      return CategoryConstants.defaultSortingOptions;
     }
   }
 
   // Helper methods
-  String _extractCategoryFromForumId(String forumId) {
-    const categoryMap = {
-      '574': 'Радиоспектакли',
-      '1036': 'Биографии и мемуары',
-      '400': 'История и философия',
-      '395': 'Новости и информация',
-      '2322': 'Общение и обсуждения',
-    };
-    return categoryMap[forumId] ?? 'Аудиокниги';
-  }
+  String _extractCategoryFromForumId(String forumId) =>
+      CategoryConstants.categoryNameMap[forumId] ?? CategoryConstants.defaultCategoryName;
 
   String _buildMagnetUrl(String topicId) =>
-      'magnet:?xt=urn:btih:$topicId&dn=RuTracker+Audiobook&tr=udp://tracker.opentrackr.org:1337/announce';
+      CategoryConstants.magnetUrlTemplate.replaceFirst('\$topicId', topicId);
 
   @override
   Future<List<Audiobook>> getFeaturedAudiobooks() async {
     // Get audiobooks from popular categories
-    final popularCategories = ['574', '1036', '400']; // Radiospektakli, Biographies, History
+    const popularCategories = CategoryConstants.popularCategoryIds;
     final featuredAudiobooks = <Audiobook>[];
     
     for (final categoryId in popularCategories) {
@@ -244,7 +233,7 @@ class RuTrackerRepositoryImpl implements RuTrackerRepository {
     try {
       // Get latest audiobooks from all categories
       final html = await _rutrackerService.fetchPage(
-        url: '${RuTrackerUrls.tracker}?f=33&tm=-1', // Sort by newest
+        url: '${RuTrackerUrls.tracker}?f=${CategoryConstants.audiobooksCategoryId}&${CategoryConstants.searchSortNewest}',
       );
       
       final results = await _parser.parseSearchResults(html);

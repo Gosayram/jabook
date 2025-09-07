@@ -32,8 +32,8 @@ class EndpointManager {
   Future<void> initializeDefaultEndpoints() async {
     final defaultEndpoints = [
       {'url': 'https://rutracker.me', 'priority': 1, 'enabled': true},
-      {'url': 'https://rutracker.net', 'priority': 2, 'enabled': true},
-      {'url': 'https://rutracker.org', 'priority': 3, 'enabled': true},
+      {'url': 'https://rutracker.org', 'priority': 2, 'enabled': true},
+      {'url': 'https://rutracker.net', 'priority': 3, 'enabled': true},
       {'url': 'https://rutracker.nl', 'priority': 4, 'enabled': true},
     ];
 

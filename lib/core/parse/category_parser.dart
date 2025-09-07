@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:html/dom.dart';
 import 'package:html/parser.dart' as parser;
+import 'package:jabook/core/constants/category_constants.dart';
 import 'package:jabook/core/errors/failures.dart';
 import 'package:windows1251/windows1251.dart';
 
@@ -57,7 +58,7 @@ class CategoryParser {
       final categories = <AudiobookCategory>[];
 
       // Find audiobooks category (c=33) in the main index page structure
-      final audiobooksCategory = document.querySelector('#c-33');
+      final audiobooksCategory = document.querySelector('#c-${CategoryConstants.audiobooksCategoryId}');
       if (audiobooksCategory != null) {
         // Extract forums from the category table
         final forumRows = audiobooksCategory.querySelectorAll('tr[id^="f-"]');
