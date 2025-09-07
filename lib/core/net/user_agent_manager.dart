@@ -1,3 +1,4 @@
+import 'package:jabook/core/logging/environment_logger.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sembast/sembast_io.dart';
 import 'package:webview_flutter/webview_flutter.dart';
@@ -112,9 +113,9 @@ class UserAgentManager {
         'user_agent': userAgent, 
         'updated_at': DateTime.now().toIso8601String(),
       });
-    } on Exception {
+    } on Exception catch (e) {
       // Log error but don't fail the operation
-      // TODO: Use proper logger instead of print
+      EnvironmentLogger().e('Failed to store user agent: $e');
     }
   }
 
@@ -138,9 +139,9 @@ class UserAgentManager {
       
       final store = StoreRef<String, Map<String, dynamic>>.main();
       await store.record(_userAgentKey).delete(_db!);
-    } on Exception {
+    } on Exception catch (e) {
       // Log error but don't fail the operation
-      // TODO: Use proper logger instead of print
+      EnvironmentLogger().e('Failed to clear user agent: $e');
     }
   }
 

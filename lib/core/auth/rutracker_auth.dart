@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:cookie_jar/cookie_jar.dart';
 import 'package:dio/dio.dart';
 import 'package:dio_cookie_manager/dio_cookie_manager.dart';
@@ -32,6 +33,10 @@ class RuTrackerAuth {
 
   /// Credential manager for secure storage.
   final CredentialManager _credentialManager = CredentialManager();
+
+  /// Controller for auth status changes
+  final StreamController<bool> _authStatusController =
+      StreamController<bool>.broadcast();
 
   /// Attempts to log in to RuTracker with the provided credentials.
   ///
@@ -87,7 +92,11 @@ class RuTrackerAuth {
         },
       );
 
-      return result ?? false;
+      final success = result ?? false;
+      if (success) {
+        _authStatusController.add(true);
+      }
+      return success;
     } on Exception catch (e) {
       throw AuthFailure('Login failed: ${e.toString()}');
     }
@@ -100,6 +109,7 @@ class RuTrackerAuth {
     try {
       await _cookieManager.clearCookies();
       await _cookieJar.deleteAll();
+      _authStatusController.add(false);
     } on Exception {
       throw const AuthFailure('Logout failed');
     }
@@ -145,6 +155,17 @@ class RuTrackerAuth {
     } on Exception {
       return false;
     }
+  }
+
+  /// Stream of authentication status changes
+  Stream<bool> get authStatusChanges => _authStatusController.stream;
+
+  /// Disposes the auth status controller.
+  ///
+  /// This method should be called when the auth instance is no longer needed
+  /// to prevent memory leaks.
+  void dispose() {
+    _authStatusController.close();
   }
 
   /// Attempts to login using stored credentials with optional biometric authentication.

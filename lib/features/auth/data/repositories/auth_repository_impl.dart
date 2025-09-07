@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:jabook/core/auth/rutracker_auth.dart';
 import 'package:jabook/features/auth/domain/entities/auth_status.dart';
 import 'package:jabook/features/auth/domain/repositories/auth_repository.dart';
@@ -43,14 +44,18 @@ class AuthRepositoryImpl implements AuthRepository {
     final loggedIn = await isLoggedIn();
     yield loggedIn ? AuthStatus.authenticated : AuthStatus.unauthenticated;
 
-    // TODO: Implement proper status streaming
-    // This would require adding status change notifications to RuTrackerAuth
+    // Listen for auth status changes
+    await for (final isAuthenticated in _auth.authStatusChanges) {
+      yield isAuthenticated
+          ? AuthStatus.authenticated
+          : AuthStatus.unauthenticated;
+    }
   }
 
   @override
   Future<void> refreshAuthStatus() async {
-    // This method would trigger a status check and update the stream
-    // For now, just check the status
+    // Just check the status - the stream will update automatically
+    // through auth status changes from RuTrackerAuth
     await isLoggedIn();
   }
 }
