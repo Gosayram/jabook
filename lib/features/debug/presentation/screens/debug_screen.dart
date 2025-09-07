@@ -305,21 +305,58 @@ class _DebugScreenState extends ConsumerState<DebugScreen> with SingleTickerProv
           itemBuilder: (context, index) {
             final mirror = _mirrors[index];
             final isActive = mirror['enabled'] == true;
+            final healthScore = mirror['health_score'] as int? ?? 0;
+            final healthStatus = mirror['health_status'] as String? ?? 'Unknown';
             final lastOk = mirror['last_ok'];
             final rtt = mirror['rtt'];
+            
+            // Determine actual status based on both enabled flag and health
+            final bool isActuallyActive;
+            final String statusText;
+            final Color statusColor;
+            
+            if (!isActive) {
+              isActuallyActive = false;
+              statusText = 'Disabled';
+              statusColor = Colors.red;
+            } else if (healthScore >= 60) {
+              isActuallyActive = true;
+              statusText = healthStatus;
+              statusColor = Colors.green;
+            } else if (healthScore >= 30) {
+              isActuallyActive = true;
+              statusText = 'Degraded';
+              statusColor = Colors.orange;
+            } else {
+              isActuallyActive = false;
+              statusText = 'Unhealthy';
+              statusColor = Colors.red;
+            }
 
             return Semantics(
               container: true,
               label: 'Mirror: ${mirror['url'] ?? 'Unknown'}, Status: ${isActive ? 'Active' : 'Disabled'}',
               child: Card(
                 margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                color: isActive ? Colors.green.shade50 : Colors.grey.shade200,
+                color: isActuallyActive ? Theme.of(context).colorScheme.surfaceContainerHighest : Theme.of(context).colorScheme.errorContainer,
                 child: ListTile(
-                  title: Text(mirror['url'] ?? 'Unknown'),
+                  title: Text(
+                    mirror['url'] ?? 'Unknown',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurface,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
                 subtitle: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('${localizations?.statusLabel ?? 'Status: '}${isActive ? localizations?.activeStatus ?? 'Active' : localizations?.disabledStatus ?? 'Disabled'}'),
+                    Text(
+                      '${localizations?.statusLabel ?? 'Status: '}$statusText',
+                      style: TextStyle(
+                        color: statusColor,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
                     if (lastOk != null) Text('${localizations?.lastOkLabel ?? 'Last OK: '}$lastOk'),
                     if (rtt != null) Text('${localizations?.rttLabel ?? 'RTT: '}$rtt${localizations?.milliseconds ?? 'ms'}'),
                   ],
@@ -328,7 +365,7 @@ class _DebugScreenState extends ConsumerState<DebugScreen> with SingleTickerProv
                     label: isActive ? 'Active mirror' : 'Disabled mirror',
                     child: Icon(
                       isActive ? Icons.check_circle : Icons.cancel,
-                      color: isActive ? Colors.green : Colors.red,
+                      color: statusColor,
                     ),
                   ),
                 ),

@@ -33,7 +33,7 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
 
     try {
       final endpointManager = ref.read(endpointManagerProvider);
-      final mirrors = await endpointManager.getAllEndpoints();
+      final mirrors = await endpointManager.getAllEndpointsWithHealth();
       // Sort mirrors by priority (ascending)
       mirrors.sort((a, b) => (a['priority'] as int).compareTo(b['priority'] as int));
       setState(() {
@@ -231,24 +231,35 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
   Widget _buildMirrorTile(Map<String, dynamic> mirror) {
     final url = mirror['url'] as String? ?? '';
     final enabled = mirror['enabled'] as bool? ?? false;
+    final healthScore = mirror['health_score'] as int? ?? 0;
+    final healthStatus = mirror['health_status'] as String? ?? 'Unknown';
     final priority = mirror['priority'] as int? ?? 5;
     final rtt = mirror['rtt'] as int?;
     final lastOk = mirror['last_ok'] as String?;
     final localizations = AppLocalizations.of(context);
 
-    // Determine status based on mirror properties
+    // Determine status based on mirror properties and health
     final String statusText;
     final Color statusColor;
     
-    if (enabled) {
-      statusText = localizations?.mirrorStatusActive ?? 'Active';
-      statusColor = Colors.green;
-    } else if (rtt != null) {
-      statusText = localizations?.mirrorStatusInactive ?? 'Inactive';
-      statusColor = Colors.orange;
-    } else {
+    if (!enabled) {
       statusText = localizations?.mirrorStatusDisabled ?? 'Disabled';
       statusColor = Colors.grey;
+    } else if (healthScore >= 80) {
+      statusText = healthStatus;
+      statusColor = Colors.green;
+    } else if (healthScore >= 60) {
+      statusText = healthStatus;
+      statusColor = Colors.green.shade600;
+    } else if (healthScore >= 40) {
+      statusText = 'Degraded';
+      statusColor = Colors.orange;
+    } else if (healthScore >= 20) {
+      statusText = 'Poor';
+      statusColor = Colors.orange.shade800;
+    } else {
+      statusText = 'Unhealthy';
+      statusColor = Colors.red;
     }
 
     return Card(
