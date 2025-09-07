@@ -306,4 +306,25 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get navDebug => 'Debug';
+
+  @override
+  String get mirrorStatusActive => 'Active';
+
+  @override
+  String get mirrorStatusInactive => 'Inactive';
+
+  @override
+  String get mirrorStatusDisabled => 'Disabled';
+
+  @override
+  String get mirrorTestIndividual => 'Test this mirror';
+
+  @override
+  String get mirrorDomainLabel => 'Domain';
+
+  @override
+  String get mirrorResponseTime => 'Response time';
+
+  @override
+  String get mirrorLastCheck => 'Last checked';
 }

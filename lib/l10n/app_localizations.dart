@@ -676,6 +676,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Debug'**
   String get navDebug;
+
+  /// Active mirror status text
+  ///
+  /// In en, this message translates to:
+  /// **'Active'**
+  String get mirrorStatusActive;
+
+  /// Inactive mirror status text
+  ///
+  /// In en, this message translates to:
+  /// **'Inactive'**
+  String get mirrorStatusInactive;
+
+  /// Disabled mirror status text
+  ///
+  /// In en, this message translates to:
+  /// **'Disabled'**
+  String get mirrorStatusDisabled;
+
+  /// Individual mirror test button text
+  ///
+  /// In en, this message translates to:
+  /// **'Test this mirror'**
+  String get mirrorTestIndividual;
+
+  /// Label for mirror domain
+  ///
+  /// In en, this message translates to:
+  /// **'Domain'**
+  String get mirrorDomainLabel;
+
+  /// Label for response time
+  ///
+  /// In en, this message translates to:
+  /// **'Response time'**
+  String get mirrorResponseTime;
+
+  /// Label for last check time
+  ///
+  /// In en, this message translates to:
+  /// **'Last checked'**
+  String get mirrorLastCheck;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

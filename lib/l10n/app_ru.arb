@@ -384,5 +384,33 @@
   "navDebug": "Отладка",
   "@navDebug": {
     "description": "Короткая метка навигации для отладки"
+  },
+  "mirrorStatusActive": "Активно",
+  "@mirrorStatusActive": {
+    "description": "Текст активного статуса зеркала"
+  },
+  "mirrorStatusInactive": "Неактивно",
+  "@mirrorStatusInactive": {
+    "description": "Текст неактивного статуса зеркала"
+  },
+  "mirrorStatusDisabled": "Отключено",
+  "@mirrorStatusDisabled": {
+    "description": "Текст отключенного статуса зеркала"
+  },
+  "mirrorTestIndividual": "Проверить это зеркало",
+  "@mirrorTestIndividual": {
+    "description": "Текст кнопки проверки отдельного зеркала"
+  },
+  "mirrorDomainLabel": "Домен",
+  "@mirrorDomainLabel": {
+    "description": "Метка для домена зеркала"
+  },
+  "mirrorResponseTime": "Время ответа",
+  "@mirrorResponseTime": {
+    "description": "Метка для времени ответа"
+  },
+  "mirrorLastCheck": "Последняя проверка",
+  "@mirrorLastCheck": {
+    "description": "Метка для времени последней проверки"
   }
 }

@@ -306,4 +306,25 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get navDebug => 'Отладка';
+
+  @override
+  String get mirrorStatusActive => 'Активно';
+
+  @override
+  String get mirrorStatusInactive => 'Неактивно';
+
+  @override
+  String get mirrorStatusDisabled => 'Отключено';
+
+  @override
+  String get mirrorTestIndividual => 'Проверить это зеркало';
+
+  @override
+  String get mirrorDomainLabel => 'Домен';
+
+  @override
+  String get mirrorResponseTime => 'Время ответа';
+
+  @override
+  String get mirrorLastCheck => 'Последняя проверка';
 }

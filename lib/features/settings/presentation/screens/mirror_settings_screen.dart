@@ -193,14 +193,17 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
                   padding: const EdgeInsets.all(16.0),
                   child: Text(
                     'Configure RuTracker mirrors for optimal search performance. Enabled mirrors will be used automatically.',
-                    style: Theme.of(context).textTheme.bodyMedium,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurface,
+                        ),
                     textAlign: TextAlign.center,
                   ),
                 ),
                 Expanded(
-                  child: ListView.builder(
+                  child: ListView.separated(
                     itemCount: _mirrors.length,
                     itemBuilder: (context, index) => _buildMirrorTile(_mirrors[index]),
+                    separatorBuilder: (context, index) => const SizedBox(height: 8),
                   ),
                 ),
                 Padding(
@@ -208,7 +211,16 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
                   child: ElevatedButton.icon(
                     onPressed: _addCustomMirror,
                     icon: const Icon(Icons.add),
-                    label: const Text('Add Custom Mirror'),
+                    label: Text(
+                      localizations?.mirrorsTab ?? 'Add Custom Mirror',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onPrimary,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Theme.of(context).colorScheme.primary,
+                      foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                    ),
                   ),
                 ),
               ],
@@ -222,65 +234,142 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
     final priority = mirror['priority'] as int? ?? 5;
     final rtt = mirror['rtt'] as int?;
     final lastOk = mirror['last_ok'] as String?;
+    final localizations = AppLocalizations.of(context);
+
+    // Determine status based on mirror properties
+    final String statusText;
+    final Color statusColor;
+    
+    if (enabled) {
+      statusText = localizations?.mirrorStatusActive ?? 'Active';
+      statusColor = Colors.green;
+    } else if (rtt != null) {
+      statusText = localizations?.mirrorStatusInactive ?? 'Inactive';
+      statusColor = Colors.orange;
+    } else {
+      statusText = localizations?.mirrorStatusDisabled ?? 'Disabled';
+      statusColor = Colors.grey;
+    }
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      color: Theme.of(context).cardTheme.color,
-      child: ListTile(
-        leading: Icon(
-          enabled ? Icons.check_circle : Icons.cancel,
-          color: enabled ? Colors.green : Colors.grey,
-        ),
-        title: Text(
-          url,
-          style: TextStyle(
-            color: Theme.of(context).colorScheme.onSurface,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        subtitle: Column(
+      elevation: 2,
+      color: Theme.of(context).colorScheme.surface,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Domain header with bold font
             Text(
-              'Priority: $priority',
+              url,
               style: TextStyle(
-                color: Theme.of(context).colorScheme.onSurface.withAlpha(204), // 0.8 opacity
+                color: Theme.of(context).colorScheme.onSurface,
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
+            
+            const SizedBox(height: 8),
+            
+            // Status row with icon and text
+            Row(
+              children: [
+                Icon(
+                  enabled ? Icons.check_circle : Icons.cancel,
+                  color: statusColor,
+                  size: 16,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  statusText,
+                  style: TextStyle(
+                    color: statusColor,
+                    fontWeight: FontWeight.w500,
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+            
+            const SizedBox(height: 8),
+            
+            // Priority information
+            Text(
+              '${localizations?.statusLabelNoColon ?? 'Priority'}: $priority',
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurface,
                 fontSize: 14,
               ),
             ),
-            if (rtt != null) Text(
-              'Response time: ${rtt}ms',
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.onSurface.withAlpha(204), // 0.8 opacity
-                fontSize: 14,
+            
+            // Response time and last check - secondary information
+            if (rtt != null) ...[
+              const SizedBox(height: 4),
+              Text(
+                '${localizations?.mirrorResponseTime ?? 'Response time'}: $rtt${localizations?.milliseconds ?? 'ms'}',
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurface.withAlpha(178), // 0.7 opacity equivalent
+                  fontSize: 12,
+                ),
               ),
-            ),
-            if (lastOk != null) Text(
-              'Last successful: ${_formatDate(lastOk)}',
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.onSurface.withAlpha(204), // 0.8 opacity
-                fontSize: 14,
+            ],
+            
+            if (lastOk != null) ...[
+              const SizedBox(height: 4),
+              Text(
+                '${localizations?.mirrorLastCheck ?? 'Last checked'}: ${_formatDate(lastOk)}',
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurface.withAlpha(178), // 0.7 opacity equivalent
+                  fontSize: 12,
+                ),
               ),
-            ),
-          ],
-        ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            IconButton(
-              icon: (_testingStates[url] ?? false)
-                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator())
-                  : Icon(
-                      Icons.wifi,
-                      color: Theme.of(context).colorScheme.onSurface,
+            ],
+            
+            const SizedBox(height: 12),
+            
+            // Action buttons row
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                // Individual test button
+                ElevatedButton.icon(
+                  onPressed: (_testingStates[url] ?? false)
+                      ? null
+                      : () => _testMirror(url),
+                  icon: (_testingStates[url] ?? false)
+                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator())
+                      : const Icon(Icons.wifi, size: 16),
+                  label: Text(
+                    localizations?.mirrorTestIndividual ?? 'Test this mirror',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  ),
+                ),
+                
+                // Enable/disable switch
+                Row(
+                  children: [
+                    Text(
+                      enabled
+                          ? localizations?.activeStatus ?? 'Active'
+                          : localizations?.disabledStatus ?? 'Disabled',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurface,
+                        fontSize: 12,
+                      ),
                     ),
-              onPressed: (_testingStates[url] ?? false)
-                  ? null
-                  : () => _testMirror(url),
-            ),
-            Switch(
-              value: enabled,
-              onChanged: (value) => _toggleMirror(url, value),
+                    const SizedBox(width: 8),
+                    Switch(
+                      value: enabled,
+                      onChanged: (value) => _toggleMirror(url, value),
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                  ],
+                ),
+              ],
             ),
           ],
         ),

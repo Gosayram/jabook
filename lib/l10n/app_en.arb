@@ -384,5 +384,33 @@
   "navDebug": "Debug",
   "@navDebug": {
     "description": "Short navigation label for debug"
+  },
+  "mirrorStatusActive": "Active",
+  "@mirrorStatusActive": {
+    "description": "Active mirror status text"
+  },
+  "mirrorStatusInactive": "Inactive",
+  "@mirrorStatusInactive": {
+    "description": "Inactive mirror status text"
+  },
+  "mirrorStatusDisabled": "Disabled",
+  "@mirrorStatusDisabled": {
+    "description": "Disabled mirror status text"
+  },
+  "mirrorTestIndividual": "Test this mirror",
+  "@mirrorTestIndividual": {
+    "description": "Individual mirror test button text"
+  },
+  "mirrorDomainLabel": "Domain",
+  "@mirrorDomainLabel": {
+    "description": "Label for mirror domain"
+  },
+  "mirrorResponseTime": "Response time",
+  "@mirrorResponseTime": {
+    "description": "Label for response time"
+  },
+  "mirrorLastCheck": "Last checked",
+  "@mirrorLastCheck": {
+    "description": "Label for last check time"
   }
 }
