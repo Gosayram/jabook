@@ -32,9 +32,18 @@ class DioClient {
     CloudFlareUtils.applyCloudFlareHeaders(dio);
     
     dio.options = BaseOptions(
+      baseUrl: 'https://rutracker.me',
       connectTimeout: const Duration(seconds: 30),
       receiveTimeout: const Duration(seconds: 30),
       sendTimeout: const Duration(seconds: 30),
+      headers: {
+        'User-Agent': await userAgentManager.getUserAgent(),
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Connection': 'keep-alive',
+        'Referer': 'https://rutracker.me/',
+      },
     );
     
     // Add structured logging interceptor

@@ -128,11 +128,11 @@ class RuTrackerParser {
       
       for (final row in topicRows) {
         final topicId = row.attributes['data-topic_id'];
-        final titleElement = row.querySelector('a.torTopic.tt-text');
-        final authorElement = row.querySelector('.topicAuthor');
-        final sizeElement = row.querySelector('a.f-dl.dl-stub');
-        final seedersElement = row.querySelector('span.seedmed b');
-        final leechersElement = row.querySelector('span.leechmed b');
+        final titleElement = row.querySelector('a.torTopic'); // Right selector
+        final authorElement = row.querySelector('a.pmed'); // Right selector
+        final sizeElement = row.querySelector('span.small'); // Right selector
+        final seedersElement = row.querySelector('span.seedmed'); // Right selector
+        final leechersElement = row.querySelector('span.leechmed'); // Right selector
         final magnetElement = row.querySelector('a[href^="dl.php?t="]');
 
         if (titleElement != null && topicId != null) {

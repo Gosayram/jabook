@@ -28,6 +28,12 @@ class EndpointManager {
   /// Convenience getter to avoid receiver duplication warnings.
   RecordRef<String, Map<String, dynamic>> get _endpointsRef => _store.record(_storeKey);
 
+  /// Initializes the EndpointManager with default endpoints and performs health checks.
+  Future<void> initialize() async {
+    await initializeDefaultEndpoints();
+    await _performInitialHealthChecks();
+  }
+
   /// Initializes the default RuTracker endpoints if none exist.
   Future<void> initializeDefaultEndpoints() async {
     final defaultEndpoints = [
@@ -40,6 +46,19 @@ class EndpointManager {
     final record = await _endpointsRef.get(_db);
     if (record == null) {
       await _endpointsRef.put(_db, {'endpoints': defaultEndpoints});
+    }
+  }
+
+  /// Performs initial health checks on all endpoints
+  Future<void> _performInitialHealthChecks() async {
+    final record = await _endpointsRef.get(_db);
+    final endpoints = List<Map<String, dynamic>>.from((record?['endpoints'] as List?) ?? []);
+    
+    for (final endpoint in endpoints) {
+      final url = endpoint['url'] as String;
+      if (endpoint['enabled'] == true) {
+        await healthCheck(url);
+      }
     }
   }
 
