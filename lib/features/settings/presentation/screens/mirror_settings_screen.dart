@@ -85,18 +85,9 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
   Future<void> _toggleMirror(String url, bool enabled) async {
     try {
       final endpointManager = ref.read(endpointManagerProvider);
-      final mirrors = await endpointManager.getAllEndpoints();
+      await endpointManager.updateEndpointStatus(url, enabled);
       
-      mirrors.map((mirror) {
-        if (mirror['url'] == url) {
-          return {...mirror, 'enabled': enabled};
-        }
-        return mirror;
-      }).toList();
-
-      // Update in database
-      // This would require adding an update method to EndpointManager
-      // For now, we'll just reload to reflect changes
+      // Reload mirrors to get updated status
       await _loadMirrors();
       
       if (mounted) {

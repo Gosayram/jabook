@@ -38,9 +38,7 @@ class EndpointManager {
   Future<void> initializeDefaultEndpoints() async {
     final defaultEndpoints = [
       {'url': 'https://rutracker.me', 'priority': 1, 'enabled': true},
-      {'url': 'https://rutracker.org', 'priority': 2, 'enabled': true},
-      {'url': 'https://rutracker.net', 'priority': 3, 'enabled': true},
-      {'url': 'https://rutracker.nl', 'priority': 4, 'enabled': true},
+      {'url': 'https://rutracker.net', 'priority': 2, 'enabled': true},
     ];
 
     final record = await _endpointsRef.get(_db);
@@ -81,7 +79,7 @@ class EndpointManager {
     try {
       final startTime = DateTime.now();
       final response = await (await DioClient.instance).get(
-        endpoint,
+        '$endpoint/forum/index.php',
         options: Options(
           receiveTimeout: const Duration(seconds: 10), // Longer timeout for CloudFlare
           validateStatus: (status) => status != null && status < 500,
@@ -269,5 +267,18 @@ class EndpointManager {
     await _updateEndpoints(
       endpoints..removeWhere((e) => e['url'] == url),
     );
+  }
+
+  /// Updates an endpoint's enabled status.
+  Future<void> updateEndpointStatus(String url, bool enabled) async {
+    final record = await _endpointsRef.get(_db);
+    final endpoints =
+        List<Map<String, dynamic>>.from((record?['endpoints'] as List?) ?? []);
+
+    final endpointIndex = endpoints.indexWhere((e) => e['url'] == url);
+    if (endpointIndex == -1) return;
+
+    endpoints[endpointIndex]['enabled'] = enabled;
+    await _updateEndpoints(endpoints);
   }
 }

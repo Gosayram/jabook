@@ -9,28 +9,28 @@ class RuTrackerUrls {
   static const String base = 'https://rutracker.me';
   
   /// Main index page URL
-  static const String index = '$base/index.php';
+  static const String index = '$base/forum/index.php';
   
   /// Tracker page URL
-  static const String tracker = '$base/tracker.php';
+  static const String tracker = '$base/forum/tracker.php';
   
   /// Search page URL
-  static const String search = '$base/search.php';
+  static const String search = '$base/forum/search.php';
   
   /// Forum view page URL
-  static const String viewForum = '$base/viewforum.php';
+  static const String viewForum = '$base/forum/viewforum.php';
   
   /// Topic view page URL
-  static const String viewTopic = '$base/viewtopic.php';
+  static const String viewTopic = '$base/forum/viewtopic.php';
   
   /// Login page URL
-  static const String login = '$base/login.php';
+  static const String login = '$base/forum/login.php';
 
   /// Profile page URL
-  static const String profile = '$base/profile.php';
+  static const String profile = '$base/forum/profile.php';
 
   /// Download page URL
-  static const String download = '$base/dl.php';
+  static const String download = '$base/forum/dl.php';
   
   /// Audiobooks category URL
   static const String audiobooksCategory = '$index?c=${CategoryConstants.audiobooksCategoryId}';

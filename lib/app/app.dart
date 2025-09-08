@@ -109,6 +109,7 @@ class _JaBookAppState extends ConsumerState<JaBookApp> {
     // Initialize EndpointManager with default endpoints
     final endpointManager = EndpointManager(database.database);
     await endpointManager.initializeDefaultEndpoints();
+    await endpointManager.initialize(); // Perform initial health checks
     
     logger.i('Database, cache, and endpoints initialized successfully');
   }
