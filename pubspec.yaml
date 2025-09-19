@@ -20,6 +20,7 @@ dependencies:
   dio_cookie_manager: ^3.2.0
   cookie_jar: ^4.0.6
   webview_flutter: ^4.13.0
+  flutter_inappwebview: ^6.0.0
   html: ^0.15.4
   windows1251: ^2.0.0
   shelf: ^1.4.2
@@ -59,6 +60,8 @@ dependencies:
   csv: ^6.0.0
   shared_preferences: ^2.4.1
   cloudflare_turnstile: ^3.2.1
+  webview_cookie_manager: ^2.0.6
+  url_launcher: ^6.3.2
 
 dev_dependencies:
   flutter_test:
