@@ -281,4 +281,13 @@ class EndpointManager {
     endpoints[endpointIndex]['enabled'] = enabled;
     await _updateEndpoints(endpoints);
   }
+
+  /// Builds a full URL using the active endpoint and the given path.
+  Future<String> buildUrl(String path) async {
+    final baseUrl = await getActiveEndpoint();
+    if (path.startsWith('/')) {
+      path = path.substring(1);
+    }
+    return '$baseUrl/$path';
+  }
 }

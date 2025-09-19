@@ -27,17 +27,18 @@ class CloudflareTurnstileService {
   ///
   /// Returns a Turnstile token if successful, or null if the challenge
   /// cannot be solved automatically.
-  Future<String?> solveTurnstileChallenge() async {
+  Future<String?> solveTurnstileChallenge({String? siteKey}) async {
     try {
+      final effectiveSiteKey = siteKey ?? _defaultSiteKey;
       await _logger.log(
         level: 'debug',
         subsystem: 'cloudflare',
-        message: 'Attempting to solve Cloudflare Turnstile challenge',
+        message: 'Attempting to solve Cloudflare Turnstile challenge with sitekey: ${effectiveSiteKey.substring(0, 8)}...',
       );
 
       // Initialize invisible Turnstile instance
       final turnstile = CloudflareTurnstile.invisible(
-        siteKey: _defaultSiteKey,
+        siteKey: effectiveSiteKey,
       );
 
       try {
@@ -48,7 +49,7 @@ class CloudflareTurnstileService {
           level: 'info',
           subsystem: 'cloudflare',
           message: 'Cloudflare Turnstile challenge solved successfully',
-          extra: {'token_length': token?.length},
+          extra: {'token_length': token?.length, 'sitekey_used': '${effectiveSiteKey.substring(0, 8)}...'},
         );
 
         return token;
@@ -123,15 +124,19 @@ class CloudflareTurnstileService {
       return null;
     }
 
-    final token = await solveTurnstileChallenge();
+    final params = extractTurnstileParams(htmlContent);
+    final token = await solveTurnstileChallenge(siteKey: params?['sitekey']);
     if (token == null) {
       throw const NetworkFailure('Cloudflare Turnstile challenge could not be solved');
     }
 
+    final effectiveSiteKey = params?['sitekey'] ?? _defaultSiteKey;
+
     // Return challenge solution parameters
     return {
       'cf-turnstile-response': token,
-      'cf-turnstile-sitekey': _defaultSiteKey,
+      'cf-turnstile-sitekey': effectiveSiteKey,
+      ...?params,
     };
   }
 

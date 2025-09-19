@@ -1,6 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:jabook/core/constants/category_constants.dart';
-import 'package:jabook/core/endpoints/url_constants.dart';
+import 'package:jabook/core/endpoints/endpoint_manager.dart';
 import 'package:jabook/core/errors/failures.dart';
 import 'package:jabook/core/net/dio_client.dart';
 import 'package:jabook/core/net/rutracker_service.dart';
@@ -10,18 +10,23 @@ import 'package:jabook/features/library/domain/entities/audiobook.dart';
 import 'package:jabook/features/library/domain/entities/audiobook_category.dart';
 import 'package:jabook/features/library/domain/repositories/rutracker_repository.dart';
 
-/// Implementation of RuTrackerRepository with improved parsing
-/// based on actual RuTracker HTML structure.
+/// Implementation of the RuTracker repository for accessing audiobook data.
+///
+/// This class provides concrete implementations of the RuTrackerRepository interface,
+/// handling data fetching, parsing, and caching operations for audiobooks and categories.
 class RuTrackerRepositoryImpl implements RuTrackerRepository {
   /// Creates a new RuTrackerRepositoryImpl instance.
   RuTrackerRepositoryImpl({
+    required EndpointManager endpointManager,
     required rutracker_parser.RuTrackerParser parser,
     required category_parser.CategoryParser categoryParser,
     required RuTrackerService rutrackerService,
-  })  : _parser = parser,
+  })  : _endpointManager = endpointManager,
+        _parser = parser,
         _categoryParser = categoryParser,
         _rutrackerService = rutrackerService;
 
+  final EndpointManager _endpointManager;
   final rutracker_parser.RuTrackerParser _parser;
   final category_parser.CategoryParser _categoryParser;
   final RuTrackerService _rutrackerService;
@@ -32,7 +37,8 @@ class RuTrackerRepositoryImpl implements RuTrackerRepository {
       final dio = await DioClient.instance;
       
       // Build search URL with proper RuTracker parameters
-      final searchUrl = '${RuTrackerUrls.search}?nm=$query&f=${CategoryConstants.audiobooksCategoryId}&start=${(page - 1) * CategoryConstants.searchResultsPerPage}';
+      final searchPath = '/forum/search.php?nm=$query&f=${CategoryConstants.audiobooksCategoryId}&start=${(page - 1) * CategoryConstants.searchResultsPerPage}';
+      final searchUrl = await _endpointManager.buildUrl(searchPath);
       
       final response = await dio.get(
         searchUrl,
@@ -77,8 +83,10 @@ class RuTrackerRepositoryImpl implements RuTrackerRepository {
     try {
       final dio = await DioClient.instance;
       
+      const indexPath = '/forum/index.php';
+      final indexUrl = await _endpointManager.buildUrl(indexPath);
       final response = await dio.get(
-        RuTrackerUrls.index,
+        indexUrl,
         options: Options(
           responseType: ResponseType.plain,
           headers: {
@@ -109,8 +117,10 @@ class RuTrackerRepositoryImpl implements RuTrackerRepository {
   @override
   Future<List<Audiobook>> getCategoryAudiobooks(String categoryId, {int page = 1}) async {
     try {
+      final forumPath = '/forum/viewforum.php?f=$categoryId';
+      final forumUrl = await _endpointManager.buildUrl(forumPath);
       final html = await _rutrackerService.fetchPage(
-        url: '${RuTrackerUrls.viewForum}?f=$categoryId',
+        url: forumUrl,
         page: page,
       );
 
@@ -140,8 +150,10 @@ class RuTrackerRepositoryImpl implements RuTrackerRepository {
     try {
       final dio = await DioClient.instance;
       
+      final topicPath = '/forum/viewtopic.php?t=$audiobookId';
+      final topicUrl = await _endpointManager.buildUrl(topicPath);
       final response = await dio.get(
-        '${RuTrackerUrls.viewTopic}?t=$audiobookId',
+        topicUrl,
         options: Options(
           responseType: ResponseType.plain,
           headers: {
@@ -193,8 +205,10 @@ class RuTrackerRepositoryImpl implements RuTrackerRepository {
   @override
   Future<List<Map<String, String>>> getSortingOptions(String categoryId) async {
     try {
+      final forumPath = '/forum/viewforum.php?f=$categoryId';
+      final forumUrl = await _endpointManager.buildUrl(forumPath);
       final html = await _rutrackerService.fetchPage(
-        url: '${RuTrackerUrls.viewForum}?f=$categoryId',
+        url: forumUrl,
       );
       return _rutrackerService.parseSortingOptions(html);
     } on Exception {
@@ -232,8 +246,10 @@ class RuTrackerRepositoryImpl implements RuTrackerRepository {
   Future<List<Audiobook>> getNewReleases() async {
     try {
       // Get latest audiobooks from all categories
+      const trackerPath = '/forum/tracker.php?f=${CategoryConstants.audiobooksCategoryId}&${CategoryConstants.searchSortNewest}';
+      final trackerUrl = await _endpointManager.buildUrl(trackerPath);
       final html = await _rutrackerService.fetchPage(
-        url: '${RuTrackerUrls.tracker}?f=${CategoryConstants.audiobooksCategoryId}&${CategoryConstants.searchSortNewest}',
+        url: trackerUrl,
       );
       
       final results = await _parser.parseSearchResults(html);

@@ -5,6 +5,7 @@ import 'package:jabook/core/logging/structured_logger.dart';
 import 'package:jabook/core/net/cloudflare_turnstile_service.dart';
 import 'package:jabook/core/net/cloudflare_utils.dart';
 import 'package:jabook/core/net/user_agent_manager.dart';
+import 'package:webview_flutter/webview_flutter.dart';
 
 /// HTTP client for making requests to RuTracker APIs.
 ///
@@ -14,6 +15,8 @@ import 'package:jabook/core/net/user_agent_manager.dart';
 class DioClient {
   /// Private constructor to prevent direct instantiation.
   const DioClient._();
+
+  static CookieJar? _cookieJar;
 
   /// Gets the singleton Dio instance configured for RuTracker requests.
   ///
@@ -140,10 +143,24 @@ class DioClient {
             }
           }
           
-          // Regular CloudFlare protection handling
+          // Declare retryCount earlier to fix scope
           final retryCount = error.requestOptions.extra['cloudflareRetryCount'] ?? 0;
+
+          // Check for JavaScript challenge and use WebView fallback
+          if (CloudFlareUtils.isJavaScriptChallenge(error.response!)) {
+            await _handleJavaScriptChallenge(error.requestOptions.uri.toString());
+            
+            // Retry the original request after clearance
+            final newOptions = error.requestOptions.copyWith(
+              extra: {...error.requestOptions.extra, 'cloudflareRetryCount': retryCount + 1},
+            );
+            
+            return handler.resolve(await dio.fetch(newOptions));
+          }
+
+          // Regular CloudFlare protection handling
           if (retryCount < 2) {
-            await Future.delayed(Duration(seconds: 2 + retryCount as int));
+            await Future.delayed(Duration(seconds: 2 + (retryCount as int)));
             
             // Rotate User-Agent for retry
             final userAgentManager = UserAgentManager();
@@ -180,7 +197,8 @@ class DioClient {
       },
     ));
     
-    dio.interceptors.add(CookieManager(CookieJar()));
+    _cookieJar ??= CookieJar();
+    dio.interceptors.add(CookieManager(_cookieJar!));
     
     return dio;
   }
@@ -206,11 +224,73 @@ class DioClient {
     // WebView cookies are automatically available to HTTP requests
   }
 
+  /// Handles JavaScript challenge using WebView for clearance
+  static Future<void> _handleJavaScriptChallenge(String url) async {
+    final logger = StructuredLogger();
+    await logger.log(
+      level: 'info',
+      subsystem: 'cloudflare',
+      message: 'Handling JavaScript challenge with WebView fallback for $url',
+    );
+
+    final controller = WebViewController();
+    await controller.setJavaScriptMode(JavaScriptMode.unrestricted);
+    await controller.setNavigationDelegate(
+      NavigationDelegate(
+        onPageFinished: (finishedUrl) async {
+          // Sync cookies after page load
+          await _syncWebViewCookiesViaJs(controller, Uri.parse(finishedUrl));
+        },
+      ),
+    );
+
+    // Load the URL in WebView
+    await controller.loadRequest(Uri.parse(url));
+
+    // Wait for clearance (max 10 seconds)
+    await Future.delayed(const Duration(seconds: 10));
+
+    // Final sync
+    await _syncWebViewCookiesViaJs(controller, Uri.parse(url));
+
+    // No dispose needed for controller in this context
+
+    await logger.log(
+      level: 'info',
+      subsystem: 'cloudflare',
+      message: 'JavaScript challenge handling completed',
+    );
+  }
+
+  /// Syncs cookies from WebView to CookieJar via JavaScript
+  static Future<void> _syncWebViewCookiesViaJs(WebViewController controller, Uri siteUri) async {
+    try {
+      final result = await controller.runJavaScriptReturningResult('document.cookie');
+      final cookieString = result as String? ?? '';
+      if (cookieString.isEmpty) return;
+
+      final cookies = <Cookie>[];
+      for (final part in cookieString.split(';')) {
+        if (part.isEmpty) continue;
+        final eqIndex = part.indexOf('=');
+        if (eqIndex != -1) {
+          final name = part.substring(0, eqIndex).trim();
+          final value = part.substring(eqIndex + 1).trim();
+          final cookie = Cookie(name, value);
+          cookies.add(cookie);
+        }
+      }
+      await _cookieJar!.saveFromResponse(siteUri, cookies);
+    } on Exception catch (_) {
+      // Ignore sync errors
+    }
+  }
+
   /// Clears all stored cookies from the cookie jar.
   ///
   /// This method removes all cookies, effectively logging out the user
   /// from any authenticated sessions.
   static Future<void> clearCookies() async {
-    await CookieJar().deleteAll();
+    await _cookieJar?.deleteAll();
   }
 }
