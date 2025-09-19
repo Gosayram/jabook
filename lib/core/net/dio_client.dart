@@ -2,10 +2,7 @@ import 'package:cookie_jar/cookie_jar.dart';
 import 'package:dio/dio.dart';
 import 'package:dio_cookie_manager/dio_cookie_manager.dart';
 import 'package:jabook/core/logging/structured_logger.dart';
-import 'package:jabook/core/net/cloudflare_turnstile_service.dart';
-import 'package:jabook/core/net/cloudflare_utils.dart';
 import 'package:jabook/core/net/user_agent_manager.dart';
-import 'package:webview_flutter/webview_flutter.dart';
 
 /// HTTP client for making requests to RuTracker APIs.
 ///
@@ -30,9 +27,6 @@ class DioClient {
     
     // Apply User-Agent from manager
     await userAgentManager.applyUserAgentToDio(dio);
-    
-    // Apply CloudFlare-specific headers
-    CloudFlareUtils.applyCloudFlareHeaders(dio);
     
     dio.options = BaseOptions(
       baseUrl: 'https://rutracker.me',
@@ -97,7 +91,7 @@ class DioClient {
       },
     ));
     
-    // Add authentication redirect handler with retry logic
+    // Add authentication redirect handler
     dio.interceptors.add(InterceptorsWrapper(
       onResponse: (response, handler) {
         // Check if we got redirected to login page instead of the requested resource
@@ -113,67 +107,6 @@ class DioClient {
         return handler.next(response);
       },
       onError: (error, handler) async {
-        // Handle CloudFlare-specific errors
-        if (error.response != null && CloudFlareUtils.isCloudFlareProtected(error.response!)) {
-          final turnstileService = CloudflareTurnstileService();
-          
-          // Check if this is a Turnstile challenge
-          final htmlContent = error.response!.data.toString();
-          final isTurnstileChallenge = await turnstileService.isTurnstileChallengePresent(htmlContent);
-          
-          if (isTurnstileChallenge) {
-            // Handle Turnstile challenge
-            try {
-              final turnstileParams = await turnstileService.handleTurnstileProtection(htmlContent);
-              if (turnstileParams != null) {
-                // Retry with Turnstile solution
-                await Future.delayed(const Duration(seconds: 2));
-                
-                final newOptions = error.requestOptions.copyWith(
-                  headers: {
-                    ...error.requestOptions.headers,
-                    ...turnstileParams,
-                  },
-                );
-                
-                return handler.resolve(await dio.fetch(newOptions));
-              }
-            } on Exception {
-              // Fall through to regular CloudFlare handling
-            }
-          }
-          
-          // Declare retryCount earlier to fix scope
-          final retryCount = error.requestOptions.extra['cloudflareRetryCount'] ?? 0;
-
-          // Check for JavaScript challenge and use WebView fallback
-          if (CloudFlareUtils.isJavaScriptChallenge(error.response!)) {
-            await _handleJavaScriptChallenge(error.requestOptions.uri.toString());
-            
-            // Retry the original request after clearance
-            final newOptions = error.requestOptions.copyWith(
-              extra: {...error.requestOptions.extra, 'cloudflareRetryCount': retryCount + 1},
-            );
-            
-            return handler.resolve(await dio.fetch(newOptions));
-          }
-
-          // Regular CloudFlare protection handling
-          if (retryCount < 2) {
-            await Future.delayed(Duration(seconds: 2 + (retryCount as int)));
-            
-            // Rotate User-Agent for retry
-            final userAgentManager = UserAgentManager();
-            await userAgentManager.applyUserAgentToDio(dio);
-            
-            final newOptions = error.requestOptions.copyWith(
-              extra: {...error.requestOptions.extra, 'cloudflareRetryCount': retryCount + 1},
-            );
-            
-            return handler.resolve(await dio.fetch(newOptions));
-          }
-        }
-        
         // Add retry logic for temporary network issues
         if (error.type == DioExceptionType.connectionTimeout ||
             error.type == DioExceptionType.receiveTimeout ||
@@ -222,68 +155,6 @@ class DioClient {
     // Cookie synchronization is handled automatically by the CookieManager
     // interceptor that's already added to the Dio instance
     // WebView cookies are automatically available to HTTP requests
-  }
-
-  /// Handles JavaScript challenge using WebView for clearance
-  static Future<void> _handleJavaScriptChallenge(String url) async {
-    final logger = StructuredLogger();
-    await logger.log(
-      level: 'info',
-      subsystem: 'cloudflare',
-      message: 'Handling JavaScript challenge with WebView fallback for $url',
-    );
-
-    final controller = WebViewController();
-    await controller.setJavaScriptMode(JavaScriptMode.unrestricted);
-    await controller.setNavigationDelegate(
-      NavigationDelegate(
-        onPageFinished: (finishedUrl) async {
-          // Sync cookies after page load
-          await _syncWebViewCookiesViaJs(controller, Uri.parse(finishedUrl));
-        },
-      ),
-    );
-
-    // Load the URL in WebView
-    await controller.loadRequest(Uri.parse(url));
-
-    // Wait for clearance (max 10 seconds)
-    await Future.delayed(const Duration(seconds: 10));
-
-    // Final sync
-    await _syncWebViewCookiesViaJs(controller, Uri.parse(url));
-
-    // No dispose needed for controller in this context
-
-    await logger.log(
-      level: 'info',
-      subsystem: 'cloudflare',
-      message: 'JavaScript challenge handling completed',
-    );
-  }
-
-  /// Syncs cookies from WebView to CookieJar via JavaScript
-  static Future<void> _syncWebViewCookiesViaJs(WebViewController controller, Uri siteUri) async {
-    try {
-      final result = await controller.runJavaScriptReturningResult('document.cookie');
-      final cookieString = result as String? ?? '';
-      if (cookieString.isEmpty) return;
-
-      final cookies = <Cookie>[];
-      for (final part in cookieString.split(';')) {
-        if (part.isEmpty) continue;
-        final eqIndex = part.indexOf('=');
-        if (eqIndex != -1) {
-          final name = part.substring(0, eqIndex).trim();
-          final value = part.substring(eqIndex + 1).trim();
-          final cookie = Cookie(name, value);
-          cookies.add(cookie);
-        }
-      }
-      await _cookieJar!.saveFromResponse(siteUri, cookies);
-    } on Exception catch (_) {
-      // Ignore sync errors
-    }
   }
 
   /// Clears all stored cookies from the cookie jar.

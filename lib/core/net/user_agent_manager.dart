@@ -1,5 +1,4 @@
 import 'package:jabook/core/logging/environment_logger.dart';
-import 'package:jabook/core/net/cloudflare_utils.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sembast/sembast_io.dart';
 import 'package:webview_flutter/webview_flutter.dart';
@@ -23,8 +22,8 @@ class UserAgentManager {
   static const String _userAgentKey = 'user_agent';
 
   /// Default User-Agent string to use as fallback.
-  /// Uses CloudFlare-compatible modern mobile browser User-Agent.
-  static String get _defaultUserAgent => CloudFlareUtils.getRandomMobileUserAgent();
+  /// Uses modern mobile browser User-Agent.
+  static String get _defaultUserAgent => 'Mozilla/5.0 (Linux; Android 13; SM-S918B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.6099.210 Mobile Safari/537.36';
 
   /// Database instance for storing User-Agent data.
   Database? _db;
@@ -98,12 +97,12 @@ class UserAgentManager {
                 if (extractedUa != null && extractedUa.isNotEmpty) {
                   userAgent = extractedUa;
                 } else {
-                  // Fallback to CloudFlare-compatible User-Agent
-                  userAgent = CloudFlareUtils.getRandomMobileUserAgent();
+                  // Fallback to default User-Agent
+                  userAgent = _defaultUserAgent;
                 }
               } on Exception {
-                // If JavaScript execution fails, use CloudFlare-compatible User-Agent
-                userAgent = CloudFlareUtils.getRandomMobileUserAgent();
+                // If JavaScript execution fails, use default User-Agent
+                userAgent = _defaultUserAgent;
               }
               scriptExecuted = true;
             }
@@ -134,8 +133,8 @@ class UserAgentManager {
       
       return userAgent;
     } on Exception {
-      // Fallback to CloudFlare-compatible User-Agent
-      return CloudFlareUtils.getRandomMobileUserAgent();
+      // Fallback to default User-Agent
+      return _defaultUserAgent;
     }
   }
 

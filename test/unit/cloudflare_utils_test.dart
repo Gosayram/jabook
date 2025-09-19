@@ -4,29 +4,6 @@ import 'package:jabook/core/net/cloudflare_utils.dart';
 
 void main() {
   group('CloudFlareUtils', () {
-    test('getRandomMobileUserAgent returns valid User-Agent', () {
-      final userAgent = CloudFlareUtils.getRandomMobileUserAgent();
-      expect(userAgent, isNotNull);
-      expect(userAgent, isNotEmpty);
-      expect(userAgent.contains('Mozilla/5.0'), isTrue);
-    });
-
-    test('getRandomDesktopUserAgent returns valid User-Agent', () {
-      final userAgent = CloudFlareUtils.getRandomDesktopUserAgent();
-      expect(userAgent, isNotNull);
-      expect(userAgent, isNotEmpty);
-      expect(userAgent.contains('Mozilla/5.0'), isTrue);
-    });
-
-    test('cloudFlareHeaders contains required headers', () {
-      const headers = CloudFlareUtils.cloudFlareHeaders;
-      expect(headers, isNotNull);
-      expect(headers.isNotEmpty, isTrue);
-      expect(headers.containsKey('Accept'), isTrue);
-      expect(headers.containsKey('Accept-Language'), isTrue);
-      expect(headers.containsKey('User-Agent'), isFalse); // Should be applied separately
-    });
-
     test('isCloudFlareProtected detects CloudFlare headers', () {
       final mockResponse = _createMockResponse(
         headers: {
@@ -54,41 +31,26 @@ void main() {
       expect(CloudFlareUtils.isCloudFlareProtected(mockResponse), isTrue);
     });
 
-    test('isJavaScriptChallenge detects JavaScript challenge', () {
-      final mockResponse = _createMockResponse(
-        headers: {},
-        body: '''
-          <html>
-            <input name="jschl_vc" value="test">
-            <input name="jschl_answer" value="test">
-            <input name="pass" value="test">
-            <script>setTimeout(function(){}, 4000);</script>
-          </html>
-        ''',
-      );
-
-      expect(CloudFlareUtils.isJavaScriptChallenge(mockResponse), isTrue);
-    });
-
-    test('extractChallengeParams extracts valid parameters', () {
+    test('isCloudFlareHtml detects CloudFlare HTML content', () {
       const html = '''
-        <input name="jschl_vc" value="test_vc">
-        <input name="pass" value="test_pass">
-        <script>var s,t,o,p,b,r,e,a,k,i,n,g,f, abc = 123;</script>
+        <html>
+          <div>Checking your browser...</div>
+          <script src="/cdn-cgi/challenge-platform/h/g/orchestrate/jsch/v1"></script>
+        </html>
       ''';
 
-      final params = CloudFlareUtils.extractChallengeParams(html);
-      expect(params, isNotNull);
-      expect(params!['jschl_vc'], 'test_vc');
-      expect(params['pass'], 'test_pass');
-      expect(params['challenge_var'], 'abc');
+      expect(CloudFlareUtils.isCloudFlareHtml(html), isTrue);
     });
 
-    test('generateChallengeAnswer handles basic arithmetic', () {
-      const challengeScript = 'var a = 1 + 2 * 3;';
-      final answer = CloudFlareUtils.generateChallengeAnswer(challengeScript);
-      expect(answer, isNotNull);
-      expect(answer, isNotEmpty);
+    test('isCloudFlareHtml does not detect normal HTML', () {
+      const html = '''
+        <html>
+          <head><title>Normal Page</title></head>
+          <body>Normal content</body>
+        </html>
+      ''';
+
+      expect(CloudFlareUtils.isCloudFlareHtml(html), isFalse);
     });
   });
 }
