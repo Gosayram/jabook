@@ -61,10 +61,7 @@ clean:
 	flutter clean
 	rm -rf build/
 	rm -rf .dart_tool/
-	rm -rf ios/Pods/
-	rm -rf ios/.symlinks/
-	rm -rf ios/Flutter/Flutter.framework
-	rm -rf ios/Flutter/Flutter.podspec
+	rm -rf android/
 	@echo "Cleaned build artifacts"
 
 .PHONY: run-dev
@@ -199,7 +196,7 @@ format:
 
 .PHONY: lint
 lint:
-	flutter pub run flutter_lints
+	flutter analyze
 
 # Release commands
 .PHONY: release-android
