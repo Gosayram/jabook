@@ -197,12 +197,6 @@ abstract class AppLocalizations {
   /// **'System Default'**
   String get systemDefault;
 
-  /// Description for language settings section
-  ///
-  /// In en, this message translates to:
-  /// **'Choose your preferred language for the app interface'**
-  String get languageDescription;
-
   /// Error message when search fails
   ///
   /// In en, this message translates to:
@@ -299,479 +293,125 @@ abstract class AppLocalizations {
   /// **'Login'**
   String get login;
 
-  /// Title for theme settings section
+  /// User-friendly network connection error message
   ///
   /// In en, this message translates to:
-  /// **'Theme'**
-  String get themeTitle;
+  /// **'Could not connect. Check your internet or choose another mirror in Settings → Sources.'**
+  String get networkConnectionError;
 
-  /// Description for theme settings section
+  /// Generic connection failure message
   ///
   /// In en, this message translates to:
-  /// **'Customize the appearance of the app'**
-  String get themeDescription;
+  /// **'Connection failed. Please check your internet connection or try a different mirror.'**
+  String get connectionFailed;
 
-  /// Dark mode toggle label
+  /// Button text for choosing mirror
   ///
   /// In en, this message translates to:
-  /// **'Dark Mode'**
-  String get darkMode;
+  /// **'Choose Mirror'**
+  String get chooseMirror;
 
-  /// High contrast mode toggle label
+  /// User-friendly network error title
   ///
   /// In en, this message translates to:
-  /// **'High Contrast'**
-  String get highContrast;
+  /// **'Network connection issue'**
+  String get networkErrorUser;
 
-  /// Title for audio settings section
+  /// DNS resolution error message
   ///
   /// In en, this message translates to:
-  /// **'Audio'**
-  String get audioTitle;
+  /// **'Could not resolve domain. This may be due to network restrictions or an inactive mirror.'**
+  String get dnsError;
 
-  /// Description for audio settings section
+  /// Timeout error message
   ///
   /// In en, this message translates to:
-  /// **'Configure audio playback settings'**
-  String get audioDescription;
+  /// **'Request took too long. Please check your connection and try again.'**
+  String get timeoutError;
 
-  /// Playback speed setting label
+  /// Server error message
   ///
   /// In en, this message translates to:
-  /// **'Playback Speed'**
-  String get playbackSpeed;
+  /// **'Server is temporarily unavailable. Please try again later or choose another mirror.'**
+  String get serverError;
 
-  /// Skip duration setting label
+  /// Title for recent searches section
   ///
   /// In en, this message translates to:
-  /// **'Skip Duration'**
-  String get skipDuration;
+  /// **'Recent Searches'**
+  String get recentSearches;
 
-  /// Title for downloads settings section
+  /// Title for search examples section
   ///
   /// In en, this message translates to:
-  /// **'Downloads'**
-  String get downloadsTitle;
+  /// **'Try these examples'**
+  String get searchExamples;
 
-  /// Description for downloads settings section
+  /// Title for quick actions section
   ///
   /// In en, this message translates to:
-  /// **'Manage download preferences and storage'**
-  String get downloadsDescription;
+  /// **'Quick Actions'**
+  String get quickActions;
 
-  /// Download location setting label
+  /// Label for scan local files action
   ///
   /// In en, this message translates to:
-  /// **'Download Location'**
-  String get downloadLocation;
+  /// **'Scan Local Files'**
+  String get scanLocalFiles;
 
-  /// Wi-Fi only downloads toggle label
+  /// Message for upcoming features
   ///
   /// In en, this message translates to:
-  /// **'Wi-Fi Only Downloads'**
-  String get wifiOnlyDownloads;
+  /// **'Feature coming soon'**
+  String get featureComingSoon;
 
-  /// Title for debug screen
+  /// Label for change mirror action
   ///
   /// In en, this message translates to:
-  /// **'Debug Tools'**
-  String get debugTools;
+  /// **'Change Mirror'**
+  String get changeMirror;
 
-  /// Logs tab label
+  /// Label for check connection action
   ///
   /// In en, this message translates to:
-  /// **'Logs'**
-  String get logsTab;
+  /// **'Check Connection'**
+  String get checkConnection;
 
-  /// Mirrors tab label
+  /// Title for permissions required dialog
   ///
   /// In en, this message translates to:
-  /// **'Mirrors'**
-  String get mirrorsTab;
+  /// **'Permissions Required'**
+  String get permissionsRequired;
 
-  /// Downloads tab label
+  /// Explanation for why permissions are needed
   ///
   /// In en, this message translates to:
-  /// **'Downloads'**
-  String get downloadsTab;
+  /// **'This app needs storage permission to download and save audiobook files. Please grant the required permissions to continue.'**
+  String get permissionExplanation;
 
-  /// Cache tab label
+  /// Button text to grant permissions
   ///
   /// In en, this message translates to:
-  /// **'Cache'**
-  String get cacheTab;
+  /// **'Grant Permissions'**
+  String get grantPermissions;
 
-  /// Test all mirrors button text
+  /// Title for permission denied dialog
   ///
   /// In en, this message translates to:
-  /// **'Test All Mirrors'**
-  String get testAllMirrors;
+  /// **'Permission Denied'**
+  String get permissionDeniedTitle;
 
-  /// Status label text
+  /// Message for permission denied dialog
   ///
   /// In en, this message translates to:
-  /// **'Status: '**
-  String get statusLabel;
+  /// **'Storage permission is required to download files. Please enable it in app settings.'**
+  String get permissionDeniedMessage;
 
-  /// Active status text
+  /// Button text for permission denied action
   ///
   /// In en, this message translates to:
-  /// **'Active'**
-  String get activeStatus;
-
-  /// Disabled status text
-  ///
-  /// In en, this message translates to:
-  /// **'Disabled'**
-  String get disabledStatus;
-
-  /// Last OK label text
-  ///
-  /// In en, this message translates to:
-  /// **'Last OK: '**
-  String get lastOkLabel;
-
-  /// RTT label text
-  ///
-  /// In en, this message translates to:
-  /// **'RTT: '**
-  String get rttLabel;
-
-  /// Milliseconds abbreviation
-  ///
-  /// In en, this message translates to:
-  /// **'ms'**
-  String get milliseconds;
-
-  /// Cache statistics title
-  ///
-  /// In en, this message translates to:
-  /// **'Cache Statistics'**
-  String get cacheStatistics;
-
-  /// Total entries label
-  ///
-  /// In en, this message translates to:
-  /// **'Total entries: '**
-  String get totalEntries;
-
-  /// Search cache label
-  ///
-  /// In en, this message translates to:
-  /// **'Search cache: '**
-  String get searchCache;
-
-  /// Topic cache label
-  ///
-  /// In en, this message translates to:
-  /// **'Topic cache: '**
-  String get topicCache;
-
-  /// Memory usage label
-  ///
-  /// In en, this message translates to:
-  /// **'Memory usage: '**
-  String get memoryUsage;
-
-  /// Clear all cache button text
-  ///
-  /// In en, this message translates to:
-  /// **'Clear All Cache'**
-  String get clearAllCache;
-
-  /// Cache cleared success message
-  ///
-  /// In en, this message translates to:
-  /// **'Cache cleared successfully'**
-  String get cacheClearedSuccessfully;
-
-  /// Mirror health check completion message
-  ///
-  /// In en, this message translates to:
-  /// **'Mirror health check completed'**
-  String get mirrorHealthCheckCompleted;
-
-  /// Export functionality coming soon message
-  ///
-  /// In en, this message translates to:
-  /// **'Export functionality coming soon'**
-  String get exportFunctionalityComingSoon;
-
-  /// Logs exported success message
-  ///
-  /// In en, this message translates to:
-  /// **'Logs exported successfully'**
-  String get logsExportedSuccessfully;
-
-  /// Logs export failure message
-  ///
-  /// In en, this message translates to:
-  /// **'Failed to export logs'**
-  String get failedToExportLogs;
-
-  /// Network timeout error message
-  ///
-  /// In en, this message translates to:
-  /// **'Request timed out. Please check your connection.'**
-  String get requestTimedOut;
-
-  /// Generic network error message
-  ///
-  /// In en, this message translates to:
-  /// **'Network error: {errorMessage}'**
-  String networkError(Object errorMessage);
-
-  /// Download feature coming soon message
-  ///
-  /// In en, this message translates to:
-  /// **'Download functionality coming soon!'**
-  String get downloadFunctionalityComingSoon;
-
-  /// Magnet link copied success message
-  ///
-  /// In en, this message translates to:
-  /// **'Magnet link copied to clipboard'**
-  String get magnetLinkCopied;
-
-  /// Cache data loaded message
-  ///
-  /// In en, this message translates to:
-  /// **'Data loaded from cache'**
-  String get dataLoadedFromCache;
-
-  /// Topic loading failure message
-  ///
-  /// In en, this message translates to:
-  /// **'Failed to load topic'**
-  String get failedToLoadTopic;
-
-  /// Topic loading error message
-  ///
-  /// In en, this message translates to:
-  /// **'Error loading topic: {error}'**
-  String errorLoadingTopic(Object error);
-
-  /// Fallback for missing chapter title
-  ///
-  /// In en, this message translates to:
-  /// **'Unknown Chapter'**
-  String get unknownChapter;
-
-  /// Label for chapters section
-  ///
-  /// In en, this message translates to:
-  /// **'Chapters'**
-  String get chaptersLabel;
-
-  /// Label for magnet link
-  ///
-  /// In en, this message translates to:
-  /// **'Magnet Link'**
-  String get magnetLinkLabel;
-
-  /// Download button label
-  ///
-  /// In en, this message translates to:
-  /// **'Download'**
-  String get downloadLabel;
-
-  /// Play button label
-  ///
-  /// In en, this message translates to:
-  /// **'Play'**
-  String get playLabel;
-
-  /// Pause button label
-  ///
-  /// In en, this message translates to:
-  /// **'Pause'**
-  String get pauseLabel;
-
-  /// Stop button label
-  ///
-  /// In en, this message translates to:
-  /// **'Stop'**
-  String get stopLabel;
-
-  /// Audiobook loading failure message
-  ///
-  /// In en, this message translates to:
-  /// **'Failed to load audiobook'**
-  String get failedToLoadAudio;
-
-  /// Sample audiobook title
-  ///
-  /// In en, this message translates to:
-  /// **'Sample Audiobook'**
-  String get sampleAudiobook;
-
-  /// Sample author name
-  ///
-  /// In en, this message translates to:
-  /// **'Sample Author'**
-  String get sampleAuthor;
-
-  /// Chapter 1 title
-  ///
-  /// In en, this message translates to:
-  /// **'Chapter 1'**
-  String get chapter1;
-
-  /// Chapter 2 title
-  ///
-  /// In en, this message translates to:
-  /// **'Chapter 2'**
-  String get chapter2;
-
-  /// Title for mirrors screen
-  ///
-  /// In en, this message translates to:
-  /// **'Mirrors Screen'**
-  String get mirrorsScreenTitle;
-
-  /// Unknown download status
-  ///
-  /// In en, this message translates to:
-  /// **'unknown'**
-  String get downloadStatusUnknown;
-
-  /// Download progress label
-  ///
-  /// In en, this message translates to:
-  /// **'Progress: {progress}%'**
-  String downloadProgressLabel(Object progress);
-
-  /// Status label without colon
-  ///
-  /// In en, this message translates to:
-  /// **'Status'**
-  String get statusLabelNoColon;
-
-  /// Copy to clipboard success message
-  ///
-  /// In en, this message translates to:
-  /// **'{label} copied to clipboard'**
-  String copyToClipboardLabel(Object label);
-
-  /// Short navigation label for search
-  ///
-  /// In en, this message translates to:
-  /// **'Search'**
-  String get navSearch;
-
-  /// Short navigation label for library
-  ///
-  /// In en, this message translates to:
-  /// **'Library'**
-  String get navLibrary;
-
-  /// Short navigation label for settings
-  ///
-  /// In en, this message translates to:
-  /// **'Settings'**
-  String get navSettings;
-
-  /// Short navigation label for debug
-  ///
-  /// In en, this message translates to:
-  /// **'Debug'**
-  String get navDebug;
-
-  /// Active mirror status text
-  ///
-  /// In en, this message translates to:
-  /// **'Active'**
-  String get mirrorStatusActive;
-
-  /// Inactive mirror status text
-  ///
-  /// In en, this message translates to:
-  /// **'Inactive'**
-  String get mirrorStatusInactive;
-
-  /// Disabled mirror status text
-  ///
-  /// In en, this message translates to:
-  /// **'Disabled'**
-  String get mirrorStatusDisabled;
-
-  /// Individual mirror test button text
-  ///
-  /// In en, this message translates to:
-  /// **'Test this mirror'**
-  String get mirrorTestIndividual;
-
-  /// Label for mirror domain
-  ///
-  /// In en, this message translates to:
-  /// **'Domain'**
-  String get mirrorDomainLabel;
-
-  /// Label for response time
-  ///
-  /// In en, this message translates to:
-  /// **'Response time'**
-  String get mirrorResponseTime;
-
-  /// Label for last check time
-  ///
-  /// In en, this message translates to:
-  /// **'Last checked'**
-  String get mirrorLastCheck;
-
-  /// Title for authentication screen
-  ///
-  /// In en, this message translates to:
-  /// **'RuTracker Connection'**
-  String get authTitle;
-
-  /// Label for username field
-  ///
-  /// In en, this message translates to:
-  /// **'Username'**
-  String get usernameLabel;
-
-  /// Label for password field
-  ///
-  /// In en, this message translates to:
-  /// **'Password'**
-  String get passwordLabel;
-
-  /// Label for remember me checkbox
-  ///
-  /// In en, this message translates to:
-  /// **'Remember me'**
-  String get rememberMeLabel;
-
-  /// Text for login button
-  ///
-  /// In en, this message translates to:
-  /// **'Login'**
-  String get loginButton;
-
-  /// Text for test connection button
-  ///
-  /// In en, this message translates to:
-  /// **'Test Connection'**
-  String get testConnectionButton;
-
-  /// Text for logout button
-  ///
-  /// In en, this message translates to:
-  /// **'Logout'**
-  String get logoutButton;
-
-  /// Help text for authentication screen
-  ///
-  /// In en, this message translates to:
-  /// **'Login to RuTracker to access audiobook search and downloads. Your credentials are stored securely.'**
-  String get authHelpText;
-
-  /// Short navigation label for authentication
-  ///
-  /// In en, this message translates to:
-  /// **'Connect'**
-  String get navAuth;
+  /// **'Open Settings'**
+  String get permissionDeniedButton;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

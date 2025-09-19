@@ -60,9 +60,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get systemDefault => 'System Default';
 
   @override
-  String get languageDescription => 'Choose your preferred language for the app interface';
-
-  @override
   String get failedToSearch => 'Failed to search';
 
   @override
@@ -111,247 +108,62 @@ class AppLocalizationsEn extends AppLocalizations {
   String get login => 'Login';
 
   @override
-  String get themeTitle => 'Theme';
+  String get networkConnectionError => 'Could not connect. Check your internet or choose another mirror in Settings → Sources.';
 
   @override
-  String get themeDescription => 'Customize the appearance of the app';
+  String get connectionFailed => 'Connection failed. Please check your internet connection or try a different mirror.';
 
   @override
-  String get darkMode => 'Dark Mode';
+  String get chooseMirror => 'Choose Mirror';
 
   @override
-  String get highContrast => 'High Contrast';
+  String get networkErrorUser => 'Network connection issue';
 
   @override
-  String get audioTitle => 'Audio';
+  String get dnsError => 'Could not resolve domain. This may be due to network restrictions or an inactive mirror.';
 
   @override
-  String get audioDescription => 'Configure audio playback settings';
+  String get timeoutError => 'Request took too long. Please check your connection and try again.';
 
   @override
-  String get playbackSpeed => 'Playback Speed';
+  String get serverError => 'Server is temporarily unavailable. Please try again later or choose another mirror.';
 
   @override
-  String get skipDuration => 'Skip Duration';
+  String get recentSearches => 'Recent Searches';
 
   @override
-  String get downloadsTitle => 'Downloads';
+  String get searchExamples => 'Try these examples';
 
   @override
-  String get downloadsDescription => 'Manage download preferences and storage';
+  String get quickActions => 'Quick Actions';
 
   @override
-  String get downloadLocation => 'Download Location';
+  String get scanLocalFiles => 'Scan Local Files';
 
   @override
-  String get wifiOnlyDownloads => 'Wi-Fi Only Downloads';
+  String get featureComingSoon => 'Feature coming soon';
 
   @override
-  String get debugTools => 'Debug Tools';
+  String get changeMirror => 'Change Mirror';
 
   @override
-  String get logsTab => 'Logs';
+  String get checkConnection => 'Check Connection';
 
   @override
-  String get mirrorsTab => 'Mirrors';
+  String get permissionsRequired => 'Permissions Required';
 
   @override
-  String get downloadsTab => 'Downloads';
+  String get permissionExplanation => 'This app needs storage permission to download and save audiobook files. Please grant the required permissions to continue.';
 
   @override
-  String get cacheTab => 'Cache';
+  String get grantPermissions => 'Grant Permissions';
 
   @override
-  String get testAllMirrors => 'Test All Mirrors';
+  String get permissionDeniedTitle => 'Permission Denied';
 
   @override
-  String get statusLabel => 'Status: ';
+  String get permissionDeniedMessage => 'Storage permission is required to download files. Please enable it in app settings.';
 
   @override
-  String get activeStatus => 'Active';
-
-  @override
-  String get disabledStatus => 'Disabled';
-
-  @override
-  String get lastOkLabel => 'Last OK: ';
-
-  @override
-  String get rttLabel => 'RTT: ';
-
-  @override
-  String get milliseconds => 'ms';
-
-  @override
-  String get cacheStatistics => 'Cache Statistics';
-
-  @override
-  String get totalEntries => 'Total entries: ';
-
-  @override
-  String get searchCache => 'Search cache: ';
-
-  @override
-  String get topicCache => 'Topic cache: ';
-
-  @override
-  String get memoryUsage => 'Memory usage: ';
-
-  @override
-  String get clearAllCache => 'Clear All Cache';
-
-  @override
-  String get cacheClearedSuccessfully => 'Cache cleared successfully';
-
-  @override
-  String get mirrorHealthCheckCompleted => 'Mirror health check completed';
-
-  @override
-  String get exportFunctionalityComingSoon => 'Export functionality coming soon';
-
-  @override
-  String get logsExportedSuccessfully => 'Logs exported successfully';
-
-  @override
-  String get failedToExportLogs => 'Failed to export logs';
-
-  @override
-  String get requestTimedOut => 'Request timed out. Please check your connection.';
-
-  @override
-  String networkError(Object errorMessage) {
-    return 'Network error: $errorMessage';
-  }
-
-  @override
-  String get downloadFunctionalityComingSoon => 'Download functionality coming soon!';
-
-  @override
-  String get magnetLinkCopied => 'Magnet link copied to clipboard';
-
-  @override
-  String get dataLoadedFromCache => 'Data loaded from cache';
-
-  @override
-  String get failedToLoadTopic => 'Failed to load topic';
-
-  @override
-  String errorLoadingTopic(Object error) {
-    return 'Error loading topic: $error';
-  }
-
-  @override
-  String get unknownChapter => 'Unknown Chapter';
-
-  @override
-  String get chaptersLabel => 'Chapters';
-
-  @override
-  String get magnetLinkLabel => 'Magnet Link';
-
-  @override
-  String get downloadLabel => 'Download';
-
-  @override
-  String get playLabel => 'Play';
-
-  @override
-  String get pauseLabel => 'Pause';
-
-  @override
-  String get stopLabel => 'Stop';
-
-  @override
-  String get failedToLoadAudio => 'Failed to load audiobook';
-
-  @override
-  String get sampleAudiobook => 'Sample Audiobook';
-
-  @override
-  String get sampleAuthor => 'Sample Author';
-
-  @override
-  String get chapter1 => 'Chapter 1';
-
-  @override
-  String get chapter2 => 'Chapter 2';
-
-  @override
-  String get mirrorsScreenTitle => 'Mirrors Screen';
-
-  @override
-  String get downloadStatusUnknown => 'unknown';
-
-  @override
-  String downloadProgressLabel(Object progress) {
-    return 'Progress: $progress%';
-  }
-
-  @override
-  String get statusLabelNoColon => 'Status';
-
-  @override
-  String copyToClipboardLabel(Object label) {
-    return '$label copied to clipboard';
-  }
-
-  @override
-  String get navSearch => 'Search';
-
-  @override
-  String get navLibrary => 'Library';
-
-  @override
-  String get navSettings => 'Settings';
-
-  @override
-  String get navDebug => 'Debug';
-
-  @override
-  String get mirrorStatusActive => 'Active';
-
-  @override
-  String get mirrorStatusInactive => 'Inactive';
-
-  @override
-  String get mirrorStatusDisabled => 'Disabled';
-
-  @override
-  String get mirrorTestIndividual => 'Test this mirror';
-
-  @override
-  String get mirrorDomainLabel => 'Domain';
-
-  @override
-  String get mirrorResponseTime => 'Response time';
-
-  @override
-  String get mirrorLastCheck => 'Last checked';
-
-  @override
-  String get authTitle => 'RuTracker Connection';
-
-  @override
-  String get usernameLabel => 'Username';
-
-  @override
-  String get passwordLabel => 'Password';
-
-  @override
-  String get rememberMeLabel => 'Remember me';
-
-  @override
-  String get loginButton => 'Login';
-
-  @override
-  String get testConnectionButton => 'Test Connection';
-
-  @override
-  String get logoutButton => 'Logout';
-
-  @override
-  String get authHelpText => 'Login to RuTracker to access audiobook search and downloads. Your credentials are stored securely.';
-
-  @override
-  String get navAuth => 'Connect';
+  String get permissionDeniedButton => 'Open Settings';
 }

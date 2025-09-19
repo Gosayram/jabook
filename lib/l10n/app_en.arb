@@ -65,10 +65,6 @@
   "@systemDefault": {
     "description": "Use system language setting"
   },
-  "languageDescription": "Choose your preferred language for the app interface",
-  "@languageDescription": {
-    "description": "Description for language settings section"
-  },
   "failedToSearch": "Failed to search",
   "@failedToSearch": {
     "description": "Error message when search fails"
@@ -133,320 +129,84 @@
   "@login": {
     "description": "Login button text"
   },
-  "themeTitle": "Theme",
-  "@themeTitle": {
-    "description": "Title for theme settings section"
-  },
-  "themeDescription": "Customize the appearance of the app",
-  "@themeDescription": {
-    "description": "Description for theme settings section"
-  },
-  "darkMode": "Dark Mode",
-  "@darkMode": {
-    "description": "Dark mode toggle label"
-  },
-  "highContrast": "High Contrast",
-  "@highContrast": {
-    "description": "High contrast mode toggle label"
-  },
-  "audioTitle": "Audio",
-  "@audioTitle": {
-    "description": "Title for audio settings section"
-  },
-  "audioDescription": "Configure audio playback settings",
-  "@audioDescription": {
-    "description": "Description for audio settings section"
-  },
-  "playbackSpeed": "Playback Speed",
-  "@playbackSpeed": {
-    "description": "Playback speed setting label"
-  },
-  "skipDuration": "Skip Duration",
-  "@skipDuration": {
-    "description": "Skip duration setting label"
-  },
-  "downloadsTitle": "Downloads",
-  "@downloadsTitle": {
-    "description": "Title for downloads settings section"
-  },
-  "downloadsDescription": "Manage download preferences and storage",
-  "@downloadsDescription": {
-    "description": "Description for downloads settings section"
-  },
-  "downloadLocation": "Download Location",
-  "@downloadLocation": {
-    "description": "Download location setting label"
-  },
-  "wifiOnlyDownloads": "Wi-Fi Only Downloads",
-  "@wifiOnlyDownloads": {
-    "description": "Wi-Fi only downloads toggle label"
-  },
-  "debugTools": "Debug Tools",
-  "@debugTools": {
-    "description": "Title for debug screen"
-  },
-  "logsTab": "Logs",
-  "@logsTab": {
-    "description": "Logs tab label"
-  },
-  "mirrorsTab": "Mirrors",
-  "@mirrorsTab": {
-    "description": "Mirrors tab label"
-  },
-  "downloadsTab": "Downloads",
-  "@downloadsTab": {
-    "description": "Downloads tab label"
-  },
-  "cacheTab": "Cache",
-  "@cacheTab": {
-    "description": "Cache tab label"
-  },
-  "testAllMirrors": "Test All Mirrors",
-  "@testAllMirrors": {
-    "description": "Test all mirrors button text"
-  },
-  "statusLabel": "Status: ",
-  "@statusLabel": {
-    "description": "Status label text"
-  },
-  "activeStatus": "Active",
-  "@activeStatus": {
-    "description": "Active status text"
-  },
-  "disabledStatus": "Disabled",
-  "@disabledStatus": {
-    "description": "Disabled status text"
-  },
-  "lastOkLabel": "Last OK: ",
-  "@lastOkLabel": {
-    "description": "Last OK label text"
-  },
-  "rttLabel": "RTT: ",
-  "@rttLabel": {
-    "description": "RTT label text"
-  },
-  "milliseconds": "ms",
-  "@milliseconds": {
-    "description": "Milliseconds abbreviation"
-  },
-  "cacheStatistics": "Cache Statistics",
-  "@cacheStatistics": {
-    "description": "Cache statistics title"
-  },
-  "totalEntries": "Total entries: ",
-  "@totalEntries": {
-    "description": "Total entries label"
-  },
-  "searchCache": "Search cache: ",
-  "@searchCache": {
-    "description": "Search cache label"
-  },
-  "topicCache": "Topic cache: ",
-  "@topicCache": {
-    "description": "Topic cache label"
-  },
-  "memoryUsage": "Memory usage: ",
-  "@memoryUsage": {
-    "description": "Memory usage label"
-  },
-  "clearAllCache": "Clear All Cache",
-  "@clearAllCache": {
-    "description": "Clear all cache button text"
-  },
-  "cacheClearedSuccessfully": "Cache cleared successfully",
-  "@cacheClearedSuccessfully": {
-    "description": "Cache cleared success message"
-  },
-  "mirrorHealthCheckCompleted": "Mirror health check completed",
-  "@mirrorHealthCheckCompleted": {
-    "description": "Mirror health check completion message"
-  },
-  "exportFunctionalityComingSoon": "Export functionality coming soon",
-  "@exportFunctionalityComingSoon": {
-    "description": "Export functionality coming soon message"
-  },
-  "logsExportedSuccessfully": "Logs exported successfully",
-  "@logsExportedSuccessfully": {
-    "description": "Logs exported success message"
-  },
-  "failedToExportLogs": "Failed to export logs",
-  "@failedToExportLogs": {
-    "description": "Logs export failure message"
-  },
-  "requestTimedOut": "Request timed out. Please check your connection.",
-  "@requestTimedOut": {
-    "description": "Network timeout error message"
-  },
-  "networkError": "Network error: {errorMessage}",
-  "@networkError": {
-    "description": "Generic network error message"
-  },
-  "downloadFunctionalityComingSoon": "Download functionality coming soon!",
-  "@downloadFunctionalityComingSoon": {
-    "description": "Download feature coming soon message"
-  },
-  "magnetLinkCopied": "Magnet link copied to clipboard",
-  "@magnetLinkCopied": {
-    "description": "Magnet link copied success message"
-  },
-  "dataLoadedFromCache": "Data loaded from cache",
-  "@dataLoadedFromCache": {
-    "description": "Cache data loaded message"
-  },
-  "failedToLoadTopic": "Failed to load topic",
-  "@failedToLoadTopic": {
-    "description": "Topic loading failure message"
-  },
-  "errorLoadingTopic": "Error loading topic: {error}",
-  "@errorLoadingTopic": {
-    "description": "Topic loading error message"
-  },
-  "unknownChapter": "Unknown Chapter",
-  "@unknownChapter": {
-    "description": "Fallback for missing chapter title"
-  },
-  "chaptersLabel": "Chapters",
-  "@chaptersLabel": {
-    "description": "Label for chapters section"
-  },
-  "magnetLinkLabel": "Magnet Link",
-  "@magnetLinkLabel": {
-    "description": "Label for magnet link"
-  },
-  "downloadLabel": "Download",
-  "@downloadLabel": {
-    "description": "Download button label"
-  },
-  "playLabel": "Play",
-  "@playLabel": {
-    "description": "Play button label"
-  },
-  "pauseLabel": "Pause",
-  "@pauseLabel": {
-    "description": "Pause button label"
-  },
-  "stopLabel": "Stop",
-  "@stopLabel": {
-    "description": "Stop button label"
-  },
-  "failedToLoadAudio": "Failed to load audiobook",
-  "@failedToLoadAudio": {
-    "description": "Audiobook loading failure message"
-  },
-  "sampleAudiobook": "Sample Audiobook",
-  "@sampleAudiobook": {
-    "description": "Sample audiobook title"
-  },
-  "sampleAuthor": "Sample Author",
-  "@sampleAuthor": {
-    "description": "Sample author name"
-  },
-  "chapter1": "Chapter 1",
-  "@chapter1": {
-    "description": "Chapter 1 title"
-  },
-  "chapter2": "Chapter 2",
-  "@chapter2": {
-    "description": "Chapter 2 title"
-  },
-  "mirrorsScreenTitle": "Mirrors Screen",
-  "@mirrorsScreenTitle": {
-    "description": "Title for mirrors screen"
-  },
-  "downloadStatusUnknown": "unknown",
-  "@downloadStatusUnknown": {
-    "description": "Unknown download status"
-  },
-  "downloadProgressLabel": "Progress: {progress}%",
-  "@downloadProgressLabel": {
-    "description": "Download progress label"
-  },
-  "statusLabelNoColon": "Status",
-  "@statusLabelNoColon": {
-    "description": "Status label without colon"
-  },
-  "copyToClipboardLabel": "{label} copied to clipboard",
-  "@copyToClipboardLabel": {
-    "description": "Copy to clipboard success message"
-  },
-  "navSearch": "Search",
-  "@navSearch": {
-    "description": "Short navigation label for search"
-  },
-  "navLibrary": "Library",
-  "@navLibrary": {
-    "description": "Short navigation label for library"
-  },
-  "navSettings": "Settings",
-  "@navSettings": {
-    "description": "Short navigation label for settings"
-  },
-  "navDebug": "Debug",
-  "@navDebug": {
-    "description": "Short navigation label for debug"
-  },
-  "mirrorStatusActive": "Active",
-  "@mirrorStatusActive": {
-    "description": "Active mirror status text"
-  },
-  "mirrorStatusInactive": "Inactive",
-  "@mirrorStatusInactive": {
-    "description": "Inactive mirror status text"
-  },
-  "mirrorStatusDisabled": "Disabled",
-  "@mirrorStatusDisabled": {
-    "description": "Disabled mirror status text"
-  },
-  "mirrorTestIndividual": "Test this mirror",
-  "@mirrorTestIndividual": {
-    "description": "Individual mirror test button text"
-  },
-  "mirrorDomainLabel": "Domain",
-  "@mirrorDomainLabel": {
-    "description": "Label for mirror domain"
-  },
-  "mirrorResponseTime": "Response time",
-  "@mirrorResponseTime": {
-    "description": "Label for response time"
-  },
-  "mirrorLastCheck": "Last checked",
-  "@mirrorLastCheck": {
-    "description": "Label for last check time"
-  },
-  "authTitle": "RuTracker Connection",
-  "@authTitle": {
-    "description": "Title for authentication screen"
-  },
-  "usernameLabel": "Username",
-  "@usernameLabel": {
-    "description": "Label for username field"
-  },
-  "passwordLabel": "Password",
-  "@passwordLabel": {
-    "description": "Label for password field"
-  },
-  "rememberMeLabel": "Remember me",
-  "@rememberMeLabel": {
-    "description": "Label for remember me checkbox"
-  },
-  "loginButton": "Login",
-  "@loginButton": {
-    "description": "Text for login button"
-  },
-  "testConnectionButton": "Test Connection",
-  "@testConnectionButton": {
-    "description": "Text for test connection button"
-  },
-  "logoutButton": "Logout",
-  "@logoutButton": {
-    "description": "Text for logout button"
-  },
-  "authHelpText": "Login to RuTracker to access audiobook search and downloads. Your credentials are stored securely.",
-  "@authHelpText": {
-    "description": "Help text for authentication screen"
-  },
-  "navAuth": "Connect",
-  "@navAuth": {
-    "description": "Short navigation label for authentication"
+  "networkConnectionError": "Could not connect. Check your internet or choose another mirror in Settings → Sources.",
+  "@networkConnectionError": {
+    "description": "User-friendly network connection error message"
+  },
+  "connectionFailed": "Connection failed. Please check your internet connection or try a different mirror.",
+  "@connectionFailed": {
+    "description": "Generic connection failure message"
+  },
+  "chooseMirror": "Choose Mirror",
+  "@chooseMirror": {
+    "description": "Button text for choosing mirror"
+  },
+  "networkErrorUser": "Network connection issue",
+  "@networkErrorUser": {
+    "description": "User-friendly network error title"
+  },
+  "dnsError": "Could not resolve domain. This may be due to network restrictions or an inactive mirror.",
+  "@dnsError": {
+    "description": "DNS resolution error message"
+  },
+  "timeoutError": "Request took too long. Please check your connection and try again.",
+  "@timeoutError": {
+    "description": "Timeout error message"
+  },
+  "serverError": "Server is temporarily unavailable. Please try again later or choose another mirror.",
+  "@serverError": {
+    "description": "Server error message"
+  },
+  "recentSearches": "Recent Searches",
+  "@recentSearches": {
+    "description": "Title for recent searches section"
+  },
+  "searchExamples": "Try these examples",
+  "@searchExamples": {
+    "description": "Title for search examples section"
+  },
+  "quickActions": "Quick Actions",
+  "@quickActions": {
+    "description": "Title for quick actions section"
+  },
+  "scanLocalFiles": "Scan Local Files",
+  "@scanLocalFiles": {
+    "description": "Label for scan local files action"
+  },
+  "featureComingSoon": "Feature coming soon",
+  "@featureComingSoon": {
+    "description": "Message for upcoming features"
+  },
+  "changeMirror": "Change Mirror",
+  "@changeMirror": {
+    "description": "Label for change mirror action"
+  },
+  "checkConnection": "Check Connection",
+  "@checkConnection": {
+    "description": "Label for check connection action"
+  },
+  "permissionsRequired": "Permissions Required",
+  "@permissionsRequired": {
+    "description": "Title for permissions required dialog"
+  },
+  "permissionExplanation": "This app needs storage permission to download and save audiobook files. Please grant the required permissions to continue.",
+  "@permissionExplanation": {
+    "description": "Explanation for why permissions are needed"
+  },
+  "grantPermissions": "Grant Permissions",
+  "@grantPermissions": {
+    "description": "Button text to grant permissions"
+  },
+  "permissionDeniedTitle": "Permission Denied",
+  "@permissionDeniedTitle": {
+    "description": "Title for permission denied dialog"
+  },
+  "permissionDeniedMessage": "Storage permission is required to download files. Please enable it in app settings.",
+  "@permissionDeniedMessage": {
+    "description": "Message for permission denied dialog"
+  },
+  "permissionDeniedButton": "Open Settings",
+  "@permissionDeniedButton": {
+    "description": "Button text for permission denied action"
   }
 }

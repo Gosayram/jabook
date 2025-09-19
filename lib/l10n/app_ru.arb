@@ -65,10 +65,6 @@
   "@systemDefault": {
     "description": "Использовать системные настройки языка"
   },
-  "languageDescription": "Выберите предпочитаемый язык для интерфейса приложения",
-  "@languageDescription": {
-    "description": "Описание раздела настроек языка"
-  },
   "failedToSearch": "Не удалось выполнить поиск",
   "@failedToSearch": {
     "description": "Сообщение об ошибке при неудачном поиске"
@@ -133,320 +129,84 @@
   "@login": {
     "description": "Текст кнопки входа"
   },
-  "themeTitle": "Тема",
-  "@themeTitle": {
-    "description": "Заголовок раздела настроек темы"
-  },
-  "themeDescription": "Настройте внешний вид приложения",
-  "@themeDescription": {
-    "description": "Описание раздела настроек темы"
-  },
-  "darkMode": "Тёмная тема",
-  "@darkMode": {
-    "description": "Метка переключателя тёмной темы"
-  },
-  "highContrast": "Высокая контрастность",
-  "@highContrast": {
-    "description": "Метка переключателя высокой контрастности"
-  },
-  "audioTitle": "Аудио",
-  "@audioTitle": {
-    "description": "Заголовок раздела настроек аудио"
-  },
-  "audioDescription": "Настройте параметры воспроизведения аудио",
-  "@audioDescription": {
-    "description": "Описание раздела настроек аудио"
-  },
-  "playbackSpeed": "Скорость воспроизведения",
-  "@playbackSpeed": {
-    "description": "Метка настройки скорости воспроизведения"
-  },
-  "skipDuration": "Пропуск",
-  "@skipDuration": {
-    "description": "Метка настройки продолжительности пропуска"
-  },
-  "downloadsTitle": "Загрузки",
-  "@downloadsTitle": {
-    "description": "Заголовок раздела настроек загрузок"
-  },
-  "downloadsDescription": "Управление настройками загрузок и хранилищем",
-  "@downloadsDescription": {
-    "description": "Описание раздела настроек загрузок"
-  },
-  "downloadLocation": "Местоположение загрузок",
-  "@downloadLocation": {
-    "description": "Метка настройки местоположения загрузок"
-  },
-  "wifiOnlyDownloads": "Только по Wi-Fi",
-  "@wifiOnlyDownloads": {
-    "description": "Метка переключателя загрузок только по Wi-Fi"
-  },
-  "debugTools": "Инструменты отладки",
-  "@debugTools": {
-    "description": "Заголовок экрана отладки"
-  },
-  "logsTab": "Логи",
-  "@logsTab": {
-    "description": "Метка вкладки логов"
-  },
-  "mirrorsTab": "Зеркала",
-  "@mirrorsTab": {
-    "description": "Метка вкладки зеркал"
-  },
-  "downloadsTab": "Загрузки",
-  "@downloadsTab": {
-    "description": "Метка вкладки загрузок"
-  },
-  "cacheTab": "Кэш",
-  "@cacheTab": {
-    "description": "Метка вкладки кэша"
-  },
-  "testAllMirrors": "Проверить все зеркала",
-  "@testAllMirrors": {
-    "description": "Текст кнопки проверки всех зеркал"
-  },
-  "statusLabel": "Статус: ",
-  "@statusLabel": {
-    "description": "Текст метки статуса"
-  },
-  "activeStatus": "Активно",
-  "@activeStatus": {
-    "description": "Текст активного статуса"
-  },
-  "disabledStatus": "Отключено",
-  "@disabledStatus": {
-    "description": "Текст отключенного статуса"
-  },
-  "lastOkLabel": "Последний OK: ",
-  "@lastOkLabel": {
-    "description": "Текст метки последнего OK"
-  },
-  "rttLabel": "RTT: ",
-  "@rttLabel": {
-    "description": "Текст метки RTT"
-  },
-  "milliseconds": "мс",
-  "@milliseconds": {
-    "description": "Сокращение миллисекунд"
-  },
-  "cacheStatistics": "Статистика кэша",
-  "@cacheStatistics": {
-    "description": "Заголовок статистики кэша"
-  },
-  "totalEntries": "Всего записей: ",
-  "@totalEntries": {
-    "description": "Метка общего количества записей"
-  },
-  "searchCache": "Кэш поиска: ",
-  "@searchCache": {
-    "description": "Метка кэша поиска"
-  },
-  "topicCache": "Кэш топиков: ",
-  "@topicCache": {
-    "description": "Метка кэша топиков"
-  },
-  "memoryUsage": "Использование памяти: ",
-  "@memoryUsage": {
-    "description": "Метка использования памяти"
-  },
-  "clearAllCache": "Очистить весь кэш",
-  "@clearAllCache": {
-    "description": "Текст кнопки очистки всего кэша"
-  },
-  "cacheClearedSuccessfully": "Кэш успешно очищен",
-  "@cacheClearedSuccessfully": {
-    "description": "Сообщение об успешной очистке кэша"
-  },
-  "mirrorHealthCheckCompleted": "Проверка здоровья зеркал завершена",
-  "@mirrorHealthCheckCompleted": {
-    "description": "Сообщение о завершении проверки здоровья зеркал"
-  },
-  "exportFunctionalityComingSoon": "Функция экспорта скоро появится",
-  "@exportFunctionalityComingSoon": {
-    "description": "Сообщение о скором появлении функции экспорта"
-  },
-  "logsExportedSuccessfully": "Логи успешно экспортированы",
-  "@logsExportedSuccessfully": {
-    "description": "Сообщение об успешном экспорте логов"
-  },
-  "failedToExportLogs": "Не удалось экспортировать логи",
-  "@failedToExportLogs": {
-    "description": "Сообщение о неудачном экспорте логов"
-  },
-  "requestTimedOut": "Время запроса истекло. Пожалуйста, проверьте соединение.",
-  "@requestTimedOut": {
-    "description": "Сообщение об ошибке таймаута сети"
-  },
-  "networkError": "Ошибка сети: {errorMessage}",
-  "@networkError": {
-    "description": "Общее сообщение об ошибке сети"
-  },
-  "downloadFunctionalityComingSoon": "Функция загрузки скоро появится!",
-  "@downloadFunctionalityComingSoon": {
-    "description": "Сообщение о скором появлении функции загрузки"
-  },
-  "magnetLinkCopied": "Magnet-ссылка скопирована в буфер обмена",
-  "@magnetLinkCopied": {
-    "description": "Сообщение об успешном копировании magnet-ссылки"
-  },
-  "dataLoadedFromCache": "Данные загружены из кэша",
-  "@dataLoadedFromCache": {
-    "description": "Сообщение о загрузке данных из кэша"
-  },
-  "failedToLoadTopic": "Не удалось загрузить топик",
-  "@failedToLoadTopic": {
-    "description": "Сообщение о неудачной загрузке топика"
-  },
-  "errorLoadingTopic": "Ошибка загрузки топика: {error}",
-  "@errorLoadingTopic": {
-    "description": "Сообщение об ошибке загрузки топика"
-  },
-  "unknownChapter": "Неизвестная глава",
-  "@unknownChapter": {
-    "description": "Запасной вариант для отсутствующего названия главы"
-  },
-  "chaptersLabel": "Главы",
-  "@chaptersLabel": {
-    "description": "Метка раздела глав"
-  },
-  "magnetLinkLabel": "Magnet-ссылка",
-  "@magnetLinkLabel": {
-    "description": "Метка для magnet-ссылки"
-  },
-  "downloadLabel": "Скачать",
-  "@downloadLabel": {
-    "description": "Метка кнопки скачивания"
-  },
-  "playLabel": "Воспроизвести",
-  "@playLabel": {
-    "description": "Метка кнопки воспроизведения"
-  },
-  "pauseLabel": "Пауза",
-  "@pauseLabel": {
-    "description": "Метка кнопки паузы"
-  },
-  "stopLabel": "Стоп",
-  "@stopLabel": {
-    "description": "Метка кнопки остановки"
-  },
-  "failedToLoadAudio": "Не удалось загрузить аудиокнигу",
-  "@failedToLoadAudio": {
-    "description": "Сообщение о неудачной загрузке аудиокниги"
-  },
-  "sampleAudiobook": "Пример аудиокниги",
-  "@sampleAudiobook": {
-    "description": "Название примерной аудиокниги"
-  },
-  "sampleAuthor": "Примерный автор",
-  "@sampleAuthor": {
-    "description": "Имя примерного автора"
-  },
-  "chapter1": "Глава 1",
-  "@chapter1": {
-    "description": "Название главы 1"
-  },
-  "chapter2": "Глава 2",
-  "@chapter2": {
-    "description": "Название главы 2"
-  },
-  "mirrorsScreenTitle": "Экран зеркал",
-  "@mirrorsScreenTitle": {
-    "description": "Заголовок экрана зеркал"
-  },
-  "downloadStatusUnknown": "неизвестно",
-  "@downloadStatusUnknown": {
-    "description": "Неизвестный статус загрузки"
-  },
-  "downloadProgressLabel": "Прогресс: {progress}%",
-  "@downloadProgressLabel": {
-    "description": "Метка прогресса загрузки"
-  },
-  "statusLabelNoColon": "Статус",
-  "@statusLabelNoColon": {
-    "description": "Метка статуса без двоеточия"
-  },
-  "copyToClipboardLabel": "{label} скопировано в буфер обмена",
-  "@copyToClipboardLabel": {
-    "description": "Сообщение об успешном копировании в буфер обмена"
-  },
-  "navSearch": "Поиск",
-  "@navSearch": {
-    "description": "Короткая метка навигации для поиска"
-  },
-  "navLibrary": "Библиотека",
-  "@navLibrary": {
-    "description": "Короткая метка навигации для библиотеки"
-  },
-  "navSettings": "Настройки",
-  "@navSettings": {
-    "description": "Короткая метка навигации для настроек"
-  },
-  "navDebug": "Отладка",
-  "@navDebug": {
-    "description": "Короткая метка навигации для отладки"
-  },
-  "mirrorStatusActive": "Активно",
-  "@mirrorStatusActive": {
-    "description": "Текст активного статуса зеркала"
-  },
-  "mirrorStatusInactive": "Неактивно",
-  "@mirrorStatusInactive": {
-    "description": "Текст неактивного статуса зеркала"
-  },
-  "mirrorStatusDisabled": "Отключено",
-  "@mirrorStatusDisabled": {
-    "description": "Текст отключенного статуса зеркала"
-  },
-  "mirrorTestIndividual": "Проверить это зеркало",
-  "@mirrorTestIndividual": {
-    "description": "Текст кнопки проверки отдельного зеркала"
-  },
-  "mirrorDomainLabel": "Домен",
-  "@mirrorDomainLabel": {
-    "description": "Метка для домена зеркала"
-  },
-  "mirrorResponseTime": "Время ответа",
-  "@mirrorResponseTime": {
-    "description": "Метка для времени ответа"
-  },
-  "mirrorLastCheck": "Последняя проверка",
-  "@mirrorLastCheck": {
-    "description": "Метка для времени последней проверки"
-  },
-  "authTitle": "Подключение к RuTracker",
-  "@authTitle": {
-    "description": "Заголовок экрана аутентификации"
-  },
-  "usernameLabel": "Имя пользователя",
-  "@usernameLabel": {
-    "description": "Метка для поля имени пользователя"
-  },
-  "passwordLabel": "Пароль",
-  "@passwordLabel": {
-    "description": "Метка для поля пароля"
-  },
-  "rememberMeLabel": "Запомнить меня",
-  "@rememberMeLabel": {
-    "description": "Метка для чекбокса запомнить меня"
-  },
-  "loginButton": "Войти",
-  "@loginButton": {
-    "description": "Текст для кнопки входа"
-  },
-  "testConnectionButton": "Проверить соединение",
-  "@testConnectionButton": {
-    "description": "Текст для кнопки проверки соединения"
-  },
-  "logoutButton": "Выйти",
-  "@logoutButton": {
-    "description": "Текст для кнопки выхода"
-  },
-  "authHelpText": "Войдите в RuTracker для доступа к поиску и загрузке аудиокниг. Ваши учетные данные хранятся безопасно.",
-  "@authHelpText": {
-    "description": "Справка для экрана аутентификации"
-  },
-  "navAuth": "Подключение",
-  "@navAuth": {
-    "description": "Короткая метка навигации для аутентификации"
+  "networkConnectionError": "Не удалось подключиться. Проверьте интернет или выберите другое зеркало в Настройках → Источники.",
+  "@networkConnectionError": {
+    "description": "Пользовательское сообщение об ошибке сетевого подключения"
+  },
+  "connectionFailed": "Соединение не установлено. Проверьте интернет-подключение или попробуйте другое зеркало.",
+  "@connectionFailed": {
+    "description": "Общее сообщение о сбое соединения"
+  },
+  "chooseMirror": "Выбрать зеркало",
+  "@chooseMirror": {
+    "description": "Текст кнопки для выбора зеркала"
+  },
+  "networkErrorUser": "Проблема с сетевым подключением",
+  "@networkErrorUser": {
+    "description": "Пользовательский заголовок сетевой ошибки"
+  },
+  "dnsError": "Не удалось разрешить домен. Это может быть связано с сетевыми ограничениями или неактивным зеркалом.",
+  "@dnsError": {
+    "description": "Сообщение об ошибке разрешения DNS"
+  },
+  "timeoutError": "Запрос занял слишком много времени. Проверьте соединение и попробуйте снова.",
+  "@timeoutError": {
+    "description": "Сообщение об ошибке таймаута"
+  },
+  "serverError": "Сервер временно недоступен. Попробуйте позже или выберите другое зеркало.",
+  "@serverError": {
+    "description": "Сообщение об ошибке сервера"
+  },
+  "recentSearches": "Недавние поиски",
+  "@recentSearches": {
+    "description": "Заголовок раздела недавних поисков"
+  },
+  "searchExamples": "Попробуйте эти примеры",
+  "@searchExamples": {
+    "description": "Заголовок раздела примеров поиска"
+  },
+  "quickActions": "Быстрые действия",
+  "@quickActions": {
+    "description": "Заголовок раздела быстрых действий"
+  },
+  "scanLocalFiles": "Сканировать локальные файлы",
+  "@scanLocalFiles": {
+    "description": "Метка для действия сканирования локальных файлов"
+  },
+  "featureComingSoon": "Функция скоро появится",
+  "@featureComingSoon": {
+    "description": "Сообщение о предстоящих функциях"
+  },
+  "changeMirror": "Сменить зеркало",
+  "@changeMirror": {
+    "description": "Метка для действия смены зеркала"
+  },
+  "checkConnection": "Проверить соединение",
+  "@checkConnection": {
+    "description": "Метка для действия проверки соединения"
+  },
+  "permissionsRequired": "Требуются разрешения",
+  "@permissionsRequired": {
+    "description": "Заголовок диалога требуемых разрешений"
+  },
+  "permissionExplanation": "Это приложение требует разрешения на хранение для загрузки и сохранения аудиофайлов. Пожалуйста, предоставьте необходимые разрешения для продолжения.",
+  "@permissionExplanation": {
+    "description": "Объяснение необходимости разрешений"
+  },
+  "grantPermissions": "Предоставить разрешения",
+  "@grantPermissions": {
+    "description": "Текст кнопки предоставления разрешений"
+  },
+  "permissionDeniedTitle": "В разрешении отказано",
+  "@permissionDeniedTitle": {
+    "description": "Заголовок диалога отказа в разрешении"
+  },
+  "permissionDeniedMessage": "Для загрузки файлов требуется разрешение на хранение. Пожалуйста, включите его в настройках приложения.",
+  "@permissionDeniedMessage": {
+    "description": "Сообщение для диалога отказа в разрешении"
+  },
+  "permissionDeniedButton": "Открыть настройки",
+  "@permissionDeniedButton": {
+    "description": "Текст кнопки для открытия настроек"
   }
 }

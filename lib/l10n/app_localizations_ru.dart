@@ -60,9 +60,6 @@ class AppLocalizationsRu extends AppLocalizations {
   String get systemDefault => 'Системный по умолчанию';
 
   @override
-  String get languageDescription => 'Выберите предпочитаемый язык для интерфейса приложения';
-
-  @override
   String get failedToSearch => 'Не удалось выполнить поиск';
 
   @override
@@ -111,247 +108,62 @@ class AppLocalizationsRu extends AppLocalizations {
   String get login => 'Войти';
 
   @override
-  String get themeTitle => 'Тема';
+  String get networkConnectionError => 'Не удалось подключиться. Проверьте интернет или выберите другое зеркало в Настройках → Источники.';
 
   @override
-  String get themeDescription => 'Настройте внешний вид приложения';
+  String get connectionFailed => 'Соединение не установлено. Проверьте интернет-подключение или попробуйте другое зеркало.';
 
   @override
-  String get darkMode => 'Тёмная тема';
+  String get chooseMirror => 'Выбрать зеркало';
 
   @override
-  String get highContrast => 'Высокая контрастность';
+  String get networkErrorUser => 'Проблема с сетевым подключением';
 
   @override
-  String get audioTitle => 'Аудио';
+  String get dnsError => 'Не удалось разрешить домен. Это может быть связано с сетевыми ограничениями или неактивным зеркалом.';
 
   @override
-  String get audioDescription => 'Настройте параметры воспроизведения аудио';
+  String get timeoutError => 'Запрос занял слишком много времени. Проверьте соединение и попробуйте снова.';
 
   @override
-  String get playbackSpeed => 'Скорость воспроизведения';
+  String get serverError => 'Сервер временно недоступен. Попробуйте позже или выберите другое зеркало.';
 
   @override
-  String get skipDuration => 'Пропуск';
+  String get recentSearches => 'Недавние поиски';
 
   @override
-  String get downloadsTitle => 'Загрузки';
+  String get searchExamples => 'Попробуйте эти примеры';
 
   @override
-  String get downloadsDescription => 'Управление настройками загрузок и хранилищем';
+  String get quickActions => 'Быстрые действия';
 
   @override
-  String get downloadLocation => 'Местоположение загрузок';
+  String get scanLocalFiles => 'Сканировать локальные файлы';
 
   @override
-  String get wifiOnlyDownloads => 'Только по Wi-Fi';
+  String get featureComingSoon => 'Функция скоро появится';
 
   @override
-  String get debugTools => 'Инструменты отладки';
+  String get changeMirror => 'Сменить зеркало';
 
   @override
-  String get logsTab => 'Логи';
+  String get checkConnection => 'Проверить соединение';
 
   @override
-  String get mirrorsTab => 'Зеркала';
+  String get permissionsRequired => 'Требуются разрешения';
 
   @override
-  String get downloadsTab => 'Загрузки';
+  String get permissionExplanation => 'Это приложение требует разрешения на хранение для загрузки и сохранения аудиофайлов. Пожалуйста, предоставьте необходимые разрешения для продолжения.';
 
   @override
-  String get cacheTab => 'Кэш';
+  String get grantPermissions => 'Предоставить разрешения';
 
   @override
-  String get testAllMirrors => 'Проверить все зеркала';
+  String get permissionDeniedTitle => 'В разрешении отказано';
 
   @override
-  String get statusLabel => 'Статус: ';
+  String get permissionDeniedMessage => 'Для загрузки файлов требуется разрешение на хранение. Пожалуйста, включите его в настройках приложения.';
 
   @override
-  String get activeStatus => 'Активно';
-
-  @override
-  String get disabledStatus => 'Отключено';
-
-  @override
-  String get lastOkLabel => 'Последний OK: ';
-
-  @override
-  String get rttLabel => 'RTT: ';
-
-  @override
-  String get milliseconds => 'мс';
-
-  @override
-  String get cacheStatistics => 'Статистика кэша';
-
-  @override
-  String get totalEntries => 'Всего записей: ';
-
-  @override
-  String get searchCache => 'Кэш поиска: ';
-
-  @override
-  String get topicCache => 'Кэш топиков: ';
-
-  @override
-  String get memoryUsage => 'Использование памяти: ';
-
-  @override
-  String get clearAllCache => 'Очистить весь кэш';
-
-  @override
-  String get cacheClearedSuccessfully => 'Кэш успешно очищен';
-
-  @override
-  String get mirrorHealthCheckCompleted => 'Проверка здоровья зеркал завершена';
-
-  @override
-  String get exportFunctionalityComingSoon => 'Функция экспорта скоро появится';
-
-  @override
-  String get logsExportedSuccessfully => 'Логи успешно экспортированы';
-
-  @override
-  String get failedToExportLogs => 'Не удалось экспортировать логи';
-
-  @override
-  String get requestTimedOut => 'Время запроса истекло. Пожалуйста, проверьте соединение.';
-
-  @override
-  String networkError(Object errorMessage) {
-    return 'Ошибка сети: $errorMessage';
-  }
-
-  @override
-  String get downloadFunctionalityComingSoon => 'Функция загрузки скоро появится!';
-
-  @override
-  String get magnetLinkCopied => 'Magnet-ссылка скопирована в буфер обмена';
-
-  @override
-  String get dataLoadedFromCache => 'Данные загружены из кэша';
-
-  @override
-  String get failedToLoadTopic => 'Не удалось загрузить топик';
-
-  @override
-  String errorLoadingTopic(Object error) {
-    return 'Ошибка загрузки топика: $error';
-  }
-
-  @override
-  String get unknownChapter => 'Неизвестная глава';
-
-  @override
-  String get chaptersLabel => 'Главы';
-
-  @override
-  String get magnetLinkLabel => 'Magnet-ссылка';
-
-  @override
-  String get downloadLabel => 'Скачать';
-
-  @override
-  String get playLabel => 'Воспроизвести';
-
-  @override
-  String get pauseLabel => 'Пауза';
-
-  @override
-  String get stopLabel => 'Стоп';
-
-  @override
-  String get failedToLoadAudio => 'Не удалось загрузить аудиокнигу';
-
-  @override
-  String get sampleAudiobook => 'Пример аудиокниги';
-
-  @override
-  String get sampleAuthor => 'Примерный автор';
-
-  @override
-  String get chapter1 => 'Глава 1';
-
-  @override
-  String get chapter2 => 'Глава 2';
-
-  @override
-  String get mirrorsScreenTitle => 'Экран зеркал';
-
-  @override
-  String get downloadStatusUnknown => 'неизвестно';
-
-  @override
-  String downloadProgressLabel(Object progress) {
-    return 'Прогресс: $progress%';
-  }
-
-  @override
-  String get statusLabelNoColon => 'Статус';
-
-  @override
-  String copyToClipboardLabel(Object label) {
-    return '$label скопировано в буфер обмена';
-  }
-
-  @override
-  String get navSearch => 'Поиск';
-
-  @override
-  String get navLibrary => 'Библиотека';
-
-  @override
-  String get navSettings => 'Настройки';
-
-  @override
-  String get navDebug => 'Отладка';
-
-  @override
-  String get mirrorStatusActive => 'Активно';
-
-  @override
-  String get mirrorStatusInactive => 'Неактивно';
-
-  @override
-  String get mirrorStatusDisabled => 'Отключено';
-
-  @override
-  String get mirrorTestIndividual => 'Проверить это зеркало';
-
-  @override
-  String get mirrorDomainLabel => 'Домен';
-
-  @override
-  String get mirrorResponseTime => 'Время ответа';
-
-  @override
-  String get mirrorLastCheck => 'Последняя проверка';
-
-  @override
-  String get authTitle => 'Подключение к RuTracker';
-
-  @override
-  String get usernameLabel => 'Имя пользователя';
-
-  @override
-  String get passwordLabel => 'Пароль';
-
-  @override
-  String get rememberMeLabel => 'Запомнить меня';
-
-  @override
-  String get loginButton => 'Войти';
-
-  @override
-  String get testConnectionButton => 'Проверить соединение';
-
-  @override
-  String get logoutButton => 'Выйти';
-
-  @override
-  String get authHelpText => 'Войдите в RuTracker для доступа к поиску и загрузке аудиокниг. Ваши учетные данные хранятся безопасно.';
-
-  @override
-  String get navAuth => 'Подключение';
+  String get permissionDeniedButton => 'Открыть настройки';
 }
