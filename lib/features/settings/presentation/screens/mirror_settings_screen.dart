@@ -170,11 +170,10 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final localizations = AppLocalizations.of(context);
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(localizations?.mirrorsScreenTitle ?? 'Mirror Settings'),
+        title: Text('Mirror Settings'),
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -203,7 +202,7 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
                     onPressed: _addCustomMirror,
                     icon: const Icon(Icons.add),
                     label: Text(
-                      localizations?.mirrorsTab ?? 'Add Custom Mirror',
+                      'Add Custom Mirror',
                       style: TextStyle(
                         color: Theme.of(context).colorScheme.onPrimary,
                       ),
@@ -227,14 +226,13 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
     final priority = mirror['priority'] as int? ?? 5;
     final rtt = mirror['rtt'] as int?;
     final lastOk = mirror['last_ok'] as String?;
-    final localizations = AppLocalizations.of(context);
 
     // Determine status based on mirror properties and health
     final String statusText;
     final Color statusColor;
     
     if (!enabled) {
-      statusText = localizations?.mirrorStatusDisabled ?? 'Disabled';
+      statusText = 'Disabled';
       statusColor = Colors.grey;
     } else if (healthScore >= 80) {
       statusText = healthStatus;
@@ -298,7 +296,7 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
             
             // Priority information
             Text(
-              '${localizations?.statusLabelNoColon ?? 'Priority'}: $priority',
+              'Priority: $priority',
               style: TextStyle(
                 color: Theme.of(context).colorScheme.onSurface,
                 fontSize: 14,
@@ -309,7 +307,7 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
             if (rtt != null) ...[
               const SizedBox(height: 4),
               Text(
-                '${localizations?.mirrorResponseTime ?? 'Response time'}: $rtt${localizations?.milliseconds ?? 'ms'}',
+                'Response time: $rtt ms',
                 style: TextStyle(
                   color: Theme.of(context).colorScheme.onSurface.withAlpha(178), // 0.7 opacity equivalent
                   fontSize: 12,
@@ -320,7 +318,7 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
             if (lastOk != null) ...[
               const SizedBox(height: 4),
               Text(
-                '${localizations?.mirrorLastCheck ?? 'Last checked'}: ${_formatDate(lastOk)}',
+                'Last checked: ${_formatDate(lastOk)}',
                 style: TextStyle(
                   color: Theme.of(context).colorScheme.onSurface.withAlpha(178), // 0.7 opacity equivalent
                   fontSize: 12,
@@ -343,7 +341,7 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
                       ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator())
                       : const Icon(Icons.wifi, size: 16),
                   label: Text(
-                    localizations?.mirrorTestIndividual ?? 'Test this mirror',
+                    'Test this mirror',
                     style: const TextStyle(fontSize: 12),
                   ),
                   style: ElevatedButton.styleFrom(
@@ -356,8 +354,8 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
                   children: [
                     Text(
                       enabled
-                          ? localizations?.activeStatus ?? 'Active'
-                          : localizations?.disabledStatus ?? 'Disabled',
+                          ? 'Active'
+                          : 'Disabled',
                       style: TextStyle(
                         color: Theme.of(context).colorScheme.onSurface,
                         fontSize: 12,
