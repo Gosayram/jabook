@@ -142,7 +142,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     
     return Scaffold(
       appBar: AppBar(
-        title: Text(localizations?.authTitle ?? 'RuTracker Connection'),
+        title: Text('RuTracker Connection'),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -184,7 +184,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
               TextField(
                 controller: _usernameController,
                 decoration: InputDecoration(
-                  labelText: localizations?.usernameLabel ?? 'Username',
+                  labelText: 'Username',
                   border: const OutlineInputBorder(),
                 ),
               ),
@@ -192,7 +192,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
               TextField(
                 controller: _passwordController,
                 decoration: InputDecoration(
-                  labelText: localizations?.passwordLabel ?? 'Password',
+                  labelText: 'Password',
                   border: const OutlineInputBorder(),
                 ),
                 obscureText: true,
@@ -202,15 +202,17 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                 children: [
                   Checkbox(
                     value: _rememberMe,
-                    onChanged: (value) => setState(() => _rememberMe = value ?? true),
+                    onChanged: (value) => setState(() {
+                      _rememberMe = value ?? true;
+                    }),
                   ),
-                  Text(localizations?.rememberMeLabel ?? 'Remember me'),
+                  Text('Remember me'),
                 ],
               ),
               const SizedBox(height: 20),
               ElevatedButton(
                 onPressed: _login,
-                child: Text(localizations?.loginButton ?? 'Login'),
+                child: Text('Login'),
               ),
             ],
 
@@ -218,12 +220,12 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
             if (isLoggedIn.valueOrNull ?? false) ...[
               ElevatedButton(
                 onPressed: _testConnection,
-                child: Text(localizations?.testConnectionButton ?? 'Test Connection'),
+                child: Text('Test Connection'),
               ),
               const SizedBox(height: 16),
               OutlinedButton(
                 onPressed: _logout,
-                child: Text(localizations?.logoutButton ?? 'Logout'),
+                child: Text('Logout'),
               ),
             ],
 
@@ -231,7 +233,6 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
 
             // Help text
             Text(
-              localizations?.authHelpText ?? 
               'Login to RuTracker to access audiobook search and downloads. '
               'Your credentials are stored securely.',
               style: Theme.of(context).textTheme.bodySmall,
