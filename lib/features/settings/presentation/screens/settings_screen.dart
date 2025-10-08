@@ -128,7 +128,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ),
         const SizedBox(height: 8),
         Text(
-          localizations?.languageDescription ?? 'Choose your preferred language for the app interface',
+          localizations?.languageDescriptionText ?? 'Choose your preferred language for the app interface',
           style: Theme.of(context).textTheme.bodySmall,
         ),
         const SizedBox(height: 16),
@@ -194,18 +194,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            localizations?.themeTitle ?? 'Theme',
+            localizations?.themeTitleText ?? 'Theme',
             style: Theme.of(context).textTheme.titleLarge,
           ),
           const SizedBox(height: 8),
           Text(
-            localizations?.themeDescription ?? 'Customize the appearance of the app',
+            localizations?.themeDescriptionText ?? 'Customize the appearance of the app',
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: 16),
           ListTile(
             leading: const Icon(Icons.color_lens),
-            title: Text(localizations?.darkMode ?? 'Dark Mode'),
+            title: Text(localizations?.darkModeText ?? 'Dark Mode'),
             trailing: Semantics(
               label: 'Dark mode toggle',
               child: Switch(
@@ -218,7 +218,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
           ListTile(
             leading: const Icon(Icons.contrast),
-            title: Text(localizations?.highContrast ?? 'High Contrast'),
+            title: Text(localizations?.highContrastText ?? 'High Contrast'),
             trailing: Semantics(
               label: 'High contrast mode toggle',
               child: Switch(
@@ -240,12 +240,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            localizations?.audioTitle ?? 'Audio',
+            localizations?.audioTitleText ?? 'Audio',
             style: Theme.of(context).textTheme.titleLarge,
           ),
           const SizedBox(height: 8),
           Text(
-            localizations?.audioDescription ?? 'Configure audio playback settings',
+            localizations?.audioDescriptionText ?? 'Configure audio playback settings',
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: 16),
@@ -254,7 +254,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             label: 'Set playback speed',
             child: ListTile(
               leading: const Icon(Icons.speed),
-              title: Text(localizations?.playbackSpeed ?? 'Playback Speed'),
+              title: Text(localizations?.playbackSpeedText ?? 'Playback Speed'),
               subtitle: const Text('1.0x'),
               onTap: () {
                 // TODO: Implement playback speed selection
@@ -266,7 +266,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             label: 'Set skip duration',
             child: ListTile(
               leading: const Icon(Icons.skip_next),
-              title: Text(localizations?.skipDuration ?? 'Skip Duration'),
+              title: Text(localizations?.skipDurationText ?? 'Skip Duration'),
               subtitle: const Text('15 seconds'),
               onTap: () {
                 // TODO: Implement skip duration selection
@@ -284,12 +284,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            localizations?.downloadsTitle ?? 'Downloads',
+            localizations?.downloadsTitleText ?? 'Downloads',
             style: Theme.of(context).textTheme.titleLarge,
           ),
           const SizedBox(height: 8),
           Text(
-            localizations?.downloadsDescription ?? 'Manage download preferences and storage',
+            localizations?.downloadsDescriptionText ?? 'Manage download preferences and storage',
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: 16),
@@ -298,7 +298,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             label: 'Set download location',
             child: ListTile(
               leading: const Icon(Icons.storage),
-              title: Text(localizations?.downloadLocation ?? 'Download Location'),
+              title: Text(localizations?.downloadLocationText ?? 'Download Location'),
               subtitle: const Text('/storage/emulated/0/Download'),
               onTap: () {
                 // TODO: Implement download location selection
@@ -307,7 +307,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
           ListTile(
             leading: const Icon(Icons.wifi),
-            title: Text(localizations?.wifiOnlyDownloads ?? 'Wi-Fi Only Downloads'),
+            title: Text(localizations?.wifiOnlyDownloadsText ?? 'Wi-Fi Only Downloads'),
             trailing: Semantics(
               label: 'Wi-Fi only downloads toggle',
               child: Switch(

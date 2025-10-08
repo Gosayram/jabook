@@ -46,7 +46,7 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load mirrors: $e')),
+          SnackBar(content: Text(AppLocalizations.of(context)?.failedToLoadMirrorsMessage ?? 'Failed to load mirrors: $e')),
         );
       }
     }
@@ -66,13 +66,13 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Mirror $url tested successfully')),
+          SnackBar(content: Text(AppLocalizations.of(context)?.mirrorTestSuccessMessage ?? 'Mirror $url tested successfully')),
         );
       }
     } on Exception catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to test mirror $url: $e')),
+          SnackBar(content: Text(AppLocalizations.of(context)?.mirrorTestFailedMessage ?? 'Failed to test mirror $url: $e')),
         );
       }
     } finally {
@@ -92,13 +92,13 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Mirror ${enabled ? 'enabled' : 'disabled'}')),
+          SnackBar(content: Text(AppLocalizations.of(context)?.mirrorStatusText ?? 'Mirror ${enabled ? 'enabled' : 'disabled'}')),
         );
       }
     } on Exception catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to update mirror: $e')),
+          SnackBar(content: Text(AppLocalizations.of(context)?.failedToUpdateMirrorMessage ?? 'Failed to update mirror: $e')),
         );
       }
     }
@@ -111,7 +111,7 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
     final result = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Add Custom Mirror'),
+        title: Text(AppLocalizations.of(context)?.addCustomMirrorTitle ?? 'Add Custom Mirror'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -136,11 +136,11 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text(AppLocalizations.of(context)?.cancel ?? 'Cancel'),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Add'),
+            child: Text(AppLocalizations.of(context)?.addMirrorButtonText ?? 'Add'),
           ),
         ],
       ),
@@ -155,13 +155,13 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
         
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Mirror ${urlController.text} added')),
+            SnackBar(content: Text(AppLocalizations.of(context)?.mirrorAddedMessage ?? 'Mirror ${urlController.text} added')),
           );
         }
       } on Exception catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to add mirror: $e')),
+            SnackBar(content: Text(AppLocalizations.of(context)?.failedToAddMirrorMessage ?? 'Failed to add mirror: $e')),
           );
         }
       }
@@ -173,7 +173,7 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Mirror Settings'),
+        title: Text(AppLocalizations.of(context)?.mirrorSettingsTitle ?? 'Mirror Settings'),
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -182,7 +182,7 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
                 Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: Text(
-                    'Configure RuTracker mirrors for optimal search performance. Enabled mirrors will be used automatically.',
+                    AppLocalizations.of(context)?.configureMirrorsSubtitle ?? 'Configure RuTracker mirrors for optimal search performance. Enabled mirrors will be used automatically.',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           color: Theme.of(context).colorScheme.onSurface,
                         ),
@@ -202,7 +202,7 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
                     onPressed: _addCustomMirror,
                     icon: const Icon(Icons.add),
                     label: Text(
-                      'Add Custom Mirror',
+                      AppLocalizations.of(context)?.addCustomMirrorButtonText ?? 'Add Custom Mirror',
                       style: TextStyle(
                         color: Theme.of(context).colorScheme.onPrimary,
                       ),
@@ -232,7 +232,7 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
     final Color statusColor;
     
     if (!enabled) {
-      statusText = 'Disabled';
+      statusText = AppLocalizations.of(context)?.disabledStatusText ?? 'Disabled';
       statusColor = Colors.grey;
     } else if (healthScore >= 80) {
       statusText = healthStatus;
@@ -296,7 +296,7 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
             
             // Priority information
             Text(
-              'Priority: $priority',
+              AppLocalizations.of(context)?.priorityText ?? 'Priority: $priority',
               style: TextStyle(
                 color: Theme.of(context).colorScheme.onSurface,
                 fontSize: 14,
@@ -307,7 +307,7 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
             if (rtt != null) ...[
               const SizedBox(height: 4),
               Text(
-                'Response time: $rtt ms',
+                AppLocalizations.of(context)?.responseTimeText ?? 'Response time: $rtt ms',
                 style: TextStyle(
                   color: Theme.of(context).colorScheme.onSurface.withAlpha(178), // 0.7 opacity equivalent
                   fontSize: 12,
@@ -318,7 +318,7 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
             if (lastOk != null) ...[
               const SizedBox(height: 4),
               Text(
-                'Last checked: ${_formatDate(lastOk)}',
+                AppLocalizations.of(context)?.lastCheckedText ?? 'Last checked: ${_formatDate(lastOk)}',
                 style: TextStyle(
                   color: Theme.of(context).colorScheme.onSurface.withAlpha(178), // 0.7 opacity equivalent
                   fontSize: 12,
@@ -341,7 +341,7 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
                       ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator())
                       : const Icon(Icons.wifi, size: 16),
                   label: Text(
-                    'Test this mirror',
+                    AppLocalizations.of(context)?.testMirrorButtonText ?? 'Test this mirror',
                     style: const TextStyle(fontSize: 12),
                   ),
                   style: ElevatedButton.styleFrom(
@@ -354,8 +354,8 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
                   children: [
                     Text(
                       enabled
-                          ? 'Active'
-                          : 'Disabled',
+                          ? AppLocalizations.of(context)?.activeStatusText ?? 'Active'
+                          : AppLocalizations.of(context)?.disabledStatusText ?? 'Disabled',
                       style: TextStyle(
                         color: Theme.of(context).colorScheme.onSurface,
                         fontSize: 12,
@@ -378,12 +378,12 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
   }
 
   String _formatDate(String? isoDate) {
-    if (isoDate == null) return 'Never';
+    if (isoDate == null) return AppLocalizations.of(context)?.neverDateText ?? 'Never';
     try {
       final date = DateTime.parse(isoDate);
       return '${date.day}.${date.month}.${date.year} ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
     } on Exception {
-      return 'Invalid date';
+      return AppLocalizations.of(context)?.invalidDateText ?? 'Invalid date';
     }
   }
 }

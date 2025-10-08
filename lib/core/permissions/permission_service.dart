@@ -124,11 +124,11 @@ class PermissionService {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Отмена'),
+            child: Text('Cancel'),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Разрешить'),
+            child: Text('Allow'),
           ),
         ],
       ),

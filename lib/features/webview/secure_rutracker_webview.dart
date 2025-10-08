@@ -4,6 +4,7 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:jabook/l10n/app_localizations.dart';
 
 /// A secure WebView widget for accessing RuTracker with Cloudflare protection handling.
 ///
@@ -151,7 +152,7 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
-      title: const Text('RuTracker'),
+      title: Text(AppLocalizations.of(context)?.webViewTitle ?? 'RuTracker'),
       actions: [
         IconButton(
           icon: const Icon(Icons.open_in_browser),
@@ -183,7 +184,7 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
                   const SizedBox(width: 8.0),
                   Expanded(
                     child: Text(
-                      'Этот сайт использует проверки безопасности Cloudflare. Пожалуйста, дождитесь завершения проверки и взаимодействуйте с открывшейся страницей при необходимости.',
+                      AppLocalizations.of(context)?.cloudflareMessage ?? 'Этот сайт использует проверки безопасности Cloudflare. Пожалуйста, дождитесь завершения проверки и взаимодействуйте с открывшейся страницей при необходимости.',
                       style: TextStyle(
                         color: Colors.orange.shade800,
                         fontSize: 14.0,
@@ -262,7 +263,7 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 24.0),
                     child: Text(
-                      _errorMessage ?? 'Произошла ошибка при загрузке страницы',
+                      _errorMessage ?? (AppLocalizations.of(context)?.error ?? 'Произошла ошибка при загрузке страницы'),
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 16,
@@ -279,7 +280,7 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
                       });
                       _webViewController.reload();
                     },
-                    child: const Text('Повторить попытку'),
+                    child: Text(AppLocalizations.of(context)?.retryButtonText ?? 'Повторить попытку'),
                   ),
                   const SizedBox(height: 16),
                   TextButton(
@@ -290,7 +291,7 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
                       });
                       _webViewController.loadUrl(urlRequest: URLRequest(url: WebUri(initialUrl)));
                     },
-                    child: const Text('Перейти на главную'),
+                    child: Text(AppLocalizations.of(context)?.goHomeButtonText ?? 'Перейти на главную'),
                   ),
                 ],
               ),
@@ -303,7 +304,7 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
   void _showCloudflareHint() {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Сайт проверяет ваш браузер — пожалуйста, дождитесь завершения проверки в этой странице.'),
+        content: Text('The site is checking your browser - please wait for the verification to complete on this page.'),
       ),
     );
   }
@@ -313,16 +314,16 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
     final action = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Скачать торрент'),
-        content: const Text('Выберите действие:'),
+        title: Text(AppLocalizations.of(context)?.downloadTorrentTitle ?? 'Скачать торрент'),
+        content: Text(AppLocalizations.of(context)?.selectActionText ?? 'Выберите действие:'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, 'open'),
-            child: const Text('Открыть'),
+            child: Text(AppLocalizations.of(context)?.openButtonText ?? 'Открыть'),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, 'download'),
-            child: const Text('Скачать'),
+            child: Text(AppLocalizations.of(context)?.downloadButtonText ?? 'Скачать'),
           ),
         ],
       ),
@@ -337,7 +338,7 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Для скачивания файла, пожалуйста, откройте ссылку в браузере'),
+            content: Text('To download the file, please open the link in your browser'),
           ),
         );
       }

@@ -168,6 +168,195 @@ class AppLocalizationsEn extends AppLocalizations {
   String get permissionDeniedButton => 'Open Settings';
 
   @override
+  String get navLibrary => 'Library';
+
+  @override
+  String get navAuth => 'Connect';
+
+  @override
+  String get navSearch => 'Search';
+
+  @override
+  String get navSettings => 'Settings';
+
+  @override
+  String get navDebug => 'Debug';
+
+  @override
+  String get authTitle => 'Login';
+
+  @override
+  String get usernameLabel => 'Username';
+
+  @override
+  String get passwordLabel => 'Password';
+
+  @override
+  String get rememberMeLabel => 'Remember me';
+
+  @override
+  String get loginButton => 'Login';
+
+  @override
+  String get testConnectionButton => 'Test Connection';
+
+  @override
+  String get logoutButton => 'Logout';
+
+  @override
+  String get authHelpText => 'Enter your credentials';
+
+  @override
+  String get cacheClearedSuccessfully => 'Cache cleared successfully';
+
+  @override
+  String get downloadStatusUnknown => 'Download status unknown';
+
+  @override
+  String get failedToExportLogs => 'Failed to export logs';
+
+  @override
+  String get logsExportedSuccessfully => 'Logs exported successfully';
+
+  @override
+  String get mirrorHealthCheckCompleted => 'Mirror health check completed';
+
+  @override
+  String get testAllMirrors => 'Test All Mirrors';
+
+  @override
+  String get statusLabel => 'Status:';
+
+  @override
+  String get lastOkLabel => 'Last OK:';
+
+  @override
+  String get rttLabel => 'RTT:';
+
+  @override
+  String get milliseconds => 'ms';
+
+  @override
+  String get downloadLabel => 'Download';
+
+  @override
+  String get statusLabelNoColon => 'Status';
+
+  @override
+  String get downloadProgressLabel => 'Progress';
+
+  @override
+  String get cacheStatistics => 'Cache Statistics';
+
+  @override
+  String get totalEntries => 'Total entries';
+
+  @override
+  String get searchCache => 'Search cache';
+
+  @override
+  String get topicCache => 'Topic cache';
+
+  @override
+  String get memoryUsage => 'Memory usage';
+
+  @override
+  String get clearAllCache => 'Clear All Cache';
+
+  @override
+  String get mirrorsScreenTitle => 'Mirrors';
+
+  @override
+  String get failedToLoadAudio => 'Failed to load audio';
+
+  @override
+  String get chaptersLabel => 'Chapters';
+
+  @override
+  String get downloadFunctionalityComingSoon => 'Download functionality coming soon';
+
+  @override
+  String get requestTimedOut => 'Request timed out';
+
+  @override
+  String get networkError => 'Network error';
+
+  @override
+  String get mirrorStatusDisabled => 'Disabled';
+
+  @override
+  String get mirrorResponseTime => 'Response time';
+
+  @override
+  String get mirrorLastCheck => 'Last check';
+
+  @override
+  String get mirrorTestIndividual => 'Test individual mirror';
+
+  @override
+  String get activeStatus => 'Active';
+
+  @override
+  String get disabledStatus => 'Disabled';
+
+  @override
+  String get languageDescription => 'Select language';
+
+  @override
+  String get themeTitle => 'Theme';
+
+  @override
+  String get themeDescription => 'Select app theme';
+
+  @override
+  String get darkMode => 'Dark mode';
+
+  @override
+  String get highContrast => 'High contrast';
+
+  @override
+  String get audioTitle => 'Audio';
+
+  @override
+  String get audioDescription => 'Audio settings';
+
+  @override
+  String get playbackSpeed => 'Playback speed';
+
+  @override
+  String get skipDuration => 'Skip duration';
+
+  @override
+  String get downloadsTitle => 'Downloads';
+
+  @override
+  String get downloadsDescription => 'Download settings';
+
+  @override
+  String get downloadLocation => 'Download location';
+
+  @override
+  String get wifiOnlyDownloads => 'WiFi only downloads';
+
+  @override
+  String get dataLoadedFromCache => 'Data loaded from cache';
+
+  @override
+  String get failedToLoadTopic => 'Failed to load topic';
+
+  @override
+  String get magnetLinkLabel => 'Magnet link';
+
+  @override
+  String get unknownChapter => 'Unknown chapter';
+
+  @override
+  String get magnetLinkCopied => 'Magnet link copied';
+
+  @override
+  String get copyToClipboardLabel => 'Copy to clipboard';
+
+  @override
   String get debugToolsTitle => 'Debug Tools';
 
   @override
@@ -183,7 +372,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cacheTab => 'Cache';
 
   @override
-  String get testAllMirrorsButton => 'Test all mirrors';
+  String get testAllMirrorsButton => 'Test All Mirrors';
 
   @override
   String get statusLabelText => 'Status:';
@@ -228,19 +417,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cacheIsEmptyMessage => 'Cache is empty';
 
   @override
-  String get refreshDebugDataButton => 'Refresh debug data';
+  String get refreshDebugDataButton => 'Refresh Debug Data';
 
   @override
-  String get exportLogsButton => 'Export logs';
+  String get exportLogsButton => 'Export Logs';
 
   @override
-  String get deleteDownloadButton => 'Delete download';
+  String get deleteDownloadButton => 'Delete Download';
 
   @override
   String get webViewTitle => 'RuTracker';
 
   @override
-  String get cloudflareMessage => 'This site uses Cloudflare security checks. Please wait for the verification to complete and interact with the opened page if necessary.';
+  String get cloudflareMessage => 'This site uses Cloudflare security checks. Please wait for the check to complete and interact with the page that opens if needed.';
 
   @override
   String get retryButtonText => 'Retry';
@@ -249,7 +438,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get goHomeButtonText => 'Go to Home';
 
   @override
-  String get browserCheckMessage => 'The site is checking your browser - please wait for the verification to complete on this page.';
+  String get browserCheckMessage => 'The site is checking your browser - please wait for the check to complete on this page.';
 
   @override
   String get downloadTorrentTitle => 'Download Torrent';
@@ -327,9 +516,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get logoutButtonText => 'Logout';
 
   @override
-  String get authHelpText => 'Enter your credentials';
-
-  @override
   String get enterCredentialsText => 'Please enter username and password';
 
   @override
@@ -339,7 +525,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get loginSuccessMessage => 'Login successful!';
 
   @override
-  String get loginFailedMessage => 'Login failed. Please check credentials';
+  String get loginFailedMessage => 'Login failed. Please check your credentials';
 
   @override
   String get loginErrorMessage => 'Login error: \$error';
@@ -348,7 +534,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get testingConnectionText => 'Testing connection...';
 
   @override
-  String get connectionSuccessMessage => 'Connection successful! Using: \$endpoint';
+  String get connectionSuccessMessage => 'Connection established! Using: \$endpoint';
 
   @override
   String get connectionFailedMessage => 'Connection test failed: \$error';
@@ -357,7 +543,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get loggingOutText => 'Logging out...';
 
   @override
-  String get logoutSuccessMessage => 'Logged out successfully';
+  String get logoutSuccessMessage => 'Logout completed';
 
   @override
   String get logoutErrorMessage => 'Logout error: \$error';
@@ -381,7 +567,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get highContrastTitle => 'High Contrast';
 
   @override
-  String get wifiOnlyDownloadsTitle => 'Wi-Fi Only Downloads';
+  String get wifiOnlyDownloadsTitle => 'WiFi Only Downloads';
 
   @override
   String get failedToLoadMirrorsMessage => 'Failed to load mirrors: \$error';
@@ -462,7 +648,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get failedToLoadAudioMessage => 'Failed to load audio';
 
   @override
-  String get byAuthorText => 'by \$author';
+  String get byAuthorText => 'by: \$author';
 
   @override
   String get chaptersLabelText => 'Chapters';
@@ -552,9 +738,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get mirrorHealthCheckCompletedMessage => 'Mirror health check completed';
 
   @override
-  String get mirrorsScreenTitle => 'Mirrors';
-
-  @override
   String get mirrorStatusDisabledText => 'Disabled';
 
   @override
@@ -603,7 +786,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get downloadLocationText => 'Download location';
 
   @override
-  String get wifiOnlyDownloadsText => 'Wi-Fi only downloads';
+  String get wifiOnlyDownloadsText => 'WiFi only downloads';
 
   @override
   String get copyToClipboardLabelText => 'Copy to clipboard';

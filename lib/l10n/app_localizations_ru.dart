@@ -168,6 +168,195 @@ class AppLocalizationsRu extends AppLocalizations {
   String get permissionDeniedButton => 'Открыть настройки';
 
   @override
+  String get navLibrary => 'Библиотека';
+
+  @override
+  String get navAuth => 'Аутентификация';
+
+  @override
+  String get navSearch => 'Поиск';
+
+  @override
+  String get navSettings => 'Настройки';
+
+  @override
+  String get navDebug => 'Отладка';
+
+  @override
+  String get authTitle => 'Вход';
+
+  @override
+  String get usernameLabel => 'Имя пользователя';
+
+  @override
+  String get passwordLabel => 'Пароль';
+
+  @override
+  String get rememberMeLabel => 'Запомнить меня';
+
+  @override
+  String get loginButton => 'Войти';
+
+  @override
+  String get testConnectionButton => 'Проверить соединение';
+
+  @override
+  String get logoutButton => 'Выйти';
+
+  @override
+  String get authHelpText => 'Введите ваши учетные данные';
+
+  @override
+  String get cacheClearedSuccessfully => 'Кэш успешно очищен';
+
+  @override
+  String get downloadStatusUnknown => 'Статус загрузки неизвестен';
+
+  @override
+  String get failedToExportLogs => 'Не удалось экспортировать логи';
+
+  @override
+  String get logsExportedSuccessfully => 'Логи успешно экспортированы';
+
+  @override
+  String get mirrorHealthCheckCompleted => 'Проверка здоровья зеркал завершена';
+
+  @override
+  String get testAllMirrors => 'Проверить все зеркала';
+
+  @override
+  String get statusLabel => 'Статус:';
+
+  @override
+  String get lastOkLabel => 'Последний OK:';
+
+  @override
+  String get rttLabel => 'RTT:';
+
+  @override
+  String get milliseconds => 'мс';
+
+  @override
+  String get downloadLabel => 'Загрузка';
+
+  @override
+  String get statusLabelNoColon => 'Статус';
+
+  @override
+  String get downloadProgressLabel => 'Прогресс';
+
+  @override
+  String get cacheStatistics => 'Статистика кэша';
+
+  @override
+  String get totalEntries => 'Всего записей';
+
+  @override
+  String get searchCache => 'Кэш поиска';
+
+  @override
+  String get topicCache => 'Кэш топиков';
+
+  @override
+  String get memoryUsage => 'Использование памяти';
+
+  @override
+  String get clearAllCache => 'Очистить весь кэш';
+
+  @override
+  String get mirrorsScreenTitle => 'Зеркала';
+
+  @override
+  String get failedToLoadAudio => 'Не удалось загрузить аудио';
+
+  @override
+  String get chaptersLabel => 'Главы';
+
+  @override
+  String get downloadFunctionalityComingSoon => 'Функция загрузки скоро появится';
+
+  @override
+  String get requestTimedOut => 'Время запроса истекло';
+
+  @override
+  String get networkError => 'Сетевая ошибка';
+
+  @override
+  String get mirrorStatusDisabled => 'Отключено';
+
+  @override
+  String get mirrorResponseTime => 'Время отклика';
+
+  @override
+  String get mirrorLastCheck => 'Последняя проверка';
+
+  @override
+  String get mirrorTestIndividual => 'Проверить отдельное зеркало';
+
+  @override
+  String get activeStatus => 'Активно';
+
+  @override
+  String get disabledStatus => 'Отключено';
+
+  @override
+  String get languageDescription => 'Выберите язык';
+
+  @override
+  String get themeTitle => 'Тема';
+
+  @override
+  String get themeDescription => 'Выберите тему приложения';
+
+  @override
+  String get darkMode => 'Темный режим';
+
+  @override
+  String get highContrast => 'Высокая контрастность';
+
+  @override
+  String get audioTitle => 'Аудио';
+
+  @override
+  String get audioDescription => 'Настройки аудио';
+
+  @override
+  String get playbackSpeed => 'Скорость воспроизведения';
+
+  @override
+  String get skipDuration => 'Длительность пропуска';
+
+  @override
+  String get downloadsTitle => 'Загрузки';
+
+  @override
+  String get downloadsDescription => 'Настройки загрузки';
+
+  @override
+  String get downloadLocation => 'Место загрузки';
+
+  @override
+  String get wifiOnlyDownloads => 'Загрузки только по Wi-Fi';
+
+  @override
+  String get dataLoadedFromCache => 'Данные загружены из кэша';
+
+  @override
+  String get failedToLoadTopic => 'Не удалось загрузить топик';
+
+  @override
+  String get magnetLinkLabel => 'Magnet-ссылка';
+
+  @override
+  String get unknownChapter => 'Неизвестная глава';
+
+  @override
+  String get magnetLinkCopied => 'Magnet-ссылка скопирована';
+
+  @override
+  String get copyToClipboardLabel => 'Скопировать в буфер';
+
+  @override
   String get debugToolsTitle => 'Инструменты отладки';
 
   @override
@@ -325,9 +514,6 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get logoutButtonText => 'Выйти';
-
-  @override
-  String get authHelpText => 'Введите ваши учетные данные';
 
   @override
   String get enterCredentialsText => 'Пожалуйста, введите имя пользователя и пароль';
@@ -550,9 +736,6 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get mirrorHealthCheckCompletedMessage => 'Проверка здоровья зеркал завершена';
-
-  @override
-  String get mirrorsScreenTitle => 'Зеркала';
 
   @override
   String get mirrorStatusDisabledText => 'Отключено';

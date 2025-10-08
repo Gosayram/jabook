@@ -94,7 +94,7 @@ class _LibraryContent extends ConsumerWidget {
                 child: _buildActionButton(
                   context,
                   icon: Icons.search,
-                  label: 'Search Audiobooks',
+                  label: AppLocalizations.of(context)?.searchAudiobooks ?? 'Search Audiobooks',
                   onPressed: () => context.go('/search'),
                 ),
               ),
@@ -148,16 +148,16 @@ class _LibraryContent extends ConsumerWidget {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Import Audiobooks'),
-        content: const Text('Select audiobook files from your device to add to your library'),
+        title: Text(AppLocalizations.of(context)?.importAudiobooksTitle ?? 'Import Audiobooks'),
+        content: Text(AppLocalizations.of(context)?.selectFilesMessage ?? 'Select audiobook files from your device to add to your library'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text(AppLocalizations.of(context)?.cancel ?? 'Cancel'),
           ),
           ElevatedButton(
             onPressed: () => _importAudiobookFiles(context),
-            child: const Text('Import'),
+            child: Text(AppLocalizations.of(context)?.importButtonText ?? 'Import'),
           ),
         ],
       ),
@@ -180,20 +180,20 @@ class _LibraryContent extends ConsumerWidget {
         
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Imported $importedCount audiobook(s)')),
+            SnackBar(content: Text('${AppLocalizations.of(context)?.importedSuccess ?? 'Imported $importedCount audiobook(s)'}'.replaceAll('\$importedCount', importedCount.toString()))),
           );
         }
       } else {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('No files selected')),
+            SnackBar(content: Text(AppLocalizations.of(context)?.noFilesSelectedMessage ?? 'No files selected')),
           );
         }
       }
     } on Exception catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to import: $e')),
+          SnackBar(content: Text('${AppLocalizations.of(context)?.importFailedMessage ?? 'Failed to import: $e'}'.replaceAll('\$error', e.toString()))),
         );
       }
     }
@@ -203,16 +203,16 @@ class _LibraryContent extends ConsumerWidget {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Scan Folder'),
-        content: const Text('Scan a folder on your device for audiobook files'),
+        title: Text(AppLocalizations.of(context)?.scanFolderTitle ?? 'Scan Folder'),
+        content: Text(AppLocalizations.of(context)?.scanFolderMessage ?? 'Scan a folder on your device for audiobook files'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text(AppLocalizations.of(context)?.cancel ?? 'Cancel'),
           ),
           ElevatedButton(
             onPressed: () => _scanFolderForAudiobooks(context),
-            child: const Text('Scan'),
+            child: Text(AppLocalizations.of(context)?.scanButtonText ?? 'Scan'),
           ),
         ],
       ),
@@ -245,27 +245,27 @@ class _LibraryContent extends ConsumerWidget {
 
           if (context.mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Found and imported $importedCount audiobook(s)')),
+              SnackBar(content: Text('${AppLocalizations.of(context)?.scanSuccessMessage ?? 'Found and imported $importedCount audiobook(s)'}'.replaceAll('\$importedCount', importedCount.toString()))),
             );
           }
         } else {
           if (context.mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('No audiobook files found in selected folder')),
+              SnackBar(content: Text(AppLocalizations.of(context)?.noAudiobooksFoundMessage ?? 'No audiobook files found in selected folder')),
             );
           }
         }
       } else {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('No folder selected')),
+            SnackBar(content: Text(AppLocalizations.of(context)?.noFolderSelectedMessage ?? 'No folder selected')),
           );
         }
       }
     } on Exception catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to scan folder: $e')),
+          SnackBar(content: Text('${AppLocalizations.of(context)?.scanFailedMessage ?? 'Failed to scan folder: $e'}'.replaceAll('\$error', e.toString()))),
         );
       }
     }

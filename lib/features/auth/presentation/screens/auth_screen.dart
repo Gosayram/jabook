@@ -42,14 +42,14 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   Future<void> _login() async {
     if (_usernameController.text.isEmpty || _passwordController.text.isEmpty) {
       setState(() {
-        _statusMessage = 'Please enter username and password';
+        _statusMessage = AppLocalizations.of(context)?.enterCredentialsText ?? 'Please enter username and password';
         _statusColor = Colors.red;
       });
       return;
     }
 
     setState(() {
-      _statusMessage = 'Logging in...';
+      _statusMessage = AppLocalizations.of(context)?.loggingInText ?? 'Logging in...';
       _statusColor = Colors.blue;
     });
 
@@ -70,8 +70,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
 
       setState(() {
         _statusMessage = success
-            ? 'Login successful!'
-            : 'Login failed. Please check credentials';
+            ? AppLocalizations.of(context)?.loginSuccessMessage ?? 'Login successful!'
+            : AppLocalizations.of(context)?.loginFailedMessage ?? 'Login failed. Please check credentials';
         _statusColor = success ? Colors.green : Colors.red;
       });
 
@@ -81,7 +81,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       }
     } on Exception catch (e) {
       setState(() {
-        _statusMessage = 'Login error: ${e.toString()}';
+        _statusMessage = '${AppLocalizations.of(context)?.loginErrorMessage ?? 'Login error:'} ${e.toString()}';
         _statusColor = Colors.red;
       });
     }
@@ -89,7 +89,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
 
   Future<void> _testConnection() async {
     setState(() {
-      _statusMessage = 'Testing connection...';
+      _statusMessage = AppLocalizations.of(context)?.testingConnectionText ?? 'Testing connection...';
       _statusColor = Colors.blue;
     });
 
@@ -98,12 +98,12 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       final activeEndpoint = await endpointManager.getActiveEndpoint();
       
       setState(() {
-        _statusMessage = 'Connection successful! Using: $activeEndpoint';
+        _statusMessage = '${AppLocalizations.of(context)?.connectionSuccessMessage ?? 'Connection successful!'} Using: $activeEndpoint';
         _statusColor = Colors.green;
       });
     } on Exception catch (e) {
       setState(() {
-        _statusMessage = 'Connection test failed: ${e.toString()}';
+        _statusMessage = '${AppLocalizations.of(context)?.connectionFailedMessage ?? 'Connection test failed:'} ${e.toString()}';
         _statusColor = Colors.red;
       });
     }
@@ -111,7 +111,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
 
   Future<void> _logout() async {
     setState(() {
-      _statusMessage = 'Logging out...';
+      _statusMessage = AppLocalizations.of(context)?.loggingOutText ?? 'Logging out...';
       _statusColor = Colors.blue;
     });
 
@@ -123,12 +123,12 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       setState(() {
         _usernameController.clear();
         _passwordController.clear();
-        _statusMessage = 'Logged out successfully';
+        _statusMessage = AppLocalizations.of(context)?.logoutSuccessMessage ?? 'Logged out successfully';
         _statusColor = Colors.green;
       });
     } on Exception catch (e) {
       setState(() {
-        _statusMessage = 'Logout error: ${e.toString()}';
+        _statusMessage = '${AppLocalizations.of(context)?.logoutErrorMessage ?? 'Logout error:'} ${e.toString()}';
         _statusColor = Colors.red;
       });
     }
@@ -142,7 +142,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     
     return Scaffold(
       appBar: AppBar(
-        title: Text('RuTracker Connection'),
+        title: Text(AppLocalizations.of(context)?.authScreenTitle ?? 'RuTracker Connection'),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -184,7 +184,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
               TextField(
                 controller: _usernameController,
                 decoration: InputDecoration(
-                  labelText: 'Username',
+                  labelText: AppLocalizations.of(context)?.usernameLabelText ?? 'Username',
                   border: const OutlineInputBorder(),
                 ),
               ),
@@ -192,7 +192,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
               TextField(
                 controller: _passwordController,
                 decoration: InputDecoration(
-                  labelText: 'Password',
+                  labelText: AppLocalizations.of(context)?.passwordLabelText ?? 'Password',
                   border: const OutlineInputBorder(),
                 ),
                 obscureText: true,
@@ -206,13 +206,13 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                       _rememberMe = value ?? true;
                     }),
                   ),
-                  Text('Remember me'),
+                  Text(AppLocalizations.of(context)?.rememberMeLabelText ?? 'Remember me'),
                 ],
               ),
               const SizedBox(height: 20),
               ElevatedButton(
                 onPressed: _login,
-                child: Text('Login'),
+                child: Text(AppLocalizations.of(context)?.loginButtonText ?? 'Login'),
               ),
             ],
 
@@ -220,12 +220,12 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
             if (isLoggedIn.valueOrNull ?? false) ...[
               ElevatedButton(
                 onPressed: _testConnection,
-                child: Text('Test Connection'),
+                child: Text(AppLocalizations.of(context)?.testConnectionButtonText ?? 'Test Connection'),
               ),
               const SizedBox(height: 16),
               OutlinedButton(
                 onPressed: _logout,
-                child: Text('Logout'),
+                child: Text(AppLocalizations.of(context)?.logoutButtonText ?? 'Logout'),
               ),
             ],
 
@@ -233,8 +233,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
 
             // Help text
             Text(
-              'Login to RuTracker to access audiobook search and downloads. '
-              'Your credentials are stored securely.',
+              AppLocalizations.of(context)?.authHelpText ?? 'Login to RuTracker to access audiobook search and downloads. Your credentials are stored securely.',
               style: Theme.of(context).textTheme.bodySmall,
               textAlign: TextAlign.center,
             ),

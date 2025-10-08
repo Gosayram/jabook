@@ -209,33 +209,285 @@
   "@permissionDeniedButton": {
     "description": "Button text for permission denied action"
   },
+  "navLibrary": "Library",
+  "@navLibrary": {
+    "description": "Navigation label for library"
+  },
+  "navAuth": "Connect",
+  "@navAuth": {
+    "description": "Navigation label for authentication"
+  },
+  "navSearch": "Search",
+  "@navSearch": {
+    "description": "Navigation label for search"
+  },
+  "navSettings": "Settings",
+  "@navSettings": {
+    "description": "Navigation label for settings"
+  },
+  "navDebug": "Debug",
+  "@navDebug": {
+    "description": "Navigation label for debug"
+  },
+  "authTitle": "Login",
+  "@authTitle": {
+    "description": "Title for authentication screen"
+  },
+  "usernameLabel": "Username",
+  "@usernameLabel": {
+    "description": "Label for username field"
+  },
+  "passwordLabel": "Password",
+  "@passwordLabel": {
+    "description": "Label for password field"
+  },
+  "rememberMeLabel": "Remember me",
+  "@rememberMeLabel": {
+    "description": "Label for remember me checkbox"
+  },
+  "loginButton": "Login",
+  "@loginButton": {
+    "description": "Login button text"
+  },
+  "testConnectionButton": "Test Connection",
+  "@testConnectionButton": {
+    "description": "Test connection button text"
+  },
+  "logoutButton": "Logout",
+  "@logoutButton": {
+    "description": "Logout button text"
+  },
+  "authHelpText": "Enter your credentials",
+  "@authHelpText": {
+    "description": "Help text for authentication"
+  },
+  "cacheClearedSuccessfully": "Cache cleared successfully",
+  "@cacheClearedSuccessfully": {
+    "description": "Message for successful cache clearing"
+  },
+  "downloadStatusUnknown": "Download status unknown",
+  "@downloadStatusUnknown": {
+    "description": "Message for unknown download status"
+  },
+  "failedToExportLogs": "Failed to export logs",
+  "@failedToExportLogs": {
+    "description": "Message for failed log export"
+  },
+  "logsExportedSuccessfully": "Logs exported successfully",
+  "@logsExportedSuccessfully": {
+    "description": "Message for successful log export"
+  },
+  "mirrorHealthCheckCompleted": "Mirror health check completed",
+  "@mirrorHealthCheckCompleted": {
+    "description": "Message for completed mirror health check"
+  },
+  "testAllMirrors": "Test All Mirrors",
+  "@testAllMirrors": {
+    "description": "Test all mirrors button text"
+  },
+  "statusLabel": "Status:",
+  "@statusLabel": {
+    "description": "Label for status"
+  },
+  "lastOkLabel": "Last OK:",
+  "@lastOkLabel": {
+    "description": "Label for last OK time"
+  },
+  "rttLabel": "RTT:",
+  "@rttLabel": {
+    "description": "Label for round trip time"
+  },
+  "milliseconds": "ms",
+  "@milliseconds": {
+    "description": "Abbreviation for milliseconds"
+  },
+  "downloadLabel": "Download",
+  "@downloadLabel": {
+    "description": "Label for download"
+  },
+  "statusLabelNoColon": "Status",
+  "@statusLabelNoColon": {
+    "description": "Status label without colon"
+  },
+  "downloadProgressLabel": "Progress",
+  "@downloadProgressLabel": {
+    "description": "Label for download progress"
+  },
+  "cacheStatistics": "Cache Statistics",
+  "@cacheStatistics": {
+    "description": "Title for cache statistics"
+  },
+  "totalEntries": "Total entries",
+  "@totalEntries": {
+    "description": "Label for total entries"
+  },
+  "searchCache": "Search cache",
+  "@searchCache": {
+    "description": "Label for search cache"
+  },
+  "topicCache": "Topic cache",
+  "@topicCache": {
+    "description": "Label for topic cache"
+  },
+  "memoryUsage": "Memory usage",
+  "@memoryUsage": {
+    "description": "Label for memory usage"
+  },
+  "clearAllCache": "Clear All Cache",
+  "@clearAllCache": {
+    "description": "Clear all cache button text"
+  },
+  "mirrorsScreenTitle": "Mirrors",
+  "@mirrorsScreenTitle": {
+    "description": "Title for mirrors screen"
+  },
+  "failedToLoadAudio": "Failed to load audio",
+  "@failedToLoadAudio": {
+    "description": "Message for failed audio loading"
+  },
+  "chaptersLabel": "Chapters",
+  "@chaptersLabel": {
+    "description": "Label for chapters"
+  },
+  "downloadFunctionalityComingSoon": "Download functionality coming soon",
+  "@downloadFunctionalityComingSoon": {
+    "description": "Message for upcoming download feature"
+  },
+  "requestTimedOut": "Request timed out",
+  "@requestTimedOut": {
+    "description": "Message for request timeout"
+  },
+  "networkError": "Network error",
+  "@networkError": {
+    "description": "Message for network error"
+  },
+  "mirrorStatusDisabled": "Disabled",
+  "@mirrorStatusDisabled": {
+    "description": "Status for disabled mirror"
+  },
+  "mirrorResponseTime": "Response time",
+  "@mirrorResponseTime": {
+    "description": "Label for mirror response time"
+  },
+  "mirrorLastCheck": "Last check",
+  "@mirrorLastCheck": {
+    "description": "Label for last check time"
+  },
+  "mirrorTestIndividual": "Test individual mirror",
+  "@mirrorTestIndividual": {
+    "description": "Text for testing individual mirror"
+  },
+  "activeStatus": "Active",
+  "@activeStatus": {
+    "description": "Status for active mirror"
+  },
+  "disabledStatus": "Disabled",
+  "@disabledStatus": {
+    "description": "Status for disabled mirror"
+  },
+  "languageDescription": "Select language",
+  "@languageDescription": {
+    "description": "Description for language setting"
+  },
+  "themeTitle": "Theme",
+  "@themeTitle": {
+    "description": "Title for theme setting"
+  },
+  "themeDescription": "Select app theme",
+  "@themeDescription": {
+    "description": "Description for theme setting"
+  },
+  "darkMode": "Dark mode",
+  "@darkMode": {
+    "description": "Label for dark mode"
+  },
+  "highContrast": "High contrast",
+  "@highContrast": {
+    "description": "Label for high contrast"
+  },
+  "audioTitle": "Audio",
+  "@audioTitle": {
+    "description": "Title for audio settings"
+  },
+  "audioDescription": "Audio settings",
+  "@audioDescription": {
+    "description": "Description for audio settings"
+  },
+  "playbackSpeed": "Playback speed",
+  "@playbackSpeed": {
+    "description": "Label for playback speed"
+  },
+  "skipDuration": "Skip duration",
+  "@skipDuration": {
+    "description": "Label for skip duration"
+  },
+  "downloadsTitle": "Downloads",
+  "@downloadsTitle": {
+    "description": "Title for downloads settings"
+  },
+  "downloadsDescription": "Download settings",
+  "@downloadsDescription": {
+    "description": "Description for downloads settings"
+  },
+  "downloadLocation": "Download location",
+  "@downloadLocation": {
+    "description": "Label for download location"
+  },
+  "wifiOnlyDownloads": "WiFi only downloads",
+  "@wifiOnlyDownloads": {
+    "description": "Label for WiFi only downloads"
+  },
+  "dataLoadedFromCache": "Data loaded from cache",
+  "@dataLoadedFromCache": {
+    "description": "Message for data loaded from cache"
+  },
+  "failedToLoadTopic": "Failed to load topic",
+  "@failedToLoadTopic": {
+    "description": "Message for failed topic loading"
+  },
+  "magnetLinkLabel": "Magnet link",
+  "@magnetLinkLabel": {
+    "description": "Label for magnet link"
+  },
+  "unknownChapter": "Unknown chapter",
+  "@unknownChapter": {
+    "description": "Fallback for missing chapter"
+  },
+  "magnetLinkCopied": "Magnet link copied",
+  "@magnetLinkCopied": {
+    "description": "Message for magnet link copied"
+  },
+  "copyToClipboardLabel": "Copy to clipboard",
+  "@copyToClipboardLabel": {
+    "description": "Label for copy to clipboard"
+  },
   "debugToolsTitle": "Debug Tools",
   "@debugToolsTitle": {
-    "description": "Title for debug screen"
+    "description": "Title for debug tools screen"
   },
   "logsTab": "Logs",
   "@logsTab": {
-    "description": "Tab text for logs section"
+    "description": "Text for logs tab"
   },
   "mirrorsTab": "Mirrors",
   "@mirrorsTab": {
-    "description": "Tab text for mirrors section"
+    "description": "Text for mirrors tab"
   },
   "downloadsTab": "Downloads",
   "@downloadsTab": {
-    "description": "Tab text for downloads section"
+    "description": "Text for downloads tab"
   },
   "cacheTab": "Cache",
   "@cacheTab": {
-    "description": "Tab text for cache section"
+    "description": "Text for cache tab"
   },
-  "testAllMirrorsButton": "Test all mirrors",
+  "testAllMirrorsButton": "Test All Mirrors",
   "@testAllMirrorsButton": {
-    "description": "Button text for testing all mirrors"
+    "description": "Text for test all mirrors button"
   },
   "statusLabelText": "Status: ",
   "@statusLabelText": {
-    "description": "Label for status display"
+    "description": "Label for displaying status"
   },
   "lastOkLabelText": "Last OK: ",
   "@lastOkLabelText": {
@@ -243,7 +495,7 @@
   },
   "rttLabelText": "RTT: ",
   "@rttLabelText": {
-    "description": "Label for round-trip time"
+    "description": "Label for round trip time"
   },
   "millisecondsText": "ms",
   "@millisecondsText": {
@@ -255,7 +507,7 @@
   },
   "statusLabelNoColonText": "Status",
   "@statusLabelNoColonText": {
-    "description": "Label for status without colon"
+    "description": "Status label without colon"
   },
   "downloadProgressLabelText": "Progress",
   "@downloadProgressLabelText": {
@@ -267,7 +519,7 @@
   },
   "totalEntriesText": "Total entries: ",
   "@totalEntriesText": {
-    "description": "Label for total entries count"
+    "description": "Label for total entries"
   },
   "searchCacheText": "Search cache: ",
   "@searchCacheText": {
@@ -281,45 +533,45 @@
   "@memoryUsageText": {
     "description": "Label for memory usage"
   },
-  "clearAllCacheButton": "Clear all cache",
+  "clearAllCacheButton": "Clear All Cache",
   "@clearAllCacheButton": {
-    "description": "Button text to clear all cache"
+    "description": "Text for clear cache button"
   },
   "cacheIsEmptyMessage": "Cache is empty",
   "@cacheIsEmptyMessage": {
-    "description": "Message when cache is empty"
+    "description": "Message for empty cache"
   },
-  "refreshDebugDataButton": "Refresh debug data",
+  "refreshDebugDataButton": "Refresh Debug Data",
   "@refreshDebugDataButton": {
-    "description": "Button text to refresh debug data"
+    "description": "Text for refresh debug data button"
   },
-  "exportLogsButton": "Export logs",
+  "exportLogsButton": "Export Logs",
   "@exportLogsButton": {
-    "description": "Button text to export logs"
+    "description": "Text for export logs button"
   },
-  "deleteDownloadButton": "Delete download",
+  "deleteDownloadButton": "Delete Download",
   "@deleteDownloadButton": {
-    "description": "Button text to delete download"
+    "description": "Text for delete download button"
   },
   "webViewTitle": "RuTracker",
   "@webViewTitle": {
     "description": "Title for webview screen"
   },
-  "cloudflareMessage": "This site uses Cloudflare security checks. Please wait for the verification to complete and interact with the opened page if necessary.",
+  "cloudflareMessage": "This site uses Cloudflare security checks. Please wait for the check to complete and interact with the page that opens if needed.",
   "@cloudflareMessage": {
-    "description": "Message shown when Cloudflare verification is in progress"
+    "description": "Message shown during Cloudflare check"
   },
   "retryButtonText": "Retry",
   "@retryButtonText": {
-    "description": "Retry button text"
+    "description": "Text for retry button"
   },
   "goHomeButtonText": "Go to Home",
   "@goHomeButtonText": {
-    "description": "Button text to go to home screen"
+    "description": "Text for go home button"
   },
-  "browserCheckMessage": "The site is checking your browser - please wait for the verification to complete on this page.",
+  "browserCheckMessage": "The site is checking your browser - please wait for the check to complete on this page.",
   "@browserCheckMessage": {
-    "description": "Message shown when browser check is in progress"
+    "description": "Message shown during browser check"
   },
   "downloadTorrentTitle": "Download Torrent",
   "@downloadTorrentTitle": {
@@ -331,15 +583,15 @@
   },
   "openButtonText": "Open",
   "@openButtonText": {
-    "description": "Open button text"
+    "description": "Text for open button"
   },
   "downloadButtonText": "Download",
   "@downloadButtonText": {
-    "description": "Download button text"
+    "description": "Text for download button"
   },
   "downloadInBrowserMessage": "To download the file, please open the link in your browser",
   "@downloadInBrowserMessage": {
-    "description": "Message to open link in browser for download"
+    "description": "Message for opening link in browser"
   },
   "importAudiobooksTitle": "Import Audiobooks",
   "@importAudiobooksTitle": {
@@ -351,19 +603,19 @@
   },
   "importButtonText": "Import",
   "@importButtonText": {
-    "description": "Import button text"
+    "description": "Text for import button"
   },
   "importedSuccess": "Imported $count audiobook(s)",
   "@importedSuccess": {
-    "description": "Success message for importing audiobooks"
+    "description": "Message for successful import"
   },
   "noFilesSelectedMessage": "No files selected",
   "@noFilesSelectedMessage": {
-    "description": "Message when no files are selected"
+    "description": "Message for no files selected"
   },
   "importFailedMessage": "Failed to import: $error",
   "@importFailedMessage": {
-    "description": "Error message for import failure"
+    "description": "Message for import failure"
   },
   "scanFolderTitle": "Scan Folder",
   "@scanFolderTitle": {
@@ -375,27 +627,27 @@
   },
   "scanButtonText": "Scan",
   "@scanButtonText": {
-    "description": "Scan button text"
+    "description": "Text for scan button"
   },
   "scanSuccessMessage": "Found and imported $count audiobook(s)",
   "@scanSuccessMessage": {
-    "description": "Success message for scanning folder"
+    "description": "Message for successful scan"
   },
   "noAudiobooksFoundMessage": "No audiobook files found in selected folder",
   "@noAudiobooksFoundMessage": {
-    "description": "Message when no audiobooks are found"
+    "description": "Message for no audiobooks found"
   },
   "noFolderSelectedMessage": "No folder selected",
   "@noFolderSelectedMessage": {
-    "description": "Message when no folder is selected"
+    "description": "Message for no folder selected"
   },
   "scanFailedMessage": "Failed to scan folder: $error",
   "@scanFailedMessage": {
-    "description": "Error message for scan failure"
+    "description": "Message for scan failure"
   },
   "authScreenTitle": "RuTracker Connection",
   "@authScreenTitle": {
-    "description": "Title for auth screen"
+    "description": "Title for authentication screen"
   },
   "usernameLabelText": "Username",
   "@usernameLabelText": {
@@ -411,67 +663,67 @@
   },
   "loginButtonText": "Login",
   "@loginButtonText": {
-    "description": "Login button text"
+    "description": "Text for login button"
   },
   "testConnectionButtonText": "Test Connection",
   "@testConnectionButtonText": {
-    "description": "Test connection button text"
+    "description": "Text for test connection button"
   },
   "logoutButtonText": "Logout",
   "@logoutButtonText": {
-    "description": "Logout button text"
+    "description": "Text for logout button"
   },
-  "authHelpText": "Login to RuTracker to access audiobook search and downloads. Your credentials are stored securely.",
+  "authHelpText": "Login to RuTracker to access audiobook search and download. Your credentials are stored securely.",
   "@authHelpText": {
     "description": "Help text for authentication"
   },
   "enterCredentialsText": "Please enter username and password",
   "@enterCredentialsText": {
-    "description": "Prompt to enter credentials"
+    "description": "Prompt for entering credentials"
   },
   "loggingInText": "Logging in...",
   "@loggingInText": {
-    "description": "Status message during login"
+    "description": "Message during login"
   },
   "loginSuccessMessage": "Login successful!",
   "@loginSuccessMessage": {
-    "description": "Success message for login"
+    "description": "Message for successful login"
   },
-  "loginFailedMessage": "Login failed. Please check credentials",
+  "loginFailedMessage": "Login failed. Please check your credentials",
   "@loginFailedMessage": {
-    "description": "Failure message for login"
+    "description": "Message for failed login"
   },
   "loginErrorMessage": "Login error: $error",
   "@loginErrorMessage": {
-    "description": "Error message for login failure"
+    "description": "Message for login error"
   },
   "testingConnectionText": "Testing connection...",
   "@testingConnectionText": {
-    "description": "Status message during connection test"
+    "description": "Message during connection test"
   },
-  "connectionSuccessMessage": "Connection successful! Using: $endpoint",
+  "connectionSuccessMessage": "Connection established! Using: $endpoint",
   "@connectionSuccessMessage": {
-    "description": "Success message for connection test"
+    "description": "Message for successful connection test"
   },
   "connectionFailedMessage": "Connection test failed: $error",
   "@connectionFailedMessage": {
-    "description": "Failure message for connection test"
+    "description": "Message for failed connection test"
   },
   "loggingOutText": "Logging out...",
   "@loggingOutText": {
-    "description": "Status message during logout"
+    "description": "Message during logout"
   },
-  "logoutSuccessMessage": "Logged out successfully",
+  "logoutSuccessMessage": "Logout completed",
   "@logoutSuccessMessage": {
-    "description": "Success message for logout"
+    "description": "Message for successful logout"
   },
   "logoutErrorMessage": "Logout error: $error",
   "@logoutErrorMessage": {
-    "description": "Error message for logout failure"
+    "description": "Message for logout error"
   },
   "configureMirrorsSubtitle": "Configure and test RuTracker mirrors",
   "@configureMirrorsSubtitle": {
-    "description": "Subtitle for mirrors configuration"
+    "description": "Subtitle for mirror configuration"
   },
   "playbackSpeedTitle": "Playback Speed",
   "@playbackSpeedTitle": {
@@ -493,29 +745,29 @@
   "@highContrastTitle": {
     "description": "Title for high contrast setting"
   },
-  "wifiOnlyDownloadsTitle": "Wi-Fi Only Downloads",
+  "wifiOnlyDownloadsTitle": "WiFi Only Downloads",
   "@wifiOnlyDownloadsTitle": {
-    "description": "Title for Wi-Fi only downloads setting"
+    "description": "Title for WiFi only downloads setting"
   },
   "failedToLoadMirrorsMessage": "Failed to load mirrors: $error",
   "@failedToLoadMirrorsMessage": {
-    "description": "Error message when loading mirrors fails"
+    "description": "Message for failed mirror loading"
   },
   "mirrorTestSuccessMessage": "Mirror $url tested successfully",
   "@mirrorTestSuccessMessage": {
-    "description": "Success message for mirror test"
+    "description": "Message for successful mirror test"
   },
   "mirrorTestFailedMessage": "Failed to test mirror $url: $error",
   "@mirrorTestFailedMessage": {
-    "description": "Error message for mirror test failure"
+    "description": "Message for failed mirror test"
   },
   "mirrorStatusText": "Mirror $status",
   "@mirrorStatusText": {
-    "description": "Status message for mirror"
+    "description": "Mirror status text"
   },
   "failedToUpdateMirrorMessage": "Failed to update mirror: $error",
   "@failedToUpdateMirrorMessage": {
-    "description": "Error message when updating mirror fails"
+    "description": "Message for failed mirror update"
   },
   "addCustomMirrorTitle": "Add Custom Mirror",
   "@addCustomMirrorTitle": {
@@ -527,7 +779,7 @@
   },
   "mirrorUrlHintText": "https://rutracker.example.com",
   "@mirrorUrlHintText": {
-    "description": "Hint text for mirror URL field"
+    "description": "Hint for mirror URL field"
   },
   "priorityLabelText": "Priority (1-10)",
   "@priorityLabelText": {
@@ -535,19 +787,19 @@
   },
   "priorityHintText": "5",
   "@priorityHintText": {
-    "description": "Hint text for priority field"
+    "description": "Hint for priority field"
   },
   "addMirrorButtonText": "Add",
   "@addMirrorButtonText": {
-    "description": "Add button text"
+    "description": "Text for add mirror button"
   },
   "mirrorAddedMessage": "Mirror $url added",
   "@mirrorAddedMessage": {
-    "description": "Success message for adding mirror"
+    "description": "Message for successful mirror addition"
   },
   "failedToAddMirrorMessage": "Failed to add mirror: $error",
   "@failedToAddMirrorMessage": {
-    "description": "Error message when adding mirror fails"
+    "description": "Message for failed mirror addition"
   },
   "mirrorSettingsTitle": "Mirror Settings",
   "@mirrorSettingsTitle": {
@@ -559,35 +811,35 @@
   },
   "addCustomMirrorButtonText": "Add Custom Mirror",
   "@addCustomMirrorButtonText": {
-    "description": "Button text to add custom mirror"
+    "description": "Text for add custom mirror button"
   },
   "priorityText": "Priority: $priority",
   "@priorityText": {
-    "description": "Text showing mirror priority"
+    "description": "Text for showing mirror priority"
   },
   "responseTimeText": "Response time: $rtt ms",
   "@responseTimeText": {
-    "description": "Text showing mirror response time"
+    "description": "Text for showing mirror response time"
   },
   "lastCheckedText": "Last checked: $date",
   "@lastCheckedText": {
-    "description": "Text showing when mirror was last checked"
+    "description": "Text for showing mirror last check time"
   },
   "testMirrorButtonText": "Test this mirror",
   "@testMirrorButtonText": {
-    "description": "Button text to test mirror"
+    "description": "Text for test mirror button"
   },
   "activeStatusText": "Active",
   "@activeStatusText": {
-    "description": "Status text for active mirror"
+    "description": "Status for active mirror"
   },
   "disabledStatusText": "Disabled",
   "@disabledStatusText": {
-    "description": "Status text for disabled mirror"
+    "description": "Status for disabled mirror"
   },
   "neverDateText": "Never",
   "@neverDateText": {
-    "description": "Text for never date"
+    "description": "Text for never"
   },
   "invalidDateText": "Invalid date",
   "@invalidDateText": {
@@ -599,11 +851,11 @@
   },
   "failedToLoadAudioMessage": "Failed to load audiobook",
   "@failedToLoadAudioMessage": {
-    "description": "Error message when loading audio fails"
+    "description": "Message for failed audiobook loading"
   },
-  "byAuthorText": "by $author",
+  "byAuthorText": "by: $author",
   "@byAuthorText": {
-    "description": "Text showing author"
+    "description": "Text for showing author"
   },
   "chaptersLabelText": "Chapters",
   "@chaptersLabelText": {
@@ -641,7 +893,7 @@
   "@topicScreenTitle": {
     "description": "Title for topic screen"
   },
-  "requestTimedOutMessage": "Request timed out. Please check your connection.",
+  "requestTimedOutMessage": "Request timed out. Check your connection.",
   "@requestTimedOutMessage": {
     "description": "Message for request timeout"
   },
@@ -651,63 +903,63 @@
   },
   "errorLoadingTopicMessage": "Error loading topic: $error",
   "@errorLoadingTopicMessage": {
-    "description": "Error message for topic loading failure"
+    "description": "Message for topic loading error"
   },
   "failedToLoadTopicMessage": "Failed to load topic",
   "@failedToLoadTopicMessage": {
-    "description": "Error message for topic loading failure"
+    "description": "Message for failed topic loading"
   },
   "dataLoadedFromCacheMessage": "Data loaded from cache",
   "@dataLoadedFromCacheMessage": {
-    "description": "Message when data is loaded from cache"
+    "description": "Message for data loaded from cache"
   },
   "unknownChapterText": "Unknown chapter",
   "@unknownChapterText": {
-    "description": "Fallback for missing chapter title"
+    "description": "Fallback for missing chapter"
   },
-  "magnetLinkLabelText": "Magnet Link",
+  "magnetLinkLabelText": "Magnet link",
   "@magnetLinkLabelText": {
     "description": "Label for magnet link"
   },
   "magnetLinkCopiedMessage": "Magnet link copied to clipboard",
   "@magnetLinkCopiedMessage": {
-    "description": "Message when magnet link is copied"
+    "description": "Message for magnet link copied"
   },
   "copyToClipboardMessage": "$label copied to clipboard",
   "@copyToClipboardMessage": {
-    "description": "Message when text is copied to clipboard"
+    "description": "Message for copy to clipboard"
   },
   "navLibraryText": "Library",
   "@navLibraryText": {
-    "description": "Navigation label for library"
+    "description": "Navigation text for library"
   },
   "navAuthText": "Connect",
   "@navAuthText": {
-    "description": "Navigation label for auth"
+    "description": "Navigation text for authentication"
   },
   "navSearchText": "Search",
   "@navSearchText": {
-    "description": "Navigation label for search"
+    "description": "Navigation text for search"
   },
   "navSettingsText": "Settings",
   "@navSettingsText": {
-    "description": "Navigation label for settings"
+    "description": "Navigation text for settings"
   },
   "navDebugText": "Debug",
   "@navDebugText": {
-    "description": "Navigation label for debug"
+    "description": "Navigation text for debug"
   },
   "authDialogTitle": "Login",
   "@authDialogTitle": {
-    "description": "Title for auth screen"
+    "description": "Title for login screen"
   },
   "authHelpText": "Enter your credentials",
   "@authHelpText": {
-    "description": "Text help for authentication"
+    "description": "Help text for authentication"
   },
   "cacheClearedSuccessfullyMessage": "Cache cleared successfully",
   "@cacheClearedSuccessfullyMessage": {
-    "description": "Message when cache is cleared successfully"
+    "description": "Message for successful cache clearing"
   },
   "downloadStatusUnknownMessage": "Download status unknown",
   "@downloadStatusUnknownMessage": {
@@ -715,15 +967,15 @@
   },
   "failedToExportLogsMessage": "Failed to export logs",
   "@failedToExportLogsMessage": {
-    "description": "Message when log export fails"
+    "description": "Message for failed log export"
   },
   "logsExportedSuccessfullyMessage": "Logs exported successfully",
   "@logsExportedSuccessfullyMessage": {
-    "description": "Message when logs are exported successfully"
+    "description": "Message for successful log export"
   },
   "mirrorHealthCheckCompletedMessage": "Mirror health check completed",
   "@mirrorHealthCheckCompletedMessage": {
-    "description": "Message when mirror health check is completed"
+    "description": "Message for completed mirror health check"
   },
   "statusLabelText": "Status:",
   "@statusLabelText": {
@@ -735,7 +987,7 @@
   },
   "rttLabelText": "RTT:",
   "@rttLabelText": {
-    "description": "Label for round-trip time"
+    "description": "Label for round trip time"
   },
   "millisecondsText": "ms",
   "@millisecondsText": {
@@ -747,7 +999,7 @@
   },
   "statusLabelNoColonText": "Status",
   "@statusLabelNoColonText": {
-    "description": "Label for status without colon"
+    "description": "Status label without colon"
   },
   "downloadProgressLabelText": "Progress",
   "@downloadProgressLabelText": {
@@ -775,7 +1027,7 @@
   },
   "clearAllCacheButton": "Clear All Cache",
   "@clearAllCacheButton": {
-    "description": "Button text to clear all cache"
+    "description": "Text for clear cache button"
   },
   "mirrorsScreenTitle": "Mirrors",
   "@mirrorsScreenTitle": {
@@ -783,7 +1035,7 @@
   },
   "failedToLoadAudioMessage": "Failed to load audio",
   "@failedToLoadAudioMessage": {
-    "description": "Message when audio loading fails"
+    "description": "Message for failed audio loading"
   },
   "chaptersLabelText": "Chapters",
   "@chaptersLabelText": {
@@ -791,7 +1043,7 @@
   },
   "downloadFunctionalityComingSoonMessage": "Download functionality coming soon",
   "@downloadFunctionalityComingSoonMessage": {
-    "description": "Message for download feature coming soon"
+    "description": "Message for upcoming download feature"
   },
   "requestTimedOutMessage": "Request timed out",
   "@requestTimedOutMessage": {
@@ -811,11 +1063,11 @@
   },
   "mirrorLastCheckText": "Last check",
   "@mirrorLastCheckText": {
-    "description": "Label for mirror last check"
+    "description": "Label for last check time"
   },
   "mirrorTestIndividualText": "Test individual mirror",
   "@mirrorTestIndividualText": {
-    "description": "Button text to test individual mirror"
+    "description": "Text for testing individual mirror"
   },
   "activeStatusText": "Active",
   "@activeStatusText": {
@@ -827,15 +1079,15 @@
   },
   "languageDescriptionText": "Select language",
   "@languageDescriptionText": {
-    "description": "Description for language selection"
+    "description": "Description for language setting"
   },
   "themeTitleText": "Theme",
   "@themeTitleText": {
-    "description": "Title for theme setting"
+    "description": "Title for theme"
   },
   "themeDescriptionText": "Select app theme",
   "@themeDescriptionText": {
-    "description": "Description for theme setting"
+    "description": "Description for theme"
   },
   "darkModeText": "Dark mode",
   "@darkModeText": {
@@ -847,11 +1099,11 @@
   },
   "audioTitleText": "Audio",
   "@audioTitleText": {
-    "description": "Title for audio settings"
+    "description": "Title for audio"
   },
   "audioDescriptionText": "Audio settings",
   "@audioDescriptionText": {
-    "description": "Description for audio settings"
+    "description": "Description for audio"
   },
   "playbackSpeedText": "Playback speed",
   "@playbackSpeedText": {
@@ -863,27 +1115,27 @@
   },
   "downloadsTitleText": "Downloads",
   "@downloadsTitleText": {
-    "description": "Title for downloads settings"
+    "description": "Title for downloads"
   },
   "downloadsDescriptionText": "Download settings",
   "@downloadsDescriptionText": {
-    "description": "Description for downloads settings"
+    "description": "Description for downloads"
   },
   "downloadLocationText": "Download location",
   "@downloadLocationText": {
     "description": "Label for download location"
   },
-  "wifiOnlyDownloadsText": "Wi-Fi only downloads",
+  "wifiOnlyDownloadsText": "WiFi only downloads",
   "@wifiOnlyDownloadsText": {
-    "description": "Label for Wi-Fi only downloads"
+    "description": "Label for WiFi only downloads"
   },
   "dataLoadedFromCacheMessage": "Data loaded from cache",
   "@dataLoadedFromCacheMessage": {
-    "description": "Message when data loaded from cache"
+    "description": "Message for data loaded from cache"
   },
   "failedToLoadTopicMessage": "Failed to load topic",
   "@failedToLoadTopicMessage": {
-    "description": "Message when topic loading failed"
+    "description": "Message for failed topic loading"
   },
   "magnetLinkLabelText": "Magnet link",
   "@magnetLinkLabelText": {
@@ -891,11 +1143,11 @@
   },
   "unknownChapterText": "Unknown chapter",
   "@unknownChapterText": {
-    "description": "Label for unknown chapter"
+    "description": "Fallback for missing chapter"
   },
   "magnetLinkCopiedMessage": "Magnet link copied",
   "@magnetLinkCopiedMessage": {
-    "description": "Message when magnet link copied"
+    "description": "Message for magnet link copied"
   },
   "copyToClipboardLabelText": "Copy to clipboard",
   "@copyToClipboardLabelText": {

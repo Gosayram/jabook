@@ -110,7 +110,7 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
           _hasError = true;
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppLocalizations.of(context)?.requestTimedOut ?? 'Request timed out. Please check your connection.')),
+          SnackBar(content: Text(AppLocalizations.of(context)?.requestTimedOutMessage ?? 'Request timed out. Please check your connection.')),
         );
       }
     } on DioException catch (e) {
@@ -120,12 +120,12 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
           _hasError = true;
         });
         
-        // Handle authentication errors specifically
+        // Handle authentication es specifically
         if (e.message?.contains('Authentication required') ?? false) {
           _showAuthenticationPrompt(context);
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(AppLocalizations.of(context)?.networkError(e.message ?? 'Unknown error') ?? 'Network error: ${e.message}')),
+            SnackBar(content: Text('${AppLocalizations.of(context)?.networkErrorMessage ?? 'Network e: $e'}'.replaceAll('\$e', e.message ?? 'Unknown e'))),
           );
         }
       }
@@ -136,7 +136,7 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
           _hasError = true;
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppLocalizations.of(context)?.errorLoadingTopic(e.toString()) ?? 'Error loading topic: $e')),
+          SnackBar(content: Text('${AppLocalizations.of(context)?.errorLoadingTopicMessage ?? 'Error loading topic: $e'}'.replaceAll('\$e', e.toString()))),
         );
       }
     }
@@ -150,10 +150,10 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
         if (_isFromCache)
           IconButton(
             icon: const Icon(Icons.cached),
-            tooltip: AppLocalizations.of(context)?.dataLoadedFromCache ?? 'Loaded from cache',
+            tooltip: AppLocalizations.of(context)?.dataLoadedFromCacheMessage ?? 'Loaded from cache',
             onPressed: () {
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(AppLocalizations.of(context)?.dataLoadedFromCache ?? 'Data loaded from cache')),
+                SnackBar(content: Text(AppLocalizations.of(context)?.dataLoadedFromCacheMessage ?? 'Data loaded from cache')),
               );
             },
           ),
@@ -179,7 +179,7 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(AppLocalizations.of(context)?.failedToLoadTopic ?? 'Failed to load topic'),
+            Text(AppLocalizations.of(context)?.failedToLoadTopicMessage ?? 'Failed to load topic'),
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: _loadTopicDetails,
@@ -245,12 +245,12 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
               ),
               const SizedBox(width: 8),
               Chip(
-                label: Text('$seeders seeders'),
+                label: Text('$seeders${AppLocalizations.of(context)?.seedersLabel ?? ' seeders'}'),
                 backgroundColor: Colors.green.shade100,
               ),
               const SizedBox(width: 8),
               Chip(
-                label: Text('$leechers leechers'),
+                label: Text('$leechers${AppLocalizations.of(context)?.leechersLabel ?? ' leechers'}'),
                 backgroundColor: Colors.orange.shade100,
               ),
             ],
@@ -264,14 +264,14 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
               placeholder: (context, url) => const Center(
                 child: CircularProgressIndicator(),
               ),
-              errorWidget: (context, url, error) => const Icon(Icons.error),
+              errorWidget: (context, url, e) => const Icon(Icons.error),
             ),
           const SizedBox(height: 16),
           if (magnetUrl.isNotEmpty)
             Card(
               child: ListTile(
                 leading: const Icon(Icons.link),
-                title: Text(AppLocalizations.of(context)?.magnetLinkLabel ?? 'Magnet Link'),
+                title: Text(AppLocalizations.of(context)?.magnetLinkLabelText ?? 'Magnet Link'),
                 subtitle: Text(
                   magnetUrl,
                   maxLines: 2,
@@ -279,7 +279,7 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
                 ),
                 trailing: const Icon(Icons.copy),
                 onTap: () {
-                  _copyToClipboard(magnetUrl, 'Magnet link');
+                  _copyToClipboard(magnetUrl, AppLocalizations.of(context)?.magnetLinkCopiedMessage ?? 'Magnet link');
                 },
               ),
             ),
@@ -298,7 +298,7 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '${AppLocalizations.of(context)?.chaptersLabel ?? 'Chapters'} (${chapters.length})',
+            '${AppLocalizations.of(context)?.chaptersLabelText ?? 'Chapters'} (${chapters.length})',
             style: Theme.of(context).textTheme.titleLarge,
           ),
           const SizedBox(height: 8),
@@ -308,7 +308,7 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
             itemCount: chapters.length,
             itemBuilder: (context, index) {
               final chapter = chapters[index] as Map<String, dynamic>;
-              final chapterTitle = chapter['title'] as String? ?? AppLocalizations.of(context)?.unknownChapter ?? 'Unknown Chapter';
+              final chapterTitle = chapter['title'] as String? ?? AppLocalizations.of(context)?.unknownChapterText ?? 'Unknown Chapter';
               final durationMs = chapter['durationMs'] as int? ?? 0;
               return Card(
                 margin: const EdgeInsets.only(bottom: 8),
@@ -346,7 +346,7 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
     if (_audiobook != null && (_audiobook!['magnetUrl'] as String).isNotEmpty) {
       _copyToClipboard(_audiobook!['magnetUrl'] as String, 'Magnet link');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppLocalizations.of(context)?.magnetLinkCopied ?? 'Magnet link copied to clipboard')),
+        SnackBar(content: Text(AppLocalizations.of(context)?.magnetLinkCopiedMessage ?? 'Magnet link copied to clipboard')),
       );
     }
   }
@@ -355,7 +355,7 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
     // TODO: Implement actual clipboard copy
     // For now, just show a message
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(AppLocalizations.of(context)?.copyToClipboardLabel(label) ?? '$label copied to clipboard')),
+      SnackBar(content: Text('${AppLocalizations.of(context)?.copyToClipboardMessage ?? '$label copied to clipboard'}'.replaceAll('\$label', label))),
     );
   }
 }
