@@ -88,11 +88,11 @@ class _DebugScreenState extends ConsumerState<DebugScreen> with SingleTickerProv
       // Fallback to placeholder logs
       setState(() {
         _logEntries = [
-          'INFO: ${AppLocalizations.of(context)?.appTitle ?? 'JaBook'} started at ${DateTime.now()}',
-          'DEBUG: ${AppLocalizations.of(context)?.cacheClearedSuccessfully ?? 'Cache cleared successfully'}',
-          'WARNING: ${AppLocalizations.of(context)?.downloadStatusUnknown ?? 'No active downloads found'}',
-          'ERROR: ${AppLocalizations.of(context)?.failedToExportLogs ?? 'Failed to connect to mirror'} rutracker.me',
-          'ERROR: ${AppLocalizations.of(context)?.failedToExportLogs ?? 'Failed to load logs'}: $e',
+          'INFO: JaBook started at ${DateTime.now()}',
+          'DEBUG: Cache cleared successfully',
+          'WARNING: No active downloads found',
+          'ERROR: Failed to connect to mirror rutracker.me',
+          'ERROR: Failed to load logs: $e',
         ];
       });
     }
@@ -134,13 +134,13 @@ class _DebugScreenState extends ConsumerState<DebugScreen> with SingleTickerProv
       
       if (!mounted) return;
       scaffoldMessenger.showSnackBar(
-        SnackBar(content: Text(currentLocalizations?.logsExportedSuccessfully ?? 'Logs exported successfully')),
+        SnackBar(content: Text('Logs exported successfully')),
       );
     } on Exception catch (e) {
       _logger.e('Failed to export logs: $e');
       if (!mounted) return;
       scaffoldMessenger.showSnackBar(
-        SnackBar(content: Text('${currentLocalizations?.failedToExportLogs ?? 'Failed to export logs'}: $e')),
+        SnackBar(content: Text('Failed to export logs: $e')),
       );
     }
   }
@@ -178,7 +178,7 @@ class _DebugScreenState extends ConsumerState<DebugScreen> with SingleTickerProv
       await _loadCacheStats();
       if (!mounted) return;
       scaffoldMessenger.showSnackBar(
-        SnackBar(content: Text(localizations?.cacheClearedSuccessfully ?? 'Cache cleared successfully')),
+        SnackBar(content: Text('Cache cleared successfully')),
       );
     } on Exception catch (e) {
       _logger.e('Failed to clear cache: $e');
@@ -205,13 +205,13 @@ class _DebugScreenState extends ConsumerState<DebugScreen> with SingleTickerProv
       
       if (!mounted) return;
       scaffoldMessenger.showSnackBar(
-        SnackBar(content: Text(localizations?.mirrorHealthCheckCompleted ?? 'Mirror health check completed')),
+        SnackBar(content: Text('Mirror health check completed')),
       );
     } on Exception catch (e) {
-      _logger.e('${localizations?.failedToExportLogs ?? 'Failed to test mirrors'}: $e');
+      _logger.e('Failed to test mirrors: $e');
       if (!mounted) return;
       scaffoldMessenger.showSnackBar(
-        SnackBar(content: Text('${localizations?.failedToExportLogs ?? 'Failed to test mirrors'}: $e')),
+        SnackBar(content: Text('Failed to test mirrors: $e')),
       );
     }
   }
@@ -222,24 +222,24 @@ class _DebugScreenState extends ConsumerState<DebugScreen> with SingleTickerProv
     
     return Scaffold(
       appBar: AppBar(
-        title: Text(localizations?.debugTools ?? 'Debug Tools'),
+        title: Text('Debug Tools'),
         bottom: TabBar(
           controller: _tabController,
           tabs: [
             Tab(
-              text: localizations?.logsTab ?? 'Logs',
+              text: 'Logs',
               icon: const Icon(Icons.description),
             ),
             Tab(
-              text: localizations?.mirrorsTab ?? 'Mirrors',
+              text: 'Mirrors',
               icon: const Icon(Icons.dns),
             ),
             Tab(
-              text: localizations?.downloadsTab ?? 'Downloads',
+              text: 'Downloads',
               icon: const Icon(Icons.download),
             ),
             Tab(
-              text: localizations?.cacheTab ?? 'Cache',
+              text: 'Cache',
               icon: const Icon(Icons.cached),
             ),
           ],
@@ -295,7 +295,7 @@ class _DebugScreenState extends ConsumerState<DebugScreen> with SingleTickerProv
           label: 'Test all mirrors',
           child: ElevatedButton(
             onPressed: () => _testAllMirrors(context),
-            child: Text(localizations?.testAllMirrors ?? 'Test All Mirrors'),
+            child: Text('Test All Mirrors'),
           ),
         ),
       ),
@@ -351,14 +351,14 @@ class _DebugScreenState extends ConsumerState<DebugScreen> with SingleTickerProv
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '${localizations?.statusLabel ?? 'Status: '}$statusText',
+                      'Status: $statusText',
                       style: TextStyle(
                         color: statusColor,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
-                    if (lastOk != null) Text('${localizations?.lastOkLabel ?? 'Last OK: '}$lastOk'),
-                    if (rtt != null) Text('${localizations?.rttLabel ?? 'RTT: '}$rtt${localizations?.milliseconds ?? 'ms'}'),
+                    if (lastOk != null) Text('Last OK: $lastOk'),
+                    if (rtt != null) Text('RTT: $rtt ms'),
                   ],
                 ),
                   trailing: Semantics(
@@ -390,16 +390,16 @@ class _DebugScreenState extends ConsumerState<DebugScreen> with SingleTickerProv
         child: Card(
           margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           child: ListTile(
-            title: Text('${AppLocalizations.of(context)?.downloadLabel ?? 'Download'} ${download['id']}'),
+            title: Text('Download ${download['id']}'),
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('${AppLocalizations.of(context)?.statusLabelNoColon ?? 'Status'}: $status'),
+                Text('Status: $status'),
                 Semantics(
                   value: '${progress.toStringAsFixed(1)}%',
                   child: LinearProgressIndicator(value: progress / 100),
                 ),
-                Text(AppLocalizations.of(context)?.downloadProgressLabel(progress.toStringAsFixed(1)) ?? 'Progress: ${progress.toStringAsFixed(1)}%'),
+                Text('Progress: ${progress.toStringAsFixed(1)}%'),
               ],
             ),
             trailing: Semantics(
@@ -429,35 +429,35 @@ class _DebugScreenState extends ConsumerState<DebugScreen> with SingleTickerProv
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  localizations?.cacheStatistics ?? 'Cache Statistics',
+                  'Cache Statistics',
                   style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 16),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(localizations?.totalEntries ?? 'Total entries: '),
+                    Text('Total entries: '),
                     Text(_cacheStats['total_entries'].toString()),
                   ],
                 ),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(localizations?.searchCache ?? 'Search cache: '),
+                    Text('Search cache: '),
                     Text(_cacheStats['search_cache_size'].toString()),
                   ],
                 ),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(localizations?.topicCache ?? 'Topic cache: '),
+                    Text('Topic cache: '),
                     Text(_cacheStats['topic_cache_size'].toString()),
                   ],
                 ),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(localizations?.memoryUsage ?? 'Memory usage: '),
+                    Text('Memory usage: '),
                     Text(_cacheStats['memory_usage'].toString()),
                   ],
                 ),
@@ -484,14 +484,14 @@ class _DebugScreenState extends ConsumerState<DebugScreen> with SingleTickerProv
                 label: 'Clear all cache',
                 child: ElevatedButton(
                   onPressed: hasCache ? () => _clearCache(context) : null,
-                  child: Text(localizations?.clearAllCache ?? 'Clear All Cache'),
+                  child: Text('Clear All Cache'),
                 ),
               ),
               if (!hasCache)
                 Padding(
                   padding: const EdgeInsets.all(8.0),
                   child: Text(
-                    localizations?.cacheClearedSuccessfully ?? 'Cache is empty',
+                    'Cache is empty',
                     style: const TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
                   ),
                 ),
