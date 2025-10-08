@@ -119,7 +119,7 @@
   },
   "loginRequiredForSearch": "Пожалуйста, войдите в RuTracker для доступа к функции поиска.",
   "@loginRequiredForSearch": {
-    "description": "Сообщение о необходимости входа для поиска"
+    "description": "Сообщение о необходимости входа в поиск"
   },
   "cancel": "Отмена",
   "@cancel": {
@@ -208,5 +208,257 @@
   "permissionDeniedButton": "Открыть настройки",
   "@permissionDeniedButton": {
     "description": "Текст кнопки для открытия настроек"
+  },
+  "navLibrary": "Библиотека",
+  "@navLibrary": {
+    "description": "Метка навигации для библиотеки"
+  },
+  "navAuth": "Аутентификация",
+  "@navAuth": {
+    "description": "Метка навигации для аутентификации"
+  },
+  "navSearch": "Поиск",
+  "@navSearch": {
+    "description": "Метка навигации для поиска"
+  },
+  "navSettings": "Настройки",
+  "@navSettings": {
+    "description": "Метка навигации для настроек"
+  },
+  "navDebug": "Отладка",
+  "@navDebug": {
+    "description": "Метка навигации для отладки"
+  },
+  "authTitle": "Вход",
+  "@authTitle": {
+    "description": "Заголовок экрана аутентификации"
+  },
+  "usernameLabel": "Имя пользователя",
+  "@usernameLabel": {
+    "description": "Метка для поля имени пользователя"
+  },
+  "passwordLabel": "Пароль",
+  "@passwordLabel": {
+    "description": "Метка для поля пароля"
+  },
+  "rememberMeLabel": "Запомнить меня",
+  "@rememberMeLabel": {
+    "description": "Метка для чекбокса запоминания"
+  },
+  "loginButton": "Войти",
+  "@loginButton": {
+    "description": "Текст кнопки входа"
+  },
+  "testConnectionButton": "Проверить соединение",
+  "@testConnectionButton": {
+    "description": "Текст кнопки проверки соединения"
+  },
+  "logoutButton": "Выйти",
+  "@logoutButton": {
+    "description": "Текст кнопки выхода"
+  },
+  "authHelpText": "Введите ваши учетные данные",
+  "@authHelpText": {
+    "description": "Текст подсказки для аутентификации"
+  },
+  "cacheClearedSuccessfully": "Кэш успешно очищен",
+  "@cacheClearedSuccessfully": {
+    "description": "Сообщение об успешной очистке кэша"
+  },
+  "downloadStatusUnknown": "Статус загрузки неизвестен",
+  "@downloadStatusUnknown": {
+    "description": "Сообщение о неизвестном статусе загрузки"
+  },
+  "failedToExportLogs": "Не удалось экспортировать логи",
+  "@failedToExportLogs": {
+    "description": "Сообщение об ошибке экспорта логов"
+  },
+  "logsExportedSuccessfully": "Логи успешно экспортированы",
+  "@logsExportedSuccessfully": {
+    "description": "Сообщение об успешном экспорте логов"
+  },
+  "mirrorHealthCheckCompleted": "Проверка здоровья зеркал завершена",
+  "@mirrorHealthCheckCompleted": {
+    "description": "Сообщение о завершении проверки зеркал"
+  },
+  "testAllMirrors": "Проверить все зеркала",
+  "@testAllMirrors": {
+    "description": "Текст кнопки проверки всех зеркал"
+  },
+  "statusLabel": "Статус:",
+  "@statusLabel": {
+    "description": "Метка для статуса"
+  },
+  "lastOkLabel": "Последний OK:",
+  "@lastOkLabel": {
+    "description": "Метка для времени последнего успеха"
+  },
+  "rttLabel": "RTT:",
+  "@rttLabel": {
+    "description": "Метка для времени отклика"
+  },
+  "milliseconds": "мс",
+  "@milliseconds": {
+    "description": "Сокращение для миллисекунд"
+  },
+  "downloadLabel": "Загрузка",
+  "@downloadLabel": {
+    "description": "Метка для загрузки"
+  },
+  "statusLabelNoColon": "Статус",
+  "@statusLabelNoColon": {
+    "description": "Метка статуса без двоеточия"
+  },
+  "downloadProgressLabel": "Прогресс",
+  "@downloadProgressLabel": {
+    "description": "Метка для прогресса загрузки"
+  },
+  "cacheStatistics": "Статистика кэша",
+  "@cacheStatistics": {
+    "description": "Заголовок статистики кэша"
+  },
+  "totalEntries": "Всего записей",
+  "@totalEntries": {
+    "description": "Метка для общего количества записей"
+  },
+  "searchCache": "Кэш поиска",
+  "@searchCache": {
+    "description": "Метка для кэша поиска"
+  },
+  "topicCache": "Кэш топиков",
+  "@topicCache": {
+    "description": "Метка для кэша топиков"
+  },
+  "memoryUsage": "Использование памяти",
+  "@memoryUsage": {
+    "description": "Метка для использования памяти"
+  },
+  "clearAllCache": "Очистить весь кэш",
+  "@clearAllCache": {
+    "description": "Текст кнопки очистки кэша"
+  },
+  "mirrorsScreenTitle": "Зеркала",
+  "@mirrorsScreenTitle": {
+    "description": "Заголовок экрана зеркал"
+  },
+  "failedToLoadAudio": "Не удалось загрузить аудио",
+  "@failedToLoadAudio": {
+    "description": "Сообщение об ошибке загрузки аудио"
+  },
+  "chaptersLabel": "Главы",
+  "@chaptersLabel": {
+    "description": "Метка для глав"
+  },
+  "downloadFunctionalityComingSoon": "Функция загрузки скоро появится",
+  "@downloadFunctionalityComingSoon": {
+    "description": "Сообщение о предстоящей функции загрузки"
+  },
+  "requestTimedOut": "Время запроса истекло",
+  "@requestTimedOut": {
+    "description": "Сообщение об истечении времени запроса"
+  },
+  "networkError": "Сетевая ошибка",
+  "@networkError": {
+    "description": "Сообщение о сетевой ошибке"
+  },
+  "mirrorStatusDisabled": "Отключено",
+  "@mirrorStatusDisabled": {
+    "description": "Статус отключенного зеркала"
+  },
+  "mirrorResponseTime": "Время отклика",
+  "@mirrorResponseTime": {
+    "description": "Метка для времени отклика зеркала"
+  },
+  "mirrorLastCheck": "Последняя проверка",
+  "@mirrorLastCheck": {
+    "description": "Метка для времени последней проверки"
+  },
+  "mirrorTestIndividual": "Проверить отдельное зеркало",
+  "@mirrorTestIndividual": {
+    "description": "Текст кнопки проверки отдельного зеркала"
+  },
+  "activeStatus": "Активно",
+  "@activeStatus": {
+    "description": "Статус активного зеркала"
+  },
+  "disabledStatus": "Отключено",
+  "@disabledStatus": {
+    "description": "Статус отключенного зеркала"
+  },
+  "languageDescription": "Выберите язык",
+  "@languageDescription": {
+    "description": "Описание настройки языка"
+  },
+  "themeTitle": "Тема",
+  "@themeTitle": {
+    "description": "Заголовок настройки темы"
+  },
+  "themeDescription": "Выберите тему приложения",
+  "@themeDescription": {
+    "description": "Описание настройки темы"
+  },
+  "darkMode": "Темный режим",
+  "@darkMode": {
+    "description": "Метка для темного режима"
+  },
+  "highContrast": "Высокая контрастность",
+  "@highContrast": {
+    "description": "Метка для высокой контрастности"
+  },
+  "audioTitle": "Аудио",
+  "@audioTitle": {
+    "description": "Заголовок настройки аудио"
+  },
+  "audioDescription": "Настройки аудио",
+  "@audioDescription": {
+    "description": "Описание настройки аудио"
+  },
+  "playbackSpeed": "Скорость воспроизведения",
+  "@playbackSpeed": {
+    "description": "Метка для скорости воспроизведения"
+  },
+  "skipDuration": "Длительность пропуска",
+  "@skipDuration": {
+    "description": "Метка для длительности пропуска"
+  },
+  "downloadsTitle": "Загрузки",
+  "@downloadsTitle": {
+    "description": "Заголовок настройки загрузок"
+  },
+  "downloadsDescription": "Настройки загрузки",
+  "@downloadsDescription": {
+    "description": "Описание настройки загрузок"
+  },
+  "downloadLocation": "Место загрузки",
+  "@downloadLocation": {
+    "description": "Метка для места загрузки"
+  },
+  "wifiOnlyDownloads": "Загрузки только по Wi-Fi",
+  "@wifiOnlyDownloads": {
+    "description": "Метка для загрузок только по Wi-Fi"
+  },
+  "dataLoadedFromCache": "Данные загружены из кэша",
+  "@dataLoadedFromCache": {
+    "description": "Сообщение о загрузке данных из кэша"
+  },
+  "failedToLoadTopic": "Не удалось загрузить топик",
+  "@failedToLoadTopic": {
+    "description": "Сообщение об ошибке загрузки топика"
+  },
+  "magnetLinkLabel": "Magnet-ссылка",
+  "@magnetLinkLabel": {
+    "description": "Метка для magnet-ссылки"
+  },
+  "unknownChapter": "Неизвестная глава",
+  "@unknownChapter": {
+    "description": "Запасной вариант для отсутствующей главы"
+  },
+  "magnetLinkCopied": "Magnet-ссылка скопирована",
+  "@magnetLinkCopied": {
+    "description": "Сообщение о копировании magnet-ссылки"
+  },
+  "copyToClipboardLabel": "Скопировать в буфер",
+  "@copyToClipboardLabel": {
+    "description": "Метка для копирования в буфер"
   }
 }
