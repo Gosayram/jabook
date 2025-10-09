@@ -125,7 +125,7 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
           _showAuthenticationPrompt(context);
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('${AppLocalizations.of(context)?.networkErrorMessage ?? 'Network e: $e'}'.replaceAll('\$e', e.message ?? 'Unknown e'))),
+            SnackBar(content: Text('Network error: ${e.message ?? "Unknown error"}')),
           );
         }
       }
@@ -136,7 +136,7 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
           _hasError = true;
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${AppLocalizations.of(context)?.errorLoadingTopicMessage ?? 'Error loading topic: $e'}'.replaceAll('\$e', e.toString()))),
+          SnackBar(content: Text('Error loading topic: ${e}')),
         );
       }
     }
@@ -355,7 +355,7 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
     // TODO: Implement actual clipboard copy
     // For now, just show a message
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('${AppLocalizations.of(context)?.copyToClipboardMessage ?? '$label copied to clipboard'}'.replaceAll('\$label', label))),
+      SnackBar(content: Text('${label} copied to clipboard')),
     );
   }
 }

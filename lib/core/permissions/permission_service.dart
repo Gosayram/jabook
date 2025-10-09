@@ -1,6 +1,6 @@
-import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter/material.dart';
 import 'package:jabook/core/logging/structured_logger.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 /// Service for managing app permissions.
 ///
@@ -31,7 +31,7 @@ class PermissionService {
       // For older Android versions
       final storageStatus = await Permission.storage.status;
       return storageStatus.isGranted;
-    } catch (e) {
+    } on Exception catch (e) {
       await _logger.log(
         level: 'error',
         subsystem: 'permissions',
@@ -74,7 +74,7 @@ class PermissionService {
       );
 
       return storageStatus.isGranted;
-    } catch (e) {
+    } on Exception catch (e) {
       await _logger.log(
         level: 'error',
         subsystem: 'permissions',
@@ -124,18 +124,18 @@ class PermissionService {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: Text('Cancel'),
+            child: const Text('Cancel'),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: Text('Allow'),
+            child: const Text('Allow'),
           ),
         ],
       ),
     );
 
-    if (result == true) {
-      return await requestPermission();
+    if (result ?? false) {
+      return requestPermission();
     }
 
     return false;
@@ -150,7 +150,7 @@ class PermissionService {
         subsystem: 'permissions',
         message: 'Opened app settings',
       );
-    } catch (e) {
+    } on Exception catch (e) {
       await _logger.log(
         level: 'error',
         subsystem: 'permissions',

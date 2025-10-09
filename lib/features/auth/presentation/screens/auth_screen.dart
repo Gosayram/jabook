@@ -136,7 +136,6 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final localizations = AppLocalizations.of(context);
     final authStatus = ref.watch(authStatusProvider);
     final isLoggedIn = ref.watch(isLoggedInProvider);
     

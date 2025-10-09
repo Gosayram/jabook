@@ -170,7 +170,6 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
       appBar: AppBar(
         title: Text(AppLocalizations.of(context)?.mirrorSettingsTitle ?? 'Mirror Settings'),

@@ -1,10 +1,10 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'package:jabook/l10n/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:jabook/l10n/app_localizations.dart';
 
 /// A secure WebView widget for accessing RuTracker with Cloudflare protection handling.
 ///
@@ -53,7 +53,7 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
     final cookieJson = prefs.getString('rutracker_cookies_v1');
     if (cookieJson != null) {
       try {
-        final cookies = jsonDecode(cookieJson) as List;
+        final cookies = jsonDecode(cookieJson) as List<dynamic>;
         for (final cookie in cookies) {
           await CookieManager.instance().setCookie(
             url: WebUri(initialUrl),
@@ -247,11 +247,10 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
           ],
         ),
         // Error overlay
-        if (_hasError)
-          Positioned.fill(
-            child: Container(
-              color: Colors.white,
-              child: Column(
+        Positioned.fill(
+          child: ColoredBox(
+            color: Colors.white,
+            child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(
@@ -263,7 +262,7 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 24.0),
                     child: Text(
-                      _errorMessage ?? (AppLocalizations.of(context)?.error ?? 'Произошла ошибка при загрузке страницы'),
+                      _errorMessage ?? 'Произошла ошибка при загрузке страницы',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 16,
@@ -280,7 +279,7 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
                       });
                       _webViewController.reload();
                     },
-                    child: Text(AppLocalizations.of(context)?.retryButtonText ?? 'Повторить попытку'),
+                    child: const Text('Повторить попытку'),
                   ),
                   const SizedBox(height: 16),
                   TextButton(
@@ -291,7 +290,7 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
                       });
                       _webViewController.loadUrl(urlRequest: URLRequest(url: WebUri(initialUrl)));
                     },
-                    child: Text(AppLocalizations.of(context)?.goHomeButtonText ?? 'Перейти на главную'),
+                    child: const Text('Перейти на главную'),
                   ),
                 ],
               ),
@@ -314,16 +313,16 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
     final action = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(AppLocalizations.of(context)?.downloadTorrentTitle ?? 'Скачать торрент'),
-        content: Text(AppLocalizations.of(context)?.selectActionText ?? 'Выберите действие:'),
+        title: const Text('Скачать торрент'),
+        content: const Text('Выберите действие:'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, 'open'),
-            child: Text(AppLocalizations.of(context)?.openButtonText ?? 'Открыть'),
+            child: const Text('Открыть'),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, 'download'),
-            child: Text(AppLocalizations.of(context)?.downloadButtonText ?? 'Скачать'),
+            child: const Text('Скачать'),
           ),
         ],
       ),

@@ -125,7 +125,6 @@ class _DebugScreenState extends ConsumerState<DebugScreen> with SingleTickerProv
   }
 
   Future<void> _exportLogs(BuildContext context) async {
-    final currentLocalizations = AppLocalizations.of(context);
     final scaffoldMessenger = ScaffoldMessenger.of(context);
     try {
       final structuredLogger = StructuredLogger();
@@ -134,13 +133,13 @@ class _DebugScreenState extends ConsumerState<DebugScreen> with SingleTickerProv
       
       if (!mounted) return;
       scaffoldMessenger.showSnackBar(
-        SnackBar(content: Text(AppLocalizations.of(context)?.logsExportedSuccessfullyMessage ?? 'Logs exported successfully')),
+        const SnackBar(content: Text('Logs exported successfully')),
       );
     } on Exception catch (e) {
       _logger.e('Failed to export logs: $e');
       if (!mounted) return;
       scaffoldMessenger.showSnackBar(
-        SnackBar(content: Text(AppLocalizations.of(context)?.failedToExportLogsMessage ?? 'Failed to export logs: $e')),
+        SnackBar(content: Text('Failed to export logs: $e')),
       );
     }
   }
@@ -171,14 +170,13 @@ class _DebugScreenState extends ConsumerState<DebugScreen> with SingleTickerProv
   }
 
   Future<void> _clearCache(BuildContext context) async {
-    final localizations = AppLocalizations.of(context);
     final scaffoldMessenger = ScaffoldMessenger.of(context);
     try {
       await _cacheService.clearSearchResultsCache();
       await _loadCacheStats();
       if (!mounted) return;
       scaffoldMessenger.showSnackBar(
-        SnackBar(content: Text(AppLocalizations.of(context)?.cacheClearedSuccessfullyMessage ?? 'Cache cleared successfully')),
+        const SnackBar(content: Text('Cache cleared successfully')),
       );
     } on Exception catch (e) {
       _logger.e('Failed to clear cache: $e');
@@ -190,7 +188,6 @@ class _DebugScreenState extends ConsumerState<DebugScreen> with SingleTickerProv
   }
 
   Future<void> _testAllMirrors(BuildContext context) async {
-    final localizations = AppLocalizations.of(context);
     final scaffoldMessenger = ScaffoldMessenger.of(context);
     try {
       // Test all mirrors using EndpointManager
@@ -205,7 +202,7 @@ class _DebugScreenState extends ConsumerState<DebugScreen> with SingleTickerProv
       
       if (!mounted) return;
       scaffoldMessenger.showSnackBar(
-        SnackBar(content: Text(AppLocalizations.of(context)?.mirrorHealthCheckCompletedMessage ?? 'Mirror health check completed')),
+        const SnackBar(content: Text('Mirror health check completed')),
       );
     } on Exception catch (e) {
       _logger.e('Failed to test mirrors: $e');
@@ -218,7 +215,6 @@ class _DebugScreenState extends ConsumerState<DebugScreen> with SingleTickerProv
 
   @override
   Widget build(BuildContext context) {
-    final localizations = AppLocalizations.of(context);
     
     return Scaffold(
       appBar: AppBar(
@@ -226,21 +222,21 @@ class _DebugScreenState extends ConsumerState<DebugScreen> with SingleTickerProv
         bottom: TabBar(
           controller: _tabController,
           tabs: [
-            Tab(
+            const Tab(
               text: 'Logs',
-              icon: const Icon(Icons.description),
+              icon: Icon(Icons.description),
             ),
-            Tab(
+            const Tab(
               text: 'Mirrors',
-              icon: const Icon(Icons.dns),
+              icon: Icon(Icons.dns),
             ),
-            Tab(
+            const Tab(
               text: 'Downloads',
-              icon: const Icon(Icons.download),
+              icon: Icon(Icons.download),
             ),
-            Tab(
+            const Tab(
               text: 'Cache',
-              icon: const Icon(Icons.cached),
+              icon: Icon(Icons.cached),
             ),
           ],
         ),
@@ -249,42 +245,44 @@ class _DebugScreenState extends ConsumerState<DebugScreen> with SingleTickerProv
         controller: _tabController,
         children: [
           _buildLogsTab(),
-          _buildMirrorsTab(localizations),
+          _buildMirrorsTab(null),
           _buildDownloadsTab(),
-          _buildCacheTab(localizations),
+          _buildCacheTab(null),
         ],
       ),
       floatingActionButton: _buildFloatingActionButtons(context),
     );
   }
 
-  Widget _buildLogsTab() => ListView.builder(
-    itemCount: _logEntries.length,
-    itemBuilder: (context, index) {
-      final entry = _logEntries[index];
-      final backgroundColor = switch (entry) {
-        final s when s.contains('ERROR') => Colors.red.shade100,
-        final s when s.contains('WARNING') => Colors.orange.shade100,
-        final s when s.contains('INFO') => Colors.blue.shade100,
-        final s when s.contains('DEBUG') => Colors.green.shade100,
-        _ => null,
-      };
+  Widget _buildLogsTab() {
+    return ListView.builder(
+      itemCount: _logEntries.length,
+      itemBuilder: (context, index) {
+        final entry = _logEntries[index];
+        final backgroundColor = switch (entry) {
+          final s when s.contains('ERROR') => Colors.red.shade100,
+          final s when s.contains('WARNING') => Colors.orange.shade100,
+          final s when s.contains('INFO') => Colors.blue.shade100,
+          final s when s.contains('DEBUG') => Colors.green.shade100,
+          _ => null,
+        };
 
-      return Card(
-        margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        color: backgroundColor,
-        child: ListTile(
-          title: Text(
-            entry,
-            style: TextStyle(
-              fontSize: 12,
-              color: backgroundColor != null ? Colors.black87 : null,
+        return Card(
+          margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          color: backgroundColor,
+          child: ListTile(
+            title: Text(
+              entry,
+              style: TextStyle(
+                fontSize: 12,
+                color: backgroundColor != null ? Colors.black87 : null,
+              ),
             ),
           ),
-        ),
-      );
-    },
-  );
+        );
+      },
+    );
+  }
 
   Widget _buildMirrorsTab(AppLocalizations? localizations) => Column(
     children: [
@@ -347,7 +345,7 @@ class _DebugScreenState extends ConsumerState<DebugScreen> with SingleTickerProv
                       fontWeight: FontWeight.w500,
                     ),
                   ),
-                subtitle: Column(
+                  subtitle: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
@@ -368,8 +366,8 @@ class _DebugScreenState extends ConsumerState<DebugScreen> with SingleTickerProv
                       color: statusColor,
                     ),
                   ),
+                  ),
                 ),
-              ),
             );
           },
         ),
@@ -436,28 +434,28 @@ class _DebugScreenState extends ConsumerState<DebugScreen> with SingleTickerProv
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('${AppLocalizations.of(context)?.totalEntriesText ?? 'Total entries:'} '),
+                    Text('${AppLocalizations.of(context)?.totalEntriesText ?? 'Total entries:'}'),
                     Text(_cacheStats['total_entries'].toString()),
                   ],
                 ),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('${AppLocalizations.of(context)?.searchCacheText ?? 'Search cache:'} '),
+                    Text('${AppLocalizations.of(context)?.searchCacheText ?? 'Search cache:'}'),
                     Text(_cacheStats['search_cache_size'].toString()),
                   ],
                 ),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('${AppLocalizations.of(context)?.topicCacheText ?? 'Topic cache:'} '),
+                    Text('${AppLocalizations.of(context)?.topicCacheText ?? 'Topic cache:'}'),
                     Text(_cacheStats['topic_cache_size'].toString()),
                   ],
                 ),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('${AppLocalizations.of(context)?.memoryUsageText ?? 'Memory usage:'} '),
+                    Text('${AppLocalizations.of(context)?.memoryUsageText ?? 'Memory usage:'}'),
                     Text(_cacheStats['memory_usage'].toString()),
                   ],
                 ),
@@ -503,29 +501,29 @@ class _DebugScreenState extends ConsumerState<DebugScreen> with SingleTickerProv
   );
 
   Widget _buildFloatingActionButtons(BuildContext context) => Column(
-      mainAxisAlignment: MainAxisAlignment.end,
-      children: [
-        Semantics(
-          button: true,
-          label: 'Refresh debug data',
-          child: FloatingActionButton(
-            heroTag: 'refresh',
-            mini: true,
-            onPressed: _loadDebugData,
-            child: const Icon(Icons.refresh),
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          Semantics(
+            button: true,
+            label: 'Refresh debug data',
+            child: FloatingActionButton(
+              heroTag: 'refresh',
+              mini: true,
+              onPressed: _loadDebugData,
+              child: const Icon(Icons.refresh),
+            ),
           ),
-        ),
-        const SizedBox(height: 8),
-        Semantics(
-          button: true,
-          label: 'Export logs',
-          child: FloatingActionButton(
-            heroTag: 'export',
-            mini: true,
-            onPressed: () => _exportLogs(context),
-            child: const Icon(Icons.file_download),
+          const SizedBox(height: 8),
+          Semantics(
+            button: true,
+            label: 'Export logs',
+            child: FloatingActionButton(
+              heroTag: 'export',
+              mini: true,
+              onPressed: () => _exportLogs(context),
+              child: const Icon(Icons.file_download),
+            ),
           ),
-        ),
-      ],
-    );
+        ],
+      );
   }
