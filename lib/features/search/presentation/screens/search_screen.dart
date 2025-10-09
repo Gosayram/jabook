@@ -131,7 +131,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           _showAuthenticationPrompt(context);
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(AppLocalizations.of(context)?.networkError(e.message ?? 'Unknown error') ?? 'Network error: ${e.message}')),
+            SnackBar(content: Text('${AppLocalizations.of(context)!.networkError}: ${e.message ?? 'Unknown error'}')),
           );
         }
       }
@@ -316,6 +316,7 @@ Map<String, dynamic> _chapterToMap(Chapter chapter) => {
   'startByte': chapter.startByte,
   'endByte': chapter.endByte,
 };
+
 
 /// Shows authentication prompt when login is required.
 void _showAuthenticationPrompt(BuildContext context) {
