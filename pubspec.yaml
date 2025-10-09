@@ -1,11 +1,11 @@
 name: jabook
 description: A modern audiobook player for Torrent trackers.
 publish_to: 'none'
-version: 1.1.1+35
+version: 1.1.1+43
 
 environment:
   sdk: '>=3.2.0 <4.0.0'
-  flutter: "3.35.0"
+  flutter: "3.35.3"
 
 dependencies:
   flutter:
