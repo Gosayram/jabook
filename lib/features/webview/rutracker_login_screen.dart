@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 import 'package:jabook/core/rutracker/go_client.dart';
-import 'package:jabook/l10n/app_localizations.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 /// A WebView-based login screen for RuTracker with Go client integration.
@@ -31,22 +31,22 @@ class _RutrackerLoginScreenState extends State<RutrackerLoginScreen> {
   }
 
   Future<void> _initializeWebView() async {
-    _controller = WebViewController()
+    _controller = await WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..enableZoom(false)
       ..setBackgroundColor(const Color(0xFFFFFFFF))
       ..setNavigationDelegate(
         NavigationDelegate(
-          onProgress: (int progress) {
+          onProgress: (progress) {
             // You can show progress if needed
           },
-          onPageStarted: (String url) {
+          onPageStarted: (url) {
             setState(() {
               _isLoading = true;
               _hasError = false;
             });
           },
-          onPageFinished: (String url) {
+          onPageFinished: (url) {
             setState(() {
               _isLoading = false;
             });
@@ -73,13 +73,13 @@ class _RutrackerLoginScreenState extends State<RutrackerLoginScreen> {
       final cookieStr = await _cookieChannel.invokeMethod<String>(
         'getCookiesForDomain',
         {'domain': 'rutracker.me'},
-      );
+      ) ?? '';
       
       if (!mounted) return;
       
       // Return cookies to the calling screen
-      Navigator.of(context).pop<String>(cookieStr ?? '');
-    } catch (e) {
+      Navigator.of(context).pop<String>(cookieStr);
+    } on Exception catch (e) {
       setState(() {
         _hasError = true;
         _errorMessage = 'Failed to extract cookies: $e';
@@ -98,6 +98,8 @@ class _RutrackerLoginScreenState extends State<RutrackerLoginScreen> {
       ),
     );
   }
+
+  Widget _buildWebViewContent() => WebViewWidget(controller: _controller);
 
   @override
   Widget build(BuildContext context) {
@@ -122,17 +124,16 @@ class _RutrackerLoginScreenState extends State<RutrackerLoginScreen> {
                 color: Colors.blue.shade50,
                 child: Row(
                   children: [
-                    Icon(
+                    const Icon(
                       Icons.info_outline,
-                      color: Colors.blue.shade700,
+                      color: Colors.blue,
                     ),
                     const SizedBox(width: 8.0),
-                    Expanded(
+                    const Expanded(
                       child: Text(
-                        AppLocalizations.of(context)?.authHelpText ??
                         'Please log in to RuTracker. After successful login, click "Done" to extract cookies for the Go client.',
                         style: TextStyle(
-                          color: Colors.blue.shade800,
+                          color: Colors.blue,
                           fontSize: 14.0,
                         ),
                       ),
@@ -166,7 +167,7 @@ class _RutrackerLoginScreenState extends State<RutrackerLoginScreen> {
           // Error overlay
           if (_hasError)
             Positioned.fill(
-              child: Container(
+              child: ColoredBox(
                 color: Colors.white,
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -208,38 +209,11 @@ class _RutrackerLoginScreenState extends State<RutrackerLoginScreen> {
     );
   }
 
-  Widget _buildWebViewContent() {
-    return WebViewWidget(controller: _controller);
-  }
-}
-
-/// Extension to provide easy integration with Go client
-extension RutrackerClientIntegration on RutrackerClient {
-  /// Initializes the client with session from login screen
-  static Future<RutrackerClient> fromLoginScreen({
-    required BuildContext context,
-    List<String>? mirrors,
-    String userAgent = 'Mozilla/5.0 (Android) Jabook/1.0',
-  }) async {
-    // Show login screen and get cookies
-    final cookies = await Navigator.of(context).push<String>(
-      MaterialPageRoute(
-        builder: (context) => const RutrackerLoginScreen(),
-      ),
-    );
-    
-    if (cookies == null || cookies.isEmpty) {
-      throw Exception('No cookies received from login screen');
-    }
-    
-    final client = RutrackerClient(
-      mirrors: mirrors,
-      userAgent: userAgent,
-    );
-    
-    await client.initialize();
-    await client.setSessionCookies(cookies);
-    
-    return client;
+  @override
+  void debugFillProperties(DiagnosticPropertiesBuilder properties) {
+    super.debugFillProperties(properties);
+    properties.add(DiagnosticsProperty<bool>('isLoading', _isLoading));
+    properties.add(DiagnosticsProperty<bool>('hasError', _hasError));
+    properties.add(DiagnosticsProperty<String?>('errorMessage', _errorMessage));
   }
 }

@@ -136,7 +136,7 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
           _hasError = true;
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading topic: ${e}')),
+          SnackBar(content: Text('Error loading topic: $e')),
         );
       }
     }
@@ -355,7 +355,7 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
     // TODO: Implement actual clipboard copy
     // For now, just show a message
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('${label} copied to clipboard')),
+      SnackBar(content: Text('$label copied to clipboard')),
     );
   }
 }

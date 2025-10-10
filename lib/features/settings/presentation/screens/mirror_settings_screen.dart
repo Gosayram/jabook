@@ -169,53 +169,51 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(AppLocalizations.of(context)?.mirrorSettingsTitle ?? 'Mirror Settings'),
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Text(
-                    AppLocalizations.of(context)?.configureMirrorsSubtitle ?? 'Configure RuTracker mirrors for optimal search performance. Enabled mirrors will be used automatically.',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurface,
-                        ),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-                Expanded(
-                  child: ListView.separated(
-                    itemCount: _mirrors.length,
-                    itemBuilder: (context, index) => _buildMirrorTile(_mirrors[index]),
-                    separatorBuilder: (context, index) => const SizedBox(height: 8),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: ElevatedButton.icon(
-                    onPressed: _addCustomMirror,
-                    icon: const Icon(Icons.add),
-                    label: Text(
-                      AppLocalizations.of(context)?.addCustomMirrorButtonText ?? 'Add Custom Mirror',
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.onPrimary,
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(
+      title: Text(AppLocalizations.of(context)?.mirrorSettingsTitle ?? 'Mirror Settings'),
+    ),
+    body: _isLoading
+        ? const Center(child: CircularProgressIndicator())
+        : Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Text(
+                  AppLocalizations.of(context)?.configureMirrorsSubtitle ?? 'Configure RuTracker mirrors for optimal search performance. Enabled mirrors will be used automatically.',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Theme.of(context).colorScheme.primary,
-                      foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                  textAlign: TextAlign.center,
+                ),
+              ),
+              Expanded(
+                child: ListView.separated(
+                  itemCount: _mirrors.length,
+                  itemBuilder: (context, index) => _buildMirrorTile(_mirrors[index]),
+                  separatorBuilder: (context, index) => const SizedBox(height: 8),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: ElevatedButton.icon(
+                  onPressed: _addCustomMirror,
+                  icon: const Icon(Icons.add),
+                  label: Text(
+                    AppLocalizations.of(context)?.addCustomMirrorButtonText ?? 'Add Custom Mirror',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onPrimary,
                     ),
                   ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Theme.of(context).colorScheme.primary,
+                    foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                  ),
                 ),
-              ],
-            ),
-    );
-  }
+              ),
+            ],
+          ),
+  );
 
   Widget _buildMirrorTile(Map<String, dynamic> mirror) {
     final url = mirror['url'] as String? ?? '';

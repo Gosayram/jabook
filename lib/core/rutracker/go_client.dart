@@ -3,7 +3,10 @@ import 'package:flutter/services.dart';
 /// GoClient provides a Dart interface to the Go HTTP client with mirror support
 /// for Rutracker integration. This client handles cookie management and
 /// automatic mirror rotation.
+@pragma('vm:prefer-inline')
 class GoClient {
+  const GoClient._();
+  
   static const _channel = MethodChannel('jabook.golib');
 
   /// Initializes the Go client with primary host and optional mirrors
@@ -51,17 +54,15 @@ class GoClient {
 
 /// RutrackerClient provides high-level interface for Rutracker operations
 class RutrackerClient {
-  final List<String> _mirrors;
-  final String _userAgent;
-
+  /// Initializes the client with Rutracker configuration
   RutrackerClient({
     List<String>? mirrors,
     String userAgent = 'Mozilla/5.0 (Android) Jabook/1.0',
   }) : _mirrors = mirrors ?? [],
        _userAgent = userAgent;
 
-  /// Initializes the client with Rutracker configuration
-
+  final List<String> _mirrors;
+  final String _userAgent;
 
   /// Initializes the client with Rutracker configuration
   Future<void> initialize() async {

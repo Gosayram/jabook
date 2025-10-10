@@ -5,21 +5,20 @@ import 'package:jabook/l10n/app_localizations.dart';
 /// A wrapper widget that ensures required permissions are granted
 /// before allowing the child widget to be used.
 class PermissionWrapper extends StatefulWidget {
+  @override
+  State<PermissionWrapper> createState() => _PermissionWrapperState();
+
   /// The child widget that requires permissions.
   final Widget child;
 
   /// A callback to call when permissions are granted.
   final VoidCallback? onPermissionsGranted;
 
-  /// Creates a new PermissionWrapper instance.
   const PermissionWrapper({
     super.key,
     required this.child,
     this.onPermissionsGranted,
   });
-
-  @override
-  State<PermissionWrapper> createState() => _PermissionWrapperState();
 }
 
 /// State class for PermissionWrapper widget.
@@ -41,7 +40,7 @@ class _PermissionWrapperState extends State<PermissionWrapper> {
     });
 
     try {
-      final granted = await _permissionService.hasAllPermissions();
+      final granted = await _permissionService.hasAllPermissions() ?? false;
       setState(() {
         _permissionsGranted = granted;
         _isLoading = false;
@@ -50,7 +49,7 @@ class _PermissionWrapperState extends State<PermissionWrapper> {
       if (granted && widget.onPermissionsGranted != null) {
         widget.onPermissionsGranted!();
       }
-    } catch (e) {
+    } on Exception catch (_) {
       setState(() {
         _permissionsGranted = false;
         _isLoading = false;
@@ -65,7 +64,7 @@ class _PermissionWrapperState extends State<PermissionWrapper> {
     });
 
     try {
-      final granted = await _permissionService.requestAllPermissions();
+      final granted = await _permissionService.requestAllPermissions() ?? false;
       setState(() {
         _permissionsGranted = granted;
         _isLoading = false;
@@ -74,7 +73,7 @@ class _PermissionWrapperState extends State<PermissionWrapper> {
       if (granted && widget.onPermissionsGranted != null) {
         widget.onPermissionsGranted!();
       }
-    } catch (e) {
+    } on Exception catch (_) {
       setState(() {
         _permissionsGranted = false;
         _isLoading = false;
@@ -122,42 +121,40 @@ class _PermissionWrapperState extends State<PermissionWrapper> {
   }
 
   /// Builds the permission request screen.
-  Widget _buildPermissionScreen() {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(AppLocalizations.of(context)!.permissionsRequired ?? 'Permissions Required'),
-      ),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.security,
-                size: 80,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-              const SizedBox(height: 24),
-              Text(
-                AppLocalizations.of(context)!.permissionExplanation ?? 'This feature requires certain permissions to function properly.',
-                style: Theme.of(context).textTheme.bodyLarge,
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 32),
-              ElevatedButton(
-                onPressed: _requestPermissions,
-                child: Text(AppLocalizations.of(context)!.grantPermissions ?? 'Grant Permissions'),
-              ),
-              const SizedBox(height: 16),
-              TextButton(
-                onPressed: _showPermissionDeniedDialog,
-                child: Text(AppLocalizations.of(context)!.permissionDeniedButton ?? 'Open Settings'),
-              ),
-            ],
-          ),
+  Widget _buildPermissionScreen() => Scaffold(
+    appBar: AppBar(
+      title: Text(AppLocalizations.of(context)!.permissionsRequired ?? 'Permissions Required'),
+    ),
+    body: Center(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.security,
+              size: 80,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+            const SizedBox(height: 24),
+            Text(
+              AppLocalizations.of(context)!.permissionExplanation ?? 'This feature requires certain permissions to function properly.',
+              style: Theme.of(context).textTheme.bodyLarge,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 32),
+            ElevatedButton(
+              onPressed: _requestPermissions,
+              child: Text(AppLocalizations.of(context)!.grantPermissions ?? 'Grant Permissions'),
+            ),
+            const SizedBox(height: 16),
+            TextButton(
+              onPressed: _showPermissionDeniedDialog,
+              child: Text(AppLocalizations.of(context)!.permissionDeniedButton ?? 'Open Settings'),
+            ),
+          ],
         ),
       ),
-    );
-  }
+    ),
+  );
 }

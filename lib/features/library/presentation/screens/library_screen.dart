@@ -180,7 +180,7 @@ class _LibraryContent extends ConsumerWidget {
         
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Imported ${importedCount} audiobook(s)')),
+            SnackBar(content: Text('Imported $importedCount audiobook(s)')),
           );
         }
       } else {
@@ -193,7 +193,7 @@ class _LibraryContent extends ConsumerWidget {
     } on Exception catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to import: ${e}')),
+          SnackBar(content: Text('Failed to import: $e')),
         );
       }
     }
@@ -245,7 +245,7 @@ class _LibraryContent extends ConsumerWidget {
 
           if (context.mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Found and imported ${importedCount} audiobook(s)')),
+              SnackBar(content: Text('Found and imported $importedCount audiobook(s)')),
             );
           }
         } else {
@@ -265,7 +265,7 @@ class _LibraryContent extends ConsumerWidget {
     } on Exception catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to scan folder: ${e}')),
+          SnackBar(content: Text('Failed to scan folder: $e')),
         );
       }
     }

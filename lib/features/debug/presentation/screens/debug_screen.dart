@@ -214,75 +214,70 @@ class _DebugScreenState extends ConsumerState<DebugScreen> with SingleTickerProv
   }
 
   @override
-  Widget build(BuildContext context) {
-    
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(AppLocalizations.of(context)?.debugToolsTitle ?? 'Debug Tools'),
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: [
-            const Tab(
-              text: 'Logs',
-              icon: Icon(Icons.description),
-            ),
-            const Tab(
-              text: 'Mirrors',
-              icon: Icon(Icons.dns),
-            ),
-            const Tab(
-              text: 'Downloads',
-              icon: Icon(Icons.download),
-            ),
-            const Tab(
-              text: 'Cache',
-              icon: Icon(Icons.cached),
-            ),
-          ],
-        ),
-      ),
-      body: TabBarView(
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(
+      title: Text(AppLocalizations.of(context)?.debugToolsTitle ?? 'Debug Tools'),
+      bottom: TabBar(
         controller: _tabController,
-        children: [
-          _buildLogsTab(),
-          _buildMirrorsTab(null),
-          _buildDownloadsTab(),
-          _buildCacheTab(null),
+        tabs: const [
+          Tab(
+            text: 'Logs',
+            icon: Icon(Icons.description),
+          ),
+          Tab(
+            text: 'Mirrors',
+            icon: Icon(Icons.dns),
+          ),
+          Tab(
+            text: 'Downloads',
+            icon: Icon(Icons.download),
+          ),
+          Tab(
+            text: 'Cache',
+            icon: Icon(Icons.cached),
+          ),
         ],
       ),
-      floatingActionButton: _buildFloatingActionButtons(context),
-    );
-  }
+    ),
+    body: TabBarView(
+      controller: _tabController,
+      children: [
+        _buildLogsTab(),
+        _buildMirrorsTab(null),
+        _buildDownloadsTab(),
+        _buildCacheTab(null),
+      ],
+    ),
+    floatingActionButton: _buildFloatingActionButtons(context),
+  );
 
-  Widget _buildLogsTab() {
-    return ListView.builder(
-      itemCount: _logEntries.length,
-      itemBuilder: (context, index) {
-        final entry = _logEntries[index];
-        final backgroundColor = switch (entry) {
-          final s when s.contains('ERROR') => Colors.red.shade100,
-          final s when s.contains('WARNING') => Colors.orange.shade100,
-          final s when s.contains('INFO') => Colors.blue.shade100,
-          final s when s.contains('DEBUG') => Colors.green.shade100,
-          _ => null,
-        };
+  Widget _buildLogsTab() => ListView.builder(
+    itemCount: _logEntries.length,
+    itemBuilder: (context, index) {
+      final entry = _logEntries[index];
+      final backgroundColor = switch (entry) {
+        final s when s.contains('ERROR') => Colors.red.shade100,
+        final s when s.contains('WARNING') => Colors.orange.shade100,
+        final s when s.contains('INFO') => Colors.blue.shade100,
+        final s when s.contains('DEBUG') => Colors.green.shade100,
+        _ => null,
+      };
 
-        return Card(
-          margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          color: backgroundColor,
-          child: ListTile(
-            title: Text(
-              entry,
-              style: TextStyle(
-                fontSize: 12,
-                color: backgroundColor != null ? Colors.black87 : null,
-              ),
+      return Card(
+        margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        color: backgroundColor,
+        child: ListTile(
+          title: Text(
+            entry,
+            style: TextStyle(
+              fontSize: 12,
+              color: backgroundColor != null ? Colors.black87 : null,
             ),
           ),
-        );
-      },
-    );
-  }
+        ),
+      );
+    },
+  );
 
   Widget _buildMirrorsTab(AppLocalizations? localizations) => Column(
     children: [
@@ -346,19 +341,19 @@ class _DebugScreenState extends ConsumerState<DebugScreen> with SingleTickerProv
                     ),
                   ),
                   subtitle: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Status: $statusText',
-                      style: TextStyle(
-                        color: statusColor,
-                        fontWeight: FontWeight.w500,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Status: $statusText',
+                        style: TextStyle(
+                          color: statusColor,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
-                    ),
-                    if (lastOk != null) Text('${AppLocalizations.of(context)?.lastOkLabelText ?? 'Last OK:'} $lastOk'),
-                    if (rtt != null) Text('${AppLocalizations.of(context)?.rttLabelText ?? 'RTT:'} $rtt ${AppLocalizations.of(context)?.millisecondsText ?? 'ms'}'),
-                  ],
-                ),
+                      if (lastOk != null) Text('${AppLocalizations.of(context)?.lastOkLabelText ?? 'Last OK:'} $lastOk'),
+                      if (rtt != null) Text('${AppLocalizations.of(context)?.rttLabelText ?? 'RTT:'} $rtt ${AppLocalizations.of(context)?.millisecondsText ?? 'ms'}'),
+                    ],
+                  ),
                   trailing: Semantics(
                     label: isActive ? AppLocalizations.of(context)?.activeStatusText ?? 'Active mirror' : AppLocalizations.of(context)?.disabledStatusText ?? 'Disabled mirror',
                     child: Icon(
@@ -366,8 +361,8 @@ class _DebugScreenState extends ConsumerState<DebugScreen> with SingleTickerProv
                       color: statusColor,
                     ),
                   ),
-                  ),
                 ),
+              ),
             );
           },
         ),
@@ -434,28 +429,28 @@ class _DebugScreenState extends ConsumerState<DebugScreen> with SingleTickerProv
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('${AppLocalizations.of(context)?.totalEntriesText ?? 'Total entries:'}'),
+                    Text(AppLocalizations.of(context)?.totalEntriesText ?? 'Total entries:'),
                     Text(_cacheStats['total_entries'].toString()),
                   ],
                 ),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('${AppLocalizations.of(context)?.searchCacheText ?? 'Search cache:'}'),
+                    Text(AppLocalizations.of(context)?.searchCacheText ?? 'Search cache:'),
                     Text(_cacheStats['search_cache_size'].toString()),
                   ],
                 ),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('${AppLocalizations.of(context)?.topicCacheText ?? 'Topic cache:'}'),
+                    Text(AppLocalizations.of(context)?.topicCacheText ?? 'Topic cache:'),
                     Text(_cacheStats['topic_cache_size'].toString()),
                   ],
                 ),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('${AppLocalizations.of(context)?.memoryUsageText ?? 'Memory usage:'}'),
+                    Text(AppLocalizations.of(context)?.memoryUsageText ?? 'Memory usage:'),
                     Text(_cacheStats['memory_usage'].toString()),
                   ],
                 ),
@@ -501,29 +496,29 @@ class _DebugScreenState extends ConsumerState<DebugScreen> with SingleTickerProv
   );
 
   Widget _buildFloatingActionButtons(BuildContext context) => Column(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          Semantics(
-            button: true,
-            label: 'Refresh debug data',
-            child: FloatingActionButton(
-              heroTag: 'refresh',
-              mini: true,
-              onPressed: _loadDebugData,
-              child: const Icon(Icons.refresh),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Semantics(
-            button: true,
-            label: 'Export logs',
-            child: FloatingActionButton(
-              heroTag: 'export',
-              mini: true,
-              onPressed: () => _exportLogs(context),
-              child: const Icon(Icons.file_download),
-            ),
-          ),
-        ],
-      );
-  }
+    mainAxisAlignment: MainAxisAlignment.end,
+    children: [
+      Semantics(
+        button: true,
+        label: 'Refresh debug data',
+        child: FloatingActionButton(
+          heroTag: 'refresh',
+          mini: true,
+          onPressed: _loadDebugData,
+          child: const Icon(Icons.refresh),
+        ),
+      ),
+      const SizedBox(height: 8),
+      Semantics(
+        button: true,
+        label: 'Export logs',
+        child: FloatingActionButton(
+          heroTag: 'export',
+          mini: true,
+          onPressed: () => _exportLogs(context),
+          child: const Icon(Icons.file_download),
+        ),
+      ),
+    ],
+  );
+}
