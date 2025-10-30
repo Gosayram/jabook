@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:cookie_jar/cookie_jar.dart';
 import 'package:dio/dio.dart';
 import 'package:dio_cookie_manager/dio_cookie_manager.dart';
@@ -5,6 +6,7 @@ import 'package:jabook/core/endpoints/endpoint_manager.dart';
 import 'package:jabook/core/logging/structured_logger.dart';
 import 'package:jabook/core/net/user_agent_manager.dart';
 import 'package:jabook/data/db/app_database.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// HTTP client for making requests to RuTracker APIs.
 ///
@@ -98,7 +100,7 @@ class DioClient {
       },
     ));
     
-    // Add authentication redirect handler
+    // Add authentication redirect handler and resilient retry policy for idempotent requests
     dio.interceptors.add(InterceptorsWrapper(
       onResponse: (response, handler) {
         // Check if we got redirected to login page instead of the requested resource
@@ -114,25 +116,58 @@ class DioClient {
         return handler.next(response);
       },
       onError: (error, handler) async {
-        // Add retry logic for temporary network issues
-        if (error.type == DioExceptionType.connectionTimeout ||
+        // Retry logic for idempotent requests (GET, HEAD, OPTIONS) on temporary issues
+        final method = error.requestOptions.method.toUpperCase();
+        final isIdempotent = method == 'GET' || method == 'HEAD' || method == 'OPTIONS';
+        final status = error.response?.statusCode ?? 0;
+        final isTemporary = error.type == DioExceptionType.connectionTimeout ||
             error.type == DioExceptionType.receiveTimeout ||
             error.type == DioExceptionType.sendTimeout ||
-            (error.response?.statusCode ?? 0) >= 500) {
-          
-          // Retry up to 3 times for temporary issues
-          final retryCount = error.requestOptions.extra['retryCount'] ?? 0;
+            status == 429 ||
+            (status >= 500 && status < 600);
+
+        if (isIdempotent && isTemporary) {
+          // Up to 3 retries with exponential backoff + jitter
+          final retryCount = (error.requestOptions.extra['retryCount'] as int?) ?? 0;
           if (retryCount < 3) {
-            await Future.delayed(Duration(seconds: 1 << retryCount)); // Exponential backoff
-            
+            int baseDelayMs;
+            if (status == 429) {
+              // Honor Retry-After if provided
+              final retryAfter = error.response?.headers.value('retry-after');
+              final retryAfterSeconds = int.tryParse(retryAfter ?? '') ?? 0;
+              baseDelayMs = (retryAfterSeconds > 0 ? retryAfterSeconds * 1000 : (500 * (1 << retryCount)));
+            } else {
+              baseDelayMs = 500 * (1 << retryCount);
+            }
+            // jitter 0..250ms
+            final jitterMs = DateTime.now().microsecondsSinceEpoch % 250;
+            final delayMs = baseDelayMs + jitterMs;
+            await StructuredLogger().log(
+              level: 'warning',
+              subsystem: 'network',
+              message: 'Retrying request',
+              extra: {
+                'url': error.requestOptions.uri.toString(),
+                'status': status,
+                'retry': retryCount + 1,
+                'delay_ms': delayMs,
+              },
+            );
+            await Future.delayed(Duration(milliseconds: delayMs));
+
             final newOptions = error.requestOptions.copyWith(
               extra: {...error.requestOptions.extra, 'retryCount': retryCount + 1},
             );
-            
-            return handler.resolve(await dio.fetch(newOptions));
+
+            try {
+              final retried = await dio.fetch(newOptions);
+              return handler.resolve(retried);
+            } on Exception {
+              // Fall-through to next
+            }
           }
         }
-        
+
         return handler.next(error);
       },
     ));
@@ -159,9 +194,48 @@ class DioClient {
   /// This method should be called to ensure that authentication cookies
   /// obtained through WebView login are available for HTTP requests.
   static Future<void> syncCookiesFromWebView() async {
-    // Cookie synchronization is handled automatically by the CookieManager
-    // interceptor that's already added to the Dio instance
-    // WebView cookies are automatically available to HTTP requests
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final cookieJson = prefs.getString('rutracker_cookies_v1');
+      if (cookieJson == null) return;
+
+      final db = AppDatabase().database;
+      final endpointManager = EndpointManager(db);
+      final activeBase = await endpointManager.getActiveEndpoint();
+      final uri = Uri.parse(activeBase);
+
+      // Parse cookies list from JSON (as saved by secure webview)
+      final list = jsonDecode(cookieJson) as List<dynamic>;
+
+      _cookieJar ??= CookieJar();
+      final cookies = <Cookie>[];
+      for (final c in list) {
+        final m = Map<String, dynamic>.from(c as Map);
+        final name = m['name']?.toString();
+        final value = m['value']?.toString();
+        if (name == null || value == null) continue;
+        final cookie = Cookie(name, value)
+          ..domain = m['domain']?.toString() ?? uri.host
+          ..path = m['path']?.toString() ?? '/'
+          ..secure = true;
+        cookies.add(cookie);
+      }
+      await _cookieJar!.saveFromResponse(uri, cookies);
+
+      await StructuredLogger().log(
+        level: 'info',
+        subsystem: 'auth',
+        message: 'Synced cookies from WebView to Dio',
+        extra: {'count': cookies.length},
+      );
+    } on Exception catch (e) {
+      await StructuredLogger().log(
+        level: 'warning',
+        subsystem: 'auth',
+        message: 'Failed to sync cookies from WebView',
+        cause: e.toString(),
+      );
+    }
   }
 
   /// Clears all stored cookies from the cookie jar.

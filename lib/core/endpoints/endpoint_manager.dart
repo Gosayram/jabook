@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:jabook/core/errors/failures.dart';
+import 'package:jabook/core/logging/structured_logger.dart';
 import 'package:jabook/core/net/dio_client.dart';
 import 'package:sembast/sembast.dart';
 
@@ -110,18 +111,44 @@ class EndpointManager {
         'health_score': healthScore,
         'failure_count': 0, // Reset failure count on success
         'last_failure': null,
+        'cooldown_until': null,
       });
       await _endpointsRef.put(_db, {'endpoints': endpoints});
+      // Log success
+      await StructuredLogger().log(
+        level: 'info',
+        subsystem: 'endpoints',
+        message: 'HealthCheck success for $endpoint',
+        extra: {
+          'rtt_ms': rtt,
+          'status': response.statusCode,
+          'health_score': healthScore,
+        },
+      );
     } on Exception catch (e) {
       // Mark endpoint as unhealthy and increment failure count
+      final newFailureCount = failureCount + 1;
+      final cooldown = _calculateCooldown(newFailureCount);
       endpoints[endpointIndex].addAll({
         'enabled': false,
         'health_score': 0,
-        'failure_count': failureCount + 1,
+        'failure_count': newFailureCount,
         'last_failure': DateTime.now().toIso8601String(),
         'last_error': e.toString(),
+        'cooldown_until': cooldown?.toIso8601String(),
       });
       await _endpointsRef.put(_db, {'endpoints': endpoints});
+      // Log failure
+      await StructuredLogger().log(
+        level: 'warning',
+        subsystem: 'endpoints',
+        message: 'HealthCheck failed for $endpoint',
+        cause: e.toString(),
+        extra: {
+          'failure_count': newFailureCount,
+          'cooldown_until': cooldown?.toIso8601String(),
+        },
+      );
     }
   }
 
@@ -166,6 +193,26 @@ class EndpointManager {
     final endpoints =
         List<Map<String, dynamic>>.from((record?['endpoints'] as List?) ?? []);
 
+    // Refresh availability based on cooldowns
+    for (final e in endpoints) {
+      final cooldownUntilStr = e['cooldown_until'] as String?;
+      if (cooldownUntilStr != null) {
+        final cooldownUntil = DateTime.tryParse(cooldownUntilStr);
+        if (cooldownUntil != null && DateTime.now().isAfter(cooldownUntil)) {
+          // Cooldown expired: re-enable on probation with low health score
+          e['enabled'] = true;
+          e['health_score'] = (e['health_score'] as int? ?? 0).clamp(0, 40);
+          e['cooldown_until'] = null;
+          await StructuredLogger().log(
+            level: 'info',
+            subsystem: 'endpoints',
+            message: 'Cooldown expired, re-enabling mirror',
+            extra: {'url': e['url']},
+          );
+        }
+      }
+    }
+
     // Filter enabled endpoints with health score > 50
     final healthyEndpoints = endpoints
         .where((e) => e['enabled'] == true && (e['health_score'] as int? ?? 0) > 50)
@@ -180,7 +227,14 @@ class EndpointManager {
       
       // Sort fallback by priority
       fallbackEndpoints.sort((a, b) => a['priority'].compareTo(b['priority']));
-      return fallbackEndpoints.first['url'] as String;
+      final chosen = fallbackEndpoints.first['url'] as String;
+      await StructuredLogger().log(
+        level: 'warning',
+        subsystem: 'endpoints',
+        message: 'No healthy endpoints, using fallback',
+        extra: {'url': chosen},
+      );
+      return chosen;
     }
 
     // Sort by health score (descending), then RTT (ascending), then priority (ascending)
@@ -196,7 +250,27 @@ class EndpointManager {
       return a['priority'].compareTo(b['priority']);
     });
 
-    return healthyEndpoints.first['url'] as String;
+    final chosen = healthyEndpoints.first['url'] as String;
+    await StructuredLogger().log(
+      level: 'info',
+      subsystem: 'endpoints',
+      message: 'Active endpoint selected',
+      extra: {'url': chosen},
+    );
+    return chosen;
+  }
+
+  /// Calculates cooldown duration based on failure count using exponential backoff
+  Duration? _failureCooldown(int failures) {
+    if (failures <= 1) return null;
+    final capped = failures > 6 ? 6 : failures; // cap growth
+    return Duration(minutes: 1 * (1 << (capped - 1)));
+  }
+
+  DateTime? _calculateCooldown(int failures) {
+    final dur = _failureCooldown(failures);
+    if (dur == null) return null;
+    return DateTime.now().add(dur);
   }
 
   /// Gets all endpoints with their current health status

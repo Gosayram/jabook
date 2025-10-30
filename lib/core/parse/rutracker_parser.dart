@@ -99,6 +99,17 @@ class Chapter {
 /// This class provides methods to parse search results and topic details
 /// from RuTracker forum pages, handling both UTF-8 and Windows-1251 encoding.
 class RuTrackerParser {
+  // CSS selectors centralized for easier maintenance
+  static const String _rowSelector = 'tr.hl-tr';
+  static const String _titleSelector = 'a.torTopic, a.torTopic.tt-text';
+  static const String _authorSelector = 'a.pmed, .topicAuthor a, a[href*="profile.php"]';
+  static const String _sizeSelector = 'span.small, a.f-dl.dl-stub';
+  static const String _seedersSelector = 'span.seedmed, span.seedmed b';
+  static const String _leechersSelector = 'span.leechmed, span.leechmed b';
+  static const String _downloadHrefSelector = 'a[href^="dl.php?t="]';
+  static const String _coverSelector = 'img[src*="static.rutracker"], img.postimg';
+  static const String _postBodySelector = '.post-body';
+  static const String _maintitleSelector = 'h1.maintitle';
   /// Parses search results from RuTracker search page HTML.
   ///
   /// This method takes HTML content from a search results page and extracts
@@ -124,18 +135,22 @@ class RuTrackerParser {
       final results = <Audiobook>[];
 
       // Parse actual RuTracker topic rows structure
-      final topicRows = document.querySelectorAll('tr.hl-tr');
+      final topicRows = document.querySelectorAll(_rowSelector);
       
       for (final row in topicRows) {
-        final topicId = row.attributes['data-topic_id'];
-        final titleElement = row.querySelector('a.torTopic'); // Right selector
-        final authorElement = row.querySelector('a.pmed'); // Right selector
-        final sizeElement = row.querySelector('span.small'); // Right selector
-        final seedersElement = row.querySelector('span.seedmed'); // Right selector
-        final leechersElement = row.querySelector('span.leechmed'); // Right selector
-        final magnetElement = row.querySelector('a[href^="dl.php?t="]');
+        // Skip ad/outer rows
+        if (row.classes.any((c) => c.contains('banner') || c.contains('ads'))) {
+          continue;
+        }
+        final topicId = row.attributes['data-topic_id'] ?? _extractTopicIdFromAny(row);
+        final titleElement = row.querySelector(_titleSelector);
+        final authorElement = row.querySelector(_authorSelector);
+        final sizeElement = row.querySelector(_sizeSelector);
+        final seedersElement = row.querySelector(_seedersSelector);
+        final leechersElement = row.querySelector(_leechersSelector);
+        final magnetElement = row.querySelector(_downloadHrefSelector);
 
-        if (titleElement != null && topicId != null) {
+        if (titleElement != null && (topicId.isNotEmpty)) {
           // Extract size from download link text (e.g., "40 MB")
           final sizeText = sizeElement?.text.trim() ?? '0 MB';
           
@@ -192,22 +207,22 @@ class RuTrackerParser {
       final document = parser.parse(decodedHtml);
 
       // Parse actual RuTracker topic page structure
-      final titleElement = document.querySelector('h1.maintitle');
-      final postBody = document.querySelector('.post-body');
+      final titleElement = document.querySelector(_maintitleSelector);
+      final postBody = document.querySelector(_postBodySelector);
       
       if (titleElement == null || postBody == null) {
         return null;
       }
 
       // Extract metadata from post content
-      final authorElement = postBody.querySelector('a[href*="profile.php"]');
+      final authorElement = postBody.querySelector('a[href*="profile.php"], .topicAuthor a');
       final sizeMatch = RegExp(r'Размер[:\s]*([\d.,]+\s*[KMGT]?B)').firstMatch(postBody.text);
       final seedersMatch = RegExp(r'Сиды[:\s]*(\d+)').firstMatch(postBody.text);
       final leechersMatch = RegExp(r'Личи[:\s]*(\d+)').firstMatch(postBody.text);
       
       // Extract magnet link from download buttons
-      final magnetElement = document.querySelector('a[href^="dl.php?t="]');
-      final coverElement = document.querySelector('img.postimg');
+      final magnetElement = document.querySelector(_downloadHrefSelector);
+      final coverElement = document.querySelector(_coverSelector);
 
       final chapters = <Chapter>[];
       // Try to parse chapters from description (common pattern)
@@ -312,6 +327,17 @@ DateTime _extractDateFromPost(Element postBody) {
 String _extractTopicIdFromUrl(String url) {
   final match = RegExp(r't=(\d+)').firstMatch(url);
   return match?.group(1) ?? '';
+}
+
+String _extractTopicIdFromAny(Element row) {
+  // Try hrefs within row
+  final link = row.querySelector('a[href*="t="]');
+  if (link != null) {
+    final href = link.attributes['href'] ?? '';
+    final m = RegExp(r't=(\d+)').firstMatch(href);
+    if (m != null) return m.group(1) ?? '';
+  }
+  return '';
 }
 
 int _monthToNumber(String month) {

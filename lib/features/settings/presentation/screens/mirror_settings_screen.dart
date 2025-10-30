@@ -19,6 +19,7 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
   List<Map<String, dynamic>> _mirrors = [];
   bool _isLoading = false;
   final _testingStates = <String, bool>{};
+  bool _isBulkTesting = false;
 
   @override
   void initState() {
@@ -79,6 +80,53 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
       setState(() {
         _testingStates[url] = false;
       });
+    }
+  }
+
+  Future<void> _testAllMirrors() async {
+    setState(() {
+      _isBulkTesting = true;
+    });
+    try {
+      final endpointManager = ref.read(endpointManagerProvider);
+      // Test all enabled mirrors sequentially to avoid burst
+      for (final m in _mirrors) {
+        if (m['enabled'] == true) {
+          await endpointManager.healthCheck(m['url'] as String);
+        }
+      }
+      await _loadMirrors();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(AppLocalizations.of(context)?.mirrorHealthCheckCompletedMessage ?? 'Mirror health check completed')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isBulkTesting = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _setBestMirrorAsActive() async {
+    try {
+      final endpointManager = ref.read(endpointManagerProvider);
+      // Getting active endpoint triggers selection by health; we can show result
+      final best = await endpointManager.getActiveEndpoint();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Active mirror: $best')),
+        );
+      }
+      await _loadMirrors();
+    } on Exception catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to set best mirror: $e')),
+        );
+      }
     }
   }
 
@@ -196,19 +244,38 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
               ),
               Padding(
                 padding: const EdgeInsets.all(16.0),
-                child: ElevatedButton.icon(
-                  onPressed: _addCustomMirror,
-                  icon: const Icon(Icons.add),
-                  label: Text(
-                    AppLocalizations.of(context)?.addCustomMirrorButtonText ?? 'Add Custom Mirror',
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.onPrimary,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    ElevatedButton.icon(
+                      onPressed: _isBulkTesting ? null : _testAllMirrors,
+                      icon: _isBulkTesting
+                          ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator())
+                          : const Icon(Icons.health_and_safety),
+                      label: Text(AppLocalizations.of(context)?.testAllMirrorsButton ?? 'Test All Mirrors'),
                     ),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Theme.of(context).colorScheme.primary,
-                    foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                  ),
+                    const SizedBox(height: 8),
+                    OutlinedButton.icon(
+                      onPressed: _setBestMirrorAsActive,
+                      icon: const Icon(Icons.auto_mode),
+                      label: const Text('Set Best Mirror'),
+                    ),
+                    const SizedBox(height: 8),
+                    ElevatedButton.icon(
+                      onPressed: _addCustomMirror,
+                      icon: const Icon(Icons.add),
+                      label: Text(
+                        AppLocalizations.of(context)?.addCustomMirrorButtonText ?? 'Add Custom Mirror',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onPrimary,
+                        ),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Theme.of(context).colorScheme.primary,
+                        foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],

@@ -78,9 +78,9 @@ class StructuredLogger {
         'ts': DateTime.now().toIso8601String(),
         'level': level,
         'subsystem': subsystem,
-        'msg': message,
-        if (cause != null) 'cause': cause,
-        if (extra != null) 'extra': extra,
+        'msg': _scrubSensitiveData(message),
+        if (cause != null) 'cause': _scrubSensitiveData(cause),
+        if (extra != null) 'extra': _scrubMap(extra),
       };
 
       final logLine = jsonEncode(logEntry);
@@ -95,6 +95,56 @@ class StructuredLogger {
     } on Exception {
       throw const LoggingFailure('Failed to write log');
     }
+  }
+
+  // Redacts sensitive tokens, cookies, emails, magnets, and long IDs from strings
+  String _scrubSensitiveData(String input) {
+    var out = input;
+    // Cookies
+    out = out.replaceAll(RegExp(r'(cookie\s*:\s*)([^;\n]+)', caseSensitive: false), r'$1<redacted>');
+    // Authorization headers / tokens
+    out = out.replaceAll(RegExp(r'(authorization|token|bearer)\s*[:=]\s*([^\s;]+)', caseSensitive: false), r'$1=<redacted>');
+    // Magnet links
+    out = out.replaceAll(RegExp(r'magnet:\?xt=urn:[^\s]+'), 'magnet:<redacted>');
+    // Email addresses
+    out = out.replaceAll(RegExp(r'[\w\.-]+@[\w\.-]+'), '<redacted-email>');
+    // Long hex/base64-like IDs
+    out = out.replaceAll(RegExp(r'\b[a-f0-9]{24,}\b', caseSensitive: false), '<redacted-id>');
+    out = out.replaceAll(RegExp(r'\b[\w+/=]{32,}\b'), '<redacted-id>');
+    return out;
+  }
+
+  Map<String, dynamic> _scrubMap(Map<String, dynamic> input) {
+    final result = <String, dynamic>{};
+    input.forEach((key, value) {
+      final lowerKey = key.toLowerCase();
+      final isSensitiveKey = lowerKey.contains('cookie') ||
+          lowerKey.contains('authorization') ||
+          lowerKey.contains('token') ||
+          lowerKey.contains('password') ||
+          lowerKey.contains('set-cookie');
+
+      if (isSensitiveKey) {
+        result[key] = '<redacted>';
+      } else if (value is String) {
+        result[key] = _scrubSensitiveData(value);
+      } else if (value is Map<String, dynamic>) {
+        result[key] = _scrubMap(value);
+      } else if (value is Map) {
+        result[key] = _scrubMap(value.map((k, v) => MapEntry(k.toString(), v)));
+      } else if (value is List) {
+        result[key] = value
+            .map((e) => e is String
+                ? _scrubSensitiveData(e)
+                : e is Map
+                    ? _scrubMap(e.map((k, v) => MapEntry(k.toString(), v)))
+                    : e)
+            .toList();
+      } else {
+        result[key] = value;
+      }
+    });
+    return result;
   }
 
   /// Checks if log rotation is needed and performs it if necessary.

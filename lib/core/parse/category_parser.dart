@@ -34,6 +34,18 @@ class AudiobookCategory {
 /// This class provides methods to parse the category structure from RuTracker
 /// forum pages, specifically focusing on the audiobooks section (c=33).
 class CategoryParser {
+  // Centralized selectors
+  static const String _audiobooksRootSelectorPrefix = '#c-';
+  static const String _forumRowSelector = 'tr[id^="f-"]';
+  static const String _forumLinkSelector = 'h4.forumlink a';
+  static const String _subforumsSelector = '.subforums';
+  static const String _topicRowSelector = 'tr.hl-tr';
+  static const String _topicTitleSelector = 'a.torTopic.tt-text, a.torTopic';
+  static const String _topicAuthorSelector = '.topicAuthor, .topicAuthor a, a.pmed';
+  static const String _topicSizeSelector = 'a.f-dl.dl-stub, span.small';
+  static const String _seedersSelector = 'span.seedmed b, span.seedmed';
+  static const String _leechersSelector = 'span.leechmed b, span.leechmed';
+  static const String _downloadsSelector = 'p.med[title*="Торрент скачан"] b';
   /// Parses the main audiobooks categories page from RuTracker.
   ///
   /// This method extracts categories and subcategories from the forum structure,
@@ -58,13 +70,13 @@ class CategoryParser {
       final categories = <AudiobookCategory>[];
 
       // Find audiobooks category (c=33) in the main index page structure
-      final audiobooksCategory = document.querySelector('#c-${CategoryConstants.audiobooksCategoryId}');
+      final audiobooksCategory = document.querySelector('$_audiobooksRootSelectorPrefix${CategoryConstants.audiobooksCategoryId}');
       if (audiobooksCategory != null) {
         // Extract forums from the category table
-        final forumRows = audiobooksCategory.querySelectorAll('tr[id^="f-"]');
+        final forumRows = audiobooksCategory.querySelectorAll(_forumRowSelector);
         
         for (final row in forumRows) {
-          final forumLink = row.querySelector('h4.forumlink a');
+          final forumLink = row.querySelector(_forumLinkSelector);
           if (forumLink != null) {
             final forumName = forumLink.text.trim();
             final forumUrl = forumLink.attributes['href'] ?? '';
@@ -94,7 +106,7 @@ class CategoryParser {
     final subcategories = <AudiobookCategory>[];
     
     // Look for subcategory links in the subforums section
-    final subforumsElement = row.querySelector('.subforums');
+    final subforumsElement = row.querySelector(_subforumsSelector);
     if (subforumsElement != null) {
       final subforumLinks = subforumsElement.querySelectorAll('a');
       
@@ -171,15 +183,19 @@ class CategoryParser {
       final topics = <Map<String, dynamic>>[];
 
       // Find topic rows in the forum table using actual RuTracker structure
-      final topicRows = document.querySelectorAll('tr.hl-tr');
+      final topicRows = document.querySelectorAll(_topicRowSelector);
       
       for (final row in topicRows) {
-        final topicLink = row.querySelector('a.torTopic.tt-text');
-        final authorLink = row.querySelector('.topicAuthor');
-        final sizeElement = row.querySelector('a.f-dl.dl-stub');
-        final seedersElement = row.querySelector('span.seedmed b');
-        final leechersElement = row.querySelector('span.leechmed b');
-        final downloadsElement = row.querySelector('p.med[title*="Торрент скачан"] b');
+        // Skip ad rows
+        if (row.classes.any((c) => c.contains('banner') || c.contains('ads'))) {
+          continue;
+        }
+        final topicLink = row.querySelector(_topicTitleSelector);
+        final authorLink = row.querySelector(_topicAuthorSelector);
+        final sizeElement = row.querySelector(_topicSizeSelector);
+        final seedersElement = row.querySelector(_seedersSelector);
+        final leechersElement = row.querySelector(_leechersSelector);
+        final downloadsElement = row.querySelector(_downloadsSelector);
 
         if (topicLink != null) {
           final topicId = row.attributes['data-topic_id'] ?? _extractTopicId(topicLink.attributes['href'] ?? '');

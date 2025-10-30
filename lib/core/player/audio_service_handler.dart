@@ -1,4 +1,5 @@
 import 'package:audio_service/audio_service.dart';
+import 'package:audio_session/audio_session.dart';
 import 'package:jabook/core/errors/failures.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:rxdart/rxdart.dart';
@@ -10,6 +11,9 @@ import 'package:rxdart/rxdart.dart';
 class AudioServiceHandler {
   /// Internal audio player instance for media playback.
   final AudioPlayer _audioPlayer = AudioPlayer();
+  double _preDuckingVolume = 1.0;
+  bool _isDucked = false;
+  AudioPlayerHandler? _playerHandler;
 
   /// Stream controller for playback state updates.
   final BehaviorSubject<PlaybackState> _playbackState = BehaviorSubject();
@@ -27,7 +31,7 @@ class AudioServiceHandler {
   Future<void> startService() async {
     try {
       // Initialize audio service with basic configuration
-      await AudioService.init(
+      final handler = await AudioService.init(
         builder: () => AudioPlayerHandler(_audioPlayer),
         config: const AudioServiceConfig(
           androidNotificationChannelId: 'com.jabook.app',
@@ -36,6 +40,7 @@ class AudioServiceHandler {
           androidNotificationOngoing: true,
         ),
       );
+      _playerHandler = handler;
 
       // Set up audio player event listener
       _setupAudioPlayer();
@@ -58,6 +63,32 @@ class AudioServiceHandler {
         playing: _audioPlayer.playing,
       );
       _playbackState.add(state);
+      // Also update system playback state for notifications/lockscreen
+      try {
+        // Map just_audio ProcessingState to audio_service AudioProcessingState
+        final systemState = AudioProcessingState.values.firstWhere(
+          (s) => s == state.processingState,
+          orElse: () => AudioProcessingState.idle,
+        );
+        final controls = <MediaControl>[
+          if (_audioPlayer.playing) MediaControl.pause else MediaControl.play,
+          MediaControl.stop,
+        ];
+        final systemPlayback = PlaybackState(
+          controls: controls,
+          systemActions: const {MediaAction.seek, MediaAction.seekForward, MediaAction.seekBackward},
+          androidCompactActionIndices: const [0, 1],
+          processingState: systemState,
+          playing: _audioPlayer.playing,
+          updatePosition: _audioPlayer.position,
+          bufferedPosition: _audioPlayer.bufferedPosition,
+          speed: _audioPlayer.speed,
+        );
+        // This add works inside handler; from here we can downcast
+        _playerHandler?.playbackState.add(systemPlayback);
+      } on Object {
+        // ignore errors in system state update
+      }
     });
   }
 
@@ -76,14 +107,62 @@ class AudioServiceHandler {
 
   /// Sets up audio focus management (interruptions, ducking, etc).
   Future<void> _setupAudioFocus() async {
-    // TODO: Implement audio focus handling using audio_session.
+    final session = await AudioSession.instance;
+    // Speech profile is a good default for audiobooks: allows ducking, respects interruptions
+    await session.configure(const AudioSessionConfiguration.speech());
+
+    // Listen to audio interruptions (phone calls, other apps taking focus, etc.)
+    session.interruptionEventStream.listen((event) async {
+      final t = event.type;
+      final begin = event.begin;
+
+      if (t == AudioInterruptionType.duck) {
+        if (begin && !_isDucked) {
+          _preDuckingVolume = _audioPlayer.volume;
+          _isDucked = true;
+          await _audioPlayer.setVolume((_preDuckingVolume * 0.2).clamp(0.0, 1.0));
+        } else if (!begin && _isDucked) {
+          _isDucked = false;
+          await _audioPlayer.setVolume(_preDuckingVolume);
+        }
+        return;
+      }
+
+      if (t == AudioInterruptionType.pause) {
+        if (begin) {
+          if (_audioPlayer.playing) {
+            await _audioPlayer.pause();
+          }
+        } else {
+          // Do not auto-resume; leave it to UI/user action
+        }
+        return;
+      }
+
+      // Unknown: safest is to pause
+      if (t == AudioInterruptionType.unknown && begin) {
+        if (_audioPlayer.playing) {
+          await _audioPlayer.pause();
+        }
+      }
+    });
+
+    // Handle becoming noisy (e.g., unplugging headphones)
+    session.becomingNoisyEventStream.listen((_) async {
+      if (_audioPlayer.playing) {
+        await _audioPlayer.pause();
+      }
+    });
   }
 
   /// Starts playback for the provided media URL.
   ///
   /// Throws [AudioFailure] if playback cannot be started.
-  Future<void> playMedia(String url) async {
+  Future<void> playMedia(String url, {MediaItem? metadata}) async {
     try {
+      if (metadata != null) {
+        _playerHandler?.setNowPlayingItem(metadata);
+      }
       await _audioPlayer.setUrl(url);
       await _audioPlayer.play();
     } on Exception {
@@ -135,6 +214,26 @@ class AudioServiceHandler {
     }
   }
 
+  /// Sets now playing metadata (lockscreen/notification)
+  Future<void> setNowPlayingMetadata({
+    required String id,
+    required String title,
+    String? artist,
+    Uri? artUri,
+    Duration? duration,
+    String? album,
+  }) async {
+    final item = MediaItem(
+      id: id,
+      title: title,
+      artist: artist,
+      artUri: artUri,
+      duration: duration,
+      album: album,
+    );
+    _playerHandler?.setNowPlayingItem(item);
+  }
+
   /// Releases resources held by this handler.
   Future<void> dispose() async {
     await _audioPlayer.dispose();
@@ -155,6 +254,11 @@ class AudioPlayerHandler extends BaseAudioHandler {
   /// just_audio player instance used for media playback.
   final AudioPlayer _audioPlayer;
 
+  /// Expose methods to update media item and playback state
+  void setNowPlayingItem(MediaItem item) {
+    mediaItem.add(item);
+  }
+
   @override
   Future<void> play() => _audioPlayer.play();
 
@@ -167,4 +271,16 @@ class AudioPlayerHandler extends BaseAudioHandler {
   // NOTE: BaseAudioHandler defines `seek(Duration position)`, not `seekTo`.
   @override
   Future<void> seek(Duration position) => _audioPlayer.seek(position);
+
+  @override
+  Future<void> fastForward() async {
+    final pos = _audioPlayer.position + const Duration(seconds: 30);
+    await _audioPlayer.seek(pos);
+  }
+
+  @override
+  Future<void> rewind() async {
+    final newPos = _audioPlayer.position - const Duration(seconds: 15);
+    await _audioPlayer.seek(newPos < Duration.zero ? Duration.zero : newPos);
+  }
 }

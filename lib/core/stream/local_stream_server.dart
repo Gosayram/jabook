@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:jabook/core/errors/failures.dart';
+import 'package:mime/mime.dart' as mime;
 import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart';
 import 'package:shelf_static/shelf_static.dart';
@@ -112,29 +113,45 @@ class LocalStreamServer {
         return Response.badRequest(body: 'Invalid file index parameter');
       }
 
-      // TODO: Implement actual streaming logic
-      // This is a placeholder implementation
       final filePath = _getFilePath(bookId, fileIndex);
       
       if (!await File(filePath).exists()) {
         return Response.notFound('File not found');
       }
 
+      // Resolve content type by extension with sensible default
+      final contentType = _resolveContentType(filePath);
+
+      // HEAD requests: return headers only
+      if (request.method.toUpperCase() == 'HEAD') {
+        final stat = await File(filePath).stat();
+        return Response(
+          200,
+          headers: {
+            HttpHeaders.contentTypeHeader: contentType,
+            HttpHeaders.contentLengthHeader: stat.size.toString(),
+            HttpHeaders.acceptRangesHeader: 'bytes',
+          },
+        );
+      }
+
       // Handle Range requests for partial content
       final rangeHeader = request.headers[HttpHeaders.rangeHeader];
       if (rangeHeader != null) {
-        return await _handleRangeRequest(filePath, rangeHeader);
+        return await _handleRangeRequest(filePath, rangeHeader, contentType);
       }
 
       // Serve full file
       final file = File(filePath);
-      final fileBytes = await file.readAsBytes();
-      
-      return Response.ok(
-        fileBytes,
+      final stat = await file.stat();
+      final stream = file.openRead();
+      return Response(
+        200,
+        body: stream,
         headers: {
-          HttpHeaders.contentTypeHeader: 'audio/mpeg',
-          HttpHeaders.contentLengthHeader: fileBytes.length.toString(),
+          HttpHeaders.contentTypeHeader: contentType,
+          HttpHeaders.contentLengthHeader: stat.size.toString(),
+          HttpHeaders.acceptRangesHeader: 'bytes',
         },
       );
     } on Exception {
@@ -151,11 +168,11 @@ class LocalStreamServer {
   /// The [rangeHeader] parameter contains the Range header value.
   ///
   /// Returns a [Response] with the partial content or appropriate error.
-  Future<Response> _handleRangeRequest(String filePath, String rangeHeader) async {
+  Future<Response> _handleRangeRequest(String filePath, String rangeHeader, String contentType) async {
     try {
       final file = File(filePath);
-      final fileBytes = await file.readAsBytes();
-      final fileSize = fileBytes.length;
+      final stat = await file.stat();
+      final fileSize = stat.size;
 
       // Parse Range header (e.g., "bytes=0-1023")
       final rangeMatch = RegExp(r'bytes=(\d+)?-(\d+)?').firstMatch(rangeHeader);
@@ -167,17 +184,22 @@ class LocalStreamServer {
       final end = int.tryParse(rangeMatch.group(2) ?? (fileSize - 1).toString()) ?? fileSize - 1;
 
       if (start >= fileSize || end >= fileSize || start > end) {
-        return Response(416, body: 'Requested range not satisfiable');
+        return Response(
+          416,
+          body: 'Requested range not satisfiable',
+          headers: {
+            HttpHeaders.contentRangeHeader: 'bytes */$fileSize',
+          },
+        );
       }
 
       final contentLength = end - start + 1;
-      final rangeBytes = fileBytes.sublist(start, end + 1);
-
+      final stream = file.openRead(start, end + 1);
       return Response(
-        206, // Partial Content
-        body: rangeBytes,
+        206,
+        body: stream,
         headers: {
-          HttpHeaders.contentTypeHeader: 'audio/mpeg',
+          HttpHeaders.contentTypeHeader: contentType,
           HttpHeaders.contentLengthHeader: contentLength.toString(),
           HttpHeaders.acceptRangesHeader: 'bytes',
           HttpHeaders.contentRangeHeader: 'bytes $start-$end/$fileSize',
@@ -243,6 +265,17 @@ class LocalStreamServer {
   ///
   /// Returns the streaming URL as a string.
   String getStreamUrl(String bookId, int fileIndex) => 'http://$_host:$_port/stream?id=$bookId&file=$fileIndex';
+
+  String _resolveContentType(String path) {
+    final type = mime.lookupMimeType(path);
+    if (type != null) return type;
+    final lower = path.toLowerCase();
+    if (lower.endsWith('.mp3')) return 'audio/mpeg';
+    if (lower.endsWith('.m4a') || lower.endsWith('.mp4')) return 'audio/mp4';
+    if (lower.endsWith('.ogg') || lower.endsWith('.oga')) return 'audio/ogg';
+    if (lower.endsWith('.wav')) return 'audio/wav';
+    return 'application/octet-stream';
+  }
 }
 
 /// Represents a failure related to streaming operations.

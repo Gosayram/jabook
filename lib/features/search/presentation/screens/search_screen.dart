@@ -8,6 +8,8 @@ import 'package:jabook/core/cache/rutracker_cache_service.dart';
 import 'package:jabook/core/endpoints/endpoint_provider.dart';
 import 'package:jabook/core/net/dio_client.dart';
 import 'package:jabook/core/parse/rutracker_parser.dart';
+import 'package:jabook/features/settings/presentation/screens/mirror_settings_screen.dart';
+import 'package:jabook/features/webview/rutracker_login_screen.dart';
 import 'package:jabook/l10n/app_localizations.dart';
 
 /// Screen for searching audiobooks on RuTracker.
@@ -34,6 +36,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   bool _isLoading = false;
   bool _hasSearched = false;
   bool _isFromCache = false;
+  String? _errorKind; // 'network' | 'auth' | 'mirror' | 'timeout' | null
+  String? _errorMessage;
 
   @override
   void dispose() {
@@ -59,6 +63,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       _isLoading = true;
       _hasSearched = true;
       _isFromCache = false;
+      _errorKind = null;
+      _errorMessage = null;
     });
 
     final query = _searchController.text.trim();
@@ -100,25 +106,23 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           _searchResults = results.map(_audiobookToMap).toList();
           _isLoading = false;
           _isFromCache = false;
+          _errorKind = null;
+          _errorMessage = null;
         });
       } else {
         setState(() {
           _isLoading = false;
+          _errorKind = 'network';
+          _errorMessage = 'HTTP ${response.statusCode}';
         });
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(AppLocalizations.of(context)!.failedToSearch)),
-          );
-        }
       }
     } on TimeoutException {
       if (mounted) {
         setState(() {
           _isLoading = false;
+          _errorKind = 'timeout';
+          _errorMessage = AppLocalizations.of(context)?.requestTimedOut ?? 'Timeout';
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppLocalizations.of(context)?.requestTimedOut ?? 'Request timed out. Please check your connection.')),
-        );
       }
     } on DioException catch (e) {
       if (mounted) {
@@ -128,21 +132,24 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         
         // Handle authentication errors specifically
         if (e.message?.contains('Authentication required') ?? false) {
-          _showAuthenticationPrompt(context);
+          setState(() {
+            _errorKind = 'auth';
+            _errorMessage = 'Authentication required';
+          });
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('${AppLocalizations.of(context)!.networkError}: ${e.message ?? 'Unknown error'}')),
-          );
+          setState(() {
+            _errorKind = 'network';
+            _errorMessage = e.message ?? 'Unknown error';
+          });
         }
       }
     } on Exception catch (e) {
       if (mounted) {
         setState(() {
           _isLoading = false;
+          _errorKind = 'network';
+          _errorMessage = e.toString();
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${AppLocalizations.of(context)?.error ?? 'Error'}: $e')),
-        );
       }
     }
   }
@@ -152,6 +159,36 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     appBar: AppBar(
       title: Text(AppLocalizations.of(context)!.searchAudiobooks),
       actions: [
+        IconButton(
+          tooltip: 'RuTracker Login',
+          icon: const Icon(Icons.vpn_key),
+          onPressed: () async {
+            await Navigator.push<String>(
+              context,
+              MaterialPageRoute(builder: (_) => const RutrackerLoginScreen()),
+            );
+            if (!mounted) return;
+            await DioClient.syncCookiesFromWebView();
+            // If была auth-ошибка — попробуем повторить
+            if (_errorKind == 'auth') {
+              setState(() {
+                _errorKind = null;
+                _errorMessage = null;
+              });
+              await _performSearch();
+            }
+          },
+        ),
+        IconButton(
+          tooltip: 'Mirrors',
+          icon: const Icon(Icons.dns),
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const MirrorSettingsScreen()),
+            );
+          },
+        ),
         IconButton(
           icon: const Icon(Icons.search),
           onPressed: _performSearch,
@@ -182,6 +219,43 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             onSubmitted: (_) => _performSearch(),
           ),
         ),
+        if (_hasSearched && _errorKind == 'auth')
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16.0),
+            padding: const EdgeInsets.all(12.0),
+            decoration: BoxDecoration(
+              color: Colors.orange.shade50,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.lock_outline, color: Colors.orange.shade700),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    AppLocalizations.of(context)?.loginRequiredForSearch ?? 'Login required to search RuTracker',
+                    style: TextStyle(color: Colors.orange.shade800),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () async {
+                    await Navigator.push<String>(
+                      context,
+                      MaterialPageRoute(builder: (_) => const RutrackerLoginScreen()),
+                    );
+                    if (!mounted) return;
+                    await DioClient.syncCookiesFromWebView();
+                    setState(() {
+                      _errorKind = null;
+                      _errorMessage = null;
+                    });
+                    await _performSearch();
+                  },
+                  child: Text(AppLocalizations.of(context)?.login ?? 'Login'),
+                ),
+              ],
+            ),
+          ),
         if (_isLoading)
           const Expanded(
             child: Center(
@@ -211,7 +285,12 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                     ),
                   ),
                 Expanded(
-                  child: _buildSearchResults(),
+                  child: RefreshIndicator(
+                    onRefresh: () async {
+                      await _performSearch();
+                    },
+                    child: _buildBodyState(),
+                  ),
                 ),
               ],
             ),
@@ -225,6 +304,13 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       ],
     ),
   );
+
+  Widget _buildBodyState() {
+    if (_errorKind != null) {
+      return _buildErrorState();
+    }
+    return _buildSearchResults();
+  }
 
   Widget _buildSearchResults() {
     if (_searchResults.isEmpty) {
@@ -291,6 +377,94 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       },
     );
   }
+
+  Widget _buildErrorState() {
+    final loc = AppLocalizations.of(context)!;
+    String title;
+    var actions = <Widget>[];
+    var message = _errorMessage ?? '';
+
+    switch (_errorKind) {
+      case 'auth':
+        title = loc.authenticationRequired;
+        actions = [
+          ElevatedButton(
+            onPressed: () async {
+              await Navigator.push<String>(
+                context,
+                MaterialPageRoute(builder: (_) => const RutrackerLoginScreen()),
+              );
+              if (!mounted) return;
+              await DioClient.syncCookiesFromWebView();
+              setState(() {
+                _errorKind = null;
+                _errorMessage = null;
+              });
+              await _performSearch();
+            },
+            child: Text(loc.login),
+          ),
+        ];
+        message = loc.loginRequiredForSearch;
+        break;
+      case 'timeout':
+        title = loc.timeoutError;
+        actions = [
+          ElevatedButton(
+            onPressed: _performSearch,
+            child: Text(loc.retry),
+          ),
+          TextButton(
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const MirrorSettingsScreen()),
+            ),
+            child: Text(loc.changeMirror),
+          ),
+        ];
+        break;
+      case 'network':
+      default:
+        title = loc.networkErrorUser;
+        actions = [
+          ElevatedButton(
+            onPressed: _performSearch,
+            child: Text(loc.retry),
+          ),
+          TextButton(
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const MirrorSettingsScreen()),
+            ),
+            child: Text(loc.changeMirror),
+          ),
+        ];
+        break;
+    }
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.error_outline, size: 48, color: Colors.red.shade400),
+            const SizedBox(height: 12),
+            Text(title, style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 8),
+            if (message.isNotEmpty)
+              Text(
+                message,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            const SizedBox(height: 16),
+            Wrap(spacing: 12, runSpacing: 8, alignment: WrapAlignment.center, children: actions),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 /// Converts an Audiobook object to a Map for caching.
@@ -318,27 +492,4 @@ Map<String, dynamic> _chapterToMap(Chapter chapter) => {
 };
 
 
-/// Shows authentication prompt when login is required.
-void _showAuthenticationPrompt(BuildContext context) {
-  showDialog(
-    context: context,
-    builder: (ctx) => AlertDialog(
-      title: Text(AppLocalizations.of(context)!.authenticationRequired),
-      content: Text(AppLocalizations.of(context)!.loginRequiredForSearch),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(ctx),
-          child: Text(AppLocalizations.of(context)!.cancel),
-        ),
-        TextButton(
-          onPressed: () {
-            Navigator.pop(ctx);
-            // Navigate to login screen
-            Navigator.pushNamed(context, '/login');
-          },
-          child: Text(AppLocalizations.of(context)!.login),
-        ),
-      ],
-    ),
-  );
-}
+// Unused legacy dialog removed; login flow handled inline via WebView

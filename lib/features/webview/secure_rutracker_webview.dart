@@ -215,6 +215,9 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
                 initialUrlRequest: URLRequest(url: WebUri(initialUrl!)),
                 initialSettings: InAppWebViewSettings(
                   useShouldOverrideUrlLoading: true,
+                  sharedCookiesEnabled: true,
+                  allowsInlineMediaPlayback: true,
+                  mediaPlaybackRequiresUserGesture: false,
                 ),
                 onWebViewCreated: (controller) {
                   _webViewController = controller;

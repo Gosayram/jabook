@@ -3,9 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:jabook/core/endpoints/endpoint_manager.dart';
 import 'package:jabook/data/db/app_database.dart';
-import 'package:webview_flutter/webview_flutter.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:jabook/l10n/app_localizations.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:webview_flutter/webview_flutter.dart';
 
 /// A WebView-based login screen for RuTracker with Go client integration.
 ///
@@ -113,10 +113,10 @@ class _RutrackerLoginScreenState extends State<RutrackerLoginScreen> {
   }
 
   void _showLoginSuccessHint() => ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(AppLocalizations.of(context)?.loginSuccessMessage ?? 'Login successful!'),
+        const SnackBar(
+          content: Text('Login successful!'),
           backgroundColor: Colors.green,
-          duration: const Duration(seconds: 3),
+          duration: Duration(seconds: 3),
         ),
       );
 
@@ -137,7 +137,7 @@ class _RutrackerLoginScreenState extends State<RutrackerLoginScreen> {
           ),
         );
       }
-    } catch (_) {
+    } on Object {
       // no-op
     }
   }
