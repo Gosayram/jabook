@@ -5,8 +5,13 @@ import 'package:jabook/l10n/app_localizations.dart';
 /// A wrapper widget that ensures required permissions are granted
 /// before allowing the child widget to be used.
 class PermissionWrapper extends StatefulWidget {
-  @override
-  State<PermissionWrapper> createState() => _PermissionWrapperState();
+  /// Creates a wrapper that ensures required permissions are granted
+  /// before rendering the provided [child].
+  const PermissionWrapper({
+    super.key,
+    required this.child,
+    this.onPermissionsGranted,
+  });
 
   /// The child widget that requires permissions.
   final Widget child;
@@ -14,11 +19,8 @@ class PermissionWrapper extends StatefulWidget {
   /// A callback to call when permissions are granted.
   final VoidCallback? onPermissionsGranted;
 
-  const PermissionWrapper({
-    super.key,
-    required this.child,
-    this.onPermissionsGranted,
-  });
+  @override
+  State<PermissionWrapper> createState() => _PermissionWrapperState();
 }
 
 /// State class for PermissionWrapper widget.
@@ -40,7 +42,7 @@ class _PermissionWrapperState extends State<PermissionWrapper> {
     });
 
     try {
-      final granted = await _permissionService.hasAllPermissions() ?? false;
+      final granted = await _permissionService.hasAllPermissions();
       setState(() {
         _permissionsGranted = granted;
         _isLoading = false;
@@ -64,7 +66,7 @@ class _PermissionWrapperState extends State<PermissionWrapper> {
     });
 
     try {
-      final granted = await _permissionService.requestAllPermissions() ?? false;
+      final granted = await _permissionService.requestAllPermissions();
       setState(() {
         _permissionsGranted = granted;
         _isLoading = false;
@@ -86,19 +88,19 @@ class _PermissionWrapperState extends State<PermissionWrapper> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(AppLocalizations.of(context)!.permissionDeniedTitle ?? 'Permission Denied'),
-        content: Text(AppLocalizations.of(context)!.permissionDeniedMessage ?? 'Permissions are required to use this feature.'),
+        title: Text(AppLocalizations.of(context)!.permissionDeniedTitle),
+        content: Text(AppLocalizations.of(context)!.permissionDeniedMessage),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text(AppLocalizations.of(context)!.cancel ?? 'Cancel'),
+            child: Text(AppLocalizations.of(context)!.cancel),
           ),
           TextButton(
             onPressed: () async {
               Navigator.pop(context);
               await _permissionService.openAppSettings();
             },
-            child: Text(AppLocalizations.of(context)!.permissionDeniedButton ?? 'Open Settings'),
+            child: Text(AppLocalizations.of(context)!.permissionDeniedButton),
           ),
         ],
       ),
@@ -123,7 +125,7 @@ class _PermissionWrapperState extends State<PermissionWrapper> {
   /// Builds the permission request screen.
   Widget _buildPermissionScreen() => Scaffold(
     appBar: AppBar(
-      title: Text(AppLocalizations.of(context)!.permissionsRequired ?? 'Permissions Required'),
+      title: Text(AppLocalizations.of(context)!.permissionsRequired),
     ),
     body: Center(
       child: Padding(
@@ -138,19 +140,19 @@ class _PermissionWrapperState extends State<PermissionWrapper> {
             ),
             const SizedBox(height: 24),
             Text(
-              AppLocalizations.of(context)!.permissionExplanation ?? 'This feature requires certain permissions to function properly.',
+              AppLocalizations.of(context)!.permissionExplanation,
               style: Theme.of(context).textTheme.bodyLarge,
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 32),
             ElevatedButton(
               onPressed: _requestPermissions,
-              child: Text(AppLocalizations.of(context)!.grantPermissions ?? 'Grant Permissions'),
+              child: Text(AppLocalizations.of(context)!.grantPermissions),
             ),
             const SizedBox(height: 16),
             TextButton(
               onPressed: _showPermissionDeniedDialog,
-              child: Text(AppLocalizations.of(context)!.permissionDeniedButton ?? 'Open Settings'),
+              child: Text(AppLocalizations.of(context)!.permissionDeniedButton),
             ),
           ],
         ),

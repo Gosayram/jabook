@@ -1,4 +1,6 @@
 import 'package:flutter/services.dart';
+import 'package:jabook/core/endpoints/endpoint_manager.dart';
+import 'package:jabook/data/db/app_database.dart';
 
 /// GoClient provides a Dart interface to the Go HTTP client with mirror support
 /// for Rutracker integration. This client handles cookie management and
@@ -66,8 +68,12 @@ class RutrackerClient {
 
   /// Initializes the client with Rutracker configuration
   Future<void> initialize() async {
+    final db = AppDatabase().database;
+    final endpoint = await EndpointManager(db).getActiveEndpoint();
+    final host = Uri.parse(endpoint).host;
+
     await GoClient.init(
-      host: 'rutracker.me',
+      host: host,
       userAgent: _userAgent,
       mirrors: _mirrors.isNotEmpty ? _mirrors : null,
     );

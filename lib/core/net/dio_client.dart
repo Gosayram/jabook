@@ -1,8 +1,10 @@
 import 'package:cookie_jar/cookie_jar.dart';
 import 'package:dio/dio.dart';
 import 'package:dio_cookie_manager/dio_cookie_manager.dart';
+import 'package:jabook/core/endpoints/endpoint_manager.dart';
 import 'package:jabook/core/logging/structured_logger.dart';
 import 'package:jabook/core/net/user_agent_manager.dart';
+import 'package:jabook/data/db/app_database.dart';
 
 /// HTTP client for making requests to RuTracker APIs.
 ///
@@ -28,8 +30,13 @@ class DioClient {
     // Apply User-Agent from manager
     await userAgentManager.applyUserAgentToDio(dio);
     
+    // Resolve active RuTracker endpoint dynamically
+    final db = AppDatabase().database;
+    final endpointManager = EndpointManager(db);
+    final activeBase = await endpointManager.getActiveEndpoint();
+
     dio.options = BaseOptions(
-      baseUrl: 'https://rutracker.me',
+      baseUrl: activeBase,
       connectTimeout: const Duration(seconds: 30),
       receiveTimeout: const Duration(seconds: 30),
       sendTimeout: const Duration(seconds: 30),
@@ -39,7 +46,7 @@ class DioClient {
         'Accept-Language': 'ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7',
         'Accept-Encoding': 'gzip, deflate, br',
         'Connection': 'keep-alive',
-        'Referer': 'https://rutracker.me/',
+        'Referer': '$activeBase/',
       },
     );
     

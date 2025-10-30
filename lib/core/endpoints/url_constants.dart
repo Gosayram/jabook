@@ -6,7 +6,8 @@ class RuTrackerUrls {
   RuTrackerUrls._();
 
   /// Base URL for RuTracker forum (primary mirror)
-  static const String base = 'https://rutracker.me';
+  /// Note: dynamic mirror selection is preferred via EndpointManager.
+  static const String base = 'https://rutracker.net';
   
   /// Main index page URL
   static const String index = '$base/forum/index.php';

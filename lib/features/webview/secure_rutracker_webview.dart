@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:jabook/core/endpoints/endpoint_manager.dart';
+import 'package:jabook/data/db/app_database.dart';
 import 'package:jabook/l10n/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -27,7 +29,7 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
   late InAppWebViewController _webViewController;
   double progress = 0.0;
   final storage = const FlutterSecureStorage();
-  final initialUrl = 'https://rutracker.me'; // or rutracker.me / .org — can be configured
+  String? initialUrl; // resolved dynamically from EndpointManager
   
   // State restoration
   final String _webViewStateKey = 'rutracker_webview_state';
@@ -39,7 +41,10 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
   @override
   void initState() {
     super.initState();
-    _restoreCookies();
+    _resolveInitialUrl().then((_) {
+      _restoreCookies();
+      setState(() {});
+    });
     _restoreWebViewHistory();
   }
 
@@ -47,6 +52,12 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
   void dispose() {
     _saveWebViewHistory();
     super.dispose();
+  }
+
+  Future<void> _resolveInitialUrl() async {
+    final db = AppDatabase().database;
+    final endpoint = await EndpointManager(db).getActiveEndpoint();
+    initialUrl = endpoint;
   }
 
   Future<void> _restoreCookies() async {
@@ -57,7 +68,7 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
         final cookies = jsonDecode(cookieJson) as List<dynamic>;
         for (final cookie in cookies) {
           await CookieManager.instance().setCookie(
-            url: WebUri(initialUrl),
+            url: WebUri(initialUrl!),
             name: cookie['name'],
             value: cookie['value'],
             domain: cookie['domain'],
@@ -69,8 +80,8 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
       } on Exception {
         // If cookie restoration fails, clear old cookies and start fresh
         await CookieManager.instance().deleteCookies(
-          url: WebUri(initialUrl),
-          domain: 'rutracker.me',
+          url: WebUri(initialUrl!),
+          domain: Uri.parse(initialUrl!).host,
         );
       }
     }
@@ -78,7 +89,8 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
 
   Future<void> _saveCookies() async {
     try {
-      final cookies = await CookieManager.instance().getCookies(url: WebUri(initialUrl));
+      if (initialUrl == null) return;
+      final cookies = await CookieManager.instance().getCookies(url: WebUri(initialUrl!));
       final cookieJson = jsonEncode(cookies.map((c) => {
         'name': c.name,
         'value': c.value,
@@ -197,8 +209,10 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
             ),
             // WebView
             Expanded(
-              child: InAppWebView(
-                initialUrlRequest: URLRequest(url: WebUri(initialUrl)),
+              child: initialUrl == null
+                  ? const Center(child: CircularProgressIndicator())
+                  : InAppWebView(
+                initialUrlRequest: URLRequest(url: WebUri(initialUrl!)),
                 initialSettings: InAppWebViewSettings(
                   useShouldOverrideUrlLoading: true,
                 ),
@@ -248,6 +262,7 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
           ],
         ),
         // Error overlay
+        if (_hasError)
         Positioned.fill(
           child: ColoredBox(
             color: Colors.white,
@@ -289,7 +304,9 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
                         _hasError = false;
                         _errorMessage = null;
                       });
-                      _webViewController.loadUrl(urlRequest: URLRequest(url: WebUri(initialUrl)));
+                      if (initialUrl != null) {
+                        _webViewController.loadUrl(urlRequest: URLRequest(url: WebUri(initialUrl!)));
+                      }
                     },
                     child: const Text('Перейти на главную'),
                   ),

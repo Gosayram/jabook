@@ -91,7 +91,7 @@ class _DebugScreenState extends ConsumerState<DebugScreen> with SingleTickerProv
           'INFO: JaBook started at ${DateTime.now()}',
           'DEBUG: Cache cleared successfully',
           'WARNING: No active downloads found',
-          'ERROR: Failed to connect to mirror rutracker.me',
+          'ERROR: Failed to connect to active RuTracker mirror',
           'ERROR: Failed to load logs: $e',
         ];
       });

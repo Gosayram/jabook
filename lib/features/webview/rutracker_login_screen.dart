@@ -1,7 +1,8 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter/foundation.dart';
-import 'package:jabook/core/rutracker/go_client.dart';
+import 'package:jabook/core/endpoints/endpoint_manager.dart';
+import 'package:jabook/data/db/app_database.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 /// A WebView-based login screen for RuTracker with Go client integration.
@@ -31,12 +32,15 @@ class _RutrackerLoginScreenState extends State<RutrackerLoginScreen> {
   }
 
   Future<void> _initializeWebView() async {
-    _controller = await WebViewController()
-      ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..enableZoom(false)
-      ..setBackgroundColor(const Color(0xFFFFFFFF))
-      ..setNavigationDelegate(
-        NavigationDelegate(
+    final db = AppDatabase().database;
+    final activeBase = await EndpointManager(db).getActiveEndpoint();
+
+    _controller = WebViewController();
+    await _controller.setJavaScriptMode(JavaScriptMode.unrestricted);
+    await _controller.enableZoom(false);
+    await _controller.setBackgroundColor(const Color(0xFFFFFFFF));
+    await _controller.setNavigationDelegate(
+      NavigationDelegate(
           onProgress: (progress) {
             // You can show progress if needed
           },
@@ -52,7 +56,7 @@ class _RutrackerLoginScreenState extends State<RutrackerLoginScreen> {
             });
             
             // Check if we're on a successful login page
-            if (url.contains('rutracker') && !url.contains('login')) {
+            if (url.contains(Uri.parse(activeBase).host) && !url.contains('login')) {
               _showLoginSuccessHint();
             }
           },
@@ -63,8 +67,8 @@ class _RutrackerLoginScreenState extends State<RutrackerLoginScreen> {
             });
           },
         ),
-      )
-      ..loadRequest(Uri.parse('https://rutracker.me/'));
+      );
+    await _controller.loadRequest(Uri.parse('$activeBase/'));
   }
 
   Future<void> _saveCookies() async {
@@ -72,7 +76,7 @@ class _RutrackerLoginScreenState extends State<RutrackerLoginScreen> {
       // Get cookies from Android CookieManager
       final cookieStr = await _cookieChannel.invokeMethod<String>(
         'getCookiesForDomain',
-        {'domain': 'rutracker.me'},
+        {'domain': Uri.parse(await EndpointManager(AppDatabase().database).getActiveEndpoint()).host},
       ) ?? '';
       
       if (!mounted) return;
@@ -87,23 +91,18 @@ class _RutrackerLoginScreenState extends State<RutrackerLoginScreen> {
     }
   }
 
-  void _showLoginSuccessHint() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Login successful! You can now use the Go client.',
+  void _showLoginSuccessHint() => ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Login successful! You can now use the Go client.'),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 3),
         ),
-        backgroundColor: Colors.green,
-        duration: const Duration(seconds: 3),
-      ),
-    );
-  }
+      );
 
   Widget _buildWebViewContent() => WebViewWidget(controller: _controller);
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
+  Widget build(BuildContext context) => Scaffold(
       appBar: AppBar(
         title: const Text('RuTracker Login'),
         automaticallyImplyLeading: false,
@@ -122,14 +121,14 @@ class _RutrackerLoginScreenState extends State<RutrackerLoginScreen> {
               Container(
                 padding: const EdgeInsets.all(12.0),
                 color: Colors.blue.shade50,
-                child: Row(
+                child: const Row(
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.info_outline,
                       color: Colors.blue,
                     ),
-                    const SizedBox(width: 8.0),
-                    const Expanded(
+                    SizedBox(width: 8.0),
+                    Expanded(
                       child: Text(
                         'Please log in to RuTracker. After successful login, click "Done" to extract cookies for the Go client.',
                         style: TextStyle(
@@ -207,13 +206,13 @@ class _RutrackerLoginScreenState extends State<RutrackerLoginScreen> {
         backgroundColor: Colors.green,
       ),
     );
-  }
 
   @override
   void debugFillProperties(DiagnosticPropertiesBuilder properties) {
     super.debugFillProperties(properties);
-    properties.add(DiagnosticsProperty<bool>('isLoading', _isLoading));
-    properties.add(DiagnosticsProperty<bool>('hasError', _hasError));
-    properties.add(DiagnosticsProperty<String?>('errorMessage', _errorMessage));
+    properties
+      ..add(DiagnosticsProperty<bool>('isLoading', _isLoading))
+      ..add(DiagnosticsProperty<bool>('hasError', _hasError))
+      ..add(DiagnosticsProperty<String?>('errorMessage', _errorMessage));
   }
 }

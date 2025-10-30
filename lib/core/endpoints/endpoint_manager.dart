@@ -37,8 +37,8 @@ class EndpointManager {
   /// Initializes the default RuTracker endpoints if none exist.
   Future<void> initializeDefaultEndpoints() async {
     final defaultEndpoints = [
-      {'url': 'https://rutracker.me', 'priority': 1, 'enabled': true},
-      {'url': 'https://rutracker.net', 'priority': 2, 'enabled': true},
+      {'url': 'https://rutracker.net', 'priority': 1, 'enabled': true},
+      {'url': 'https://rutracker.org', 'priority': 2, 'enabled': true},
     ];
 
     final record = await _endpointsRef.get(_db);

@@ -40,7 +40,7 @@ class AppConfig {
   /// Gets the RuTracker base URL.
   /// This method is deprecated - use EndpointManager instead for dynamic mirror selection.
   @Deprecated('Use EndpointManager.getActiveEndpoint() for dynamic mirror selection')
-  String get rutrackerUrl => 'https://rutracker.me'; // Default fallback, but EndpointManager should be used
+  String get rutrackerUrl => 'https://rutracker.net'; // Default fallback, but EndpointManager should be used
 
   /// Gets the logging level for the current environment.
   String get logLevel {
