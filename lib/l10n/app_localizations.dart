@@ -929,11 +929,23 @@ abstract class AppLocalizations {
   /// **'Delete Download'**
   String get deleteDownloadButton;
 
+  /// Text for done button
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get doneButtonText;
+
   /// Title for webview screen
   ///
   /// In en, this message translates to:
   /// **'RuTracker'**
   String get webViewTitle;
+
+  /// Instruction banner text for WebView login screen
+  ///
+  /// In en, this message translates to:
+  /// **'Please log in to RuTracker. After successful login, tap Done to extract cookies for the client.'**
+  String get webViewLoginInstruction;
 
   /// Message shown during Cloudflare check
   ///

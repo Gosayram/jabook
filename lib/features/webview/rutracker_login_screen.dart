@@ -4,6 +4,8 @@ import 'package:flutter/services.dart';
 import 'package:jabook/core/endpoints/endpoint_manager.dart';
 import 'package:jabook/data/db/app_database.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:jabook/l10n/app_localizations.dart';
 
 /// A WebView-based login screen for RuTracker with Go client integration.
 ///
@@ -59,12 +61,31 @@ class _RutrackerLoginScreenState extends State<RutrackerLoginScreen> {
             if (url.contains(Uri.parse(activeBase).host) && !url.contains('login')) {
               _showLoginSuccessHint();
             }
+            _detectCloudflareAndHint();
           },
           onWebResourceError: (error) {
             setState(() {
               _hasError = true;
               _errorMessage = 'Ошибка загрузки: ${error.description}';
             });
+          },
+          onNavigationRequest: (request) {
+            final s = request.url;
+            if (s.startsWith('magnet:')) {
+              _launchExternal(Uri.parse(s));
+              return NavigationDecision.prevent;
+            }
+            if (s.toLowerCase().endsWith('.torrent')) {
+              _handleTorrent(Uri.parse(s));
+              return NavigationDecision.prevent;
+            }
+            // Open external domains in browser
+            final host = Uri.parse(s).host;
+            if (!host.contains('rutracker')) {
+              _launchExternal(Uri.parse(s));
+              return NavigationDecision.prevent;
+            }
+            return NavigationDecision.navigate;
           },
         ),
       );
@@ -92,24 +113,89 @@ class _RutrackerLoginScreenState extends State<RutrackerLoginScreen> {
   }
 
   void _showLoginSuccessHint() => ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Login successful! You can now use the Go client.'),
+        SnackBar(
+          content: Text(AppLocalizations.of(context)?.loginSuccessMessage ?? 'Login successful!'),
           backgroundColor: Colors.green,
-          duration: Duration(seconds: 3),
+          duration: const Duration(seconds: 3),
         ),
       );
+
+  Future<void> _detectCloudflareAndHint() async {
+    try {
+      final result = await _controller.runJavaScriptReturningResult(
+        "document.body ? document.body.innerText : ''",
+      );
+      final text = (result is String) ? result.toLowerCase() : result.toString().toLowerCase();
+      if (text.contains('checking your browser') ||
+          text.contains('please enable javascript') ||
+          text.contains('attention required') ||
+          text.contains('cf-chl-bypass')) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Сайт проверяет ваш браузер (Cloudflare). Подождите 5–10 секунд.'),
+          ),
+        );
+      }
+    } catch (_) {
+      // no-op
+    }
+  }
+
+  Future<void> _launchExternal(Uri uri) async {
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
+  Future<void> _handleTorrent(Uri uri) async {
+    final action = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Скачать торрент'),
+        content: const Text('Выберите действие:'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, 'open'),
+            child: const Text('Открыть'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, 'download'),
+            child: const Text('Скачать'),
+          ),
+        ],
+      ),
+    );
+
+    if (!mounted) return;
+    if (action == 'open') {
+      await _launchExternal(uri);
+    } else if (action == 'download') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Для загрузки файл будет открыт в браузере')),
+      );
+      await _launchExternal(uri);
+    }
+  }
 
   Widget _buildWebViewContent() => WebViewWidget(controller: _controller);
 
   @override
   Widget build(BuildContext context) => Scaffold(
       appBar: AppBar(
-        title: const Text('RuTracker Login'),
+        title: Text(AppLocalizations.of(context)?.webViewTitle ?? 'RuTracker'),
         automaticallyImplyLeading: false,
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _initializeWebView,
+          ),
+          IconButton(
+            icon: const Icon(Icons.open_in_browser),
+            onPressed: () async {
+              final url = await _controller.currentUrl();
+              if (url != null) {
+                await _launchExternal(Uri.parse(url));
+              }
+            },
           ),
         ],
       ),
@@ -121,17 +207,17 @@ class _RutrackerLoginScreenState extends State<RutrackerLoginScreen> {
               Container(
                 padding: const EdgeInsets.all(12.0),
                 color: Colors.blue.shade50,
-                child: const Row(
+                child: Row(
                   children: [
-                    Icon(
+                    const Icon(
                       Icons.info_outline,
                       color: Colors.blue,
                     ),
-                    SizedBox(width: 8.0),
+                    const SizedBox(width: 8.0),
                     Expanded(
                       child: Text(
-                        'Please log in to RuTracker. After successful login, click "Done" to extract cookies for the Go client.',
-                        style: TextStyle(
+                        AppLocalizations.of(context)?.webViewLoginInstruction ?? 'Please log in to RuTracker. After successful login, click "Done".',
+                        style: const TextStyle(
                           color: Colors.blue,
                           fontSize: 14.0,
                         ),
@@ -151,13 +237,13 @@ class _RutrackerLoginScreenState extends State<RutrackerLoginScreen> {
             Positioned.fill(
               child: ColoredBox(
                 color: Colors.white.withValues(alpha: 0.8),
-                child: const Center(
+                child: Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      CircularProgressIndicator(),
-                      SizedBox(height: 16),
-                      Text('Loading RuTracker...'),
+                      const CircularProgressIndicator(),
+                      const SizedBox(height: 16),
+                      Text(AppLocalizations.of(context)?.loading ?? 'Loading...'),
                     ],
                   ),
                 ),
@@ -180,7 +266,7 @@ class _RutrackerLoginScreenState extends State<RutrackerLoginScreen> {
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 24.0),
                       child: Text(
-                        _errorMessage ?? 'An error occurred',
+                        _errorMessage ?? (AppLocalizations.of(context)?.networkError ?? 'An error occurred'),
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 16,
@@ -191,7 +277,7 @@ class _RutrackerLoginScreenState extends State<RutrackerLoginScreen> {
                     const SizedBox(height: 24),
                     ElevatedButton(
                       onPressed: _initializeWebView,
-                      child: const Text('Retry'),
+                      child: Text(AppLocalizations.of(context)?.retryButtonText ?? 'Retry'),
                     ),
                   ],
                 ),
@@ -202,7 +288,7 @@ class _RutrackerLoginScreenState extends State<RutrackerLoginScreen> {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _saveCookies,
         icon: const Icon(Icons.check),
-        label: const Text('Done'),
+        label: Text(AppLocalizations.of(context)?.doneButtonText ?? 'Done'),
         backgroundColor: Colors.green,
       ),
     );

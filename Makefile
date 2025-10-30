@@ -45,6 +45,7 @@ help:
 	@echo "  make analyze            - Run Flutter analysis"
 	@echo "  make format             - Format code"
 	@echo "  make lint               - Run linting"
+	@echo "  make l10n               - Generate localization files (flutter gen-l10n)"
 	@echo ""
 	@echo "Release Commands:"
 	@echo "  make release-android    - Build all signed Android release variants"
@@ -189,6 +190,12 @@ test-integration:
 .PHONY: analyze
 analyze:
 	flutter analyze
+
+.PHONY: l10n
+l10n:
+	@echo "Generating localization files via flutter gen-l10n..."
+	flutter gen-l10n
+	@echo "Localization files generated in lib/l10n/"
 
 .PHONY: format
 format:

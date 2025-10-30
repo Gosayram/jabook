@@ -426,7 +426,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get deleteDownloadButton => 'Delete Download';
 
   @override
+  String get doneButtonText => 'Done';
+
+  @override
   String get webViewTitle => 'RuTracker';
+
+  @override
+  String get webViewLoginInstruction => 'Please log in to RuTracker. After successful login, tap Done to extract cookies for the client.';
 
   @override
   String get cloudflareMessage => 'This site uses Cloudflare security checks. Please wait for the check to complete and interact with the page that opens if needed.';

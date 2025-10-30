@@ -257,10 +257,7 @@
   "@logoutButton": {
     "description": "Текст кнопки выхода"
   },
-  "authHelpText": "Введите ваши учетные данные",
-  "@authHelpText": {
-    "description": "Текст подсказки для аутентификации"
-  },
+  
   "cacheClearedSuccessfully": "Кэш успешно очищен",
   "@cacheClearedSuccessfully": {
     "description": "Сообщение об успешной очистке кэша"
@@ -553,9 +550,17 @@
   "@deleteDownloadButton": {
     "description": "Текст кнопки удаления загрузки"
   },
+  "doneButtonText": "Готово",
+  "@doneButtonText": {
+    "description": "Текст кнопки завершения"
+  },
   "webViewTitle": "RuTracker",
   "@webViewTitle": {
     "description": "Заголовок экрана вебвью"
+  },
+  "webViewLoginInstruction": "Войдите в RuTracker. После успешного входа нажмите «Готово», чтобы извлечь cookie для клиента.",
+  "@webViewLoginInstruction": {
+    "description": "Текст баннера-инструкции для экрана WebView логина"
   },
   "cloudflareMessage": "Этот сайт использует проверки безопасности Cloudflare. Пожалуйста, дождитесь завершения проверки и взаимодействуйте с открывшейся страницей при необходимости.",
   "@cloudflareMessage": {
@@ -673,10 +678,7 @@
   "@logoutButtonText": {
     "description": "Текст кнопки выхода"
   },
-  "authHelpText": "Войдите в RuTracker для доступа к поиску аудиокниг и скачиванию. Ваши учетные данные хранятся безопасно.",
-  "@authHelpText": {
-    "description": "Текст помощи для аутентификации"
-  },
+  
   "enterCredentialsText": "Пожалуйста, введите имя пользователя и пароль",
   "@enterCredentialsText": {
     "description": "Запрос для ввода учетных данных"
@@ -976,181 +978,5 @@
   "mirrorHealthCheckCompletedMessage": "Проверка здоровья зеркал завершена",
   "@mirrorHealthCheckCompletedMessage": {
     "description": "Сообщение о завершении проверки зеркал"
-  },
-  "statusLabelText": "Статус:",
-  "@statusLabelText": {
-    "description": "Метка для статуса"
-  },
-  "lastOkLabelText": "Последний OK:",
-  "@lastOkLabelText": {
-    "description": "Метка для времени последнего успеха"
-  },
-  "rttLabelText": "RTT:",
-  "@rttLabelText": {
-    "description": "Метка для времени отклика"
-  },
-  "millisecondsText": "мс",
-  "@millisecondsText": {
-    "description": "Сокращение для миллисекунд"
-  },
-  "downloadLabelText": "Загрузка",
-  "@downloadLabelText": {
-    "description": "Метка для загрузки"
-  },
-  "statusLabelNoColonText": "Статус",
-  "@statusLabelNoColonText": {
-    "description": "Метка статуса без двоеточия"
-  },
-  "downloadProgressLabelText": "Прогресс",
-  "@downloadProgressLabelText": {
-    "description": "Метка для прогресса загрузки"
-  },
-  "cacheStatisticsTitle": "Статистика кэша",
-  "@cacheStatisticsTitle": {
-    "description": "Заголовок статистики кэша"
-  },
-  "totalEntriesText": "Всего записей",
-  "@totalEntriesText": {
-    "description": "Метка для общего количества записей"
-  },
-  "searchCacheText": "Кэш поиска",
-  "@searchCacheText": {
-    "description": "Метка для кэша поиска"
-  },
-  "topicCacheText": "Кэш топиков",
-  "@topicCacheText": {
-    "description": "Метка для кэша топиков"
-  },
-  "memoryUsageText": "Использование памяти",
-  "@memoryUsageText": {
-    "description": "Метка для использования памяти"
-  },
-  "clearAllCacheButton": "Очистить весь кэш",
-  "@clearAllCacheButton": {
-    "description": "Текст кнопки очистки кэша"
-  },
-  "mirrorsScreenTitle": "Зеркала",
-  "@mirrorsScreenTitle": {
-    "description": "Заголовок экрана зеркал"
-  },
-  "failedToLoadAudioMessage": "Не удалось загрузить аудио",
-  "@failedToLoadAudioMessage": {
-    "description": "Сообщение об ошибке загрузки аудио"
-  },
-  "chaptersLabelText": "Главы",
-  "@chaptersLabelText": {
-    "description": "Метка для глав"
-  },
-  "downloadFunctionalityComingSoonMessage": "Функция загрузки скоро появится",
-  "@downloadFunctionalityComingSoonMessage": {
-    "description": "Сообщение о предстоящей функции загрузки"
-  },
-  "requestTimedOutMessage": "Время запроса истекло",
-  "@requestTimedOutMessage": {
-    "description": "Сообщение об истечении времени запроса"
-  },
-  "networkErrorMessage": "Сетевая ошибка",
-  "@networkErrorMessage": {
-    "description": "Сообщение о сетевой ошибке"
-  },
-  "mirrorStatusDisabledText": "Отключено",
-  "@mirrorStatusDisabledText": {
-    "description": "Статус отключенного зеркала"
-  },
-  "mirrorResponseTimeText": "Время отклика",
-  "@mirrorResponseTimeText": {
-    "description": "Метка для времени отклика зеркала"
-  },
-  "mirrorLastCheckText": "Последняя проверка",
-  "@mirrorLastCheckText": {
-    "description": "Метка для времени последней проверки"
-  },
-  "mirrorTestIndividualText": "Проверить отдельное зеркало",
-  "@mirrorTestIndividualText": {
-    "description": "Текст кнопки проверки отдельного зеркала"
-  },
-  "activeStatusText": "Активно",
-  "@activeStatusText": {
-    "description": "Статус активного зеркала"
-  },
-  "disabledStatusText": "Отключено",
-  "@disabledStatusText": {
-    "description": "Статус отключенного зеркала"
-  },
-  "languageDescriptionText": "Выберите язык",
-  "@languageDescriptionText": {
-    "description": "Описание настройки языка"
-  },
-  "themeTitleText": "Тема",
-  "@themeTitleText": {
-    "description": "Заголовок для темы"
-  },
-  "themeDescriptionText": "Выберите тему приложения",
-  "@themeDescriptionText": {
-    "description": "Описание для темы"
-  },
-  "darkModeText": "Темный режим",
-  "@darkModeText": {
-    "description": "Метка для темного режима"
-  },
-  "highContrastText": "Высокая контрастность",
-  "@highContrastText": {
-    "description": "Метка для высокой контрастности"
-  },
-  "audioTitleText": "Аудио",
-  "@audioTitleText": {
-    "description": "Заголовок для аудио"
-  },
-  "audioDescriptionText": "Настройки аудио",
-  "@audioDescriptionText": {
-    "description": "Описание для аудио"
-  },
-  "playbackSpeedText": "Скорость воспроизведения",
-  "@playbackSpeedText": {
-    "description": "Метка для скорости воспроизведения"
-  },
-  "skipDurationText": "Длительность пропуска",
-  "@skipDurationText": {
-    "description": "Метка для длительности пропуска"
-  },
-  "downloadsTitleText": "Загрузки",
-  "@downloadsTitleText": {
-    "description": "Заголовок для загрузок"
-  },
-  "downloadsDescriptionText": "Настройки загрузки",
-  "@downloadsDescriptionText": {
-    "description": "Описание для загрузок"
-  },
-  "downloadLocationText": "Место загрузки",
-  "@downloadLocationText": {
-    "description": "Метка для места загрузки"
-  },
-  "wifiOnlyDownloadsText": "Загрузки только по Wi-Fi",
-  "@wifiOnlyDownloadsText": {
-    "description": "Метка для загрузок только по Wi-Fi"
-  },
-  "dataLoadedFromCacheMessage": "Данные загружены из кэша",
-  "@dataLoadedFromCacheMessage": {
-    "description": "Сообщение о загрузке данных из кэша"
-  },
-  "failedToLoadTopicMessage": "Не удалось загрузить топик",
-  "@failedToLoadTopicMessage": {
-    "description": "Сообщение об ошибке загрузки топика"
-  },
-  "magnetLinkLabelText": "Magnet-ссылка",
-  "@magnetLinkLabelText": {
-    "description": "Метка для magnet-ссылки"
-  },
-  "unknownChapterText": "Неизвестная глава",
-  "@unknownChapterText": {
-    "description": "Запасной вариант для отсутствующей главы"
-  },
-  "magnetLinkCopiedMessage": "Magnet-ссылка скопирована",
-  "@magnetLinkCopiedMessage": {
-    "description": "Сообщение о копировании magnet-ссылки"
-  },
-  "copyToClipboardLabelText": "Скопировать в буфер",
-  "@copyToClipboardLabelText": {
-    "description": "Метка для копирования в буфер"
   }
 }

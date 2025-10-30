@@ -257,10 +257,7 @@
   "@logoutButton": {
     "description": "Logout button text"
   },
-  "authHelpText": "Enter your credentials",
-  "@authHelpText": {
-    "description": "Help text for authentication"
-  },
+  
   "cacheClearedSuccessfully": "Cache cleared successfully",
   "@cacheClearedSuccessfully": {
     "description": "Message for successful cache clearing"
@@ -553,9 +550,17 @@
   "@deleteDownloadButton": {
     "description": "Text for delete download button"
   },
+  "doneButtonText": "Done",
+  "@doneButtonText": {
+    "description": "Text for done button"
+  },
   "webViewTitle": "RuTracker",
   "@webViewTitle": {
     "description": "Title for webview screen"
+  },
+  "webViewLoginInstruction": "Please log in to RuTracker. After successful login, tap Done to extract cookies for the client.",
+  "@webViewLoginInstruction": {
+    "description": "Instruction banner text for WebView login screen"
   },
   "cloudflareMessage": "This site uses Cloudflare security checks. Please wait for the check to complete and interact with the page that opens if needed.",
   "@cloudflareMessage": {
@@ -673,42 +678,7 @@
   "@logoutButtonText": {
     "description": "Text for logout button"
   },
-  "authHelpText": "Login to RuTracker to access audiobook search and download. Your credentials are stored securely.",
-  "@authHelpText": {
-    "description": "Help text for authentication"
-  },
-  "enterCredentialsText": "Please enter username and password",
-  "@enterCredentialsText": {
-    "description": "Prompt for entering credentials"
-  },
-  "loggingInText": "Logging in...",
-  "@loggingInText": {
-    "description": "Message during login"
-  },
-  "loginSuccessMessage": "Login successful!",
-  "@loginSuccessMessage": {
-    "description": "Message for successful login"
-  },
-  "loginFailedMessage": "Login failed. Please check your credentials",
-  "@loginFailedMessage": {
-    "description": "Message for failed login"
-  },
-  "loginErrorMessage": "Login error: $error",
-  "@loginErrorMessage": {
-    "description": "Message for login error"
-  },
-  "testingConnectionText": "Testing connection...",
-  "@testingConnectionText": {
-    "description": "Message during connection test"
-  },
-  "connectionSuccessMessage": "Connection established! Using: $endpoint",
-  "@connectionSuccessMessage": {
-    "description": "Message for successful connection test"
-  },
-  "connectionFailedMessage": "Connection test failed: $error",
-  "@connectionFailedMessage": {
-    "description": "Message for failed connection test"
-  },
+  
   "loggingOutText": "Logging out...",
   "@loggingOutText": {
     "description": "Message during logout"
@@ -976,181 +946,5 @@
   "mirrorHealthCheckCompletedMessage": "Mirror health check completed",
   "@mirrorHealthCheckCompletedMessage": {
     "description": "Message for completed mirror health check"
-  },
-  "statusLabelText": "Status:",
-  "@statusLabelText": {
-    "description": "Label for status"
-  },
-  "lastOkLabelText": "Last OK:",
-  "@lastOkLabelText": {
-    "description": "Label for last OK time"
-  },
-  "rttLabelText": "RTT:",
-  "@rttLabelText": {
-    "description": "Label for round trip time"
-  },
-  "millisecondsText": "ms",
-  "@millisecondsText": {
-    "description": "Abbreviation for milliseconds"
-  },
-  "downloadLabelText": "Download",
-  "@downloadLabelText": {
-    "description": "Label for download"
-  },
-  "statusLabelNoColonText": "Status",
-  "@statusLabelNoColonText": {
-    "description": "Status label without colon"
-  },
-  "downloadProgressLabelText": "Progress",
-  "@downloadProgressLabelText": {
-    "description": "Label for download progress"
-  },
-  "cacheStatisticsTitle": "Cache Statistics",
-  "@cacheStatisticsTitle": {
-    "description": "Title for cache statistics"
-  },
-  "totalEntriesText": "Total entries",
-  "@totalEntriesText": {
-    "description": "Label for total entries"
-  },
-  "searchCacheText": "Search cache",
-  "@searchCacheText": {
-    "description": "Label for search cache"
-  },
-  "topicCacheText": "Topic cache",
-  "@topicCacheText": {
-    "description": "Label for topic cache"
-  },
-  "memoryUsageText": "Memory usage",
-  "@memoryUsageText": {
-    "description": "Label for memory usage"
-  },
-  "clearAllCacheButton": "Clear All Cache",
-  "@clearAllCacheButton": {
-    "description": "Text for clear cache button"
-  },
-  "mirrorsScreenTitle": "Mirrors",
-  "@mirrorsScreenTitle": {
-    "description": "Title for mirrors screen"
-  },
-  "failedToLoadAudioMessage": "Failed to load audio",
-  "@failedToLoadAudioMessage": {
-    "description": "Message for failed audio loading"
-  },
-  "chaptersLabelText": "Chapters",
-  "@chaptersLabelText": {
-    "description": "Label for chapters"
-  },
-  "downloadFunctionalityComingSoonMessage": "Download functionality coming soon",
-  "@downloadFunctionalityComingSoonMessage": {
-    "description": "Message for upcoming download feature"
-  },
-  "requestTimedOutMessage": "Request timed out",
-  "@requestTimedOutMessage": {
-    "description": "Message for request timeout"
-  },
-  "networkErrorMessage": "Network error",
-  "@networkErrorMessage": {
-    "description": "Message for network error"
-  },
-  "mirrorStatusDisabledText": "Disabled",
-  "@mirrorStatusDisabledText": {
-    "description": "Status for disabled mirror"
-  },
-  "mirrorResponseTimeText": "Response time",
-  "@mirrorResponseTimeText": {
-    "description": "Label for mirror response time"
-  },
-  "mirrorLastCheckText": "Last check",
-  "@mirrorLastCheckText": {
-    "description": "Label for last check time"
-  },
-  "mirrorTestIndividualText": "Test individual mirror",
-  "@mirrorTestIndividualText": {
-    "description": "Text for testing individual mirror"
-  },
-  "activeStatusText": "Active",
-  "@activeStatusText": {
-    "description": "Status for active mirror"
-  },
-  "disabledStatusText": "Disabled",
-  "@disabledStatusText": {
-    "description": "Status for disabled mirror"
-  },
-  "languageDescriptionText": "Select language",
-  "@languageDescriptionText": {
-    "description": "Description for language setting"
-  },
-  "themeTitleText": "Theme",
-  "@themeTitleText": {
-    "description": "Title for theme"
-  },
-  "themeDescriptionText": "Select app theme",
-  "@themeDescriptionText": {
-    "description": "Description for theme"
-  },
-  "darkModeText": "Dark mode",
-  "@darkModeText": {
-    "description": "Label for dark mode"
-  },
-  "highContrastText": "High contrast",
-  "@highContrastText": {
-    "description": "Label for high contrast"
-  },
-  "audioTitleText": "Audio",
-  "@audioTitleText": {
-    "description": "Title for audio"
-  },
-  "audioDescriptionText": "Audio settings",
-  "@audioDescriptionText": {
-    "description": "Description for audio"
-  },
-  "playbackSpeedText": "Playback speed",
-  "@playbackSpeedText": {
-    "description": "Label for playback speed"
-  },
-  "skipDurationText": "Skip duration",
-  "@skipDurationText": {
-    "description": "Label for skip duration"
-  },
-  "downloadsTitleText": "Downloads",
-  "@downloadsTitleText": {
-    "description": "Title for downloads"
-  },
-  "downloadsDescriptionText": "Download settings",
-  "@downloadsDescriptionText": {
-    "description": "Description for downloads"
-  },
-  "downloadLocationText": "Download location",
-  "@downloadLocationText": {
-    "description": "Label for download location"
-  },
-  "wifiOnlyDownloadsText": "WiFi only downloads",
-  "@wifiOnlyDownloadsText": {
-    "description": "Label for WiFi only downloads"
-  },
-  "dataLoadedFromCacheMessage": "Data loaded from cache",
-  "@dataLoadedFromCacheMessage": {
-    "description": "Message for data loaded from cache"
-  },
-  "failedToLoadTopicMessage": "Failed to load topic",
-  "@failedToLoadTopicMessage": {
-    "description": "Message for failed topic loading"
-  },
-  "magnetLinkLabelText": "Magnet link",
-  "@magnetLinkLabelText": {
-    "description": "Label for magnet link"
-  },
-  "unknownChapterText": "Unknown chapter",
-  "@unknownChapterText": {
-    "description": "Fallback for missing chapter"
-  },
-  "magnetLinkCopiedMessage": "Magnet link copied",
-  "@magnetLinkCopiedMessage": {
-    "description": "Message for magnet link copied"
-  },
-  "copyToClipboardLabelText": "Copy to clipboard",
-  "@copyToClipboardLabelText": {
-    "description": "Label for copy to clipboard"
   }
 }
