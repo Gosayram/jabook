@@ -43,6 +43,8 @@ class _RutrackerLoginScreenState extends State<RutrackerLoginScreen> {
     await _controller.setJavaScriptMode(JavaScriptMode.unrestricted);
     await _controller.enableZoom(false);
     await _controller.setBackgroundColor(const Color(0xFFFFFFFF));
+    // Add user agent to prevent detection
+    await _controller.setUserAgent('Mozilla/5.0 (Linux; Android 10; SM-G973F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.120 Mobile Safari/537.36');
     await _controller.setNavigationDelegate(
       NavigationDelegate(
           onProgress: (progress) {
@@ -68,8 +70,10 @@ class _RutrackerLoginScreenState extends State<RutrackerLoginScreen> {
           onWebResourceError: (error) {
             setState(() {
               _hasError = true;
-              _errorMessage = 'Ошибка загрузки: ${error.description}';
+              _errorMessage = 'Ошибка загрузки: ${error.description} (код: ${error.errorCode})';
             });
+            // Log error for debugging
+            debugPrint('WebView error: ${error.description}, code: ${error.errorCode}');
           },
           onNavigationRequest: (request) {
             final s = request.url;

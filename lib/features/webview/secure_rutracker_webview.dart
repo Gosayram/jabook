@@ -243,12 +243,32 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
                   sharedCookiesEnabled: true,
                   allowsInlineMediaPlayback: true,
                   mediaPlaybackRequiresUserGesture: false,
+                  // Error handling
+                  supportZoom: false,
+                  // Memory management
+                  minimumLogicalFontSize: 1,
+                  // SSL/TLS settings
+                  mixedContentMode: MixedContentMode.MIXED_CONTENT_ALWAYS_ALLOW,
+                  // User agent
+                  userAgent: 'Mozilla/5.0 (Linux; Android 10; SM-G973F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.120 Mobile Safari/537.36',
                 ),
                 onWebViewCreated: (controller) {
                   _webViewController = controller;
                   _hasError = false; // Reset error state when WebView is recreated
                 },
                 onProgressChanged: (controller, p) => setState(() => progress = p / 100.0),
+                onReceivedError: (controller, request, error) {
+                  setState(() {
+                    _hasError = true;
+                    _errorMessage = 'Ошибка загрузки: ${error.description}';
+                  });
+                },
+                onReceivedHttpError: (controller, request, errorResponse) {
+                  setState(() {
+                    _hasError = true;
+                    _errorMessage = 'HTTP ошибка: ${errorResponse.statusCode}';
+                  });
+                },
                 onLoadStop: (controller, url) async {
                   final html = await controller.getHtml();
                   if (html != null && _looksLikeCloudflare(html)) {
@@ -281,12 +301,6 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
                     return NavigationActionPolicy.CANCEL;
                   }
                   return NavigationActionPolicy.ALLOW;
-                },
-                onReceivedError: (controller, request, error) {
-                  setState(() {
-                    _hasError = true;
-                    _errorMessage = 'Ошибка загрузки: ${error.description}';
-                  });
                 },
               ),
             ),

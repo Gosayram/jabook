@@ -6,7 +6,7 @@ import 'package:jabook/data/db/app_database.dart';
 final endpointManagerProvider = Provider<EndpointManager>((ref) {
   final appDatabase = ref.watch(appDatabaseProvider);
   return EndpointManager(appDatabase.database);
-});
+}, dependencies: [appDatabaseProvider]);
 
 /// Provider for AppDatabase instance
 final appDatabaseProvider = Provider<AppDatabase>((ref) => AppDatabase());

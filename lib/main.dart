@@ -1,6 +1,6 @@
 import 'dart:async';
-import 'dart:ui';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:jabook/app/app.dart';
@@ -10,6 +10,10 @@ void main() {
   // Setup global error handling
   FlutterError.onError = (details) {
     logger.e('Flutter error: ${details.exception}', stackTrace: details.stack);
+    // In debug mode, show error details
+    if (kDebugMode) {
+      FlutterError.presentError(details);
+    }
   };
 
   // Setup Dart error handling
@@ -22,5 +26,10 @@ void main() {
     runApp(const ProviderScope(child: JaBookApp()));
   }, (error, stackTrace) {
     logger.e('Unhandled zone error: $error', stackTrace: stackTrace);
+    // Try to recover from non-critical errors
+    if (error is StateError && error.message.contains('mounted')) {
+      logger.w('StateError with mounted check, attempting recovery');
+      return;
+    }
   });
 }

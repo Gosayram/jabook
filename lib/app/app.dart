@@ -11,7 +11,7 @@ import 'package:jabook/core/config/language_manager.dart';
 import 'package:jabook/core/config/language_provider.dart';
 import 'package:jabook/core/endpoints/endpoint_manager.dart';
 import 'package:jabook/core/logging/environment_logger.dart';
-import 'package:jabook/core/permissions/permission_service.dart';
+import 'package:jabook/core/permissions/permission_service_v2.dart';
 import 'package:jabook/data/db/app_database.dart';
 import 'package:jabook/features/auth/data/providers/auth_provider.dart';
 import 'package:jabook/features/auth/data/repositories/auth_repository_impl.dart';
@@ -78,7 +78,16 @@ class _JaBookAppState extends ConsumerState<JaBookApp> {
       logger.i('App initialization complete');
     } on Exception catch (e, stackTrace) {
       logger.e('Failed to initialize app', error: e, stackTrace: stackTrace);
-      // In a real app, you might want to show an error screen here
+      // Show error to user if critical initialization fails
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Ошибка инициализации приложения: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
     }
   }
 
@@ -126,22 +135,22 @@ class _JaBookAppState extends ConsumerState<JaBookApp> {
 
   Future<void> _requestEssentialPermissions() async {
     try {
-      logger.i('Requesting essential permissions...');
+      logger.i('Checking essential capabilities using system APIs...');
       
-      final permissionService = PermissionService();
+      final permissionService = PermissionServiceV2();
       final results = await permissionService.requestEssentialPermissions();
       
       final grantedCount = results.values.where((granted) => granted).length;
       final totalCount = results.length;
       
-      logger.i('Permissions requested: $grantedCount/$totalCount granted');
+      logger.i('Capabilities checked: $grantedCount/$totalCount available');
       
       if (grantedCount < totalCount) {
-        logger.w('Some permissions were not granted. App functionality may be limited.');
+        logger.w('Some capabilities are not available. App functionality may be limited.');
       }
     } on Exception catch (e, stackTrace) {
-      logger.e('Failed to request essential permissions', error: e, stackTrace: stackTrace);
-      // Continue app initialization even if permissions fail
+      logger.e('Failed to check essential capabilities', error: e, stackTrace: stackTrace);
+      // Continue app initialization even if capability checks fail
     }
   }
 
