@@ -115,6 +115,22 @@ class CacheManager {
     await store.record(key).delete(_db!);
   }
 
+  /// Clears all cache entries with keys starting with the given prefix.
+  Future<void> clearByPrefix(String prefix) async {
+    if (_db == null) {
+      throw StateError('CacheManager not initialized');
+    }
+
+    final store = StoreRef<String, Map<String, dynamic>>('cache');
+    final records = await store.find(_db!);
+    
+    for (final record in records) {
+      if (record.key.startsWith(prefix)) {
+        await store.record(record.key).delete(_db!);
+      }
+    }
+  }
+
   /// Gets the expiration time for a cached item.
   Future<DateTime?> getExpirationTime(String key) async {
     if (_db == null) {

@@ -4,6 +4,7 @@ import 'package:jabook/core/cache/rutracker_cache_service.dart';
 import 'package:jabook/core/config/language_manager.dart';
 import 'package:jabook/core/config/language_provider.dart';
 import 'package:jabook/core/net/dio_client.dart';
+import 'package:jabook/core/permissions/permission_service.dart';
 import 'package:jabook/data/db/app_database.dart';
 import 'package:jabook/features/settings/presentation/screens/mirror_settings_screen.dart';
 import 'package:jabook/features/webview/rutracker_login_screen.dart';
@@ -27,6 +28,7 @@ class SettingsScreen extends ConsumerStatefulWidget {
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   final LanguageManager _languageManager = LanguageManager();
+  final PermissionService _permissionService = PermissionService();
   String _selectedLanguage = 'system';
 
   @override
@@ -130,6 +132,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             container: true,
             label: 'Cache settings',
             child: _buildCacheSection(context),
+          ),
+
+          const SizedBox(height: 24),
+
+          // Permissions Section
+          Semantics(
+            container: true,
+            label: 'App permissions',
+            child: _buildPermissionsSection(context),
           ),
         ],
       ),
@@ -424,10 +435,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('${loc?.totalEntries ?? 'Total entries'}: ${stats['total_entries']}'),
-                  Text('${loc?.searchCacheText ?? 'Search cache: '} ${stats['search_cache_size']}'),
-                  Text('${loc?.topicCacheText ?? 'Topic cache: '} ${stats['topic_cache_size']}'),
-                  Text('${loc?.memoryUsageText ?? 'Memory usage: '} ${stats['memory_usage']}'),
+                  _buildStatRow('Total entries', '${stats['total_entries']}'),
+                  _buildStatRow('Search cache', '${stats['search_cache_size']} entries'),
+                  _buildStatRow('Topic cache', '${stats['topic_cache_size']} entries'),
+                  _buildStatRow('Memory usage', '${stats['memory_usage']}'),
                 ],
               ),
             const SizedBox(height: 12),
@@ -486,5 +497,163 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final cache = RuTrackerCacheService();
     await cache.initialize(db);
     await cache.clearSearchResultsCache();
+    await cache.clearAllTopicDetailsCache();
+  }
+
+  Widget _buildStatRow(String label, String value) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 2.0),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(fontWeight: FontWeight.w500),
+        ),
+        Text(
+          value,
+          style: TextStyle(
+            color: Colors.grey.shade600,
+            fontFamily: 'monospace',
+          ),
+        ),
+      ],
+    ),
+  );
+
+  Widget _buildPermissionsSection(BuildContext context) => FutureBuilder<Map<String, bool>>(
+    future: _getPermissionStatus(),
+    builder: (context, snapshot) {
+      final permissions = snapshot.data ?? {};
+      final hasStorage = permissions['storage'] ?? false;
+      final hasNotification = permissions['notification'] ?? false;
+      final allGranted = hasStorage && hasNotification;
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'App Permissions',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const SizedBox(height: 8),
+          _buildPermissionRow(
+            icon: Icons.folder,
+            title: 'Storage',
+            description: 'Save audiobook files and cache data',
+            isGranted: hasStorage,
+            onTap: _requestStoragePermission,
+          ),
+          const SizedBox(height: 8),
+          _buildPermissionRow(
+            icon: Icons.notifications,
+            title: 'Notifications',
+            description: 'Show playback controls and updates',
+            isGranted: hasNotification,
+            onTap: _requestNotificationPermission,
+          ),
+          const SizedBox(height: 16),
+          if (!allGranted)
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _requestAllPermissions,
+                icon: const Icon(Icons.security),
+                label: const Text('Grant All Permissions'),
+              ),
+            ),
+          if (allGranted)
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.green.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.green.shade200),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.check_circle, color: Colors.green.shade600),
+                  const SizedBox(width: 8),
+                  Text(
+                    'All permissions granted',
+                    style: TextStyle(
+                      color: Colors.green.shade800,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      );
+    },
+  );
+
+  Widget _buildPermissionRow({
+    required IconData icon,
+    required String title,
+    required String description,
+    required bool isGranted,
+    required VoidCallback onTap,
+  }) => Card(
+    child: ListTile(
+      leading: Icon(
+        icon,
+        color: isGranted ? Colors.green : Colors.orange,
+      ),
+      title: Text(title),
+      subtitle: Text(description),
+      trailing: isGranted
+          ? Icon(Icons.check_circle, color: Colors.green.shade600)
+          : Icon(Icons.warning, color: Colors.orange.shade600),
+      onTap: onTap,
+    ),
+  );
+
+  Future<Map<String, bool>> _getPermissionStatus() async {
+    final hasStorage = await _permissionService.hasStoragePermission();
+    final hasNotification = await _permissionService.hasNotificationPermission();
+    return {
+      'storage': hasStorage,
+      'notification': hasNotification,
+    };
+  }
+
+  Future<void> _requestStoragePermission() async {
+    final granted = await _permissionService.requestStoragePermission();
+    if (mounted) {
+      setState(() {});
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(granted ? 'Storage permission granted' : 'Storage permission denied'),
+        ),
+      );
+    }
+  }
+
+  Future<void> _requestNotificationPermission() async {
+    final granted = await _permissionService.requestNotificationPermission();
+    if (mounted) {
+      setState(() {});
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(granted ? 'Notification permission granted' : 'Notification permission denied'),
+        ),
+      );
+    }
+  }
+
+  Future<void> _requestAllPermissions() async {
+    final granted = await _permissionService.showPermissionRequestDialog(context);
+    if (granted) {
+      final allGranted = await _permissionService.requestAllPermissions();
+      if (mounted) {
+        setState(() {});
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(allGranted ? 'All permissions granted' : 'Some permissions were denied'),
+          ),
+        );
+      }
+    }
   }
 }

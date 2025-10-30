@@ -3,6 +3,7 @@ import 'package:audio_session/audio_session.dart';
 import 'package:jabook/core/errors/failures.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:rxdart/rxdart.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// Handles audio service operations and playback state management.
 ///
@@ -14,6 +15,7 @@ class AudioServiceHandler {
   double _preDuckingVolume = 1.0;
   bool _isDucked = false;
   AudioPlayerHandler? _playerHandler;
+  String? _currentMediaId;
 
   /// Stream controller for playback state updates.
   final BehaviorSubject<PlaybackState> _playbackState = BehaviorSubject();
@@ -71,13 +73,15 @@ class AudioServiceHandler {
           orElse: () => AudioProcessingState.idle,
         );
         final controls = <MediaControl>[
+          MediaControl.rewind,
           if (_audioPlayer.playing) MediaControl.pause else MediaControl.play,
+          MediaControl.fastForward,
           MediaControl.stop,
         ];
         final systemPlayback = PlaybackState(
           controls: controls,
           systemActions: const {MediaAction.seek, MediaAction.seekForward, MediaAction.seekBackward},
-          androidCompactActionIndices: const [0, 1],
+          androidCompactActionIndices: const [0, 1, 2],
           processingState: systemState,
           playing: _audioPlayer.playing,
           updatePosition: _audioPlayer.position,
@@ -86,6 +90,8 @@ class AudioServiceHandler {
         );
         // This add works inside handler; from here we can downcast
         _playerHandler?.playbackState.add(systemPlayback);
+        // Persist playback position periodically
+        _persistPosition();
       } on Object {
         // ignore errors in system state update
       }
@@ -162,6 +168,9 @@ class AudioServiceHandler {
     try {
       if (metadata != null) {
         _playerHandler?.setNowPlayingItem(metadata);
+        _currentMediaId = metadata.id;
+        // Try restore last position
+        await _restorePosition();
       }
       await _audioPlayer.setUrl(url);
       await _audioPlayer.play();
@@ -232,6 +241,30 @@ class AudioServiceHandler {
       album: album,
     );
     _playerHandler?.setNowPlayingItem(item);
+    _currentMediaId = id;
+  }
+
+  Future<void> _persistPosition() async {
+    if (_currentMediaId == null) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt('pos_${_currentMediaId!}', _audioPlayer.position.inMilliseconds);
+    } on Object {
+      // ignore
+    }
+  }
+
+  Future<void> _restorePosition() async {
+    if (_currentMediaId == null) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final ms = prefs.getInt('pos_${_currentMediaId!}') ?? 0;
+      if (ms > 0) {
+        await _audioPlayer.seek(Duration(milliseconds: ms));
+      }
+    } on Object {
+      // ignore
+    }
   }
 
   /// Releases resources held by this handler.

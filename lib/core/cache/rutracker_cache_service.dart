@@ -90,6 +90,11 @@ class RuTrackerCacheService {
     await _cacheManager.remove(key);
   }
 
+  /// Clears all cached topic details.
+  Future<void> clearAllTopicDetailsCache() async {
+    await _cacheManager.clearByPrefix('topic:');
+  }
+
   /// Checks if search results are cached for a query.
   Future<bool> hasCachedSearchResults(String query) {
     final key = _getSearchResultsKey(query);

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:jabook/core/errors/failures.dart';
+import 'package:jabook/core/logging/structured_logger.dart';
 import 'package:mime/mime.dart' as mime;
 import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart';
@@ -44,11 +45,24 @@ class LocalStreamServer {
 
       // Start the server
       _server = await serve(handler, _host, _port);
+      _server!.autoCompress = true;
       _isRunning = true;
 
       // ignore: avoid_print
       print('Local stream server started on http://$_host:$_port');
+      await StructuredLogger().log(
+        level: 'info',
+        subsystem: 'stream',
+        message: 'Local stream server started',
+        extra: {'host': _host, 'port': _port},
+      );
     } on Exception catch (e) {
+      await StructuredLogger().log(
+        level: 'error',
+        subsystem: 'stream',
+        message: 'Failed to start stream server',
+        cause: e.toString(),
+      );
       throw StreamFailure('Failed to start stream server: ${e.toString()}');
     }
   }
@@ -67,8 +81,30 @@ class LocalStreamServer {
       _isRunning = false;
       // ignore: avoid_print
       print('Local stream server stopped');
+      await StructuredLogger().log(
+        level: 'info',
+        subsystem: 'stream',
+        message: 'Local stream server stopped',
+      );
     } on Exception catch (e) {
       throw StreamFailure('Failed to stop stream server: ${e.toString()}');
+    }
+  }
+
+  /// Restarts the server (stop then start).
+  Future<void> restart() async {
+    try {
+      await stop();
+    } on Exception {
+      // ignore stop errors
+    }
+    await start();
+  }
+
+  /// Ensures the server is running, starts it if needed.
+  Future<void> ensureRunning() async {
+    if (!_isRunning) {
+      await start();
     }
   }
 
@@ -83,11 +119,33 @@ class LocalStreamServer {
     
     // Handle streaming requests
     if (uri.pathSegments.isNotEmpty && uri.pathSegments.first == 'stream') {
-      return _handleStreamRequest(request);
+      try {
+        return await _handleStreamRequest(request);
+      } on Exception catch (e) {
+        await StructuredLogger().log(
+          level: 'error',
+          subsystem: 'stream',
+          message: 'Stream request error',
+          cause: e.toString(),
+          extra: {'path': request.url.toString()},
+        );
+        return Response.internalServerError(body: 'Streaming error');
+      }
     }
 
     // Handle other requests with static file serving
-    return _handleStaticRequest(request);
+    try {
+      return await _handleStaticRequest(request);
+    } on Exception catch (e) {
+      await StructuredLogger().log(
+        level: 'error',
+        subsystem: 'stream',
+        message: 'Static request error',
+        cause: e.toString(),
+        extra: {'path': request.url.toString()},
+      );
+      return Response.internalServerError(body: 'Static file error');
+    }
   };
 
   /// Handles streaming requests for audiobook files.

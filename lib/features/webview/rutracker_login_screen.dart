@@ -1,9 +1,11 @@
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:jabook/core/endpoints/endpoint_manager.dart';
 import 'package:jabook/data/db/app_database.dart';
 import 'package:jabook/l10n/app_localizations.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
@@ -94,15 +96,44 @@ class _RutrackerLoginScreenState extends State<RutrackerLoginScreen> {
 
   Future<void> _saveCookies() async {
     try {
-      // Get cookies from Android CookieManager
-      final cookieStr = await _cookieChannel.invokeMethod<String>(
-        'getCookiesForDomain',
-        {'domain': Uri.parse(await EndpointManager(AppDatabase().database).getActiveEndpoint()).host},
-      ) ?? '';
-      
+      var cookieStr = '';
+      final activeHost = Uri.parse(await EndpointManager(AppDatabase().database).getActiveEndpoint()).host;
+
+      // Try Android channel first
+      try {
+        cookieStr = await _cookieChannel.invokeMethod<String>(
+              'getCookiesForDomain',
+              {'domain': activeHost},
+            ) ?? '';
+      } on PlatformException {
+        // channel not available, fallback below
+      }
+
+      // iOS/web fallback: read document.cookie via JS
+      if (cookieStr.isEmpty) {
+        try {
+          final result = await _controller.runJavaScriptReturningResult('document.cookie');
+          if (result is String && result.isNotEmpty) {
+            cookieStr = result;
+          }
+        } on Object {
+          // ignore
+        }
+      }
+
+      // Persist cookies to SharedPreferences in JSON list format for Dio sync
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final jsonList = _serializeCookiesForDomain(cookieStr, activeHost);
+        if (jsonList.isNotEmpty) {
+          await prefs.setString('rutracker_cookies_v1', jsonEncode(jsonList));
+        }
+      } on Object {
+        // ignore persistence errors
+      }
+
       if (!mounted) return;
-      
-      // Return cookies to the calling screen
+      // Return raw string for compatibility
       Navigator.of(context).pop<String>(cookieStr);
     } on Exception catch (e) {
       setState(() {
@@ -110,6 +141,27 @@ class _RutrackerLoginScreenState extends State<RutrackerLoginScreen> {
         _errorMessage = 'Failed to extract cookies: $e';
       });
     }
+  }
+
+  // Serializes "name=value; name2=value2" into list of maps with minimal fields
+  List<Map<String, String>> _serializeCookiesForDomain(String cookieString, String host) {
+    final cookies = <Map<String, String>>[];
+    if (cookieString.isEmpty) return cookies;
+    final parts = cookieString.split(';');
+    for (final part in parts) {
+      final kv = part.trim().split('=');
+      if (kv.length < 2) continue;
+      final name = kv.first.trim();
+      final value = kv.sublist(1).join('=').trim();
+      if (name.isEmpty) continue;
+      cookies.add({
+        'name': name,
+        'value': value,
+        'domain': host,
+        'path': '/',
+      });
+    }
+    return cookies;
   }
 
   void _showLoginSuccessHint() => ScaffoldMessenger.of(context).showSnackBar(

@@ -37,6 +37,9 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
   // Error handling
   bool _hasError = false;
   String? _errorMessage;
+  
+  // Cloudflare detection
+  bool _isCloudflareDetected = false;
 
   @override
   void initState() {
@@ -159,7 +162,14 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
     return h.contains('checking your browser') ||
            h.contains('please enable javascript') ||
            h.contains('attention required') ||
-           h.contains('cf-chl-bypass');
+           h.contains('cf-chl-bypass') ||
+           h.contains('cloudflare') ||
+           h.contains('ddos-guard') ||
+           h.contains('just a moment') ||
+           h.contains('verifying you are human') ||
+           h.contains('security check') ||
+           h.contains('cf-browser-verification') ||
+           h.contains('cf-challenge-running');
   }
 
   @override
@@ -187,21 +197,36 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
             // Cloudflare explanation banner
             Container(
               padding: const EdgeInsets.all(12.0),
-              color: Colors.orange.shade100,
+              color: Colors.blue.shade50,
               child: Row(
                 children: [
                   Icon(
-                    Icons.info_outline,
-                    color: Colors.orange.shade700,
+                    Icons.security,
+                    color: Colors.blue.shade700,
+                    size: 20,
                   ),
                   const SizedBox(width: 8.0),
                   Expanded(
-                    child: Text(
-                      AppLocalizations.of(context)?.cloudflareMessage ?? 'Этот сайт использует проверки безопасности Cloudflare. Пожалуйста, дождитесь завершения проверки и взаимодействуйте с открывшейся страницей при необходимости.',
-                      style: TextStyle(
-                        color: Colors.orange.shade800,
-                        fontSize: 14.0,
-                      ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Security Check in Progress',
+                          style: TextStyle(
+                            color: Colors.blue.shade800,
+                            fontSize: 14.0,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'RuTracker uses Cloudflare protection. Please wait for the verification to complete (5-10 seconds).',
+                          style: TextStyle(
+                            color: Colors.blue.shade700,
+                            fontSize: 12.0,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
@@ -228,8 +253,11 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
                   final html = await controller.getHtml();
                   if (html != null && _looksLikeCloudflare(html)) {
                     _showCloudflareHint();
+                    // Show a more prominent Cloudflare indicator
+                    _showCloudflareOverlay();
                   } else {
                     await _saveCookies();
+                    _hideCloudflareOverlay();
                   }
                 },
                 shouldOverrideUrlLoading: (controller, nav) async {
@@ -264,12 +292,83 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
             ),
           ],
         ),
+        // Cloudflare overlay
+        if (_isCloudflareDetected)
+          Positioned.fill(
+            child: ColoredBox(
+              color: Colors.blue.shade50.withValues(alpha: 0.95),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.1),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.security,
+                          size: 64,
+                          color: Colors.blue.shade600,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Security Verification',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blue.shade800,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'RuTracker is verifying your browser.\nPlease wait 5-10 seconds for the check to complete.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey.shade700,
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        SizedBox(
+                          width: 200,
+                          child: LinearProgressIndicator(
+                            backgroundColor: Colors.blue.shade100,
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.blue.shade600),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        TextButton.icon(
+                          onPressed: () async {
+                            final url = await _webViewController.getUrl();
+                            if (url != null) await launchUrl(url);
+                          },
+                          icon: const Icon(Icons.open_in_browser),
+                          label: const Text('Open in Browser'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         // Error overlay
         if (_hasError)
-        Positioned.fill(
-          child: ColoredBox(
-            color: Colors.white,
-            child: Column(
+          Positioned.fill(
+            child: ColoredBox(
+              color: Colors.white,
+              child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(
@@ -324,9 +423,22 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
   void _showCloudflareHint() {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('The site is checking your browser - please wait for the verification to complete on this page.'),
+        content: Text('Security verification in progress - please wait...'),
+        duration: Duration(seconds: 3),
       ),
     );
+  }
+
+  void _showCloudflareOverlay() {
+    setState(() {
+      _isCloudflareDetected = true;
+    });
+  }
+
+  void _hideCloudflareOverlay() {
+    setState(() {
+      _isCloudflareDetected = false;
+    });
   }
 
   Future<void> _handleTorrentLink(Uri uri) async {

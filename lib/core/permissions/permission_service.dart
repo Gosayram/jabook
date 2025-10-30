@@ -85,26 +85,69 @@ class PermissionService {
     }
   }
 
+  /// Checks if notification permission is granted.
+  Future<bool> hasNotificationPermission() async {
+    try {
+      final status = await Permission.notification.status;
+      return status.isGranted;
+    } on Exception catch (e) {
+      await _logger.log(
+        level: 'error',
+        subsystem: 'permissions',
+        message: 'Error checking notification permission',
+        cause: e.toString(),
+      );
+      return false;
+    }
+  }
+
+  /// Requests notification permission.
+  Future<bool> requestNotificationPermission() async {
+    try {
+      await _logger.log(
+        level: 'info',
+        subsystem: 'permissions',
+        message: 'Requesting notification permission',
+      );
+
+      final status = await Permission.notification.request();
+      
+      await _logger.log(
+        level: 'info',
+        subsystem: 'permissions',
+        message: 'Notification permission result: ${status.name}',
+      );
+
+      return status.isGranted;
+    } on Exception catch (e) {
+      await _logger.log(
+        level: 'error',
+        subsystem: 'permissions',
+        message: 'Error requesting notification permission',
+        cause: e.toString(),
+      );
+      return false;
+    }
+  }
+
   /// Checks if all required permissions are granted.
   ///
   /// Returns `true` if all permissions are granted, `false` otherwise.
   Future<bool> hasAllPermissions() async {
-    // Internet permission is automatically granted on Android
-    // We only need to check storage permission
     final hasStorage = await hasStoragePermission();
+    final hasNotification = await hasNotificationPermission();
     
-    return hasStorage;
+    return hasStorage && hasNotification;
   }
 
   /// Requests all required permissions.
   ///
   /// Returns `true` if all permissions were granted, `false` otherwise.
   Future<bool> requestAllPermissions() async {
-    // Internet permission is automatically granted on Android
-    // We only need to request storage permission
     final storageGranted = await requestStoragePermission();
+    final notificationGranted = await requestNotificationPermission();
     
-    return storageGranted;
+    return storageGranted && notificationGranted;
   }
 
   /// Shows a dialog explaining why a permission is needed.
@@ -158,5 +201,53 @@ class PermissionService {
         cause: e.toString(),
       );
     }
+  }
+
+  /// Shows a comprehensive permission request dialog.
+  Future<bool> showPermissionRequestDialog(BuildContext context) async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Permissions Required'),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('JaBook needs the following permissions to work properly:'),
+            SizedBox(height: 16),
+            Row(
+              children: [
+                Icon(Icons.folder, color: Colors.blue),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text('Storage: To save audiobook files and cache data'),
+                ),
+              ],
+            ),
+            SizedBox(height: 8),
+            Row(
+              children: [
+                Icon(Icons.notifications, color: Colors.orange),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text('Notifications: To show playback controls and updates'),
+                ),
+              ],
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Grant Permissions'),
+          ),
+        ],
+      ),
+    );
+    return result ?? false;
   }
 }

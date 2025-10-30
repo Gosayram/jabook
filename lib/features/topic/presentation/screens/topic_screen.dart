@@ -3,13 +3,15 @@ import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
 import 'package:jabook/core/cache/rutracker_cache_service.dart';
 import 'package:jabook/core/endpoints/endpoint_provider.dart';
 import 'package:jabook/core/net/dio_client.dart';
 import 'package:jabook/core/parse/rutracker_parser.dart';
+import 'package:jabook/features/webview/rutracker_login_screen.dart';
 import 'package:jabook/l10n/app_localizations.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 /// Screen for displaying a specific RuTracker topic.
 ///
@@ -120,7 +122,7 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
           _hasError = true;
         });
         
-        // Handle authentication es specifically
+        // Handle authentication errors specifically
         if (e.message?.contains('Authentication required') ?? false) {
           _showAuthenticationPrompt(context);
         } else {
@@ -158,9 +160,27 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
             },
           ),
         if (_audiobook != null && (_audiobook!['magnetUrl'] as String).isNotEmpty)
-          IconButton(
+          PopupMenuButton<String>(
             icon: const Icon(Icons.download),
-            onPressed: _downloadAudiobook,
+            onSelected: _handleDownloadAction,
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'magnet',
+                child: ListTile(
+                  leading: Icon(Icons.link),
+                  title: Text('Copy Magnet Link'),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'torrent',
+                child: ListTile(
+                  leading: Icon(Icons.file_download),
+                  title: Text('Download Torrent'),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+            ],
           ),
       ],
     ),
@@ -269,18 +289,30 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
           const SizedBox(height: 16),
           if (magnetUrl.isNotEmpty)
             Card(
-              child: ListTile(
-                leading: const Icon(Icons.link),
-                title: Text(AppLocalizations.of(context)?.magnetLinkLabelText ?? 'Magnet Link'),
-                subtitle: Text(
-                  magnetUrl,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                trailing: const Icon(Icons.copy),
-                onTap: () {
-                  _copyToClipboard(magnetUrl, AppLocalizations.of(context)?.magnetLinkCopiedMessage ?? 'Magnet link');
-                },
+              child: Column(
+                children: [
+                  ListTile(
+                    leading: const Icon(Icons.link),
+                    title: Text(AppLocalizations.of(context)?.magnetLinkLabelText ?? 'Magnet Link'),
+                    subtitle: Text(
+                      magnetUrl,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    trailing: const Icon(Icons.copy),
+                    onTap: () {
+                      _copyToClipboard(magnetUrl, AppLocalizations.of(context)?.magnetLinkCopiedMessage ?? 'Magnet link');
+                    },
+                  ),
+                  const Divider(height: 1),
+                  ListTile(
+                    leading: const Icon(Icons.file_download),
+                    title: const Text('Download Torrent'),
+                    subtitle: const Text('Open torrent file in external app'),
+                    trailing: const Icon(Icons.open_in_new),
+                    onTap: _downloadTorrent,
+                  ),
+                ],
               ),
             ),
         ],
@@ -318,7 +350,7 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
                   subtitle: Text(_formatDuration(durationMs)),
                   trailing: const Icon(Icons.more_vert),
                   onTap: () {
-                    // TODO: Implement chapter navigation
+                    _playChapter(chapter);
                   },
                 ),
               );
@@ -342,7 +374,20 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
     }
   }
 
-  void _downloadAudiobook() {
+  void _handleDownloadAction(String action) {
+    if (_audiobook == null) return;
+    
+    switch (action) {
+      case 'magnet':
+        _copyMagnetLink();
+        break;
+      case 'torrent':
+        _downloadTorrent();
+        break;
+    }
+  }
+
+  void _copyMagnetLink() {
     if (_audiobook != null && (_audiobook!['magnetUrl'] as String).isNotEmpty) {
       _copyToClipboard(_audiobook!['magnetUrl'] as String, 'Magnet link');
       ScaffoldMessenger.of(context).showSnackBar(
@@ -351,9 +396,43 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
     }
   }
 
+  Future<void> _downloadTorrent() async {
+    if (_audiobook == null) return;
+    
+    try {
+      final endpointManager = ref.read(endpointManagerProvider);
+      final activeEndpoint = await endpointManager.getActiveEndpoint();
+      final torrentUrl = '$activeEndpoint/forum/dl.php?t=${widget.topicId}';
+      
+      final uri = Uri.parse(torrentUrl);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {
+        throw Exception('Cannot launch torrent URL');
+      }
+    } on Exception catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to open torrent: $e')),
+        );
+      }
+    }
+  }
+
+  void _playChapter(Map<String, dynamic> chapter) {
+    // Navigate to player with this audiobook and chapter
+    Navigator.pushNamed(
+      context,
+      '/player/${widget.topicId}',
+      arguments: {
+        'audiobook': _audiobook,
+        'chapterIndex': (_audiobook!['chapters'] as List).indexOf(chapter),
+      },
+    );
+  }
+
   void _copyToClipboard(String text, String label) {
-    // TODO: Implement actual clipboard copy
-    // For now, just show a message
+    Clipboard.setData(ClipboardData(text: text));
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('$label copied to clipboard')),
     );
@@ -400,7 +479,14 @@ void _showAuthenticationPrompt(BuildContext context) {
           onPressed: () {
             Navigator.pop(ctx);
             // Navigate to login screen
-            Navigator.pushNamed(context, '/login');
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const RutrackerLoginScreen()),
+            ).then((_) async {
+              // Sync cookies after login
+              await DioClient.syncCookiesFromWebView();
+              // Retry loading topic - this will be handled by the parent widget
+            });
           },
           child: Text(AppLocalizations.of(context)!.login),
         ),
