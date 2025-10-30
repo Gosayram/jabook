@@ -1,4 +1,3 @@
-
 package mobilelib
 
 import (
@@ -21,20 +20,20 @@ import (
 )
 
 type Client struct {
-	http    *http.Client
-	jar     *cookiejar.Jar
-	ua      string
-	host    string // rutracker.me
-	mirrors []string // list of mirror URLs
-	currentMirror int // current mirror index for rotation
+	http          *http.Client
+	jar           *cookiejar.Jar
+	ua            string
+	host          string   // primary host (rutracker.net, rutracker.me, etc.)
+	mirrors       []string // list of mirror URLs
+	currentMirror int      // current mirror index for rotation
 }
 
 // MirrorConfig holds configuration for mirror selection
 type MirrorConfig struct {
-	PrimaryHost   string
-	MirrorHosts   []string
-	MaxRetries    int
-	Timeout       time.Duration
+	PrimaryHost string
+	MirrorHosts []string
+	MaxRetries  int
+	Timeout     time.Duration
 }
 
 // NewClientWithMirrors creates a new HTTP client with mirror support
@@ -66,10 +65,10 @@ func NewClientWithMirrors(config MirrorConfig, userAgent string) (*Client, error
 			Jar:       jar,
 			Timeout:   config.Timeout,
 		},
-		jar:     jar,
-		ua:      userAgent,
-		host:    config.PrimaryHost,
-		mirrors: mirrors,
+		jar:           jar,
+		ua:            userAgent,
+		host:          config.PrimaryHost,
+		mirrors:       mirrors,
 		currentMirror: 0,
 	}
 	return c, nil
@@ -148,8 +147,8 @@ func (c *Client) GetText(ctx context.Context, path string) (string, error) {
 			lastErr = err
 			// If connection failed, try next mirror immediately
 			if strings.Contains(err.Error(), "connection refused") ||
-			   strings.Contains(err.Error(), "timeout") ||
-			   strings.Contains(err.Error(), "no such host") {
+				strings.Contains(err.Error(), "timeout") ||
+				strings.Contains(err.Error(), "no such host") {
 				c.rotateMirror()
 				continue
 			}
@@ -162,18 +161,18 @@ func (c *Client) GetText(ctx context.Context, path string) (string, error) {
 		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 			body, _ := io.ReadAll(io.LimitReader(resp.Body, 64<<10))
 			errMsg := resp.Status + " body: " + string(body)
-			
+
 			// If we get a server error, try next mirror
 			if resp.StatusCode >= 500 {
 				c.rotateMirror()
 				lastErr = errors.New(errMsg)
 				continue
 			}
-			
+
 			// For client errors (4xx), don't retry with different mirror
 			return "", errors.New(errMsg)
 		}
-		
+
 		// Process successful response
 		var reader io.Reader = resp.Body
 		if strings.EqualFold(resp.Header.Get("Content-Encoding"), "gzip") {
@@ -184,15 +183,15 @@ func (c *Client) GetText(ctx context.Context, path string) (string, error) {
 			defer gz.Close()
 			reader = gz
 		}
-		
+
 		b, err := io.ReadAll(reader)
 		if err != nil {
 			return "", err
 		}
-		
+
 		return string(b), nil
 	}
-	
+
 	return "", errors.New("all mirrors failed, last error: " + lastErr.Error())
 }
 
@@ -247,10 +246,10 @@ var defaultClient *Client
 // InitWithMirrors initializes the default client with mirror support
 func InitWithMirrors(primaryHost string, mirrorHosts []string, ua string) error {
 	config := MirrorConfig{
-		PrimaryHost:   primaryHost,
-		MirrorHosts:   mirrorHosts,
-		MaxRetries:    3,
-		Timeout:       30 * time.Second,
+		PrimaryHost: primaryHost,
+		MirrorHosts: mirrorHosts,
+		MaxRetries:  3,
+		Timeout:     30 * time.Second,
 	}
 	c, err := NewClientWithMirrors(config, ua)
 	if err != nil {

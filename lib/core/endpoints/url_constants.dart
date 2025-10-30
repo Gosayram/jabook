@@ -7,6 +7,7 @@ class RuTrackerUrls {
 
   /// Base URL for RuTracker forum (primary mirror)
   /// Note: dynamic mirror selection is preferred via EndpointManager.
+  /// Available mirrors: rutracker.net, rutracker.me, rutracker.org
   static const String base = 'https://rutracker.net';
   
   /// Main index page URL
