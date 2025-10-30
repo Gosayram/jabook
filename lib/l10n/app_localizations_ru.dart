@@ -204,9 +204,6 @@ class AppLocalizationsRu extends AppLocalizations {
   String get logoutButton => 'Выйти';
 
   @override
-  String get authHelpText => 'Введите ваши учетные данные';
-
-  @override
   String get cacheClearedSuccessfully => 'Кэш успешно очищен';
 
   @override
@@ -375,13 +372,13 @@ class AppLocalizationsRu extends AppLocalizations {
   String get testAllMirrorsButton => 'Проверить все зеркала';
 
   @override
-  String get statusLabelText => 'Статус:';
+  String get statusLabelText => 'Статус: ';
 
   @override
-  String get lastOkLabelText => 'Последний OK:';
+  String get lastOkLabelText => 'Последний OK: ';
 
   @override
-  String get rttLabelText => 'RTT:';
+  String get rttLabelText => 'RTT: ';
 
   @override
   String get millisecondsText => 'мс';
@@ -399,16 +396,16 @@ class AppLocalizationsRu extends AppLocalizations {
   String get cacheStatisticsTitle => 'Статистика кэша';
 
   @override
-  String get totalEntriesText => 'Всего записей';
+  String get totalEntriesText => 'Всего записей: ';
 
   @override
-  String get searchCacheText => 'Кэш поиска';
+  String get searchCacheText => 'Кэш поиска: ';
 
   @override
-  String get topicCacheText => 'Кэш топиков';
+  String get topicCacheText => 'Кэш топиков: ';
 
   @override
-  String get memoryUsageText => 'Использование памяти';
+  String get memoryUsageText => 'Использование памяти: ';
 
   @override
   String get clearAllCacheButton => 'Очистить весь кэш';
@@ -522,30 +519,6 @@ class AppLocalizationsRu extends AppLocalizations {
   String get logoutButtonText => 'Выйти';
 
   @override
-  String get enterCredentialsText => 'Пожалуйста, введите имя пользователя и пароль';
-
-  @override
-  String get loggingInText => 'Вход в систему...';
-
-  @override
-  String get loginSuccessMessage => 'Вход выполнен успешно!';
-
-  @override
-  String get loginFailedMessage => 'Вход не удался. Пожалуйста, проверьте учетные данные';
-
-  @override
-  String get loginErrorMessage => 'Ошибка входа: \$error';
-
-  @override
-  String get testingConnectionText => 'Проверка соединения...';
-
-  @override
-  String get connectionSuccessMessage => 'Соединение установлено! Используется: \$endpoint';
-
-  @override
-  String get connectionFailedMessage => 'Проверка соединения не удалась: \$error';
-
-  @override
   String get loggingOutText => 'Выход из системы...';
 
   @override
@@ -651,7 +624,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get playerScreenTitle => 'Плеер';
 
   @override
-  String get failedToLoadAudioMessage => 'Не удалось загрузить аудио';
+  String get failedToLoadAudioMessage => 'Не удалось загрузить аудиокнигу';
 
   @override
   String get byAuthorText => 'автор: \$author';
@@ -660,7 +633,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get chaptersLabelText => 'Главы';
 
   @override
-  String get downloadFunctionalityComingSoonMessage => 'Функция загрузки скоро появится';
+  String get downloadFunctionalityComingSoonMessage => 'Функция загрузки скоро появится!';
 
   @override
   String get sampleTitleText => 'Пример аудиокниги';
@@ -684,10 +657,10 @@ class AppLocalizationsRu extends AppLocalizations {
   String get topicScreenTitle => 'Топик';
 
   @override
-  String get requestTimedOutMessage => 'Время запроса истекло';
+  String get requestTimedOutMessage => 'Время запроса истекло. Проверьте соединение.';
 
   @override
-  String get networkErrorMessage => 'Сетевая ошибка';
+  String get networkErrorMessage => 'Сетевая ошибка: \$error';
 
   @override
   String get errorLoadingTopicMessage => 'Ошибка загрузки топика: \$error';
@@ -705,7 +678,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get magnetLinkLabelText => 'Magnet-ссылка';
 
   @override
-  String get magnetLinkCopiedMessage => 'Magnet-ссылка скопирована';
+  String get magnetLinkCopiedMessage => 'Magnet-ссылка скопирована в буфер обмена';
 
   @override
   String get copyToClipboardMessage => '\$label скопирован в буфер обмена';
@@ -729,6 +702,9 @@ class AppLocalizationsRu extends AppLocalizations {
   String get authDialogTitle => 'Вход';
 
   @override
+  String get authHelpText => 'Введите ваши учетные данные';
+
+  @override
   String get cacheClearedSuccessfullyMessage => 'Кэш успешно очищен';
 
   @override
@@ -742,58 +718,4 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get mirrorHealthCheckCompletedMessage => 'Проверка здоровья зеркал завершена';
-
-  @override
-  String get mirrorStatusDisabledText => 'Отключено';
-
-  @override
-  String get mirrorResponseTimeText => 'Время отклика';
-
-  @override
-  String get mirrorLastCheckText => 'Последняя проверка';
-
-  @override
-  String get mirrorTestIndividualText => 'Проверить отдельное зеркало';
-
-  @override
-  String get languageDescriptionText => 'Выберите язык';
-
-  @override
-  String get themeTitleText => 'Тема';
-
-  @override
-  String get themeDescriptionText => 'Выберите тему приложения';
-
-  @override
-  String get darkModeText => 'Темный режим';
-
-  @override
-  String get highContrastText => 'Высокая контрастность';
-
-  @override
-  String get audioTitleText => 'Аудио';
-
-  @override
-  String get audioDescriptionText => 'Настройки аудио';
-
-  @override
-  String get playbackSpeedText => 'Скорость воспроизведения';
-
-  @override
-  String get skipDurationText => 'Длительность пропуска';
-
-  @override
-  String get downloadsTitleText => 'Загрузки';
-
-  @override
-  String get downloadsDescriptionText => 'Настройки загрузки';
-
-  @override
-  String get downloadLocationText => 'Место загрузки';
-
-  @override
-  String get wifiOnlyDownloadsText => 'Загрузки только по Wi-Fi';
-
-  @override
-  String get copyToClipboardLabelText => 'Скопировать в буфер';
 }

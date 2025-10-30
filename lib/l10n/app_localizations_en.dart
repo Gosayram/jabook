@@ -204,9 +204,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get logoutButton => 'Logout';
 
   @override
-  String get authHelpText => 'Enter your credentials';
-
-  @override
   String get cacheClearedSuccessfully => 'Cache cleared successfully';
 
   @override
@@ -375,13 +372,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get testAllMirrorsButton => 'Test All Mirrors';
 
   @override
-  String get statusLabelText => 'Status:';
+  String get statusLabelText => 'Status: ';
 
   @override
-  String get lastOkLabelText => 'Last OK:';
+  String get lastOkLabelText => 'Last OK: ';
 
   @override
-  String get rttLabelText => 'RTT:';
+  String get rttLabelText => 'RTT: ';
 
   @override
   String get millisecondsText => 'ms';
@@ -399,16 +396,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cacheStatisticsTitle => 'Cache Statistics';
 
   @override
-  String get totalEntriesText => 'Total entries';
+  String get totalEntriesText => 'Total entries: ';
 
   @override
-  String get searchCacheText => 'Search cache';
+  String get searchCacheText => 'Search cache: ';
 
   @override
-  String get topicCacheText => 'Topic cache';
+  String get topicCacheText => 'Topic cache: ';
 
   @override
-  String get memoryUsageText => 'Memory usage';
+  String get memoryUsageText => 'Memory usage: ';
 
   @override
   String get clearAllCacheButton => 'Clear All Cache';
@@ -522,30 +519,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get logoutButtonText => 'Logout';
 
   @override
-  String get enterCredentialsText => 'Please enter username and password';
-
-  @override
-  String get loggingInText => 'Logging in...';
-
-  @override
-  String get loginSuccessMessage => 'Login successful!';
-
-  @override
-  String get loginFailedMessage => 'Login failed. Please check your credentials';
-
-  @override
-  String get loginErrorMessage => 'Login error: \$error';
-
-  @override
-  String get testingConnectionText => 'Testing connection...';
-
-  @override
-  String get connectionSuccessMessage => 'Connection established! Using: \$endpoint';
-
-  @override
-  String get connectionFailedMessage => 'Connection test failed: \$error';
-
-  @override
   String get loggingOutText => 'Logging out...';
 
   @override
@@ -651,7 +624,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get playerScreenTitle => 'Player';
 
   @override
-  String get failedToLoadAudioMessage => 'Failed to load audio';
+  String get failedToLoadAudioMessage => 'Failed to load audiobook';
 
   @override
   String get byAuthorText => 'by: \$author';
@@ -660,7 +633,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chaptersLabelText => 'Chapters';
 
   @override
-  String get downloadFunctionalityComingSoonMessage => 'Download functionality coming soon';
+  String get downloadFunctionalityComingSoonMessage => 'Download functionality coming soon!';
 
   @override
   String get sampleTitleText => 'Sample Audiobook';
@@ -684,10 +657,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get topicScreenTitle => 'Topic';
 
   @override
-  String get requestTimedOutMessage => 'Request timed out';
+  String get requestTimedOutMessage => 'Request timed out. Check your connection.';
 
   @override
-  String get networkErrorMessage => 'Network error';
+  String get networkErrorMessage => 'Network error: \$error';
 
   @override
   String get errorLoadingTopicMessage => 'Error loading topic: \$error';
@@ -705,7 +678,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get magnetLinkLabelText => 'Magnet link';
 
   @override
-  String get magnetLinkCopiedMessage => 'Magnet link copied';
+  String get magnetLinkCopiedMessage => 'Magnet link copied to clipboard';
 
   @override
   String get copyToClipboardMessage => '\$label copied to clipboard';
@@ -729,6 +702,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get authDialogTitle => 'Login';
 
   @override
+  String get authHelpText => 'Enter your credentials';
+
+  @override
   String get cacheClearedSuccessfullyMessage => 'Cache cleared successfully';
 
   @override
@@ -742,58 +718,4 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get mirrorHealthCheckCompletedMessage => 'Mirror health check completed';
-
-  @override
-  String get mirrorStatusDisabledText => 'Disabled';
-
-  @override
-  String get mirrorResponseTimeText => 'Response time';
-
-  @override
-  String get mirrorLastCheckText => 'Last check';
-
-  @override
-  String get mirrorTestIndividualText => 'Test individual mirror';
-
-  @override
-  String get languageDescriptionText => 'Select language';
-
-  @override
-  String get themeTitleText => 'Theme';
-
-  @override
-  String get themeDescriptionText => 'Select app theme';
-
-  @override
-  String get darkModeText => 'Dark mode';
-
-  @override
-  String get highContrastText => 'High contrast';
-
-  @override
-  String get audioTitleText => 'Audio';
-
-  @override
-  String get audioDescriptionText => 'Audio settings';
-
-  @override
-  String get playbackSpeedText => 'Playback speed';
-
-  @override
-  String get skipDurationText => 'Skip duration';
-
-  @override
-  String get downloadsTitleText => 'Downloads';
-
-  @override
-  String get downloadsDescriptionText => 'Download settings';
-
-  @override
-  String get downloadLocationText => 'Download location';
-
-  @override
-  String get wifiOnlyDownloadsText => 'WiFi only downloads';
-
-  @override
-  String get copyToClipboardLabelText => 'Copy to clipboard';
 }

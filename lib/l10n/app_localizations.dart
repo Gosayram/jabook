@@ -485,12 +485,6 @@ abstract class AppLocalizations {
   /// **'Logout'**
   String get logoutButton;
 
-  /// Help text for authentication
-  ///
-  /// In en, this message translates to:
-  /// **'Enter your credentials'**
-  String get authHelpText;
-
   /// Message for successful cache clearing
   ///
   /// In en, this message translates to:
@@ -827,22 +821,22 @@ abstract class AppLocalizations {
   /// **'Test All Mirrors'**
   String get testAllMirrorsButton;
 
-  /// Label for status
+  /// Label for displaying status
   ///
   /// In en, this message translates to:
-  /// **'Status:'**
+  /// **'Status: '**
   String get statusLabelText;
 
   /// Label for last OK time
   ///
   /// In en, this message translates to:
-  /// **'Last OK:'**
+  /// **'Last OK: '**
   String get lastOkLabelText;
 
   /// Label for round trip time
   ///
   /// In en, this message translates to:
-  /// **'RTT:'**
+  /// **'RTT: '**
   String get rttLabelText;
 
   /// Abbreviation for milliseconds
@@ -869,7 +863,7 @@ abstract class AppLocalizations {
   /// **'Progress'**
   String get downloadProgressLabelText;
 
-  /// Title for cache statistics
+  /// Title for cache statistics section
   ///
   /// In en, this message translates to:
   /// **'Cache Statistics'**
@@ -878,25 +872,25 @@ abstract class AppLocalizations {
   /// Label for total entries
   ///
   /// In en, this message translates to:
-  /// **'Total entries'**
+  /// **'Total entries: '**
   String get totalEntriesText;
 
-  /// Label for search cache
+  /// Label for search cache size
   ///
   /// In en, this message translates to:
-  /// **'Search cache'**
+  /// **'Search cache: '**
   String get searchCacheText;
 
-  /// Label for topic cache
+  /// Label for topic cache size
   ///
   /// In en, this message translates to:
-  /// **'Topic cache'**
+  /// **'Topic cache: '**
   String get topicCacheText;
 
   /// Label for memory usage
   ///
   /// In en, this message translates to:
-  /// **'Memory usage'**
+  /// **'Memory usage: '**
   String get memoryUsageText;
 
   /// Text for clear cache button
@@ -1121,54 +1115,6 @@ abstract class AppLocalizations {
   /// **'Logout'**
   String get logoutButtonText;
 
-  /// Prompt for entering credentials
-  ///
-  /// In en, this message translates to:
-  /// **'Please enter username and password'**
-  String get enterCredentialsText;
-
-  /// Message during login
-  ///
-  /// In en, this message translates to:
-  /// **'Logging in...'**
-  String get loggingInText;
-
-  /// Message for successful login
-  ///
-  /// In en, this message translates to:
-  /// **'Login successful!'**
-  String get loginSuccessMessage;
-
-  /// Message for failed login
-  ///
-  /// In en, this message translates to:
-  /// **'Login failed. Please check your credentials'**
-  String get loginFailedMessage;
-
-  /// Message for login error
-  ///
-  /// In en, this message translates to:
-  /// **'Login error: \$error'**
-  String get loginErrorMessage;
-
-  /// Message during connection test
-  ///
-  /// In en, this message translates to:
-  /// **'Testing connection...'**
-  String get testingConnectionText;
-
-  /// Message for successful connection test
-  ///
-  /// In en, this message translates to:
-  /// **'Connection established! Using: \$endpoint'**
-  String get connectionSuccessMessage;
-
-  /// Message for failed connection test
-  ///
-  /// In en, this message translates to:
-  /// **'Connection test failed: \$error'**
-  String get connectionFailedMessage;
-
   /// Message during logout
   ///
   /// In en, this message translates to:
@@ -1379,10 +1325,10 @@ abstract class AppLocalizations {
   /// **'Player'**
   String get playerScreenTitle;
 
-  /// Message for failed audio loading
+  /// Message for failed audiobook loading
   ///
   /// In en, this message translates to:
-  /// **'Failed to load audio'**
+  /// **'Failed to load audiobook'**
   String get failedToLoadAudioMessage;
 
   /// Text for showing author
@@ -1391,7 +1337,7 @@ abstract class AppLocalizations {
   /// **'by: \$author'**
   String get byAuthorText;
 
-  /// Label for chapters
+  /// Label for chapters section
   ///
   /// In en, this message translates to:
   /// **'Chapters'**
@@ -1400,7 +1346,7 @@ abstract class AppLocalizations {
   /// Message for upcoming download feature
   ///
   /// In en, this message translates to:
-  /// **'Download functionality coming soon'**
+  /// **'Download functionality coming soon!'**
   String get downloadFunctionalityComingSoonMessage;
 
   /// Sample audiobook title
@@ -1448,13 +1394,13 @@ abstract class AppLocalizations {
   /// Message for request timeout
   ///
   /// In en, this message translates to:
-  /// **'Request timed out'**
+  /// **'Request timed out. Check your connection.'**
   String get requestTimedOutMessage;
 
   /// Message for network error
   ///
   /// In en, this message translates to:
-  /// **'Network error'**
+  /// **'Network error: \$error'**
   String get networkErrorMessage;
 
   /// Message for topic loading error
@@ -1490,7 +1436,7 @@ abstract class AppLocalizations {
   /// Message for magnet link copied
   ///
   /// In en, this message translates to:
-  /// **'Magnet link copied'**
+  /// **'Magnet link copied to clipboard'**
   String get magnetLinkCopiedMessage;
 
   /// Message for copy to clipboard
@@ -1535,6 +1481,12 @@ abstract class AppLocalizations {
   /// **'Login'**
   String get authDialogTitle;
 
+  /// Help text for authentication
+  ///
+  /// In en, this message translates to:
+  /// **'Enter your credentials'**
+  String get authHelpText;
+
   /// Message for successful cache clearing
   ///
   /// In en, this message translates to:
@@ -1564,114 +1516,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Mirror health check completed'**
   String get mirrorHealthCheckCompletedMessage;
-
-  /// Status for disabled mirror
-  ///
-  /// In en, this message translates to:
-  /// **'Disabled'**
-  String get mirrorStatusDisabledText;
-
-  /// Label for mirror response time
-  ///
-  /// In en, this message translates to:
-  /// **'Response time'**
-  String get mirrorResponseTimeText;
-
-  /// Label for last check time
-  ///
-  /// In en, this message translates to:
-  /// **'Last check'**
-  String get mirrorLastCheckText;
-
-  /// Text for testing individual mirror
-  ///
-  /// In en, this message translates to:
-  /// **'Test individual mirror'**
-  String get mirrorTestIndividualText;
-
-  /// Description for language setting
-  ///
-  /// In en, this message translates to:
-  /// **'Select language'**
-  String get languageDescriptionText;
-
-  /// Title for theme
-  ///
-  /// In en, this message translates to:
-  /// **'Theme'**
-  String get themeTitleText;
-
-  /// Description for theme
-  ///
-  /// In en, this message translates to:
-  /// **'Select app theme'**
-  String get themeDescriptionText;
-
-  /// Label for dark mode
-  ///
-  /// In en, this message translates to:
-  /// **'Dark mode'**
-  String get darkModeText;
-
-  /// Label for high contrast
-  ///
-  /// In en, this message translates to:
-  /// **'High contrast'**
-  String get highContrastText;
-
-  /// Title for audio
-  ///
-  /// In en, this message translates to:
-  /// **'Audio'**
-  String get audioTitleText;
-
-  /// Description for audio
-  ///
-  /// In en, this message translates to:
-  /// **'Audio settings'**
-  String get audioDescriptionText;
-
-  /// Label for playback speed
-  ///
-  /// In en, this message translates to:
-  /// **'Playback speed'**
-  String get playbackSpeedText;
-
-  /// Label for skip duration
-  ///
-  /// In en, this message translates to:
-  /// **'Skip duration'**
-  String get skipDurationText;
-
-  /// Title for downloads
-  ///
-  /// In en, this message translates to:
-  /// **'Downloads'**
-  String get downloadsTitleText;
-
-  /// Description for downloads
-  ///
-  /// In en, this message translates to:
-  /// **'Download settings'**
-  String get downloadsDescriptionText;
-
-  /// Label for download location
-  ///
-  /// In en, this message translates to:
-  /// **'Download location'**
-  String get downloadLocationText;
-
-  /// Label for WiFi only downloads
-  ///
-  /// In en, this message translates to:
-  /// **'WiFi only downloads'**
-  String get wifiOnlyDownloadsText;
-
-  /// Label for copy to clipboard
-  ///
-  /// In en, this message translates to:
-  /// **'Copy to clipboard'**
-  String get copyToClipboardLabelText;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {
