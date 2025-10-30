@@ -250,4 +250,107 @@ class PermissionService {
     );
     return result ?? false;
   }
+
+  /// Requests all essential permissions for the app to function.
+  ///
+  /// This method requests permissions that are critical for app functionality
+  /// and should be called during app initialization.
+  Future<Map<String, bool>> requestEssentialPermissions() async {
+    final results = <String, bool>{};
+    
+    try {
+      await _logger.log(
+        level: 'info',
+        subsystem: 'permissions',
+        message: 'Requesting essential permissions',
+      );
+
+      // Request storage permission
+      results['storage'] = await requestStoragePermission();
+      
+      // Request notification permission
+      results['notification'] = await requestNotificationPermission();
+      
+      // Request audio permissions for media playback
+      results['audio'] = await _requestAudioPermissions();
+      
+      // Request network permissions
+      results['network'] = await _requestNetworkPermissions();
+
+      await _logger.log(
+        level: 'info',
+        subsystem: 'permissions',
+        message: 'Essential permissions requested',
+        extra: results,
+      );
+
+      return results;
+    } on Exception catch (e) {
+      await _logger.log(
+        level: 'error',
+        subsystem: 'permissions',
+        message: 'Error requesting essential permissions',
+        cause: e.toString(),
+      );
+      return results;
+    }
+  }
+
+  /// Requests audio-related permissions for media playback.
+  Future<bool> _requestAudioPermissions() async {
+    try {
+      // Request wake lock permission for audio playback
+      final wakeLockStatus = await Permission.ignoreBatteryOptimizations.request();
+      
+      return wakeLockStatus.isGranted;
+    } on Exception catch (e) {
+      await _logger.log(
+        level: 'error',
+        subsystem: 'permissions',
+        message: 'Error requesting audio permissions',
+        cause: e.toString(),
+      );
+      return false;
+    }
+  }
+
+  /// Requests network-related permissions.
+  Future<bool> _requestNetworkPermissions() async {
+    try {
+      // Internet permission is usually granted by default
+      return true;
+    } on Exception catch (e) {
+      await _logger.log(
+        level: 'error',
+        subsystem: 'permissions',
+        message: 'Error requesting network permissions',
+        cause: e.toString(),
+      );
+      return false;
+    }
+  }
+
+  /// Checks if all essential permissions are granted.
+  Future<bool> hasAllEssentialPermissions() async {
+    final storage = await hasStoragePermission();
+    final notification = await hasNotificationPermission();
+    final audio = await _hasAudioPermissions();
+    final network = _hasNetworkPermissions();
+    
+    return storage && notification && audio && network;
+  }
+
+  /// Checks if audio permissions are granted.
+  Future<bool> _hasAudioPermissions() async {
+    try {
+      final wakeLockStatus = await Permission.ignoreBatteryOptimizations.status;
+      
+      return wakeLockStatus.isGranted;
+    } on Exception {
+      return false;
+    }
+  }
+
+  /// Checks if network permissions are granted.
+  bool _hasNetworkPermissions() => true; // Internet permission is usually granted by default
 }

@@ -4,13 +4,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:jabook/app/router/app_router.dart';
 import 'package:jabook/app/theme/app_theme.dart';
+import 'package:jabook/core/auth/rutracker_auth.dart';
 import 'package:jabook/core/cache/rutracker_cache_service.dart';
 import 'package:jabook/core/config/app_config.dart';
 import 'package:jabook/core/config/language_manager.dart';
 import 'package:jabook/core/config/language_provider.dart';
 import 'package:jabook/core/endpoints/endpoint_manager.dart';
 import 'package:jabook/core/logging/environment_logger.dart';
+import 'package:jabook/core/permissions/permission_service.dart';
 import 'package:jabook/data/db/app_database.dart';
+import 'package:jabook/features/auth/data/providers/auth_provider.dart';
+import 'package:jabook/features/auth/data/repositories/auth_repository_impl.dart';
 import 'package:jabook/l10n/app_localizations.dart';
 
 /// Main application widget for JaBook audiobook player.
@@ -39,6 +43,8 @@ class _JaBookAppState extends ConsumerState<JaBookApp> {
   final AppDatabase database = AppDatabase();
   final RuTrackerCacheService cacheService = RuTrackerCacheService();
   final LanguageManager languageManager = LanguageManager();
+  RuTrackerAuth? _rutrackerAuth;
+  AuthRepositoryImpl? _authRepository;
 
   // Avoid recreating the key on every build.
   final GlobalKey<ScaffoldMessengerState> _scaffoldMessengerKey =
@@ -61,6 +67,9 @@ class _JaBookAppState extends ConsumerState<JaBookApp> {
 
       // Initialize database and cache
       await _initializeDatabase();
+
+      // Request essential permissions
+      await _requestEssentialPermissions();
 
       // Initialize configuration based on flavor
       await _initializeEnvironment();
@@ -106,12 +115,34 @@ class _JaBookAppState extends ConsumerState<JaBookApp> {
     await database.initialize();
     await cacheService.initialize(database.database);
     
-    // Initialize EndpointManager with default endpoints
-    final endpointManager = EndpointManager(database.database);
-    await endpointManager.initializeDefaultEndpoints();
-    await endpointManager.initialize(); // Perform initial health checks
+    // AuthRepository will be initialized in build method when context is available
     
-    logger.i('Database, cache, and endpoints initialized successfully');
+    // Initialize EndpointManager with default endpoints and health checks
+    final endpointManager = EndpointManager(database.database);
+    await endpointManager.initialize(); // This includes initializeDefaultEndpoints() and health checks
+    
+    logger.i('Database, cache, auth, and endpoints initialized successfully');
+  }
+
+  Future<void> _requestEssentialPermissions() async {
+    try {
+      logger.i('Requesting essential permissions...');
+      
+      final permissionService = PermissionService();
+      final results = await permissionService.requestEssentialPermissions();
+      
+      final grantedCount = results.values.where((granted) => granted).length;
+      final totalCount = results.length;
+      
+      logger.i('Permissions requested: $grantedCount/$totalCount granted');
+      
+      if (grantedCount < totalCount) {
+        logger.w('Some permissions were not granted. App functionality may be limited.');
+      }
+    } on Exception catch (e, stackTrace) {
+      logger.e('Failed to request essential permissions', error: e, stackTrace: stackTrace);
+      // Continue app initialization even if permissions fail
+    }
   }
 
   Future<void> _initializeDevEnvironment() async {
@@ -162,31 +193,41 @@ class _JaBookAppState extends ConsumerState<JaBookApp> {
     // Watch for language changes to trigger rebuild
     ref.watch(languageProvider);
 
-    return FutureBuilder<Locale>(
-      future: languageManager.getLocale(),
-      builder: (context, snapshot) {
-        final locale = snapshot.data ?? const Locale('en', 'US');
-        
-        return MaterialApp.router(
-          title: config.appName,
-          theme: AppTheme.lightTheme,
-          darkTheme: AppTheme.darkTheme,
-          routerConfig: router,
-          debugShowCheckedModeBanner: config.isDebug,
-          scaffoldMessengerKey: config.isDebug ? _scaffoldMessengerKey : null,
-          localizationsDelegates: const [
-            AppLocalizations.delegate,
-            GlobalMaterialLocalizations.delegate,
-            GlobalWidgetsLocalizations.delegate,
-            GlobalCupertinoLocalizations.delegate,
-          ],
-          supportedLocales: const [
-            Locale('en', 'US'), // English
-            Locale('ru', 'RU'), // Russian
-          ],
-          locale: locale,
-        );
-      },
+    return ProviderScope(
+      overrides: [
+        // Override AuthRepositoryProvider with actual implementation
+        authRepositoryProvider.overrideWith((ref) {
+          _rutrackerAuth ??= RuTrackerAuth(context);
+          _authRepository ??= AuthRepositoryImpl(_rutrackerAuth!);
+          return _authRepository!;
+        }),
+      ],
+      child: FutureBuilder<Locale>(
+        future: languageManager.getLocale(),
+        builder: (context, snapshot) {
+          final locale = snapshot.data ?? const Locale('en', 'US');
+          
+          return MaterialApp.router(
+            title: config.appName,
+            theme: AppTheme.lightTheme,
+            darkTheme: AppTheme.darkTheme,
+            routerConfig: router,
+            debugShowCheckedModeBanner: config.isDebug,
+            scaffoldMessengerKey: config.isDebug ? _scaffoldMessengerKey : null,
+            localizationsDelegates: const [
+              AppLocalizations.delegate,
+              GlobalMaterialLocalizations.delegate,
+              GlobalWidgetsLocalizations.delegate,
+              GlobalCupertinoLocalizations.delegate,
+            ],
+            supportedLocales: const [
+              Locale('en', 'US'), // English
+              Locale('ru', 'RU'), // Russian
+            ],
+            locale: locale,
+          );
+        },
+      ),
     );
   }
 }
