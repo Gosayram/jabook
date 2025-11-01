@@ -15,42 +15,42 @@ help:
 	@echo "=========================================="
 	@echo ""
 	@echo "Development Commands:"
-	@echo "  make install          - Install dependencies"
-	@echo "  make clean            - Clean build artifacts"
-	@echo "  make run-dev         - Run app in development mode"
-	@echo "  make run-stage       - Run app in stage mode"
-	@echo "  make run-prod        - Run app in production mode"
-	@echo "  make setup-android    - Setup Android project configuration"
-	@echo "  make setup-ios        - Setup iOS project configuration"
-	@echo "  make setup           - Setup both Android and iOS projects"
-	@echo "  make sign-android    - Generate signing keys and setup Android signing"
-	@echo "  make use-existing-android-cert - Use existing Android certificate without regeneration"
+	@echo "  make install                       - Install dependencies"
+	@echo "  make clean                         - Clean build artifacts"
+	@echo "  make run-dev                       - Run app in development mode"
+	@echo "  make run-stage                     - Run app in stage mode"
+	@echo "  make run-prod                      - Run app in production mode"
+	@echo "  make setup-android                 - Setup Android project configuration"
+	@echo "  make setup-ios                     - Setup iOS project configuration"
+	@echo "  make setup                         - Setup both Android and iOS projects"
+	@echo "  make sign-android                  - Generate signing keys and setup Android signing"
+	@echo "  make use-existing-android-cert     - Use existing Android certificate without regeneration"
 	@echo ""
 	@echo "Build Commands:"
-	@echo "  make build-android-dev    - Build Android dev variant"
-	@echo "  make build-android-stage  - Build Android stage variant"
-	@echo "  make build-android-prod   - Build Android production variant"
-	@echo "  make build-ios-dev        - Build iOS dev variant"
-	@echo "  make build-ios-stage      - Build iOS stage variant"
-	@echo "  make build-ios-prod       - Build iOS production variant"
-	@echo "  make build-android-signed-apk - Build signed universal APK for all architectures"
+	@echo "  make build-android-dev             - Build Android dev variant"
+	@echo "  make build-android-stage           - Build Android stage variant"
+	@echo "  make build-android-prod            - Build Android production variant"
+	@echo "  make build-ios-dev                 - Build iOS dev variant"
+	@echo "  make build-ios-stage               - Build iOS stage variant"
+	@echo "  make build-ios-prod                - Build iOS production variant"
+	@echo "  make build-android-signed-apk      - Build signed universal APK for all architectures"
 	@echo ""
 	@echo "Testing Commands:"
-	@echo "  make test               - Run all tests"
-	@echo "  make test-unit          - Run unit tests"
-	@echo "  make test-widget        - Run widget tests"
-	@echo "  make test-integration   - Run integration tests"
+	@echo "  make test                          - Run all tests"
+	@echo "  make test-unit                     - Run unit tests"
+	@echo "  make test-widget                   - Run widget tests"
+	@echo "  make test-integration              - Run integration tests"
 	@echo ""
 	@echo "Analysis Commands:"
-	@echo "  make analyze            - Run Flutter analysis"
-	@echo "  make format             - Format code"
-	@echo "  make lint               - Run linting"
-	@echo "  make l10n               - Generate localization files (flutter gen-l10n)"
+	@echo "  make analyze                       - Run Flutter analysis"
+	@echo "  make fmt                           - Format code"
+	@echo "  make lint                          - Run linting"
+	@echo "  make l10n                          - Generate localization files (flutter gen-l10n)"
 	@echo ""
 	@echo "Release Commands:"
-	@echo "  make release-android    - Build all signed Android release variants"
-	@echo "  make release-ios       - Build all iOS release variants"
-	@echo "  make release           - Build all release variants"
+	@echo "  make release-android               - Build all signed Android release variants"
+	@echo "  make release-ios                   - Build all iOS release variants"
+	@echo "  make release                       - Build all release variants"
 
 # Development commands
 .PHONY: install
@@ -197,9 +197,9 @@ l10n:
 	flutter gen-l10n
 	@echo "Localization files generated in lib/l10n/"
 
-.PHONY: format
-format:
-	flutter format .
+.PHONY: fmt
+fmt:
+	dart format .
 
 .PHONY: lint
 lint:
