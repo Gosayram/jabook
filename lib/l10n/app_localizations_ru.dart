@@ -39,6 +39,9 @@ class AppLocalizationsRu extends AppLocalizations {
   String get noResults => 'Результатов не найдено';
 
   @override
+  String get noResultsForFilters => 'Нет результатов для выбранных фильтров';
+
+  @override
   String get loading => 'Загрузка...';
 
   @override
@@ -64,6 +67,9 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get resultsFromCache => 'Результаты из кэша';
+
+  @override
+  String get resultsFromLocalDb => 'Результаты из локальной базы данных';
 
   @override
   String get enterSearchTerm => 'Введите поисковый запрос чтобы начать';
@@ -93,15 +99,13 @@ class AppLocalizationsRu extends AppLocalizations {
   String get addBookComingSoon => 'Функция добавления книг скоро появится!';
 
   @override
-  String get libraryContentPlaceholder =>
-      'Содержимое библиотеки будет отображаться здесь';
+  String get libraryContentPlaceholder => 'Содержимое библиотеки будет отображаться здесь';
 
   @override
   String get authenticationRequired => 'Требуется аутентификация';
 
   @override
-  String get loginRequiredForSearch =>
-      'Пожалуйста, войдите в RuTracker для доступа к функции поиска.';
+  String get loginRequiredForSearch => 'Пожалуйста, войдите в RuTracker для доступа к функции поиска.';
 
   @override
   String get cancel => 'Отмена';
@@ -110,12 +114,10 @@ class AppLocalizationsRu extends AppLocalizations {
   String get login => 'Войти';
 
   @override
-  String get networkConnectionError =>
-      'Не удалось подключиться. Проверьте интернет или выберите другое зеркало в Настройках → Источники.';
+  String get networkConnectionError => 'Не удалось подключиться. Проверьте интернет или выберите другое зеркало в Настройках → Источники.';
 
   @override
-  String get connectionFailed =>
-      'Соединение не установлено. Проверьте интернет-подключение или попробуйте другое зеркало.';
+  String get connectionFailed => 'Соединение не установлено. Проверьте интернет-подключение или попробуйте другое зеркало.';
 
   @override
   String get chooseMirror => 'Выбрать зеркало';
@@ -124,16 +126,13 @@ class AppLocalizationsRu extends AppLocalizations {
   String get networkErrorUser => 'Проблема с сетевым подключением';
 
   @override
-  String get dnsError =>
-      'Не удалось разрешить домен. Это может быть связано с сетевыми ограничениями или неактивным зеркалом.';
+  String get dnsError => 'Не удалось разрешить домен. Это может быть связано с сетевыми ограничениями или неактивным зеркалом.';
 
   @override
-  String get timeoutError =>
-      'Запрос занял слишком много времени. Проверьте соединение и попробуйте снова.';
+  String get timeoutError => 'Запрос занял слишком много времени. Проверьте соединение и попробуйте снова.';
 
   @override
-  String get serverError =>
-      'Сервер временно недоступен. Попробуйте позже или выберите другое зеркало.';
+  String get serverError => 'Сервер временно недоступен. Попробуйте позже или выберите другое зеркало.';
 
   @override
   String get recentSearches => 'Недавние поиски';
@@ -160,8 +159,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get permissionsRequired => 'Требуются разрешения';
 
   @override
-  String get permissionExplanation =>
-      'Это приложение требует разрешения на хранение для загрузки и сохранения аудиофайлов. Пожалуйста, предоставьте необходимые разрешения для продолжения.';
+  String get permissionExplanation => 'Это приложение требует разрешения на хранение для загрузки и сохранения аудиофайлов. Пожалуйста, предоставьте необходимые разрешения для продолжения.';
 
   @override
   String get grantPermissions => 'Предоставить разрешения';
@@ -170,8 +168,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get permissionDeniedTitle => 'В разрешении отказано';
 
   @override
-  String get permissionDeniedMessage =>
-      'Для загрузки файлов требуется разрешение на хранение. Пожалуйста, включите его в настройках приложения.';
+  String get permissionDeniedMessage => 'Для загрузки файлов требуется разрешение на хранение. Пожалуйста, включите его в настройках приложения.';
 
   @override
   String get permissionDeniedButton => 'Открыть настройки';
@@ -279,8 +276,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get chaptersLabel => 'Главы';
 
   @override
-  String get downloadFunctionalityComingSoon =>
-      'Функция загрузки скоро появится';
+  String get downloadFunctionalityComingSoon => 'Функция загрузки скоро появится';
 
   @override
   String get requestTimedOut => 'Время запроса истекло';
@@ -439,12 +435,10 @@ class AppLocalizationsRu extends AppLocalizations {
   String get webViewTitle => 'RuTracker';
 
   @override
-  String get webViewLoginInstruction =>
-      'Войдите в RuTracker. После успешного входа нажмите «Готово», чтобы извлечь cookie для клиента.';
+  String get webViewLoginInstruction => 'Войдите в RuTracker. После успешного входа нажмите «Готово», чтобы извлечь cookie для клиента.';
 
   @override
-  String get cloudflareMessage =>
-      'Этот сайт использует проверки безопасности Cloudflare. Пожалуйста, дождитесь завершения проверки и взаимодействуйте с открывшейся страницей при необходимости.';
+  String get cloudflareMessage => 'Этот сайт использует проверки безопасности Cloudflare. Пожалуйста, дождитесь завершения проверки и взаимодействуйте с открывшейся страницей при необходимости.';
 
   @override
   String get retryButtonText => 'Повторить';
@@ -453,8 +447,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get goHomeButtonText => 'Перейти на главную';
 
   @override
-  String get browserCheckMessage =>
-      'Сайт проверяет ваш браузер - пожалуйста, дождитесь завершения проверки на этой странице.';
+  String get browserCheckMessage => 'Сайт проверяет ваш браузер - пожалуйста, дождитесь завершения проверки на этой странице.';
 
   @override
   String get downloadTorrentTitle => 'Скачать торрент';
@@ -469,15 +462,13 @@ class AppLocalizationsRu extends AppLocalizations {
   String get downloadButtonText => 'Скачать';
 
   @override
-  String get downloadInBrowserMessage =>
-      'Чтобы скачать файл, пожалуйста, откройте ссылку в браузере';
+  String get downloadInBrowserMessage => 'Чтобы скачать файл, пожалуйста, откройте ссылку в браузере';
 
   @override
   String get importAudiobooksTitle => 'Импортировать аудиокниги';
 
   @override
-  String get selectFilesMessage =>
-      'Выберите файлы аудиокниг с вашего устройства для добавления в библиотеку';
+  String get selectFilesMessage => 'Выберите файлы аудиокниг с вашего устройства для добавления в библиотеку';
 
   @override
   String get importButtonText => 'Импортировать';
@@ -495,19 +486,16 @@ class AppLocalizationsRu extends AppLocalizations {
   String get scanFolderTitle => 'Сканировать папку';
 
   @override
-  String get scanFolderMessage =>
-      'Сканируйте папку на вашем устройстве в поисках файлов аудиокниг';
+  String get scanFolderMessage => 'Сканируйте папку на вашем устройстве в поисках файлов аудиокниг';
 
   @override
   String get scanButtonText => 'Сканировать';
 
   @override
-  String get scanSuccessMessage =>
-      'Найдено и импортировано \$count аудиокнига(и)';
+  String get scanSuccessMessage => 'Найдено и импортировано \$count аудиокнига(и)';
 
   @override
-  String get noAudiobooksFoundMessage =>
-      'В выбранной папке не найдено файлов аудиокниг';
+  String get noAudiobooksFoundMessage => 'В выбранной папке не найдено файлов аудиокниг';
 
   @override
   String get noFolderSelectedMessage => 'Папка не выбрана';
@@ -546,8 +534,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get logoutErrorMessage => 'Ошибка выхода: \$error';
 
   @override
-  String get configureMirrorsSubtitle =>
-      'Настройте и проверьте зеркала RuTracker';
+  String get configureMirrorsSubtitle => 'Настройте и проверьте зеркала RuTracker';
 
   @override
   String get playbackSpeedTitle => 'Скорость воспроизведения';
@@ -568,22 +555,19 @@ class AppLocalizationsRu extends AppLocalizations {
   String get wifiOnlyDownloadsTitle => 'Загрузки только по Wi-Fi';
 
   @override
-  String get failedToLoadMirrorsMessage =>
-      'Не удалось загрузить зеркала: \$error';
+  String get failedToLoadMirrorsMessage => 'Не удалось загрузить зеркала: \$error';
 
   @override
   String get mirrorTestSuccessMessage => 'Зеркало \$url проверено успешно';
 
   @override
-  String get mirrorTestFailedMessage =>
-      'Не удалось проверить зеркало \$url: \$error';
+  String get mirrorTestFailedMessage => 'Не удалось проверить зеркало \$url: \$error';
 
   @override
   String get mirrorStatusText => 'Зеркало \$status';
 
   @override
-  String get failedToUpdateMirrorMessage =>
-      'Не удалось обновить зеркало: \$error';
+  String get failedToUpdateMirrorMessage => 'Не удалось обновить зеркало: \$error';
 
   @override
   String get addCustomMirrorTitle => 'Добавить зеркало';
@@ -613,8 +597,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get mirrorSettingsTitle => 'Настройки зеркал';
 
   @override
-  String get mirrorSettingsDescription =>
-      'Настройте зеркала RuTracker для оптимальной производительности поиска. Включенные зеркала будут использоваться автоматически.';
+  String get mirrorSettingsDescription => 'Настройте зеркала RuTracker для оптимальной производительности поиска. Включенные зеркала будут использоваться автоматически.';
 
   @override
   String get addCustomMirrorButtonText => 'Добавить зеркало';
@@ -656,8 +639,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get chaptersLabelText => 'Главы';
 
   @override
-  String get downloadFunctionalityComingSoonMessage =>
-      'Функция загрузки скоро появится!';
+  String get downloadFunctionalityComingSoonMessage => 'Функция загрузки скоро появится!';
 
   @override
   String get sampleTitleText => 'Пример аудиокниги';
@@ -681,8 +663,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get topicScreenTitle => 'Топик';
 
   @override
-  String get requestTimedOutMessage =>
-      'Время запроса истекло. Проверьте соединение.';
+  String get requestTimedOutMessage => 'Время запроса истекло. Проверьте соединение.';
 
   @override
   String get networkErrorMessage => 'Сетевая ошибка: \$error';
@@ -703,8 +684,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get magnetLinkLabelText => 'Magnet-ссылка';
 
   @override
-  String get magnetLinkCopiedMessage =>
-      'Magnet-ссылка скопирована в буфер обмена';
+  String get magnetLinkCopiedMessage => 'Magnet-ссылка скопирована в буфер обмена';
 
   @override
   String get copyToClipboardMessage => '\$label скопирован в буфер обмена';
@@ -743,6 +723,5 @@ class AppLocalizationsRu extends AppLocalizations {
   String get logsExportedSuccessfullyMessage => 'Логи успешно экспортированы';
 
   @override
-  String get mirrorHealthCheckCompletedMessage =>
-      'Проверка здоровья зеркал завершена';
+  String get mirrorHealthCheckCompletedMessage => 'Проверка здоровья зеркал завершена';
 }

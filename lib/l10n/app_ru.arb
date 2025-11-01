@@ -37,6 +37,10 @@
   "@noResults": {
     "description": "Сообщение при отсутствии результатов поиска"
   },
+  "noResultsForFilters": "Нет результатов для выбранных фильтров",
+  "@noResultsForFilters": {
+    "description": "Сообщение когда нет результатов соответствующих выбранным фильтрам категорий"
+  },
   "loading": "Загрузка...",
   "@loading": {
     "description": "Текст индикатора загрузки"
@@ -72,6 +76,10 @@
   "resultsFromCache": "Результаты из кэша",
   "@resultsFromCache": {
     "description": "Индикатор что результаты из кэша"
+  },
+  "resultsFromLocalDb": "Результаты из локальной базы данных",
+  "@resultsFromLocalDb": {
+    "description": "Индикатор что результаты из локальной базы данных"
   },
   "enterSearchTerm": "Введите поисковый запрос чтобы начать",
   "@enterSearchTerm": {

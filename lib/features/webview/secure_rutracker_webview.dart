@@ -1,9 +1,11 @@
 import 'dart:convert';
 
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:jabook/core/endpoints/endpoint_manager.dart';
+import 'package:jabook/core/logging/structured_logger.dart';
 import 'package:jabook/core/net/dio_client.dart';
 import 'package:jabook/data/db/app_database.dart';
 import 'package:jabook/l10n/app_localizations.dart';
@@ -69,8 +71,40 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
 
   Future<void> _resolveInitialUrl() async {
     final db = AppDatabase().database;
-    final endpoint = await EndpointManager(db).getActiveEndpoint();
-    initialUrl = endpoint;
+    final endpointManager = EndpointManager(db);
+
+    try {
+      var endpoint = await endpointManager.getActiveEndpoint();
+
+      // Validate endpoint is accessible by quick check
+      // If not, fallback to rutracker.me
+      try {
+        final dio = await DioClient.instance;
+        await dio
+            .get(
+              '$endpoint/forum/index.php',
+              options: Options(
+                receiveTimeout: const Duration(seconds: 5),
+                validateStatus: (status) => status != null && status < 500,
+              ),
+            )
+            .timeout(const Duration(seconds: 5));
+      } on Exception {
+        // Endpoint not accessible, use fallback
+        await StructuredLogger().log(
+          level: 'warning',
+          subsystem: 'webview',
+          message: 'Active endpoint not accessible, using fallback',
+          extra: {'failed_endpoint': endpoint},
+        );
+        endpoint = 'https://rutracker.me';
+      }
+
+      initialUrl = endpoint;
+    } on Exception {
+      // If all fails, use hardcoded fallback
+      initialUrl = 'https://rutracker.me';
+    }
   }
 
   Future<void> _restoreCookies() async {
@@ -197,22 +231,45 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
               onPressed: () async {
                 try {
                   final url = await _webViewController.getUrl();
-                  final targetUrl =
-                      url ?? (initialUrl != null ? WebUri(initialUrl!) : null);
+                  String? urlString;
 
-                  if (targetUrl != null) {
-                    final uri = Uri.parse(targetUrl.toString());
-                    if (await canLaunchUrl(uri)) {
-                      await launchUrl(uri,
-                          mode: LaunchMode.externalApplication);
+                  if (url != null) {
+                    urlString = url.toString();
+                  } else if (initialUrl != null) {
+                    urlString = initialUrl;
+                  }
+
+                  if (urlString != null && urlString.isNotEmpty) {
+                    // Validate and parse URL
+                    final uri = Uri.tryParse(urlString);
+                    if (uri != null && uri.hasScheme && uri.hasAuthority) {
+                      if (await canLaunchUrl(uri)) {
+                        await launchUrl(uri,
+                            mode: LaunchMode.externalApplication);
+                      } else {
+                        if (!mounted) return;
+                        // ignore: use_build_context_synchronously
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Не удалось открыть в браузере'),
+                            duration: Duration(seconds: 2),
+                          ),
+                        );
+                      }
                     } else {
                       if (!mounted) return;
                       // ignore: use_build_context_synchronously
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Не удалось открыть в браузере'),
-                          duration: Duration(seconds: 2),
+                        SnackBar(
+                          content: Text('Неверный формат URL: $urlString'),
+                          duration: const Duration(seconds: 3),
                         ),
+                      );
+                      await StructuredLogger().log(
+                        level: 'warning',
+                        subsystem: 'webview',
+                        message: 'Invalid URL format for browser',
+                        extra: {'url': urlString},
                       );
                     }
                   } else {
@@ -227,6 +284,12 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
                   }
                 } on Exception catch (e) {
                   if (!mounted) return;
+                  await StructuredLogger().log(
+                    level: 'error',
+                    subsystem: 'webview',
+                    message: 'Failed to open URL in browser',
+                    cause: e.toString(),
+                  );
                   // ignore: use_build_context_synchronously
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
@@ -464,18 +527,42 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
                               onPressed: () async {
                                 try {
                                   final url = await _webViewController.getUrl();
-                                  final targetUrl = url ??
-                                      (initialUrl != null
-                                          ? WebUri(initialUrl!)
-                                          : null);
-                                  if (targetUrl != null) {
-                                    final uri = Uri.parse(targetUrl.toString());
-                                    if (await canLaunchUrl(uri)) {
-                                      await launchUrl(uri,
-                                          mode: LaunchMode.externalApplication);
+                                  String? urlString;
+
+                                  if (url != null) {
+                                    urlString = url.toString();
+                                  } else if (initialUrl != null) {
+                                    urlString = initialUrl;
+                                  }
+
+                                  if (urlString != null &&
+                                      urlString.isNotEmpty) {
+                                    final uri = Uri.tryParse(urlString);
+                                    if (uri != null &&
+                                        uri.hasScheme &&
+                                        uri.hasAuthority) {
+                                      if (await canLaunchUrl(uri)) {
+                                        await launchUrl(uri,
+                                            mode:
+                                                LaunchMode.externalApplication);
+                                      }
+                                    } else {
+                                      await StructuredLogger().log(
+                                        level: 'warning',
+                                        subsystem: 'webview',
+                                        message:
+                                            'Invalid URL format for browser',
+                                        extra: {'url': urlString},
+                                      );
                                     }
                                   }
                                 } on Exception catch (e) {
+                                  await StructuredLogger().log(
+                                    level: 'error',
+                                    subsystem: 'webview',
+                                    message: 'Failed to open in browser',
+                                    cause: e.toString(),
+                                  );
                                   debugPrint('Failed to open in browser: $e');
                                 }
                               },

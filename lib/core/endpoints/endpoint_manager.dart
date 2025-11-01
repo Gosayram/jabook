@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:jabook/core/errors/failures.dart';
 import 'package:jabook/core/logging/structured_logger.dart';
 import 'package:jabook/core/net/dio_client.dart';
+import 'package:jabook/core/net/user_agent_manager.dart';
 import 'package:sembast/sembast.dart';
 
 /// Manages RuTracker endpoint configuration and health monitoring.
@@ -40,8 +41,8 @@ class EndpointManager {
   /// Initializes the default RuTracker endpoints if none exist.
   Future<void> initializeDefaultEndpoints() async {
     final defaultEndpoints = [
-      {'url': 'https://rutracker.net', 'priority': 1, 'enabled': true},
-      {'url': 'https://rutracker.me', 'priority': 2, 'enabled': true},
+      {'url': 'https://rutracker.me', 'priority': 1, 'enabled': true},
+      {'url': 'https://rutracker.net', 'priority': 2, 'enabled': true},
       {'url': 'https://rutracker.org', 'priority': 3, 'enabled': true},
     ];
 
@@ -125,10 +126,17 @@ class EndpointManager {
 
     // Retry logic for temporary errors
     Exception? lastException;
+    var lastAttempt = 0;
     for (var attempt = 0; attempt <= _maxRetries; attempt++) {
+      lastAttempt = attempt;
       try {
         // Ensure HTTP client has the same cookies as WebView (Cloudflare/auth)
         await DioClient.syncCookiesFromWebView();
+
+        // Get real User-Agent for Cloudflare compatibility
+        final userAgentManager = UserAgentManager();
+        final userAgent = await userAgentManager.getUserAgent();
+
         final startTime = DateTime.now();
         final dio = await DioClient.instance;
         final cacheBuster = DateTime.now().millisecondsSinceEpoch;
@@ -141,12 +149,14 @@ class EndpointManager {
             sendTimeout: const Duration(seconds: 15),
             validateStatus: (status) => true,
             headers: {
+              'User-Agent': userAgent,
               'Accept':
                   'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
               'Accept-Language': 'ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7',
               'Accept-Encoding': 'gzip, deflate, br',
               'Upgrade-Insecure-Requests': '1',
               'Cache-Control': 'no-cache',
+              'Referer': '$endpoint/',
             },
           ),
           queryParameters: {'_': cacheBuster},
@@ -178,14 +188,16 @@ class EndpointManager {
             body.contains('cf-ray');
 
         // Consider healthy: 2xx-3xx, or CF challenge (403/503 + CF headers/body)
+        // Even if CF challenge, mirror is working, just protected
         final isHealthy = (status >= 200 && status < 400) ||
             ((status == 403 || status == 503) && (isCloudflare || looksLikeCf));
 
         // Calculate health score (0-100)
         var healthScore = _calculateHealthScore(rtt, isHealthy ? 200 : status);
-        if (status == 403 && isCloudflare) {
-          // Penalize a bit but keep usable
-          healthScore = (healthScore - 10).clamp(40, 100);
+        if ((status == 403 || status == 503) && (isCloudflare || looksLikeCf)) {
+          // Cloudflare challenge: mirror is working, just protected
+          // Give it a reasonable health score (60-80) to indicate it's usable
+          healthScore = (healthScore - 20).clamp(60, 85);
         }
 
         endpoints[endpointIndex].addAll({
@@ -214,6 +226,27 @@ class EndpointManager {
         return; // Success, exit retry loop
       } on DioException catch (e) {
         lastException = e;
+
+        // DNS errors are not retryable - mark as unavailable immediately
+        if (e.type == DioExceptionType.connectionError) {
+          final message = e.message?.toLowerCase() ?? '';
+          if (message.contains('host lookup') ||
+              message.contains('no address associated with hostname') ||
+              message.contains('name or service not known')) {
+            await StructuredLogger().log(
+              level: 'error',
+              subsystem: 'endpoints',
+              message: 'DNS lookup failed for endpoint',
+              extra: {
+                'url': endpoint,
+                'error': e.message,
+                'attempt': attempt + 1,
+              },
+            );
+            // DNS error, not retryable - break immediately
+            break;
+          }
+        }
 
         // Check if this is a retryable error
         final isRetryable = _isRetryableError(e);
@@ -244,52 +277,70 @@ class EndpointManager {
     // If we reach here, all retries failed or error is not retryable
     if (lastException is DioException) {
       final e = lastException;
+
+      // Check if this is a DNS error for special handling
+      final message = e.message?.toLowerCase() ?? '';
+      final isDnsError = e.type == DioExceptionType.connectionError &&
+          (message.contains('host lookup') ||
+              message.contains('no address associated with hostname') ||
+              message.contains('name or service not known'));
+
       // Handle Dio-specific errors with more context
-      final errorType = switch (e.type) {
-        DioExceptionType.connectionTimeout => 'Connection timeout',
-        DioExceptionType.sendTimeout => 'Send timeout',
-        DioExceptionType.receiveTimeout => 'Receive timeout',
-        DioExceptionType.badResponse => 'Bad response',
-        DioExceptionType.cancel => 'Request cancelled',
-        DioExceptionType.connectionError => 'Connection error',
-        DioExceptionType.badCertificate => 'Bad certificate',
-        DioExceptionType.unknown => 'Unknown error',
-      };
+      final errorType = isDnsError
+          ? 'DNS lookup failed'
+          : switch (e.type) {
+              DioExceptionType.connectionTimeout => 'Connection timeout',
+              DioExceptionType.sendTimeout => 'Send timeout',
+              DioExceptionType.receiveTimeout => 'Receive timeout',
+              DioExceptionType.badResponse => 'Bad response',
+              DioExceptionType.cancel => 'Request cancelled',
+              DioExceptionType.connectionError => 'Connection error',
+              DioExceptionType.badCertificate => 'Bad certificate',
+              DioExceptionType.unknown => 'Unknown error',
+            };
 
       // Handle DioException after retries exhausted or not retryable
-      // Don't disable mirror immediately: require at least 2 consecutive failures
+      // DNS errors: disable immediately, no need for multiple failures
+      // Other errors: require at least 2 consecutive failures
       final newFailureCount = failureCount + 1;
       final cooldown = _calculateCooldown(newFailureCount);
+
+      // DNS errors disable immediately, others require 2 failures
+      final shouldDisable = isDnsError || newFailureCount >= 2;
+
       endpoints[endpointIndex].addAll({
-        'enabled': newFailureCount >= 2 ? false : true,
-        'health_score': newFailureCount >= 2
+        'enabled': shouldDisable ? false : true,
+        'health_score': shouldDisable
             ? 0
             : (endpoints[endpointIndex]['health_score'] as int? ?? 0)
                 .clamp(0, 40),
         'failure_count': newFailureCount,
         'last_failure': DateTime.now().toIso8601String(),
         'last_error': '$errorType: ${e.message ?? e.toString()}',
-        'cooldown_until':
-            newFailureCount >= 2 ? cooldown?.toIso8601String() : null,
+        'cooldown_until': shouldDisable ? cooldown?.toIso8601String() : null,
       });
       await _endpointsRef.put(_db, {'endpoints': endpoints});
       // Log failure with detailed context
       await StructuredLogger().log(
-        level: 'warning',
+        level: isDnsError ? 'error' : 'warning',
         subsystem: 'endpoints',
-        message: 'HealthCheck failed for $endpoint',
+        message: isDnsError
+            ? 'HealthCheck failed: DNS lookup error'
+            : 'HealthCheck failed for $endpoint',
         cause: '$errorType: ${e.message ?? e.toString()}',
         extra: {
           'failure_count': newFailureCount,
           'cooldown_until': cooldown?.toIso8601String(),
           'error_type': errorType,
           'response_status': e.response?.statusCode,
-          'retries_attempted': _maxRetries + 1,
+          'retries_attempted': lastAttempt + 1,
+          'is_dns_error': isDnsError,
+          'disabled': shouldDisable,
         },
       );
 
       // Notify if this was the active mirror and it's now disabled
-      if (newFailureCount >= 2) {
+      if (shouldDisable) {
         final record = await _endpointsRef.get(_db);
         final activeUrl = record?[_activeUrlKey] as String?;
         if (activeUrl == endpoint) {
@@ -300,6 +351,7 @@ class EndpointManager {
             extra: {
               'url': endpoint,
               'failure_count': newFailureCount,
+              'reason': isDnsError ? 'DNS lookup failed' : 'Multiple failures',
             },
           );
         }
@@ -337,14 +389,27 @@ class EndpointManager {
   }
 
   /// Checks if an error is retryable (temporary network issues).
-  bool _isRetryableError(DioException e) =>
-      e.type == DioExceptionType.connectionTimeout ||
-      e.type == DioExceptionType.receiveTimeout ||
-      e.type == DioExceptionType.sendTimeout ||
-      e.type == DioExceptionType.connectionError ||
-      (e.type == DioExceptionType.badResponse &&
-          e.response?.statusCode != null &&
-          e.response!.statusCode! >= 500); // Server errors
+  ///
+  /// DNS errors are NOT retryable as they indicate endpoint is unavailable.
+  bool _isRetryableError(DioException e) {
+    // DNS errors are not retryable - endpoint is unavailable
+    if (e.type == DioExceptionType.connectionError) {
+      final message = e.message?.toLowerCase() ?? '';
+      if (message.contains('host lookup') ||
+          message.contains('no address associated with hostname') ||
+          message.contains('name or service not known')) {
+        return false; // DNS error, not retryable
+      }
+    }
+    // Other connection errors, timeouts, and server errors are retryable
+    return e.type == DioExceptionType.connectionTimeout ||
+        e.type == DioExceptionType.receiveTimeout ||
+        e.type == DioExceptionType.sendTimeout ||
+        e.type == DioExceptionType.connectionError ||
+        (e.type == DioExceptionType.badResponse &&
+            e.response?.statusCode != null &&
+            (e.response!.statusCode! >= 500)); // Server errors
+  }
 
   /// Calculates health score based on RTT and status code
   int _calculateHealthScore(int rtt, int statusCode) {
@@ -373,6 +438,62 @@ class EndpointManager {
   /// Placeholder: returns true by default.
   bool _validateSignature(Headers? headers) => true;
 
+  /// Performs a quick availability check for an endpoint (DNS + basic connectivity).
+  ///
+  /// Returns true if endpoint is available (can resolve DNS and connect),
+  /// false otherwise.
+  Future<bool> _quickAvailabilityCheck(String endpoint) async {
+    try {
+      final userAgentManager = UserAgentManager();
+      final userAgent = await userAgentManager.getUserAgent();
+
+      final dioInstance = Dio(BaseOptions(
+        connectTimeout: const Duration(seconds: 3),
+        receiveTimeout: const Duration(seconds: 3),
+      ));
+
+      await dioInstance
+          .get(
+            '$endpoint/forum/index.php',
+            options: Options(
+              validateStatus: (status) => status != null && status < 500,
+              headers: {
+                'User-Agent': userAgent,
+                'Accept':
+                    'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+              },
+            ),
+          )
+          .timeout(const Duration(seconds: 3));
+      return true;
+    } on DioException catch (e) {
+      // DNS errors indicate endpoint is unavailable
+      if (e.type == DioExceptionType.connectionError) {
+        final message = e.message?.toLowerCase() ?? '';
+        if (message.contains('host lookup') ||
+            message.contains('no address associated with hostname') ||
+            message.contains('name or service not known')) {
+          await StructuredLogger().log(
+            level: 'warning',
+            subsystem: 'endpoints',
+            message: 'DNS lookup failed for endpoint availability check',
+            extra: {'url': endpoint, 'error': e.message},
+          );
+          return false; // DNS error, endpoint unavailable
+        }
+      }
+      // Other errors (timeouts, connection errors) might be temporary
+      // Consider endpoint available but might have temporary issues
+      return true;
+    } on Exception catch (_) {
+      // Any other error - consider unavailable
+      return false;
+    } on Object catch (_) {
+      // Non-Exception errors - consider unavailable
+      return false;
+    }
+  }
+
   /// Persists the updated endpoints into the database.
   Future<void> _updateEndpoints(List<Map<String, dynamic>> endpoints) async {
     await _endpointsRef.put(_db, {'endpoints': endpoints});
@@ -387,7 +508,7 @@ class EndpointManager {
     final endpoints =
         List<Map<String, dynamic>>.from((record?['endpoints'] as List?) ?? []);
 
-    // 1) If we already have a chosen active mirror, keep using it while it's not in cooldown/disabled
+    // 1) If we already have a chosen active mirror, check availability before using it
     final activeFromStore = record?[_activeUrlKey] as String?;
     if (activeFromStore != null) {
       final idx = endpoints.indexWhere((e) => e['url'] == activeFromStore);
@@ -399,13 +520,25 @@ class EndpointManager {
             (DateTime.tryParse(cooldownUntilStr)?.isAfter(DateTime.now()) ??
                 false);
         if (enabled && !inCooldown) {
-          await StructuredLogger().log(
-            level: 'info',
-            subsystem: 'endpoints',
-            message: 'Using sticky active endpoint',
-            extra: {'url': activeFromStore},
-          );
-          return activeFromStore;
+          // Quick availability check (DNS + basic connectivity)
+          final isAvailable = await _quickAvailabilityCheck(activeFromStore);
+          if (isAvailable) {
+            await StructuredLogger().log(
+              level: 'info',
+              subsystem: 'endpoints',
+              message: 'Using sticky active endpoint',
+              extra: {'url': activeFromStore},
+            );
+            return activeFromStore;
+          } else {
+            // Sticky endpoint unavailable, log and continue to selection
+            await StructuredLogger().log(
+              level: 'warning',
+              subsystem: 'endpoints',
+              message: 'Sticky endpoint unavailable, selecting new one',
+              extra: {'url': activeFromStore},
+            );
+          }
         }
       }
     }
@@ -442,7 +575,15 @@ class EndpointManager {
       final fallbackEndpoints =
           endpoints.where((e) => e['enabled'] == true).toList();
       if (fallbackEndpoints.isEmpty) {
-        throw const NetworkFailure('No healthy endpoints available');
+        // Ultimate fallback: use rutracker.me as guaranteed working mirror
+        const hardcodedFallback = 'https://rutracker.me';
+        await StructuredLogger().log(
+          level: 'warning',
+          subsystem: 'endpoints',
+          message: 'No endpoints available, using hardcoded fallback',
+          extra: {'url': hardcodedFallback},
+        );
+        return hardcodedFallback;
       }
 
       // Sort fallback by priority

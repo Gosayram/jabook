@@ -37,6 +37,10 @@
   "@noResults": {
     "description": "Message when no search results"
   },
+  "noResultsForFilters": "No results match the selected filters",
+  "@noResultsForFilters": {
+    "description": "Message when no results match selected category filters"
+  },
   "loading": "Loading...",
   "@loading": {
     "description": "Loading indicator text"
@@ -72,6 +76,10 @@
   "resultsFromCache": "Results from cache",
   "@resultsFromCache": {
     "description": "Indicator that results are from cache"
+  },
+  "resultsFromLocalDb": "Results from local database",
+  "@resultsFromLocalDb": {
+    "description": "Indicator that results are from local database"
   },
   "enterSearchTerm": "Enter a search term to begin",
   "@enterSearchTerm": {

@@ -230,92 +230,164 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     // Ensure cookies are synced and validated before network search
     await DioClient.syncCookiesFromWebView();
 
-    // Fetch from network using EndpointManager
-    try {
-      final endpointManager = ref.read(endpointManagerProvider);
-      final activeEndpoint = await endpointManager.getActiveEndpoint();
-      final dio = await DioClient.instance;
-      final response = await dio
-          .get(
-            '$activeEndpoint/forum/search.php',
-            queryParameters: {
-              'nm': query,
-              'o': '1', // Sort by relevance
-              'start': _startOffset,
-            },
-            cancelToken: _cancelToken,
-          )
-          .timeout(const Duration(seconds: 30));
+    // Fetch from network using EndpointManager with automatic fallback
+    final endpointManager = ref.read(endpointManagerProvider);
+    final dio = await DioClient.instance;
 
-      if (response.statusCode == 200) {
-        final results = await _parser.parseSearchResults(response.data);
-
-        // Cache the results
-        // Convert Audiobook objects to maps for caching
-        final resultsMap = results.map(_audiobookToMap).toList();
-        await _cacheService.cacheSearchResults(query, resultsMap);
-
-        if (updateExisting && mounted) {
-          // Update existing results (for background refresh from local DB)
-          setState(() {
-            final networkResults = results.map(_audiobookToMap).toList();
-            // Merge with existing, avoiding duplicates
-            final existingIds =
-                _searchResults.map((r) => r['id'] as String?).toSet();
-            final newResults = networkResults
-                .where((r) => !existingIds.contains(r['id'] as String?))
-                .toList();
-            _searchResults = [..._searchResults, ...newResults];
-            _isFromLocalDb = false; // Switch to network results
-            _errorKind = null;
-            _errorMessage = null;
-            _hasMore = results.isNotEmpty;
-          });
-        } else {
-          setState(() {
-            // Convert Audiobook objects to maps for UI
-            _searchResults = results.map(_audiobookToMap).toList();
-            _isLoading = false;
-            _isFromCache = false;
-            _isFromLocalDb = false;
-            _errorKind = null;
-            _errorMessage = null;
-            _hasMore = results.isNotEmpty;
-            _showHistory = false;
+    // Get all enabled endpoints sorted by priority and health
+    final allEndpoints = await endpointManager.getAllEndpoints();
+    final enabledEndpoints =
+        allEndpoints.where((e) => e['enabled'] == true).toList()
+          ..sort((a, b) {
+            // Sort by health score (descending), then priority (ascending)
+            final healthA = a['health_score'] as int? ?? 0;
+            final healthB = b['health_score'] as int? ?? 0;
+            if (healthA != healthB) return healthB.compareTo(healthA);
+            return (a['priority'] as int? ?? 999)
+                .compareTo(b['priority'] as int? ?? 999);
           });
 
-          // Save to search history
-          if (_historyService != null && query.isNotEmpty) {
-            await _historyService!.saveSearchQuery(query);
-            await _loadSearchHistory();
+    // Ensure we have at least the fallback endpoint
+    if (enabledEndpoints.isEmpty) {
+      enabledEndpoints.add({
+        'url': 'https://rutracker.me',
+        'priority': 1,
+        'health_score': 100,
+      });
+    }
+
+    // Try each endpoint until one succeeds
+    Exception? lastException;
+    for (final endpointData in enabledEndpoints) {
+      final endpoint = endpointData['url'] as String;
+
+      try {
+        final response = await dio
+            .get(
+              '$endpoint/forum/search.php',
+              queryParameters: {
+                'nm': query,
+                'o': '1', // Sort by relevance
+                'start': _startOffset,
+              },
+              cancelToken: _cancelToken,
+            )
+            .timeout(const Duration(seconds: 30));
+
+        if (response.statusCode == 200) {
+          final results = await _parser.parseSearchResults(response.data);
+
+          // Cache the results
+          // Convert Audiobook objects to maps for caching
+          final resultsMap = results.map(_audiobookToMap).toList();
+          await _cacheService.cacheSearchResults(query, resultsMap);
+
+          if (updateExisting && mounted) {
+            // Update existing results (for background refresh from local DB)
+            setState(() {
+              final networkResults = results.map(_audiobookToMap).toList();
+              // Merge with existing, avoiding duplicates
+              final existingIds =
+                  _searchResults.map((r) => r['id'] as String?).toSet();
+              final newResults = networkResults
+                  .where((r) => !existingIds.contains(r['id'] as String?))
+                  .toList();
+              _searchResults = [..._searchResults, ...newResults];
+              _isFromLocalDb = false; // Switch to network results
+              _errorKind = null;
+              _errorMessage = null;
+              _hasMore = results.isNotEmpty;
+            });
+          } else {
+            setState(() {
+              // Convert Audiobook objects to maps for UI
+              _searchResults = results.map(_audiobookToMap).toList();
+              _isLoading = false;
+              _isFromCache = false;
+              _isFromLocalDb = false;
+              _errorKind = null;
+              _errorMessage = null;
+              _hasMore = results.isNotEmpty;
+              _showHistory = false;
+            });
+
+            // Save to search history
+            if (_historyService != null && query.isNotEmpty) {
+              await _historyService!.saveSearchQuery(query);
+              await _loadSearchHistory();
+            }
           }
+
+          // Success - break retry loop
+          return;
+        } else {
+          // Non-200 status - try next endpoint if it's a server error (5xx)
+          if (response.statusCode != null && response.statusCode! >= 500) {
+            continue;
+          }
+          // Client error (4xx) - don't retry, show error
+          if (mounted) {
+            setState(() {
+              _isLoading = false;
+              _errorKind = 'network';
+              _errorMessage = 'HTTP ${response.statusCode}';
+            });
+          }
+          return;
         }
-      } else {
-        setState(() {
-          _isLoading = false;
-          _errorKind = 'network';
-          _errorMessage = 'HTTP ${response.statusCode}';
-        });
-      }
-    } on TimeoutException {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-          _errorKind = 'timeout';
-          _errorMessage = 'Request timed out';
-        });
-      }
-    } on DioException catch (e) {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
+      } on TimeoutException {
+        lastException = TimeoutException('Request timed out');
+        // Continue to next endpoint
+        continue;
+      } on DioException catch (e) {
+        lastException = e;
 
         if (CancelToken.isCancel(e)) {
           // Silently ignore cancelled request
           return;
         }
-        // Handle authentication errors specifically
+
+        // DNS errors should skip to next endpoint immediately
+        if (e.type == DioExceptionType.connectionError) {
+          final message = e.message?.toLowerCase() ?? '';
+          if (message.contains('host lookup') ||
+              message.contains('no address associated with hostname') ||
+              message.contains('name or service not known')) {
+            // DNS error - try next endpoint
+            continue;
+          }
+        }
+
+        // For connection errors, timeouts, or server errors (5xx), try next endpoint
+        if (e.type == DioExceptionType.connectionError ||
+            e.type == DioExceptionType.connectionTimeout ||
+            e.type == DioExceptionType.receiveTimeout ||
+            e.type == DioExceptionType.sendTimeout ||
+            (e.type == DioExceptionType.badResponse &&
+                e.response?.statusCode != null &&
+                e.response!.statusCode! >= 500)) {
+          // Try next endpoint
+          continue;
+        }
+
+        // For auth errors or client errors (4xx except 5xx), don't retry
+        // Break and show error
+        break;
+      } on Exception catch (e) {
+        lastException = e;
+        // Try next endpoint for other exceptions
+        continue;
+      }
+    }
+
+    // All endpoints failed - show error
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+      });
+
+      if (lastException is DioException) {
+        final e = lastException;
         if (e.message?.contains('Authentication required') ?? false) {
           setState(() {
             _errorKind = 'auth';
@@ -331,7 +403,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         } else if (e.type == DioExceptionType.connectionError) {
           setState(() {
             _errorKind = 'mirror';
-            _errorMessage = 'Cannot connect to mirror';
+            _errorMessage = 'Cannot connect to any mirror';
           });
         } else {
           setState(() {
@@ -339,13 +411,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             _errorMessage = e.message ?? 'Unknown error';
           });
         }
-      }
-    } on Exception catch (e) {
-      if (mounted) {
+      } else {
         setState(() {
-          _isLoading = false;
           _errorKind = 'network';
-          _errorMessage = e.toString();
+          _errorMessage = lastException?.toString() ?? 'All mirrors failed';
         });
       }
     }
@@ -536,9 +605,12 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                   ),
                 ),
               if (_isLoading)
-                const Expanded(
-                  child: Center(
-                    child: CircularProgressIndicator(),
+                Expanded(
+                  child: Semantics(
+                    label: AppLocalizations.of(context)?.loading ?? 'Loading',
+                    child: const Center(
+                      child: CircularProgressIndicator(),
+                    ),
                   ),
                 )
               else if (_hasSearched)
@@ -575,7 +647,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
-                                  'Результаты из локальной базы данных',
+                                  AppLocalizations.of(context)
+                                          ?.resultsFromLocalDb ??
+                                      'Results from local database',
                                   style: TextStyle(
                                     color: Colors.amber[700],
                                     fontSize: 12,
@@ -600,8 +674,16 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 )
               else
                 Expanded(
-                  child: Center(
-                    child: Text(AppLocalizations.of(context)!.enterSearchTerm),
+                  child: Semantics(
+                    label: AppLocalizations.of(context)?.enterSearchTerm ??
+                        'Enter a search term to begin',
+                    child: Center(
+                      child: Text(
+                        AppLocalizations.of(context)?.enterSearchTerm ??
+                            'Enter a search term to begin',
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
                   ),
                 ),
             ],
@@ -783,20 +865,27 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   Widget _buildSearchResults() {
     final filteredResults = _getFilteredResults();
 
+    final localizations = AppLocalizations.of(context);
+
     if (filteredResults.isEmpty && _searchResults.isNotEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(
-              Icons.filter_alt_off,
-              size: 48,
-              color: Colors.grey,
+            Semantics(
+              label: 'No results match the selected filters',
+              child: const Icon(
+                Icons.filter_alt_off,
+                size: 48,
+                color: Colors.grey,
+              ),
             ),
             const SizedBox(height: 16),
             Text(
-              'Нет результатов для выбранных фильтров',
+              localizations?.noResultsForFilters ??
+                  'No results match the selected filters',
               style: Theme.of(context).textTheme.bodyLarge,
+              textAlign: TextAlign.center,
             ),
           ],
         ),
@@ -805,7 +894,14 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
     if (filteredResults.isEmpty) {
       return Center(
-        child: Text(AppLocalizations.of(context)!.noResults),
+        child: Semantics(
+          label: localizations?.noResults ?? 'No results found',
+          child: Text(
+            localizations?.noResults ?? 'No results found',
+            style: Theme.of(context).textTheme.bodyLarge,
+            textAlign: TextAlign.center,
+          ),
+        ),
       );
     }
 
@@ -910,9 +1006,12 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     IconData iconData;
     Color iconColor;
 
+    final localizations = AppLocalizations.of(context);
+
     switch (_errorKind) {
       case 'auth':
-        title = 'Authentication Required';
+        title =
+            localizations?.authenticationRequired ?? 'Authentication Required';
         iconData = Icons.lock_outline;
         iconColor = Colors.orange.shade600;
         actions = [
@@ -932,21 +1031,21 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               await _performSearch();
             },
             icon: const Icon(Icons.vpn_key),
-            label: const Text('Login to RuTracker'),
+            label: Text(localizations?.loginButton ?? 'Login to RuTracker'),
           ),
         ];
-        message =
-            'Для поиска аудиокниг требуется авторизация на RuTracker. Нажмите кнопку "Авторизоваться" чтобы открыть безопасную форму входа.';
+        message = localizations?.loginRequiredForSearch ??
+            'Please login to RuTracker to access search functionality.';
         break;
       case 'timeout':
-        title = 'Request Timed Out';
+        title = localizations?.timeoutError ?? 'Request Timed Out';
         iconData = Icons.timer_off;
         iconColor = Colors.amber.shade600;
         actions = [
           ElevatedButton.icon(
             onPressed: _performSearch,
             icon: const Icon(Icons.refresh),
-            label: const Text('Retry Search'),
+            label: Text(localizations?.retry ?? 'Retry'),
           ),
           OutlinedButton.icon(
             onPressed: () => unawaited(Navigator.push(
@@ -954,14 +1053,14 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               MaterialPageRoute(builder: (_) => const MirrorSettingsScreen()),
             ).then((_) => _loadActiveHost())),
             icon: const Icon(Icons.dns),
-            label: const Text('Change Mirror'),
+            label: Text(localizations?.changeMirror ?? 'Change Mirror'),
           ),
         ];
-        message =
-            'Запрос занял слишком много времени. Возможно, зеркало перегружено или у вас медленное подключение. Попробуйте выбрать другое зеркало или повторить попытку позже.';
+        message = localizations?.timeoutError ??
+            'Request took too long. Please check your connection and try again.';
         break;
       case 'mirror':
-        title = 'Mirror Unavailable';
+        title = localizations?.networkErrorUser ?? 'Mirror Unavailable';
         iconData = Icons.cloud_off;
         iconColor = Colors.red.shade600;
         actions = [
@@ -985,7 +1084,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               }
             },
             icon: const Icon(Icons.auto_fix_high),
-            label: const Text('Auto-Fix Mirrors'),
+            label: Text(localizations?.retry ?? 'Auto-Fix'),
           ),
           OutlinedButton.icon(
             onPressed: () => unawaited(Navigator.push(
@@ -993,22 +1092,22 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               MaterialPageRoute(builder: (_) => const MirrorSettingsScreen()),
             ).then((_) => _loadActiveHost())),
             icon: const Icon(Icons.settings),
-            label: const Text('Manage Mirrors'),
+            label: Text(localizations?.chooseMirror ?? 'Manage Mirrors'),
           ),
         ];
-        message =
-            'The current RuTracker mirror is not responding. You can try to automatically find a working mirror or manually manage them.';
+        message = localizations?.connectionFailed ??
+            'Connection failed. Please check your internet connection or try a different mirror.';
         break;
       case 'network':
       default:
-        title = 'Network Error';
+        title = localizations?.networkErrorUser ?? 'Network Error';
         iconData = Icons.wifi_off;
         iconColor = Colors.red.shade400;
         actions = [
           ElevatedButton.icon(
             onPressed: _performSearch,
             icon: const Icon(Icons.refresh),
-            label: const Text('Retry'),
+            label: Text(localizations?.retry ?? 'Retry'),
           ),
           OutlinedButton.icon(
             onPressed: () => unawaited(Navigator.push(
@@ -1016,11 +1115,11 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               MaterialPageRoute(builder: (_) => const MirrorSettingsScreen()),
             ).then((_) => _loadActiveHost())),
             icon: const Icon(Icons.dns),
-            label: const Text('Change Mirror'),
+            label: Text(localizations?.changeMirror ?? 'Change Mirror'),
           ),
         ];
-        message =
-            'Unable to connect to RuTracker. Please check your internet connection and try again.';
+        message = localizations?.networkConnectionError ??
+            'Could not connect. Check your internet or choose another mirror in Settings → Sources.';
         break;
     }
 

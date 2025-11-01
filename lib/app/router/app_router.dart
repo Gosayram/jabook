@@ -113,9 +113,7 @@ class _MainNavigationWrapperState
         route: '/',
       ),
       NavigationItem(
-        title: localizations?.navSearch ??
-            localizations?.searchAudiobooks ??
-            'Search',
+        title: localizations?.navSearch ?? 'Search',
         icon: Icons.search,
         route: '/search',
       ),
