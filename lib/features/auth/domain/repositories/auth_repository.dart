@@ -16,6 +16,14 @@ abstract class AuthRepository {
   /// Checks if stored credentials are available.
   Future<bool> hasStoredCredentials();
 
+  /// Attempts to login using stored credentials with optional biometric authentication.
+  ///
+  /// Returns [true] if login was successful, [false] otherwise.
+  Future<bool> loginWithStoredCredentials({bool useBiometric = false});
+
+  /// Checks if biometric authentication is available on the device.
+  Future<bool> isBiometricAvailable();
+
   /// Saves credentials for future automatic login.
   Future<void> saveCredentials({
     required String username,

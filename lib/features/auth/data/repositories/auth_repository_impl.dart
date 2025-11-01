@@ -24,6 +24,13 @@ class AuthRepositoryImpl implements AuthRepository {
   Future<bool> hasStoredCredentials() => _auth.hasStoredCredentials();
 
   @override
+  Future<bool> loginWithStoredCredentials({bool useBiometric = false}) =>
+      _auth.loginWithStoredCredentials(useBiometric: useBiometric);
+
+  @override
+  Future<bool> isBiometricAvailable() => _auth.isBiometricAvailable();
+
+  @override
   Future<void> saveCredentials({
     required String username,
     required String password,

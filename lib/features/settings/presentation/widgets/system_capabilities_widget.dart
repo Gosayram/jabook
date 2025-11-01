@@ -103,28 +103,19 @@ class _SystemCapabilitiesWidgetState extends State<SystemCapabilitiesWidget> {
   }
 
   Future<void> _testNotification() async {
-    try {
-      await notification_utils.showSimpleNotification(
-        title: 'Тест уведомления',
-        body: 'Это тестовое уведомление от JaBook',
+    final success = await notification_utils.showSimpleNotification(
+      title: 'Тест уведомления',
+      body: 'Это тестовое уведомление от JaBook',
+    );
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(success
+              ? 'Уведомление отправлено'
+              : 'Не удалось отправить уведомление (канал не реализован)'),
+          backgroundColor: success ? Colors.green : Colors.orange,
+        ),
       );
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Уведомление отправлено'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
-    } on Exception catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Ошибка отправки уведомления: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
     }
   }
 

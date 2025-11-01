@@ -15,10 +15,13 @@ import 'package:jabook/core/endpoints/endpoint_health_scheduler.dart';
 import 'package:jabook/core/endpoints/endpoint_manager.dart';
 import 'package:jabook/core/logging/environment_logger.dart';
 import 'package:jabook/core/net/dio_client.dart';
-import 'package:jabook/core/permissions/permission_service_v2.dart';
+import 'package:jabook/core/permissions/permission_service.dart';
+import 'package:jabook/core/utils/first_launch.dart';
+import 'package:jabook/core/utils/safe_async.dart';
 import 'package:jabook/data/db/app_database.dart';
 import 'package:jabook/features/auth/data/providers/auth_provider.dart';
 import 'package:jabook/features/auth/data/repositories/auth_repository_impl.dart';
+import 'package:jabook/features/permissions/presentation/widgets/permissions_onboarding_dialog.dart';
 import 'package:jabook/l10n/app_localizations.dart';
 
 /// Main application widget for JaBook audiobook player.
@@ -53,6 +56,8 @@ class _JaBookAppState extends ConsumerState<JaBookApp> {
   // Avoid recreating the key on every build.
   final GlobalKey<ScaffoldMessengerState> _scaffoldMessengerKey =
       GlobalKey<ScaffoldMessengerState>();
+
+  bool _hasShownOnboarding = false;
 
   @override
   void initState() {
@@ -139,7 +144,13 @@ class _JaBookAppState extends ConsumerState<JaBookApp> {
     try {
       final healthScheduler = EndpointHealthScheduler(database.database);
       // Run asynchronously without blocking startup
-      unawaited(healthScheduler.runAutomaticHealthCheckIfNeeded());
+      // Use safeUnawaited to handle errors in fire-and-forget operations
+      safeUnawaited(
+        healthScheduler.runAutomaticHealthCheckIfNeeded(),
+        onError: (e, stack) {
+          logger.w('Endpoint health check failed: $e');
+        },
+      );
       logger.i('Endpoint health check scheduled');
     } on Exception catch (e) {
       logger.w('Failed to schedule endpoint health check: $e');
@@ -158,24 +169,60 @@ class _JaBookAppState extends ConsumerState<JaBookApp> {
 
   Future<void> _requestEssentialPermissions() async {
     try {
-      logger.i('Checking essential capabilities using system APIs...');
+      logger.i('Requesting essential permissions...');
 
-      final permissionService = PermissionServiceV2();
-      final results = await permissionService.requestEssentialPermissions();
+      final permissionService = PermissionService();
 
-      final grantedCount = results.values.where((granted) => granted).length;
-      final totalCount = results.length;
+      // Check if permissions are already granted
+      final hasAllPermissions =
+          await permissionService.hasAllEssentialPermissions();
 
-      logger.i('Capabilities checked: $grantedCount/$totalCount available');
+      if (!hasAllPermissions) {
+        logger.i('Some permissions are missing, requesting...');
 
-      if (grantedCount < totalCount) {
-        logger.w(
-            'Some capabilities are not available. App functionality may be limited.');
+        // Show onboarding dialog on first launch
+        if (mounted && !_hasShownOnboarding) {
+          final isFirstLaunch = await FirstLaunchHelper.isFirstLaunch();
+          if (isFirstLaunch && mounted) {
+            final proceed = await PermissionsOnboardingDialog.show(context);
+            _hasShownOnboarding = true;
+            if (!proceed) {
+              logger.i('User cancelled permission onboarding');
+              // Mark as launched even if cancelled
+              await FirstLaunchHelper.markAsLaunched();
+              return;
+            }
+            // Mark as launched after showing dialog
+            await FirstLaunchHelper.markAsLaunched();
+          }
+        }
+
+        // Request all essential permissions
+        final results = await permissionService.requestEssentialPermissions();
+
+        final grantedCount = results.values.where((granted) => granted).length;
+        final totalCount = results.length;
+
+        logger.i('Permissions requested: $grantedCount/$totalCount granted');
+
+        if (grantedCount < totalCount) {
+          logger.w(
+              'Some permissions were not granted. App functionality may be limited.');
+        }
+      } else {
+        logger.i('All essential permissions already granted');
+        // Still mark as launched if permissions already granted
+        if (mounted) {
+          final isFirstLaunch = await FirstLaunchHelper.isFirstLaunch();
+          if (isFirstLaunch) {
+            await FirstLaunchHelper.markAsLaunched();
+          }
+        }
       }
     } on Exception catch (e, stackTrace) {
-      logger.e('Failed to check essential capabilities',
+      logger.e('Failed to request essential permissions',
           error: e, stackTrace: stackTrace);
-      // Continue app initialization even if capability checks fail
+      // Continue app initialization even if permission requests fail
     }
   }
 

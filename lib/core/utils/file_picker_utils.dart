@@ -82,6 +82,11 @@ Future<List<String>> pickAnyFiles({
     }
     return [];
   } catch (e) {
+    // Handle "already_active" error - file picker is already open
+    if (e.toString().contains('already_active')) {
+      // Return empty list instead of throwing - caller should handle this gracefully
+      return [];
+    }
     throw Exception('Failed to pick files: $e');
   }
 }

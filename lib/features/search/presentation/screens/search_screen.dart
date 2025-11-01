@@ -7,11 +7,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:jabook/core/cache/rutracker_cache_service.dart';
 import 'package:jabook/core/endpoints/endpoint_provider.dart';
 import 'package:jabook/core/favorites/favorites_service.dart';
+import 'package:jabook/core/logging/environment_logger.dart';
 import 'package:jabook/core/metadata/audiobook_metadata_service.dart';
 import 'package:jabook/core/net/dio_client.dart';
 import 'package:jabook/core/parse/rutracker_parser.dart';
 import 'package:jabook/core/search/search_history_service.dart';
+import 'package:jabook/core/utils/safe_async.dart';
 import 'package:jabook/data/db/app_database.dart';
+import 'package:jabook/features/auth/data/providers/auth_provider.dart';
 import 'package:jabook/features/search/presentation/widgets/grouped_audiobook_list.dart';
 import 'package:jabook/features/settings/presentation/screens/mirror_settings_screen.dart';
 import 'package:jabook/features/webview/secure_rutracker_webview.dart';
@@ -160,6 +163,158 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     }
   }
 
+  /// Handles login with biometric authentication or WebView fallback.
+  Future<void> _handleLogin() async {
+    final repository = ref.read(authRepositoryProvider);
+
+    // Check if stored credentials are available
+    final hasStored = await repository.hasStoredCredentials();
+
+    if (hasStored) {
+      // Check if biometric authentication is available
+      final isBiometricAvailable = await repository.isBiometricAvailable();
+
+      if (isBiometricAvailable) {
+        // Show loading indicator
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                  'Подождите, выполняется биометрическая аутентификация...'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+
+        // Attempt login with biometric authentication
+        try {
+          final success = await repository.loginWithStoredCredentials(
+            useBiometric: true,
+          );
+
+          if (success) {
+            // Sync cookies and validate
+            await DioClient.syncCookiesFromWebView();
+            final isValid = await DioClient.validateCookies();
+
+            if (isValid) {
+              if (!mounted) return;
+              // ignore: use_build_context_synchronously
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Авторизация успешна'),
+                  backgroundColor: Colors.green,
+                  duration: Duration(seconds: 2),
+                ),
+              );
+
+              // Clear auth errors if any
+              if (_errorKind == 'auth') {
+                setState(() {
+                  _errorKind = null;
+                  _errorMessage = null;
+                });
+                await _performSearch();
+              }
+              return;
+            }
+          }
+        } on Exception catch (e) {
+          // Biometric authentication failed or was cancelled
+          if (!mounted) return;
+          // ignore: use_build_context_synchronously
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                  'Биометрическая аутентификация не удалась: ${e.toString()}'),
+              backgroundColor: Colors.orange,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+      }
+
+      // Fallback to WebView if biometric is not available or failed
+      // Show dialog asking if user wants to use WebView
+      if (!mounted) return;
+      final useWebView = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Авторизация'),
+          content: const Text(
+            'Биометрическая аутентификация недоступна или не удалась. '
+            'Открыть WebView для входа?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Отмена'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Открыть WebView'),
+            ),
+          ],
+        ),
+      );
+
+      if (useWebView ?? false) {
+        await _openWebViewLogin();
+      }
+    } else {
+      // No stored credentials, open WebView directly
+      await _openWebViewLogin();
+    }
+  }
+
+  /// Opens WebView for manual login.
+  Future<void> _openWebViewLogin() async {
+    await Navigator.push<String>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const SecureRutrackerWebView(),
+      ),
+    );
+    if (!mounted) return;
+
+    // Sync cookies from WebView
+    await DioClient.syncCookiesFromWebView();
+
+    // Validate authentication
+    final isValid = await DioClient.validateCookies();
+    if (isValid) {
+      if (!mounted) return;
+      // ignore: use_build_context_synchronously
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Авторизация успешна'),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 2),
+        ),
+      );
+      // Clear auth errors if any
+      if (_errorKind == 'auth') {
+        setState(() {
+          _errorKind = null;
+          _errorMessage = null;
+        });
+        await _performSearch();
+      }
+    } else {
+      if (!mounted) return;
+      // ignore: use_build_context_synchronously
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Авторизация не удалась. Проверьте логин и пароль',
+          ),
+          backgroundColor: Colors.orange,
+          duration: Duration(seconds: 3),
+        ),
+      );
+    }
+  }
+
   Future<void> _performSearch() async {
     if (_searchController.text.trim().isEmpty) return;
 
@@ -199,7 +354,12 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           }
 
           // Still try to get network results in background for updates
-          unawaited(_performNetworkSearch(query, updateExisting: true));
+          safeUnawaited(
+            _performNetworkSearch(query, updateExisting: true),
+            onError: (e, stack) {
+              logger.w('Background network search failed: $e');
+            },
+          );
           return;
         }
       } on Exception {
@@ -444,50 +604,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             IconButton(
               tooltip: 'RuTracker Login',
               icon: const Icon(Icons.vpn_key),
-              onPressed: () async {
-                await Navigator.push<String>(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) => const SecureRutrackerWebView()),
-                );
-                if (!mounted) return;
-
-                // Sync cookies from WebView
-                await DioClient.syncCookiesFromWebView();
-
-                // Validate authentication
-                final isValid = await DioClient.validateCookies();
-                if (isValid) {
-                  if (!mounted) return;
-                  // ignore: use_build_context_synchronously
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Авторизация успешна'),
-                      backgroundColor: Colors.green,
-                      duration: Duration(seconds: 2),
-                    ),
-                  );
-                  // Clear auth errors if any
-                  if (_errorKind == 'auth') {
-                    setState(() {
-                      _errorKind = null;
-                      _errorMessage = null;
-                    });
-                    await _performSearch();
-                  }
-                } else {
-                  if (!mounted) return;
-                  // ignore: use_build_context_synchronously
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                          'Авторизация не удалась. Проверьте логин и пароль'),
-                      backgroundColor: Colors.orange,
-                      duration: Duration(seconds: 3),
-                    ),
-                  );
-                }
-              },
+              onPressed: _handleLogin,
             ),
             IconButton(
               tooltip: 'Mirrors',
@@ -1016,20 +1133,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         iconColor = Colors.orange.shade600;
         actions = [
           ElevatedButton.icon(
-            onPressed: () async {
-              await Navigator.push<String>(
-                context,
-                MaterialPageRoute(
-                    builder: (_) => const SecureRutrackerWebView()),
-              );
-              if (!mounted) return;
-              await DioClient.syncCookiesFromWebView();
-              setState(() {
-                _errorKind = null;
-                _errorMessage = null;
-              });
-              await _performSearch();
-            },
+            onPressed: _handleLogin,
             icon: const Icon(Icons.vpn_key),
             label: Text(localizations?.loginButton ?? 'Login to RuTracker'),
           ),

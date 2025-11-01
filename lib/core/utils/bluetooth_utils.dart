@@ -1,11 +1,15 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:jabook/core/logging/structured_logger.dart';
 
 /// Utility functions for handling Bluetooth operations without requiring explicit permissions.
 ///
 /// Uses system APIs and platform channels to work with Bluetooth
 /// without needing BLUETOOTH_SCAN/CONNECT permission declarations.
 const MethodChannel _bluetoothChannel = MethodChannel('jabook.bluetooth');
+
+/// Logger instance for structured logging.
+final StructuredLogger _logger = StructuredLogger();
 
 /// Checks if Bluetooth is available on the device.
 ///
@@ -14,10 +18,35 @@ Future<bool> isBluetoothAvailable() async {
   try {
     final result = await _bluetoothChannel.invokeMethod('isBluetoothAvailable');
     return result as bool? ?? false;
+  } on MissingPluginException {
+    // Platform channel not implemented - graceful degradation
+    await _logger.log(
+      level: 'warning',
+      subsystem: 'bluetooth',
+      message: 'Bluetooth channel not available',
+    );
+    if (kDebugMode) {
+      print('Bluetooth channel not implemented');
+    }
+    return false;
   } on PlatformException catch (e) {
+    await _logger.log(
+      level: 'warning',
+      subsystem: 'bluetooth',
+      message: 'Failed to check Bluetooth availability',
+      extra: {'error': e.toString(), 'code': e.code},
+    );
     if (kDebugMode) {
       print('Failed to check Bluetooth availability: $e');
     }
+    return false;
+  } on Exception catch (e) {
+    await _logger.log(
+      level: 'warning',
+      subsystem: 'bluetooth',
+      message: 'Unexpected error checking Bluetooth availability',
+      extra: {'error': e.toString()},
+    );
     return false;
   }
 }
@@ -30,10 +59,31 @@ Future<List<Map<String, dynamic>>> getPairedDevices() async {
   try {
     final result = await _bluetoothChannel.invokeMethod('getPairedDevices');
     return List<Map<String, dynamic>>.from(result ?? []);
+  } on MissingPluginException {
+    await _logger.log(
+      level: 'warning',
+      subsystem: 'bluetooth',
+      message: 'Bluetooth channel not available for getting paired devices',
+    );
+    return [];
   } on PlatformException catch (e) {
+    await _logger.log(
+      level: 'warning',
+      subsystem: 'bluetooth',
+      message: 'Failed to get paired devices',
+      extra: {'error': e.toString(), 'code': e.code},
+    );
     if (kDebugMode) {
       print('Failed to get paired devices: $e');
     }
+    return [];
+  } on Exception catch (e) {
+    await _logger.log(
+      level: 'warning',
+      subsystem: 'bluetooth',
+      message: 'Unexpected error getting paired devices',
+      extra: {'error': e.toString()},
+    );
     return [];
   }
 }
@@ -48,10 +98,35 @@ Future<bool> connectToDevice(String deviceAddress) async {
       'deviceAddress': deviceAddress,
     });
     return result as bool? ?? false;
+  } on MissingPluginException {
+    await _logger.log(
+      level: 'warning',
+      subsystem: 'bluetooth',
+      message: 'Bluetooth channel not available for connecting',
+    );
+    return false;
   } on PlatformException catch (e) {
+    await _logger.log(
+      level: 'warning',
+      subsystem: 'bluetooth',
+      message: 'Failed to connect to Bluetooth device',
+      extra: {
+        'error': e.toString(),
+        'code': e.code,
+        'deviceAddress': deviceAddress
+      },
+    );
     if (kDebugMode) {
       print('Failed to connect to device: $e');
     }
+    return false;
+  } on Exception catch (e) {
+    await _logger.log(
+      level: 'warning',
+      subsystem: 'bluetooth',
+      message: 'Unexpected error connecting to Bluetooth device',
+      extra: {'error': e.toString(), 'deviceAddress': deviceAddress},
+    );
     return false;
   }
 }
@@ -61,10 +136,31 @@ Future<bool> disconnect() async {
   try {
     final result = await _bluetoothChannel.invokeMethod('disconnect');
     return result as bool? ?? false;
+  } on MissingPluginException {
+    await _logger.log(
+      level: 'warning',
+      subsystem: 'bluetooth',
+      message: 'Bluetooth channel not available for disconnecting',
+    );
+    return false;
   } on PlatformException catch (e) {
+    await _logger.log(
+      level: 'warning',
+      subsystem: 'bluetooth',
+      message: 'Failed to disconnect from Bluetooth device',
+      extra: {'error': e.toString(), 'code': e.code},
+    );
     if (kDebugMode) {
       print('Failed to disconnect: $e');
     }
+    return false;
+  } on Exception catch (e) {
+    await _logger.log(
+      level: 'warning',
+      subsystem: 'bluetooth',
+      message: 'Unexpected error disconnecting from Bluetooth device',
+      extra: {'error': e.toString()},
+    );
     return false;
   }
 }
@@ -74,10 +170,31 @@ Future<bool> isConnected() async {
   try {
     final result = await _bluetoothChannel.invokeMethod('isConnected');
     return result as bool? ?? false;
+  } on MissingPluginException {
+    await _logger.log(
+      level: 'debug',
+      subsystem: 'bluetooth',
+      message: 'Bluetooth channel not available for checking connection status',
+    );
+    return false;
   } on PlatformException catch (e) {
+    await _logger.log(
+      level: 'debug',
+      subsystem: 'bluetooth',
+      message: 'Failed to check Bluetooth connection status',
+      extra: {'error': e.toString(), 'code': e.code},
+    );
     if (kDebugMode) {
       print('Failed to check connection status: $e');
     }
+    return false;
+  } on Exception catch (e) {
+    await _logger.log(
+      level: 'debug',
+      subsystem: 'bluetooth',
+      message: 'Unexpected error checking Bluetooth connection status',
+      extra: {'error': e.toString()},
+    );
     return false;
   }
 }
@@ -91,10 +208,31 @@ Future<bool> routeAudioToBluetooth() async {
     final result =
         await _bluetoothChannel.invokeMethod('routeAudioToBluetooth');
     return result as bool? ?? false;
+  } on MissingPluginException {
+    await _logger.log(
+      level: 'warning',
+      subsystem: 'bluetooth',
+      message: 'Bluetooth channel not available for routing audio',
+    );
+    return false;
   } on PlatformException catch (e) {
+    await _logger.log(
+      level: 'warning',
+      subsystem: 'bluetooth',
+      message: 'Failed to route audio to Bluetooth device',
+      extra: {'error': e.toString(), 'code': e.code},
+    );
     if (kDebugMode) {
       print('Failed to route audio to Bluetooth: $e');
     }
+    return false;
+  } on Exception catch (e) {
+    await _logger.log(
+      level: 'warning',
+      subsystem: 'bluetooth',
+      message: 'Unexpected error routing audio to Bluetooth device',
+      extra: {'error': e.toString()},
+    );
     return false;
   }
 }

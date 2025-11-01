@@ -33,6 +33,16 @@ class PermissionServiceV2 {
           await file_picker_utils.pickImageFiles(allowMultiple: false);
       return files.isNotEmpty;
     } on Exception catch (e) {
+      // Handle "already_active" error gracefully - file picker is already open
+      if (e.toString().contains('already_active')) {
+        await _logger.log(
+          level: 'warning',
+          subsystem: 'permissions',
+          message: 'File picker is already active',
+        );
+        // Return true as capability is available, just currently in use
+        return true;
+      }
       await _logger.log(
         level: 'error',
         subsystem: 'permissions',
@@ -52,6 +62,16 @@ class PermissionServiceV2 {
       final files = await file_picker_utils.pickAnyFiles(allowMultiple: false);
       return files.isNotEmpty;
     } on Exception catch (e) {
+      // Handle "already_active" error gracefully - file picker is already open
+      if (e.toString().contains('already_active')) {
+        await _logger.log(
+          level: 'warning',
+          subsystem: 'permissions',
+          message: 'File picker is already active',
+        );
+        // Return true as capability is available, just currently in use
+        return true;
+      }
       await _logger.log(
         level: 'error',
         subsystem: 'permissions',
@@ -104,14 +124,26 @@ class PermissionServiceV2 {
   Future<bool> canShowNotifications() async {
     try {
       // Test if we can show notifications through system APIs
-      await notification_utils.showSimpleNotification(
+      final success = await notification_utils.showSimpleNotification(
         title: 'Test',
         body: 'Testing notification capability',
       );
-      return true;
+
+      if (!success) {
+        // Notification channel not available - log as warning, not error
+        await _logger.log(
+          level: 'warning',
+          subsystem: 'permissions',
+          message:
+              'Notification capability not available (channel not implemented)',
+        );
+      }
+
+      return success;
     } on Exception catch (e) {
+      // Graceful degradation - log as warning, not error
       await _logger.log(
-        level: 'error',
+        level: 'warning',
         subsystem: 'permissions',
         message: 'Error checking notification capability',
         cause: e.toString(),
