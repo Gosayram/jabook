@@ -9,7 +9,7 @@ void main() {
     test('getUserAgent returns valid User-Agent', () async {
       final manager = UserAgentManager();
       final userAgent = await manager.getUserAgent();
-      
+
       expect(userAgent, isNotNull);
       expect(userAgent, isNotEmpty);
       expect(userAgent.contains('Mozilla/5.0'), isTrue);
@@ -18,7 +18,7 @@ void main() {
     test('getUserAgent with forceRefresh returns valid User-Agent', () async {
       final manager = UserAgentManager();
       final userAgent = await manager.getUserAgent(forceRefresh: true);
-      
+
       expect(userAgent, isNotNull);
       expect(userAgent, isNotEmpty);
       expect(userAgent.contains('Mozilla/5.0'), isTrue);
@@ -37,9 +37,9 @@ void main() {
     test('applyUserAgentToDio works with mock Dio', () async {
       final manager = UserAgentManager();
       final mockDio = _MockDio();
-      
+
       await manager.applyUserAgentToDio(mockDio);
-      
+
       expect(mockDio.options.headers.containsKey('User-Agent'), isTrue);
       expect(mockDio.options.headers['User-Agent'], isNotEmpty);
     });

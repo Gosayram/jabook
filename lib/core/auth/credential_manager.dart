@@ -55,10 +55,11 @@ class CredentialManager {
   ///
   /// Returns a map with 'username' and 'password' if credentials are available.
   /// Returns null if no credentials are stored or authentication fails.
-  Future<Map<String, String>?> getCredentials({bool requireBiometric = false}) async {
+  Future<Map<String, String>?> getCredentials(
+      {bool requireBiometric = false}) async {
     try {
       final rememberMe = await _secureStorage.read(key: _rememberMeKey);
-      
+
       if (rememberMe != 'true') {
         return null;
       }
@@ -67,12 +68,13 @@ class CredentialManager {
         final canAuthenticate = await _localAuth.canCheckBiometrics();
         if (canAuthenticate) {
           final authenticated = await _localAuth.authenticate(
-            localizedReason: 'Authenticate to access your RuTracker credentials',
+            localizedReason:
+                'Authenticate to access your RuTracker credentials',
             options: const AuthenticationOptions(
               stickyAuth: true,
             ),
           );
-          
+
           if (!authenticated) {
             return null;
           }
@@ -112,7 +114,7 @@ class CredentialManager {
       final rememberMe = await _secureStorage.read(key: _rememberMeKey);
       final username = await _secureStorage.read(key: _usernameKey);
       final password = await _secureStorage.read(key: _passwordKey);
-      
+
       return rememberMe == 'true' && username != null && password != null;
     } on Exception {
       return false;
@@ -149,45 +151,49 @@ class CredentialManager {
   Future<void> importCredentials(String data, {String format = 'json'}) async {
     try {
       late Map<String, String> credentials;
-      
+
       switch (format.toLowerCase()) {
         case 'csv':
           final lines = data.split('\n');
-          if (lines.length < 2) throw const FormatException('Invalid CSV format');
-          
+          if (lines.length < 2)
+            throw const FormatException('Invalid CSV format');
+
           final values = lines[1].split(',');
-          if (values.length != 2) throw const FormatException('Invalid CSV data');
-          
+          if (values.length != 2)
+            throw const FormatException('Invalid CSV data');
+
           credentials = {
             'username': values[0],
             'password': values[1],
           };
           break;
-        
+
         case 'json':
           final jsonData = data.replaceAllMapped(
             RegExp(r'"username":"([^"]+)","password":"([^"]+)"'),
             (match) => '"username":"${match[1]}","password":"${match[2]}"',
           );
-          
+
           // Simple JSON parsing (for demonstration)
-          final usernameMatch = RegExp(r'"username":"([^"]+)"').firstMatch(jsonData);
-          final passwordMatch = RegExp(r'"password":"([^"]+)"').firstMatch(jsonData);
-          
+          final usernameMatch =
+              RegExp(r'"username":"([^"]+)"').firstMatch(jsonData);
+          final passwordMatch =
+              RegExp(r'"password":"([^"]+)"').firstMatch(jsonData);
+
           if (usernameMatch == null || passwordMatch == null) {
             throw const FormatException('Invalid JSON format');
           }
-          
+
           credentials = {
             'username': usernameMatch.group(1)!,
             'password': passwordMatch.group(1)!,
           };
           break;
-        
+
         default:
           throw AuthFailure('Unsupported import format: $format');
       }
-      
+
       await saveCredentials(
         username: credentials['username']!,
         password: credentials['password']!,

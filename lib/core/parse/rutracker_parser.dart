@@ -102,14 +102,17 @@ class RuTrackerParser {
   // CSS selectors centralized for easier maintenance
   static const String _rowSelector = 'tr.hl-tr';
   static const String _titleSelector = 'a.torTopic, a.torTopic.tt-text';
-  static const String _authorSelector = 'a.pmed, .topicAuthor a, a[href*="profile.php"]';
+  static const String _authorSelector =
+      'a.pmed, .topicAuthor a, a[href*="profile.php"]';
   static const String _sizeSelector = 'span.small, a.f-dl.dl-stub';
   static const String _seedersSelector = 'span.seedmed, span.seedmed b';
   static const String _leechersSelector = 'span.leechmed, span.leechmed b';
   static const String _downloadHrefSelector = 'a[href^="dl.php?t="]';
-  static const String _coverSelector = 'img[src*="static.rutracker"], img.postimg';
+  static const String _coverSelector =
+      'img[src*="static.rutracker"], img.postimg';
   static const String _postBodySelector = '.post-body';
   static const String _maintitleSelector = 'h1.maintitle';
+
   /// Parses search results from RuTracker search page HTML.
   ///
   /// This method takes HTML content from a search results page and extracts
@@ -136,13 +139,14 @@ class RuTrackerParser {
 
       // Parse actual RuTracker topic rows structure
       final topicRows = document.querySelectorAll(_rowSelector);
-      
+
       for (final row in topicRows) {
         // Skip ad/outer rows
         if (row.classes.any((c) => c.contains('banner') || c.contains('ads'))) {
           continue;
         }
-        final topicId = row.attributes['data-topic_id'] ?? _extractTopicIdFromAny(row);
+        final topicId =
+            row.attributes['data-topic_id'] ?? _extractTopicIdFromAny(row);
         final titleElement = row.querySelector(_titleSelector);
         final authorElement = row.querySelector(_authorSelector);
         final sizeElement = row.querySelector(_sizeSelector);
@@ -153,7 +157,7 @@ class RuTrackerParser {
         if (titleElement != null && (topicId.isNotEmpty)) {
           // Extract size from download link text (e.g., "40 MB")
           final sizeText = sizeElement?.text.trim() ?? '0 MB';
-          
+
           // Extract magnet URL from download link
           final magnetUrl = magnetElement != null
               ? 'magnet:?xt=urn:btih:${_extractInfoHashFromUrl(magnetElement.attributes['href'])}'
@@ -209,32 +213,39 @@ class RuTrackerParser {
       // Parse actual RuTracker topic page structure
       final titleElement = document.querySelector(_maintitleSelector);
       final postBody = document.querySelector(_postBodySelector);
-      
+
       if (titleElement == null || postBody == null) {
         return null;
       }
 
       // Extract metadata from post content
-      final authorElement = postBody.querySelector('a[href*="profile.php"], .topicAuthor a');
-      final sizeMatch = RegExp(r'Размер[:\s]*([\d.,]+\s*[KMGT]?B)').firstMatch(postBody.text);
+      final authorElement =
+          postBody.querySelector('a[href*="profile.php"], .topicAuthor a');
+      final sizeMatch =
+          RegExp(r'Размер[:\s]*([\d.,]+\s*[KMGT]?B)').firstMatch(postBody.text);
       final seedersMatch = RegExp(r'Сиды[:\s]*(\d+)').firstMatch(postBody.text);
-      final leechersMatch = RegExp(r'Личи[:\s]*(\d+)').firstMatch(postBody.text);
-      
+      final leechersMatch =
+          RegExp(r'Личи[:\s]*(\d+)').firstMatch(postBody.text);
+
       // Extract magnet link from download buttons
       final magnetElement = document.querySelector(_downloadHrefSelector);
       final coverElement = document.querySelector(_coverSelector);
 
       final chapters = <Chapter>[];
       // Try to parse chapters from description (common pattern)
-      final chapterMatches = RegExp(r'(\d+[.:]\s*[^\n]+?)\s*\(?(\d+:\d+(?::\d+)?)\)?').allMatches(postBody.text);
+      final chapterMatches =
+          RegExp(r'(\d+[.:]\s*[^\n]+?)\s*\(?(\d+:\d+(?::\d+)?)\)?')
+              .allMatches(postBody.text);
       for (final match in chapterMatches) {
         final title = match.group(1)?.trim() ?? '';
         final duration = match.group(2)?.trim() ?? '0:00';
-        
+
         final durationParts = duration.split(':');
         var durationMs = 0;
         if (durationParts.length == 2) {
-          durationMs = (int.parse(durationParts[0]) * 60 + int.parse(durationParts[1])) * 1000;
+          durationMs =
+              (int.parse(durationParts[0]) * 60 + int.parse(durationParts[1])) *
+                  1000;
         } else if (durationParts.length == 3) {
           durationMs = (int.parse(durationParts[0]) * 3600 +
                   int.parse(durationParts[1]) * 60 +
@@ -312,7 +323,8 @@ DateTime _extractDateFromRow(Element row) {
 }
 
 DateTime _extractDateFromPost(Element postBody) {
-  final dateMatch = RegExp(r'Добавлено[:\s]*(\d{2}\.\d{2}\.\d{4})').firstMatch(postBody.text);
+  final dateMatch =
+      RegExp(r'Добавлено[:\s]*(\d{2}\.\d{2}\.\d{4})').firstMatch(postBody.text);
   if (dateMatch != null) {
     try {
       final parts = dateMatch.group(1)!.split('.');
@@ -342,8 +354,18 @@ String _extractTopicIdFromAny(Element row) {
 
 int _monthToNumber(String month) {
   const months = {
-    'янв': 1, 'фев': 2, 'мар': 3, 'апр': 4, 'май': 5, 'июн': 6,
-    'июл': 7, 'авг': 8, 'сен': 9, 'окт': 10, 'ноя': 11, 'дек': 12
+    'янв': 1,
+    'фев': 2,
+    'мар': 3,
+    'апр': 4,
+    'май': 5,
+    'июн': 6,
+    'июл': 7,
+    'авг': 8,
+    'сен': 9,
+    'окт': 10,
+    'ноя': 11,
+    'дек': 12
   };
   return months[month.toLowerCase()] ?? 1;
 }

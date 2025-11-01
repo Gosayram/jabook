@@ -128,29 +128,29 @@ class RuTrackerAuth {
           followRedirects: false,
         ),
       );
-      
+
       // Comprehensive authentication check:
       // 1. Check HTTP status is 200
       // 2. Verify we're not redirected to login page
       // 3. Check for authenticator indicators in HTML content
       final responseData = response.data.toString();
       final responseUri = response.realUri.toString();
-      
+
       final isAuthenticated = response.statusCode == 200 &&
           !responseUri.contains('login.php') &&
           // Check for profile-specific elements that indicate successful auth
           (responseData.contains('profile') ||
-           responseData.contains('личный кабинет') ||
-           responseData.contains('private') ||
-           responseData.contains('username') ||
-           responseData.contains('user_id'));
-      
+              responseData.contains('личный кабинет') ||
+              responseData.contains('private') ||
+              responseData.contains('username') ||
+              responseData.contains('user_id'));
+
       return isAuthenticated;
     } on DioException catch (e) {
       if (e.response?.realUri.toString().contains('login.php') ?? false) {
         return false; // Redirected to login - not authenticated
       }
-    
+
       return false;
     } on Exception {
       return false;
@@ -177,11 +177,11 @@ class RuTrackerAuth {
       final credentials = await _credentialManager.getCredentials(
         requireBiometric: useBiometric,
       );
-      
+
       if (credentials == null) {
         return false;
       }
-      
+
       return await login(credentials['username']!, credentials['password']!);
     } on Exception {
       return false;
@@ -203,10 +203,12 @@ class RuTrackerAuth {
   }
 
   /// Checks if stored credentials are available.
-  Future<bool> hasStoredCredentials() => _credentialManager.hasStoredCredentials();
+  Future<bool> hasStoredCredentials() =>
+      _credentialManager.hasStoredCredentials();
 
   /// Checks if biometric authentication is available on the device.
-  Future<bool> isBiometricAvailable() => _credentialManager.isBiometricAvailable();
+  Future<bool> isBiometricAvailable() =>
+      _credentialManager.isBiometricAvailable();
 
   /// Clears all stored credentials.
   Future<void> clearStoredCredentials() async {
@@ -228,18 +230,18 @@ class RuTrackerAuth {
       // In webview_flutter 4.13.0, cookies are automatically shared between
       // WebView and the app's cookie store. We just need to ensure Dio uses
       // the same cookie jar and clear any stale cookies.
-      
+
       // Clear existing cookies to ensure fresh session state
       await _cookieJar.deleteAll();
-      
+
       // Also clear cookies from DioClient's global cookie jar
       final dio = await DioClient.instance;
       final cookieInterceptors = dio.interceptors.whereType<CookieManager>();
-      
+
       for (final interceptor in cookieInterceptors) {
         await interceptor.cookieJar.deleteAll();
       }
-      
+
       // The actual cookie synchronization happens automatically through
       // the platform's cookie store shared between WebView and HTTP client
     } catch (e) {

@@ -70,9 +70,7 @@ Future<List<String>> pickAnyFiles({
     final result = await FilePicker.platform.pickFiles(
       allowMultiple: allowMultiple,
       withData: withData,
-      type: allowedExtensions != null 
-          ? FileType.custom 
-          : FileType.any,
+      type: allowedExtensions != null ? FileType.custom : FileType.any,
       allowedExtensions: allowedExtensions,
     );
 
@@ -102,7 +100,8 @@ Future<String?> pickDirectory() async {
 /// Picks audio files specifically (for audiobook files).
 ///
 /// Uses SAF to avoid storage permissions.
-Future<List<String>> pickAudioFiles({bool allowMultiple = true}) => pickAnyFiles(
+Future<List<String>> pickAudioFiles({bool allowMultiple = true}) =>
+    pickAnyFiles(
       allowedExtensions: ['mp3', 'm4a', 'aac', 'flac', 'wav', 'ogg'],
       allowMultiple: allowMultiple,
     );

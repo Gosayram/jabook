@@ -28,7 +28,8 @@ class EndpointManager {
   static const String _activeUrlKey = 'active_url';
 
   /// Convenience getter to avoid receiver duplication warnings.
-  RecordRef<String, Map<String, dynamic>> get _endpointsRef => _store.record(_storeKey);
+  RecordRef<String, Map<String, dynamic>> get _endpointsRef =>
+      _store.record(_storeKey);
 
   /// Initializes the EndpointManager with default endpoints and performs health checks.
   Future<void> initialize() async {
@@ -56,8 +57,9 @@ class EndpointManager {
   /// Performs initial health checks on all endpoints
   Future<void> _performInitialHealthChecks() async {
     final record = await _endpointsRef.get(_db);
-    final endpoints = List<Map<String, dynamic>>.from((record?['endpoints'] as List?) ?? []);
-    
+    final endpoints =
+        List<Map<String, dynamic>>.from((record?['endpoints'] as List?) ?? []);
+
     for (final endpoint in endpoints) {
       final url = endpoint['url'] as String;
       if (endpoint['enabled'] == true) {
@@ -77,9 +79,10 @@ class EndpointManager {
 
     final endpointData = endpoints[endpointIndex];
     final failureCount = endpointData['failure_count'] as int? ?? 0;
-    
+
     // Exponential backoff: wait longer after multiple failures
-    final backoffDelay = Duration(milliseconds: 1000 * (1 << (failureCount < 5 ? failureCount : 5)));
+    final backoffDelay = Duration(
+        milliseconds: 1000 * (1 << (failureCount < 5 ? failureCount : 5)));
     await Future.delayed(backoffDelay);
 
     try {
@@ -97,7 +100,8 @@ class EndpointManager {
           sendTimeout: const Duration(seconds: 15),
           validateStatus: (status) => true,
           headers: {
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept':
+                'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
             'Accept-Language': 'ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7',
             'Accept-Encoding': 'gzip, deflate, br',
             'Upgrade-Insecure-Requests': '1',
@@ -111,18 +115,23 @@ class EndpointManager {
       // Treat Cloudflare challenge (403 with CF headers) as reachable
       final status = response.statusCode ?? 0;
       final headers = response.headers;
-      final isCloudflare = (headers.value('server')?.toLowerCase().contains('cloudflare') ?? false) ||
-                          headers.map.keys.any((k) => k.toLowerCase() == 'cf-ray');
+      final isCloudflare =
+          (headers.value('server')?.toLowerCase().contains('cloudflare') ??
+                  false) ||
+              headers.map.keys.any((k) => k.toLowerCase() == 'cf-ray');
       // Detect CF challenge by response body text as well
-      final body = response.data is String ? (response.data as String).toLowerCase() : '';
+      final body = response.data is String
+          ? (response.data as String).toLowerCase()
+          : '';
       final looksLikeCf = body.contains('checking your browser') ||
-                         body.contains('please enable javascript') ||
-                         body.contains('attention required') ||
-                         body.contains('cf-chl') ||
-                         body.contains('cloudflare');
+          body.contains('please enable javascript') ||
+          body.contains('attention required') ||
+          body.contains('cf-chl') ||
+          body.contains('cloudflare');
 
       // Consider healthy: 2xx-3xx, or CF challenge (403/503 + CF headers/body)
-      final isHealthy = (status >= 200 && status < 400) || ((status == 403 || status == 503) && (isCloudflare || looksLikeCf));
+      final isHealthy = (status >= 200 && status < 400) ||
+          ((status == 403 || status == 503) && (isCloudflare || looksLikeCf));
 
       // Calculate health score (0-100)
       var healthScore = _calculateHealthScore(rtt, isHealthy ? 200 : status);
@@ -159,11 +168,15 @@ class EndpointManager {
       final cooldown = _calculateCooldown(newFailureCount);
       endpoints[endpointIndex].addAll({
         'enabled': newFailureCount >= 2 ? false : true,
-        'health_score': newFailureCount >= 2 ? 0 : (endpoints[endpointIndex]['health_score'] as int? ?? 0).clamp(0, 40),
+        'health_score': newFailureCount >= 2
+            ? 0
+            : (endpoints[endpointIndex]['health_score'] as int? ?? 0)
+                .clamp(0, 40),
         'failure_count': newFailureCount,
         'last_failure': DateTime.now().toIso8601String(),
         'last_error': e.toString(),
-        'cooldown_until': newFailureCount >= 2 ? cooldown?.toIso8601String() : null,
+        'cooldown_until':
+            newFailureCount >= 2 ? cooldown?.toIso8601String() : null,
       });
       await _endpointsRef.put(_db, {'endpoints': endpoints});
       // Log failure
@@ -192,11 +205,11 @@ class EndpointManager {
 
     // Adjust score based on RTT (lower is better)
     final rttPenalty = switch (rtt) {
-      < 100 => 0,    // Excellent: no penalty
-      < 500 => -10,  // Good: small penalty
+      < 100 => 0, // Excellent: no penalty
+      < 500 => -10, // Good: small penalty
       < 1000 => -30, // Average: moderate penalty
       < 2000 => -50, // Poor: significant penalty
-      _ => -70,      // Very poor: major penalty
+      _ => -70, // Very poor: major penalty
     };
 
     return (statusScore + rttPenalty).clamp(0, 100);
@@ -269,17 +282,19 @@ class EndpointManager {
 
     // 2) Filter enabled endpoints with sufficient health. If health unknown, we will treat later as fallback
     final healthyEndpoints = endpoints
-        .where((e) => e['enabled'] == true && (e['health_score'] as int? ?? 0) > 50)
+        .where((e) =>
+            e['enabled'] == true && (e['health_score'] as int? ?? 0) > 50)
         .toList();
 
     if (healthyEndpoints.isEmpty) {
       // Fallback to any enabled endpoint if no healthy ones
       // include unknown-health endpoints too (enabled ones)
-      final fallbackEndpoints = endpoints.where((e) => e['enabled'] == true).toList();
+      final fallbackEndpoints =
+          endpoints.where((e) => e['enabled'] == true).toList();
       if (fallbackEndpoints.isEmpty) {
         throw const NetworkFailure('No healthy endpoints available');
       }
-      
+
       // Sort fallback by priority
       fallbackEndpoints.sort((a, b) => a['priority'].compareTo(b['priority']));
       final chosen = fallbackEndpoints.first['url'] as String;
@@ -302,11 +317,11 @@ class EndpointManager {
       final scoreA = a['health_score'] as int? ?? 0;
       final scoreB = b['health_score'] as int? ?? 0;
       if (scoreA != scoreB) return scoreB.compareTo(scoreA);
-      
+
       final rttA = a['rtt'] as int? ?? 9999;
       final rttB = b['rtt'] as int? ?? 9999;
       if (rttA != rttB) return rttA.compareTo(rttB);
-      
+
       return a['priority'].compareTo(b['priority']);
     });
 
@@ -348,7 +363,7 @@ class EndpointManager {
     return endpoints.map((endpoint) {
       final healthScore = endpoint['health_score'] as int? ?? 0;
       final enabled = endpoint['enabled'] == true;
-      
+
       String healthStatus;
       if (!enabled) {
         healthStatus = 'Disabled';
@@ -372,13 +387,15 @@ class EndpointManager {
   /// Gets all configured endpoints from the database.
   Future<List<Map<String, dynamic>>> getAllEndpoints() async {
     final record = await _endpointsRef.get(_db);
-    return List<Map<String, dynamic>>.from((record?['endpoints'] as List?) ?? []);
+    return List<Map<String, dynamic>>.from(
+        (record?['endpoints'] as List?) ?? []);
   }
 
   /// Force-set active endpoint (sticky) if it exists and is enabled.
   Future<void> setActiveEndpoint(String url) async {
     final record = await _endpointsRef.get(_db);
-    final endpoints = List<Map<String, dynamic>>.from((record?['endpoints'] as List?) ?? []);
+    final endpoints =
+        List<Map<String, dynamic>>.from((record?['endpoints'] as List?) ?? []);
     final idx = endpoints.indexWhere((e) => e['url'] == url);
     if (idx == -1) return;
     if (endpoints[idx]['enabled'] != true) return;

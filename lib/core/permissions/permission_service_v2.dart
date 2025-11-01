@@ -3,7 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:jabook/core/logging/structured_logger.dart';
 import 'package:jabook/core/utils/bluetooth_utils.dart' as bluetooth_utils;
 import 'package:jabook/core/utils/file_picker_utils.dart' as file_picker_utils;
-import 'package:jabook/core/utils/notification_utils.dart' as notification_utils;
+import 'package:jabook/core/utils/notification_utils.dart'
+    as notification_utils;
 
 /// Service for managing app permissions using system APIs.
 ///
@@ -28,7 +29,8 @@ class PermissionServiceV2 {
   Future<bool> canAccessMediaFiles() async {
     try {
       // Test if we can access media files through system APIs
-      final files = await file_picker_utils.pickImageFiles(allowMultiple: false);
+      final files =
+          await file_picker_utils.pickImageFiles(allowMultiple: false);
       return files.isNotEmpty;
     } on Exception catch (e) {
       await _logger.log(
@@ -153,7 +155,8 @@ class PermissionServiceV2 {
       await _logger.log(
         level: 'info',
         subsystem: 'permissions',
-        message: 'Permission check results: $grantedCount/$totalCount capabilities available',
+        message:
+            'Permission check results: $grantedCount/$totalCount capabilities available',
       );
 
       return results;
@@ -200,5 +203,6 @@ class PermissionServiceV2 {
   /// Gets a summary of available capabilities.
   ///
   /// Returns a map of capability names and their availability status.
-  Future<Map<String, bool>> getCapabilitySummary() => requestEssentialPermissions();
+  Future<Map<String, bool>> getCapabilitySummary() =>
+      requestEssentialPermissions();
 }

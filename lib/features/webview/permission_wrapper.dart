@@ -124,39 +124,40 @@ class _PermissionWrapperState extends State<PermissionWrapper> {
 
   /// Builds the permission request screen.
   Widget _buildPermissionScreen() => Scaffold(
-    appBar: AppBar(
-      title: Text(AppLocalizations.of(context)!.permissionsRequired),
-    ),
-    body: Center(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.security,
-              size: 80,
-              color: Theme.of(context).colorScheme.primary,
-            ),
-            const SizedBox(height: 24),
-            Text(
-              AppLocalizations.of(context)!.permissionExplanation,
-              style: Theme.of(context).textTheme.bodyLarge,
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 32),
-            ElevatedButton(
-              onPressed: _requestPermissions,
-              child: Text(AppLocalizations.of(context)!.grantPermissions),
-            ),
-            const SizedBox(height: 16),
-            TextButton(
-              onPressed: _showPermissionDeniedDialog,
-              child: Text(AppLocalizations.of(context)!.permissionDeniedButton),
-            ),
-          ],
+        appBar: AppBar(
+          title: Text(AppLocalizations.of(context)!.permissionsRequired),
         ),
-      ),
-    ),
-  );
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.security,
+                  size: 80,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  AppLocalizations.of(context)!.permissionExplanation,
+                  style: Theme.of(context).textTheme.bodyLarge,
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 32),
+                ElevatedButton(
+                  onPressed: _requestPermissions,
+                  child: Text(AppLocalizations.of(context)!.grantPermissions),
+                ),
+                const SizedBox(height: 16),
+                TextButton(
+                  onPressed: _showPermissionDeniedDialog,
+                  child: Text(
+                      AppLocalizations.of(context)!.permissionDeniedButton),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
 }

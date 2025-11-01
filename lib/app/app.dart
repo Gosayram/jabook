@@ -11,6 +11,7 @@ import 'package:jabook/core/config/language_manager.dart';
 import 'package:jabook/core/config/language_provider.dart';
 import 'package:jabook/core/endpoints/endpoint_manager.dart';
 import 'package:jabook/core/logging/environment_logger.dart';
+import 'package:jabook/core/net/dio_client.dart';
 import 'package:jabook/core/permissions/permission_service_v2.dart';
 import 'package:jabook/data/db/app_database.dart';
 import 'package:jabook/features/auth/data/providers/auth_provider.dart';
@@ -123,33 +124,44 @@ class _JaBookAppState extends ConsumerState<JaBookApp> {
     logger.i('Initializing database...');
     await database.initialize();
     await cacheService.initialize(database.database);
-    
+
     // AuthRepository will be initialized in build method when context is available
-    
+
     // Initialize EndpointManager with default endpoints and health checks
     final endpointManager = EndpointManager(database.database);
-    await endpointManager.initialize(); // This includes initializeDefaultEndpoints() and health checks
-    
+    await endpointManager
+        .initialize(); // This includes initializeDefaultEndpoints() and health checks
+
+    // Synchronize cookies from WebView to DioClient on startup
+    try {
+      await DioClient.syncCookiesFromWebView();
+      logger.i('Cookies synchronized from WebView');
+    } on Exception catch (e) {
+      logger.w('Failed to sync cookies on startup: $e');
+    }
+
     logger.i('Database, cache, auth, and endpoints initialized successfully');
   }
 
   Future<void> _requestEssentialPermissions() async {
     try {
       logger.i('Checking essential capabilities using system APIs...');
-      
+
       final permissionService = PermissionServiceV2();
       final results = await permissionService.requestEssentialPermissions();
-      
+
       final grantedCount = results.values.where((granted) => granted).length;
       final totalCount = results.length;
-      
+
       logger.i('Capabilities checked: $grantedCount/$totalCount available');
-      
+
       if (grantedCount < totalCount) {
-        logger.w('Some capabilities are not available. App functionality may be limited.');
+        logger.w(
+            'Some capabilities are not available. App functionality may be limited.');
       }
     } on Exception catch (e, stackTrace) {
-      logger.e('Failed to check essential capabilities', error: e, stackTrace: stackTrace);
+      logger.e('Failed to check essential capabilities',
+          error: e, stackTrace: stackTrace);
       // Continue app initialization even if capability checks fail
     }
   }
@@ -215,7 +227,7 @@ class _JaBookAppState extends ConsumerState<JaBookApp> {
         future: languageManager.getLocale(),
         builder: (context, snapshot) {
           final locale = snapshot.data ?? const Locale('en', 'US');
-          
+
           return MaterialApp.router(
             title: config.appName,
             theme: AppTheme.lightTheme,

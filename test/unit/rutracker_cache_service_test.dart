@@ -9,10 +9,10 @@ void main() {
 
     setUp(() async {
       cacheService = RuTrackerCacheService();
-      
+
       // Create in-memory database for testing
       db = await databaseFactoryMemory.openDatabase('test_rutracker_cache.db');
-      
+
       await cacheService.initialize(db);
     });
 
@@ -57,7 +57,8 @@ void main() {
     });
 
     test('should return null for non-existent search query', () async {
-      final results = await cacheService.getCachedSearchResults('non_existent_query');
+      final results =
+          await cacheService.getCachedSearchResults('non_existent_query');
       expect(results, isNull);
     });
 
@@ -84,7 +85,8 @@ void main() {
     });
 
     test('should return null for non-existent topic', () async {
-      final details = await cacheService.getCachedTopicDetails('non_existent_topic');
+      final details =
+          await cacheService.getCachedTopicDetails('non_existent_topic');
       expect(details, isNull);
     });
 

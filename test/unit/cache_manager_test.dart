@@ -9,10 +9,10 @@ void main() {
 
     setUp(() async {
       cacheManager = CacheManager();
-      
+
       // Create in-memory database for testing
       db = await databaseFactoryMemory.openDatabase('test_cache.db');
-      
+
       await cacheManager.initialize(db);
     });
 
@@ -38,7 +38,11 @@ void main() {
 
     test('should store and retrieve complex data', () async {
       const key = 'test_map_key';
-      final value = {'name': 'test', 'value': 42, 'list': [1, 2, 3]};
+      final value = {
+        'name': 'test',
+        'value': 42,
+        'list': [1, 2, 3]
+      };
 
       await cacheManager.storeWithTTL(key, value, 60);
       final result = await cacheManager.getIfNotExpired(key);
@@ -93,10 +97,10 @@ void main() {
       const value = 'test_value';
 
       await cacheManager.storeWithTTL(key, value, 1); // 1 second TTL
-      
+
       // Wait for TTL to expire
       await Future.delayed(const Duration(seconds: 2));
-      
+
       final result = await cacheManager.getIfNotExpired(key);
       expect(result, isNull);
     });
@@ -106,10 +110,10 @@ void main() {
       const value = 'test_value';
 
       await cacheManager.storeWithTTL(key, value, 5); // 5 seconds TTL
-      
+
       // Wait less than TTL
       await Future.delayed(const Duration(seconds: 2));
-      
+
       final result = await cacheManager.getIfNotExpired(key);
       expect(result, equals(value));
     });
@@ -134,10 +138,10 @@ void main() {
       // Store one expired and one valid entry
       await cacheManager.storeWithTTL(key1, value, 1); // Expires quickly
       await cacheManager.storeWithTTL(key2, value, 60); // Valid for 60 seconds
-      
+
       // Wait for first key to expire
       await Future.delayed(const Duration(seconds: 2));
-      
+
       await cacheManager.clearExpired();
 
       final result1 = await cacheManager.getIfNotExpired(key1);

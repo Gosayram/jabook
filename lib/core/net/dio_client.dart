@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:convert';
+
 import 'package:cookie_jar/cookie_jar.dart';
 import 'package:dio/dio.dart';
 import 'package:dio_cookie_manager/dio_cookie_manager.dart';
@@ -28,10 +30,10 @@ class DioClient {
   static Future<Dio> get instance async {
     final dio = Dio();
     final userAgentManager = UserAgentManager();
-    
+
     // Apply User-Agent from manager
     await userAgentManager.applyUserAgentToDio(dio);
-    
+
     // Resolve active RuTracker endpoint dynamically
     final db = AppDatabase().database;
     final endpointManager = EndpointManager(db);
@@ -44,14 +46,15 @@ class DioClient {
       sendTimeout: const Duration(seconds: 30),
       headers: {
         'User-Agent': await userAgentManager.getUserAgent(),
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept':
+            'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
         'Accept-Language': 'ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7',
         'Accept-Encoding': 'gzip, deflate, br',
         'Connection': 'keep-alive',
         'Referer': '$activeBase/',
       },
     );
-    
+
     // Add structured logging interceptor
     dio.interceptors.add(InterceptorsWrapper(
       onRequest: (request, handler) async {
@@ -99,7 +102,7 @@ class DioClient {
         return handler.next(error);
       },
     ));
-    
+
     // Add authentication redirect handler and resilient retry policy for idempotent requests
     dio.interceptors.add(InterceptorsWrapper(
       onResponse: (response, handler) {
@@ -111,15 +114,45 @@ class DioClient {
             requestOptions: response.requestOptions,
             error: 'Authentication required',
             response: response,
+            type: DioExceptionType.badResponse,
+          ));
+        }
+        // Check for 401/403 status codes indicating authentication failure
+        if (response.statusCode == 401 || response.statusCode == 403) {
+          return handler.reject(DioException(
+            requestOptions: response.requestOptions,
+            error: 'Authentication required',
+            response: response,
+            type: DioExceptionType.badResponse,
           ));
         }
         return handler.next(response);
       },
       onError: (error, handler) async {
+        // Handle authentication errors (401/403)
+        final status = error.response?.statusCode ?? 0;
+        if (status == 401 ||
+            status == 403 ||
+            error.message?.contains('Authentication required') == true) {
+          // Try to sync cookies one more time before rejecting
+          try {
+            await syncCookiesFromWebView();
+          } on Exception {
+            // Continue to reject even if sync fails
+          }
+          // Reject with authentication error
+          return handler.reject(DioException(
+            requestOptions: error.requestOptions,
+            error: 'Authentication required',
+            response: error.response,
+            type: DioExceptionType.badResponse,
+          ));
+        }
+
         // Retry logic for idempotent requests (GET, HEAD, OPTIONS) on temporary issues
         final method = error.requestOptions.method.toUpperCase();
-        final isIdempotent = method == 'GET' || method == 'HEAD' || method == 'OPTIONS';
-        final status = error.response?.statusCode ?? 0;
+        final isIdempotent =
+            method == 'GET' || method == 'HEAD' || method == 'OPTIONS';
         final isTemporary = error.type == DioExceptionType.connectionTimeout ||
             error.type == DioExceptionType.receiveTimeout ||
             error.type == DioExceptionType.sendTimeout ||
@@ -128,14 +161,17 @@ class DioClient {
 
         if (isIdempotent && isTemporary) {
           // Up to 3 retries with exponential backoff + jitter
-          final retryCount = (error.requestOptions.extra['retryCount'] as int?) ?? 0;
+          final retryCount =
+              (error.requestOptions.extra['retryCount'] as int?) ?? 0;
           if (retryCount < 3) {
             int baseDelayMs;
             if (status == 429) {
               // Honor Retry-After if provided
               final retryAfter = error.response?.headers.value('retry-after');
               final retryAfterSeconds = int.tryParse(retryAfter ?? '') ?? 0;
-              baseDelayMs = (retryAfterSeconds > 0 ? retryAfterSeconds * 1000 : (500 * (1 << retryCount)));
+              baseDelayMs = (retryAfterSeconds > 0
+                  ? retryAfterSeconds * 1000
+                  : (500 * (1 << retryCount)));
             } else {
               baseDelayMs = 500 * (1 << retryCount);
             }
@@ -156,7 +192,10 @@ class DioClient {
             await Future.delayed(Duration(milliseconds: delayMs));
 
             final newOptions = error.requestOptions.copyWith(
-              extra: {...error.requestOptions.extra, 'retryCount': retryCount + 1},
+              extra: {
+                ...error.requestOptions.extra,
+                'retryCount': retryCount + 1
+              },
             );
 
             try {
@@ -171,10 +210,10 @@ class DioClient {
         return handler.next(error);
       },
     ));
-    
+
     _cookieJar ??= CookieJar();
     dio.interceptors.add(CookieManager(_cookieJar!));
-    
+
     return dio;
   }
 
@@ -193,11 +232,20 @@ class DioClient {
   ///
   /// This method should be called to ensure that authentication cookies
   /// obtained through WebView login are available for HTTP requests.
+  ///
+  /// It validates cookies before saving and handles various cookie formats.
   static Future<void> syncCookiesFromWebView() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final cookieJson = prefs.getString('rutracker_cookies_v1');
-      if (cookieJson == null) return;
+      if (cookieJson == null) {
+        await StructuredLogger().log(
+          level: 'debug',
+          subsystem: 'auth',
+          message: 'No cookies found in WebView storage',
+        );
+        return;
+      }
 
       final db = AppDatabase().database;
       final endpointManager = EndpointManager(db);
@@ -205,44 +253,119 @@ class DioClient {
       final uri = Uri.parse(activeBase);
 
       // Parse cookies list from JSON (as saved by secure webview)
-      final list = jsonDecode(cookieJson) as List<dynamic>;
+      List<dynamic> list;
+      try {
+        list = jsonDecode(cookieJson) as List<dynamic>;
+      } on Exception catch (e) {
+        await StructuredLogger().log(
+          level: 'error',
+          subsystem: 'auth',
+          message: 'Failed to parse cookie JSON',
+          cause: e.toString(),
+        );
+        return;
+      }
+
+      if (list.isEmpty) {
+        await StructuredLogger().log(
+          level: 'debug',
+          subsystem: 'auth',
+          message: 'Cookie list is empty',
+        );
+        return;
+      }
 
       _cookieJar ??= CookieJar();
       final cookies = <Cookie>[];
       final validName = RegExp(r"^[!#\$%&'*+.^_`|~0-9A-Za-z-]+$");
+      int skippedCount = 0;
+
       for (final c in list) {
-        final m = Map<String, dynamic>.from(c as Map);
-        var name = m['name']?.toString();
-        var value = m['value']?.toString();
-        if (name == null || value == null) continue;
+        try {
+          final m = Map<String, dynamic>.from(c as Map);
+          var name = m['name']?.toString();
+          var value = m['value']?.toString();
 
-        // Trim and strip surrounding quotes
-        name = name.trim();
-        value = value.trim();
-        if (name.length >= 2 && name.startsWith('"') && name.endsWith('"')) {
-          name = name.substring(1, name.length - 1);
-        }
-        if (value.length >= 2 && value.startsWith('"') && value.endsWith('"')) {
-          value = value.substring(1, value.length - 1);
-        }
-        if (!validName.hasMatch(name)) {
-          // Skip invalid cookie names to avoid FormatException
-          continue;
-        }
+          if (name == null || value == null) {
+            skippedCount++;
+            continue;
+          }
 
-        final cookie = Cookie(name, value)
-          ..domain = m['domain']?.toString() ?? uri.host
-          ..path = m['path']?.toString() ?? '/'
-          ..secure = true;
-        cookies.add(cookie);
+          // Trim and strip surrounding quotes
+          name = name.trim();
+          value = value.trim();
+          if (name.isEmpty || value.isEmpty) {
+            skippedCount++;
+            continue;
+          }
+
+          if (name.length >= 2 && name.startsWith('"') && name.endsWith('"')) {
+            name = name.substring(1, name.length - 1);
+          }
+          if (value.length >= 2 &&
+              value.startsWith('"') &&
+              value.endsWith('"')) {
+            value = value.substring(1, value.length - 1);
+          }
+
+          // Validate cookie name format
+          if (!validName.hasMatch(name)) {
+            skippedCount++;
+            continue;
+          }
+
+          // Extract domain, path, and other properties
+          final domain = (m['domain']?.toString() ?? uri.host).trim();
+          final path = (m['path']?.toString() ?? '/').trim();
+
+          // Validate domain matches the endpoint
+          if (!domain.contains(uri.host) && !domain.startsWith('.')) {
+            // Allow subdomains and exact matches
+            if (domain != uri.host && !domain.endsWith(uri.host)) {
+              skippedCount++;
+              continue;
+            }
+          }
+
+          final cookie = Cookie(name, value)
+            ..domain = domain
+            ..path = path
+            ..secure = true;
+
+          cookies.add(cookie);
+        } on Exception catch (e) {
+          // Log individual cookie parsing errors but continue
+          await StructuredLogger().log(
+            level: 'debug',
+            subsystem: 'auth',
+            message: 'Failed to parse individual cookie',
+            cause: e.toString(),
+          );
+          skippedCount++;
+        }
       }
+
+      if (cookies.isEmpty) {
+        await StructuredLogger().log(
+          level: 'warning',
+          subsystem: 'auth',
+          message: 'No valid cookies to sync after parsing',
+          extra: {'total': list.length, 'skipped': skippedCount},
+        );
+        return;
+      }
+
       await _cookieJar!.saveFromResponse(uri, cookies);
 
       await StructuredLogger().log(
         level: 'info',
         subsystem: 'auth',
         message: 'Synced cookies from WebView to Dio',
-        extra: {'count': cookies.length},
+        extra: {
+          'count': cookies.length,
+          'total': list.length,
+          'skipped': skippedCount,
+        },
       );
     } on Exception catch (e) {
       await StructuredLogger().log(
@@ -260,5 +383,161 @@ class DioClient {
   /// from any authenticated sessions.
   static Future<void> clearCookies() async {
     await _cookieJar?.deleteAll();
+
+    // Also clear from SharedPreferences
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('rutracker_cookies_v1');
+
+    await StructuredLogger().log(
+      level: 'info',
+      subsystem: 'auth',
+      message: 'Cleared all cookies',
+    );
+  }
+
+  /// Checks if valid cookies are available for authentication.
+  ///
+  /// Returns true if cookies exist and appear to be valid, false otherwise.
+  static Future<bool> hasValidCookies() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final cookieJson = prefs.getString('rutracker_cookies_v1');
+
+      if (cookieJson == null || cookieJson.isEmpty) {
+        return false;
+      }
+
+      // Check if cookies are in valid JSON format
+      try {
+        final list = jsonDecode(cookieJson) as List<dynamic>;
+        if (list.isEmpty) {
+          return false;
+        }
+
+        // Check if we have at least one cookie with a value
+        bool hasValidCookie = false;
+        for (final c in list) {
+          final cookie = c as Map<String, dynamic>;
+          final name = cookie['name'] as String?;
+          final value = cookie['value'] as String?;
+
+          if (name != null &&
+              name.isNotEmpty &&
+              value != null &&
+              value.isNotEmpty) {
+            hasValidCookie = true;
+            break;
+          }
+        }
+
+        return hasValidCookie;
+      } on FormatException {
+        return false;
+      }
+    } on Exception {
+      return false;
+    }
+  }
+
+  /// Validates cookies by making a test request to RuTracker.
+  ///
+  /// Returns true if cookies are valid and authentication is active, false otherwise.
+  static Future<bool> validateCookies() async {
+    try {
+      if (!await hasValidCookies()) {
+        await StructuredLogger().log(
+          level: 'debug',
+          subsystem: 'auth',
+          message: 'No cookies available for validation',
+        );
+        return false;
+      }
+
+      // Ensure cookies are synced
+      await syncCookiesFromWebView();
+
+      // Make a lightweight test request to check authentication
+      final dio = await instance;
+      final db = AppDatabase().database;
+      final endpointManager = EndpointManager(db);
+      final activeBase = await endpointManager.getActiveEndpoint();
+
+      try {
+        // Try to access a protected page (user profile or settings would require auth)
+        // Using index.php as a lightweight test
+        final response = await dio
+            .get(
+              '$activeBase/index.php',
+              options: Options(
+                validateStatus: (status) => status != null && status < 500,
+                followRedirects: false,
+              ),
+            )
+            .timeout(const Duration(seconds: 10));
+
+        // If we get redirected to login, cookies are invalid
+        final location = response.headers.value('location');
+        final isRedirectedToLogin = location != null &&
+            (location.contains('login.php') || location.contains('login'));
+
+        if (isRedirectedToLogin) {
+          await StructuredLogger().log(
+            level: 'info',
+            subsystem: 'auth',
+            message: 'Cookies validation failed - redirected to login',
+          );
+          return false;
+        }
+
+        // If we get a successful response or a non-login redirect, cookies are likely valid
+        final isValid = response.statusCode != null &&
+            response.statusCode! >= 200 &&
+            response.statusCode! < 400;
+
+        await StructuredLogger().log(
+          level: isValid ? 'info' : 'warning',
+          subsystem: 'auth',
+          message: 'Cookies validation ${isValid ? "succeeded" : "failed"}',
+          extra: {'statusCode': response.statusCode},
+        );
+
+        return isValid;
+      } on TimeoutException {
+        await StructuredLogger().log(
+          level: 'warning',
+          subsystem: 'auth',
+          message: 'Cookies validation timed out',
+        );
+        // Assume valid if request times out (network issue, not auth issue)
+        return true;
+      } on DioException catch (e) {
+        if (e.response?.statusCode == 401 ||
+            e.response?.statusCode == 403 ||
+            e.message?.contains('Authentication required') == true) {
+          await StructuredLogger().log(
+            level: 'info',
+            subsystem: 'auth',
+            message: 'Cookies validation failed - authentication required',
+          );
+          return false;
+        }
+        // For other errors, assume cookies might still be valid
+        await StructuredLogger().log(
+          level: 'warning',
+          subsystem: 'auth',
+          message: 'Cookies validation error (assuming valid)',
+          cause: e.toString(),
+        );
+        return true;
+      }
+    } on Exception catch (e) {
+      await StructuredLogger().log(
+        level: 'error',
+        subsystem: 'auth',
+        message: 'Failed to validate cookies',
+        cause: e.toString(),
+      );
+      return false;
+    }
   }
 }

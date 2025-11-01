@@ -62,10 +62,9 @@ Response _createMockResponse({
   int statusCode = 200,
 }) {
   // Convert headers to the proper format
-  final convertedHeaders = headers.map((key, value) =>
-    MapEntry(key, [value.toString()])
-  );
-  
+  final convertedHeaders =
+      headers.map((key, value) => MapEntry(key, [value.toString()]));
+
   return Response(
     requestOptions: RequestOptions(path: 'https://example.com'),
     statusCode: statusCode,

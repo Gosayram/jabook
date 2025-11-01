@@ -5,7 +5,8 @@ import 'package:jabook/features/auth/domain/repositories/auth_repository.dart';
 /// Provider for AuthRepository instance.
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
   // This provider should be overridden in the widget tree with proper context
-  throw Exception('AuthRepositoryProvider must be overridden with proper context');
+  throw Exception(
+      'AuthRepositoryProvider must be overridden with proper context');
 });
 
 /// Provider for authentication status.

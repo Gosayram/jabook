@@ -26,7 +26,8 @@ class AudiobookCategory {
     String? name,
     String? url,
     List<AudiobookCategory>? subcategories,
-  }) => AudiobookCategory(
+  }) =>
+      AudiobookCategory(
         id: id ?? this.id,
         name: name ?? this.name,
         url: url ?? this.url,

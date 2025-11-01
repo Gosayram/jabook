@@ -33,7 +33,8 @@ class RuTrackerCacheService {
   ///
   /// The [query] parameter is the search query.
   /// The [results] parameter is the list of audiobook maps to cache.
-  Future<void> cacheSearchResults(String query, List<Map<String, dynamic>> results) async {
+  Future<void> cacheSearchResults(
+      String query, List<Map<String, dynamic>> results) async {
     final key = _getSearchResultsKey(query);
     await _cacheManager.storeWithTTL(key, results, searchResultsTTL);
   }
@@ -42,14 +43,15 @@ class RuTrackerCacheService {
   ///
   /// The [query] parameter is the search query.
   /// Returns the cached results or `null` if expired or not found.
-  Future<List<Map<String, dynamic>>?> getCachedSearchResults(String query) async {
+  Future<List<Map<String, dynamic>>?> getCachedSearchResults(
+      String query) async {
     final key = _getSearchResultsKey(query);
     final cachedData = await _cacheManager.getIfNotExpired(key);
-    
+
     if (cachedData is List) {
       return cachedData.cast<Map<String, dynamic>>();
     }
-    
+
     return null;
   }
 
@@ -57,7 +59,8 @@ class RuTrackerCacheService {
   ///
   /// The [topicId] parameter is the topic identifier.
   /// The [audiobook] parameter is the audiobook details map to cache.
-  Future<void> cacheTopicDetails(String topicId, Map<String, dynamic> audiobook) async {
+  Future<void> cacheTopicDetails(
+      String topicId, Map<String, dynamic> audiobook) async {
     final key = _getTopicDetailsKey(topicId);
     await _cacheManager.storeWithTTL(key, audiobook, topicDetailsTTL);
   }
@@ -69,11 +72,11 @@ class RuTrackerCacheService {
   Future<Map<String, dynamic>?> getCachedTopicDetails(String topicId) async {
     final key = _getTopicDetailsKey(topicId);
     final cachedData = await _cacheManager.getIfNotExpired(key);
-    
+
     if (cachedData is Map<String, dynamic>) {
       return cachedData;
     }
-    
+
     return null;
   }
 
@@ -120,7 +123,8 @@ class RuTrackerCacheService {
   }
 
   /// Generates cache key for search results.
-  String _getSearchResultsKey(String query) => 'search:${query.toLowerCase().trim()}';
+  String _getSearchResultsKey(String query) =>
+      'search:${query.toLowerCase().trim()}';
 
   /// Generates cache key for topic details.
   String _getTopicDetailsKey(String topicId) => 'topic:$topicId';

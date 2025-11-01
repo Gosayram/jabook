@@ -10,7 +10,8 @@ abstract class RuTrackerRepository {
   Future<List<AudiobookCategory>> getCategories();
 
   /// Gets audiobooks from a specific category
-  Future<List<Audiobook>> getCategoryAudiobooks(String categoryId, {int page = 1});
+  Future<List<Audiobook>> getCategoryAudiobooks(String categoryId,
+      {int page = 1});
 
   /// Gets detailed information about a specific audiobook
   Future<Audiobook?> getAudiobookDetails(String audiobookId);

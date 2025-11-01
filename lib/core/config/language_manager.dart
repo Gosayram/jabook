@@ -29,13 +29,13 @@ class LanguageManager {
   /// Gets the actual locale to use based on user preference.
   Future<Locale> getLocale() async {
     final languageCode = await getCurrentLanguage();
-    
+
     if (languageCode == 'system') {
       // Use system default
       final systemLocale = WidgetsBinding.instance.platformDispatcher.locale;
       return _getSupportedLocale(systemLocale);
     }
-    
+
     return _getSupportedLocale(Locale(languageCode));
   }
 
@@ -95,14 +95,14 @@ class LanguageManager {
   /// Checks if the app should use RTL layout for the current language.
   Future<bool> isRTL() async {
     final languageCode = await getCurrentLanguage();
-    
+
     if (languageCode == 'system') {
       final systemLocale = WidgetsBinding.instance.platformDispatcher.locale;
-      return systemLocale.languageCode == 'ar' || 
-             systemLocale.languageCode == 'he' ||
-             systemLocale.languageCode == 'fa';
+      return systemLocale.languageCode == 'ar' ||
+          systemLocale.languageCode == 'he' ||
+          systemLocale.languageCode == 'fa';
     }
-    
+
     return languageCode == 'ar' || languageCode == 'he' || languageCode == 'fa';
   }
 

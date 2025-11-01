@@ -15,13 +15,13 @@ import 'package:shelf_static/shelf_static.dart';
 class LocalStreamServer {
   /// HTTP server instance.
   HttpServer? _server;
-  
+
   /// Host address for the server (localhost only).
   final String _host = '127.0.0.1';
-  
+
   /// Port number for the server.
   final int _port = 17171;
-  
+
   /// Flag indicating whether the server is currently running.
   bool _isRunning = false;
 
@@ -115,38 +115,38 @@ class LocalStreamServer {
   ///
   /// Returns a [Handler] function for processing HTTP requests.
   Handler _createHandler() => (request) async {
-    final uri = request.url;
-    
-    // Handle streaming requests
-    if (uri.pathSegments.isNotEmpty && uri.pathSegments.first == 'stream') {
-      try {
-        return await _handleStreamRequest(request);
-      } on Exception catch (e) {
-        await StructuredLogger().log(
-          level: 'error',
-          subsystem: 'stream',
-          message: 'Stream request error',
-          cause: e.toString(),
-          extra: {'path': request.url.toString()},
-        );
-        return Response.internalServerError(body: 'Streaming error');
-      }
-    }
+        final uri = request.url;
 
-    // Handle other requests with static file serving
-    try {
-      return await _handleStaticRequest(request);
-    } on Exception catch (e) {
-      await StructuredLogger().log(
-        level: 'error',
-        subsystem: 'stream',
-        message: 'Static request error',
-        cause: e.toString(),
-        extra: {'path': request.url.toString()},
-      );
-      return Response.internalServerError(body: 'Static file error');
-    }
-  };
+        // Handle streaming requests
+        if (uri.pathSegments.isNotEmpty && uri.pathSegments.first == 'stream') {
+          try {
+            return await _handleStreamRequest(request);
+          } on Exception catch (e) {
+            await StructuredLogger().log(
+              level: 'error',
+              subsystem: 'stream',
+              message: 'Stream request error',
+              cause: e.toString(),
+              extra: {'path': request.url.toString()},
+            );
+            return Response.internalServerError(body: 'Streaming error');
+          }
+        }
+
+        // Handle other requests with static file serving
+        try {
+          return await _handleStaticRequest(request);
+        } on Exception catch (e) {
+          await StructuredLogger().log(
+            level: 'error',
+            subsystem: 'stream',
+            message: 'Static request error',
+            cause: e.toString(),
+            extra: {'path': request.url.toString()},
+          );
+          return Response.internalServerError(body: 'Static file error');
+        }
+      };
 
   /// Handles streaming requests for audiobook files.
   ///
@@ -172,7 +172,7 @@ class LocalStreamServer {
       }
 
       final filePath = _getFilePath(bookId, fileIndex);
-      
+
       if (!await File(filePath).exists()) {
         return Response.notFound('File not found');
       }
@@ -226,7 +226,8 @@ class LocalStreamServer {
   /// The [rangeHeader] parameter contains the Range header value.
   ///
   /// Returns a [Response] with the partial content or appropriate error.
-  Future<Response> _handleRangeRequest(String filePath, String rangeHeader, String contentType) async {
+  Future<Response> _handleRangeRequest(
+      String filePath, String rangeHeader, String contentType) async {
     try {
       final file = File(filePath);
       final stat = await file.stat();
@@ -239,7 +240,9 @@ class LocalStreamServer {
       }
 
       final start = int.tryParse(rangeMatch.group(1) ?? '0') ?? 0;
-      final end = int.tryParse(rangeMatch.group(2) ?? (fileSize - 1).toString()) ?? fileSize - 1;
+      final end =
+          int.tryParse(rangeMatch.group(2) ?? (fileSize - 1).toString()) ??
+              fileSize - 1;
 
       if (start >= fileSize || end >= fileSize || start > end) {
         return Response(
@@ -280,7 +283,7 @@ class LocalStreamServer {
     try {
       // Use shelf_static to serve static files
       final staticHandler = createStaticHandler('assets/web');
-      
+
       // For API endpoints, return appropriate responses
       if (request.url.path.startsWith('api/')) {
         return Response(
@@ -309,9 +312,9 @@ class LocalStreamServer {
   ///
   /// Returns the file path as a string.
   String _getFilePath(String bookId, int fileIndex) =>
-    // TODO: Implement actual file path resolution based on book ID and file index
-    // This is a placeholder implementation
-    '/path/to/downloads/$bookId/file_$fileIndex.mp3';
+      // TODO: Implement actual file path resolution based on book ID and file index
+      // This is a placeholder implementation
+      '/path/to/downloads/$bookId/file_$fileIndex.mp3';
 
   /// Gets the streaming URL for the specified audiobook file.
   ///
@@ -322,7 +325,8 @@ class LocalStreamServer {
   /// The [fileIndex] parameter is the index of the file within the audiobook.
   ///
   /// Returns the streaming URL as a string.
-  String getStreamUrl(String bookId, int fileIndex) => 'http://$_host:$_port/stream?id=$bookId&file=$fileIndex';
+  String getStreamUrl(String bookId, int fileIndex) =>
+      'http://$_host:$_port/stream?id=$bookId&file=$fileIndex';
 
   String _resolveContentType(String path) {
     final type = mime.lookupMimeType(path);

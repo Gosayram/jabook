@@ -41,11 +41,13 @@ class CategoryParser {
   static const String _subforumsSelector = '.subforums';
   static const String _topicRowSelector = 'tr.hl-tr';
   static const String _topicTitleSelector = 'a.torTopic.tt-text, a.torTopic';
-  static const String _topicAuthorSelector = '.topicAuthor, .topicAuthor a, a.pmed';
+  static const String _topicAuthorSelector =
+      '.topicAuthor, .topicAuthor a, a.pmed';
   static const String _topicSizeSelector = 'a.f-dl.dl-stub, span.small';
   static const String _seedersSelector = 'span.seedmed b, span.seedmed';
   static const String _leechersSelector = 'span.leechmed b, span.leechmed';
   static const String _downloadsSelector = 'p.med[title*="Торрент скачан"] b';
+
   /// Parses the main audiobooks categories page from RuTracker.
   ///
   /// This method extracts categories and subcategories from the forum structure,
@@ -70,11 +72,13 @@ class CategoryParser {
       final categories = <AudiobookCategory>[];
 
       // Find audiobooks category (c=33) in the main index page structure
-      final audiobooksCategory = document.querySelector('$_audiobooksRootSelectorPrefix${CategoryConstants.audiobooksCategoryId}');
+      final audiobooksCategory = document.querySelector(
+          '$_audiobooksRootSelectorPrefix${CategoryConstants.audiobooksCategoryId}');
       if (audiobooksCategory != null) {
         // Extract forums from the category table
-        final forumRows = audiobooksCategory.querySelectorAll(_forumRowSelector);
-        
+        final forumRows =
+            audiobooksCategory.querySelectorAll(_forumRowSelector);
+
         for (final row in forumRows) {
           final forumLink = row.querySelector(_forumLinkSelector);
           if (forumLink != null) {
@@ -104,12 +108,12 @@ class CategoryParser {
   /// Parses subcategories from a category row.
   Future<List<AudiobookCategory>> _parseSubcategories(Element row) async {
     final subcategories = <AudiobookCategory>[];
-    
+
     // Look for subcategory links in the subforums section
     final subforumsElement = row.querySelector(_subforumsSelector);
     if (subforumsElement != null) {
       final subforumLinks = subforumsElement.querySelectorAll('a');
-      
+
       for (final link in subforumLinks) {
         final name = link.text.trim();
         final url = link.attributes['href'] ?? '';
@@ -128,7 +132,6 @@ class CategoryParser {
     return subcategories;
   }
 
-
   /// Extracts forum ID from URL.
   String _extractForumId(String url) {
     final regex = RegExp(r'f=(\d+)');
@@ -139,31 +142,31 @@ class CategoryParser {
   /// Determines if a category should be ignored based on its name.
   bool _shouldIgnoreCategory(String categoryName) {
     final lowerName = categoryName.toLowerCase();
-    
+
     return lowerName.contains('новости') ||
-           lowerName.contains('объявления') ||
-           lowerName.contains('полезная информация') ||
-           lowerName.contains('обсуждение') ||
-           lowerName.contains('технический') ||
-           lowerName.contains('флудильня') ||
-           lowerName.contains('оффтоп') ||
-           lowerName.contains('помощь') ||
-           lowerName.contains('правила');
+        lowerName.contains('объявления') ||
+        lowerName.contains('полезная информация') ||
+        lowerName.contains('обсуждение') ||
+        lowerName.contains('технический') ||
+        lowerName.contains('флудильня') ||
+        lowerName.contains('оффтоп') ||
+        lowerName.contains('помощь') ||
+        lowerName.contains('правила');
   }
 
   /// Determines if a forum should be ignored based on its name.
   bool _shouldIgnoreForum(String forumName) {
     final lowerName = forumName.toLowerCase();
-    
+
     return lowerName.contains('новости') ||
-           lowerName.contains('объявления') ||
-           lowerName.contains('полезная информация') ||
-           lowerName.contains('обсуждение') ||
-           lowerName.contains('общение') ||
-           lowerName.contains('предложения') ||
-           lowerName.contains('поиск') ||
-           lowerName.contains('авторы') ||
-           lowerName.contains('исполнители');
+        lowerName.contains('объявления') ||
+        lowerName.contains('полезная информация') ||
+        lowerName.contains('обсуждение') ||
+        lowerName.contains('общение') ||
+        lowerName.contains('предложения') ||
+        lowerName.contains('поиск') ||
+        lowerName.contains('авторы') ||
+        lowerName.contains('исполнители');
   }
 
   /// Parses audiobook topics from a category page.
@@ -184,7 +187,7 @@ class CategoryParser {
 
       // Find topic rows in the forum table using actual RuTracker structure
       final topicRows = document.querySelectorAll(_topicRowSelector);
-      
+
       for (final row in topicRows) {
         // Skip ad rows
         if (row.classes.any((c) => c.contains('banner') || c.contains('ads'))) {
@@ -198,8 +201,9 @@ class CategoryParser {
         final downloadsElement = row.querySelector(_downloadsSelector);
 
         if (topicLink != null) {
-          final topicId = row.attributes['data-topic_id'] ?? _extractTopicId(topicLink.attributes['href'] ?? '');
-          
+          final topicId = row.attributes['data-topic_id'] ??
+              _extractTopicId(topicLink.attributes['href'] ?? '');
+
           final topic = {
             'title': topicLink.text.trim(),
             'url': topicLink.attributes['href'] ?? '',
@@ -207,7 +211,8 @@ class CategoryParser {
             'size': sizeElement?.text.trim() ?? '',
             'seeders': int.tryParse(seedersElement?.text.trim() ?? '0') ?? 0,
             'leechers': int.tryParse(leechersElement?.text.trim() ?? '0') ?? 0,
-            'downloads': int.tryParse(downloadsElement?.text.trim() ?? '0') ?? 0,
+            'downloads':
+                int.tryParse(downloadsElement?.text.trim() ?? '0') ?? 0,
             'id': topicId,
             'added_date': _extractDateFromTopicRow(row),
           };
@@ -250,8 +255,18 @@ DateTime _extractDateFromTopicRow(Element row) {
 
 int _monthToNumber(String month) {
   const months = {
-    'янв': 1, 'фев': 2, 'мар': 3, 'апр': 4, 'май': 5, 'июн': 6,
-    'июл': 7, 'авг': 8, 'сен': 9, 'окт': 10, 'ноя': 11, 'дек': 12
+    'янв': 1,
+    'фев': 2,
+    'мар': 3,
+    'апр': 4,
+    'май': 5,
+    'июн': 6,
+    'июл': 7,
+    'авг': 8,
+    'сен': 9,
+    'окт': 10,
+    'ноя': 11,
+    'дек': 12
   };
   return months[month.toLowerCase()] ?? 1;
 }

@@ -3,9 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:jabook/core/config/app_config.dart';
-import 'package:jabook/features/auth/presentation/screens/auth_screen.dart';
-import 'package:jabook/features/auth/presentation/widgets/auth_status_indicator.dart';
 import 'package:jabook/features/debug/presentation/screens/debug_screen.dart';
+import 'package:jabook/features/library/presentation/screens/favorites_screen.dart';
 import 'package:jabook/features/library/presentation/screens/library_screen.dart';
 import 'package:jabook/features/mirrors/presentation/screens/mirrors_screen.dart';
 import 'package:jabook/features/player/presentation/screens/player_screen.dart';
@@ -26,10 +25,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         GoRoute(
           path: '/',
           builder: (context, state) => const LibraryScreen(),
-        ),
-        GoRoute(
-          path: '/auth',
-          builder: (context, state) => const AuthScreen(),
         ),
         GoRoute(
           path: '/search',
@@ -67,6 +62,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       path: '/mirrors',
       builder: (context, state) => const MirrorsScreen(),
     ),
+    GoRoute(
+      path: '/favorites',
+      builder: (context, state) => const FavoritesScreen(),
+    ),
   ];
 
   return GoRouter(
@@ -94,34 +93,36 @@ class _MainNavigationWrapper extends ConsumerStatefulWidget {
   final bool debugEnabled;
 
   @override
-  ConsumerState<_MainNavigationWrapper> createState() => _MainNavigationWrapperState();
+  ConsumerState<_MainNavigationWrapper> createState() =>
+      _MainNavigationWrapperState();
 }
 
-class _MainNavigationWrapperState extends ConsumerState<_MainNavigationWrapper> {
+class _MainNavigationWrapperState
+    extends ConsumerState<_MainNavigationWrapper> {
   int _selectedIndex = 0;
 
   List<NavigationItem> _buildNavigationItems(BuildContext context) {
     final localizations = AppLocalizations.of(context);
-    
+
     final items = [
       NavigationItem(
-        title: localizations?.navLibrary ?? localizations?.libraryTitle ?? 'Library',
+        title: localizations?.navLibrary ??
+            localizations?.libraryTitle ??
+            'Library',
         icon: Icons.library_books,
         route: '/',
       ),
       NavigationItem(
-        title: localizations?.navAuth ?? 'Connect',
-        icon: Icons.link,
-        route: '/auth',
-        badge: const AuthStatusIndicator(),
-      ),
-      NavigationItem(
-        title: localizations?.navSearch ?? localizations?.searchAudiobooks ?? 'Search',
+        title: localizations?.navSearch ??
+            localizations?.searchAudiobooks ??
+            'Search',
         icon: Icons.search,
         route: '/search',
       ),
       NavigationItem(
-        title: localizations?.navSettings ?? localizations?.settingsTitle ?? 'Settings',
+        title: localizations?.navSettings ??
+            localizations?.settingsTitle ??
+            'Settings',
         icon: Icons.settings,
         route: '/settings',
       ),
@@ -131,7 +132,8 @@ class _MainNavigationWrapperState extends ConsumerState<_MainNavigationWrapper> 
     if (widget.debugEnabled) {
       items.add(
         NavigationItem(
-          title: localizations?.navDebug ?? localizations?.debugTitle ?? 'Debug',
+          title:
+              localizations?.navDebug ?? localizations?.debugTitle ?? 'Debug',
           icon: Icons.bug_report,
           route: '/debug',
         ),
@@ -146,7 +148,8 @@ class _MainNavigationWrapperState extends ConsumerState<_MainNavigationWrapper> 
     // Get current location to determine selected index
     final currentLocation = GoRouterState.of(context).uri.toString();
     final navigationItems = _buildNavigationItems(context);
-    _selectedIndex = navigationItems.indexWhere((item) => item.route == currentLocation);
+    _selectedIndex =
+        navigationItems.indexWhere((item) => item.route == currentLocation);
     if (_selectedIndex == -1) _selectedIndex = 0;
 
     return Scaffold(
@@ -162,23 +165,25 @@ class _MainNavigationWrapperState extends ConsumerState<_MainNavigationWrapper> 
             }
           },
           type: BottomNavigationBarType.fixed,
-          items: navigationItems.map((item) => BottomNavigationBarItem(
-            icon: Stack(
-              children: [
-                Semantics(
-                  label: item.title,
-                  child: Icon(item.icon),
-                ),
-                if (item.badge != null)
-                  Positioned(
-                    top: 0,
-                    right: 0,
-                    child: item.badge!,
-                  ),
-              ],
-            ),
-            label: item.title,
-          )).toList(),
+          items: navigationItems
+              .map((item) => BottomNavigationBarItem(
+                    icon: Stack(
+                      children: [
+                        Semantics(
+                          label: item.title,
+                          child: Icon(item.icon),
+                        ),
+                        if (item.badge != null)
+                          Positioned(
+                            top: 0,
+                            right: 0,
+                            child: item.badge!,
+                          ),
+                      ],
+                    ),
+                    label: item.title,
+                  ))
+              .toList(),
         ),
       ),
     );

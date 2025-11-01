@@ -53,7 +53,7 @@ class EnvironmentLogger {
   }) {
     // Get log level from environment
     final logLevel = _getLogLevel();
-    
+
     // Check if this message should be logged based on level
     if (!_shouldLog(level, logLevel)) {
       return;
@@ -93,10 +93,10 @@ class EnvironmentLogger {
   /// Determines if a log level should be logged based on environment settings.
   bool _shouldLog(String messageLevel, String environmentLevel) {
     const levels = ['VERBOSE', 'DEBUG', 'INFO', 'WARNING', 'ERROR', 'WTF'];
-    
+
     final messageIndex = levels.indexOf(messageLevel);
     final environmentIndex = levels.indexOf(environmentLevel);
-    
+
     return messageIndex >= environmentIndex;
   }
 
@@ -106,7 +106,7 @@ class EnvironmentLogger {
     if (kDebugMode) {
       return 'VERBOSE';
     }
-    
+
     // Get from environment configuration
     const logLevel = String.fromEnvironment('LOG_LEVEL', defaultValue: 'INFO');
     return logLevel;
@@ -124,17 +124,18 @@ class EnvironmentLogger {
   ) {
     // TODO: Implement actual crash reporting integration
     // This could integrate with Firebase Crashlytics, Sentry, or other services
-    
+
     // For now, just log to console in release builds
-    developer.log('[CRASH_REPORTING] Level: $level, Message: $message', name: 'JaBook');
+    developer.log('[CRASH_REPORTING] Level: $level, Message: $message',
+        name: 'JaBook');
     if (error != null) {
       developer.log('[CRASH_REPORTING] Error: $error', name: 'JaBook');
     }
     if (stackTrace != null) {
-      developer.log('[CRASH_REPORTING] Stack trace: $stackTrace', name: 'JaBook');
+      developer.log('[CRASH_REPORTING] Stack trace: $stackTrace',
+          name: 'JaBook');
     }
   }
-
 
   /// Initializes the logger for the current environment.
   void initialize() {
@@ -149,8 +150,8 @@ class EnvironmentLogger {
 
   /// Clears all cached logs (if any).
   void clearLogs() =>
-    // TODO: Implement log clearing if using persistent logging
-    {};
+      // TODO: Implement log clearing if using persistent logging
+      {};
 
   /// Gets the current log level as a user-friendly string.
   String getLogLevelName() {

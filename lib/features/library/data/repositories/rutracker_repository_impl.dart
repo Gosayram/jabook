@@ -35,11 +35,12 @@ class RuTrackerRepositoryImpl implements RuTrackerRepository {
   Future<List<Audiobook>> searchAudiobooks(String query, {int page = 1}) async {
     try {
       final dio = await DioClient.instance;
-      
+
       // Build search URL with proper RuTracker parameters
-      final searchPath = '/forum/search.php?nm=$query&f=${CategoryConstants.audiobooksCategoryId}&start=${(page - 1) * CategoryConstants.searchResultsPerPage}';
+      final searchPath =
+          '/forum/search.php?nm=$query&f=${CategoryConstants.audiobooksCategoryId}&start=${(page - 1) * CategoryConstants.searchResultsPerPage}';
       final searchUrl = await _endpointManager.buildUrl(searchPath);
-      
+
       final response = await dio.get(
         searchUrl,
         options: Options(
@@ -51,26 +52,31 @@ class RuTrackerRepositoryImpl implements RuTrackerRepository {
         ),
       );
 
-      final results = await _parser.parseSearchResults(response.data.toString());
-      return results.map((audiobook) => Audiobook(
-        id: audiobook.id,
-        title: audiobook.title,
-        author: audiobook.author,
-        category: audiobook.category,
-        size: audiobook.size,
-        seeders: audiobook.seeders,
-        leechers: audiobook.leechers,
-        magnetUrl: audiobook.magnetUrl,
-        coverUrl: audiobook.coverUrl,
-        chapters: audiobook.chapters.map((chapter) => Chapter(
-          title: chapter.title,
-          durationMs: chapter.durationMs,
-          fileIndex: chapter.fileIndex,
-          startByte: chapter.startByte,
-          endByte: chapter.endByte,
-        )).toList(),
-        addedDate: audiobook.addedDate,
-      )).toList();
+      final results =
+          await _parser.parseSearchResults(response.data.toString());
+      return results
+          .map((audiobook) => Audiobook(
+                id: audiobook.id,
+                title: audiobook.title,
+                author: audiobook.author,
+                category: audiobook.category,
+                size: audiobook.size,
+                seeders: audiobook.seeders,
+                leechers: audiobook.leechers,
+                magnetUrl: audiobook.magnetUrl,
+                coverUrl: audiobook.coverUrl,
+                chapters: audiobook.chapters
+                    .map((chapter) => Chapter(
+                          title: chapter.title,
+                          durationMs: chapter.durationMs,
+                          fileIndex: chapter.fileIndex,
+                          startByte: chapter.startByte,
+                          endByte: chapter.endByte,
+                        ))
+                    .toList(),
+                addedDate: audiobook.addedDate,
+              ))
+          .toList();
     } on DioException catch (e) {
       throw NetworkFailure('Search failed: ${e.message}');
     } on Exception {
@@ -82,7 +88,7 @@ class RuTrackerRepositoryImpl implements RuTrackerRepository {
   Future<List<AudiobookCategory>> getCategories() async {
     try {
       final dio = await DioClient.instance;
-      
+
       const indexPath = '/forum/index.php';
       final indexUrl = await _endpointManager.buildUrl(indexPath);
       final response = await dio.get(
@@ -96,17 +102,22 @@ class RuTrackerRepositoryImpl implements RuTrackerRepository {
         ),
       );
 
-      final categories = await category_parser.CategoryParser().parseCategories(response.data.toString());
-      return categories.map((category) => AudiobookCategory(
-        id: category.id,
-        name: category.name,
-        url: category.url,
-        subcategories: category.subcategories.map((subcategory) => AudiobookCategory(
-          id: subcategory.id,
-          name: subcategory.name,
-          url: subcategory.url,
-        )).toList(),
-      )).toList();
+      final categories = await category_parser.CategoryParser()
+          .parseCategories(response.data.toString());
+      return categories
+          .map((category) => AudiobookCategory(
+                id: category.id,
+                name: category.name,
+                url: category.url,
+                subcategories: category.subcategories
+                    .map((subcategory) => AudiobookCategory(
+                          id: subcategory.id,
+                          name: subcategory.name,
+                          url: subcategory.url,
+                        ))
+                    .toList(),
+              ))
+          .toList();
     } on DioException catch (e) {
       throw NetworkFailure('Failed to fetch categories: ${e.message}');
     } on Exception {
@@ -115,13 +126,14 @@ class RuTrackerRepositoryImpl implements RuTrackerRepository {
   }
 
   @override
-  Future<List<Audiobook>> getCategoryAudiobooks(String categoryId, {int page = 1}) async {
+  Future<List<Audiobook>> getCategoryAudiobooks(String categoryId,
+      {int page = 1}) async {
     try {
       final dio = await DioClient.instance;
-      
+
       final forumPath = '/forum/viewforum.php?f=$categoryId';
       final forumUrl = await _endpointManager.buildUrl(forumPath);
-      
+
       final response = await dio.get(
         forumUrl,
         options: Options(
@@ -134,21 +146,24 @@ class RuTrackerRepositoryImpl implements RuTrackerRepository {
       );
 
       // Parse topics from category page
-      final topics = await _categoryParser.parseCategoryTopics(response.data.toString());
-      
+      final topics =
+          await _categoryParser.parseCategoryTopics(response.data.toString());
+
       // Convert topics to audiobooks
-      return topics.map((topic) => Audiobook(
-        id: topic['id']?.toString() ?? '',
-        title: topic['title']?.toString() ?? '',
-        author: topic['author']?.toString() ?? 'Unknown',
-        category: _extractCategoryFromForumId(categoryId),
-        size: topic['size']?.toString() ?? '0 MB',
-        seeders: topic['seeders'] as int? ?? 0,
-        leechers: topic['leechers'] as int? ?? 0,
-        magnetUrl: _buildMagnetUrl(topic['id']?.toString() ?? ''),
-        chapters: [],
-        addedDate: topic['added_date'] as DateTime? ?? DateTime.now(),
-      )).toList();
+      return topics
+          .map((topic) => Audiobook(
+                id: topic['id']?.toString() ?? '',
+                title: topic['title']?.toString() ?? '',
+                author: topic['author']?.toString() ?? 'Unknown',
+                category: _extractCategoryFromForumId(categoryId),
+                size: topic['size']?.toString() ?? '0 MB',
+                seeders: topic['seeders'] as int? ?? 0,
+                leechers: topic['leechers'] as int? ?? 0,
+                magnetUrl: _buildMagnetUrl(topic['id']?.toString() ?? ''),
+                chapters: [],
+                addedDate: topic['added_date'] as DateTime? ?? DateTime.now(),
+              ))
+          .toList();
     } on DioException catch (e) {
       throw NetworkFailure('Failed to get category audiobooks: ${e.message}');
     } on Exception {
@@ -160,7 +175,7 @@ class RuTrackerRepositoryImpl implements RuTrackerRepository {
   Future<Audiobook?> getAudiobookDetails(String audiobookId) async {
     try {
       final dio = await DioClient.instance;
-      
+
       final topicPath = '/forum/viewtopic.php?t=$audiobookId';
       final topicUrl = await _endpointManager.buildUrl(topicPath);
       final response = await dio.get(
@@ -176,7 +191,7 @@ class RuTrackerRepositoryImpl implements RuTrackerRepository {
 
       final details = await _parser.parseTopicDetails(response.data.toString());
       if (details == null) return null;
-      
+
       return Audiobook(
         id: details.id,
         title: details.title,
@@ -187,13 +202,15 @@ class RuTrackerRepositoryImpl implements RuTrackerRepository {
         leechers: details.leechers,
         magnetUrl: details.magnetUrl,
         coverUrl: details.coverUrl,
-        chapters: details.chapters.map((chapter) => Chapter(
-          title: chapter.title,
-          durationMs: chapter.durationMs,
-          fileIndex: chapter.fileIndex,
-          startByte: chapter.startByte,
-          endByte: chapter.endByte,
-        )).toList(),
+        chapters: details.chapters
+            .map((chapter) => Chapter(
+                  title: chapter.title,
+                  durationMs: chapter.durationMs,
+                  fileIndex: chapter.fileIndex,
+                  startByte: chapter.startByte,
+                  endByte: chapter.endByte,
+                ))
+            .toList(),
         addedDate: details.addedDate,
       );
     } on DioException catch (e) {
@@ -210,7 +227,12 @@ class RuTrackerRepositoryImpl implements RuTrackerRepository {
       final response = await dio.get(url);
       return _parsePaginationInfo(response.data.toString());
     } on Exception {
-      return {'currentPage': 1, 'totalPages': 1, 'hasNext': false, 'hasPrevious': false};
+      return {
+        'currentPage': 1,
+        'totalPages': 1,
+        'hasNext': false,
+        'hasPrevious': false
+      };
     }
   }
 
@@ -218,7 +240,7 @@ class RuTrackerRepositoryImpl implements RuTrackerRepository {
   Future<List<Map<String, String>>> getSortingOptions(String categoryId) async {
     try {
       final dio = await DioClient.instance;
-      
+
       final forumPath = '/forum/viewforum.php?f=$categoryId';
       final forumUrl = await _endpointManager.buildUrl(forumPath);
       final response = await dio.get(
@@ -231,7 +253,7 @@ class RuTrackerRepositoryImpl implements RuTrackerRepository {
           },
         ),
       );
-      
+
       return _parseSortingOptions(response.data.toString());
     } on Exception {
       return CategoryConstants.defaultSortingOptions;
@@ -266,7 +288,8 @@ class RuTrackerRepositoryImpl implements RuTrackerRepository {
             .toList();
 
         if (pageNumbers.isNotEmpty) {
-          paginationInfo['totalPages'] = pageNumbers.reduce((a, b) => a > b ? a : b);
+          paginationInfo['totalPages'] =
+              pageNumbers.reduce((a, b) => a > b ? a : b);
         }
 
         // Check for next/previous links
@@ -275,15 +298,22 @@ class RuTrackerRepositoryImpl implements RuTrackerRepository {
       }
 
       // Parse current page from URL or active page indicator
-      final currentPageMatch = RegExp(r'start=(\d+)').firstMatch(document.documentElement?.outerHtml ?? '');
+      final currentPageMatch = RegExp(r'start=(\d+)')
+          .firstMatch(document.documentElement?.outerHtml ?? '');
       if (currentPageMatch != null) {
         final start = int.parse(currentPageMatch.group(1)!);
-        paginationInfo['currentPage'] = (start ~/ 50) + 1; // Default perPage is 50
+        paginationInfo['currentPage'] =
+            (start ~/ 50) + 1; // Default perPage is 50
       }
 
       return paginationInfo;
     } on Exception {
-      return {'currentPage': 1, 'totalPages': 1, 'hasNext': false, 'hasPrevious': false};
+      return {
+        'currentPage': 1,
+        'totalPages': 1,
+        'hasNext': false,
+        'hasPrevious': false
+      };
     }
   }
 
@@ -299,7 +329,7 @@ class RuTrackerRepositoryImpl implements RuTrackerRepository {
 
       final document = parser.parse(decodedHtml);
       final sortSelect = document.querySelector('select#sort');
-      
+
       if (sortSelect != null) {
         final optionsElements = sortSelect.querySelectorAll('option');
         for (final option in optionsElements) {
@@ -335,7 +365,8 @@ class RuTrackerRepositoryImpl implements RuTrackerRepository {
 
   // Helper methods
   String _extractCategoryFromForumId(String forumId) =>
-      CategoryConstants.categoryNameMap[forumId] ?? CategoryConstants.defaultCategoryName;
+      CategoryConstants.categoryNameMap[forumId] ??
+      CategoryConstants.defaultCategoryName;
 
   String _buildMagnetUrl(String topicId) =>
       CategoryConstants.magnetUrlTemplate.replaceFirst('\$topicId', topicId);
@@ -345,17 +376,17 @@ class RuTrackerRepositoryImpl implements RuTrackerRepository {
     // Get audiobooks from popular categories
     const popularCategories = CategoryConstants.popularCategoryIds;
     final featuredAudiobooks = <Audiobook>[];
-    
+
     for (final categoryId in popularCategories) {
       try {
         final audiobooks = await getCategoryAudiobooks(categoryId);
-        featuredAudiobooks.addAll(audiobooks.take(5)); // Take top 5 from each category
+        featuredAudiobooks
+            .addAll(audiobooks.take(5)); // Take top 5 from each category
       } on Exception {
         continue;
       }
-      
     }
-    
+
     return featuredAudiobooks;
   }
 
@@ -363,11 +394,12 @@ class RuTrackerRepositoryImpl implements RuTrackerRepository {
   Future<List<Audiobook>> getNewReleases() async {
     try {
       final dio = await DioClient.instance;
-      
+
       // Get latest audiobooks from all categories
-      const trackerPath = '/forum/tracker.php?f=${CategoryConstants.audiobooksCategoryId}&${CategoryConstants.searchSortNewest}';
+      const trackerPath =
+          '/forum/tracker.php?f=${CategoryConstants.audiobooksCategoryId}&${CategoryConstants.searchSortNewest}';
       final trackerUrl = await _endpointManager.buildUrl(trackerPath);
-      
+
       final response = await dio.get(
         trackerUrl,
         options: Options(
@@ -378,27 +410,32 @@ class RuTrackerRepositoryImpl implements RuTrackerRepository {
           },
         ),
       );
-      
-      final results = await _parser.parseSearchResults(response.data.toString());
-      return results.map((audiobook) => Audiobook(
-        id: audiobook.id,
-        title: audiobook.title,
-        author: audiobook.author,
-        category: audiobook.category,
-        size: audiobook.size,
-        seeders: audiobook.seeders,
-        leechers: audiobook.leechers,
-        magnetUrl: audiobook.magnetUrl,
-        coverUrl: audiobook.coverUrl,
-        chapters: audiobook.chapters.map((chapter) => Chapter(
-          title: chapter.title,
-          durationMs: chapter.durationMs,
-          fileIndex: chapter.fileIndex,
-          startByte: chapter.startByte,
-          endByte: chapter.endByte,
-        )).toList(),
-        addedDate: audiobook.addedDate,
-      )).toList();
+
+      final results =
+          await _parser.parseSearchResults(response.data.toString());
+      return results
+          .map((audiobook) => Audiobook(
+                id: audiobook.id,
+                title: audiobook.title,
+                author: audiobook.author,
+                category: audiobook.category,
+                size: audiobook.size,
+                seeders: audiobook.seeders,
+                leechers: audiobook.leechers,
+                magnetUrl: audiobook.magnetUrl,
+                coverUrl: audiobook.coverUrl,
+                chapters: audiobook.chapters
+                    .map((chapter) => Chapter(
+                          title: chapter.title,
+                          durationMs: chapter.durationMs,
+                          fileIndex: chapter.fileIndex,
+                          startByte: chapter.startByte,
+                          endByte: chapter.endByte,
+                        ))
+                    .toList(),
+                addedDate: audiobook.addedDate,
+              ))
+          .toList();
     } on DioException catch (e) {
       throw NetworkFailure('Failed to fetch new releases: ${e.message}');
     } on Exception {

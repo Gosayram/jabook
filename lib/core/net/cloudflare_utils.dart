@@ -40,10 +40,10 @@ class CloudFlareUtils {
   static bool isCloudFlareHtml(String html) {
     final h = html.toLowerCase();
     return h.contains('checking your browser') ||
-           h.contains('please enable javascript') ||
-           h.contains('attention required') ||
-           h.contains('cf-chl-bypass') ||
-           h.contains('challenges.cloudflare.com') ||
-           h.contains('cf-turnstile');
+        h.contains('please enable javascript') ||
+        h.contains('attention required') ||
+        h.contains('cf-chl-bypass') ||
+        h.contains('challenges.cloudflare.com') ||
+        h.contains('cf-turnstile');
   }
 }

@@ -6,8 +6,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:jabook/core/cache/rutracker_cache_service.dart';
 import 'package:jabook/core/endpoints/endpoint_provider.dart';
+import 'package:jabook/core/favorites/favorites_service.dart';
+import 'package:jabook/core/metadata/audiobook_metadata_service.dart';
 import 'package:jabook/core/net/dio_client.dart';
 import 'package:jabook/core/parse/rutracker_parser.dart';
+import 'package:jabook/core/search/search_history_service.dart';
+import 'package:jabook/data/db/app_database.dart';
+import 'package:jabook/features/search/presentation/widgets/grouped_audiobook_list.dart';
 import 'package:jabook/features/settings/presentation/screens/mirror_settings_screen.dart';
 import 'package:jabook/features/webview/secure_rutracker_webview.dart';
 import 'package:jabook/l10n/app_localizations.dart';
@@ -31,11 +36,18 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   final TextEditingController _searchController = TextEditingController();
   final RuTrackerParser _parser = RuTrackerParser();
   final RuTrackerCacheService _cacheService = RuTrackerCacheService();
-  
+  AudiobookMetadataService? _metadataService;
+  SearchHistoryService? _historyService;
+  FavoritesService? _favoritesService;
+
   List<Map<String, dynamic>> _searchResults = [];
+  List<String> _searchHistory = [];
+  final Set<String> _favoriteIds = <String>{};
   bool _isLoading = false;
   bool _hasSearched = false;
   bool _isFromCache = false;
+  bool _isFromLocalDb = false;
+  bool _showHistory = false;
   String? _errorKind; // 'network' | 'auth' | 'mirror' | 'timeout' | null
   String? _errorMessage;
   String? _activeHost;
@@ -45,11 +57,14 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   bool _isLoadingMore = false;
   bool _hasMore = true;
   final ScrollController _scrollController = ScrollController();
+  final Set<String> _selectedCategories = <String>{};
+  final FocusNode _searchFocusNode = FocusNode();
 
   @override
   void dispose() {
     _searchController.dispose();
     _scrollController.dispose();
+    _searchFocusNode.dispose();
     super.dispose();
   }
 
@@ -57,13 +72,78 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   void initState() {
     super.initState();
     _initializeCache();
+    _initializeMetadataService();
     _loadActiveHost();
     _scrollController.addListener(_onScroll);
+    _searchFocusNode.addListener(_onSearchFocusChange);
+    _searchController.addListener(_onSearchTextChange);
+  }
+
+  void _onSearchFocusChange() {
+    setState(() {
+      _showHistory = _searchFocusNode.hasFocus &&
+          _searchController.text.isEmpty &&
+          _searchHistory.isNotEmpty;
+    });
+  }
+
+  void _onSearchTextChange() {
+    setState(() {
+      _showHistory = _searchFocusNode.hasFocus &&
+          _searchController.text.isEmpty &&
+          _searchHistory.isNotEmpty;
+    });
   }
 
   Future<void> _initializeCache() async {
     // Cache service initialization would typically happen at app startup
     // For now, we'll handle it here
+  }
+
+  Future<void> _initializeMetadataService() async {
+    try {
+      final appDatabase = AppDatabase();
+      await appDatabase.initialize();
+      _metadataService = AudiobookMetadataService(appDatabase.database);
+      _historyService = SearchHistoryService(appDatabase.database);
+      _favoritesService = FavoritesService(appDatabase.database);
+      await _loadSearchHistory();
+      await _loadFavorites();
+    } on Exception {
+      // Metadata service optional - continue without it
+      _metadataService = null;
+      _historyService = null;
+      _favoritesService = null;
+    }
+  }
+
+  Future<void> _loadFavorites() async {
+    if (_favoritesService == null) return;
+    try {
+      final favorites = await _favoritesService!.getAllFavorites();
+      if (mounted) {
+        setState(() {
+          _favoriteIds.clear();
+          _favoriteIds.addAll(favorites.map((a) => a.id));
+        });
+      }
+    } on Exception {
+      // Ignore errors
+    }
+  }
+
+  Future<void> _loadSearchHistory() async {
+    if (_historyService == null) return;
+    try {
+      final history = await _historyService!.getRecentSearches(limit: 10);
+      if (mounted) {
+        setState(() {
+          _searchHistory = history;
+        });
+      }
+    } on Exception {
+      // Ignore errors
+    }
   }
 
   Future<void> _loadActiveHost() async {
@@ -90,16 +170,43 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       _isLoading = true;
       _hasSearched = true;
       _isFromCache = false;
+      _isFromLocalDb = false;
       _errorKind = null;
       _errorMessage = null;
       _startOffset = 0;
       _hasMore = true;
       _searchResults = [];
+      _selectedCategories.clear(); // Reset filters on new search
     });
 
     final query = _searchController.text.trim();
 
-    // First try to get from cache
+    // First try local database search (offline mode)
+    if (_metadataService != null) {
+      try {
+        final localResults = await _metadataService!.searchLocally(query);
+        if (localResults.isNotEmpty) {
+          setState(() {
+            _searchResults = localResults.map(_audiobookToMap).toList();
+            _isLoading = false;
+            _isFromLocalDb = true;
+          });
+          // Save to search history
+          if (_historyService != null && query.isNotEmpty) {
+            await _historyService!.saveSearchQuery(query);
+            await _loadSearchHistory();
+          }
+
+          // Still try to get network results in background for updates
+          unawaited(_performNetworkSearch(query, updateExisting: true));
+          return;
+        }
+      } on Exception {
+        // Continue to network search if local search fails
+      }
+    }
+
+    // Second try to get from cache
     final cachedResults = await _cacheService.getCachedSearchResults(query);
     if (cachedResults != null) {
       setState(() {
@@ -110,38 +217,78 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       return;
     }
 
-    // If not in cache, fetch from network using EndpointManager
+    // Finally, try network search
+    await _performNetworkSearch(query);
+  }
+
+  /// Performs network search (can be called separately for background updates).
+  ///
+  /// [updateExisting] - if true, updates existing results instead of replacing them.
+  Future<void> _performNetworkSearch(String query,
+      {bool updateExisting = false}) async {
+    // Ensure cookies are synced and validated before network search
+    await DioClient.syncCookiesFromWebView();
+
+    // Fetch from network using EndpointManager
     try {
       final endpointManager = ref.read(endpointManagerProvider);
       final activeEndpoint = await endpointManager.getActiveEndpoint();
       final dio = await DioClient.instance;
-      final response = await dio.get(
-        '$activeEndpoint/forum/search.php',
-        queryParameters: {
-          'nm': query,
-          'o': '1', // Sort by relevance
-          'start': _startOffset,
-        },
-        cancelToken: _cancelToken,
-      ).timeout(const Duration(seconds: 30));
+      final response = await dio
+          .get(
+            '$activeEndpoint/forum/search.php',
+            queryParameters: {
+              'nm': query,
+              'o': '1', // Sort by relevance
+              'start': _startOffset,
+            },
+            cancelToken: _cancelToken,
+          )
+          .timeout(const Duration(seconds: 30));
 
       if (response.statusCode == 200) {
         final results = await _parser.parseSearchResults(response.data);
-        
+
         // Cache the results
         // Convert Audiobook objects to maps for caching
         final resultsMap = results.map(_audiobookToMap).toList();
         await _cacheService.cacheSearchResults(query, resultsMap);
-        
-        setState(() {
-          // Convert Audiobook objects to maps for UI
-          _searchResults = results.map(_audiobookToMap).toList();
-          _isLoading = false;
-          _isFromCache = false;
-          _errorKind = null;
-          _errorMessage = null;
-          _hasMore = results.isNotEmpty;
-        });
+
+        if (updateExisting && mounted) {
+          // Update existing results (for background refresh from local DB)
+          setState(() {
+            final networkResults = results.map(_audiobookToMap).toList();
+            // Merge with existing, avoiding duplicates
+            final existingIds =
+                _searchResults.map((r) => r['id'] as String?).toSet();
+            final newResults = networkResults
+                .where((r) => !existingIds.contains(r['id'] as String?))
+                .toList();
+            _searchResults = [..._searchResults, ...newResults];
+            _isFromLocalDb = false; // Switch to network results
+            _errorKind = null;
+            _errorMessage = null;
+            _hasMore = results.isNotEmpty;
+          });
+        } else {
+          setState(() {
+            // Convert Audiobook objects to maps for UI
+            _searchResults = results.map(_audiobookToMap).toList();
+            _isLoading = false;
+            _isFromCache = false;
+            _isFromLocalDb = false;
+            _errorKind = null;
+            _errorMessage = null;
+            _hasMore = results.isNotEmpty;
+            _showHistory = false;
+          });
+
+          // Save to search history
+          if (_historyService != null && query.isNotEmpty) {
+            await _historyService!.saveSearchQuery(query);
+            await _loadSearchHistory();
+          }
+        }
       } else {
         setState(() {
           _isLoading = false;
@@ -162,7 +309,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         setState(() {
           _isLoading = false;
         });
-        
+
         if (CancelToken.isCancel(e)) {
           // Silently ignore cancelled request
           return;
@@ -173,9 +320,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             _errorKind = 'auth';
             _errorMessage = 'Authentication required';
           });
-        } else if (e.type == DioExceptionType.connectionTimeout || 
-                   e.type == DioExceptionType.receiveTimeout ||
-                   e.type == DioExceptionType.sendTimeout) {
+        } else if (e.type == DioExceptionType.connectionTimeout ||
+            e.type == DioExceptionType.receiveTimeout ||
+            e.type == DioExceptionType.sendTimeout) {
           setState(() {
             _errorKind = 'timeout';
             _errorMessage = 'Request timed out';
@@ -205,172 +352,234 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(
-      title: Text(AppLocalizations.of(context)!.searchAudiobooks),
-      actions: [
-        if (_activeHost != null)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8.0),
-            child: Center(
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade200,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(_activeHost!, style: const TextStyle(fontSize: 12)),
-              ),
-            ),
-          ),
-        IconButton(
-          tooltip: 'RuTracker Login',
-          icon: const Icon(Icons.vpn_key),
-          onPressed: () async {
-            await Navigator.push<String>(
-              context,
-              MaterialPageRoute(builder: (_) => const SecureRutrackerWebView()),
-            );
-            if (!mounted) return;
-            await DioClient.syncCookiesFromWebView();
-            // If была auth-ошибка — попробуем повторить
-            if (_errorKind == 'auth') {
-              setState(() {
-                _errorKind = null;
-                _errorMessage = null;
-              });
-              await _performSearch();
-            }
-          },
-        ),
-        IconButton(
-          tooltip: 'Mirrors',
-          icon: const Icon(Icons.dns),
-          onPressed: () {
-            unawaited(Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const MirrorSettingsScreen()),
-            ).then((_) => _loadActiveHost()));
-          },
-        ),
-        IconButton(
-          icon: const Icon(Icons.search),
-          onPressed: _performSearch,
-        ),
-      ],
-    ),
-    body: Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: TextField(
-            controller: _searchController,
-            decoration: InputDecoration(
-              labelText: AppLocalizations.of(context)!.searchPlaceholder,
-              hintText: AppLocalizations.of(context)!.searchPlaceholder,
-              suffixIcon: IconButton(
-                icon: const Icon(Icons.clear),
-                onPressed: () {
-                  _searchController.clear();
-                  setState(() {
-                    _searchResults = [];
-                    _hasSearched = false;
-                  });
-                },
-              ),
-              border: const OutlineInputBorder(),
-            ),
-            onChanged: (value) {
-              _debounce?.cancel();
-              _debounce = Timer(const Duration(milliseconds: 500), _performSearch);
-            },
-            onSubmitted: (_) => _performSearch(),
-          ),
-        ),
-        if (_hasSearched && _errorKind == 'auth')
-          Container(
-            margin: const EdgeInsets.symmetric(horizontal: 16.0),
-            padding: const EdgeInsets.all(12.0),
-            decoration: BoxDecoration(
-              color: Colors.orange.shade50,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.lock_outline, color: Colors.orange.shade700),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    AppLocalizations.of(context)?.loginRequiredForSearch ?? 'Login required to search RuTracker',
-                    style: TextStyle(color: Colors.orange.shade800),
+        appBar: AppBar(
+          title: Text(AppLocalizations.of(context)!.searchAudiobooks),
+          actions: [
+            if (_activeHost != null)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                child: Center(
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade200,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(_activeHost!,
+                        style: const TextStyle(fontSize: 12)),
                   ),
                 ),
-                TextButton(
-                  onPressed: () async {
-                    await Navigator.push<String>(
-                      context,
-                      MaterialPageRoute(builder: (_) => const SecureRutrackerWebView()),
-                    );
-                    if (!mounted) return;
-                    await DioClient.syncCookiesFromWebView();
+              ),
+            IconButton(
+              tooltip: 'RuTracker Login',
+              icon: const Icon(Icons.vpn_key),
+              onPressed: () async {
+                await Navigator.push<String>(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const SecureRutrackerWebView()),
+                );
+                if (!mounted) return;
+                await DioClient.syncCookiesFromWebView();
+                // If была auth-ошибка — попробуем повторить
+                if (_errorKind == 'auth') {
+                  setState(() {
+                    _errorKind = null;
+                    _errorMessage = null;
+                  });
+                  await _performSearch();
+                }
+              },
+            ),
+            IconButton(
+              tooltip: 'Mirrors',
+              icon: const Icon(Icons.dns),
+              onPressed: () {
+                unawaited(Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const MirrorSettingsScreen()),
+                ).then((_) => _loadActiveHost()));
+              },
+            ),
+            IconButton(
+              icon: const Icon(Icons.search),
+              onPressed: _performSearch,
+            ),
+          ],
+        ),
+        body: GestureDetector(
+          onTap: () {
+            _searchFocusNode.unfocus();
+            setState(() {
+              _showHistory = false;
+            });
+          },
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: TextField(
+                  controller: _searchController,
+                  focusNode: _searchFocusNode,
+                  decoration: InputDecoration(
+                    labelText: AppLocalizations.of(context)!.searchPlaceholder,
+                    hintText: AppLocalizations.of(context)!.searchPlaceholder,
+                    suffixIcon: _searchController.text.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear),
+                            onPressed: () {
+                              _searchController.clear();
+                              setState(() {
+                                _searchResults = [];
+                                _hasSearched = false;
+                                _showHistory = _searchFocusNode.hasFocus &&
+                                    _searchHistory.isNotEmpty;
+                              });
+                            },
+                          )
+                        : null,
+                    border: const OutlineInputBorder(),
+                  ),
+                  onChanged: (value) {
                     setState(() {
-                      _errorKind = null;
-                      _errorMessage = null;
+                      _showHistory = _searchFocusNode.hasFocus &&
+                          value.isEmpty &&
+                          _searchHistory.isNotEmpty;
                     });
-                    await _performSearch();
+                    _debounce?.cancel();
+                    _debounce = Timer(
+                        const Duration(milliseconds: 500), _performSearch);
                   },
-                  child: Text(AppLocalizations.of(context)?.login ?? 'Login'),
+                  onSubmitted: (_) {
+                    _performSearch();
+                    _searchFocusNode.unfocus();
+                  },
+                  onTap: () {
+                    setState(() {
+                      _showHistory = _searchController.text.isEmpty &&
+                          _searchHistory.isNotEmpty;
+                    });
+                  },
                 ),
-              ],
-            ),
-          ),
-        if (_isLoading)
-          const Expanded(
-            child: Center(
-              child: CircularProgressIndicator(),
-            ),
-          )
-        else if (_hasSearched)
-          Expanded(
-            child: Column(
-              children: [
-                if (_isFromCache)
-                  Container(
-                    padding: const EdgeInsets.all(8.0),
-                    color: Colors.blue[50],
-                    child: Row(
-                      children: [
-                        Icon(Icons.cached, size: 16, color: Colors.blue[700]),
-                        const SizedBox(width: 8),
-                        Text(
-                          AppLocalizations.of(context)!.resultsFromCache,
-                          style: TextStyle(
-                            color: Colors.blue[700],
-                            fontSize: 12,
+              ),
+              if (_showHistory && _searchHistory.isNotEmpty)
+                _buildSearchHistory(),
+              if (_hasSearched && _errorKind == 'auth')
+                Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 16.0),
+                  padding: const EdgeInsets.all(12.0),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.lock_outline, color: Colors.orange.shade700),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          AppLocalizations.of(context)
+                                  ?.loginRequiredForSearch ??
+                              'Login required to search RuTracker',
+                          style: TextStyle(color: Colors.orange.shade800),
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () async {
+                          await Navigator.push<String>(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) => const SecureRutrackerWebView()),
+                          );
+                          if (!mounted) return;
+                          await DioClient.syncCookiesFromWebView();
+                          setState(() {
+                            _errorKind = null;
+                            _errorMessage = null;
+                          });
+                          await _performSearch();
+                        },
+                        child: Text(
+                            AppLocalizations.of(context)?.login ?? 'Login'),
+                      ),
+                    ],
+                  ),
+                ),
+              if (_isLoading)
+                const Expanded(
+                  child: Center(
+                    child: CircularProgressIndicator(),
+                  ),
+                )
+              else if (_hasSearched)
+                Expanded(
+                  child: Column(
+                    children: [
+                      if (_isFromCache)
+                        Container(
+                          padding: const EdgeInsets.all(8.0),
+                          color: Colors.blue[50],
+                          child: Row(
+                            children: [
+                              Icon(Icons.cached,
+                                  size: 16, color: Colors.blue[700]),
+                              const SizedBox(width: 8),
+                              Text(
+                                AppLocalizations.of(context)!.resultsFromCache,
+                                style: TextStyle(
+                                  color: Colors.blue[700],
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                      ],
-                    ),
+                      if (_isFromLocalDb)
+                        Container(
+                          padding: const EdgeInsets.all(8.0),
+                          color: Colors.amber[50],
+                          child: Row(
+                            children: [
+                              Icon(Icons.storage,
+                                  size: 16, color: Colors.amber[700]),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Результаты из локальной базы данных',
+                                  style: TextStyle(
+                                    color: Colors.amber[700],
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      if (_hasSearched && _searchResults.isNotEmpty)
+                        _buildCategoryFilters(),
+                      Expanded(
+                        child: RefreshIndicator(
+                          onRefresh: () async {
+                            await _performSearch();
+                          },
+                          child: _buildBodyState(),
+                        ),
+                      ),
+                    ],
                   ),
+                )
+              else
                 Expanded(
-                  child: RefreshIndicator(
-                    onRefresh: () async {
-                      await _performSearch();
-                    },
-                    child: _buildBodyState(),
+                  child: Center(
+                    child: Text(AppLocalizations.of(context)!.enterSearchTerm),
                   ),
                 ),
-              ],
-            ),
-          )
-        else
-          Expanded(
-            child: Center(
-              child: Text(AppLocalizations.of(context)!.enterSearchTerm),
-            ),
+            ],
           ),
-      ],
-    ),
-  );
+        ),
+      );
 
   Widget _buildBodyState() {
     if (_errorKind != null) {
@@ -379,90 +588,259 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     return _buildSearchResults();
   }
 
+  /// Builds category filter chips.
+  Widget _buildCategoryFilters() {
+    final categories = _getAvailableCategories();
+    if (categories.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                'Фильтры:',
+                style: Theme.of(context).textTheme.labelMedium,
+              ),
+              if (_selectedCategories.isNotEmpty) ...[
+                const SizedBox(width: 8),
+                TextButton(
+                  onPressed: () {
+                    setState(() {
+                      _selectedCategories.clear();
+                    });
+                  },
+                  child: const Text('Сбросить'),
+                ),
+              ],
+            ],
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: categories.map((category) {
+              final isSelected = _selectedCategories.contains(category);
+              return FilterChip(
+                label: Text(category),
+                selected: isSelected,
+                onSelected: (selected) {
+                  setState(() {
+                    if (selected) {
+                      _selectedCategories.add(category);
+                    } else {
+                      _selectedCategories.remove(category);
+                    }
+                  });
+                },
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Gets unique categories from search results.
+  Set<String> _getAvailableCategories() {
+    final categories = <String>{};
+    for (final result in _searchResults) {
+      final category = result['category'] as String?;
+      if (category != null && category.isNotEmpty) {
+        categories.add(category);
+      }
+    }
+    return categories;
+  }
+
+  /// Gets filtered search results based on selected categories.
+  List<Map<String, dynamic>> _getFilteredResults() {
+    if (_selectedCategories.isEmpty) {
+      return _searchResults;
+    }
+    return _searchResults.where((result) {
+      final category = result['category'] as String? ?? 'Другое';
+      return _selectedCategories.contains(category);
+    }).toList();
+  }
+
+  /// Builds search history list widget.
+  Widget _buildSearchHistory() {
+    return Container(
+      constraints: const BoxConstraints(maxHeight: 300),
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(12.0),
+            child: Row(
+              children: [
+                Text(
+                  'История поиска',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                ),
+                const Spacer(),
+                if (_searchHistory.isNotEmpty)
+                  TextButton(
+                    onPressed: () async {
+                      if (_historyService != null) {
+                        await _historyService!.clearHistory();
+                        await _loadSearchHistory();
+                        if (mounted) {
+                          setState(() {
+                            _showHistory = false;
+                          });
+                        }
+                      }
+                    },
+                    child: const Text('Очистить'),
+                  ),
+              ],
+            ),
+          ),
+          Flexible(
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemCount: _searchHistory.length,
+              itemBuilder: (context, index) {
+                final query = _searchHistory[index];
+                return ListTile(
+                  leading: const Icon(Icons.history, size: 20),
+                  title: Text(query),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.close, size: 18),
+                    onPressed: () async {
+                      if (_historyService != null) {
+                        await _historyService!.removeSearchQuery(query);
+                        await _loadSearchHistory();
+                        if (mounted) {
+                          setState(() {
+                            _showHistory = _searchHistory.isNotEmpty &&
+                                _searchController.text.isEmpty;
+                          });
+                        }
+                      }
+                    },
+                  ),
+                  onTap: () {
+                    _searchController.text = query;
+                    _searchFocusNode.unfocus();
+                    setState(() {
+                      _showHistory = false;
+                    });
+                    _performSearch();
+                  },
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildSearchResults() {
-    if (_searchResults.isEmpty) {
+    final filteredResults = _getFilteredResults();
+
+    if (filteredResults.isEmpty && _searchResults.isNotEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.filter_alt_off,
+              size: 48,
+              color: Colors.grey,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Нет результатов для выбранных фильтров',
+              style: Theme.of(context).textTheme.bodyLarge,
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (filteredResults.isEmpty) {
       return Center(
         child: Text(AppLocalizations.of(context)!.noResults),
       );
     }
 
-    return ListView.builder(
-      controller: _scrollController,
-      itemCount: _searchResults.length + (_hasMore ? 1 : 0),
-      itemBuilder: (context, index) {
-        if (index >= _searchResults.length) {
-          // Load more indicator / button
-          return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            child: Center(
-              child: _isLoadingMore
-                  ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator())
-                  : OutlinedButton(
-                      onPressed: _loadMore,
-                      child: const Text('Load more'),
-                    ),
+    return GroupedAudiobookList(
+      audiobooks: filteredResults,
+      onAudiobookTap: (id) {
+        Navigator.pushNamed(context, '/topic/$id');
+      },
+      loadMore: _hasMore && !_isLoadingMore ? _loadMore : null,
+      hasMore: _hasMore,
+      isLoadingMore: _isLoadingMore,
+      favoriteIds: _favoriteIds,
+      onFavoriteToggle: _toggleFavorite,
+    );
+  }
+
+  Future<void> _toggleFavorite(String topicId, bool isFavorite) async {
+    if (_favoritesService == null) return;
+
+    try {
+      if (isFavorite) {
+        // Add to favorites
+        final audiobookMap = _searchResults.firstWhere(
+          (r) => (r['id'] as String?) == topicId,
+        );
+        await _favoritesService!.addToFavoritesFromMap(audiobookMap);
+      } else {
+        // Remove from favorites
+        await _favoritesService!.removeFromFavorites(topicId);
+      }
+
+      if (mounted) {
+        setState(() {
+          if (isFavorite) {
+            _favoriteIds.add(topicId);
+          } else {
+            _favoriteIds.remove(topicId);
+          }
+        });
+      }
+    } on Exception {
+      // Show error message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              isFavorite
+                  ? 'Не удалось добавить в избранное'
+                  : 'Не удалось удалить из избранного',
             ),
-          );
-        }
-        final audiobook = _searchResults[index];
-        final title = audiobook['title'] as String? ?? AppLocalizations.of(context)!.unknownTitle;
-        final author = audiobook['author'] as String? ?? AppLocalizations.of(context)!.unknownAuthor;
-        final size = audiobook['size'] as String? ?? AppLocalizations.of(context)!.unknownSize;
-        final seeders = audiobook['seeders'] as int? ?? 0;
-        final leechers = audiobook['leechers'] as int? ?? 0;
-        final id = audiobook['id'] as String? ?? '';
-        return Card(
-          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: ListTile(
-            leading: const Icon(Icons.audiotrack),
-            title: Text(
-              title,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('${AppLocalizations.of(context)!.authorLabel}$author'),
-                Text('${AppLocalizations.of(context)!.sizeLabel}$size'),
-                Row(
-                  children: [
-                    Icon(
-                      Icons.people,
-                      size: 16,
-                      color: seeders > 0 ? Colors.green : Colors.grey,
-                    ),
-                    const SizedBox(width: 4),
-                    Text('$seeders${AppLocalizations.of(context)!.seedersLabel}'),
-                    const SizedBox(width: 16),
-                    Icon(
-                      Icons.person_off,
-                      size: 16,
-                      color: leechers > 0 ? Colors.orange : Colors.grey,
-                    ),
-                    const SizedBox(width: 4),
-                    Text('$leechers${AppLocalizations.of(context)!.leechersLabel}'),
-                  ],
-                ),
-              ],
-            ),
-            trailing: const Icon(Icons.arrow_forward_ios),
-            onTap: () {
-              // Navigate to topic details
-              Navigator.pushNamed(
-                context,
-                '/topic/$id',
-              );
-            },
           ),
         );
-      },
-    );
+      }
+    }
   }
 
   void _onScroll() {
     if (!_hasMore || _isLoadingMore) return;
-    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 200) {
       _loadMore();
     }
   }
@@ -517,7 +895,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             onPressed: () async {
               await Navigator.push<String>(
                 context,
-                MaterialPageRoute(builder: (_) => const SecureRutrackerWebView()),
+                MaterialPageRoute(
+                    builder: (_) => const SecureRutrackerWebView()),
               );
               if (!mounted) return;
               await DioClient.syncCookiesFromWebView();
@@ -531,7 +910,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             label: const Text('Login to RuTracker'),
           ),
         ];
-        message = 'You need to log in to RuTracker to search for audiobooks. This will open a secure web view where you can complete authentication.';
+        message =
+            'You need to log in to RuTracker to search for audiobooks. This will open a secure web view where you can complete authentication.';
         break;
       case 'timeout':
         title = 'Request Timed Out';
@@ -552,7 +932,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             label: const Text('Change Mirror'),
           ),
         ];
-        message = 'The search request took too long to complete. This might be due to a slow mirror or network issues.';
+        message =
+            'The search request took too long to complete. This might be due to a slow mirror or network issues.';
         break;
       case 'mirror':
         title = 'Mirror Unavailable';
@@ -572,7 +953,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 if (mounted) {
                   unawaited(Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => const MirrorSettingsScreen()),
+                    MaterialPageRoute(
+                        builder: (_) => const MirrorSettingsScreen()),
                   ).then((_) => _loadActiveHost()));
                 }
               }
@@ -589,7 +971,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             label: const Text('Manage Mirrors'),
           ),
         ];
-        message = 'The current RuTracker mirror is not responding. You can try to automatically find a working mirror or manually manage them.';
+        message =
+            'The current RuTracker mirror is not responding. You can try to automatically find a working mirror or manually manage them.';
         break;
       case 'network':
       default:
@@ -611,7 +994,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             label: const Text('Change Mirror'),
           ),
         ];
-        message = 'Unable to connect to RuTracker. Please check your internet connection and try again.';
+        message =
+            'Unable to connect to RuTracker. Please check your internet connection and try again.';
         break;
     }
 
@@ -633,8 +1017,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             Text(
               title,
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+                    fontWeight: FontWeight.bold,
+                  ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 12),
@@ -642,8 +1026,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               message,
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Colors.grey.shade600,
-              ),
+                    color: Colors.grey.shade600,
+                  ),
             ),
             const SizedBox(height: 32),
             Wrap(
@@ -655,7 +1039,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             if (_activeHost != null) ...[
               const SizedBox(height: 24),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
                   color: Colors.grey.shade100,
                   borderRadius: BorderRadius.circular(16),
@@ -685,27 +1070,26 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
 /// Converts an Audiobook object to a Map for caching.
 Map<String, dynamic> _audiobookToMap(Audiobook audiobook) => {
-  'id': audiobook.id,
-  'title': audiobook.title,
-  'author': audiobook.author,
-  'category': audiobook.category,
-  'size': audiobook.size,
-  'seeders': audiobook.seeders,
-  'leechers': audiobook.leechers,
-  'magnetUrl': audiobook.magnetUrl,
-  'coverUrl': audiobook.coverUrl,
-  'chapters': audiobook.chapters.map(_chapterToMap).toList(),
-  'addedDate': audiobook.addedDate.toIso8601String(),
-};
+      'id': audiobook.id,
+      'title': audiobook.title,
+      'author': audiobook.author,
+      'category': audiobook.category,
+      'size': audiobook.size,
+      'seeders': audiobook.seeders,
+      'leechers': audiobook.leechers,
+      'magnetUrl': audiobook.magnetUrl,
+      'coverUrl': audiobook.coverUrl,
+      'chapters': audiobook.chapters.map(_chapterToMap).toList(),
+      'addedDate': audiobook.addedDate.toIso8601String(),
+    };
 
 /// Converts a Chapter object to a Map for caching.
 Map<String, dynamic> _chapterToMap(Chapter chapter) => {
-  'title': chapter.title,
-  'durationMs': chapter.durationMs,
-  'fileIndex': chapter.fileIndex,
-  'startByte': chapter.startByte,
-  'endByte': chapter.endByte,
-};
-
+      'title': chapter.title,
+      'durationMs': chapter.durationMs,
+      'fileIndex': chapter.fileIndex,
+      'startByte': chapter.startByte,
+      'endByte': chapter.endByte,
+    };
 
 // Unused legacy dialog removed; login flow handled inline via WebView

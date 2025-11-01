@@ -69,7 +69,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       }
 
       setState(() {
-        _statusMessage = success ? 'Login successful!' : 'Login failed. Please check credentials';
+        _statusMessage = success
+            ? 'Login successful!'
+            : 'Login failed. Please check credentials';
         _statusColor = success ? Colors.green : Colors.red;
       });
 
@@ -94,7 +96,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     try {
       final endpointManager = ref.read(endpointManagerProvider);
       final activeEndpoint = await endpointManager.getActiveEndpoint();
-      
+
       setState(() {
         _statusMessage = 'Connection successful! Using: $activeEndpoint';
         _statusColor = Colors.green;
@@ -109,7 +111,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
 
   Future<void> _logout() async {
     setState(() {
-      _statusMessage = AppLocalizations.of(context)?.loggingOutText ?? 'Logging out...';
+      _statusMessage =
+          AppLocalizations.of(context)?.loggingOutText ?? 'Logging out...';
       _statusColor = Colors.blue;
     });
 
@@ -121,12 +124,14 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       setState(() {
         _usernameController.clear();
         _passwordController.clear();
-        _statusMessage = AppLocalizations.of(context)?.logoutSuccessMessage ?? 'Logged out successfully';
+        _statusMessage = AppLocalizations.of(context)?.logoutSuccessMessage ??
+            'Logged out successfully';
         _statusColor = Colors.green;
       });
     } on Exception catch (e) {
       setState(() {
-        _statusMessage = '${AppLocalizations.of(context)?.logoutErrorMessage ?? 'Logout error:'} ${e.toString()}';
+        _statusMessage =
+            '${AppLocalizations.of(context)?.logoutErrorMessage ?? 'Logout error:'} ${e.toString()}';
         _statusColor = Colors.red;
       });
     }
@@ -136,10 +141,11 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   Widget build(BuildContext context) {
     final authStatus = ref.watch(authStatusProvider);
     final isLoggedIn = ref.watch(isLoggedInProvider);
-    
+
     return Scaffold(
       appBar: AppBar(
-        title: Text(AppLocalizations.of(context)?.authScreenTitle ?? 'RuTracker Connection'),
+        title: Text(AppLocalizations.of(context)?.authScreenTitle ??
+            'RuTracker Connection'),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -155,7 +161,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                     Row(
                       children: [
                         Icon(
-                          isLoggedIn.valueOrNull ?? false ? Icons.check_circle : Icons.error,
+                          isLoggedIn.valueOrNull ?? false
+                              ? Icons.check_circle
+                              : Icons.error,
                           color: _statusColor,
                         ),
                         const SizedBox(width: 8),
@@ -181,7 +189,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
               TextField(
                 controller: _usernameController,
                 decoration: InputDecoration(
-                  labelText: AppLocalizations.of(context)?.usernameLabelText ?? 'Username',
+                  labelText: AppLocalizations.of(context)?.usernameLabelText ??
+                      'Username',
                   border: const OutlineInputBorder(),
                 ),
               ),
@@ -189,7 +198,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
               TextField(
                 controller: _passwordController,
                 decoration: InputDecoration(
-                  labelText: AppLocalizations.of(context)?.passwordLabelText ?? 'Password',
+                  labelText: AppLocalizations.of(context)?.passwordLabelText ??
+                      'Password',
                   border: const OutlineInputBorder(),
                 ),
                 obscureText: true,
@@ -203,13 +213,15 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                       _rememberMe = value ?? true;
                     }),
                   ),
-                  Text(AppLocalizations.of(context)?.rememberMeLabelText ?? 'Remember me'),
+                  Text(AppLocalizations.of(context)?.rememberMeLabelText ??
+                      'Remember me'),
                 ],
               ),
               const SizedBox(height: 20),
               ElevatedButton(
                 onPressed: _login,
-                child: Text(AppLocalizations.of(context)?.loginButtonText ?? 'Login'),
+                child: Text(
+                    AppLocalizations.of(context)?.loginButtonText ?? 'Login'),
               ),
             ],
 
@@ -217,12 +229,15 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
             if (isLoggedIn.valueOrNull ?? false) ...[
               ElevatedButton(
                 onPressed: _testConnection,
-                child: Text(AppLocalizations.of(context)?.testConnectionButtonText ?? 'Test Connection'),
+                child: Text(
+                    AppLocalizations.of(context)?.testConnectionButtonText ??
+                        'Test Connection'),
               ),
               const SizedBox(height: 16),
               OutlinedButton(
                 onPressed: _logout,
-                child: Text(AppLocalizations.of(context)?.logoutButtonText ?? 'Logout'),
+                child: Text(
+                    AppLocalizations.of(context)?.logoutButtonText ?? 'Logout'),
               ),
             ],
 
@@ -230,7 +245,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
 
             // Help text
             Text(
-              AppLocalizations.of(context)?.authHelpText ?? 'Login to RuTracker to access audiobook search and downloads. Your credentials are stored securely.',
+              AppLocalizations.of(context)?.authHelpText ??
+                  'Login to RuTracker to access audiobook search and downloads. Your credentials are stored securely.',
               style: Theme.of(context).textTheme.bodySmall,
               textAlign: TextAlign.center,
             ),

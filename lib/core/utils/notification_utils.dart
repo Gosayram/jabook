@@ -5,7 +5,8 @@ import 'package:flutter/services.dart';
 ///
 /// Uses system APIs and platform channels to work with notifications
 /// without needing explicit permission declarations.
-const MethodChannel _notificationChannel = MethodChannel('jabook.notifications');
+const MethodChannel _notificationChannel =
+    MethodChannel('jabook.notifications');
 
 /// Shows a simple notification without requiring POST_NOTIFICATIONS permission.
 ///

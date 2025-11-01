@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:jabook/core/endpoints/endpoint_manager.dart';
+import 'package:jabook/core/net/dio_client.dart';
 import 'package:jabook/data/db/app_database.dart';
 import 'package:jabook/l10n/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -30,14 +31,14 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
   double progress = 0.0;
   final storage = const FlutterSecureStorage();
   String? initialUrl; // resolved dynamically from EndpointManager
-  
+
   // State restoration
   final String _webViewStateKey = 'rutracker_webview_state';
-  
+
   // Error handling
   bool _hasError = false;
   String? _errorMessage;
-  
+
   // Cloudflare detection
   bool _isCloudflareDetected = false;
 
@@ -53,6 +54,15 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
 
   @override
   void dispose() {
+    // Save cookies one final time before disposing
+    _saveCookies().then((_) async {
+      // Sync cookies to DioClient after saving
+      try {
+        await DioClient.syncCookiesFromWebView();
+      } on Exception {
+        // Ignore sync errors on dispose
+      }
+    });
     _saveWebViewHistory();
     super.dispose();
   }
@@ -93,15 +103,18 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
   Future<void> _saveCookies() async {
     try {
       if (initialUrl == null) return;
-      final cookies = await CookieManager.instance().getCookies(url: WebUri(initialUrl!));
-      final cookieJson = jsonEncode(cookies.map((c) => {
-        'name': c.name,
-        'value': c.value,
-        'domain': c.domain,
-        'path': c.path,
-        // Note: flutter_inappwebview Cookie doesn't expose expires property
-        // We'll rely on the cookie's natural expiration
-      }).toList());
+      final cookies =
+          await CookieManager.instance().getCookies(url: WebUri(initialUrl!));
+      final cookieJson = jsonEncode(cookies
+          .map((c) => {
+                'name': c.name,
+                'value': c.value,
+                'domain': c.domain,
+                'path': c.path,
+                // Note: flutter_inappwebview Cookie doesn't expose expires property
+                // We'll rely on the cookie's natural expiration
+              })
+          .toList());
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('rutracker_cookies_v1', cookieJson);
     } on Exception catch (e) {
@@ -135,12 +148,12 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final currentUrl = await _webViewController.getUrl();
-      
+
       final history = {
         'currentUrl': currentUrl?.toString(),
         'timestamp': DateTime.now().toIso8601String(),
       };
-      
+
       await prefs.setString(_webViewStateKey, jsonEncode(history));
     } on Exception catch (e) {
       debugPrint('Failed to save WebView history: $e');
@@ -150,7 +163,8 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
   Future<void> _navigateToSavedUrl(String? savedUrl) async {
     if (savedUrl != null && savedUrl.isNotEmpty) {
       try {
-        await _webViewController.loadUrl(urlRequest: URLRequest(url: WebUri(savedUrl)));
+        await _webViewController.loadUrl(
+            urlRequest: URLRequest(url: WebUri(savedUrl)));
       } on Exception catch (e) {
         debugPrint('Failed to navigate to saved URL: $e');
       }
@@ -160,304 +174,327 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
   bool _looksLikeCloudflare(String html) {
     final h = html.toLowerCase();
     return h.contains('checking your browser') ||
-           h.contains('please enable javascript') ||
-           h.contains('attention required') ||
-           h.contains('cf-chl-bypass') ||
-           h.contains('cloudflare') ||
-           h.contains('ddos-guard') ||
-           h.contains('just a moment') ||
-           h.contains('verifying you are human') ||
-           h.contains('security check') ||
-           h.contains('cf-browser-verification') ||
-           h.contains('cf-challenge-running');
+        h.contains('please enable javascript') ||
+        h.contains('attention required') ||
+        h.contains('cf-chl-bypass') ||
+        h.contains('cloudflare') ||
+        h.contains('ddos-guard') ||
+        h.contains('just a moment') ||
+        h.contains('verifying you are human') ||
+        h.contains('security check') ||
+        h.contains('cf-browser-verification') ||
+        h.contains('cf-challenge-running');
   }
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(
-      title: Text(AppLocalizations.of(context)?.webViewTitle ?? 'RuTracker'),
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.open_in_browser),
-          onPressed: () async {
-            final url = await _webViewController.getUrl();
-            if (url != null) await launchUrl(url);
-          },
-        ),
-      ],
-      bottom: PreferredSize(
-        preferredSize: const Size.fromHeight(3.0),
-        child: LinearProgressIndicator(value: progress == 1 ? null : progress),
-      ),
-    ),
-    body: Stack(
-      children: [
-        Column(
-          children: [
-            // Cloudflare explanation banner
-            Container(
-              padding: const EdgeInsets.all(12.0),
-              color: Colors.blue.shade50,
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.security,
-                    color: Colors.blue.shade700,
-                    size: 20,
-                  ),
-                  const SizedBox(width: 8.0),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Security Check in Progress',
-                          style: TextStyle(
-                            color: Colors.blue.shade800,
-                            fontSize: 14.0,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'RuTracker uses Cloudflare protection. Please wait for the verification to complete (5-10 seconds).',
-                          style: TextStyle(
-                            color: Colors.blue.shade700,
-                            fontSize: 12.0,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            // WebView
-            Expanded(
-              child: initialUrl == null
-                  ? const Center(child: CircularProgressIndicator())
-                  : InAppWebView(
-                initialUrlRequest: URLRequest(url: WebUri(initialUrl!)),
-                initialSettings: InAppWebViewSettings(
-                  useShouldOverrideUrlLoading: true,
-                  sharedCookiesEnabled: true,
-                  allowsInlineMediaPlayback: true,
-                  mediaPlaybackRequiresUserGesture: false,
-                  // Error handling
-                  supportZoom: false,
-                  // Memory management
-                  minimumLogicalFontSize: 1,
-                  // SSL/TLS settings
-                  mixedContentMode: MixedContentMode.MIXED_CONTENT_ALWAYS_ALLOW,
-                ),
-                onWebViewCreated: (controller) {
-                  _webViewController = controller;
-                  _hasError = false; // Reset error state when WebView is recreated
-                },
-                onProgressChanged: (controller, p) => setState(() => progress = p / 100.0),
-                onReceivedError: (controller, request, error) {
-                  final desc = error.description.toString();
-                  final isOrb = desc.contains('ERR_BLOCKED_BY_ORB') ||
-                                desc.contains('ERR_BLOCKED_BY_CLIENT') ||
-                                desc.contains('ERR_BLOCKED_BY_RESPONSE');
-                  // ORB не считаем критичным даже если Chromium пометил как основной фрейм
-                  if (isOrb) {
-                    return;
-                  }
-                  if (!(request.isForMainFrame ?? true) && (desc.contains('CORS') || desc.contains('Cross-Origin'))) {
-                    return;
-                  }
-                  if (!(request.isForMainFrame ?? true)) return;
-                  setState(() {
-                    _hasError = true;
-                    _errorMessage = 'Ошибка загрузки: $desc';
-                  });
-                },
-                onReceivedHttpError: (controller, request, errorResponse) {
-                  // Показываем HTTP-ошибку только для основного фрейма
-                  if (!(request.isForMainFrame ?? true)) return;
-                  setState(() {
-                    _hasError = true;
-                    _errorMessage = 'HTTP ошибка: ${errorResponse.statusCode}';
-                  });
-                },
-                onLoadStop: (controller, url) async {
-                  final html = await controller.getHtml();
-                  if (html != null && _looksLikeCloudflare(html)) {
-                    _showCloudflareHint();
-                    // Show a more prominent Cloudflare indicator
-                    _showCloudflareOverlay();
-                  } else {
-                    await _saveCookies();
-                    // Закрепим активное зеркало по текущему хосту
-                    try {
-                      final current = await controller.getUrl();
-                      if (current != null) {
-                        final host = current.host;
-                        if (host.isNotEmpty) {
-                          final db = AppDatabase().database;
-                          await EndpointManager(db).setActiveEndpoint('https://$host');
-                        }
-                      }
-                    } on Exception {
-                      // ignore
-                    }
-                    _hideCloudflareOverlay();
-                  }
-                },
-                shouldOverrideUrlLoading: (controller, nav) async {
-                  final uri = nav.request.url;
-                  if (uri == null) return NavigationActionPolicy.ALLOW;
-                  final s = uri.toString();
-
-                  // .torrent
-                  if (s.endsWith('.torrent')) {
-                    await _handleTorrentLink(uri);
-                    return NavigationActionPolicy.CANCEL;
-                  }
-                  // magnet:
-                  if (s.startsWith('magnet:')) {
-                    await launchUrl(uri);
-                    return NavigationActionPolicy.CANCEL;
-                  }
-                  // External domains: open in browser (optional)
-                  if (!uri.host.contains('rutracker')) {
-                    await launchUrl(uri);
-                    return NavigationActionPolicy.CANCEL;
-                  }
-                  return NavigationActionPolicy.ALLOW;
-                },
-              ),
+        appBar: AppBar(
+          title:
+              Text(AppLocalizations.of(context)?.webViewTitle ?? 'RuTracker'),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.open_in_browser),
+              onPressed: () async {
+                final url = await _webViewController.getUrl();
+                if (url != null) await launchUrl(url);
+              },
             ),
           ],
+          bottom: PreferredSize(
+            preferredSize: const Size.fromHeight(3.0),
+            child:
+                LinearProgressIndicator(value: progress == 1 ? null : progress),
+          ),
         ),
-        // Cloudflare overlay
-        if (_isCloudflareDetected)
-          Positioned.fill(
-            child: ColoredBox(
-              color: Colors.blue.shade50.withValues(alpha: 0.95),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(24),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.1),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
+        body: Stack(
+          children: [
+            Column(
+              children: [
+                // Cloudflare explanation banner
+                Container(
+                  padding: const EdgeInsets.all(12.0),
+                  color: Colors.blue.shade50,
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.security,
+                        color: Colors.blue.shade700,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8.0),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Security Check in Progress',
+                              style: TextStyle(
+                                color: Colors.blue.shade800,
+                                fontSize: 14.0,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'RuTracker uses Cloudflare protection. Please wait for the verification to complete (5-10 seconds).',
+                              style: TextStyle(
+                                color: Colors.blue.shade700,
+                                fontSize: 12.0,
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.security,
-                          size: 64,
-                          color: Colors.blue.shade600,
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Security Verification',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.blue.shade800,
+                      ),
+                    ],
+                  ),
+                ),
+                // WebView
+                Expanded(
+                  child: initialUrl == null
+                      ? const Center(child: CircularProgressIndicator())
+                      : InAppWebView(
+                          initialUrlRequest:
+                              URLRequest(url: WebUri(initialUrl!)),
+                          initialSettings: InAppWebViewSettings(
+                            useShouldOverrideUrlLoading: true,
+                            sharedCookiesEnabled: true,
+                            allowsInlineMediaPlayback: true,
+                            mediaPlaybackRequiresUserGesture: false,
+                            // Error handling
+                            supportZoom: false,
+                            // Memory management
+                            minimumLogicalFontSize: 1,
+                            // SSL/TLS settings
+                            mixedContentMode:
+                                MixedContentMode.MIXED_CONTENT_ALWAYS_ALLOW,
                           ),
+                          onWebViewCreated: (controller) {
+                            _webViewController = controller;
+                            _hasError =
+                                false; // Reset error state when WebView is recreated
+                          },
+                          onProgressChanged: (controller, p) =>
+                              setState(() => progress = p / 100.0),
+                          onReceivedError: (controller, request, error) {
+                            final desc = error.description.toString();
+                            final isOrb = desc.contains('ERR_BLOCKED_BY_ORB') ||
+                                desc.contains('ERR_BLOCKED_BY_CLIENT') ||
+                                desc.contains('ERR_BLOCKED_BY_RESPONSE');
+                            // ORB не считаем критичным даже если Chromium пометил как основной фрейм
+                            if (isOrb) {
+                              return;
+                            }
+                            if (!(request.isForMainFrame ?? true) &&
+                                (desc.contains('CORS') ||
+                                    desc.contains('Cross-Origin'))) {
+                              return;
+                            }
+                            if (!(request.isForMainFrame ?? true)) return;
+                            setState(() {
+                              _hasError = true;
+                              _errorMessage = 'Ошибка загрузки: $desc';
+                            });
+                          },
+                          onReceivedHttpError:
+                              (controller, request, errorResponse) {
+                            // Показываем HTTP-ошибку только для основного фрейма
+                            if (!(request.isForMainFrame ?? true)) return;
+                            setState(() {
+                              _hasError = true;
+                              _errorMessage =
+                                  'HTTP ошибка: ${errorResponse.statusCode}';
+                            });
+                          },
+                          onLoadStop: (controller, url) async {
+                            final html = await controller.getHtml();
+                            if (html != null && _looksLikeCloudflare(html)) {
+                              _showCloudflareHint();
+                              // Show a more prominent Cloudflare indicator
+                              _showCloudflareOverlay();
+                            } else {
+                              await _saveCookies();
+                              // Automatically sync cookies to DioClient after saving
+                              try {
+                                await DioClient.syncCookiesFromWebView();
+                              } on Exception catch (e) {
+                                debugPrint(
+                                    'Failed to sync cookies to DioClient: $e');
+                              }
+                              // Закрепим активное зеркало по текущему хосту
+                              try {
+                                final current = await controller.getUrl();
+                                if (current != null) {
+                                  final host = current.host;
+                                  if (host.isNotEmpty) {
+                                    final db = AppDatabase().database;
+                                    await EndpointManager(db)
+                                        .setActiveEndpoint('https://$host');
+                                  }
+                                }
+                              } on Exception {
+                                // ignore
+                              }
+                              _hideCloudflareOverlay();
+                            }
+                          },
+                          shouldOverrideUrlLoading: (controller, nav) async {
+                            final uri = nav.request.url;
+                            if (uri == null)
+                              return NavigationActionPolicy.ALLOW;
+                            final s = uri.toString();
+
+                            // .torrent
+                            if (s.endsWith('.torrent')) {
+                              await _handleTorrentLink(uri);
+                              return NavigationActionPolicy.CANCEL;
+                            }
+                            // magnet:
+                            if (s.startsWith('magnet:')) {
+                              await launchUrl(uri);
+                              return NavigationActionPolicy.CANCEL;
+                            }
+                            // External domains: open in browser (optional)
+                            if (!uri.host.contains('rutracker')) {
+                              await launchUrl(uri);
+                              return NavigationActionPolicy.CANCEL;
+                            }
+                            return NavigationActionPolicy.ALLOW;
+                          },
                         ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'RuTracker is verifying your browser.\nPlease wait 5-10 seconds for the check to complete.',
+                ),
+              ],
+            ),
+            // Cloudflare overlay
+            if (_isCloudflareDetected)
+              Positioned.fill(
+                child: ColoredBox(
+                  color: Colors.blue.shade50.withValues(alpha: 0.95),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(24),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.1),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.security,
+                              size: 64,
+                              color: Colors.blue.shade600,
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Security Verification',
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.blue.shade800,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'RuTracker is verifying your browser.\nPlease wait 5-10 seconds for the check to complete.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey.shade700,
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+                            SizedBox(
+                              width: 200,
+                              child: LinearProgressIndicator(
+                                backgroundColor: Colors.blue.shade100,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                    Colors.blue.shade600),
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            TextButton.icon(
+                              onPressed: () async {
+                                final url = await _webViewController.getUrl();
+                                if (url != null) await launchUrl(url);
+                              },
+                              icon: const Icon(Icons.open_in_browser),
+                              label: const Text('Open in Browser'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            // Error overlay
+            if (_hasError)
+              Positioned.fill(
+                child: ColoredBox(
+                  color: Colors.white,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.error_outline,
+                        size: 64,
+                        color: Colors.red.shade400,
+                      ),
+                      const SizedBox(height: 16),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                        child: Text(
+                          _errorMessage ??
+                              'Произошла ошибка при загрузке страницы',
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                            fontSize: 14,
+                            fontSize: 16,
                             color: Colors.grey.shade700,
                           ),
                         ),
-                        const SizedBox(height: 24),
-                        SizedBox(
-                          width: 200,
-                          child: LinearProgressIndicator(
-                            backgroundColor: Colors.blue.shade100,
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.blue.shade600),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        TextButton.icon(
-                          onPressed: () async {
-                            final url = await _webViewController.getUrl();
-                            if (url != null) await launchUrl(url);
-                          },
-                          icon: const Icon(Icons.open_in_browser),
-                          label: const Text('Open in Browser'),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        // Error overlay
-        if (_hasError)
-          Positioned.fill(
-            child: ColoredBox(
-              color: Colors.white,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.error_outline,
-                    size: 64,
-                    color: Colors.red.shade400,
-                  ),
-                  const SizedBox(height: 16),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                    child: Text(
-                      _errorMessage ?? 'Произошла ошибка при загрузке страницы',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Colors.grey.shade700,
                       ),
-                    ),
+                      const SizedBox(height: 24),
+                      ElevatedButton(
+                        onPressed: () {
+                          setState(() {
+                            _hasError = false;
+                            _errorMessage = null;
+                          });
+                          _webViewController.reload();
+                        },
+                        child: const Text('Повторить попытку'),
+                      ),
+                      const SizedBox(height: 16),
+                      TextButton(
+                        onPressed: () {
+                          setState(() {
+                            _hasError = false;
+                            _errorMessage = null;
+                          });
+                          if (initialUrl != null) {
+                            _webViewController.loadUrl(
+                                urlRequest:
+                                    URLRequest(url: WebUri(initialUrl!)));
+                          }
+                        },
+                        child: const Text('Перейти на главную'),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 24),
-                  ElevatedButton(
-                    onPressed: () {
-                      setState(() {
-                        _hasError = false;
-                        _errorMessage = null;
-                      });
-                      _webViewController.reload();
-                    },
-                    child: const Text('Повторить попытку'),
-                  ),
-                  const SizedBox(height: 16),
-                  TextButton(
-                    onPressed: () {
-                      setState(() {
-                        _hasError = false;
-                        _errorMessage = null;
-                      });
-                      if (initialUrl != null) {
-                        _webViewController.loadUrl(urlRequest: URLRequest(url: WebUri(initialUrl!)));
-                      }
-                    },
-                    child: const Text('Перейти на главную'),
-                  ),
-                ],
+                ),
               ),
-            ),
-          ),
-      ],
-    ),
-  );
+          ],
+        ),
+      );
 
   void _showCloudflareHint() {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -509,7 +546,8 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('To download the file, please open the link in your browser'),
+            content: Text(
+                'To download the file, please open the link in your browser'),
           ),
         );
       }

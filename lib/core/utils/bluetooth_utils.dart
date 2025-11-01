@@ -88,7 +88,8 @@ Future<bool> isConnected() async {
 /// explicit Bluetooth permissions.
 Future<bool> routeAudioToBluetooth() async {
   try {
-    final result = await _bluetoothChannel.invokeMethod('routeAudioToBluetooth');
+    final result =
+        await _bluetoothChannel.invokeMethod('routeAudioToBluetooth');
     return result as bool? ?? false;
   } on PlatformException catch (e) {
     if (kDebugMode) {

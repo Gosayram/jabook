@@ -66,7 +66,7 @@ class PermissionService {
 
       // For older Android versions, request storage permission
       final storageStatus = await Permission.storage.request();
-      
+
       await _logger.log(
         level: 'info',
         subsystem: 'permissions',
@@ -111,7 +111,7 @@ class PermissionService {
       );
 
       final status = await Permission.notification.request();
-      
+
       await _logger.log(
         level: 'info',
         subsystem: 'permissions',
@@ -136,7 +136,7 @@ class PermissionService {
   Future<bool> hasAllPermissions() async {
     final hasStorage = await hasStoragePermission();
     final hasNotification = await hasNotificationPermission();
-    
+
     return hasStorage && hasNotification;
   }
 
@@ -146,7 +146,7 @@ class PermissionService {
   Future<bool> requestAllPermissions() async {
     final storageGranted = await requestStoragePermission();
     final notificationGranted = await requestNotificationPermission();
-    
+
     return storageGranted && notificationGranted;
   }
 
@@ -220,7 +220,8 @@ class PermissionService {
                 Icon(Icons.folder, color: Colors.blue),
                 SizedBox(width: 8),
                 Expanded(
-                  child: Text('Storage: To save audiobook files and cache data'),
+                  child:
+                      Text('Storage: To save audiobook files and cache data'),
                 ),
               ],
             ),
@@ -230,7 +231,8 @@ class PermissionService {
                 Icon(Icons.notifications, color: Colors.orange),
                 SizedBox(width: 8),
                 Expanded(
-                  child: Text('Notifications: To show playback controls and updates'),
+                  child: Text(
+                      'Notifications: To show playback controls and updates'),
                 ),
               ],
             ),
@@ -257,7 +259,7 @@ class PermissionService {
   /// and should be called during app initialization.
   Future<Map<String, bool>> requestEssentialPermissions() async {
     final results = <String, bool>{};
-    
+
     try {
       await _logger.log(
         level: 'info',
@@ -267,13 +269,13 @@ class PermissionService {
 
       // Request storage permission
       results['storage'] = await requestStoragePermission();
-      
+
       // Request notification permission
       results['notification'] = await requestNotificationPermission();
-      
+
       // Request audio permissions for media playback
       results['audio'] = await _requestAudioPermissions();
-      
+
       // Request network permissions
       results['network'] = await _requestNetworkPermissions();
 
@@ -300,8 +302,9 @@ class PermissionService {
   Future<bool> _requestAudioPermissions() async {
     try {
       // Request wake lock permission for audio playback
-      final wakeLockStatus = await Permission.ignoreBatteryOptimizations.request();
-      
+      final wakeLockStatus =
+          await Permission.ignoreBatteryOptimizations.request();
+
       return wakeLockStatus.isGranted;
     } on Exception catch (e) {
       await _logger.log(
@@ -336,7 +339,7 @@ class PermissionService {
     final notification = await hasNotificationPermission();
     final audio = await _hasAudioPermissions();
     final network = _hasNetworkPermissions();
-    
+
     return storage && notification && audio && network;
   }
 
@@ -344,7 +347,7 @@ class PermissionService {
   Future<bool> _hasAudioPermissions() async {
     try {
       final wakeLockStatus = await Permission.ignoreBatteryOptimizations.status;
-      
+
       return wakeLockStatus.isGranted;
     } on Exception {
       return false;
@@ -352,5 +355,6 @@ class PermissionService {
   }
 
   /// Checks if network permissions are granted.
-  bool _hasNetworkPermissions() => true; // Internet permission is usually granted by default
+  bool _hasNetworkPermissions() =>
+      true; // Internet permission is usually granted by default
 }

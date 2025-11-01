@@ -3,7 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:jabook/core/permissions/permission_service_v2.dart';
 import 'package:jabook/core/utils/bluetooth_utils.dart' as bluetooth_utils;
 import 'package:jabook/core/utils/file_picker_utils.dart' as file_picker_utils;
-import 'package:jabook/core/utils/notification_utils.dart' as notification_utils;
+import 'package:jabook/core/utils/notification_utils.dart'
+    as notification_utils;
 
 /// Widget that displays system capabilities and allows testing them.
 ///
@@ -14,7 +15,8 @@ class SystemCapabilitiesWidget extends StatefulWidget {
   const SystemCapabilitiesWidget({super.key});
 
   @override
-  State<SystemCapabilitiesWidget> createState() => _SystemCapabilitiesWidgetState();
+  State<SystemCapabilitiesWidget> createState() =>
+      _SystemCapabilitiesWidgetState();
 }
 
 class _SystemCapabilitiesWidgetState extends State<SystemCapabilitiesWidget> {
@@ -130,7 +132,7 @@ class _SystemCapabilitiesWidgetState extends State<SystemCapabilitiesWidget> {
     try {
       final isAvailable = await bluetooth_utils.isBluetoothAvailable();
       final pairedDevices = await bluetooth_utils.getPairedDevices();
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -156,102 +158,106 @@ class _SystemCapabilitiesWidgetState extends State<SystemCapabilitiesWidget> {
 
   @override
   Widget build(BuildContext context) => Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Icon(Icons.settings_applications),
-                const SizedBox(width: 8),
-                const Text(
-                  'Системные возможности',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                const Spacer(),
-                IconButton(
-                  icon: const Icon(Icons.refresh),
-                  onPressed: _isLoading ? null : _checkCapabilities,
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            if (_isLoading)
-              const Center(child: CircularProgressIndicator())
-            else
-              Column(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
                 children: [
-                  _buildCapabilityRow(
-                    'Доступ к файлам',
-                    _capabilities['files'] ?? false,
-                    Icons.folder,
-                    _testFilePicking,
+                  const Icon(Icons.settings_applications),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'Системные возможности',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
-                  _buildCapabilityRow(
-                    'Доступ к изображениям',
-                    _capabilities['media_files'] ?? false,
-                    Icons.image,
-                    _testImagePicking,
-                  ),
-                  _buildCapabilityRow(
-                    'Камера',
-                    _capabilities['camera'] ?? false,
-                    Icons.camera_alt,
-                    () async {
-                      final messenger = ScaffoldMessenger.of(context);
-                      try {
-                        final photo = await file_picker_utils.takePhoto();
-                        if (!mounted) return;
-                        messenger.showSnackBar(
-                          SnackBar(
-                            content: Text(photo != null ? 'Фото сделано: $photo' : 'Фото не сделано'),
-                            backgroundColor: photo != null ? Colors.green : Colors.orange,
-                          ),
-                        );
-                      } on Exception catch (e) {
-                        if (!mounted) return;
-                        messenger.showSnackBar(
-                          SnackBar(
-                            content: Text('Ошибка камеры: $e'),
-                            backgroundColor: Colors.red,
-                          ),
-                        );
-                      }
-                    },
-                  ),
-                  _buildCapabilityRow(
-                    'Уведомления',
-                    _capabilities['notifications'] ?? false,
-                    Icons.notifications,
-                    _testNotification,
-                  ),
-                  _buildCapabilityRow(
-                    'Bluetooth',
-                    _capabilities['bluetooth'] ?? false,
-                    Icons.bluetooth,
-                    _testBluetooth,
+                  const Spacer(),
+                  IconButton(
+                    icon: const Icon(Icons.refresh),
+                    onPressed: _isLoading ? null : _checkCapabilities,
                   ),
                 ],
               ),
-            const SizedBox(height: 16),
-            TextButton.icon(
-              onPressed: () => _permissionService.showPermissionExplanationDialog(context),
-              icon: const Icon(Icons.info_outline),
-              label: const Text('Объяснение возможностей'),
-            ),
-          ],
+              const SizedBox(height: 16),
+              if (_isLoading)
+                const Center(child: CircularProgressIndicator())
+              else
+                Column(
+                  children: [
+                    _buildCapabilityRow(
+                      'Доступ к файлам',
+                      _capabilities['files'] ?? false,
+                      Icons.folder,
+                      _testFilePicking,
+                    ),
+                    _buildCapabilityRow(
+                      'Доступ к изображениям',
+                      _capabilities['media_files'] ?? false,
+                      Icons.image,
+                      _testImagePicking,
+                    ),
+                    _buildCapabilityRow(
+                      'Камера',
+                      _capabilities['camera'] ?? false,
+                      Icons.camera_alt,
+                      () async {
+                        final messenger = ScaffoldMessenger.of(context);
+                        try {
+                          final photo = await file_picker_utils.takePhoto();
+                          if (!mounted) return;
+                          messenger.showSnackBar(
+                            SnackBar(
+                              content: Text(photo != null
+                                  ? 'Фото сделано: $photo'
+                                  : 'Фото не сделано'),
+                              backgroundColor:
+                                  photo != null ? Colors.green : Colors.orange,
+                            ),
+                          );
+                        } on Exception catch (e) {
+                          if (!mounted) return;
+                          messenger.showSnackBar(
+                            SnackBar(
+                              content: Text('Ошибка камеры: $e'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                      },
+                    ),
+                    _buildCapabilityRow(
+                      'Уведомления',
+                      _capabilities['notifications'] ?? false,
+                      Icons.notifications,
+                      _testNotification,
+                    ),
+                    _buildCapabilityRow(
+                      'Bluetooth',
+                      _capabilities['bluetooth'] ?? false,
+                      Icons.bluetooth,
+                      _testBluetooth,
+                    ),
+                  ],
+                ),
+              const SizedBox(height: 16),
+              TextButton.icon(
+                onPressed: () =>
+                    _permissionService.showPermissionExplanationDialog(context),
+                icon: const Icon(Icons.info_outline),
+                label: const Text('Объяснение возможностей'),
+              ),
+            ],
+          ),
         ),
-      ),
-    );
-  }
+      );
+}
 
-  Widget _buildCapabilityRow(
-    String title,
-    bool isAvailable,
-    IconData icon,
-    VoidCallback onTest,
-  ) =>
+Widget _buildCapabilityRow(
+  String title,
+  bool isAvailable,
+  IconData icon,
+  VoidCallback onTest,
+) =>
     Padding(
       padding: const EdgeInsets.symmetric(vertical: 4.0),
       child: Row(

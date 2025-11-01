@@ -61,7 +61,8 @@ class Audiobook {
     String? coverUrl,
     List<Chapter>? chapters,
     DateTime? addedDate,
-  }) => Audiobook(
+  }) =>
+      Audiobook(
         id: id ?? this.id,
         title: title ?? this.title,
         author: author ?? this.author,
@@ -78,9 +79,7 @@ class Audiobook {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is Audiobook &&
-          runtimeType == other.runtimeType &&
-          id == other.id;
+      other is Audiobook && runtimeType == other.runtimeType && id == other.id;
 
   @override
   int get hashCode => id.hashCode;
@@ -123,7 +122,8 @@ class Chapter {
     int? fileIndex,
     int? startByte,
     int? endByte,
-  }) => Chapter(
+  }) =>
+      Chapter(
         title: title ?? this.title,
         durationMs: durationMs ?? this.durationMs,
         fileIndex: fileIndex ?? this.fileIndex,

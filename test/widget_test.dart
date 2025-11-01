@@ -29,5 +29,4 @@ void main() {
     // Look for a more specific text that should be unique to the library screen
     expect(find.byType(LibraryScreen), findsOneWidget);
   });
-
 }

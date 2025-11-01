@@ -16,13 +16,12 @@ import 'package:just_audio/just_audio.dart';
 /// This screen provides the user interface for playing audiobooks,
 /// including playback controls, progress tracking, and chapter navigation.
 class PlayerScreen extends ConsumerStatefulWidget {
-
   /// Creates a new PlayerScreen instance.
   ///
   /// The [bookId] parameter is required to identify which audiobook
   /// should be displayed and played.
   const PlayerScreen({super.key, required this.bookId});
-  
+
   /// The unique identifier of the audiobook to play.
   final String bookId;
 
@@ -34,7 +33,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   final AudioPlayer _audioPlayer = AudioPlayer();
   final LocalStreamServer _streamServer = LocalStreamServer();
   final AudioServiceHandler _audioService = AudioServiceHandler();
-  
+
   Audiobook? _audiobook;
   Duration _currentPosition = Duration.zero;
   Duration _totalDuration = Duration.zero;
@@ -78,9 +77,11 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
           _isPlaying = state.playing;
           _isLoading = state.processingState == ProcessingState.loading;
         });
-        
+
         // Update current chapter index for playlist
-        if (state.processingState == ProcessingState.ready && _audiobook != null && _audiobook!.chapters.length > 1) {
+        if (state.processingState == ProcessingState.ready &&
+            _audiobook != null &&
+            _audiobook!.chapters.length > 1) {
           final currentIndex = _audioPlayer.currentIndex ?? 0;
           if (currentIndex != _currentChapterIndex) {
             setState(() {
@@ -118,7 +119,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 
       // Load real audio source via local stream server
       await _loadAudioSource();
-      
+
       setState(() {
         _isLoading = false;
         _hasError = false;
@@ -157,7 +158,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       final endpointManager = EndpointManager(db);
       final base = await endpointManager.getActiveEndpoint();
       final dio = await DioClient.instance;
-      final response = await dio.get('$base/forum/viewtopic.php', queryParameters: {'t': widget.bookId});
+      final response = await dio.get('$base/forum/viewtopic.php',
+          queryParameters: {'t': widget.bookId});
       if (response.statusCode == 200) {
         final parsed = await RuTrackerParser().parseTopicDetails(response.data);
         if (parsed != null) {
@@ -172,28 +174,31 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   Future<void> _loadAudioSource() async {
     if (_audiobook == null || _audiobook!.chapters.isEmpty) {
       // Fallback to demo audio if no chapters available
-      await _audioPlayer.setUrl('https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3');
+      await _audioPlayer.setUrl(
+          'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3');
       return;
     }
 
     try {
       // Start local stream server
       await _streamServer.start();
-      
+
       // For now, use first chapter as single file
       // TODO: Implement playlist for multi-file audiobooks
       final firstChapter = _audiobook!.chapters.first;
-      final streamUrl = _streamServer.getStreamUrl(widget.bookId, firstChapter.fileIndex);
-      
+      final streamUrl =
+          _streamServer.getStreamUrl(widget.bookId, firstChapter.fileIndex);
+
       await _audioPlayer.setUrl(streamUrl);
-      
+
       // Set up playlist if multiple chapters exist
       if (_audiobook!.chapters.length > 1) {
         await _setupPlaylist();
       }
     } on Exception catch (_) {
       // Fallback to demo audio on error
-      await _audioPlayer.setUrl('https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3');
+      await _audioPlayer.setUrl(
+          'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3');
     }
   }
 
@@ -202,9 +207,12 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 
     try {
       // Create playlist from chapters
-      final audioSources = _audiobook!.chapters.map((chapter) => AudioSource.uri(
-        Uri.parse(_streamServer.getStreamUrl(widget.bookId, chapter.fileIndex)),
-      )).toList();
+      final audioSources = _audiobook!.chapters
+          .map((chapter) => AudioSource.uri(
+                Uri.parse(_streamServer.getStreamUrl(
+                    widget.bookId, chapter.fileIndex)),
+              ))
+          .toList();
 
       await _audioPlayer.setAudioSources(audioSources);
     } on Exception catch (_) {
@@ -247,7 +255,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       }
     } else {
       // For single file: seek to chapter start position
-      final target = Duration(milliseconds: chapter.startByte > 0 ? 0 : (chapter.durationMs ~/ 2));
+      final target = Duration(
+          milliseconds: chapter.startByte > 0 ? 0 : (chapter.durationMs ~/ 2));
       _audioPlayer.seek(target);
     }
 
@@ -260,7 +269,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         art = Uri.parse(coverUrl);
       }
     } on Exception catch (_) {}
-    
+
     _audioService.setNowPlayingMetadata(
       id: _audiobook!.id,
       title: '${_audiobook!.title} — ${chapter.title}',
@@ -289,17 +298,18 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(
-      title: Text('${AppLocalizations.of(context)?.playerTitle ?? 'Player'}: ${widget.bookId}'),
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.download),
-          onPressed: _downloadAudiobook,
+        appBar: AppBar(
+          title: Text(
+              '${AppLocalizations.of(context)?.playerTitle ?? 'Player'}: ${widget.bookId}'),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.download),
+              onPressed: _downloadAudiobook,
+            ),
+          ],
         ),
-      ],
-    ),
-    body: _buildBody(),
-  );
+        body: _buildBody(),
+      );
 
   Widget _buildBody() {
     if (_isLoading) {
@@ -313,7 +323,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(AppLocalizations.of(context)?.failedToLoadAudio ?? 'Failed to load audiobook'),
+            Text(AppLocalizations.of(context)?.failedToLoadAudio ??
+                'Failed to load audiobook'),
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: _initializePlayer,
@@ -401,7 +412,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
               const SizedBox(height: 8),
               Slider(
                 value: _totalDuration.inMilliseconds > 0
-                    ? _currentPosition.inMilliseconds / _totalDuration.inMilliseconds
+                    ? _currentPosition.inMilliseconds /
+                        _totalDuration.inMilliseconds
                     : 0.0,
                 onChanged: _seekToPosition,
               ),
@@ -457,7 +469,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                         return ListTile(
                           leading: const Icon(Icons.book),
                           title: Text(chapter.title),
-                          subtitle: Text(_formatDuration(Duration(milliseconds: chapter.durationMs))),
+                          subtitle: Text(_formatDuration(
+                              Duration(milliseconds: chapter.durationMs))),
                           onTap: () => _seekToChapter(chapter),
                         );
                       },
@@ -480,7 +493,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   void _downloadAudiobook() {
     // TODO: Implement download functionality
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(AppLocalizations.of(context)?.downloadFunctionalityComingSoon ?? 'Download functionality coming soon!')),
+      SnackBar(
+          content: Text(
+              AppLocalizations.of(context)?.downloadFunctionalityComingSoon ??
+                  'Download functionality coming soon!')),
     );
   }
 }

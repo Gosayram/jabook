@@ -18,13 +18,12 @@ import 'package:url_launcher/url_launcher.dart';
 /// This screen shows the details of a specific forum topic,
 /// including posts, attachments, and download links.
 class TopicScreen extends ConsumerStatefulWidget {
-
   /// Creates a new TopicScreen instance.
   ///
   /// The [topicId] parameter is required to identify which topic
   /// should be displayed.
   const TopicScreen({super.key, required this.topicId});
-  
+
   /// The unique identifier of the topic to display.
   final String topicId;
 
@@ -35,7 +34,7 @@ class TopicScreen extends ConsumerStatefulWidget {
 class _TopicScreenState extends ConsumerState<TopicScreen> {
   final RuTrackerParser _parser = RuTrackerParser();
   final RuTrackerCacheService _cacheService = RuTrackerCacheService();
-  
+
   Map<String, dynamic>? _audiobook;
   bool _isLoading = true;
   bool _hasError = false;
@@ -54,7 +53,8 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
 
   Future<void> _loadTopicDetails() async {
     // First try to get from cache
-    final cachedAudiobook = await _cacheService.getCachedTopicDetails(widget.topicId);
+    final cachedAudiobook =
+        await _cacheService.getCachedTopicDetails(widget.topicId);
     if (cachedAudiobook != null) {
       setState(() {
         _audiobook = cachedAudiobook;
@@ -70,20 +70,22 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
       final endpointManager = ref.read(endpointManagerProvider);
       final activeEndpoint = await endpointManager.getActiveEndpoint();
       final dio = await DioClient.instance;
-      final response = await dio.get(
-        '$activeEndpoint/forum/viewtopic.php?t=${widget.topicId}',
-      ).timeout(const Duration(seconds: 30));
+      final response = await dio
+          .get(
+            '$activeEndpoint/forum/viewtopic.php?t=${widget.topicId}',
+          )
+          .timeout(const Duration(seconds: 30));
 
       if (response.statusCode == 200) {
         final audiobook = await _parser.parseTopicDetails(response.data);
-        
+
         if (audiobook != null) {
           // Cache the topic details
           // Convert Audiobook object to map for caching
           final audiobookMap = _audiobookToMap(audiobook);
           await _cacheService.cacheTopicDetails(widget.topicId, audiobookMap);
         }
-        
+
         if (mounted) {
           setState(() {
             // Convert Audiobook object to map for UI
@@ -112,7 +114,10 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
           _hasError = true;
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppLocalizations.of(context)?.requestTimedOutMessage ?? 'Request timed out. Please check your connection.')),
+          SnackBar(
+              content: Text(
+                  AppLocalizations.of(context)?.requestTimedOutMessage ??
+                      'Request timed out. Please check your connection.')),
         );
       }
     } on DioException catch (e) {
@@ -121,13 +126,15 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
           _isLoading = false;
           _hasError = true;
         });
-        
+
         // Handle authentication errors specifically
         if (e.message?.contains('Authentication required') ?? false) {
           _showAuthenticationPrompt(context);
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Network error: ${e.message ?? "Unknown error"}')),
+            SnackBar(
+                content:
+                    Text('Network error: ${e.message ?? "Unknown error"}')),
           );
         }
       }
@@ -146,46 +153,53 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(
-      title: Text('${AppLocalizations.of(context)?.topicTitle ?? 'Topic'}: ${widget.topicId}'),
-      actions: [
-        if (_isFromCache)
-          IconButton(
-            icon: const Icon(Icons.cached),
-            tooltip: AppLocalizations.of(context)?.dataLoadedFromCacheMessage ?? 'Loaded from cache',
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(AppLocalizations.of(context)?.dataLoadedFromCacheMessage ?? 'Data loaded from cache')),
-              );
-            },
-          ),
-        if (_audiobook != null && (_audiobook!['magnetUrl'] as String).isNotEmpty)
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.download),
-            onSelected: _handleDownloadAction,
-            itemBuilder: (context) => [
-              const PopupMenuItem(
-                value: 'magnet',
-                child: ListTile(
-                  leading: Icon(Icons.link),
-                  title: Text('Copy Magnet Link'),
-                  contentPadding: EdgeInsets.zero,
-                ),
+        appBar: AppBar(
+          title: Text(
+              '${AppLocalizations.of(context)?.topicTitle ?? 'Topic'}: ${widget.topicId}'),
+          actions: [
+            if (_isFromCache)
+              IconButton(
+                icon: const Icon(Icons.cached),
+                tooltip:
+                    AppLocalizations.of(context)?.dataLoadedFromCacheMessage ??
+                        'Loaded from cache',
+                onPressed: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                        content: Text(AppLocalizations.of(context)
+                                ?.dataLoadedFromCacheMessage ??
+                            'Data loaded from cache')),
+                  );
+                },
               ),
-              const PopupMenuItem(
-                value: 'torrent',
-                child: ListTile(
-                  leading: Icon(Icons.file_download),
-                  title: Text('Download Torrent'),
-                  contentPadding: EdgeInsets.zero,
-                ),
+            if (_audiobook != null &&
+                (_audiobook!['magnetUrl'] as String).isNotEmpty)
+              PopupMenuButton<String>(
+                icon: const Icon(Icons.download),
+                onSelected: _handleDownloadAction,
+                itemBuilder: (context) => [
+                  const PopupMenuItem(
+                    value: 'magnet',
+                    child: ListTile(
+                      leading: Icon(Icons.link),
+                      title: Text('Copy Magnet Link'),
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: 'torrent',
+                    child: ListTile(
+                      leading: Icon(Icons.file_download),
+                      title: Text('Download Torrent'),
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
-      ],
-    ),
-    body: _buildBody(),
-  );
+          ],
+        ),
+        body: _buildBody(),
+      );
 
   Widget _buildBody() {
     if (_isLoading) {
@@ -199,7 +213,8 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(AppLocalizations.of(context)?.failedToLoadTopicMessage ?? 'Failed to load topic'),
+            Text(AppLocalizations.of(context)?.failedToLoadTopicMessage ??
+                'Failed to load topic'),
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: _loadTopicDetails,
@@ -234,7 +249,7 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
     final coverUrl = audiobook['coverUrl'] as String?;
     final magnetUrl = audiobook['magnetUrl'] as String? ?? '';
     // Chapters variable is not used, removed to fix lint warning
-    
+
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Column(
@@ -265,12 +280,14 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
               ),
               const SizedBox(width: 8),
               Chip(
-                label: Text('$seeders${AppLocalizations.of(context)?.seedersLabel ?? ' seeders'}'),
+                label: Text(
+                    '$seeders${AppLocalizations.of(context)?.seedersLabel ?? ' seeders'}'),
                 backgroundColor: Colors.green.shade100,
               ),
               const SizedBox(width: 8),
               Chip(
-                label: Text('$leechers${AppLocalizations.of(context)?.leechersLabel ?? ' leechers'}'),
+                label: Text(
+                    '$leechers${AppLocalizations.of(context)?.leechersLabel ?? ' leechers'}'),
                 backgroundColor: Colors.orange.shade100,
               ),
             ],
@@ -293,7 +310,9 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
                 children: [
                   ListTile(
                     leading: const Icon(Icons.link),
-                    title: Text(AppLocalizations.of(context)?.magnetLinkLabelText ?? 'Magnet Link'),
+                    title: Text(
+                        AppLocalizations.of(context)?.magnetLinkLabelText ??
+                            'Magnet Link'),
                     subtitle: Text(
                       magnetUrl,
                       maxLines: 2,
@@ -301,7 +320,11 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
                     ),
                     trailing: const Icon(Icons.copy),
                     onTap: () {
-                      _copyToClipboard(magnetUrl, AppLocalizations.of(context)?.magnetLinkCopiedMessage ?? 'Magnet link');
+                      _copyToClipboard(
+                          magnetUrl,
+                          AppLocalizations.of(context)
+                                  ?.magnetLinkCopiedMessage ??
+                              'Magnet link');
                     },
                   ),
                   const Divider(height: 1),
@@ -323,7 +346,7 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
   Widget _buildChaptersSection() {
     final audiobook = _audiobook!;
     final chapters = audiobook['chapters'] as List<dynamic>? ?? [];
-    
+
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Column(
@@ -340,7 +363,9 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
             itemCount: chapters.length,
             itemBuilder: (context, index) {
               final chapter = chapters[index] as Map<String, dynamic>;
-              final chapterTitle = chapter['title'] as String? ?? AppLocalizations.of(context)?.unknownChapterText ?? 'Unknown Chapter';
+              final chapterTitle = chapter['title'] as String? ??
+                  AppLocalizations.of(context)?.unknownChapterText ??
+                  'Unknown Chapter';
               final durationMs = chapter['durationMs'] as int? ?? 0;
               return Card(
                 margin: const EdgeInsets.only(bottom: 8),
@@ -366,7 +391,7 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
     final hours = duration.inHours;
     final minutes = duration.inMinutes.remainder(60);
     final seconds = duration.inSeconds.remainder(60);
-    
+
     if (hours > 0) {
       return '$hours:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
     } else {
@@ -376,7 +401,7 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
 
   void _handleDownloadAction(String action) {
     if (_audiobook == null) return;
-    
+
     switch (action) {
       case 'magnet':
         _copyMagnetLink();
@@ -391,19 +416,22 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
     if (_audiobook != null && (_audiobook!['magnetUrl'] as String).isNotEmpty) {
       _copyToClipboard(_audiobook!['magnetUrl'] as String, 'Magnet link');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppLocalizations.of(context)?.magnetLinkCopiedMessage ?? 'Magnet link copied to clipboard')),
+        SnackBar(
+            content: Text(
+                AppLocalizations.of(context)?.magnetLinkCopiedMessage ??
+                    'Magnet link copied to clipboard')),
       );
     }
   }
 
   Future<void> _downloadTorrent() async {
     if (_audiobook == null) return;
-    
+
     try {
       final endpointManager = ref.read(endpointManagerProvider);
       final activeEndpoint = await endpointManager.getActiveEndpoint();
       final torrentUrl = '$activeEndpoint/forum/dl.php?t=${widget.topicId}';
-      
+
       final uri = Uri.parse(torrentUrl);
       if (await canLaunchUrl(uri)) {
         await launchUrl(uri, mode: LaunchMode.externalApplication);
@@ -441,27 +469,27 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
 
 /// Converts an Audiobook object to a Map for caching.
 Map<String, dynamic> _audiobookToMap(Audiobook audiobook) => {
-  'id': audiobook.id,
-  'title': audiobook.title,
-  'author': audiobook.author,
-  'category': audiobook.category,
-  'size': audiobook.size,
-  'seeders': audiobook.seeders,
-  'leechers': audiobook.leechers,
-  'magnetUrl': audiobook.magnetUrl,
-  'coverUrl': audiobook.coverUrl,
-  'chapters': audiobook.chapters.map(_chapterToMap).toList(),
-  'addedDate': audiobook.addedDate.toIso8601String(),
-};
+      'id': audiobook.id,
+      'title': audiobook.title,
+      'author': audiobook.author,
+      'category': audiobook.category,
+      'size': audiobook.size,
+      'seeders': audiobook.seeders,
+      'leechers': audiobook.leechers,
+      'magnetUrl': audiobook.magnetUrl,
+      'coverUrl': audiobook.coverUrl,
+      'chapters': audiobook.chapters.map(_chapterToMap).toList(),
+      'addedDate': audiobook.addedDate.toIso8601String(),
+    };
 
 /// Converts a Chapter object to a Map for caching.
 Map<String, dynamic> _chapterToMap(Chapter chapter) => {
-  'title': chapter.title,
-  'durationMs': chapter.durationMs,
-  'fileIndex': chapter.fileIndex,
-  'startByte': chapter.startByte,
-  'endByte': chapter.endByte,
-};
+      'title': chapter.title,
+      'durationMs': chapter.durationMs,
+      'fileIndex': chapter.fileIndex,
+      'startByte': chapter.startByte,
+      'endByte': chapter.endByte,
+    };
 
 /// Shows authentication prompt when login is required.
 void _showAuthenticationPrompt(BuildContext context) {

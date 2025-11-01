@@ -44,106 +44,112 @@ class _RutrackerLoginScreenState extends State<RutrackerLoginScreen> {
     // Use platform default User-Agent for legitimacy (no override)
     await _controller.setNavigationDelegate(
       NavigationDelegate(
-          onProgress: (progress) {
-            // You can show progress if needed
-          },
-          onPageStarted: (url) {
-            setState(() {
-              _isLoading = true;
-              _hasError = false;
-            });
-          },
-          onPageFinished: (url) {
-            setState(() {
-              _isLoading = false;
-            });
-            
-            // Check if we're on a successful login page
-            if (url.contains(Uri.parse(activeBase).host) && !url.contains('login')) {
-              _showLoginSuccessHint();
-            }
-            _detectCloudflareAndHint();
-          },
-          onWebResourceError: (error) {
-            // Handle specific error types
-            final errorMessage = error.description;
-            final errorCode = error.errorCode;
-            
-            // Handle ORB (Origin Resource Blocking) errors
-            if (errorMessage.contains('ERR_BLOCKED_BY_ORB') || 
-                errorMessage.contains('ERR_BLOCKED_BY_CLIENT') ||
-                errorMessage.contains('ERR_BLOCKED_BY_RESPONSE') ||
-                errorCode == -6) {
-              // These are often non-critical resource loading errors
-              debugPrint('WebView resource blocked (non-critical): $errorMessage');
-              return;
-            }
-            
-            // Handle CORS errors
-            if (errorMessage.contains('CORS') || 
-                errorMessage.contains('Cross-Origin') ||
-                errorMessage.contains('Access-Control-Allow-Origin')) {
-              debugPrint('CORS error (non-critical): $errorMessage');
-              return;
-            }
-            
-            // Handle mixed content errors
-            if (errorMessage.contains('ERR_INSECURE_RESPONSE') ||
-                errorMessage.contains('Mixed Content')) {
-              debugPrint('Mixed content error (non-critical): $errorMessage');
-              return;
-            }
-            
-            // Handle network errors
-            if (errorMessage.contains('ERR_INTERNET_DISCONNECTED') ||
-                errorMessage.contains('ERR_NETWORK_CHANGED') ||
-                errorCode == -2) {
-              setState(() {
-                _hasError = true;
-                _errorMessage = 'Проблема с сетью. Проверьте подключение к интернету.';
-              });
-              return;
-            }
-            
-            // Handle other errors
+        onProgress: (progress) {
+          // You can show progress if needed
+        },
+        onPageStarted: (url) {
+          setState(() {
+            _isLoading = true;
+            _hasError = false;
+          });
+        },
+        onPageFinished: (url) {
+          setState(() {
+            _isLoading = false;
+          });
+
+          // Check if we're on a successful login page
+          if (url.contains(Uri.parse(activeBase).host) &&
+              !url.contains('login')) {
+            _showLoginSuccessHint();
+          }
+          _detectCloudflareAndHint();
+        },
+        onWebResourceError: (error) {
+          // Handle specific error types
+          final errorMessage = error.description;
+          final errorCode = error.errorCode;
+
+          // Handle ORB (Origin Resource Blocking) errors
+          if (errorMessage.contains('ERR_BLOCKED_BY_ORB') ||
+              errorMessage.contains('ERR_BLOCKED_BY_CLIENT') ||
+              errorMessage.contains('ERR_BLOCKED_BY_RESPONSE') ||
+              errorCode == -6) {
+            // These are often non-critical resource loading errors
+            debugPrint(
+                'WebView resource blocked (non-critical): $errorMessage');
+            return;
+          }
+
+          // Handle CORS errors
+          if (errorMessage.contains('CORS') ||
+              errorMessage.contains('Cross-Origin') ||
+              errorMessage.contains('Access-Control-Allow-Origin')) {
+            debugPrint('CORS error (non-critical): $errorMessage');
+            return;
+          }
+
+          // Handle mixed content errors
+          if (errorMessage.contains('ERR_INSECURE_RESPONSE') ||
+              errorMessage.contains('Mixed Content')) {
+            debugPrint('Mixed content error (non-critical): $errorMessage');
+            return;
+          }
+
+          // Handle network errors
+          if (errorMessage.contains('ERR_INTERNET_DISCONNECTED') ||
+              errorMessage.contains('ERR_NETWORK_CHANGED') ||
+              errorCode == -2) {
             setState(() {
               _hasError = true;
-              _errorMessage = 'Ошибка загрузки: $errorMessage (код: $errorCode)';
+              _errorMessage =
+                  'Проблема с сетью. Проверьте подключение к интернету.';
             });
-            debugPrint('WebView error: $errorMessage, code: $errorCode');
-          },
-          onNavigationRequest: (request) {
-            final s = request.url;
-            if (s.startsWith('magnet:')) {
-              _launchExternal(Uri.parse(s));
-              return NavigationDecision.prevent;
-            }
-            if (s.toLowerCase().endsWith('.torrent')) {
-              _handleTorrent(Uri.parse(s));
-              return NavigationDecision.prevent;
-            }
-            // Open external domains in browser
-            final host = Uri.parse(s).host;
-            if (!host.contains('rutracker')) {
-              _launchExternal(Uri.parse(s));
-              return NavigationDecision.prevent;
-            }
-            return NavigationDecision.navigate;
-          },
-        ),
-      );
+            return;
+          }
+
+          // Handle other errors
+          setState(() {
+            _hasError = true;
+            _errorMessage = 'Ошибка загрузки: $errorMessage (код: $errorCode)';
+          });
+          debugPrint('WebView error: $errorMessage, code: $errorCode');
+        },
+        onNavigationRequest: (request) {
+          final s = request.url;
+          if (s.startsWith('magnet:')) {
+            _launchExternal(Uri.parse(s));
+            return NavigationDecision.prevent;
+          }
+          if (s.toLowerCase().endsWith('.torrent')) {
+            _handleTorrent(Uri.parse(s));
+            return NavigationDecision.prevent;
+          }
+          // Open external domains in browser
+          final host = Uri.parse(s).host;
+          if (!host.contains('rutracker')) {
+            _launchExternal(Uri.parse(s));
+            return NavigationDecision.prevent;
+          }
+          return NavigationDecision.navigate;
+        },
+      ),
+    );
     await _controller.loadRequest(Uri.parse('$activeBase/'));
   }
 
   Future<void> _saveCookies() async {
     try {
       var cookieStr = '';
-      final activeHost = Uri.parse(await EndpointManager(AppDatabase().database).getActiveEndpoint()).host;
+      final activeHost = Uri.parse(
+              await EndpointManager(AppDatabase().database).getActiveEndpoint())
+          .host;
 
       // Extract cookies using JavaScript - this is the primary method
       try {
         // First, try to get all cookies from document.cookie
-        final result = await _controller.runJavaScriptReturningResult('document.cookie');
+        final result =
+            await _controller.runJavaScriptReturningResult('document.cookie');
         if (result is String && result.isNotEmpty) {
           cookieStr = result;
           debugPrint('JS cookies from document.cookie: $cookieStr');
@@ -176,7 +182,7 @@ class _RutrackerLoginScreenState extends State<RutrackerLoginScreen> {
               return domainCookies.join('; ');
             })();
           ''';
-          
+
           final result = await _controller.runJavaScriptReturningResult(jsCode);
           if (result is String && result.isNotEmpty) {
             cookieStr = result;
@@ -214,7 +220,7 @@ class _RutrackerLoginScreenState extends State<RutrackerLoginScreen> {
               return JSON.stringify(storage);
             })();
           ''';
-          
+
           final result = await _controller.runJavaScriptReturningResult(jsCode);
           if (result is String && result.isNotEmpty) {
             debugPrint('Storage data: $result');
@@ -275,7 +281,8 @@ class _RutrackerLoginScreenState extends State<RutrackerLoginScreen> {
   }
 
   // Serializes "name=value; name2=value2" into list of maps with minimal fields
-  List<Map<String, String>> _serializeCookiesForDomain(String cookieString, String host) {
+  List<Map<String, String>> _serializeCookiesForDomain(
+      String cookieString, String host) {
     final cookies = <Map<String, String>>[];
     if (cookieString.isEmpty) return cookies;
     final validName = RegExp(r"^[!#\$%&'*+.^_`|~0-9A-Za-z-]+$");
@@ -319,7 +326,9 @@ class _RutrackerLoginScreenState extends State<RutrackerLoginScreen> {
       final result = await _controller.runJavaScriptReturningResult(
         "document.body ? document.body.innerText : ''",
       );
-      final text = (result is String) ? result.toLowerCase() : result.toString().toLowerCase();
+      final text = (result is String)
+          ? result.toLowerCase()
+          : result.toString().toLowerCase();
       if (text.contains('checking your browser') ||
           text.contains('please enable javascript') ||
           text.contains('attention required') ||
@@ -327,7 +336,8 @@ class _RutrackerLoginScreenState extends State<RutrackerLoginScreen> {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Сайт проверяет ваш браузер (Cloudflare). Подождите 5–10 секунд.'),
+            content: Text(
+                'Сайт проверяет ваш браузер (Cloudflare). Подождите 5–10 секунд.'),
           ),
         );
       }
@@ -364,7 +374,8 @@ class _RutrackerLoginScreenState extends State<RutrackerLoginScreen> {
       await _launchExternal(uri);
     } else if (action == 'download') {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Для загрузки файл будет открыт в браузере')),
+        const SnackBar(
+            content: Text('Для загрузки файл будет открыт в браузере')),
       );
       await _launchExternal(uri);
     }
@@ -374,118 +385,126 @@ class _RutrackerLoginScreenState extends State<RutrackerLoginScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-      appBar: AppBar(
-        title: Text(AppLocalizations.of(context)?.webViewTitle ?? 'RuTracker'),
-        automaticallyImplyLeading: false,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _initializeWebView,
-          ),
-          IconButton(
-            icon: const Icon(Icons.open_in_browser),
-            onPressed: () async {
-              final url = await _controller.currentUrl();
-              if (url != null) {
-                await _launchExternal(Uri.parse(url));
-              }
-            },
-          ),
-        ],
-      ),
-      body: Stack(
-        children: [
-          Column(
-            children: [
-              // Instructions banner
-              Container(
-                padding: const EdgeInsets.all(12.0),
-                color: Colors.blue.shade50,
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.info_outline,
-                      color: Colors.blue,
-                    ),
-                    const SizedBox(width: 8.0),
-                    Expanded(
-                      child: Text(
-                        AppLocalizations.of(context)?.webViewLoginInstruction ?? 'Please log in to RuTracker. After successful login, click "Done".',
-                        style: const TextStyle(
-                          color: Colors.blue,
-                          fontSize: 14.0,
+        appBar: AppBar(
+          title:
+              Text(AppLocalizations.of(context)?.webViewTitle ?? 'RuTracker'),
+          automaticallyImplyLeading: false,
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              onPressed: _initializeWebView,
+            ),
+            IconButton(
+              icon: const Icon(Icons.open_in_browser),
+              onPressed: () async {
+                final url = await _controller.currentUrl();
+                if (url != null) {
+                  await _launchExternal(Uri.parse(url));
+                }
+              },
+            ),
+          ],
+        ),
+        body: Stack(
+          children: [
+            Column(
+              children: [
+                // Instructions banner
+                Container(
+                  padding: const EdgeInsets.all(12.0),
+                  color: Colors.blue.shade50,
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.info_outline,
+                        color: Colors.blue,
+                      ),
+                      const SizedBox(width: 8.0),
+                      Expanded(
+                        child: Text(
+                          AppLocalizations.of(context)
+                                  ?.webViewLoginInstruction ??
+                              'Please log in to RuTracker. After successful login, click "Done".',
+                          style: const TextStyle(
+                            color: Colors.blue,
+                            fontSize: 14.0,
+                          ),
                         ),
                       ),
+                    ],
+                  ),
+                ),
+                // WebView
+                Expanded(
+                  child: _buildWebViewContent(),
+                ),
+              ],
+            ),
+            // Loading overlay
+            if (_isLoading)
+              Positioned.fill(
+                child: ColoredBox(
+                  color: Colors.white.withValues(alpha: 0.8),
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const CircularProgressIndicator(),
+                        const SizedBox(height: 16),
+                        Text(AppLocalizations.of(context)?.loading ??
+                            'Loading...'),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               ),
-              // WebView
-              Expanded(
-                child: _buildWebViewContent(),
-              ),
-            ],
-          ),
-          // Loading overlay
-          if (_isLoading)
-            Positioned.fill(
-              child: ColoredBox(
-                color: Colors.white.withValues(alpha: 0.8),
-                child: Center(
+            // Error overlay
+            if (_hasError)
+              Positioned.fill(
+                child: ColoredBox(
+                  color: Colors.white,
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const CircularProgressIndicator(),
+                      Icon(
+                        Icons.error_outline,
+                        size: 64,
+                        color: Colors.red.shade400,
+                      ),
                       const SizedBox(height: 16),
-                      Text(AppLocalizations.of(context)?.loading ?? 'Loading...'),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                        child: Text(
+                          _errorMessage ??
+                              (AppLocalizations.of(context)?.networkError ??
+                                  'An error occurred'),
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.grey.shade700,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      ElevatedButton(
+                        onPressed: _initializeWebView,
+                        child: Text(
+                            AppLocalizations.of(context)?.retryButtonText ??
+                                'Retry'),
+                      ),
                     ],
                   ),
                 ),
               ),
-            ),
-          // Error overlay
-          if (_hasError)
-            Positioned.fill(
-              child: ColoredBox(
-                color: Colors.white,
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.error_outline,
-                      size: 64,
-                      color: Colors.red.shade400,
-                    ),
-                    const SizedBox(height: 16),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                      child: Text(
-                        _errorMessage ?? (AppLocalizations.of(context)?.networkError ?? 'An error occurred'),
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Colors.grey.shade700,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    ElevatedButton(
-                      onPressed: _initializeWebView,
-                      child: Text(AppLocalizations.of(context)?.retryButtonText ?? 'Retry'),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _saveCookies,
-        icon: const Icon(Icons.check),
-        label: Text(AppLocalizations.of(context)?.doneButtonText ?? 'Done'),
-        backgroundColor: Colors.green,
-      ),
-    );
+          ],
+        ),
+        floatingActionButton: FloatingActionButton.extended(
+          onPressed: _saveCookies,
+          icon: const Icon(Icons.check),
+          label: Text(AppLocalizations.of(context)?.doneButtonText ?? 'Done'),
+          backgroundColor: Colors.green,
+        ),
+      );
 
   @override
   void debugFillProperties(DiagnosticPropertiesBuilder properties) {

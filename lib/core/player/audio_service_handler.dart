@@ -80,7 +80,11 @@ class AudioServiceHandler {
         ];
         final systemPlayback = PlaybackState(
           controls: controls,
-          systemActions: const {MediaAction.seek, MediaAction.seekForward, MediaAction.seekBackward},
+          systemActions: const {
+            MediaAction.seek,
+            MediaAction.seekForward,
+            MediaAction.seekBackward
+          },
           androidCompactActionIndices: const [0, 1, 2],
           processingState: systemState,
           playing: _audioPlayer.playing,
@@ -126,7 +130,8 @@ class AudioServiceHandler {
         if (begin && !_isDucked) {
           _preDuckingVolume = _audioPlayer.volume;
           _isDucked = true;
-          await _audioPlayer.setVolume((_preDuckingVolume * 0.2).clamp(0.0, 1.0));
+          await _audioPlayer
+              .setVolume((_preDuckingVolume * 0.2).clamp(0.0, 1.0));
         } else if (!begin && _isDucked) {
           _isDucked = false;
           await _audioPlayer.setVolume(_preDuckingVolume);
@@ -248,7 +253,8 @@ class AudioServiceHandler {
     if (_currentMediaId == null) return;
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setInt('pos_${_currentMediaId!}', _audioPlayer.position.inMilliseconds);
+      await prefs.setInt(
+          'pos_${_currentMediaId!}', _audioPlayer.position.inMilliseconds);
     } on Object {
       // ignore
     }

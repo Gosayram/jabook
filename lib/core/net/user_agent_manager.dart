@@ -23,7 +23,8 @@ class UserAgentManager {
 
   /// Default User-Agent string to use as fallback.
   /// Uses modern mobile browser User-Agent.
-  static String get _defaultUserAgent => 'Mozilla/5.0 (Linux; Android 13; SM-S918B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.6099.210 Mobile Safari/537.36';
+  static String get _defaultUserAgent =>
+      'Mozilla/5.0 (Linux; Android 13; SM-S918B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.6099.210 Mobile Safari/537.36';
 
   /// Database instance for storing User-Agent data.
   Database? _db;
@@ -64,10 +65,10 @@ class UserAgentManager {
   /// Initializes the database.
   Future<void> _initializeDatabase() async {
     if (_db != null) return;
-    
+
     final appDocumentDir = await getApplicationDocumentsDirectory();
     final dbPath = '${appDocumentDir.path}/jabook.db';
-    
+
     _db = await databaseFactoryIo.openDatabase(dbPath);
   }
 
@@ -78,22 +79,22 @@ class UserAgentManager {
   Future<String?> _extractUserAgentFromWebView() async {
     try {
       final controller = WebViewController();
-      
+
       await controller.setJavaScriptMode(JavaScriptMode.unrestricted);
-      
+
       String? userAgent;
       var scriptExecuted = false;
-      
+
       await controller.setNavigationDelegate(
         NavigationDelegate(
           onPageFinished: (url) async {
             if (!scriptExecuted) {
               try {
                 // Execute JavaScript to get the actual User-Agent
-                final extractedUa = await controller.runJavaScriptReturningResult(
-                  'navigator.userAgent'
-                ) as String?;
-                
+                final extractedUa = await controller
+                        .runJavaScriptReturningResult('navigator.userAgent')
+                    as String?;
+
                 if (extractedUa != null && extractedUa.isNotEmpty) {
                   userAgent = extractedUa;
                 } else {
@@ -111,8 +112,7 @@ class UserAgentManager {
       );
 
       // Load a simple page to ensure JavaScript execution
-      await controller.loadHtmlString(
-        '''
+      await controller.loadHtmlString('''
         <!DOCTYPE html>
         <html>
         <head>
@@ -125,12 +125,11 @@ class UserAgentManager {
             </script>
         </body>
         </html>
-        '''
-      );
-      
+        ''');
+
       // Wait for User-Agent extraction with timeout
       await Future.delayed(const Duration(seconds: 2));
-      
+
       return userAgent;
     } on Exception {
       // Fallback to default User-Agent
@@ -142,10 +141,10 @@ class UserAgentManager {
   Future<void> _storeUserAgent(String userAgent) async {
     try {
       if (_db == null) await _initializeDatabase();
-      
+
       final store = StoreRef<String, Map<String, dynamic>>.main();
       await store.record(_userAgentKey).put(_db!, {
-        'user_agent': userAgent, 
+        'user_agent': userAgent,
         'updated_at': DateTime.now().toIso8601String(),
       });
     } on Exception catch (e) {
@@ -158,7 +157,7 @@ class UserAgentManager {
   Future<String?> _getStoredUserAgent() async {
     try {
       if (_db == null) await _initializeDatabase();
-      
+
       final store = StoreRef<String, Map<String, dynamic>>.main();
       final record = await store.record(_userAgentKey).get(_db!);
       return record?['user_agent'] as String?;
@@ -171,7 +170,7 @@ class UserAgentManager {
   Future<void> clearUserAgent() async {
     try {
       if (_db == null) await _initializeDatabase();
-      
+
       final store = StoreRef<String, Map<String, dynamic>>.main();
       await store.record(_userAgentKey).delete(_db!);
     } on Exception catch (e) {

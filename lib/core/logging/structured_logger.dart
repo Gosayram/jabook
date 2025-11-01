@@ -101,15 +101,22 @@ class StructuredLogger {
   String _scrubSensitiveData(String input) {
     var out = input;
     // Cookies
-    out = out.replaceAll(RegExp(r'(cookie\s*:\s*)([^;\n]+)', caseSensitive: false), r'$1<redacted>');
+    out = out.replaceAll(
+        RegExp(r'(cookie\s*:\s*)([^;\n]+)', caseSensitive: false),
+        r'$1<redacted>');
     // Authorization headers / tokens
-    out = out.replaceAll(RegExp(r'(authorization|token|bearer)\s*[:=]\s*([^\s;]+)', caseSensitive: false), r'$1=<redacted>');
+    out = out.replaceAll(
+        RegExp(r'(authorization|token|bearer)\s*[:=]\s*([^\s;]+)',
+            caseSensitive: false),
+        r'$1=<redacted>');
     // Magnet links
-    out = out.replaceAll(RegExp(r'magnet:\?xt=urn:[^\s]+'), 'magnet:<redacted>');
+    out =
+        out.replaceAll(RegExp(r'magnet:\?xt=urn:[^\s]+'), 'magnet:<redacted>');
     // Email addresses
     out = out.replaceAll(RegExp(r'[\w\.-]+@[\w\.-]+'), '<redacted-email>');
     // Long hex/base64-like IDs
-    out = out.replaceAll(RegExp(r'\b[a-f0-9]{24,}\b', caseSensitive: false), '<redacted-id>');
+    out = out.replaceAll(
+        RegExp(r'\b[a-f0-9]{24,}\b', caseSensitive: false), '<redacted-id>');
     out = out.replaceAll(RegExp(r'\b[\w+/=]{32,}\b'), '<redacted-id>');
     return out;
   }
