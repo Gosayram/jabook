@@ -43,8 +43,8 @@ class ForumResolver {
 
   /// Resolves forum URL by category and forum title.
   ///
-  /// [categoryTitle] - name of the category (e.g., "Аудиокниги")
-  /// [forumTitle] - name of the forum (e.g., "Радиоспектакли, история, мемуары")
+  /// [categoryTitle] - name of the category (e.g., "Audiobooks")
+  /// [forumTitle] - name of the forum (e.g., "Radio plays, history, memoirs")
   ///
   /// Returns absolute URI to viewforum.php?f=XXXX or null if not found.
   Future<Uri?> resolveForumUrl({

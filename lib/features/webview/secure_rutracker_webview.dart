@@ -195,8 +195,46 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
             IconButton(
               icon: const Icon(Icons.open_in_browser),
               onPressed: () async {
-                final url = await _webViewController.getUrl();
-                if (url != null) await launchUrl(url);
+                try {
+                  final url = await _webViewController.getUrl();
+                  final targetUrl =
+                      url ?? (initialUrl != null ? WebUri(initialUrl!) : null);
+
+                  if (targetUrl != null) {
+                    final uri = Uri.parse(targetUrl.toString());
+                    if (await canLaunchUrl(uri)) {
+                      await launchUrl(uri,
+                          mode: LaunchMode.externalApplication);
+                    } else {
+                      if (!mounted) return;
+                      // ignore: use_build_context_synchronously
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Не удалось открыть в браузере'),
+                          duration: Duration(seconds: 2),
+                        ),
+                      );
+                    }
+                  } else {
+                    if (!mounted) return;
+                    // ignore: use_build_context_synchronously
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('URL недоступен'),
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+                  }
+                } on Exception catch (e) {
+                  if (!mounted) return;
+                  // ignore: use_build_context_synchronously
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Ошибка: $e'),
+                      duration: const Duration(seconds: 3),
+                    ),
+                  );
+                }
               },
             ),
           ],
@@ -280,7 +318,7 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
                             final isOrb = desc.contains('ERR_BLOCKED_BY_ORB') ||
                                 desc.contains('ERR_BLOCKED_BY_CLIENT') ||
                                 desc.contains('ERR_BLOCKED_BY_RESPONSE');
-                            // ORB не считаем критичным даже если Chromium пометил как основной фрейм
+                            // ORB is not considered critical even if Chromium marked it as main frame
                             if (isOrb) {
                               return;
                             }
@@ -297,7 +335,7 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
                           },
                           onReceivedHttpError:
                               (controller, request, errorResponse) {
-                            // Показываем HTTP-ошибку только для основного фрейма
+                            // Show HTTP error only for main frame
                             if (!(request.isForMainFrame ?? true)) return;
                             setState(() {
                               _hasError = true;
@@ -320,7 +358,7 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
                                 debugPrint(
                                     'Failed to sync cookies to DioClient: $e');
                               }
-                              // Закрепим активное зеркало по текущему хосту
+                              // Set active mirror based on current host
                               try {
                                 final current = await controller.getUrl();
                                 if (current != null) {
@@ -424,8 +462,22 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
                             const SizedBox(height: 16),
                             TextButton.icon(
                               onPressed: () async {
-                                final url = await _webViewController.getUrl();
-                                if (url != null) await launchUrl(url);
+                                try {
+                                  final url = await _webViewController.getUrl();
+                                  final targetUrl = url ??
+                                      (initialUrl != null
+                                          ? WebUri(initialUrl!)
+                                          : null);
+                                  if (targetUrl != null) {
+                                    final uri = Uri.parse(targetUrl.toString());
+                                    if (await canLaunchUrl(uri)) {
+                                      await launchUrl(uri,
+                                          mode: LaunchMode.externalApplication);
+                                    }
+                                  }
+                                } on Exception catch (e) {
+                                  debugPrint('Failed to open in browser: $e');
+                                }
                               },
                               icon: const Icon(Icons.open_in_browser),
                               label: const Text('Open in Browser'),

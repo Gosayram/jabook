@@ -258,7 +258,7 @@ class _RutrackerLoginScreenState extends State<RutrackerLoginScreen> {
         if (jsonList.isNotEmpty) {
           await prefs.setString('rutracker_cookies_v1', jsonEncode(jsonList));
           debugPrint('Saved ${jsonList.length} cookies to SharedPreferences');
-          // Также зафиксируем текущее зеркало как активное
+          // Also set current mirror as active
           final db = AppDatabase().database;
           await EndpointManager(db).setActiveEndpoint('https://$activeHost');
         } else {

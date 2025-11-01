@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,6 +11,7 @@ import 'package:jabook/core/cache/rutracker_cache_service.dart';
 import 'package:jabook/core/config/app_config.dart';
 import 'package:jabook/core/config/language_manager.dart';
 import 'package:jabook/core/config/language_provider.dart';
+import 'package:jabook/core/endpoints/endpoint_health_scheduler.dart';
 import 'package:jabook/core/endpoints/endpoint_manager.dart';
 import 'package:jabook/core/logging/environment_logger.dart';
 import 'package:jabook/core/net/dio_client.dart';
@@ -131,6 +134,16 @@ class _JaBookAppState extends ConsumerState<JaBookApp> {
     final endpointManager = EndpointManager(database.database);
     await endpointManager
         .initialize(); // This includes initializeDefaultEndpoints() and health checks
+
+    // Run automatic endpoint health check if needed (non-blocking)
+    try {
+      final healthScheduler = EndpointHealthScheduler(database.database);
+      // Run asynchronously without blocking startup
+      unawaited(healthScheduler.runAutomaticHealthCheckIfNeeded());
+      logger.i('Endpoint health check scheduled');
+    } on Exception catch (e) {
+      logger.w('Failed to schedule endpoint health check: $e');
+    }
 
     // Synchronize cookies from WebView to DioClient on startup
     try {

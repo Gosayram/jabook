@@ -355,7 +355,49 @@ class DioClient {
         return;
       }
 
-      await _cookieJar!.saveFromResponse(uri, cookies);
+      // Save cookies for all rutracker domains (net, me, org) to ensure
+      // cookies work when switching between mirrors
+      final rutrackerDomains = [
+        'rutracker.net',
+        'rutracker.me',
+        'rutracker.org'
+      ];
+      final savedDomains = <String>[];
+
+      for (final domain in rutrackerDomains) {
+        try {
+          final domainUri = Uri.parse('https://$domain');
+          // Filter cookies that belong to this domain or are domain-wide
+          final domainCookies = cookies.where((cookie) {
+            final cookieDomain = cookie.domain?.toLowerCase() ?? '';
+            if (cookieDomain.isEmpty) return false;
+            return cookieDomain == domain ||
+                cookieDomain == '.$domain' ||
+                cookieDomain.contains(domain) ||
+                (cookieDomain.startsWith('.') &&
+                    cookieDomain.substring(1) == domain);
+          }).toList();
+
+          if (domainCookies.isNotEmpty) {
+            await _cookieJar!.saveFromResponse(domainUri, domainCookies);
+            savedDomains.add(domain);
+          }
+        } on Exception catch (e) {
+          await StructuredLogger().log(
+            level: 'debug',
+            subsystem: 'auth',
+            message: 'Failed to save cookies for domain',
+            cause: e.toString(),
+            extra: {'domain': domain},
+          );
+        }
+      }
+
+      // Also save to active endpoint URI
+      if (!savedDomains.contains(uri.host)) {
+        await _cookieJar!.saveFromResponse(uri, cookies);
+        savedDomains.add(uri.host);
+      }
 
       await StructuredLogger().log(
         level: 'info',
@@ -365,6 +407,7 @@ class DioClient {
           'count': cookies.length,
           'total': list.length,
           'skipped': skippedCount,
+          'domains': savedDomains,
         },
       );
     } on Exception catch (e) {

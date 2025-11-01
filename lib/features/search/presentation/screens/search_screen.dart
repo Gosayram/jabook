@@ -382,14 +382,41 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                       builder: (_) => const SecureRutrackerWebView()),
                 );
                 if (!mounted) return;
+
+                // Sync cookies from WebView
                 await DioClient.syncCookiesFromWebView();
-                // If была auth-ошибка — попробуем повторить
-                if (_errorKind == 'auth') {
-                  setState(() {
-                    _errorKind = null;
-                    _errorMessage = null;
-                  });
-                  await _performSearch();
+
+                // Validate authentication
+                final isValid = await DioClient.validateCookies();
+                if (isValid) {
+                  if (!mounted) return;
+                  // ignore: use_build_context_synchronously
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Авторизация успешна'),
+                      backgroundColor: Colors.green,
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                  // Clear auth errors if any
+                  if (_errorKind == 'auth') {
+                    setState(() {
+                      _errorKind = null;
+                      _errorMessage = null;
+                    });
+                    await _performSearch();
+                  }
+                } else {
+                  if (!mounted) return;
+                  // ignore: use_build_context_synchronously
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                          'Авторизация не удалась. Проверьте логин и пароль'),
+                      backgroundColor: Colors.orange,
+                      duration: Duration(seconds: 3),
+                    ),
+                  );
                 }
               },
             ),
@@ -909,7 +936,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           ),
         ];
         message =
-            'You need to log in to RuTracker to search for audiobooks. This will open a secure web view where you can complete authentication.';
+            'Для поиска аудиокниг требуется авторизация на RuTracker. Нажмите кнопку "Авторизоваться" чтобы открыть безопасную форму входа.';
         break;
       case 'timeout':
         title = 'Request Timed Out';
@@ -931,7 +958,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           ),
         ];
         message =
-            'The search request took too long to complete. This might be due to a slow mirror or network issues.';
+            'Запрос занял слишком много времени. Возможно, зеркало перегружено или у вас медленное подключение. Попробуйте выбрать другое зеркало или повторить попытку позже.';
         break;
       case 'mirror':
         title = 'Mirror Unavailable';
