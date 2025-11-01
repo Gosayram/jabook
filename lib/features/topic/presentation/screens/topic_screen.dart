@@ -9,7 +9,7 @@ import 'package:jabook/core/cache/rutracker_cache_service.dart';
 import 'package:jabook/core/endpoints/endpoint_provider.dart';
 import 'package:jabook/core/net/dio_client.dart';
 import 'package:jabook/core/parse/rutracker_parser.dart';
-import 'package:jabook/features/webview/rutracker_login_screen.dart';
+import 'package:jabook/features/webview/secure_rutracker_webview.dart';
 import 'package:jabook/l10n/app_localizations.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -481,7 +481,7 @@ void _showAuthenticationPrompt(BuildContext context) {
             // Navigate to login screen
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (_) => const RutrackerLoginScreen()),
+              MaterialPageRoute(builder: (_) => const SecureRutrackerWebView()),
             ).then((_) async {
               // Sync cookies after login
               await DioClient.syncCookiesFromWebView();

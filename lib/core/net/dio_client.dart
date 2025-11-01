@@ -209,11 +209,27 @@ class DioClient {
 
       _cookieJar ??= CookieJar();
       final cookies = <Cookie>[];
+      final validName = RegExp(r"^[!#\$%&'*+.^_`|~0-9A-Za-z-]+$");
       for (final c in list) {
         final m = Map<String, dynamic>.from(c as Map);
-        final name = m['name']?.toString();
-        final value = m['value']?.toString();
+        var name = m['name']?.toString();
+        var value = m['value']?.toString();
         if (name == null || value == null) continue;
+
+        // Trim and strip surrounding quotes
+        name = name.trim();
+        value = value.trim();
+        if (name.length >= 2 && name.startsWith('"') && name.endsWith('"')) {
+          name = name.substring(1, name.length - 1);
+        }
+        if (value.length >= 2 && value.startsWith('"') && value.endsWith('"')) {
+          value = value.substring(1, value.length - 1);
+        }
+        if (!validName.hasMatch(name)) {
+          // Skip invalid cookie names to avoid FormatException
+          continue;
+        }
+
         final cookie = Cookie(name, value)
           ..domain = m['domain']?.toString() ?? uri.host
           ..path = m['path']?.toString() ?? '/'

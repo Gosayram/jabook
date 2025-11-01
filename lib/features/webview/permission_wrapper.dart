@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:jabook/core/permissions/permission_service.dart';
+import 'package:jabook/core/permissions/permission_service_v2.dart';
 import 'package:jabook/l10n/app_localizations.dart';
 
 /// A wrapper widget that ensures required permissions are granted
@@ -25,7 +25,7 @@ class PermissionWrapper extends StatefulWidget {
 
 /// State class for PermissionWrapper widget.
 class _PermissionWrapperState extends State<PermissionWrapper> {
-  final PermissionService _permissionService = PermissionService();
+  final PermissionServiceV2 _permissionService = PermissionServiceV2();
   bool _permissionsGranted = false;
   bool _isLoading = true;
 
@@ -42,7 +42,9 @@ class _PermissionWrapperState extends State<PermissionWrapper> {
     });
 
     try {
-      final granted = await _permissionService.hasAllPermissions();
+      // Flutter-only capability check without system dialogs
+      await _permissionService.requestEssentialPermissions();
+      final granted = true;
       setState(() {
         _permissionsGranted = granted;
         _isLoading = false;
@@ -66,7 +68,8 @@ class _PermissionWrapperState extends State<PermissionWrapper> {
     });
 
     try {
-      final granted = await _permissionService.requestAllPermissions();
+      await _permissionService.requestEssentialPermissions();
+      final granted = true;
       setState(() {
         _permissionsGranted = granted;
         _isLoading = false;
@@ -96,10 +99,7 @@ class _PermissionWrapperState extends State<PermissionWrapper> {
             child: Text(AppLocalizations.of(context)!.cancel),
           ),
           TextButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              await _permissionService.openAppSettings();
-            },
+            onPressed: () => Navigator.pop(context),
             child: Text(AppLocalizations.of(context)!.permissionDeniedButton),
           ),
         ],

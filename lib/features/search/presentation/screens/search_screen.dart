@@ -9,7 +9,7 @@ import 'package:jabook/core/endpoints/endpoint_provider.dart';
 import 'package:jabook/core/net/dio_client.dart';
 import 'package:jabook/core/parse/rutracker_parser.dart';
 import 'package:jabook/features/settings/presentation/screens/mirror_settings_screen.dart';
-import 'package:jabook/features/webview/rutracker_login_screen.dart';
+import 'package:jabook/features/webview/secure_rutracker_webview.dart';
 import 'package:jabook/l10n/app_localizations.dart';
 
 /// Screen for searching audiobooks on RuTracker.
@@ -228,7 +228,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           onPressed: () async {
             await Navigator.push<String>(
               context,
-              MaterialPageRoute(builder: (_) => const RutrackerLoginScreen()),
+              MaterialPageRoute(builder: (_) => const SecureRutrackerWebView()),
             );
             if (!mounted) return;
             await DioClient.syncCookiesFromWebView();
@@ -308,7 +308,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                   onPressed: () async {
                     await Navigator.push<String>(
                       context,
-                      MaterialPageRoute(builder: (_) => const RutrackerLoginScreen()),
+                      MaterialPageRoute(builder: (_) => const SecureRutrackerWebView()),
                     );
                     if (!mounted) return;
                     await DioClient.syncCookiesFromWebView();
@@ -517,7 +517,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             onPressed: () async {
               await Navigator.push<String>(
                 context,
-                MaterialPageRoute(builder: (_) => const RutrackerLoginScreen()),
+                MaterialPageRoute(builder: (_) => const SecureRutrackerWebView()),
               );
               if (!mounted) return;
               await DioClient.syncCookiesFromWebView();

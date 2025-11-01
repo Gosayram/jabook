@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:jabook/core/endpoints/endpoint_manager.dart';
 import 'package:jabook/data/db/app_database.dart';
 import 'package:jabook/l10n/app_localizations.dart';
@@ -9,10 +8,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
-/// A WebView-based login screen for RuTracker with Go client integration.
+/// A WebView-based login screen for RuTracker.
 ///
 /// This screen provides a WebView for users to log in to RuTracker and
-/// automatically extracts cookies to initialize the Go HTTP client.
+/// automatically extracts cookies for use with the HTTP client.
 class RutrackerLoginScreen extends StatefulWidget {
   /// Creates a new RutrackerLoginScreen instance.
   const RutrackerLoginScreen({super.key});
@@ -24,7 +23,6 @@ class RutrackerLoginScreen extends StatefulWidget {
 /// State class for RutrackerLoginScreen widget.
 class _RutrackerLoginScreenState extends State<RutrackerLoginScreen> {
   late final WebViewController _controller;
-  static const _cookieChannel = MethodChannel('jabook.cookies');
   bool _isLoading = true;
   bool _hasError = false;
   String? _errorMessage;
@@ -43,8 +41,7 @@ class _RutrackerLoginScreenState extends State<RutrackerLoginScreen> {
     await _controller.setJavaScriptMode(JavaScriptMode.unrestricted);
     await _controller.enableZoom(false);
     await _controller.setBackgroundColor(const Color(0xFFFFFFFF));
-    // Add user agent to prevent detection
-    await _controller.setUserAgent('Mozilla/5.0 (Linux; Android 10; SM-G973F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.120 Mobile Safari/537.36');
+    // Use platform default User-Agent for legitimacy (no override)
     await _controller.setNavigationDelegate(
       NavigationDelegate(
           onProgress: (progress) {
@@ -68,12 +65,52 @@ class _RutrackerLoginScreenState extends State<RutrackerLoginScreen> {
             _detectCloudflareAndHint();
           },
           onWebResourceError: (error) {
+            // Handle specific error types
+            final errorMessage = error.description;
+            final errorCode = error.errorCode;
+            
+            // Handle ORB (Origin Resource Blocking) errors
+            if (errorMessage.contains('ERR_BLOCKED_BY_ORB') || 
+                errorMessage.contains('ERR_BLOCKED_BY_CLIENT') ||
+                errorMessage.contains('ERR_BLOCKED_BY_RESPONSE') ||
+                errorCode == -6) {
+              // These are often non-critical resource loading errors
+              debugPrint('WebView resource blocked (non-critical): $errorMessage');
+              return;
+            }
+            
+            // Handle CORS errors
+            if (errorMessage.contains('CORS') || 
+                errorMessage.contains('Cross-Origin') ||
+                errorMessage.contains('Access-Control-Allow-Origin')) {
+              debugPrint('CORS error (non-critical): $errorMessage');
+              return;
+            }
+            
+            // Handle mixed content errors
+            if (errorMessage.contains('ERR_INSECURE_RESPONSE') ||
+                errorMessage.contains('Mixed Content')) {
+              debugPrint('Mixed content error (non-critical): $errorMessage');
+              return;
+            }
+            
+            // Handle network errors
+            if (errorMessage.contains('ERR_INTERNET_DISCONNECTED') ||
+                errorMessage.contains('ERR_NETWORK_CHANGED') ||
+                errorCode == -2) {
+              setState(() {
+                _hasError = true;
+                _errorMessage = 'Проблема с сетью. Проверьте подключение к интернету.';
+              });
+              return;
+            }
+            
+            // Handle other errors
             setState(() {
               _hasError = true;
-              _errorMessage = 'Ошибка загрузки: ${error.description} (код: ${error.errorCode})';
+              _errorMessage = 'Ошибка загрузки: $errorMessage (код: $errorCode)';
             });
-            // Log error for debugging
-            debugPrint('WebView error: ${error.description}, code: ${error.errorCode}');
+            debugPrint('WebView error: $errorMessage, code: $errorCode');
           },
           onNavigationRequest: (request) {
             final s = request.url;
@@ -103,27 +140,110 @@ class _RutrackerLoginScreenState extends State<RutrackerLoginScreen> {
       var cookieStr = '';
       final activeHost = Uri.parse(await EndpointManager(AppDatabase().database).getActiveEndpoint()).host;
 
-      // Try Android channel first
+      // Extract cookies using JavaScript - this is the primary method
       try {
-        cookieStr = await _cookieChannel.invokeMethod<String>(
-              'getCookiesForDomain',
-              {'domain': activeHost},
-            ) ?? '';
-      } on PlatformException {
-        // channel not available, fallback below
+        // First, try to get all cookies from document.cookie
+        final result = await _controller.runJavaScriptReturningResult('document.cookie');
+        if (result is String && result.isNotEmpty) {
+          cookieStr = result;
+          debugPrint('JS cookies from document.cookie: $cookieStr');
+        }
+      } on Object catch (e) {
+        debugPrint('JS cookie extraction failed: $e');
       }
 
-      // iOS/web fallback: read document.cookie via JS
+      // If no cookies found, try to get cookies for the specific domain
       if (cookieStr.isEmpty) {
         try {
-          final result = await _controller.runJavaScriptReturningResult('document.cookie');
+          const jsCode = '''
+            (function() {
+              var cookies = document.cookie;
+              var domain = window.location.hostname;
+              console.log('Current domain: ' + domain);
+              console.log('All cookies: ' + cookies);
+              
+              // Try to get cookies for the current domain
+              var cookieArray = cookies.split(';');
+              var domainCookies = [];
+              
+              for (var i = 0; i < cookieArray.length; i++) {
+                var cookie = cookieArray[i].trim();
+                if (cookie) {
+                  domainCookies.push(cookie);
+                }
+              }
+              
+              return domainCookies.join('; ');
+            })();
+          ''';
+          
+          final result = await _controller.runJavaScriptReturningResult(jsCode);
           if (result is String && result.isNotEmpty) {
             cookieStr = result;
+            debugPrint('JS cookies for domain: $cookieStr');
           }
-        } on Object {
-          // ignore
+        } on Object catch (e) {
+          debugPrint('Domain-specific cookie extraction failed: $e');
         }
       }
+
+      // If still no cookies, try to get them from localStorage/sessionStorage
+      if (cookieStr.isEmpty) {
+        try {
+          const jsCode = '''
+            (function() {
+              var storage = {};
+              try {
+                for (var i = 0; i < localStorage.length; i++) {
+                  var key = localStorage.key(i);
+                  storage[key] = localStorage.getItem(key);
+                }
+              } catch (e) {
+                console.log('localStorage access failed: ' + e);
+              }
+              
+              try {
+                for (var i = 0; i < sessionStorage.length; i++) {
+                  var key = sessionStorage.key(i);
+                  storage['session_' + key] = sessionStorage.getItem(key);
+                }
+              } catch (e) {
+                console.log('sessionStorage access failed: ' + e);
+              }
+              
+              return JSON.stringify(storage);
+            })();
+          ''';
+          
+          final result = await _controller.runJavaScriptReturningResult(jsCode);
+          if (result is String && result.isNotEmpty) {
+            debugPrint('Storage data: $result');
+            // Convert storage data to cookie-like format
+            final storageData = jsonDecode(result) as Map<String, dynamic>;
+            final storageCookies = <String>[];
+            storageData.forEach((key, value) {
+              if (value is String && value.isNotEmpty) {
+                storageCookies.add('$key=$value');
+              }
+            });
+            if (storageCookies.isNotEmpty) {
+              cookieStr = storageCookies.join('; ');
+              debugPrint('Storage cookies: $cookieStr');
+            }
+          }
+        } on Object catch (e) {
+          debugPrint('Storage extraction failed: $e');
+        }
+      }
+
+      // Normalize possible wrapping quotes/newlines from JS bridge
+      cookieStr = cookieStr.trim();
+      if (cookieStr.length >= 2 &&
+          cookieStr.startsWith('"') &&
+          cookieStr.endsWith('"')) {
+        cookieStr = cookieStr.substring(1, cookieStr.length - 1);
+      }
+      cookieStr = cookieStr.replaceAll('\n', '').replaceAll('\r', '');
 
       // Persist cookies to SharedPreferences in JSON list format for Dio sync
       try {
@@ -131,15 +251,22 @@ class _RutrackerLoginScreenState extends State<RutrackerLoginScreen> {
         final jsonList = _serializeCookiesForDomain(cookieStr, activeHost);
         if (jsonList.isNotEmpty) {
           await prefs.setString('rutracker_cookies_v1', jsonEncode(jsonList));
+          debugPrint('Saved ${jsonList.length} cookies to SharedPreferences');
+          // Также зафиксируем текущее зеркало как активное
+          final db = AppDatabase().database;
+          await EndpointManager(db).setActiveEndpoint('https://$activeHost');
+        } else {
+          debugPrint('No cookies to save');
         }
-      } on Object {
-        // ignore persistence errors
+      } on Object catch (e) {
+        debugPrint('Cookie persistence failed: $e');
       }
 
       if (!mounted) return;
       // Return raw string for compatibility
       Navigator.of(context).pop<String>(cookieStr);
     } on Exception catch (e) {
+      debugPrint('Cookie extraction failed: $e');
       setState(() {
         _hasError = true;
         _errorMessage = 'Failed to extract cookies: $e';
@@ -151,13 +278,24 @@ class _RutrackerLoginScreenState extends State<RutrackerLoginScreen> {
   List<Map<String, String>> _serializeCookiesForDomain(String cookieString, String host) {
     final cookies = <Map<String, String>>[];
     if (cookieString.isEmpty) return cookies;
+    final validName = RegExp(r"^[!#\$%&'*+.^_`|~0-9A-Za-z-]+$");
     final parts = cookieString.split(';');
     for (final part in parts) {
       final kv = part.trim().split('=');
       if (kv.length < 2) continue;
-      final name = kv.first.trim();
-      final value = kv.sublist(1).join('=').trim();
+      var name = kv.first.trim();
+      var value = kv.sublist(1).join('=').trim();
+
+      // Strip surrounding quotes if present
+      if (name.length >= 2 && name.startsWith('"') && name.endsWith('"')) {
+        name = name.substring(1, name.length - 1);
+      }
+      if (value.length >= 2 && value.startsWith('"') && value.endsWith('"')) {
+        value = value.substring(1, value.length - 1);
+      }
+
       if (name.isEmpty) continue;
+      if (!validName.hasMatch(name)) continue; // skip invalid cookie names
       cookies.add({
         'name': name,
         'value': value,

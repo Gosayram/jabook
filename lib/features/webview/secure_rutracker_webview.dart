@@ -249,8 +249,6 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
                   minimumLogicalFontSize: 1,
                   // SSL/TLS settings
                   mixedContentMode: MixedContentMode.MIXED_CONTENT_ALWAYS_ALLOW,
-                  // User agent
-                  userAgent: 'Mozilla/5.0 (Linux; Android 10; SM-G973F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.120 Mobile Safari/537.36',
                 ),
                 onWebViewCreated: (controller) {
                   _webViewController = controller;
@@ -258,12 +256,26 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
                 },
                 onProgressChanged: (controller, p) => setState(() => progress = p / 100.0),
                 onReceivedError: (controller, request, error) {
+                  final desc = error.description.toString();
+                  final isOrb = desc.contains('ERR_BLOCKED_BY_ORB') ||
+                                desc.contains('ERR_BLOCKED_BY_CLIENT') ||
+                                desc.contains('ERR_BLOCKED_BY_RESPONSE');
+                  // ORB не считаем критичным даже если Chromium пометил как основной фрейм
+                  if (isOrb) {
+                    return;
+                  }
+                  if (!(request.isForMainFrame ?? true) && (desc.contains('CORS') || desc.contains('Cross-Origin'))) {
+                    return;
+                  }
+                  if (!(request.isForMainFrame ?? true)) return;
                   setState(() {
                     _hasError = true;
-                    _errorMessage = 'Ошибка загрузки: ${error.description}';
+                    _errorMessage = 'Ошибка загрузки: $desc';
                   });
                 },
                 onReceivedHttpError: (controller, request, errorResponse) {
+                  // Показываем HTTP-ошибку только для основного фрейма
+                  if (!(request.isForMainFrame ?? true)) return;
                   setState(() {
                     _hasError = true;
                     _errorMessage = 'HTTP ошибка: ${errorResponse.statusCode}';
@@ -277,6 +289,19 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
                     _showCloudflareOverlay();
                   } else {
                     await _saveCookies();
+                    // Закрепим активное зеркало по текущему хосту
+                    try {
+                      final current = await controller.getUrl();
+                      if (current != null) {
+                        final host = current.host;
+                        if (host.isNotEmpty) {
+                          final db = AppDatabase().database;
+                          await EndpointManager(db).setActiveEndpoint('https://$host');
+                        }
+                      }
+                    } on Exception {
+                      // ignore
+                    }
                     _hideCloudflareOverlay();
                   }
                 },

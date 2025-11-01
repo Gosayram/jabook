@@ -4,10 +4,10 @@ import 'package:jabook/core/cache/rutracker_cache_service.dart';
 import 'package:jabook/core/config/language_manager.dart';
 import 'package:jabook/core/config/language_provider.dart';
 import 'package:jabook/core/net/dio_client.dart';
-import 'package:jabook/core/permissions/permission_service.dart';
+import 'package:jabook/core/permissions/permission_service_v2.dart';
 import 'package:jabook/data/db/app_database.dart';
 import 'package:jabook/features/settings/presentation/screens/mirror_settings_screen.dart';
-import 'package:jabook/features/webview/rutracker_login_screen.dart';
+import 'package:jabook/features/webview/secure_rutracker_webview.dart';
 import 'package:jabook/l10n/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -28,7 +28,7 @@ class SettingsScreen extends ConsumerStatefulWidget {
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   final LanguageManager _languageManager = LanguageManager();
-  final PermissionService _permissionService = PermissionService();
+  final PermissionServiceV2 _permissionService = PermissionServiceV2();
   String _selectedLanguage = 'system';
 
   @override
@@ -240,7 +240,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             final messenger = ScaffoldMessenger.of(context);
             final cookieStr = await Navigator.push<String>(
               context,
-              MaterialPageRoute(builder: (_) => const RutrackerLoginScreen()),
+              MaterialPageRoute(builder: (_) => const SecureRutrackerWebView()),
             );
             if (cookieStr != null && cookieStr.isNotEmpty) {
               final prefs = await SharedPreferences.getInstance();
@@ -610,50 +610,48 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   );
 
   Future<Map<String, bool>> _getPermissionStatus() async {
-    final hasStorage = await _permissionService.hasStoragePermission();
-    final hasNotification = await _permissionService.hasNotificationPermission();
+    final files = await _permissionService.canAccessFiles();
+    final notifications = await _permissionService.canShowNotifications();
     return {
-      'storage': hasStorage,
-      'notification': hasNotification,
+      'storage': files,
+      'notification': notifications,
     };
   }
 
   Future<void> _requestStoragePermission() async {
-    final granted = await _permissionService.requestStoragePermission();
+    final granted = await _permissionService.canAccessFiles();
     if (mounted) {
       setState(() {});
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(granted ? 'Storage permission granted' : 'Storage permission denied'),
+          content: Text(granted ? 'File access available' : 'File access unavailable'),
         ),
       );
     }
   }
 
   Future<void> _requestNotificationPermission() async {
-    final granted = await _permissionService.requestNotificationPermission();
+    final granted = await _permissionService.canShowNotifications();
     if (mounted) {
       setState(() {});
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(granted ? 'Notification permission granted' : 'Notification permission denied'),
+          content: Text(granted ? 'Notifications available' : 'Notifications unavailable'),
         ),
       );
     }
   }
 
   Future<void> _requestAllPermissions() async {
-    final granted = await _permissionService.showPermissionRequestDialog(context);
-    if (granted) {
-      final allGranted = await _permissionService.requestAllPermissions();
-      if (mounted) {
-        setState(() {});
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(allGranted ? 'All permissions granted' : 'Some permissions were denied'),
-          ),
-        );
-      }
+    final results = await _permissionService.requestEssentialPermissions();
+    final grantedCount = results.values.where((e) => e).length;
+    if (mounted) {
+      setState(() {});
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Capabilities: $grantedCount/${results.length}'),
+        ),
+      );
     }
   }
 }
