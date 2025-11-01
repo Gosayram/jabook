@@ -57,7 +57,6 @@ install:
 
 .PHONY: clean
 clean:
-	flutter clean
 	rm -rf build/
 	rm -rf android/
 	@echo "Cleaned build artifacts"
