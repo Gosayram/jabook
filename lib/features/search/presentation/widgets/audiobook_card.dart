@@ -182,40 +182,35 @@ class AudiobookCard extends StatelessWidget {
   }
 
   /// Builds cover image widget or placeholder.
-  Widget _buildCover(String? coverUrl, BuildContext context) {
-    if (coverUrl != null && coverUrl.isNotEmpty) {
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(8),
-        child: Image.network(
-          coverUrl,
-          width: 60,
-          height: 60,
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) {
-            return _buildPlaceholder(context);
-          },
-        ),
-      );
-    }
-    return _buildPlaceholder(context);
-  }
+  Widget _buildCover(String? coverUrl, BuildContext context) =>
+      coverUrl != null && coverUrl.isNotEmpty
+          ? ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image.network(
+                coverUrl,
+                width: 60,
+                height: 60,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) =>
+                    _buildPlaceholder(context),
+              ),
+            )
+          : _buildPlaceholder(context);
 
   /// Builds placeholder when no cover is available.
-  Widget _buildPlaceholder(BuildContext context) {
-    return Container(
-      width: 60,
-      height: 60,
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.primaryContainer,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Icon(
-        Icons.audiotrack,
-        color: Theme.of(context).colorScheme.onPrimaryContainer,
-        size: 28,
-      ),
-    );
-  }
+  Widget _buildPlaceholder(BuildContext context) => Container(
+        width: 60,
+        height: 60,
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.primaryContainer,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Icon(
+          Icons.audiotrack,
+          color: Theme.of(context).colorScheme.onPrimaryContainer,
+          size: 28,
+        ),
+      );
 }
 
 /// Widget for displaying category badge.
@@ -227,25 +222,23 @@ class _CategoryBadge extends StatelessWidget {
   final String category;
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.secondaryContainer,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Text(
-        category,
-        style: TextStyle(
-          fontSize: 10,
-          fontWeight: FontWeight.w500,
-          color: Theme.of(context).colorScheme.onSecondaryContainer,
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.secondaryContainer,
+          borderRadius: BorderRadius.circular(8),
         ),
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-      ),
-    );
-  }
+        child: Text(
+          category,
+          style: TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w500,
+            color: Theme.of(context).colorScheme.onSecondaryContainer,
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+      );
 }
 
 /// Widget for displaying seeders/leechers indicator.
@@ -267,21 +260,19 @@ class _StatIndicator extends StatelessWidget {
   final Color color;
 
   @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 14, color: color),
-        const SizedBox(width: 2),
-        Text(
-          '$value',
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
-            color: value > 0 ? color : Colors.grey,
+  Widget build(BuildContext context) => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 2),
+          Text(
+            '$value',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: value > 0 ? color : Colors.grey,
+            ),
           ),
-        ),
-      ],
-    );
-  }
+        ],
+      );
 }

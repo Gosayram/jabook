@@ -123,8 +123,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       final favorites = await _favoritesService!.getAllFavorites();
       if (mounted) {
         setState(() {
-          _favoriteIds.clear();
-          _favoriteIds.addAll(favorites.map((a) => a.id));
+          _favoriteIds
+            ..clear()
+            ..addAll(favorites.map((a) => a.id));
         });
       }
     } on Exception {
@@ -135,7 +136,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   Future<void> _loadSearchHistory() async {
     if (_historyService == null) return;
     try {
-      final history = await _historyService!.getRecentSearches(limit: 10);
+      final history = await _historyService!.getRecentSearches();
       if (mounted) {
         setState(() {
           _searchHistory = history;
@@ -608,9 +609,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 const SizedBox(width: 8),
                 TextButton(
                   onPressed: () {
-                    setState(() {
-                      _selectedCategories.clear();
-                    });
+                    _selectedCategories.clear();
+                    setState(() {});
                   },
                   child: const Text('Сбросить'),
                 ),
@@ -667,93 +667,91 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   }
 
   /// Builds search history list widget.
-  Widget _buildSearchHistory() {
-    return Container(
-      constraints: const BoxConstraints(maxHeight: 300),
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(8),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(12.0),
-            child: Row(
-              children: [
-                Text(
-                  'История поиска',
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                ),
-                const Spacer(),
-                if (_searchHistory.isNotEmpty)
-                  TextButton(
-                    onPressed: () async {
-                      if (_historyService != null) {
-                        await _historyService!.clearHistory();
-                        await _loadSearchHistory();
-                        if (mounted) {
-                          setState(() {
-                            _showHistory = false;
-                          });
-                        }
-                      }
-                    },
-                    child: const Text('Очистить'),
-                  ),
-              ],
+  Widget _buildSearchHistory() => Container(
+        constraints: const BoxConstraints(maxHeight: 300),
+        margin: const EdgeInsets.symmetric(horizontal: 16),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: BorderRadius.circular(8),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.1),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
             ),
-          ),
-          Flexible(
-            child: ListView.builder(
-              shrinkWrap: true,
-              itemCount: _searchHistory.length,
-              itemBuilder: (context, index) {
-                final query = _searchHistory[index];
-                return ListTile(
-                  leading: const Icon(Icons.history, size: 20),
-                  title: Text(query),
-                  trailing: IconButton(
-                    icon: const Icon(Icons.close, size: 18),
-                    onPressed: () async {
-                      if (_historyService != null) {
-                        await _historyService!.removeSearchQuery(query);
-                        await _loadSearchHistory();
-                        if (mounted) {
-                          setState(() {
-                            _showHistory = _searchHistory.isNotEmpty &&
-                                _searchController.text.isEmpty;
-                          });
-                        }
-                      }
-                    },
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(12.0),
+              child: Row(
+                children: [
+                  Text(
+                    'История поиска',
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
                   ),
-                  onTap: () {
-                    _searchController.text = query;
-                    _searchFocusNode.unfocus();
-                    setState(() {
-                      _showHistory = false;
-                    });
-                    _performSearch();
-                  },
-                );
-              },
+                  const Spacer(),
+                  if (_searchHistory.isNotEmpty)
+                    TextButton(
+                      onPressed: () async {
+                        if (_historyService != null) {
+                          await _historyService!.clearHistory();
+                          await _loadSearchHistory();
+                          if (mounted) {
+                            setState(() {
+                              _showHistory = false;
+                            });
+                          }
+                        }
+                      },
+                      child: const Text('Очистить'),
+                    ),
+                ],
+              ),
             ),
-          ),
-        ],
-      ),
-    );
-  }
+            Flexible(
+              child: ListView.builder(
+                shrinkWrap: true,
+                itemCount: _searchHistory.length,
+                itemBuilder: (context, index) {
+                  final query = _searchHistory[index];
+                  return ListTile(
+                    leading: const Icon(Icons.history, size: 20),
+                    title: Text(query),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.close, size: 18),
+                      onPressed: () async {
+                        if (_historyService != null) {
+                          await _historyService!.removeSearchQuery(query);
+                          await _loadSearchHistory();
+                          if (mounted) {
+                            setState(() {
+                              _showHistory = _searchHistory.isNotEmpty &&
+                                  _searchController.text.isEmpty;
+                            });
+                          }
+                        }
+                      },
+                    ),
+                    onTap: () {
+                      _searchController.text = query;
+                      _searchFocusNode.unfocus();
+                      setState(() {
+                        _showHistory = false;
+                      });
+                      _performSearch();
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      );
 
   Widget _buildSearchResults() {
     final filteredResults = _getFilteredResults();
@@ -763,7 +761,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
+            const Icon(
               Icons.filter_alt_off,
               size: 48,
               color: Colors.grey,

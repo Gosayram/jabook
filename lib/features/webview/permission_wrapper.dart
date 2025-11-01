@@ -44,7 +44,7 @@ class _PermissionWrapperState extends State<PermissionWrapper> {
     try {
       // Flutter-only capability check without system dialogs
       await _permissionService.requestEssentialPermissions();
-      final granted = true;
+      const granted = true;
       setState(() {
         _permissionsGranted = granted;
         _isLoading = false;
@@ -69,7 +69,7 @@ class _PermissionWrapperState extends State<PermissionWrapper> {
 
     try {
       await _permissionService.requestEssentialPermissions();
-      final granted = true;
+      const granted = true;
       setState(() {
         _permissionsGranted = granted;
         _isLoading = false;

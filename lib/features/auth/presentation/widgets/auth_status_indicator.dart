@@ -50,11 +50,12 @@ class _AuthStatusIndicatorState extends State<AuthStatusIndicator> {
     }
 
     return Tooltip(
-      message: _isAuthenticated == true ? 'Authenticated' : 'Not authenticated',
+      message:
+          (_isAuthenticated ?? false) ? 'Authenticated' : 'Not authenticated',
       child: Icon(
-        _isAuthenticated == true ? Icons.check_circle : Icons.error_outline,
+        (_isAuthenticated ?? false) ? Icons.check_circle : Icons.error_outline,
         size: 16,
-        color: _isAuthenticated == true ? Colors.green : Colors.orange,
+        color: (_isAuthenticated ?? false) ? Colors.green : Colors.orange,
       ),
     );
   }

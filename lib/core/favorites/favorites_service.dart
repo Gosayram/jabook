@@ -166,30 +166,28 @@ class FavoritesService {
   }
 
   /// Converts an Audiobook to a Map for storage.
-  Map<String, dynamic> _audiobookToMap(Audiobook audiobook) {
-    return {
-      'topic_id': audiobook.id,
-      'title': audiobook.title,
-      'author': audiobook.author,
-      'category': audiobook.category,
-      'size': audiobook.size,
-      'seeders': audiobook.seeders,
-      'leechers': audiobook.leechers,
-      'magnet_url': audiobook.magnetUrl,
-      'cover_url': audiobook.coverUrl,
-      'added_date': audiobook.addedDate.toIso8601String(),
-      'added_to_favorites': DateTime.now().toIso8601String(),
-      'chapters': audiobook.chapters.map((c) {
-        return {
-          'title': c.title,
-          'duration_ms': c.durationMs,
-          'file_index': c.fileIndex,
-          'start_byte': c.startByte,
-          'end_byte': c.endByte,
-        };
-      }).toList(),
-    };
-  }
+  Map<String, dynamic> _audiobookToMap(Audiobook audiobook) => {
+        'topic_id': audiobook.id,
+        'title': audiobook.title,
+        'author': audiobook.author,
+        'category': audiobook.category,
+        'size': audiobook.size,
+        'seeders': audiobook.seeders,
+        'leechers': audiobook.leechers,
+        'magnet_url': audiobook.magnetUrl,
+        'cover_url': audiobook.coverUrl,
+        'added_date': audiobook.addedDate.toIso8601String(),
+        'added_to_favorites': DateTime.now().toIso8601String(),
+        'chapters': audiobook.chapters
+            .map((c) => {
+                  'title': c.title,
+                  'duration_ms': c.durationMs,
+                  'file_index': c.fileIndex,
+                  'start_byte': c.startByte,
+                  'end_byte': c.endByte,
+                })
+            .toList(),
+      };
 
   /// Converts a stored Map back to an Audiobook entity.
   Audiobook _mapToAudiobook(Map<String, dynamic> map) {

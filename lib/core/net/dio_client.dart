@@ -133,7 +133,7 @@ class DioClient {
         final status = error.response?.statusCode ?? 0;
         if (status == 401 ||
             status == 403 ||
-            error.message?.contains('Authentication required') == true) {
+            (error.message?.contains('Authentication required') ?? false)) {
           // Try to sync cookies one more time before rejecting
           try {
             await syncCookiesFromWebView();
@@ -278,7 +278,7 @@ class DioClient {
       _cookieJar ??= CookieJar();
       final cookies = <Cookie>[];
       final validName = RegExp(r"^[!#\$%&'*+.^_`|~0-9A-Za-z-]+$");
-      int skippedCount = 0;
+      var skippedCount = 0;
 
       for (final c in list) {
         try {
@@ -415,7 +415,7 @@ class DioClient {
         }
 
         // Check if we have at least one cookie with a value
-        bool hasValidCookie = false;
+        var hasValidCookie = false;
         for (final c in list) {
           final cookie = c as Map<String, dynamic>;
           final name = cookie['name'] as String?;
@@ -513,7 +513,7 @@ class DioClient {
       } on DioException catch (e) {
         if (e.response?.statusCode == 401 ||
             e.response?.statusCode == 403 ||
-            e.message?.contains('Authentication required') == true) {
+            (e.message?.contains('Authentication required') ?? false)) {
           await StructuredLogger().log(
             level: 'info',
             subsystem: 'auth',

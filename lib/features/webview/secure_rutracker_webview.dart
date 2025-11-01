@@ -339,8 +339,9 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
                           },
                           shouldOverrideUrlLoading: (controller, nav) async {
                             final uri = nav.request.url;
-                            if (uri == null)
+                            if (uri == null) {
                               return NavigationActionPolicy.ALLOW;
+                            }
                             final s = uri.toString();
 
                             // .torrent

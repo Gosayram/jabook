@@ -187,17 +187,17 @@ class AudiobookMetadataService {
     final dio = await DioClient.instance;
     final lastSynced = DateTime.now();
 
-    int totalCollected = 0;
-    int start = 0;
-    bool hasMore = true;
-    Uri currentForumUrl = forumUrl;
-    String currentForumId = forumId;
+    var totalCollected = 0;
+    var start = 0;
+    var hasMore = true;
+    var currentForumUrl = forumUrl;
+    var currentForumId = forumId;
 
     try {
       while (hasMore) {
         // Add delay to avoid rate limiting
         if (start > 0) {
-          await Future.delayed(Duration(milliseconds: requestDelayMs));
+          await Future.delayed(const Duration(milliseconds: requestDelayMs));
         }
 
         final response = await dio.get(
@@ -341,7 +341,7 @@ class AudiobookMetadataService {
         results[forumTitle] = count;
 
         // Add delay between categories
-        await Future.delayed(Duration(milliseconds: requestDelayMs));
+        await Future.delayed(const Duration(milliseconds: requestDelayMs));
       } on Exception catch (e) {
         await StructuredLogger().log(
           level: 'error',
@@ -502,7 +502,7 @@ class AudiobookMetadataService {
     final records = await _store.find(_db);
     final results = <({Audiobook audiobook, int score})>[];
     final maxProcess = limit * 5; // Process more records to find better matches
-    int processed = 0;
+    var processed = 0;
 
     for (final record in records) {
       // Limit processing for performance
@@ -512,13 +512,13 @@ class AudiobookMetadataService {
       processed++;
 
       // Use pre-computed lowercase fields if available for performance
-      final title = (record.value['title_lower'] as String? ??
-          (record.value['title'] as String? ?? '').toLowerCase());
-      final author = (record.value['author_lower'] as String? ??
-          (record.value['author'] as String? ?? '').toLowerCase());
+      final title = record.value['title_lower'] as String? ??
+          (record.value['title'] as String? ?? '').toLowerCase();
+      final author = record.value['author_lower'] as String? ??
+          (record.value['author'] as String? ?? '').toLowerCase();
 
-      int score = 0;
-      bool matches = false;
+      var score = 0;
+      var matches = false;
 
       // Score matches based on word positions and exact matches
       for (final word in queryWords) {

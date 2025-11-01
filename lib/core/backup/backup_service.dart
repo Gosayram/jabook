@@ -358,7 +358,7 @@ class BackupService {
       final audiobooksList = metadataData['audiobooks'] as List<dynamic>?;
       if (audiobooksList == null) return 0;
 
-      int imported = 0;
+      var imported = 0;
       for (final _ in audiobooksList) {
         // Metadata is automatically saved during collection, so we skip individual import
         // This is just for statistics
@@ -378,7 +378,7 @@ class BackupService {
       final itemsList = favoritesData['items'] as List<dynamic>?;
       if (itemsList == null) return 0;
 
-      int imported = 0;
+      var imported = 0;
       for (final item in itemsList) {
         final map = item as Map<String, dynamic>;
         final audiobook = _mapToAudiobook(map);
@@ -399,7 +399,7 @@ class BackupService {
       final itemsList = historyData['items'] as List<dynamic>?;
       if (itemsList == null) return 0;
 
-      int imported = 0;
+      var imported = 0;
       for (final item in itemsList) {
         final map = item as Map<String, dynamic>;
         final query = map['query'] as String?;
@@ -421,7 +421,7 @@ class BackupService {
       if (itemsList == null) return 0;
 
       final store = AppDatabase().forumResolverCacheStore;
-      int imported = 0;
+      var imported = 0;
       for (final item in itemsList) {
         final map = item as Map<String, dynamic>;
         final forumTitle = map['forum_title'] as String?;

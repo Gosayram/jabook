@@ -155,12 +155,14 @@ class CredentialManager {
       switch (format.toLowerCase()) {
         case 'csv':
           final lines = data.split('\n');
-          if (lines.length < 2)
+          if (lines.length < 2) {
             throw const FormatException('Invalid CSV format');
+          }
 
           final values = lines[1].split(',');
-          if (values.length != 2)
+          if (values.length != 2) {
             throw const FormatException('Invalid CSV data');
+          }
 
           credentials = {
             'username': values[0],

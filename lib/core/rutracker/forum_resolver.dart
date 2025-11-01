@@ -154,6 +154,7 @@ class ForumResolver {
     final document = parser.parse(html);
 
     // Find audiobooks category section (c=33)
+    // ignore: prefer_const_declarations
     final categorySelector = '#c-${CategoryConstants.audiobooksCategoryId}';
     final categoryElement = document.querySelector(categorySelector);
 
@@ -202,7 +203,7 @@ class ForumResolver {
     final forumRows = forumTable.querySelectorAll('tr[id^="f-"]');
 
     String? bestForumId;
-    double bestSimilarity = 0.0;
+    var bestSimilarity = 0.0;
 
     for (final row in forumRows) {
       final forumLink = row.querySelector('h4.forumlink a, .forumlink a');
@@ -261,9 +262,8 @@ class ForumResolver {
   }
 
   /// Builds forum URL from base URL and forum ID.
-  Uri _buildForumUrl(String baseUrl, String forumId) {
-    return Uri.parse('$baseUrl/forum/viewforum.php?f=$forumId');
-  }
+  Uri _buildForumUrl(String baseUrl, String forumId) =>
+      Uri.parse('$baseUrl/forum/viewforum.php?f=$forumId');
 
   /// Verifies that the forum page matches expected title.
   Future<bool> _verifyForumPage(Uri url, String expectedTitle) async {

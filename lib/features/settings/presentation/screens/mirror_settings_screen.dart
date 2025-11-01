@@ -499,8 +499,9 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
   }
 
   String _formatDate(String? isoDate) {
-    if (isoDate == null)
+    if (isoDate == null) {
       return AppLocalizations.of(context)?.neverDateText ?? 'Never';
+    }
     try {
       final date = DateTime.parse(isoDate);
       return '${date.day}.${date.month}.${date.year} ${date.hour}:${date.minute.toString().padLeft(2, '0')}';

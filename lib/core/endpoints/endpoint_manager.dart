@@ -235,7 +235,7 @@ class EndpointManager {
         List<Map<String, dynamic>>.from((record?['endpoints'] as List?) ?? []);
 
     // 1) If we already have a chosen active mirror, keep using it while it's not in cooldown/disabled
-    final activeFromStore = (record?[_activeUrlKey] as String?);
+    final activeFromStore = record?[_activeUrlKey] as String?;
     if (activeFromStore != null) {
       final idx = endpoints.indexWhere((e) => e['url'] == activeFromStore);
       if (idx != -1) {

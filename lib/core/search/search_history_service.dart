@@ -184,14 +184,13 @@ class SearchHistoryService {
       final total = records.length;
 
       // Get most searched queries (by count)
-      final sortedByCount = List<MapEntry<String, dynamic>>.from(
-        records.map((r) => MapEntry(r.key, r.value)),
-      );
-      sortedByCount.sort((a, b) {
-        final countA = a.value['count'] as int? ?? 0;
-        final countB = b.value['count'] as int? ?? 0;
-        return countB.compareTo(countA);
-      });
+      final sortedByCount =
+          records.map((r) => MapEntry(r.key, r.value)).toList()
+            ..sort((a, b) {
+              final countA = a.value['count'] as int? ?? 0;
+              final countB = b.value['count'] as int? ?? 0;
+              return countB.compareTo(countA);
+            });
 
       final topQueries = sortedByCount
           .take(5)

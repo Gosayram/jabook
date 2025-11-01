@@ -893,14 +893,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       );
 
   Future<void> _exportData(BuildContext context) async {
-    try {
-      ScaffoldMessenger.of(context).showSnackBar(
+    if (!mounted) return;
+    final messenger = ScaffoldMessenger.of(context)
+      ..showSnackBar(
         const SnackBar(
           content: Text('Exporting data...'),
           duration: Duration(seconds: 1),
         ),
       );
 
+    try {
       final appDatabase = AppDatabase();
       await appDatabase.initialize();
       final backupService = BackupService(appDatabase.database);
@@ -911,60 +913,62 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       // Share the file
       final file = File(filePath);
       if (await file.exists()) {
-        final xFile = XFile(filePath);
+        // ignore: deprecated_member_use
         await Share.shareXFiles(
-          [xFile],
+          [XFile(filePath)],
           subject: 'JaBook Backup',
           text: 'JaBook data backup',
         );
 
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Data exported successfully'),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
-      }
-    } on Exception catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to export: ${e.toString()}'),
-            backgroundColor: Colors.red,
+        if (!mounted) return;
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('Data exported successfully'),
+            backgroundColor: Colors.green,
           ),
         );
       }
+    } on Exception catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Failed to export: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
   Future<void> _importData(BuildContext context) async {
+    if (!mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
     try {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['json'],
-        withData: false,
       );
 
       if (result != null && result.files.single.path != null) {
         final filePath = result.files.single.path!;
 
         // Show confirmation dialog
+        if (!mounted) return;
+        // ignore: use_build_context_synchronously
         final confirmed = await showDialog<bool>(
+          // ignore: use_build_context_synchronously
           context: context,
-          builder: (context) => AlertDialog(
+          builder: (dialogContext) => AlertDialog(
             title: const Text('Import Backup'),
             content: const Text(
               'This will import data from the backup file. Existing data may be merged or replaced. Continue?',
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop(context, false),
+                onPressed: () => Navigator.of(dialogContext).pop(false),
                 child: const Text('Cancel'),
               ),
               ElevatedButton(
-                onPressed: () => Navigator.pop(context, true),
+                onPressed: () => Navigator.of(dialogContext).pop(true),
                 child: const Text('Import'),
               ),
             ],
@@ -973,14 +977,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
         if (confirmed != true) return;
 
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Importing data...'),
-              duration: Duration(seconds: 2),
-            ),
-          );
-        }
+        if (!mounted) return;
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('Importing data...'),
+            duration: Duration(seconds: 2),
+          ),
+        );
 
         final appDatabase = AppDatabase();
         await appDatabase.initialize();
@@ -988,34 +991,32 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
         final stats = await backupService.importFromFile(filePath);
 
-        if (mounted) {
-          final message = StringBuffer('Imported: ');
-          stats.forEach((key, value) {
-            message.write('$key: $value, ');
-          });
-          final messageStr = message.toString();
-          final cleanMessage = messageStr.endsWith(', ')
-              ? messageStr.substring(0, messageStr.length - 2)
-              : messageStr;
+        if (!mounted) return;
+        final message = StringBuffer('Imported: ');
+        stats.forEach((key, value) {
+          message.write('$key: $value, ');
+        });
+        final messageStr = message.toString();
+        final cleanMessage = messageStr.endsWith(', ')
+            ? messageStr.substring(0, messageStr.length - 2)
+            : messageStr;
 
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(cleanMessage),
-              backgroundColor: Colors.green,
-              duration: const Duration(seconds: 3),
-            ),
-          );
-        }
-      }
-    } on Exception catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        messenger.showSnackBar(
           SnackBar(
-            content: Text('Failed to import: ${e.toString()}'),
-            backgroundColor: Colors.red,
+            content: Text(cleanMessage),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 3),
           ),
         );
       }
+    } on Exception catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Failed to import: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 }

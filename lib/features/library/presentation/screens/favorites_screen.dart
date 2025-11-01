@@ -56,8 +56,9 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
       if (mounted) {
         setState(() {
           _favorites = favorites.map(_audiobookToMap).toList();
-          _favoriteIds.clear();
-          _favoriteIds.addAll(favorites.map((a) => a.id));
+          _favoriteIds
+            ..clear()
+            ..addAll(favorites.map((a) => a.id));
           _isLoading = false;
         });
       }
@@ -106,111 +107,103 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     }
   }
 
-  Map<String, dynamic> _audiobookToMap(Audiobook audiobook) {
-    return {
-      'id': audiobook.id,
-      'title': audiobook.title,
-      'author': audiobook.author,
-      'category': audiobook.category,
-      'size': audiobook.size,
-      'seeders': audiobook.seeders,
-      'leechers': audiobook.leechers,
-      'magnetUrl': audiobook.magnetUrl,
-      'coverUrl': audiobook.coverUrl,
-      'addedDate': audiobook.addedDate.toIso8601String(),
-      'chapters': audiobook.chapters
-          .map((c) => {
-                'title': c.title,
-                'durationMs': c.durationMs,
-                'fileIndex': c.fileIndex,
-                'startByte': c.startByte,
-                'endByte': c.endByte,
-              })
-          .toList(),
-    };
-  }
+  Map<String, dynamic> _audiobookToMap(Audiobook audiobook) => {
+        'id': audiobook.id,
+        'title': audiobook.title,
+        'author': audiobook.author,
+        'category': audiobook.category,
+        'size': audiobook.size,
+        'seeders': audiobook.seeders,
+        'leechers': audiobook.leechers,
+        'magnetUrl': audiobook.magnetUrl,
+        'coverUrl': audiobook.coverUrl,
+        'addedDate': audiobook.addedDate.toIso8601String(),
+        'chapters': audiobook.chapters
+            .map((c) => {
+                  'title': c.title,
+                  'durationMs': c.durationMs,
+                  'fileIndex': c.fileIndex,
+                  'startByte': c.startByte,
+                  'endByte': c.endByte,
+                })
+            .toList(),
+      };
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Избранное'),
-        actions: [
-          if (_favorites.isNotEmpty)
-            IconButton(
-              icon: const Icon(Icons.refresh),
-              tooltip: 'Обновить',
-              onPressed: _loadFavorites,
+  Widget build(BuildContext context) => Scaffold(
+        appBar: AppBar(
+          title: const Text('Избранное'),
+          actions: [
+            if (_favorites.isNotEmpty)
+              IconButton(
+                icon: const Icon(Icons.refresh),
+                tooltip: 'Обновить',
+                onPressed: _loadFavorites,
+              ),
+          ],
+        ),
+        body: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : _favorites.isEmpty
+                ? _buildEmptyState(context)
+                : _buildFavoritesList(context),
+      );
+
+  /// Builds empty state widget when no favorites are available.
+  Widget _buildEmptyState(BuildContext context) => Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.favorite_border,
+              size: 64,
+              color: Colors.grey.shade400,
             ),
-        ],
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _favorites.isEmpty
-              ? _buildEmptyState()
-              : _buildFavoritesList(),
-    );
-  }
+            const SizedBox(height: 16),
+            Text(
+              'Нет избранных аудиокниг',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Добавьте аудиокниги в избранное из результатов поиска',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Colors.grey.shade600,
+                  ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: () => context.go('/search'),
+              icon: const Icon(Icons.search),
+              label: const Text('Перейти к поиску'),
+            ),
+          ],
+        ),
+      );
 
-  Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.favorite_border,
-            size: 64,
-            color: Colors.grey.shade400,
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'Нет избранных аудиокниг',
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Добавьте аудиокниги в избранное из результатов поиска',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Colors.grey.shade600,
-                ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 24),
-          ElevatedButton.icon(
-            onPressed: () {
-              context.go('/search');
-            },
-            icon: const Icon(Icons.search),
-            label: const Text('Перейти к поиску'),
-          ),
-        ],
-      ),
-    );
-  }
+  /// Builds favorites list widget.
+  Widget _buildFavoritesList(BuildContext context) => RefreshIndicator(
+        onRefresh: _loadFavorites,
+        child: ListView.builder(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          itemCount: _favorites.length,
+          itemBuilder: (context, index) {
+            final audiobook = _favorites[index];
+            final topicId = audiobook['id'] as String? ?? '';
+            final isFavorite = _favoriteIds.contains(topicId);
 
-  Widget _buildFavoritesList() {
-    return RefreshIndicator(
-      onRefresh: _loadFavorites,
-      child: ListView.builder(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        itemCount: _favorites.length,
-        itemBuilder: (context, index) {
-          final audiobook = _favorites[index];
-          final topicId = audiobook['id'] as String? ?? '';
-          final isFavorite = _favoriteIds.contains(topicId);
-
-          return AudiobookCard(
-            audiobook: audiobook,
-            onTap: () {
-              context.push('/topic/$topicId');
-            },
-            isFavorite: isFavorite,
-            onFavoriteToggle: (newState) {
-              _toggleFavorite(topicId, newState);
-            },
-          );
-        },
-      ),
-    );
-  }
+            return AudiobookCard(
+              audiobook: audiobook,
+              onTap: () {
+                context.push('/topic/$topicId');
+              },
+              isFavorite: isFavorite,
+              onFavoriteToggle: (newState) {
+                _toggleFavorite(topicId, newState);
+              },
+            );
+          },
+        ),
+      );
 }

@@ -74,6 +74,7 @@ class GroupedAudiobookList extends StatelessWidget {
       );
     }
 
+    // ignore: prefer_expression_function_bodies
     return ListView.builder(
       itemCount: categories.length + (hasMore ? 1 : 0),
       itemBuilder: (context, index) {
@@ -147,6 +148,7 @@ class _CategorySectionState extends State<_CategorySection> {
   bool _isExpanded = true;
 
   @override
+  // ignore: prefer_expression_function_bodies
   Widget build(BuildContext context) {
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
