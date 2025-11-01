@@ -17,9 +17,7 @@ help:
 	@echo "Development Commands:"
 	@echo "  make install                       - Install dependencies"
 	@echo "  make clean                         - Clean build artifacts"
-	@echo "  make run-dev                       - Run app in development mode"
-	@echo "  make run-stage                     - Run app in stage mode"
-	@echo "  make run-prod                      - Run app in production mode"
+	@echo "  make run                           - Run built APK (build/app/outputs/apk/release/app-release.apk)"
 	@echo "  make setup-android                 - Setup Android project configuration"
 	@echo "  make setup-ios                     - Setup iOS project configuration"
 	@echo "  make setup                         - Setup both Android and iOS projects"
@@ -61,21 +59,17 @@ install:
 clean:
 	flutter clean
 	rm -rf build/
-	rm -rf .dart_tool/
 	rm -rf android/
 	@echo "Cleaned build artifacts"
 
-.PHONY: run-dev
-run-dev:
-	flutter run --target lib/main.dart
-
-.PHONY: run-stage
-run-stage:
-	flutter run --target lib/main.dart
-
-.PHONY: run-prod
-run-prod:
-	flutter run --target lib/main.dart
+.PHONY: run
+run:
+	@if [ ! -f "build/app/outputs/apk/release/app-release.apk" ]; then \
+		echo "Error: APK not found at build/app/outputs/apk/release/app-release.apk"; \
+		echo "Please build the APK first using: make build-android-prod"; \
+		exit 1; \
+	fi
+	flutter run --use-application-binary=build/app/outputs/apk/release/app-release.apk
 
 # Android build commands
 .PHONY: build-android-dev
@@ -311,7 +305,7 @@ build-ios:
 
 # Quick development cycle
 .PHONY: dev
-dev: clean install run-dev
+dev: clean install build-android-prod run
 
 # Production build
 .PHONY: build
