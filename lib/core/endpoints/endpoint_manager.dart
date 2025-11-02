@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:dio/dio.dart';
 import 'package:jabook/core/errors/failures.dart';
 import 'package:jabook/core/logging/structured_logger.dart';
@@ -214,7 +212,6 @@ class EndpointManager {
         try {
           dnsResult = await dnsLookup(
             host,
-            type: InternetAddressType.any,
             operationId: operationId,
           );
 
@@ -879,7 +876,6 @@ class EndpointManager {
       try {
         dnsResult = await dnsLookup(
           host,
-          type: InternetAddressType.any,
           operationId: operationId,
         );
 

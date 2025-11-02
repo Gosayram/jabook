@@ -5,6 +5,23 @@ import 'package:jabook/core/logging/structured_logger.dart';
 
 /// Result of a DNS lookup operation.
 class DnsLookupResult {
+  /// Creates a new DNS lookup result.
+  ///
+  /// [host] - The hostname that was resolved.
+  /// [ipAddresses] - List of IP addresses found.
+  /// [resolveTime] - Time taken to resolve the hostname.
+  /// [type] - Type of address resolved (IPv4, IPv6, or any).
+  /// [success] - Whether the lookup was successful.
+  /// [error] - Error message if lookup failed.
+  DnsLookupResult({
+    required this.host,
+    required this.ipAddresses,
+    required this.resolveTime,
+    required this.type,
+    required this.success,
+    this.error,
+  });
+
   /// The hostname that was resolved.
   final String host;
 
@@ -22,15 +39,6 @@ class DnsLookupResult {
 
   /// Error message if lookup failed.
   final String? error;
-
-  DnsLookupResult({
-    required this.host,
-    required this.ipAddresses,
-    required this.resolveTime,
-    required this.type,
-    required this.success,
-    this.error,
-  });
 
   @override
   String toString() => success
