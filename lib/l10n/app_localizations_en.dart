@@ -99,15 +99,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get addBookComingSoon => 'Add book functionality coming soon!';
 
   @override
-  String get libraryContentPlaceholder =>
-      'Library content will be displayed here';
+  String get libraryContentPlaceholder => 'Library content will be displayed here';
 
   @override
   String get authenticationRequired => 'Authentication Required';
 
   @override
-  String get loginRequiredForSearch =>
-      'Please login to RuTracker to access search functionality.';
+  String get loginRequiredForSearch => 'Please login to RuTracker to access search functionality.';
 
   @override
   String get cancel => 'Cancel';
@@ -116,12 +114,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get login => 'Login';
 
   @override
-  String get networkConnectionError =>
-      'Could not connect. Check your internet or choose another mirror in Settings → Sources.';
+  String get networkConnectionError => 'Could not connect. Check your internet or choose another mirror in Settings → Sources.';
 
   @override
-  String get connectionFailed =>
-      'Connection failed. Please check your internet connection or try a different mirror.';
+  String get connectionFailed => 'Connection failed. Please check your internet connection or try a different mirror.';
 
   @override
   String get chooseMirror => 'Choose Mirror';
@@ -130,16 +126,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get networkErrorUser => 'Network connection issue';
 
   @override
-  String get dnsError =>
-      'Could not resolve domain. This may be due to network restrictions or an inactive mirror.';
+  String get dnsError => 'Could not resolve domain. This may be due to network restrictions or an inactive mirror.';
 
   @override
-  String get timeoutError =>
-      'Request took too long. Please check your connection and try again.';
+  String get timeoutError => 'Request took too long. Please check your connection and try again.';
 
   @override
-  String get serverError =>
-      'Server is temporarily unavailable. Please try again later or choose another mirror.';
+  String get serverError => 'Server is temporarily unavailable. Please try again later or choose another mirror.';
 
   @override
   String get recentSearches => 'Recent Searches';
@@ -166,8 +159,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get permissionsRequired => 'Permissions Required';
 
   @override
-  String get permissionExplanation =>
-      'This app needs storage permission to download and save audiobook files. Please grant the required permissions to continue.';
+  String get permissionExplanation => 'This app needs storage permission to download and save audiobook files. Please grant the required permissions to continue.';
 
   @override
   String get grantPermissions => 'Grant Permissions';
@@ -176,8 +168,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get permissionDeniedTitle => 'Permission Denied';
 
   @override
-  String get permissionDeniedMessage =>
-      'Storage permission is required to download files. Please enable it in app settings.';
+  String get permissionDeniedMessage => 'Storage permission is required to download files. Please enable it in app settings.';
 
   @override
   String get permissionDeniedButton => 'Open Settings';
@@ -285,8 +276,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chaptersLabel => 'Chapters';
 
   @override
-  String get downloadFunctionalityComingSoon =>
-      'Download functionality coming soon';
+  String get downloadFunctionalityComingSoon => 'Download functionality coming soon';
 
   @override
   String get requestTimedOut => 'Request timed out';
@@ -445,12 +435,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get webViewTitle => 'RuTracker';
 
   @override
-  String get webViewLoginInstruction =>
-      'Please log in to RuTracker. After successful login, tap Done to extract cookies for the client.';
+  String get webViewLoginInstruction => 'Please log in to RuTracker. After successful login, tap Done to extract cookies for the client.';
 
   @override
-  String get cloudflareMessage =>
-      'This site uses Cloudflare security checks. Please wait for the check to complete and interact with the page that opens if needed.';
+  String get cloudflareMessage => 'This site uses Cloudflare security checks. Please wait for the check to complete and interact with the page that opens if needed.';
 
   @override
   String get retryButtonText => 'Retry';
@@ -459,8 +447,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get goHomeButtonText => 'Go to Home';
 
   @override
-  String get browserCheckMessage =>
-      'The site is checking your browser - please wait for the check to complete on this page.';
+  String get browserCheckMessage => 'The site is checking your browser - please wait for the check to complete on this page.';
 
   @override
   String get downloadTorrentTitle => 'Download Torrent';
@@ -475,15 +462,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get downloadButtonText => 'Download';
 
   @override
-  String get downloadInBrowserMessage =>
-      'To download the file, please open the link in your browser';
+  String get downloadInBrowserMessage => 'To download the file, please open the link in your browser';
 
   @override
   String get importAudiobooksTitle => 'Import Audiobooks';
 
   @override
-  String get selectFilesMessage =>
-      'Select audiobook files from your device to add to your library';
+  String get selectFilesMessage => 'Select audiobook files from your device to add to your library';
 
   @override
   String get importButtonText => 'Import';
@@ -501,8 +486,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get scanFolderTitle => 'Scan Folder';
 
   @override
-  String get scanFolderMessage =>
-      'Scan a folder on your device for audiobook files';
+  String get scanFolderMessage => 'Scan a folder on your device for audiobook files';
 
   @override
   String get scanButtonText => 'Scan';
@@ -511,8 +495,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get scanSuccessMessage => 'Found and imported \$count audiobook(s)';
 
   @override
-  String get noAudiobooksFoundMessage =>
-      'No audiobook files found in selected folder';
+  String get noAudiobooksFoundMessage => 'No audiobook files found in selected folder';
 
   @override
   String get noFolderSelectedMessage => 'No folder selected';
@@ -614,8 +597,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get mirrorSettingsTitle => 'Mirror Settings';
 
   @override
-  String get mirrorSettingsDescription =>
-      'Configure RuTracker mirrors for optimal search performance. Enabled mirrors will be used automatically.';
+  String get mirrorSettingsDescription => 'Configure RuTracker mirrors for optimal search performance. Enabled mirrors will be used automatically.';
 
   @override
   String get addCustomMirrorButtonText => 'Add Custom Mirror';
@@ -657,8 +639,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chaptersLabelText => 'Chapters';
 
   @override
-  String get downloadFunctionalityComingSoonMessage =>
-      'Download functionality coming soon!';
+  String get downloadFunctionalityComingSoonMessage => 'Download functionality coming soon!';
 
   @override
   String get sampleTitleText => 'Sample Audiobook';
@@ -682,8 +663,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get topicScreenTitle => 'Topic';
 
   @override
-  String get requestTimedOutMessage =>
-      'Request timed out. Check your connection.';
+  String get requestTimedOutMessage => 'Request timed out. Check your connection.';
 
   @override
   String get networkErrorMessage => 'Network error: \$error';
@@ -743,6 +723,5 @@ class AppLocalizationsEn extends AppLocalizations {
   String get logsExportedSuccessfullyMessage => 'Logs exported successfully';
 
   @override
-  String get mirrorHealthCheckCompletedMessage =>
-      'Mirror health check completed';
+  String get mirrorHealthCheckCompletedMessage => 'Mirror health check completed';
 }
