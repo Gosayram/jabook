@@ -4,8 +4,8 @@ publish_to: 'none'
 version: 1.1.2+5
 
 environment:
-  sdk: '>=3.2.0 <4.0.0'
-  flutter: "3.35.3"
+  sdk: '>=3.3.0 <4.0.0'
+  flutter: "3.35.7"
 
 dependencies:
   flutter:
@@ -47,14 +47,14 @@ dependencies:
   logger: ^2.6.2
   freezed_annotation: ^3.1.0
   json_serializable: ^6.11.1
-  build_runner: ^2.7.1
+  build_runner: ^2.10.1
   flutter_lints: ^6.0.0
   analyzer: ^7.7.1
   material_color_utilities: ^0.11.1
   meta: ^1.16.0
   mime: ^2.0.0
   path: ^1.8.3
-  flutter_secure_storage: ^9.0.2
+  flutter_secure_storage: ^9.2.4
   local_auth: ^3.0.0
   file_picker: ^10.3.3
   image_picker: ^1.0.7
@@ -63,12 +63,18 @@ dependencies:
   url_launcher: ^6.3.2
   riverpod: ^3.0.3
 
+dependency_overrides:
+  analyzer: ^8.1.1
+  test_api: ^0.7.7
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
   integration_test:
     sdk: flutter
   mockito: ^5.5.0
+  build: ^4.0.2
+  source_gen: ^4.0.2
 
 flutter:
   uses-material-design: true
