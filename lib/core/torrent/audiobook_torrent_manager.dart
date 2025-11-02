@@ -3,7 +3,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:dtorrent_parser/dtorrent_parser.dart';
-import 'package:dtorrent_task/dtorrent_task.dart';
+import 'package:dtorrent_task_v2/dtorrent_task_v2.dart';
 import 'package:jabook/core/errors/failures.dart';
 import 'package:path_provider/path_provider.dart';
 

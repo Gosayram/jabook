@@ -161,7 +161,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                     Row(
                       children: [
                         Icon(
-                          isLoggedIn.valueOrNull ?? false
+                          isLoggedIn.value ?? false
                               ? Icons.check_circle
                               : Icons.error,
                           color: _statusColor,
@@ -185,7 +185,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
             const SizedBox(height: 20),
 
             // Login form (only show when not logged in)
-            if (!(isLoggedIn.valueOrNull ?? false)) ...[
+            if (!(isLoggedIn.value ?? false)) ...[
               TextField(
                 controller: _usernameController,
                 decoration: InputDecoration(
@@ -226,7 +226,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
             ],
 
             // Logout and test buttons (when logged in)
-            if (isLoggedIn.valueOrNull ?? false) ...[
+            if (isLoggedIn.value ?? false) ...[
               ElevatedButton(
                 onPressed: _testConnection,
                 child: Text(

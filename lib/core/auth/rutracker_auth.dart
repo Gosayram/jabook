@@ -9,7 +9,6 @@ import 'package:jabook/core/auth/form_parser.dart';
 import 'package:jabook/core/endpoints/endpoint_manager.dart';
 import 'package:jabook/core/endpoints/url_constants.dart';
 import 'package:jabook/core/errors/failures.dart';
-import 'package:jabook/core/logging/environment_logger.dart';
 import 'package:jabook/core/logging/structured_logger.dart';
 import 'package:jabook/core/net/dio_client.dart';
 import 'package:jabook/data/db/app_database.dart';
@@ -54,22 +53,32 @@ class RuTrackerAuth {
   ///
   /// Returns `true` if login was successful, `false` otherwise.
   Future<bool> loginViaHttp(String username, String password) async {
+    final operationId = 'http_login_${DateTime.now().millisecondsSinceEpoch}';
+    final logger = StructuredLogger();
+    final startTime = DateTime.now();
+
     // Validate input
     if (username.trim().isEmpty || password.trim().isEmpty) {
-      await StructuredLogger().log(
+      await logger.log(
         level: 'warning',
         subsystem: 'auth',
         message: 'Login attempt with empty credentials',
+        operationId: operationId,
+        context: 'http_login',
+        durationMs: DateTime.now().difference(startTime).inMilliseconds,
       );
       return false;
     }
 
     // Prevent concurrent login attempts
     if (_isLoggingIn) {
-      await StructuredLogger().log(
+      await logger.log(
         level: 'warning',
         subsystem: 'auth',
         message: 'Login already in progress, ignoring duplicate request',
+        operationId: operationId,
+        context: 'http_login',
+        durationMs: DateTime.now().difference(startTime).inMilliseconds,
       );
       return false;
     }
@@ -81,12 +90,30 @@ class RuTrackerAuth {
       final activeBase = await endpointManager.getActiveEndpoint();
       final dio = await DioClient.instance;
 
-      // 1. Get login page
-      await StructuredLogger().log(
+      await logger.log(
         level: 'info',
         subsystem: 'auth',
+        message: 'HTTP login started',
+        operationId: operationId,
+        context: 'http_login',
+        extra: {
+          'base_url': activeBase,
+          'username': username,
+        },
+      );
+
+      // 1. Get login page
+      final loginPageStartTime = DateTime.now();
+      await logger.log(
+        level: 'debug',
+        subsystem: 'auth',
         message: 'Fetching login page',
-        extra: {'base_url': activeBase},
+        operationId: operationId,
+        context: 'http_login',
+        extra: {
+          'url': '$activeBase/forum/login.php',
+          'method': 'GET',
+        },
       );
 
       final loginPageResponse = await dio.get(
@@ -100,19 +127,83 @@ class RuTrackerAuth {
         ),
       );
 
+      final loginPageDuration =
+          DateTime.now().difference(loginPageStartTime).inMilliseconds;
+      final htmlSize = loginPageResponse.data?.toString().length ?? 0;
+
+      await logger.log(
+        level: 'debug',
+        subsystem: 'auth',
+        message: 'Login page fetched',
+        operationId: operationId,
+        context: 'http_login',
+        durationMs: loginPageDuration,
+        extra: {
+          'status_code': loginPageResponse.statusCode,
+          'html_size': htmlSize,
+          'headers': {
+            'content-type':
+                loginPageResponse.headers.value('content-type') ?? '',
+            'server': loginPageResponse.headers.value('server') ?? '',
+          },
+        },
+      );
+
       if (loginPageResponse.statusCode != 200) {
-        await StructuredLogger().log(
+        await logger.log(
           level: 'error',
           subsystem: 'auth',
           message: 'Failed to fetch login page',
-          extra: {'status': loginPageResponse.statusCode},
+          operationId: operationId,
+          context: 'http_login',
+          durationMs: DateTime.now().difference(startTime).inMilliseconds,
+          extra: {
+            'status': loginPageResponse.statusCode,
+            'url': '$activeBase/forum/login.php',
+          },
         );
         return false;
       }
 
       // 2. Extract form
+      final formExtractStartTime = DateTime.now();
       final html = loginPageResponse.data.toString();
+
+      await logger.log(
+        level: 'debug',
+        subsystem: 'auth',
+        message: 'Extracting login form',
+        operationId: operationId,
+        context: 'http_login',
+        extra: {
+          'html_size': htmlSize,
+        },
+      );
+
       final form = await FormParser.extractLoginForm(html, activeBase);
+      final formExtractDuration =
+          DateTime.now().difference(formExtractStartTime).inMilliseconds;
+
+      await logger.log(
+        level: 'debug',
+        subsystem: 'auth',
+        message: 'Login form extracted',
+        operationId: operationId,
+        context: 'http_login',
+        durationMs: formExtractDuration,
+        extra: {
+          'action_url': form.absoluteActionUrl,
+          'username_field': form.usernameFieldName ?? 'login_username',
+          'password_field': form.passwordFieldName ?? 'login_password',
+          'hidden_fields_count': form.hiddenFields.length,
+          'hidden_fields': form.hiddenFields
+              .map((f) => {
+                    'name': f.name,
+                    'has_value': f.value != null && f.value!.isNotEmpty,
+                  })
+              .toList(),
+        },
+      );
 
       // 3. Build POST data with URL encoding
       final postData = <String, String>{};
@@ -129,18 +220,27 @@ class RuTrackerAuth {
       postData[usernameField] = Uri.encodeComponent(username);
       postData[passwordField] = Uri.encodeComponent(password);
 
-      await StructuredLogger().log(
+      final postDataSize = postData.entries
+          .map((e) => e.key.length + e.value.length)
+          .fold(0, (a, b) => a + b);
+
+      await logger.log(
         level: 'debug',
         subsystem: 'auth',
         message: 'Submitting login form',
+        operationId: operationId,
+        context: 'http_login',
         extra: {
           'action': form.absoluteActionUrl,
           'username_field': usernameField,
           'password_field': passwordField,
+          'hidden_fields_count': form.hiddenFields.length,
+          'post_data_size_bytes': postDataSize,
         },
       );
 
       // 4. Submit POST request with proper headers
+      final loginSubmitStartTime = DateTime.now();
       final loginResponse = await dio.post(
         form.absoluteActionUrl,
         data: postData,
@@ -158,37 +258,136 @@ class RuTrackerAuth {
         ),
       );
 
+      final loginSubmitDuration =
+          DateTime.now().difference(loginSubmitStartTime).inMilliseconds;
+      final responseBody = loginResponse.data?.toString() ?? '';
+      final responseBodySize = responseBody.length;
+      final locationHeader = loginResponse.headers.value('location') ?? '';
+
+      await logger.log(
+        level: 'debug',
+        subsystem: 'auth',
+        message: 'Login form submitted',
+        operationId: operationId,
+        context: 'http_login',
+        durationMs: loginSubmitDuration,
+        extra: {
+          'status_code': loginResponse.statusCode,
+          'response_size_bytes': responseBodySize,
+          'location': locationHeader.isNotEmpty ? locationHeader : null,
+          'headers': {
+            'content-type': loginResponse.headers.value('content-type') ?? '',
+            'server': loginResponse.headers.value('server') ?? '',
+            'cf-ray': loginResponse.headers.value('cf-ray') ?? '',
+          },
+        },
+      );
+
       // 5. Check if login was successful
+      final validationStartTime = DateTime.now();
       final isSuccessful = _isLoginSuccessful(loginResponse);
+      final validationDuration =
+          DateTime.now().difference(validationStartTime).inMilliseconds;
+
+      await logger.log(
+        level: 'debug',
+        subsystem: 'auth',
+        message: 'Login success check completed',
+        operationId: operationId,
+        context: 'http_login',
+        durationMs: validationDuration,
+        extra: {
+          'is_successful': isSuccessful,
+          'status_code': loginResponse.statusCode,
+          'has_location': locationHeader.isNotEmpty,
+          'location': locationHeader.isNotEmpty ? locationHeader : null,
+        },
+      );
 
       if (isSuccessful) {
-        await StructuredLogger().log(
+        final totalDuration =
+            DateTime.now().difference(startTime).inMilliseconds;
+        await logger.log(
           level: 'info',
           subsystem: 'auth',
           message: 'Login successful via HTTP',
+          operationId: operationId,
+          context: 'http_login',
+          durationMs: totalDuration,
+          extra: {
+            'status_code': loginResponse.statusCode,
+            'location': locationHeader.isNotEmpty ? locationHeader : null,
+            'steps': {
+              'fetch_page_ms': loginPageDuration,
+              'extract_form_ms': formExtractDuration,
+              'submit_form_ms': loginSubmitDuration,
+              'validate_ms': validationDuration,
+            },
+          },
         );
         _authStatusController.add(true);
 
         // Sync cookies from Dio to WebView storage so they're available everywhere
         try {
+          final syncStartTime = DateTime.now();
+          await logger.log(
+            level: 'debug',
+            subsystem: 'auth',
+            message: 'Syncing cookies to WebView after HTTP login',
+            operationId: operationId,
+            context: 'http_login',
+          );
+
           await DioClient.syncCookiesToWebView();
+
+          final syncDuration =
+              DateTime.now().difference(syncStartTime).inMilliseconds;
+          await logger.log(
+            level: 'info',
+            subsystem: 'auth',
+            message: 'Cookies synced to WebView after HTTP login',
+            operationId: operationId,
+            context: 'http_login',
+            durationMs: syncDuration,
+          );
         } on Exception catch (e) {
-          await StructuredLogger().log(
+          await logger.log(
             level: 'warning',
             subsystem: 'auth',
             message: 'Failed to sync cookies to WebView after HTTP login',
+            operationId: operationId,
+            context: 'http_login',
             cause: e.toString(),
+            extra: {
+              'stack_trace':
+                  (e is Error) ? (e as Error).stackTrace.toString() : null,
+            },
           );
         }
 
         // Validate authentication (cookies are automatically managed by Dio)
-        final isValid = await _validateAuthentication(dio, activeBase);
+        final isValid =
+            await _validateAuthentication(dio, activeBase, operationId);
 
         if (!isValid) {
-          await StructuredLogger().log(
+          await logger.log(
             level: 'warning',
             subsystem: 'auth',
             message: 'Login appeared successful but validation failed',
+            operationId: operationId,
+            context: 'http_login',
+            durationMs: DateTime.now().difference(startTime).inMilliseconds,
+          );
+        } else {
+          final totalDuration =
+              DateTime.now().difference(startTime).inMilliseconds;
+          await logger.log(
+            level: 'info',
+            subsystem: 'auth',
+            message: 'HTTP login completed and validated',
+            operationId: operationId,
+            context: 'http_login',
+            durationMs: totalDuration,
           );
         }
 
@@ -196,27 +395,42 @@ class RuTrackerAuth {
       } else {
         // Analyze why login failed for better error reporting
         final status = loginResponse.statusCode ?? 0;
-        final body = loginResponse.data.toString().toLowerCase();
+        final body = responseBody.toLowerCase();
         final hasLoginForm = body.contains('login') && body.contains('form');
         final hasErrorMessage = body.contains('неверн') ||
             body.contains('error') ||
             body.contains('неверный') ||
             body.contains('неправильн');
 
-        await StructuredLogger().log(
+        final totalDuration =
+            DateTime.now().difference(startTime).inMilliseconds;
+        await logger.log(
           level: 'warning',
           subsystem: 'auth',
           message: 'Login failed via HTTP',
+          operationId: operationId,
+          context: 'http_login',
+          durationMs: totalDuration,
           extra: {
             'status': status,
             'has_login_form': hasLoginForm,
             'has_error_message': hasErrorMessage,
-            'redirect_location': loginResponse.headers.value('location'),
+            'redirect_location':
+                locationHeader.isNotEmpty ? locationHeader : null,
+            'response_body_size': responseBodySize,
+            'steps': {
+              'fetch_page_ms': loginPageDuration,
+              'extract_form_ms': formExtractDuration,
+              'submit_form_ms': loginSubmitDuration,
+              'validate_ms': validationDuration,
+            },
           },
         );
         return false;
       }
     } on DioException catch (e, stackTrace) {
+      final totalDuration = DateTime.now().difference(startTime).inMilliseconds;
+
       // More detailed error logging for network errors
       var errorType = 'Unknown';
       if (e.type == DioExceptionType.connectionTimeout) {
@@ -234,27 +448,41 @@ class RuTrackerAuth {
         errorType = 'Bad response';
       }
 
-      await StructuredLogger().log(
+      await logger.log(
         level: 'error',
         subsystem: 'auth',
         message: 'HTTP login failed with DioException',
+        operationId: operationId,
+        context: 'http_login',
+        durationMs: totalDuration,
         cause: e.toString(),
         extra: {
           'error_type': errorType,
+          'dio_error_type': e.type.toString(),
           'status_code': e.response?.statusCode,
           'base_url': e.requestOptions.baseUrl,
+          'url': e.requestOptions.uri.toString(),
+          'stack_trace': stackTrace.toString(),
         },
       );
-      logger.e('HTTP login error: $e', stackTrace: stackTrace);
       return false;
     } on Exception catch (e, stackTrace) {
-      await StructuredLogger().log(
+      final totalDuration = DateTime.now().difference(startTime).inMilliseconds;
+
+      await logger.log(
         level: 'error',
         subsystem: 'auth',
         message: 'HTTP login failed with exception',
+        operationId: operationId,
+        context: 'http_login',
+        durationMs: totalDuration,
         cause: e.toString(),
+        extra: {
+          'stack_trace': (e is Error)
+              ? (e as Error).stackTrace.toString()
+              : stackTrace.toString(),
+        },
       );
-      logger.e('HTTP login error: $e', stackTrace: stackTrace);
       return false;
     } finally {
       _isLoggingIn = false;
@@ -317,9 +545,44 @@ class RuTrackerAuth {
   ///
   /// Returns true if authentication appears to be working, false otherwise.
   /// Includes timeout protection (10 seconds total).
-  Future<bool> _validateAuthentication(Dio dio, String baseUrl) async {
+  Future<bool> _validateAuthentication(
+    Dio dio,
+    String baseUrl, [
+    String? operationId,
+  ]) async {
+    final validationOperationId = operationId != null
+        ? '${operationId}_validation'
+        : 'auth_validation_${DateTime.now().millisecondsSinceEpoch}';
+    final logger = StructuredLogger();
+    final validationStartTime = DateTime.now();
+
     try {
+      await logger.log(
+        level: 'debug',
+        subsystem: 'auth',
+        message: 'Authentication validation started',
+        operationId: validationOperationId,
+        context: 'auth_validation',
+        extra: {
+          'base_url': baseUrl,
+        },
+      );
+
       // Test 1: Search with cookies (with timeout)
+      final searchTestStartTime = DateTime.now();
+      await logger.log(
+        level: 'debug',
+        subsystem: 'auth',
+        message: 'Validation test 1: Search',
+        operationId: validationOperationId,
+        context: 'auth_validation',
+        extra: {
+          'test': 'search',
+          'url': '$baseUrl/forum/search.php',
+          'query_params': {'nm': 'test', 'f': '33', 'o': '1', 'start': '0'},
+        },
+      );
+
       final searchResponse = await dio
           .get(
             '$baseUrl/forum/search.php',
@@ -332,16 +595,49 @@ class RuTrackerAuth {
           )
           .timeout(const Duration(seconds: 10));
 
+      final searchTestDuration =
+          DateTime.now().difference(searchTestStartTime).inMilliseconds;
       final searchBody = searchResponse.data?.toString().toLowerCase() ?? '';
+      final searchBodySize = searchBody.length;
       final hasSearchResults = searchBody.contains('hl-tr') ||
           searchBody.contains('tortopic') ||
           searchBody.contains('viewtopic.php?t=');
 
+      await logger.log(
+        level: searchResponse.statusCode == 200 ? 'debug' : 'warning',
+        subsystem: 'auth',
+        message: 'Validation test 1: Search completed',
+        operationId: validationOperationId,
+        context: 'auth_validation',
+        durationMs: searchTestDuration,
+        extra: {
+          'test': 'search',
+          'status_code': searchResponse.statusCode,
+          'response_size_bytes': searchBodySize,
+          'has_search_results': hasSearchResults,
+          'indicator_matches': {
+            'hl-tr': searchBody.contains('hl-tr'),
+            'tortopic': searchBody.contains('tortopic'),
+            'viewtopic.php?t=': searchBody.contains('viewtopic.php?t='),
+          },
+        },
+      );
+
       if (!hasSearchResults) {
-        await StructuredLogger().log(
+        final totalDuration =
+            DateTime.now().difference(validationStartTime).inMilliseconds;
+        await logger.log(
           level: 'warning',
           subsystem: 'auth',
           message: 'Search validation failed - no results',
+          operationId: validationOperationId,
+          context: 'auth_validation',
+          durationMs: totalDuration,
+          extra: {
+            'test': 'search',
+            'status_code': searchResponse.statusCode,
+            'response_size_bytes': searchBodySize,
+          },
         );
         return false;
       }
@@ -352,6 +648,22 @@ class RuTrackerAuth {
 
       if (topicIdMatch != null) {
         final topicId = topicIdMatch.group(1);
+
+        final downloadTestStartTime = DateTime.now();
+        await logger.log(
+          level: 'debug',
+          subsystem: 'auth',
+          message: 'Validation test 2: Download',
+          operationId: validationOperationId,
+          context: 'auth_validation',
+          extra: {
+            'test': 'download',
+            'url': '$baseUrl/forum/dl.php',
+            'topic_id': topicId,
+            'query_params': {'t': topicId},
+          },
+        );
+
         final downloadResponse = await dio
             .get(
               '$baseUrl/forum/dl.php',
@@ -364,17 +676,60 @@ class RuTrackerAuth {
             )
             .timeout(const Duration(seconds: 10));
 
+        final downloadTestDuration =
+            DateTime.now().difference(downloadTestStartTime).inMilliseconds;
+        final downloadBodySize = downloadResponse.data is String
+            ? (downloadResponse.data as String).length
+            : (downloadResponse.data is List<int>
+                ? (downloadResponse.data as List<int>).length
+                : 0);
+
         // Check content type
         final contentType =
             downloadResponse.headers.value('content-type')?.toLowerCase() ?? '';
 
+        await logger.log(
+          level: 'debug',
+          subsystem: 'auth',
+          message: 'Validation test 2: Download completed',
+          operationId: validationOperationId,
+          context: 'auth_validation',
+          durationMs: downloadTestDuration,
+          extra: {
+            'test': 'download',
+            'status_code': downloadResponse.statusCode,
+            'content_type': contentType,
+            'response_size_bytes': downloadBodySize,
+            'topic_id': topicId,
+          },
+        );
+
         // Torrent file or binary data = success
         if (contentType.contains('application/x-bittorrent') ||
             contentType.contains('application/octet-stream')) {
-          await StructuredLogger().log(
+          final totalDuration =
+              DateTime.now().difference(validationStartTime).inMilliseconds;
+          await logger.log(
             level: 'info',
             subsystem: 'auth',
             message: 'Download validation succeeded - received torrent file',
+            operationId: validationOperationId,
+            context: 'auth_validation',
+            durationMs: totalDuration,
+            extra: {
+              'test': 'download',
+              'content_type': contentType,
+              'tests': {
+                'search': {
+                  'duration_ms': searchTestDuration,
+                  'success': true,
+                },
+                'download': {
+                  'duration_ms': downloadTestDuration,
+                  'success': true,
+                },
+              },
+            },
           );
           return true;
         }
@@ -385,10 +740,29 @@ class RuTrackerAuth {
         // "attachment data not found" = auth works, just no file
         if (downloadBody.contains('attachment data not found') ||
             downloadBody.contains('attachment.*not.*found')) {
-          await StructuredLogger().log(
+          final totalDuration =
+              DateTime.now().difference(validationStartTime).inMilliseconds;
+          await logger.log(
             level: 'info',
             subsystem: 'auth',
             message: 'Download validation - attachment not found (auth OK)',
+            operationId: validationOperationId,
+            context: 'auth_validation',
+            durationMs: totalDuration,
+            extra: {
+              'test': 'download',
+              'tests': {
+                'search': {
+                  'duration_ms': searchTestDuration,
+                  'success': true,
+                },
+                'download': {
+                  'duration_ms': downloadTestDuration,
+                  'success': true,
+                  'note': 'attachment_not_found_but_auth_ok',
+                },
+              },
+            },
           );
           return hasSearchResults;
         }
@@ -396,11 +770,30 @@ class RuTrackerAuth {
         // Magnet link without torrent = not authenticated
         if (downloadBody.contains('magnet:') &&
             !downloadBody.contains('dl.php')) {
-          await StructuredLogger().log(
+          final totalDuration =
+              DateTime.now().difference(validationStartTime).inMilliseconds;
+          await logger.log(
             level: 'warning',
             subsystem: 'auth',
             message:
                 'Download validation failed - only magnet link (not authenticated)',
+            operationId: validationOperationId,
+            context: 'auth_validation',
+            durationMs: totalDuration,
+            extra: {
+              'test': 'download',
+              'tests': {
+                'search': {
+                  'duration_ms': searchTestDuration,
+                  'success': true,
+                },
+                'download': {
+                  'duration_ms': downloadTestDuration,
+                  'success': false,
+                  'reason': 'only_magnet_link',
+                },
+              },
+            },
           );
           return false;
         }
@@ -408,28 +801,72 @@ class RuTrackerAuth {
         // Redirect to login = not authenticated
         if (downloadBody.contains('login.php') ||
             downloadBody.contains('авторизация')) {
-          await StructuredLogger().log(
+          final totalDuration =
+              DateTime.now().difference(validationStartTime).inMilliseconds;
+          await logger.log(
             level: 'warning',
             subsystem: 'auth',
             message: 'Download validation failed - redirected to login',
+            operationId: validationOperationId,
+            context: 'auth_validation',
+            durationMs: totalDuration,
+            extra: {
+              'test': 'download',
+              'tests': {
+                'search': {
+                  'duration_ms': searchTestDuration,
+                  'success': true,
+                },
+                'download': {
+                  'duration_ms': downloadTestDuration,
+                  'success': false,
+                  'reason': 'redirected_to_login',
+                },
+              },
+            },
           );
           return false;
         }
       }
 
       // If search works, consider authentication valid
-      await StructuredLogger().log(
+      final totalDuration =
+          DateTime.now().difference(validationStartTime).inMilliseconds;
+      await logger.log(
         level: 'info',
         subsystem: 'auth',
         message: 'Authentication validation succeeded (search works)',
+        operationId: validationOperationId,
+        context: 'auth_validation',
+        durationMs: totalDuration,
+        extra: {
+          'tests': {
+            'search': {
+              'duration_ms': searchTestDuration,
+              'success': true,
+            },
+            'download': {
+              'performed': topicIdMatch != null,
+            },
+          },
+        },
       );
       return true;
     } on Exception catch (e) {
-      await StructuredLogger().log(
+      final totalDuration =
+          DateTime.now().difference(validationStartTime).inMilliseconds;
+      await logger.log(
         level: 'error',
         subsystem: 'auth',
         message: 'Authentication validation failed with exception',
+        operationId: validationOperationId,
+        context: 'auth_validation',
+        durationMs: totalDuration,
         cause: e.toString(),
+        extra: {
+          'stack_trace':
+              (e is Error) ? (e as Error).stackTrace.toString() : null,
+        },
       );
       return false;
     }
