@@ -129,6 +129,84 @@ class DioClient {
         return handler.next(response);
       },
       onError: (error, handler) async {
+        // NEW: Auto-switch endpoint on connection errors
+        final isConnectionError =
+            error.type == DioExceptionType.connectionError ||
+                error.type == DioExceptionType.connectionTimeout ||
+                error.type == DioExceptionType.receiveTimeout;
+
+        if (isConnectionError) {
+          final message = error.message?.toLowerCase() ?? '';
+          final isDnsError = error.type == DioExceptionType.connectionError &&
+              (message.contains('host lookup') ||
+                  message.contains('no address associated with hostname') ||
+                  message.contains('name or service not known'));
+
+          // Try to switch to another endpoint for DNS/timeout errors
+          if (isDnsError || error.type == DioExceptionType.connectionTimeout) {
+            try {
+              final db = AppDatabase().database;
+              final endpointManager = EndpointManager(db);
+              final currentEndpoint = error.requestOptions.baseUrl;
+
+              // Try to switch to another endpoint
+              final switched = await endpointManager.trySwitchEndpoint(
+                currentEndpoint,
+              );
+
+              if (switched) {
+                final newEndpoint = await endpointManager.getActiveEndpoint();
+
+                // Update Dio baseUrl
+                dio.options.baseUrl = newEndpoint;
+                dio.options.headers['Referer'] = '$newEndpoint/';
+
+                // Retry request on new endpoint (only once to avoid loops)
+                final retryCount =
+                    (error.requestOptions.extra['endpoint_retry'] as int?) ?? 0;
+                if (retryCount < 1) {
+                  final newOptions = error.requestOptions.copyWith(
+                    baseUrl: newEndpoint,
+                    extra: {
+                      ...error.requestOptions.extra,
+                      'endpoint_retry': retryCount + 1,
+                    },
+                  );
+
+                  try {
+                    final retried = await dio.fetch(newOptions);
+                    await StructuredLogger().log(
+                      level: 'info',
+                      subsystem: 'network',
+                      message:
+                          'Successfully switched endpoint and retried request',
+                      extra: {
+                        'old_endpoint': currentEndpoint,
+                        'new_endpoint': newEndpoint,
+                      },
+                    );
+                    return handler.resolve(retried);
+                  } on Exception catch (e) {
+                    await StructuredLogger().log(
+                      level: 'warning',
+                      subsystem: 'network',
+                      message: 'Failed to retry on new endpoint',
+                      cause: e.toString(),
+                    );
+                  }
+                }
+              }
+            } on Exception catch (e) {
+              await StructuredLogger().log(
+                level: 'warning',
+                subsystem: 'network',
+                message: 'Failed to switch endpoint',
+                cause: e.toString(),
+              );
+            }
+          }
+        }
+
         // Handle authentication errors (401/403)
         final status = error.response?.statusCode ?? 0;
         if (status == 401 ||
@@ -420,6 +498,181 @@ class DioClient {
     }
   }
 
+  /// Synchronizes cookies from Dio cookie jar to WebView storage.
+  ///
+  /// This method should be called after HTTP-based login to ensure cookies
+  /// are available for WebView as well.
+  static Future<void> syncCookiesToWebView() async {
+    try {
+      _cookieJar ??= CookieJar();
+      final db = AppDatabase().database;
+      final endpointManager = EndpointManager(db);
+      final activeBase = await endpointManager.getActiveEndpoint();
+      final uri = Uri.parse(activeBase);
+
+      // Load cookies for the active endpoint
+      final cookies = await _cookieJar!.loadForRequest(uri);
+
+      if (cookies.isEmpty) {
+        await StructuredLogger().log(
+          level: 'debug',
+          subsystem: 'auth',
+          message: 'No cookies in Dio cookie jar to sync',
+        );
+        return;
+      }
+
+      // Convert Dio Cookie objects to JSON format compatible with WebView storage
+      final cookieList = <Map<String, String>>[];
+      for (final cookie in cookies) {
+        cookieList.add({
+          'name': cookie.name,
+          'value': cookie.value,
+          'domain': cookie.domain ?? uri.host,
+          'path': cookie.path ?? '/',
+        });
+      }
+
+      // Save to SharedPreferences in the same format as WebView
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('rutracker_cookies_v1', jsonEncode(cookieList));
+
+      await StructuredLogger().log(
+        level: 'info',
+        subsystem: 'auth',
+        message: 'Synced cookies from Dio to WebView storage',
+        extra: {
+          'count': cookieList.length,
+          'endpoint': activeBase,
+        },
+      );
+    } on Exception catch (e) {
+      await StructuredLogger().log(
+        level: 'warning',
+        subsystem: 'auth',
+        message: 'Failed to sync cookies to WebView',
+        cause: e.toString(),
+      );
+    }
+  }
+
+  /// Syncs cookies to a new endpoint when switching mirrors.
+  ///
+  /// This method ensures that cookies from the old endpoint are available
+  /// for the new endpoint if they are compatible (same domain family).
+  ///
+  /// The [oldEndpoint] parameter is the URL of the endpoint being switched from.
+  /// The [newEndpoint] parameter is the URL of the endpoint being switched to.
+  static Future<void> syncCookiesOnEndpointSwitch(
+    String oldEndpoint,
+    String newEndpoint,
+  ) async {
+    try {
+      _cookieJar ??= CookieJar();
+      final oldUri = Uri.parse(oldEndpoint);
+      final newUri = Uri.parse(newEndpoint);
+
+      // If endpoints are in the same domain family (rutracker.net/me/org),
+      // cookies should be compatible
+      final oldHost = oldUri.host;
+      final newHost = newUri.host;
+      final isSameFamily = oldHost.contains('rutracker') &&
+          newHost.contains('rutracker') &&
+          (oldHost.endsWith('.net') ||
+              oldHost.endsWith('.me') ||
+              oldHost.endsWith('.org')) &&
+          (newHost.endsWith('.net') ||
+              newHost.endsWith('.me') ||
+              newHost.endsWith('.org'));
+
+      if (!isSameFamily) {
+        await StructuredLogger().log(
+          level: 'debug',
+          subsystem: 'auth',
+          message:
+              'Endpoints are not in same domain family, skipping cookie sync',
+          extra: {
+            'old_host': oldHost,
+            'new_host': newHost,
+          },
+        );
+        return;
+      }
+
+      // Try to load cookies from old endpoint
+      final oldCookies = await _cookieJar!.loadForRequest(oldUri);
+
+      if (oldCookies.isEmpty) {
+        await StructuredLogger().log(
+          level: 'debug',
+          subsystem: 'auth',
+          message: 'No cookies found for old endpoint',
+          extra: {'old_endpoint': oldEndpoint},
+        );
+        return;
+      }
+
+      // Check if new endpoint already has cookies
+      final newCookies = await _cookieJar!.loadForRequest(newUri);
+
+      if (newCookies.isNotEmpty) {
+        await StructuredLogger().log(
+          level: 'debug',
+          subsystem: 'auth',
+          message: 'New endpoint already has cookies, skipping sync',
+          extra: {'new_endpoint': newEndpoint},
+        );
+        return;
+      }
+
+      // Copy compatible cookies to new endpoint
+      // RuTracker cookies are typically domain-wide, so they should work
+      final compatibleCookies = oldCookies.where((cookie) {
+        // Copy cookies that are domain-wide or for rutracker domains
+        final cookieDomain = cookie.domain?.toLowerCase() ?? '';
+        return cookieDomain.isEmpty ||
+            cookieDomain.contains('rutracker') ||
+            cookieDomain.startsWith('.');
+      }).toList();
+
+      if (compatibleCookies.isNotEmpty) {
+        // Save cookies for all rutracker domains to ensure compatibility
+        final rutrackerDomains = [
+          'rutracker.net',
+          'rutracker.me',
+          'rutracker.org'
+        ];
+
+        for (final domain in rutrackerDomains) {
+          final domainUri = Uri.parse('https://$domain');
+          await _cookieJar!.saveFromResponse(domainUri, compatibleCookies);
+        }
+
+        await StructuredLogger().log(
+          level: 'info',
+          subsystem: 'auth',
+          message: 'Synced cookies on endpoint switch',
+          extra: {
+            'old_endpoint': oldEndpoint,
+            'new_endpoint': newEndpoint,
+            'cookies_synced': compatibleCookies.length,
+          },
+        );
+      }
+    } on Exception catch (e) {
+      await StructuredLogger().log(
+        level: 'warning',
+        subsystem: 'auth',
+        message: 'Failed to sync cookies on endpoint switch',
+        cause: e.toString(),
+        extra: {
+          'old_endpoint': oldEndpoint,
+          'new_endpoint': newEndpoint,
+        },
+      );
+    }
+  }
+
   /// Clears all stored cookies from the cookie jar.
   ///
   /// This method removes all cookies, effectively logging out the user
@@ -496,8 +749,24 @@ class DioClient {
         return false;
       }
 
-      // Ensure cookies are synced
-      await syncCookiesFromWebView();
+      // Only sync from WebView if we don't have cookies in Dio jar
+      // This prevents unnecessary syncs when cookies are already synced
+      try {
+        _cookieJar ??= CookieJar();
+        final db = AppDatabase().database;
+        final endpointManager = EndpointManager(db);
+        final activeBase = await endpointManager.getActiveEndpoint();
+        final uri = Uri.parse(activeBase);
+        final dioCookies = await _cookieJar!.loadForRequest(uri);
+
+        if (dioCookies.isEmpty) {
+          // No cookies in Dio jar, sync from WebView
+          await syncCookiesFromWebView();
+        }
+      } on Exception {
+        // If check fails, sync anyway for safety
+        await syncCookiesFromWebView();
+      }
 
       // Make a lightweight test request to check authentication
       final dio = await instance;

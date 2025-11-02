@@ -20,6 +20,18 @@ void main() {
       return;
     }
 
+    // Handle release mode exception from external dependencies
+    if (details.exception is Exception &&
+        details.exception.toString().contains(
+              'not supposed to be executed in release mode',
+            )) {
+      logger.w(
+        'Release mode check from external dependency (ignored): ${details.exception}',
+        stackTrace: details.stack,
+      );
+      return; // Don't show error UI
+    }
+
     logger.e('Flutter error: ${details.exception}', stackTrace: details.stack);
     // In debug mode, show error details
     if (kDebugMode) {
@@ -35,6 +47,18 @@ void main() {
       return true; // Handled, don't crash
     }
 
+    // Handle release mode exception
+    if (error is Exception &&
+        error
+            .toString()
+            .contains('not supposed to be executed in release mode')) {
+      logger.w(
+        'Release mode check in platform error (ignored): $error',
+        stackTrace: stack,
+      );
+      return true; // Handled
+    }
+
     logger.e('Unhandled Dart error: $error', stackTrace: stack);
     return true;
   };
@@ -46,6 +70,18 @@ void main() {
     if (error is MissingPluginException) {
       logger.w('Missing plugin in zone error: $error', stackTrace: stackTrace);
       return; // Handled, don't crash
+    }
+
+    // Handle release mode exception
+    if (error is Exception &&
+        error
+            .toString()
+            .contains('not supposed to be executed in release mode')) {
+      logger.w(
+        'Release mode check in zone error (ignored): $error',
+        stackTrace: stackTrace,
+      );
+      return; // Handled
     }
 
     logger.e('Unhandled zone error: $error', stackTrace: stackTrace);

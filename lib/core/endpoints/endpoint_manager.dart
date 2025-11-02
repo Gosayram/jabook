@@ -73,11 +73,18 @@ class EndpointManager {
   /// Minimum time between health checks for the same endpoint (5 minutes).
   static const Duration _healthCheckCacheTTL = Duration(minutes: 5);
 
+  /// Cache TTL for quick availability checks (30 seconds - much shorter than full health check).
+  static const Duration _quickCheckCacheTTL = Duration(seconds: 30);
+
   /// Maximum retries for temporary errors.
   static const int _maxRetries = 3;
 
   /// Retry delay for temporary errors.
   static const Duration _retryDelay = Duration(seconds: 2);
+
+  /// In-memory cache for quick availability check results.
+  /// Key: endpoint URL, Value: Map with 'result' (bool) and 'timestamp' (DateTime)
+  static final Map<String, Map<String, dynamic>> _quickCheckCache = {};
 
   /// Performs a health check on the specified endpoint.
   ///
@@ -211,6 +218,13 @@ class EndpointManager {
           'cooldown_until': null,
         });
         await _endpointsRef.put(_db, {'endpoints': endpoints});
+
+        // Update quick check cache with fresh result
+        _quickCheckCache[endpoint] = {
+          'result': isHealthy,
+          'timestamp': DateTime.now(),
+        };
+
         // Log success
         await StructuredLogger().log(
           level: 'info',
@@ -438,21 +452,48 @@ class EndpointManager {
   /// Placeholder: returns true by default.
   bool _validateSignature(Headers? headers) => true;
 
-  /// Performs a quick availability check for an endpoint (DNS + basic connectivity).
+  /// Performs a quick availability check for an endpoint (DNS + basic connectivity + CloudFlare detection).
   ///
   /// Returns true if endpoint is available (can resolve DNS and connect),
-  /// false otherwise.
-  Future<bool> _quickAvailabilityCheck(String endpoint) async {
+  /// false otherwise. CloudFlare challenges are considered as "available".
+  ///
+  /// Results are cached for 30 seconds to avoid excessive network requests.
+  Future<bool> quickAvailabilityCheck(String endpoint) async {
+    // Check cache first
+    final cached = _quickCheckCache[endpoint];
+    if (cached != null) {
+      final timestamp = cached['timestamp'] as DateTime;
+      final result = cached['result'] as bool;
+      final age = DateTime.now().difference(timestamp);
+
+      if (age < _quickCheckCacheTTL) {
+        await StructuredLogger().log(
+          level: 'debug',
+          subsystem: 'endpoints',
+          message: 'Using cached quick availability check result',
+          extra: {
+            'url': endpoint,
+            'result': result,
+            'age_seconds': age.inSeconds,
+          },
+        );
+        return result;
+      } else {
+        // Cache expired, remove it
+        _quickCheckCache.remove(endpoint);
+      }
+    }
+
     try {
       final userAgentManager = UserAgentManager();
       final userAgent = await userAgentManager.getUserAgent();
 
       final dioInstance = Dio(BaseOptions(
-        connectTimeout: const Duration(seconds: 3),
-        receiveTimeout: const Duration(seconds: 3),
+        connectTimeout: const Duration(seconds: 5),
+        receiveTimeout: const Duration(seconds: 5),
       ));
 
-      await dioInstance
+      final response = await dioInstance
           .get(
             '$endpoint/forum/index.php',
             options: Options(
@@ -464,8 +505,46 @@ class EndpointManager {
               },
             ),
           )
-          .timeout(const Duration(seconds: 3));
-      return true;
+          .timeout(const Duration(seconds: 5));
+
+      // Check for CloudFlare challenge - endpoint is reachable but protected
+      final status = response.statusCode ?? 0;
+      final headers = response.headers;
+      final isCloudflare =
+          (headers.value('server')?.toLowerCase().contains('cloudflare') ??
+                  false) ||
+              headers.map.keys.any((k) => k.toLowerCase() == 'cf-ray');
+
+      final body = response.data is String
+          ? (response.data as String).toLowerCase()
+          : '';
+      final looksLikeCf = body.contains('checking your browser') ||
+          body.contains('please enable javascript') ||
+          body.contains('cloudflare') ||
+          body.contains('just a moment');
+
+      // Endpoint is available if:
+      // 1. Status 200-399 (success/redirect)
+      // 2. Status 403/503 with CloudFlare headers/body (reachable but protected)
+      final isAvailable = (status >= 200 && status < 400) ||
+          ((status == 403 || status == 503) && (isCloudflare || looksLikeCf));
+
+      if (isAvailable && (isCloudflare || looksLikeCf)) {
+        await StructuredLogger().log(
+          level: 'info',
+          subsystem: 'endpoints',
+          message: 'Endpoint available but protected by CloudFlare',
+          extra: {'url': endpoint, 'status': status},
+        );
+      }
+
+      // Cache the result
+      _quickCheckCache[endpoint] = {
+        'result': isAvailable,
+        'timestamp': DateTime.now(),
+      };
+
+      return isAvailable;
     } on DioException catch (e) {
       // DNS errors indicate endpoint is unavailable
       if (e.type == DioExceptionType.connectionError) {
@@ -483,15 +562,32 @@ class EndpointManager {
         }
       }
       // Other errors (timeouts, connection errors) might be temporary
-      // Consider endpoint available but might have temporary issues
-      return true;
-    } on Exception catch (_) {
-      // Any other error - consider unavailable
+      // Cache negative result with shorter TTL (10 seconds for failures)
+      _quickCheckCache[endpoint] = {
+        'result': false,
+        'timestamp': DateTime.now(),
+      };
       return false;
-    } on Object catch (_) {
-      // Non-Exception errors - consider unavailable
+    } on Exception {
+      // Cache negative result for exceptions too
+      _quickCheckCache[endpoint] = {
+        'result': false,
+        'timestamp': DateTime.now(),
+      };
       return false;
     }
+  }
+
+  /// Clears the quick availability check cache for a specific endpoint.
+  ///
+  /// Useful when an endpoint state might have changed (e.g., after manual switch).
+  void clearQuickCheckCache(String endpoint) {
+    _quickCheckCache.remove(endpoint);
+  }
+
+  /// Clears all quick availability check cache entries.
+  void clearAllQuickCheckCache() {
+    _quickCheckCache.clear();
   }
 
   /// Persists the updated endpoints into the database.
@@ -521,7 +617,7 @@ class EndpointManager {
                 false);
         if (enabled && !inCooldown) {
           // Quick availability check (DNS + basic connectivity)
-          final isAvailable = await _quickAvailabilityCheck(activeFromStore);
+          final isAvailable = await quickAvailabilityCheck(activeFromStore);
           if (isAvailable) {
             await StructuredLogger().log(
               level: 'info',
@@ -575,8 +671,9 @@ class EndpointManager {
       final fallbackEndpoints =
           endpoints.where((e) => e['enabled'] == true).toList();
       if (fallbackEndpoints.isEmpty) {
-        // Ultimate fallback: use rutracker.me as guaranteed working mirror
-        const hardcodedFallback = 'https://rutracker.me';
+        // Ultimate fallback: use rutracker.net as guaranteed working mirror
+        // Changed from rutracker.me (which is blocked by CloudFlare)
+        const hardcodedFallback = 'https://rutracker.net';
         await StructuredLogger().log(
           level: 'warning',
           subsystem: 'endpoints',
@@ -685,15 +782,32 @@ class EndpointManager {
   /// Force-set active endpoint (sticky) if it exists and is enabled.
   Future<void> setActiveEndpoint(String url) async {
     final record = await _endpointsRef.get(_db);
+    final oldEndpoint = record?[_activeUrlKey] as String?;
     final endpoints =
         List<Map<String, dynamic>>.from((record?['endpoints'] as List?) ?? []);
     final idx = endpoints.indexWhere((e) => e['url'] == url);
     if (idx == -1) return;
     if (endpoints[idx]['enabled'] != true) return;
+
     await _endpointsRef.put(_db, {
       'endpoints': endpoints,
       _activeUrlKey: url,
     });
+
+    // Sync cookies if switching to a different endpoint
+    if (oldEndpoint != null && oldEndpoint != url) {
+      try {
+        await DioClient.syncCookiesOnEndpointSwitch(oldEndpoint, url);
+      } on Exception catch (e) {
+        await StructuredLogger().log(
+          level: 'warning',
+          subsystem: 'endpoints',
+          message: 'Failed to sync cookies when setting active endpoint',
+          cause: e.toString(),
+        );
+      }
+    }
+
     await StructuredLogger().log(
       level: 'info',
       subsystem: 'endpoints',
@@ -775,5 +889,65 @@ class EndpointManager {
       path = path.substring(1);
     }
     return '$baseUrl/$path';
+  }
+
+  /// Tries to switch to another available endpoint if current one is failing.
+  ///
+  /// Returns true if switch was successful, false otherwise.
+  Future<bool> trySwitchEndpoint(String currentEndpoint) async {
+    final record = await _endpointsRef.get(_db);
+    final endpoints =
+        List<Map<String, dynamic>>.from((record?['endpoints'] as List?) ?? []);
+
+    // Disable current endpoint temporarily
+    final currentIndex =
+        endpoints.indexWhere((e) => e['url'] == currentEndpoint);
+    if (currentIndex != -1) {
+      endpoints[currentIndex]['enabled'] = false;
+      endpoints[currentIndex]['failure_count'] =
+          (endpoints[currentIndex]['failure_count'] as int? ?? 0) + 1;
+      await _updateEndpoints(endpoints);
+    }
+
+    // Try to get a new active endpoint
+    try {
+      final newEndpoint = await getActiveEndpoint();
+
+      if (newEndpoint != currentEndpoint) {
+        // Clear cache for both endpoints since state changed
+        clearQuickCheckCache(currentEndpoint);
+        clearQuickCheckCache(newEndpoint);
+
+        // Sync cookies to new endpoint
+        try {
+          await DioClient.syncCookiesOnEndpointSwitch(
+            currentEndpoint,
+            newEndpoint,
+          );
+        } on Exception catch (e) {
+          await StructuredLogger().log(
+            level: 'warning',
+            subsystem: 'endpoints',
+            message: 'Failed to sync cookies on endpoint switch',
+            cause: e.toString(),
+          );
+        }
+
+        await StructuredLogger().log(
+          level: 'info',
+          subsystem: 'endpoints',
+          message: 'Automatically switched endpoint',
+          extra: {
+            'old': currentEndpoint,
+            'new': newEndpoint,
+          },
+        );
+        return true;
+      }
+    } on Exception {
+      // Failed to get new endpoint
+    }
+
+    return false;
   }
 }

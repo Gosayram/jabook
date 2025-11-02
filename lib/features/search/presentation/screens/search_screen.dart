@@ -165,151 +165,200 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
   /// Handles login with biometric authentication or WebView fallback.
   Future<void> _handleLogin() async {
-    final repository = ref.read(authRepositoryProvider);
+    try {
+      final repository = ref.read(authRepositoryProvider);
 
-    // Check if stored credentials are available
-    final hasStored = await repository.hasStoredCredentials();
+      // Check if stored credentials are available
+      final hasStored = await repository.hasStoredCredentials();
 
-    if (hasStored) {
-      // Check if biometric authentication is available
-      final isBiometricAvailable = await repository.isBiometricAvailable();
+      if (hasStored) {
+        // Check if biometric authentication is available
+        final isBiometricAvailable = await repository.isBiometricAvailable();
 
-      if (isBiometricAvailable) {
-        // Show loading indicator
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                  'Подождите, выполняется биометрическая аутентификация...'),
-              duration: Duration(seconds: 2),
-            ),
-          );
-        }
-
-        // Attempt login with biometric authentication
-        try {
-          final success = await repository.loginWithStoredCredentials(
-            useBiometric: true,
-          );
-
-          if (success) {
-            // Sync cookies and validate
-            await DioClient.syncCookiesFromWebView();
-            final isValid = await DioClient.validateCookies();
-
-            if (isValid) {
-              if (!mounted) return;
-              // ignore: use_build_context_synchronously
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Авторизация успешна'),
-                  backgroundColor: Colors.green,
-                  duration: Duration(seconds: 2),
-                ),
-              );
-
-              // Clear auth errors if any
-              if (_errorKind == 'auth') {
-                setState(() {
-                  _errorKind = null;
-                  _errorMessage = null;
-                });
-                await _performSearch();
-              }
-              return;
-            }
+        if (isBiometricAvailable) {
+          // Show loading indicator
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                    'Подождите, выполняется биометрическая аутентификация...'),
+                duration: Duration(seconds: 2),
+              ),
+            );
           }
-        } on Exception catch (e) {
-          // Biometric authentication failed or was cancelled
+
+          // Attempt login with biometric authentication
+          try {
+            final success = await repository.loginWithStoredCredentials(
+              useBiometric: true,
+            );
+
+            if (success) {
+              // HTTP login already syncs cookies, just validate
+              // Note: syncCookiesFromWebView() is not needed here because
+              // loginViaHttp already synced cookies TO WebView via syncCookiesToWebView()
+              final isValid = await DioClient.validateCookies();
+
+              if (isValid) {
+                if (!mounted) return;
+                // ignore: use_build_context_synchronously
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Авторизация успешна'),
+                    backgroundColor: Colors.green,
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+
+                // Clear auth errors if any
+                if (_errorKind == 'auth') {
+                  setState(() {
+                    _errorKind = null;
+                    _errorMessage = null;
+                  });
+                  await _performSearch();
+                }
+                return;
+              }
+            }
+          } on Exception catch (e) {
+            logger.w('Biometric authentication failed: $e');
+            // Fall through to WebView login (don't show dialog on error)
+          }
+
+          // If biometric failed or not available, show dialog
           if (!mounted) return;
-          // ignore: use_build_context_synchronously
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                  'Биометрическая аутентификация не удалась: ${e.toString()}'),
-              backgroundColor: Colors.orange,
-              duration: const Duration(seconds: 3),
+          final useWebView = await showDialog<bool>(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('Авторизация'),
+              content: const Text(
+                'Биометрическая аутентификация недоступна или не удалась. '
+                'Открыть WebView для входа?',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('Отмена'),
+                ),
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(context, true),
+                  child: const Text('Открыть WebView'),
+                ),
+              ],
             ),
           );
-        }
-      }
 
-      // Fallback to WebView if biometric is not available or failed
-      // Show dialog asking if user wants to use WebView
+          if (useWebView ?? false) {
+            await _openWebViewLogin();
+          }
+        } else {
+          // No biometric available, show dialog
+          if (!mounted) return;
+          final useWebView = await showDialog<bool>(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('Авторизация'),
+              content: const Text(
+                'Биометрическая аутентификация недоступна. '
+                'Открыть WebView для входа?',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('Отмена'),
+                ),
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(context, true),
+                  child: const Text('Открыть WebView'),
+                ),
+              ],
+            ),
+          );
+
+          if (useWebView ?? false) {
+            await _openWebViewLogin();
+          }
+        }
+      } else {
+        // No stored credentials, open WebView directly
+        await _openWebViewLogin();
+      }
+    } on Exception catch (e, stackTrace) {
+      // Catch any unexpected errors and always open WebView as fallback
+      logger.e('Error in _handleLogin: $e', stackTrace: stackTrace);
       if (!mounted) return;
-      final useWebView = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Авторизация'),
-          content: const Text(
-            'Биометрическая аутентификация недоступна или не удалась. '
-            'Открыть WebView для входа?',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Отмена'),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Открыть WebView'),
-            ),
-          ],
+
+      // Show error message but still open WebView
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Ошибка при проверке авторизации: ${e.toString()}'),
+          backgroundColor: Colors.orange,
+          duration: const Duration(seconds: 3),
         ),
       );
 
-      if (useWebView ?? false) {
-        await _openWebViewLogin();
-      }
-    } else {
-      // No stored credentials, open WebView directly
+      // Always try to open WebView as fallback
       await _openWebViewLogin();
     }
   }
 
   /// Opens WebView for manual login.
   Future<void> _openWebViewLogin() async {
-    await Navigator.push<String>(
-      context,
-      MaterialPageRoute(
-        builder: (_) => const SecureRutrackerWebView(),
-      ),
-    );
-    if (!mounted) return;
-
-    // Sync cookies from WebView
-    await DioClient.syncCookiesFromWebView();
-
-    // Validate authentication
-    final isValid = await DioClient.validateCookies();
-    if (isValid) {
-      if (!mounted) return;
-      // ignore: use_build_context_synchronously
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Авторизация успешна'),
-          backgroundColor: Colors.green,
-          duration: Duration(seconds: 2),
+    try {
+      await Navigator.push<String>(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const SecureRutrackerWebView(),
         ),
       );
-      // Clear auth errors if any
-      if (_errorKind == 'auth') {
-        setState(() {
-          _errorKind = null;
-          _errorMessage = null;
-        });
-        await _performSearch();
-      }
-    } else {
       if (!mounted) return;
-      // ignore: use_build_context_synchronously
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Авторизация не удалась. Проверьте логин и пароль',
+
+      // Sync cookies from WebView
+      await DioClient.syncCookiesFromWebView();
+
+      // Validate authentication
+      final isValid = await DioClient.validateCookies();
+      if (isValid) {
+        if (!mounted) return;
+        // ignore: use_build_context_synchronously
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Авторизация успешна'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
           ),
-          backgroundColor: Colors.orange,
-          duration: Duration(seconds: 3),
+        );
+        // Clear auth errors if any
+        if (_errorKind == 'auth') {
+          setState(() {
+            _errorKind = null;
+            _errorMessage = null;
+          });
+          await _performSearch();
+        }
+      } else {
+        if (!mounted) return;
+        // ignore: use_build_context_synchronously
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Авторизация не удалась. Проверьте логин и пароль',
+            ),
+            backgroundColor: Colors.orange,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+    } on Exception catch (e, stackTrace) {
+      logger.e('Error opening WebView login: $e', stackTrace: stackTrace);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content:
+              Text('Ошибка открытия страницы авторизации: ${e.toString()}'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
         ),
       );
     }
@@ -410,7 +459,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     // Ensure we have at least the fallback endpoint
     if (enabledEndpoints.isEmpty) {
       enabledEndpoints.add({
-        'url': 'https://rutracker.me',
+        'url': 'https://rutracker.net',
         'priority': 1,
         'health_score': 100,
       });
@@ -497,6 +546,21 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         }
       } on TimeoutException {
         lastException = TimeoutException('Request timed out');
+        // Log timeout as warning
+        logger.w('Request timeout for endpoint $endpoint');
+
+        // Try to switch endpoint automatically
+        try {
+          final switched = await endpointManager.trySwitchEndpoint(endpoint);
+          if (switched) {
+            final newEndpoint = await endpointManager.getActiveEndpoint();
+            logger.i(
+                'Auto-switched from $endpoint to $newEndpoint due to timeout');
+          }
+        } on Exception catch (switchError) {
+          logger.w('Failed to auto-switch endpoint: $switchError');
+        }
+
         // Continue to next endpoint
         continue;
       } on DioException catch (e) {
@@ -510,10 +574,28 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         // DNS errors should skip to next endpoint immediately
         if (e.type == DioExceptionType.connectionError) {
           final message = e.message?.toLowerCase() ?? '';
-          if (message.contains('host lookup') ||
+          final isDnsError = message.contains('host lookup') ||
               message.contains('no address associated with hostname') ||
-              message.contains('name or service not known')) {
-            // DNS error - try next endpoint
+              message.contains('name or service not known');
+
+          if (isDnsError) {
+            // Log DNS error as warning, not error (it's expected when endpoint is unavailable)
+            logger.w('DNS error for endpoint $endpoint: ${e.message}');
+
+            // Try to switch endpoint automatically via EndpointManager
+            try {
+              final switched =
+                  await endpointManager.trySwitchEndpoint(endpoint);
+              if (switched) {
+                final newEndpoint = await endpointManager.getActiveEndpoint();
+                logger.i(
+                    'Auto-switched from $endpoint to $newEndpoint due to DNS error');
+              }
+            } on Exception catch (switchError) {
+              logger.w('Failed to auto-switch endpoint: $switchError');
+            }
+
+            // Try next endpoint (don't wait for timeout)
             continue;
           }
         }
@@ -558,13 +640,27 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             e.type == DioExceptionType.sendTimeout) {
           setState(() {
             _errorKind = 'timeout';
-            _errorMessage = 'Request timed out';
+            _errorMessage =
+                'Request timed out. Проверьте подключение к интернету';
           });
         } else if (e.type == DioExceptionType.connectionError) {
-          setState(() {
-            _errorKind = 'mirror';
-            _errorMessage = 'Cannot connect to any mirror';
-          });
+          final message = e.message?.toLowerCase() ?? '';
+          final isDnsError = message.contains('host lookup') ||
+              message.contains('no address associated with hostname') ||
+              message.contains('name or service not known');
+
+          if (isDnsError) {
+            setState(() {
+              _errorKind = 'mirror';
+              _errorMessage =
+                  'Не удалось подключиться к зеркалам RuTracker. Проверьте подключение к интернету или попробуйте выбрать другое зеркало в настройках';
+            });
+          } else {
+            setState(() {
+              _errorKind = 'mirror';
+              _errorMessage = 'Не удалось подключиться к зеркалам RuTracker';
+            });
+          }
         } else {
           setState(() {
             _errorKind = 'network';
