@@ -70,9 +70,6 @@ class CredentialManager {
           final authenticated = await _localAuth.authenticate(
             localizedReason:
                 'Authenticate to access your RuTracker credentials',
-            options: const AuthenticationOptions(
-              stickyAuth: true,
-            ),
           );
 
           if (!authenticated) {
@@ -224,17 +221,16 @@ class LocalAuth {
   /// Authenticates user with biometrics.
   Future<bool> authenticate({
     required String localizedReason,
-    AuthenticationOptions options = const AuthenticationOptions(
-      biometricOnly: true,
-    ),
+    bool biometricOnly = true,
+    bool sensitiveTransaction = true,
+    bool persistAcrossBackgrounding = true,
   }) async {
     try {
       return await _auth.authenticate(
         localizedReason: localizedReason,
-        options: const AuthenticationOptions(
-          biometricOnly: true,
-          stickyAuth: true,
-        ),
+        biometricOnly: biometricOnly,
+        sensitiveTransaction: sensitiveTransaction,
+        persistAcrossBackgrounding: persistAcrossBackgrounding,
       );
     } on Exception {
       return false;

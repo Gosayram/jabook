@@ -46,6 +46,10 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
   // Cloudflare detection
   bool _isCloudflareDetected = false;
 
+  // Navigation tracking
+  String? _currentOperationId;
+  DateTime? _currentPageLoadStartTime;
+
   @override
   void initState() {
     super.initState();
@@ -134,37 +138,179 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
   }
 
   Future<void> _restoreCookies() async {
-    final prefs = await SharedPreferences.getInstance();
-    final cookieJson = prefs.getString('rutracker_cookies_v1');
-    if (cookieJson != null) {
-      try {
-        final cookies = jsonDecode(cookieJson) as List<dynamic>;
-        for (final cookie in cookies) {
-          await CookieManager.instance().setCookie(
+    final operationId =
+        'webview_cookie_restore_${DateTime.now().millisecondsSinceEpoch}';
+    final logger = StructuredLogger();
+    final startTime = DateTime.now();
+
+    try {
+      await logger.log(
+        level: 'debug',
+        subsystem: 'cookies',
+        message: 'Cookie restore to WebView started',
+        operationId: operationId,
+        context: 'webview_cookie_restore',
+        extra: {
+          'initial_url': initialUrl,
+        },
+      );
+
+      final prefs = await SharedPreferences.getInstance();
+      final cookieJson = prefs.getString('rutracker_cookies_v1');
+      if (cookieJson != null) {
+        try {
+          final cookies = jsonDecode(cookieJson) as List<dynamic>;
+
+          await logger.log(
+            level: 'debug',
+            subsystem: 'cookies',
+            message: 'Loading cookies from SharedPreferences',
+            operationId: operationId,
+            context: 'webview_cookie_restore',
+            extra: {
+              'cookie_count': cookies.length,
+              'cookies': cookies
+                  .map((c) => {
+                        'name': c['name'],
+                        'domain': c['domain'] ?? '<null>',
+                        'path': c['path'] ?? '/',
+                      })
+                  .toList(),
+            },
+          );
+
+          var loadedCount = 0;
+          final failedCookies = <Map<String, dynamic>>[];
+
+          for (final cookie in cookies) {
+            try {
+              await CookieManager.instance().setCookie(
+                url: WebUri(initialUrl!),
+                name: cookie['name'],
+                value: cookie['value'],
+                domain: cookie['domain'],
+                path: cookie['path'],
+                // Note: flutter_inappwebview doesn't support setting expires directly
+                // Cookies will expire based on their natural expiration
+              );
+              loadedCount++;
+            } on Exception catch (e) {
+              failedCookies.add({
+                'name': cookie['name'],
+                'error': e.toString(),
+              });
+            }
+          }
+
+          final duration = DateTime.now().difference(startTime).inMilliseconds;
+          await logger.log(
+            level: 'info',
+            subsystem: 'cookies',
+            message: 'Cookies restored to WebView',
+            operationId: operationId,
+            context: 'webview_cookie_restore',
+            durationMs: duration,
+            extra: {
+              'total_cookies': cookies.length,
+              'loaded_count': loadedCount,
+              'failed_count': failedCookies.length,
+              if (failedCookies.isNotEmpty) 'failed_cookies': failedCookies,
+            },
+          );
+        } on Exception catch (e) {
+          // If cookie restoration fails, clear old cookies and start fresh
+          await CookieManager.instance().deleteCookies(
             url: WebUri(initialUrl!),
-            name: cookie['name'],
-            value: cookie['value'],
-            domain: cookie['domain'],
-            path: cookie['path'],
-            // Note: flutter_inappwebview doesn't support setting expires directly
-            // Cookies will expire based on their natural expiration
+            domain: Uri.parse(initialUrl!).host,
+          );
+
+          await logger.log(
+            level: 'warning',
+            subsystem: 'cookies',
+            message: 'Failed to restore cookies, cleared old cookies',
+            operationId: operationId,
+            context: 'webview_cookie_restore',
+            durationMs: DateTime.now().difference(startTime).inMilliseconds,
+            cause: e.toString(),
           );
         }
-      } on Exception {
-        // If cookie restoration fails, clear old cookies and start fresh
-        await CookieManager.instance().deleteCookies(
-          url: WebUri(initialUrl!),
-          domain: Uri.parse(initialUrl!).host,
+      } else {
+        await logger.log(
+          level: 'debug',
+          subsystem: 'cookies',
+          message: 'No cookies found in SharedPreferences to restore',
+          operationId: operationId,
+          context: 'webview_cookie_restore',
+          durationMs: DateTime.now().difference(startTime).inMilliseconds,
         );
       }
+    } on Exception catch (e) {
+      final duration = DateTime.now().difference(startTime).inMilliseconds;
+      await logger.log(
+        level: 'warning',
+        subsystem: 'cookies',
+        message: 'Exception during cookie restore',
+        operationId: operationId,
+        context: 'webview_cookie_restore',
+        durationMs: duration,
+        cause: e.toString(),
+      );
     }
   }
 
   Future<void> _saveCookies() async {
+    final operationId =
+        'webview_cookie_save_${DateTime.now().millisecondsSinceEpoch}';
+    final logger = StructuredLogger();
+    final startTime = DateTime.now();
+
     try {
-      if (initialUrl == null) return;
+      if (initialUrl == null) {
+        await logger.log(
+          level: 'debug',
+          subsystem: 'cookies',
+          message: 'Cannot save cookies: initialUrl is null',
+          operationId: operationId,
+          context: 'webview_cookie_save',
+          durationMs: DateTime.now().difference(startTime).inMilliseconds,
+        );
+        return;
+      }
+
+      await logger.log(
+        level: 'debug',
+        subsystem: 'cookies',
+        message: 'Cookie save from WebView started',
+        operationId: operationId,
+        context: 'webview_cookie_save',
+        extra: {
+          'initial_url': initialUrl,
+        },
+      );
+
       final cookies =
           await CookieManager.instance().getCookies(url: WebUri(initialUrl!));
+
+      await logger.log(
+        level: 'debug',
+        subsystem: 'cookies',
+        message: 'Retrieved cookies from WebView',
+        operationId: operationId,
+        context: 'webview_cookie_save',
+        extra: {
+          'cookie_count': cookies.length,
+          'cookies': cookies
+              .map((c) => {
+                    'name': c.name,
+                    'domain': c.domain ?? '<null>',
+                    'path': c.path ?? '/',
+                    'is_secure': c.isSecure ?? false,
+                    'is_http_only': c.isHttpOnly ?? false,
+                  })
+              .toList(),
+        },
+      );
+
       final cookieJson = jsonEncode(cookies
           .map((c) => {
                 'name': c.name,
@@ -175,10 +321,46 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
                 // We'll rely on the cookie's natural expiration
               })
           .toList());
+
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('rutracker_cookies_v1', cookieJson);
+
+      final duration = DateTime.now().difference(startTime).inMilliseconds;
+      await logger.log(
+        level: 'info',
+        subsystem: 'cookies',
+        message: 'Cookies saved from WebView',
+        operationId: operationId,
+        context: 'webview_cookie_save',
+        durationMs: duration,
+        extra: {
+          'cookie_count': cookies.length,
+          'saved_cookies': cookies
+              .map((c) => {
+                    'name': c.name,
+                    'domain': c.domain ?? '<null>',
+                    'path': c.path ?? '/',
+                  })
+              .toList(),
+        },
+      );
     } on Exception catch (e) {
+      final duration = DateTime.now().difference(startTime).inMilliseconds;
       // If cookie saving fails, log but don't crash
+      await logger.log(
+        level: 'warning',
+        subsystem: 'cookies',
+        message: 'Failed to save cookies from WebView',
+        operationId: operationId,
+        context: 'webview_cookie_save',
+        durationMs: duration,
+        cause: e.toString(),
+        extra: {
+          'initial_url': initialUrl,
+          'stack_trace':
+              (e is Error) ? (e as Error).stackTrace.toString() : null,
+        },
+      );
       debugPrint('Failed to save cookies: $e');
     }
   }
@@ -438,12 +620,27 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
                             setState(() => progress = p / 100.0);
                           },
                           onLoadStart: (controller, url) async {
+                            final operationId =
+                                'webview_load_${DateTime.now().millisecondsSinceEpoch}';
+                            final startTime = DateTime.now();
+                            _currentOperationId = operationId;
+                            _currentPageLoadStartTime = startTime;
+
+                            final urlString = url?.toString() ?? '';
+                            final logger = StructuredLogger();
+
                             // Log when page starts loading
-                            await StructuredLogger().log(
+                            await logger.log(
                               level: 'info',
                               subsystem: 'webview',
                               message: 'WebView page load started',
-                              extra: {'url': url?.toString()},
+                              operationId: operationId,
+                              context: 'webview_navigation',
+                              extra: {
+                                'url': urlString,
+                                'is_initial_url': urlString == initialUrl,
+                                'retry_count': _retryCount,
+                              },
                             );
                             setState(() {
                               _hasError = false;
@@ -470,21 +667,17 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
                             }
                             if (!(request.isForMainFrame ?? true)) return;
 
-                            // Log error
-                            await StructuredLogger().log(
-                              level: 'error',
-                              subsystem: 'webview',
-                              message: 'WebView received error',
-                              cause: desc,
-                              extra: {
-                                'url': request.url.toString(),
-                                'error_type': error.type.toString(),
-                                'is_main_frame': request.isForMainFrame ?? true,
-                              },
-                            );
+                            final operationId = _currentOperationId;
+                            final startTime = _currentPageLoadStartTime;
+                            final duration = startTime != null
+                                ? DateTime.now()
+                                    .difference(startTime)
+                                    .inMilliseconds
+                                : null;
 
-                            // Try to switch endpoint on network errors (DNS, connection timeout)
-                            // Check error description for network-related errors
+                            final logger = StructuredLogger();
+
+                            // Determine error category
                             final isNetworkError = desc
                                     .contains('host lookup') ||
                                 desc.contains(
@@ -497,57 +690,60 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
                                 desc.contains('ERR_NETWORK_CHANGED') ||
                                 desc.contains('ERR_INTERNET_DISCONNECTED');
 
-                            if (isNetworkError) {
-                              final db = AppDatabase().database;
-                              final endpointManager = EndpointManager(db);
-                              try {
-                                final currentUrl = request.url.toString();
-                                if (currentUrl.isNotEmpty) {
-                                  final switched = await endpointManager
-                                      .trySwitchEndpoint(currentUrl);
-                                  if (switched) {
-                                    final newEndpoint = await endpointManager
-                                        .getActiveEndpoint();
-                                    await StructuredLogger().log(
-                                      level: 'info',
-                                      subsystem: 'webview',
-                                      message:
-                                          'Switched endpoint due to WebView error',
-                                      extra: {
-                                        'old_url': currentUrl,
-                                        'new_endpoint': newEndpoint,
-                                      },
-                                    );
-                                    await controller.loadUrl(
-                                      urlRequest:
-                                          URLRequest(url: WebUri(newEndpoint)),
-                                    );
-                                    return; // Don't show error if retrying
-                                  }
-                                }
-                              } on Exception {
-                                // Continue to show error
-                              }
-                            }
+                            final isDnsError = desc.contains('host lookup') ||
+                                desc.contains(
+                                    'no address associated with hostname') ||
+                                desc.contains('name or service not known') ||
+                                desc.contains('ERR_NAME_NOT_RESOLVED') ||
+                                desc.contains('ERR_NAME_RESOLUTION_FAILED');
+
+                            // Log error with full details
+                            await logger.log(
+                              level: 'error',
+                              subsystem: 'webview',
+                              message: 'WebView received error',
+                              operationId: operationId,
+                              context: 'webview_navigation',
+                              durationMs: duration,
+                              cause: desc,
+                              extra: {
+                                'url': request.url.toString(),
+                                'error_type': error.type.toString(),
+                                'is_main_frame': request.isForMainFrame ?? true,
+                                'is_network_error': isNetworkError,
+                                'is_dns_error': isDnsError,
+                                'retry_count': _retryCount,
+                                'http_method': request.method,
+                                'headers': request.headers,
+                              },
+                            );
 
                             // Auto-retry on network errors (up to max retries)
                             if (isNetworkError && _retryCount < _maxRetries) {
                               _retryCount++;
-                              await StructuredLogger().log(
+                              final retryDelaySeconds = 2 * _retryCount;
+
+                              await logger.log(
                                 level: 'info',
                                 subsystem: 'webview',
                                 message:
                                     'Auto-retrying WebView load after error',
+                                operationId: operationId,
+                                context: 'webview_retry',
+                                durationMs: duration,
                                 extra: {
-                                  'retry_count': _retryCount,
+                                  'retry_attempt': _retryCount,
                                   'max_retries': _maxRetries,
                                   'error': desc,
+                                  'error_type': error.type.toString(),
+                                  'retry_delay_seconds': retryDelaySeconds,
+                                  'url': request.url.toString(),
                                 },
                               );
 
                               // Wait a bit before retry
                               await Future.delayed(
-                                  Duration(seconds: 2 * _retryCount));
+                                  Duration(seconds: retryDelaySeconds));
 
                               // Try to reload or switch endpoint
                               try {
@@ -561,6 +757,20 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
                                   if (switched) {
                                     final newEndpoint = await endpointManager
                                         .getActiveEndpoint();
+
+                                    await logger.log(
+                                      level: 'info',
+                                      subsystem: 'webview',
+                                      message: 'Retrying with new endpoint',
+                                      operationId: operationId,
+                                      context: 'webview_retry',
+                                      extra: {
+                                        'retry_attempt': _retryCount,
+                                        'old_url': currentUrl,
+                                        'new_endpoint': newEndpoint,
+                                      },
+                                    );
+
                                     await controller.loadUrl(
                                       urlRequest:
                                           URLRequest(url: WebUri(newEndpoint)),
@@ -568,13 +778,51 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
                                     return; // Don't show error if retrying
                                   }
                                 }
-                              } on Exception {
+                              } on Exception catch (e) {
+                                await logger.log(
+                                  level: 'warning',
+                                  subsystem: 'webview',
+                                  message:
+                                      'Exception during retry endpoint switch',
+                                  operationId: operationId,
+                                  context: 'webview_retry',
+                                  cause: e.toString(),
+                                );
                                 // Continue to show error
                               }
 
                               // Fallback to reload
+                              await logger.log(
+                                level: 'debug',
+                                subsystem: 'webview',
+                                message: 'Retrying with reload',
+                                operationId: operationId,
+                                context: 'webview_retry',
+                                extra: {
+                                  'retry_attempt': _retryCount,
+                                  'url': request.url.toString(),
+                                },
+                              );
+
                               await controller.reload();
                               return; // Don't show error during retry
+                            }
+
+                            // Log when max retries reached
+                            if (isNetworkError && _retryCount >= _maxRetries) {
+                              await logger.log(
+                                level: 'error',
+                                subsystem: 'webview',
+                                message: 'WebView max retries reached',
+                                operationId: operationId,
+                                context: 'webview_retry',
+                                durationMs: duration,
+                                extra: {
+                                  'max_retries': _maxRetries,
+                                  'final_error': desc,
+                                  'url': request.url.toString(),
+                                },
+                              );
                             }
 
                             // Reset retry count on successful load
@@ -592,16 +840,37 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
                             // Show HTTP error only for main frame
                             if (!(request.isForMainFrame ?? true)) return;
 
+                            final operationId = _currentOperationId;
+                            final startTime = _currentPageLoadStartTime;
+                            final duration = startTime != null
+                                ? DateTime.now()
+                                    .difference(startTime)
+                                    .inMilliseconds
+                                : null;
+
+                            final logger = StructuredLogger();
+
                             // Log HTTP error
                             final statusCode = errorResponse.statusCode ?? 0;
-                            await StructuredLogger().log(
-                              level: statusCode >= 500 ? 'error' : 'warning',
+                            final isServerError = statusCode >= 500;
+                            final isCloudflareError =
+                                statusCode == 403 || statusCode == 503;
+
+                            await logger.log(
+                              level: isServerError ? 'error' : 'warning',
                               subsystem: 'webview',
                               message: 'WebView received HTTP error',
+                              operationId: operationId,
+                              context: 'webview_navigation',
+                              durationMs: duration,
                               extra: {
                                 'url': request.url.toString(),
                                 'status_code': statusCode,
                                 'status_message': errorResponse.reasonPhrase,
+                                'response_headers': errorResponse.headers,
+                                'is_server_error': isServerError,
+                                'is_cloudflare_error': isCloudflareError,
+                                'is_main_frame': request.isForMainFrame ?? true,
                               },
                             );
 
@@ -612,11 +881,40 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
                               try {
                                 final currentUrl = request.url.toString();
                                 if (currentUrl.isNotEmpty) {
+                                  await logger.log(
+                                    level: 'debug',
+                                    subsystem: 'webview',
+                                    message:
+                                        'Attempting endpoint switch due to HTTP 5xx error',
+                                    operationId: operationId,
+                                    context: 'webview_endpoint_switch',
+                                    extra: {
+                                      'old_url': currentUrl,
+                                      'status_code': statusCode,
+                                    },
+                                  );
+
                                   final switched = await endpointManager
                                       .trySwitchEndpoint(currentUrl);
                                   if (switched) {
                                     final newEndpoint = await endpointManager
                                         .getActiveEndpoint();
+
+                                    await logger.log(
+                                      level: 'info',
+                                      subsystem: 'webview',
+                                      message:
+                                          'Switched endpoint due to HTTP error',
+                                      operationId: operationId,
+                                      context: 'webview_endpoint_switch',
+                                      durationMs: duration,
+                                      extra: {
+                                        'old_url': currentUrl,
+                                        'new_endpoint': newEndpoint,
+                                        'status_code': statusCode,
+                                      },
+                                    );
+
                                     await controller.loadUrl(
                                       urlRequest:
                                           URLRequest(url: WebUri(newEndpoint)),
@@ -624,7 +922,16 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
                                     return; // Don't show error if retrying
                                   }
                                 }
-                              } on Exception {
+                              } on Exception catch (e) {
+                                await logger.log(
+                                  level: 'warning',
+                                  subsystem: 'webview',
+                                  message:
+                                      'Exception during HTTP error endpoint switch',
+                                  operationId: operationId,
+                                  context: 'webview_endpoint_switch',
+                                  cause: e.toString(),
+                                );
                                 // Continue to show error
                               }
                             }
@@ -643,6 +950,17 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
                             }
                           },
                           onLoadStop: (controller, url) async {
+                            final operationId = _currentOperationId;
+                            final startTime = _currentPageLoadStartTime;
+                            final duration = startTime != null
+                                ? DateTime.now()
+                                    .difference(startTime)
+                                    .inMilliseconds
+                                : null;
+
+                            final urlString = url?.toString() ?? '';
+                            final logger = StructuredLogger();
+
                             // Reset retry count and clear error state on successful load
                             if (mounted) {
                               setState(() {
@@ -652,21 +970,37 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
                               });
                             }
 
-                            // Log successful page load (already logged in onLoadStop above, but this is the existing handler)
-                            await StructuredLogger().log(
+                            // Log successful page load with timing
+                            await logger.log(
                               level: 'info',
                               subsystem: 'webview',
                               message: 'WebView page load completed',
-                              extra: {'url': url?.toString()},
+                              operationId: operationId,
+                              context: 'webview_navigation',
+                              durationMs: duration,
+                              extra: {
+                                'url': urlString,
+                                'load_time_ms': duration,
+                                'retry_count_used': _retryCount,
+                              },
                             );
 
                             final html = await controller.getHtml();
+                            final htmlSize = html?.length ?? 0;
+
                             if (html != null && _looksLikeCloudflare(html)) {
-                              await StructuredLogger().log(
+                              await logger.log(
                                 level: 'info',
                                 subsystem: 'webview',
                                 message:
                                     'CloudFlare challenge detected on page',
+                                operationId: operationId,
+                                context: 'webview_cloudflare',
+                                durationMs: duration,
+                                extra: {
+                                  'url': urlString,
+                                  'html_size': htmlSize,
+                                },
                               );
                               _showCloudflareHint();
                               // Show a more prominent Cloudflare indicator
@@ -692,34 +1026,66 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
                                               .contains('личный кабинет')));
 
                               if (isLoginSuccess) {
-                                await StructuredLogger().log(
+                                await logger.log(
                                   level: 'info',
                                   subsystem: 'webview',
                                   message: 'WebView login appears successful',
+                                  operationId: operationId,
+                                  context: 'webview_login',
+                                  durationMs: duration,
                                   extra: {
                                     'url': urlString,
                                     'has_profile_content': html != null &&
                                         html.toLowerCase().contains('profile'),
+                                    'html_size': htmlSize,
                                   },
                                 );
                               }
 
                               // Automatically sync cookies to DioClient after saving
                               try {
+                                await logger.log(
+                                  level: 'debug',
+                                  subsystem: 'cookies',
+                                  message:
+                                      'Syncing cookies from WebView to DioClient',
+                                  operationId: operationId,
+                                  context: 'webview_cookie_sync',
+                                  extra: {
+                                    'url': urlString,
+                                  },
+                                );
+
                                 await DioClient.syncCookiesFromWebView();
-                                await StructuredLogger().log(
+
+                                await logger.log(
                                   level: 'info',
-                                  subsystem: 'webview',
+                                  subsystem: 'cookies',
                                   message:
                                       'Cookies synced from WebView to DioClient',
+                                  operationId: operationId,
+                                  context: 'webview_cookie_sync',
+                                  durationMs: duration,
+                                  extra: {
+                                    'url': urlString,
+                                  },
                                 );
                               } on Exception catch (e) {
-                                await StructuredLogger().log(
+                                await logger.log(
                                   level: 'warning',
-                                  subsystem: 'webview',
+                                  subsystem: 'cookies',
                                   message:
                                       'Failed to sync cookies to DioClient',
+                                  operationId: operationId,
+                                  context: 'webview_cookie_sync',
+                                  durationMs: duration,
                                   cause: e.toString(),
+                                  extra: {
+                                    'url': urlString,
+                                    'stack_trace': (e is Error)
+                                        ? (e as Error).stackTrace.toString()
+                                        : null,
+                                  },
                                 );
                                 debugPrint(
                                     'Failed to sync cookies to DioClient: $e');

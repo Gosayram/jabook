@@ -13,16 +13,16 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
 final authStatusProvider = StreamProvider<AuthStatus>((ref) {
   final repository = ref.watch(authRepositoryProvider);
   return repository.authStatus;
-}, dependencies: [authRepositoryProvider]);
+});
 
 /// Provider for checking if user is logged in.
 final isLoggedInProvider = FutureProvider<bool>((ref) {
   final repository = ref.watch(authRepositoryProvider);
   return repository.isLoggedIn();
-}, dependencies: [authRepositoryProvider]);
+});
 
 /// Provider for checking if stored credentials exist.
 final hasStoredCredentialsProvider = FutureProvider<bool>((ref) {
   final repository = ref.watch(authRepositoryProvider);
   return repository.hasStoredCredentials();
-}, dependencies: [authRepositoryProvider]);
+});

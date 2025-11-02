@@ -137,51 +137,109 @@ class AudiobookMetadataService {
   /// Returns the number of audiobooks collected.
   Future<int> collectMetadataForCategory(String forumTitle,
       {bool force = false}) async {
+    final operationId =
+        'metadata_collect_${DateTime.now().millisecondsSinceEpoch}';
+    final logger = StructuredLogger();
+    final startTime = DateTime.now();
+
+    await logger.log(
+      level: 'info',
+      subsystem: 'metadata',
+      message: 'Metadata collection started',
+      operationId: operationId,
+      context: 'metadata_collection',
+      extra: {
+        'forum_title': forumTitle,
+        'force': force,
+      },
+    );
+
     // Resolve forum URL dynamically
+    final forumResolveStartTime = DateTime.now();
     final forumUrl = await _resolver.resolveForumUrl(
       categoryTitle: 'Аудиокниги',
       forumTitle: forumTitle,
     );
+    final forumResolveDuration =
+        DateTime.now().difference(forumResolveStartTime).inMilliseconds;
 
     if (forumUrl == null) {
-      await StructuredLogger().log(
+      await logger.log(
         level: 'error',
         subsystem: 'metadata',
         message: 'Failed to resolve forum URL',
+        operationId: operationId,
+        context: 'metadata_collection',
+        durationMs: forumResolveDuration,
         extra: {'forum_title': forumTitle},
       );
       return 0;
     }
+
+    await logger.log(
+      level: 'debug',
+      subsystem: 'metadata',
+      message: 'Forum URL resolved',
+      operationId: operationId,
+      context: 'metadata_collection',
+      durationMs: forumResolveDuration,
+      extra: {
+        'forum_title': forumTitle,
+        'forum_url': forumUrl.toString(),
+      },
+    );
 
     // Extract forum ID from URL
     final forumIdMatch = RegExp(r'f=(\d+)').firstMatch(forumUrl.toString());
     final forumId = forumIdMatch?.group(1) ?? '';
 
     if (forumId.isEmpty) {
-      await StructuredLogger().log(
+      await logger.log(
         level: 'error',
         subsystem: 'metadata',
         message: 'Failed to extract forum ID from URL',
+        operationId: operationId,
+        context: 'metadata_collection',
         extra: {'forum_url': forumUrl.toString()},
       );
       return 0;
     }
 
     // Check if update is needed
-    if (!force && await needsUpdate(forumId)) {
-      await StructuredLogger().log(
+    final needsUpdateStartTime = DateTime.now();
+    final needsUpdateResult = !force && await needsUpdate(forumId);
+    final needsUpdateDuration =
+        DateTime.now().difference(needsUpdateStartTime).inMilliseconds;
+
+    if (needsUpdateResult) {
+      await logger.log(
         level: 'info',
         subsystem: 'metadata',
-        message: 'Skipping update for forum $forumTitle (recently updated)',
+        message: 'Skipping update for forum (recently updated)',
+        operationId: operationId,
+        context: 'metadata_collection',
+        durationMs: DateTime.now().difference(startTime).inMilliseconds,
+        extra: {
+          'forum_title': forumTitle,
+          'forum_id': forumId,
+          'check_duration_ms': needsUpdateDuration,
+        },
       );
       return 0;
     }
 
-    await StructuredLogger().log(
+    await logger.log(
       level: 'info',
       subsystem: 'metadata',
-      message:
-          'Starting metadata collection for forum: $forumTitle (ID: $forumId)',
+      message: 'Starting metadata collection for forum',
+      operationId: operationId,
+      context: 'metadata_collection',
+      extra: {
+        'forum_title': forumTitle,
+        'forum_id': forumId,
+        'forum_url': forumUrl.toString(),
+        'force': force,
+      },
     );
 
     final dio = await DioClient.instance;
@@ -192,13 +250,33 @@ class AudiobookMetadataService {
     var hasMore = true;
     var currentForumUrl = forumUrl;
     var currentForumId = forumId;
+    var pageNumber = 0;
 
     try {
       while (hasMore) {
+        pageNumber++;
+        final pageStartTime = DateTime.now();
+
         // Add delay to avoid rate limiting
         if (start > 0) {
           await Future.delayed(const Duration(milliseconds: requestDelayMs));
         }
+
+        await logger.log(
+          level: 'debug',
+          subsystem: 'metadata',
+          message: 'Fetching forum page',
+          operationId: operationId,
+          context: 'metadata_collection',
+          extra: {
+            'forum_title': forumTitle,
+            'forum_id': currentForumId,
+            'page_number': pageNumber,
+            'start': start,
+            'url': currentForumUrl.toString(),
+            'query_params': {'start': start},
+          },
+        );
 
         final response = await dio.get(
           currentForumUrl.toString(),
@@ -207,25 +285,58 @@ class AudiobookMetadataService {
           },
         );
 
+        final pageRequestDuration =
+            DateTime.now().difference(pageStartTime).inMilliseconds;
+        final responseSize = response.data?.toString().length ?? 0;
+
+        await logger.log(
+          level: 'debug',
+          subsystem: 'metadata',
+          message: 'Forum page response received',
+          operationId: operationId,
+          context: 'metadata_collection',
+          durationMs: pageRequestDuration,
+          extra: {
+            'forum_title': forumTitle,
+            'page_number': pageNumber,
+            'start': start,
+            'status_code': response.statusCode,
+            'response_size_bytes': responseSize,
+          },
+        );
+
         if (response.statusCode == 404) {
           // Forum might have moved, invalidate cache and re-resolve
-          await StructuredLogger().log(
+          await logger.log(
             level: 'warning',
             subsystem: 'metadata',
             message: 'Forum returned 404, invalidating cache and re-resolving',
-            extra: {'forum_title': forumTitle},
+            operationId: operationId,
+            context: 'metadata_collection',
+            extra: {
+              'forum_title': forumTitle,
+              'page_number': pageNumber,
+              'url': currentForumUrl.toString(),
+            },
           );
           await _resolver.invalidateCache(forumTitle);
           // Try to re-resolve
+          final reResolveStartTime = DateTime.now();
           final newForumUrl = await _resolver.resolveForumUrl(
             categoryTitle: 'Аудиокниги',
             forumTitle: forumTitle,
           );
+          final reResolveDuration =
+              DateTime.now().difference(reResolveStartTime).inMilliseconds;
+
           if (newForumUrl == null) {
-            await StructuredLogger().log(
+            await logger.log(
               level: 'error',
               subsystem: 'metadata',
               message: 'Failed to re-resolve forum after 404',
+              operationId: operationId,
+              context: 'metadata_collection',
+              durationMs: reResolveDuration,
               extra: {'forum_title': forumTitle},
             );
             break;
@@ -240,14 +351,19 @@ class AudiobookMetadataService {
             final oldForumId = currentForumId;
             currentForumId = newForumId;
             // Continue with retry of the same start position
-            await StructuredLogger().log(
+            await logger.log(
               level: 'info',
               subsystem: 'metadata',
               message: 'Re-resolved forum after 404',
+              operationId: operationId,
+              context: 'metadata_collection',
+              durationMs: reResolveDuration,
               extra: {
                 'forum_title': forumTitle,
                 'old_forum_id': oldForumId,
                 'new_forum_id': newForumId,
+                'old_url': forumUrl.toString(),
+                'new_url': newForumUrl.toString(),
               },
             );
             // Retry the same request with new URL
@@ -258,59 +374,153 @@ class AudiobookMetadataService {
         }
 
         if (response.statusCode != 200) {
-          await StructuredLogger().log(
+          await logger.log(
             level: 'warning',
             subsystem: 'metadata',
             message: 'Failed to fetch forum page',
-            extra: {'status': response.statusCode, 'forum': forumTitle},
+            operationId: operationId,
+            context: 'metadata_collection',
+            durationMs: pageRequestDuration,
+            extra: {
+              'status': response.statusCode,
+              'forum': forumTitle,
+              'page_number': pageNumber,
+              'url': currentForumUrl.toString(),
+            },
           );
           break;
         }
 
+        // Parse search results
+        final parseStartTime = DateTime.now();
         final audiobooks = await _parser.parseSearchResults(response.data);
+        final parseDuration =
+            DateTime.now().difference(parseStartTime).inMilliseconds;
+
+        await logger.log(
+          level: 'debug',
+          subsystem: 'metadata',
+          message: 'Parsed forum page',
+          operationId: operationId,
+          context: 'metadata_collection',
+          durationMs: parseDuration,
+          extra: {
+            'forum_title': forumTitle,
+            'page_number': pageNumber,
+            'topics_found': audiobooks.length,
+            'response_size_bytes': responseSize,
+          },
+        );
 
         if (audiobooks.isEmpty) {
+          await logger.log(
+            level: 'debug',
+            subsystem: 'metadata',
+            message: 'No more topics found, ending collection',
+            operationId: operationId,
+            context: 'metadata_collection',
+            extra: {
+              'forum_title': forumTitle,
+              'page_number': pageNumber,
+              'total_collected': totalCollected,
+            },
+          );
           hasMore = false;
           break;
         }
 
         // Save batch
+        final saveBatchStartTime = DateTime.now();
         await _saveBatch(audiobooks, currentForumId, forumTitle, lastSynced);
+        final saveBatchDuration =
+            DateTime.now().difference(saveBatchStartTime).inMilliseconds;
         totalCollected += audiobooks.length;
 
-        await StructuredLogger().log(
-          level: 'debug',
+        await logger.log(
+          level: 'info',
           subsystem: 'metadata',
-          message: 'Collected batch for forum $forumTitle',
+          message: 'Saved batch of audiobooks',
+          operationId: operationId,
+          context: 'metadata_collection',
+          durationMs: saveBatchDuration,
           extra: {
-            'count': audiobooks.length,
-            'total': totalCollected,
+            'forum_title': forumTitle,
+            'forum_id': currentForumId,
+            'page_number': pageNumber,
+            'batch_count': audiobooks.length,
+            'total_collected': totalCollected,
             'start': start,
+            'timings': {
+              'page_request_ms': pageRequestDuration,
+              'parse_ms': parseDuration,
+              'save_ms': saveBatchDuration,
+              'total_page_ms':
+                  DateTime.now().difference(pageStartTime).inMilliseconds,
+            },
           },
         );
 
         // Check if we should continue (if we got less than expected, likely no more)
         if (audiobooks.length < batchSize) {
+          await logger.log(
+            level: 'debug',
+            subsystem: 'metadata',
+            message: 'Batch size smaller than expected, ending collection',
+            operationId: operationId,
+            context: 'metadata_collection',
+            extra: {
+              'forum_title': forumTitle,
+              'batch_count': audiobooks.length,
+              'expected_batch_size': batchSize,
+            },
+          );
           hasMore = false;
         } else {
           start += audiobooks.length;
         }
       }
 
-      await StructuredLogger().log(
+      final totalDuration = DateTime.now().difference(startTime).inMilliseconds;
+
+      await logger.log(
         level: 'info',
         subsystem: 'metadata',
-        message: 'Completed metadata collection for forum: $forumTitle',
-        extra: {'total': totalCollected},
+        message: 'Completed metadata collection for forum',
+        operationId: operationId,
+        context: 'metadata_collection',
+        durationMs: totalDuration,
+        extra: {
+          'forum_title': forumTitle,
+          'forum_id': currentForumId,
+          'total_collected': totalCollected,
+          'pages_processed': pageNumber,
+          'timings': {
+            'forum_resolve_ms': forumResolveDuration,
+            'total_duration_ms': totalDuration,
+          },
+        },
       );
 
       return totalCollected;
     } on Exception catch (e) {
-      await StructuredLogger().log(
+      final totalDuration = DateTime.now().difference(startTime).inMilliseconds;
+
+      await logger.log(
         level: 'error',
         subsystem: 'metadata',
-        message: 'Failed to collect metadata for forum $forumTitle',
+        message: 'Failed to collect metadata for forum',
+        operationId: operationId,
+        context: 'metadata_collection',
+        durationMs: totalDuration,
         cause: e.toString(),
+        extra: {
+          'forum_title': forumTitle,
+          'forum_id': currentForumId,
+          'total_collected': totalCollected,
+          'pages_processed': pageNumber,
+          'stack_trace':
+              (e is Error) ? (e as Error).stackTrace.toString() : null,
+        },
       );
       rethrow;
     }
@@ -322,42 +532,130 @@ class AudiobookMetadataService {
   ///
   /// Returns a map of forum titles to the number of audiobooks collected.
   Future<Map<String, int>> collectAllMetadata({bool force = false}) async {
+    final operationId =
+        'metadata_collect_all_${DateTime.now().millisecondsSinceEpoch}';
+    final logger = StructuredLogger();
+    final startTime = DateTime.now();
     final results = <String, int>{};
 
-    await StructuredLogger().log(
+    await logger.log(
       level: 'info',
       subsystem: 'metadata',
       message: 'Starting full metadata collection',
-      extra: {'force': force, 'categories': forumLabels.length},
+      operationId: operationId,
+      context: 'metadata_collection_all',
+      extra: {
+        'force': force,
+        'categories': forumLabels.length,
+        'forum_labels': forumLabels,
+      },
     );
 
     // Ensure all forums are resolved first
+    final resolveStartTime = DateTime.now();
     await ensureForumsResolved();
+    final resolveDuration =
+        DateTime.now().difference(resolveStartTime).inMilliseconds;
 
-    for (final forumTitle in forumLabels) {
+    await logger.log(
+      level: 'debug',
+      subsystem: 'metadata',
+      message: 'All forums resolved',
+      operationId: operationId,
+      context: 'metadata_collection_all',
+      durationMs: resolveDuration,
+      extra: {
+        'forums_count': forumLabels.length,
+      },
+    );
+
+    for (var i = 0; i < forumLabels.length; i++) {
+      final forumTitle = forumLabels[i];
+      final categoryStartTime = DateTime.now();
+
       try {
+        await logger.log(
+          level: 'debug',
+          subsystem: 'metadata',
+          message: 'Starting collection for category',
+          operationId: operationId,
+          context: 'metadata_collection_all',
+          extra: {
+            'forum_title': forumTitle,
+            'category_index': i + 1,
+            'total_categories': forumLabels.length,
+          },
+        );
+
         final count =
             await collectMetadataForCategory(forumTitle, force: force);
         results[forumTitle] = count;
 
+        final categoryDuration =
+            DateTime.now().difference(categoryStartTime).inMilliseconds;
+
+        await logger.log(
+          level: 'info',
+          subsystem: 'metadata',
+          message: 'Completed collection for category',
+          operationId: operationId,
+          context: 'metadata_collection_all',
+          durationMs: categoryDuration,
+          extra: {
+            'forum_title': forumTitle,
+            'category_index': i + 1,
+            'total_categories': forumLabels.length,
+            'collected_count': count,
+          },
+        );
+
         // Add delay between categories
-        await Future.delayed(const Duration(milliseconds: requestDelayMs));
+        if (i < forumLabels.length - 1) {
+          await Future.delayed(const Duration(milliseconds: requestDelayMs));
+        }
       } on Exception catch (e) {
-        await StructuredLogger().log(
+        final categoryDuration =
+            DateTime.now().difference(categoryStartTime).inMilliseconds;
+
+        await logger.log(
           level: 'error',
           subsystem: 'metadata',
-          message: 'Failed to collect metadata for category $forumTitle',
+          message: 'Failed to collect metadata for category',
+          operationId: operationId,
+          context: 'metadata_collection_all',
+          durationMs: categoryDuration,
           cause: e.toString(),
+          extra: {
+            'forum_title': forumTitle,
+            'category_index': i + 1,
+            'total_categories': forumLabels.length,
+            'stack_trace':
+                (e is Error) ? (e as Error).stackTrace.toString() : null,
+          },
         );
         results[forumTitle] = 0;
       }
     }
 
-    await StructuredLogger().log(
+    final totalDuration = DateTime.now().difference(startTime).inMilliseconds;
+    final totalCollected = results.values.fold(0, (sum, count) => sum + count);
+
+    await logger.log(
       level: 'info',
       subsystem: 'metadata',
       message: 'Completed full metadata collection',
-      extra: {'results': results},
+      operationId: operationId,
+      context: 'metadata_collection_all',
+      durationMs: totalDuration,
+      extra: {
+        'results': results,
+        'total_collected': totalCollected,
+        'categories_processed': forumLabels.length,
+        'timings': {
+          'forum_resolution_ms': resolveDuration,
+          'total_duration_ms': totalDuration,
+        },
+      },
     );
 
     return results;

@@ -1,4 +1,4 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:riverpod/legacy.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Provider for tracking language changes and notifying the app to rebuild.
@@ -6,8 +6,6 @@ final languageProvider = StateNotifierProvider<LanguageNotifier, String>(
   (ref) => LanguageNotifier(),
 );
 
-/// Notifier for language changes that reads from SharedPreferences.
-/// Notifier for language changes that reads from SharedPreferences.
 /// Notifier for language changes that reads from SharedPreferences.
 class LanguageNotifier extends StateNotifier<String> {
   /// Creates a new LanguageNotifier instance.

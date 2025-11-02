@@ -33,6 +33,9 @@ class StructuredLogger {
   /// Maximum age of log files in days.
   static const int _maxLogAgeDays = 7;
 
+  /// Minimum time between identical log messages (1 minute).
+  static const Duration _deduplicationWindow = Duration(minutes: 1);
+
   /// Current log file being written to.
   File? _logFile;
 
@@ -41,6 +44,16 @@ class StructuredLogger {
 
   /// Name of the log file.
   final String _logFileName;
+
+  /// Cache for deduplication: key is message signature, value is last log time and count
+  static final Map<String, ({DateTime lastTime, int count})>
+      _deduplicationCache = {};
+
+  /// Last cleanup time for deduplication cache
+  static DateTime _lastCacheCleanup = DateTime.now();
+
+  /// Cleanup interval for deduplication cache (5 minutes)
+  static const Duration _cacheCleanupInterval = Duration(minutes: 5);
 
   /// Initializes the logger by creating the log directory and file.
   Future<void> initialize() async {
@@ -62,24 +75,113 @@ class StructuredLogger {
   }
 
   /// Logs a message with the specified level and subsystem.
+  ///
+  /// [operation_id] - Unique identifier for grouping related log entries
+  /// [duration_ms] - Duration of the operation in milliseconds
+  /// [context] - Additional context about what the application is doing
+  /// [state_before] - State before the operation (for state transitions)
+  /// [state_after] - State after the operation (for state transitions)
   Future<void> log({
     required String level,
     required String subsystem,
     required String message,
     String? cause,
     Map<String, dynamic>? extra,
+    String? operationId,
+    int? durationMs,
+    String? context,
+    Map<String, dynamic>? stateBefore,
+    Map<String, dynamic>? stateAfter,
   }) async {
     if (_logFile == null) {
       await initialize();
     }
 
     try {
+      // Check deduplication for error/warning messages
+      final shouldDeduplicate = level == 'error' || level == 'warning';
+      if (shouldDeduplicate) {
+        final signature = _createLogSignature(
+          level: level,
+          subsystem: subsystem,
+          message: message,
+          cause: cause,
+          extra: extra,
+        );
+
+        final now = DateTime.now();
+        final cached = _deduplicationCache[signature];
+
+        // Cleanup cache periodically
+        if (now.difference(_lastCacheCleanup) > _cacheCleanupInterval) {
+          _cleanupDeduplicationCache();
+          _lastCacheCleanup = now;
+        }
+
+        if (cached != null) {
+          final timeSinceLastLog = now.difference(cached.lastTime);
+
+          // If logged recently, increment count but don't log
+          if (timeSinceLastLog < _deduplicationWindow) {
+            _deduplicationCache[signature] = (
+              lastTime: cached.lastTime,
+              count: cached.count + 1,
+            );
+            // Suppress duplicate log
+            return;
+          }
+
+          // If logged before but outside window, log with count
+          if (cached.count > 0) {
+            final logEntry = {
+              'ts': now.toIso8601String(),
+              'level': level,
+              'subsystem': subsystem,
+              'msg': _scrubSensitiveData(message),
+              if (cause != null) 'cause': _scrubSensitiveData(cause),
+              if (operationId != null) 'operation_id': operationId,
+              if (durationMs != null) 'duration_ms': durationMs,
+              if (context != null) 'context': context,
+              if (stateBefore != null) 'state_before': _scrubMap(stateBefore),
+              if (stateAfter != null) 'state_after': _scrubMap(stateAfter),
+              if (extra != null)
+                'extra': {
+                  ..._scrubMap(extra),
+                  '_deduplication_count': cached.count,
+                  '_deduplication_note':
+                      'This message was suppressed ${cached.count} time(s) in the last minute',
+                },
+            };
+
+            final logLine = jsonEncode(logEntry);
+            await _logFile!.writeAsString(
+              '$logLine\n',
+              mode: FileMode.append,
+            );
+
+            // Reset count after logging
+            _deduplicationCache[signature] = (lastTime: now, count: 0);
+            await _checkLogRotation();
+            return;
+          }
+        }
+
+        // First time or outside deduplication window - log normally
+        _deduplicationCache[signature] = (lastTime: now, count: 0);
+      }
+
+      // Normal logging
       final logEntry = {
         'ts': DateTime.now().toIso8601String(),
         'level': level,
         'subsystem': subsystem,
         'msg': _scrubSensitiveData(message),
         if (cause != null) 'cause': _scrubSensitiveData(cause),
+        if (operationId != null) 'operation_id': operationId,
+        if (durationMs != null) 'duration_ms': durationMs,
+        if (context != null) 'context': context,
+        if (stateBefore != null) 'state_before': _scrubMap(stateBefore),
+        if (stateAfter != null) 'state_after': _scrubMap(stateAfter),
         if (extra != null) 'extra': _scrubMap(extra),
       };
 
@@ -94,6 +196,63 @@ class StructuredLogger {
       await _checkLogRotation();
     } on Exception {
       throw const LoggingFailure('Failed to write log');
+    }
+  }
+
+  /// Creates a signature for log deduplication.
+  ///
+  /// Uses level, subsystem, message, and simplified extra data to identify
+  /// duplicate log entries.
+  String _createLogSignature({
+    required String level,
+    required String subsystem,
+    required String message,
+    String? cause,
+    Map<String, dynamic>? extra,
+  }) {
+    // Create a simplified signature from key fields
+    final keyFields = <String, dynamic>{
+      'level': level,
+      'subsystem': subsystem,
+      'message': message,
+      if (cause != null) 'cause': cause,
+    };
+
+    // Add simplified extra fields for common error patterns
+    if (extra != null) {
+      // Include error_type, url, endpoint, is_dns_error for deduplication
+      if (extra.containsKey('error_type')) {
+        keyFields['error_type'] = extra['error_type'];
+      }
+      if (extra.containsKey('url')) {
+        keyFields['url'] = extra['url'];
+      }
+      if (extra.containsKey('endpoint')) {
+        keyFields['endpoint'] = extra['endpoint'];
+      }
+      if (extra.containsKey('is_dns_error')) {
+        keyFields['is_dns_error'] = extra['is_dns_error'];
+      }
+    }
+
+    return jsonEncode(keyFields);
+  }
+
+  /// Cleans up old entries from deduplication cache.
+  ///
+  /// Removes entries older than the deduplication window.
+  static void _cleanupDeduplicationCache() {
+    final now = DateTime.now();
+    final keysToRemove = <String>[];
+
+    _deduplicationCache.forEach((key, value) {
+      if (now.difference(value.lastTime) > _deduplicationWindow) {
+        keysToRemove.add(key);
+      }
+    });
+
+    for (final key in keysToRemove) {
+      _deduplicationCache.remove(key);
     }
   }
 

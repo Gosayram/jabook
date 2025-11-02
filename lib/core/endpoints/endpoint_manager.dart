@@ -91,6 +91,10 @@ class EndpointManager {
   /// The [endpoint] parameter is the URL of the endpoint to check.
   /// The [force] parameter, when true, bypasses cache and forces a fresh check.
   Future<void> healthCheck(String endpoint, {bool force = false}) async {
+    final operationId = 'health_check_${DateTime.now().millisecondsSinceEpoch}';
+    final logger = StructuredLogger();
+    final startTime = DateTime.now();
+
     final record = await _endpointsRef.get(_db);
     final endpoints =
         List<Map<String, dynamic>>.from((record?['endpoints'] as List?) ?? []);
@@ -100,6 +104,26 @@ class EndpointManager {
 
     final endpointData = endpoints[endpointIndex];
     final failureCount = endpointData['failure_count'] as int? ?? 0;
+    final healthScore = endpointData['health_score'] as int? ?? 0;
+    final enabled = endpointData['enabled'] == true;
+
+    // Log health check start with initial state
+    await logger.log(
+      level: 'debug',
+      subsystem: 'endpoints',
+      message: 'Health check started',
+      operationId: operationId,
+      context: 'health_check',
+      stateBefore: {
+        'health_score': healthScore,
+        'enabled': enabled,
+        'failure_count': failureCount,
+      },
+      extra: {
+        'url': endpoint,
+        'force': force,
+      },
+    );
 
     // Check cache: skip if recently checked (unless forced or in cooldown)
     if (!force) {
@@ -111,14 +135,17 @@ class EndpointManager {
           // Skip if checked recently and no failures
           if (timeSinceLastCheck < _healthCheckCacheTTL &&
               failureCount == 0 &&
-              (endpointData['health_score'] as int? ?? 0) > 50) {
-            await StructuredLogger().log(
+              healthScore > 50) {
+            await logger.log(
               level: 'debug',
               subsystem: 'endpoints',
               message: 'Skipping health check (recently checked)',
+              operationId: operationId,
+              context: 'health_check',
+              durationMs: DateTime.now().difference(startTime).inMilliseconds,
               extra: {
                 'url': endpoint,
-                'seconds_ago': timeSinceLastCheck.inSeconds
+                'seconds_ago': timeSinceLastCheck.inSeconds,
               },
             );
             return;
@@ -128,14 +155,43 @@ class EndpointManager {
     }
 
     // Exponential backoff: wait longer after multiple failures
-    await Future.delayed(Duration(
-        milliseconds: 1000 * (1 << (failureCount < 5 ? failureCount : 5))));
+    final backoffMs = 1000 * (1 << (failureCount < 5 ? failureCount : 5));
+    await Future.delayed(Duration(milliseconds: backoffMs));
+
+    if (backoffMs > 0) {
+      await logger.log(
+        level: 'debug',
+        subsystem: 'endpoints',
+        message: 'Applied exponential backoff before health check',
+        operationId: operationId,
+        extra: {
+          'url': endpoint,
+          'backoff_ms': backoffMs,
+          'failure_count': failureCount,
+        },
+      );
+    }
 
     // Retry logic for temporary errors
     Exception? lastException;
     var lastAttempt = 0;
     for (var attempt = 0; attempt <= _maxRetries; attempt++) {
       lastAttempt = attempt;
+      final attemptStartTime = DateTime.now();
+
+      await logger.log(
+        level: 'debug',
+        subsystem: 'endpoints',
+        message: 'Health check attempt',
+        operationId: operationId,
+        context: 'health_check',
+        extra: {
+          'url': endpoint,
+          'attempt': attempt + 1,
+          'max_retries': _maxRetries,
+        },
+      );
+
       try {
         // Ensure HTTP client has the same cookies as WebView (Cloudflare/auth)
         await DioClient.syncCookiesFromWebView();
@@ -144,11 +200,37 @@ class EndpointManager {
         final userAgentManager = UserAgentManager();
         final userAgent = await userAgentManager.getUserAgent();
 
-        final startTime = DateTime.now();
+        final requestStartTime = DateTime.now();
         final dio = await DioClient.instance;
         final cacheBuster = DateTime.now().millisecondsSinceEpoch;
+        final requestUrl = '$endpoint/forum/index.php';
+
+        await logger.log(
+          level: 'debug',
+          subsystem: 'endpoints',
+          message: 'Health check HTTP request',
+          operationId: operationId,
+          context: 'health_check',
+          extra: {
+            'url': requestUrl,
+            'method': 'GET',
+            'query_params': {'_': cacheBuster},
+            'headers': {
+              'User-Agent': userAgent,
+              'Accept':
+                  'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+              'Accept-Language': 'ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7',
+              'Accept-Encoding': 'gzip, deflate, br',
+              'Upgrade-Insecure-Requests': '1',
+              'Cache-Control': 'no-cache',
+              'Referer': '$endpoint/',
+            },
+            'attempt': attempt + 1,
+          },
+        );
+
         final response = await dio.get(
-          '$endpoint/forum/index.php',
+          requestUrl,
           options: Options(
             followRedirects: true,
             maxRedirects: 5,
@@ -168,19 +250,25 @@ class EndpointManager {
           ),
           queryParameters: {'_': cacheBuster},
         );
-        final rtt = DateTime.now().difference(startTime).inMilliseconds;
+        final rtt = DateTime.now().difference(requestStartTime).inMilliseconds;
 
         // Treat Cloudflare challenge (403 with CF headers) as reachable
         final status = response.statusCode ?? 0;
         final headers = response.headers;
+        final serverHeader = headers.value('server') ?? '';
+        final cfRayHeader = headers.value('cf-ray') ?? '';
+
         final isCloudflare =
-            (headers.value('server')?.toLowerCase().contains('cloudflare') ??
-                    false) ||
+            (serverHeader.toLowerCase().contains('cloudflare')) ||
                 headers.map.keys.any((k) => k.toLowerCase() == 'cf-ray');
+
         // Detect CF challenge by response body text as well
         final body = response.data is String
             ? (response.data as String).toLowerCase()
             : '';
+        final bodySize =
+            response.data is String ? (response.data as String).length : 0;
+
         final looksLikeCf = body.contains('checking your browser') ||
             body.contains('please enable javascript') ||
             body.contains('attention required') ||
@@ -200,19 +288,47 @@ class EndpointManager {
             ((status == 403 || status == 503) && (isCloudflare || looksLikeCf));
 
         // Calculate health score (0-100)
-        var healthScore = _calculateHealthScore(rtt, isHealthy ? 200 : status);
+        var newHealthScore =
+            _calculateHealthScore(rtt, isHealthy ? 200 : status);
         if ((status == 403 || status == 503) && (isCloudflare || looksLikeCf)) {
           // Cloudflare challenge: mirror is working, just protected
           // Give it a reasonable health score (60-80) to indicate it's usable
-          healthScore = (healthScore - 20).clamp(60, 85);
+          newHealthScore = (newHealthScore - 20).clamp(60, 85);
         }
+
+        // Log response details
+        await logger.log(
+          level: 'debug',
+          subsystem: 'endpoints',
+          message: 'Health check HTTP response received',
+          operationId: operationId,
+          context: 'health_check',
+          durationMs: rtt,
+          extra: {
+            'url': requestUrl,
+            'status_code': status,
+            'response_size_bytes': bodySize,
+            'rtt_ms': rtt,
+            'headers': {
+              'server': serverHeader,
+              'cf-ray': cfRayHeader,
+            },
+            'is_cloudflare': isCloudflare,
+            'looks_like_cf': looksLikeCf,
+            'attempt': attempt + 1,
+          },
+        );
+
+        final oldHealthScore = healthScore;
+        final oldEnabled = enabled;
+        final oldFailureCount = failureCount;
 
         endpoints[endpointIndex].addAll({
           'rtt': rtt,
           'last_ok': DateTime.now().toIso8601String(),
           'signature_ok': _validateSignature(headers),
           'enabled': true,
-          'health_score': healthScore,
+          'health_score': newHealthScore,
           'failure_count': 0,
           'last_failure': null,
           'cooldown_until': null,
@@ -225,36 +341,70 @@ class EndpointManager {
           'timestamp': DateTime.now(),
         };
 
-        // Log success
-        await StructuredLogger().log(
+        // Log success with state transition
+        final totalDuration =
+            DateTime.now().difference(startTime).inMilliseconds;
+
+        // Use state subsystem for state transitions
+        await logger.log(
           level: 'info',
-          subsystem: 'endpoints',
-          message: 'HealthCheck success for $endpoint',
+          subsystem: 'state',
+          message: 'Health check completed - state transition',
+          operationId: operationId,
+          context: 'health_check',
+          durationMs: totalDuration,
+          stateBefore: {
+            'health_score': oldHealthScore,
+            'enabled': oldEnabled,
+            'failure_count': oldFailureCount,
+          },
+          stateAfter: {
+            'health_score': newHealthScore,
+            'enabled': true,
+            'failure_count': 0,
+          },
           extra: {
+            'url': endpoint,
             'rtt_ms': rtt,
-            'status': response.statusCode,
-            'health_score': healthScore,
+            'status': status,
+            'health_score': newHealthScore,
             'attempt': attempt + 1,
+            'response_size_bytes': bodySize,
+            'headers': {
+              'server': serverHeader,
+              'cf-ray': cfRayHeader,
+            },
+            'is_cloudflare_detected': isCloudflare || looksLikeCf,
+            'original_subsystem': 'endpoints',
+            'state_change_reason': 'health_check_success',
           },
         );
         return; // Success, exit retry loop
       } on DioException catch (e) {
         lastException = e;
+        final attemptDuration =
+            DateTime.now().difference(attemptStartTime).inMilliseconds;
 
         // DNS errors are not retryable - mark as unavailable immediately
-        if (e.type == DioExceptionType.connectionError) {
+        final isDnsError = e.type == DioExceptionType.connectionError;
+        if (isDnsError) {
           final message = e.message?.toLowerCase() ?? '';
           if (message.contains('host lookup') ||
               message.contains('no address associated with hostname') ||
               message.contains('name or service not known')) {
-            await StructuredLogger().log(
+            await logger.log(
               level: 'error',
               subsystem: 'endpoints',
               message: 'DNS lookup failed for endpoint',
+              operationId: operationId,
+              context: 'health_check',
+              durationMs: attemptDuration,
               extra: {
                 'url': endpoint,
                 'error': e.message,
+                'error_type': e.type.toString(),
                 'attempt': attempt + 1,
+                'stack_trace': e.stackTrace.toString(),
               },
             );
             // DNS error, not retryable - break immediately
@@ -265,30 +415,67 @@ class EndpointManager {
         // Check if this is a retryable error
         final isRetryable = _isRetryableError(e);
 
+        // Log error details
+        final errorType = switch (e.type) {
+          DioExceptionType.connectionTimeout => 'Connection timeout',
+          DioExceptionType.sendTimeout => 'Send timeout',
+          DioExceptionType.receiveTimeout => 'Receive timeout',
+          DioExceptionType.badResponse => 'Bad response',
+          DioExceptionType.cancel => 'Request cancelled',
+          DioExceptionType.connectionError => 'Connection error',
+          DioExceptionType.badCertificate => 'Bad certificate',
+          DioExceptionType.unknown => 'Unknown error',
+        };
+
+        await logger.log(
+          level: 'warning',
+          subsystem: 'endpoints',
+          message: 'Health check attempt failed',
+          operationId: operationId,
+          context: 'health_check',
+          durationMs: attemptDuration,
+          extra: {
+            'url': endpoint,
+            'attempt': attempt + 1,
+            'error_type': errorType,
+            'error_message': e.message,
+            'status_code': e.response?.statusCode,
+            'is_retryable': isRetryable,
+            'stack_trace': e.stackTrace.toString(),
+          },
+        );
+
         if (!isRetryable || attempt >= _maxRetries) {
           // Not retryable or max retries reached, break loop and handle error
           break;
         }
 
-        // Wait before retry
-        await StructuredLogger().log(
+        // Wait before retry with exponential backoff
+        final retryDelayMs = _retryDelay.inMilliseconds * (attempt + 1);
+        await logger.log(
           level: 'debug',
-          subsystem: 'endpoints',
-          message: 'HealthCheck retryable error, retrying',
+          subsystem: 'retry',
+          message: 'Health check retryable error, retrying',
+          operationId: operationId,
+          context: 'health_check',
           extra: {
             'url': endpoint,
             'attempt': attempt + 1,
             'max_retries': _maxRetries,
-            'error': e.type.toString(),
+            'error_type': errorType,
+            'retry_delay_ms': retryDelayMs,
+            'backoff_type': 'linear',
+            'original_subsystem': 'endpoints',
           },
         );
-        await Future.delayed(
-            _retryDelay * (attempt + 1)); // Exponential backoff
+        await Future.delayed(Duration(milliseconds: retryDelayMs));
         continue;
       }
     }
 
     // If we reach here, all retries failed or error is not retryable
+    final totalDuration = DateTime.now().difference(startTime).inMilliseconds;
+
     if (lastException is DioException) {
       final e = lastException;
 
@@ -321,35 +508,94 @@ class EndpointManager {
 
       // DNS errors disable immediately, others require 2 failures
       final shouldDisable = isDnsError || newFailureCount >= 2;
+      final newHealthScore = shouldDisable
+          ? 0
+          : (endpoints[endpointIndex]['health_score'] as int? ?? 0)
+              .clamp(0, 40);
+      final newEnabled = !shouldDisable;
 
       endpoints[endpointIndex].addAll({
-        'enabled': shouldDisable ? false : true,
-        'health_score': shouldDisable
-            ? 0
-            : (endpoints[endpointIndex]['health_score'] as int? ?? 0)
-                .clamp(0, 40),
+        'enabled': newEnabled,
+        'health_score': newHealthScore,
         'failure_count': newFailureCount,
         'last_failure': DateTime.now().toIso8601String(),
         'last_error': '$errorType: ${e.message ?? e.toString()}',
         'cooldown_until': shouldDisable ? cooldown?.toIso8601String() : null,
       });
       await _endpointsRef.put(_db, {'endpoints': endpoints});
-      // Log failure with detailed context
-      await StructuredLogger().log(
+
+      // Check if entering cooldown
+      final wasInCooldown = endpoints[endpointIndex]['cooldown_until'] != null;
+      final enteringCooldown = shouldDisable && cooldown != null && !wasInCooldown;
+
+      // Log cooldown entry if applicable
+      // enteringCooldown already ensures cooldown != null
+      if (enteringCooldown) {
+        final cooldownValue = cooldown;
+        final cooldownDuration = cooldownValue.difference(DateTime.now());
+        await logger.log(
+          level: 'warning',
+          subsystem: 'state',
+          message: 'Endpoint entering cooldown period',
+          operationId: operationId,
+          context: 'health_check',
+          durationMs: totalDuration,
+          stateBefore: {
+            'health_score': healthScore,
+            'enabled': enabled,
+            'failure_count': failureCount,
+            'cooldown_until': null,
+          },
+          stateAfter: {
+            'health_score': newHealthScore,
+            'enabled': newEnabled,
+            'failure_count': newFailureCount,
+            'cooldown_until': cooldownValue.toIso8601String(),
+          },
+          extra: {
+            'url': endpoint,
+            'failure_count': newFailureCount,
+            'cooldown_until': cooldownValue.toIso8601String(),
+            'cooldown_duration_minutes': cooldownDuration.inMinutes,
+            'error_type': errorType,
+            'reason': isDnsError ? 'DNS lookup failed' : 'Multiple failures',
+            'original_subsystem': 'endpoints',
+          },
+        );
+      }
+
+      // Log failure with detailed context and state transition
+      await logger.log(
         level: isDnsError ? 'error' : 'warning',
-        subsystem: 'endpoints',
+        subsystem: enteringCooldown ? 'state' : 'endpoints',
         message: isDnsError
-            ? 'HealthCheck failed: DNS lookup error'
-            : 'HealthCheck failed for $endpoint',
+            ? 'Health check failed: DNS lookup error'
+            : 'Health check failed',
+        operationId: operationId,
+        context: 'health_check',
+        durationMs: totalDuration,
         cause: '$errorType: ${e.message ?? e.toString()}',
+        stateBefore: {
+          'health_score': healthScore,
+          'enabled': enabled,
+          'failure_count': failureCount,
+        },
+        stateAfter: {
+          'health_score': newHealthScore,
+          'enabled': newEnabled,
+          'failure_count': newFailureCount,
+        },
         extra: {
+          'url': endpoint,
           'failure_count': newFailureCount,
           'cooldown_until': cooldown?.toIso8601String(),
+          'entering_cooldown': enteringCooldown,
           'error_type': errorType,
           'response_status': e.response?.statusCode,
           'retries_attempted': lastAttempt + 1,
           'is_dns_error': isDnsError,
           'disabled': shouldDisable,
+          'stack_trace': e.stackTrace.toString(),
         },
       );
 
@@ -358,10 +604,12 @@ class EndpointManager {
         final record = await _endpointsRef.get(_db);
         final activeUrl = record?[_activeUrlKey] as String?;
         if (activeUrl == endpoint) {
-          await StructuredLogger().log(
+          await logger.log(
             level: 'error',
             subsystem: 'endpoints',
             message: 'Active mirror disabled due to failures',
+            operationId: operationId,
+            context: 'health_check',
             extra: {
               'url': endpoint,
               'failure_count': newFailureCount,
@@ -375,12 +623,15 @@ class EndpointManager {
       final e = lastException;
       final newFailureCount = failureCount + 1;
       final cooldown = _calculateCooldown(newFailureCount);
+      final newHealthScore = newFailureCount >= 2
+          ? 0
+          : (endpoints[endpointIndex]['health_score'] as int? ?? 0)
+              .clamp(0, 40);
+      final newEnabled = newFailureCount < 2;
+
       endpoints[endpointIndex].addAll({
-        'enabled': newFailureCount >= 2 ? false : true,
-        'health_score': newFailureCount >= 2
-            ? 0
-            : (endpoints[endpointIndex]['health_score'] as int? ?? 0)
-                .clamp(0, 40),
+        'enabled': newEnabled,
+        'health_score': newHealthScore,
         'failure_count': newFailureCount,
         'last_failure': DateTime.now().toIso8601String(),
         'last_error': e.toString(),
@@ -388,15 +639,72 @@ class EndpointManager {
             newFailureCount >= 2 ? cooldown?.toIso8601String() : null,
       });
       await _endpointsRef.put(_db, {'endpoints': endpoints});
-      // Log failure
-      await StructuredLogger().log(
+
+      // Check if entering cooldown
+      final wasInCooldown = endpoints[endpointIndex]['cooldown_until'] != null;
+      final enteringCooldown = newFailureCount >= 2 && cooldown != null && !wasInCooldown;
+
+      // Log cooldown entry if applicable
+      // enteringCooldown already ensures cooldown != null
+      if (enteringCooldown) {
+        final cooldownValue = cooldown;
+        final cooldownDuration = cooldownValue.difference(DateTime.now());
+        await logger.log(
+          level: 'warning',
+          subsystem: 'state',
+          message: 'Endpoint entering cooldown period',
+          operationId: operationId,
+          context: 'health_check',
+          durationMs: totalDuration,
+          stateBefore: {
+            'health_score': healthScore,
+            'enabled': enabled,
+            'failure_count': failureCount,
+            'cooldown_until': null,
+          },
+          stateAfter: {
+            'health_score': newHealthScore,
+            'enabled': newEnabled,
+            'failure_count': newFailureCount,
+            'cooldown_until': cooldownValue.toIso8601String(),
+          },
+          extra: {
+            'url': endpoint,
+            'failure_count': newFailureCount,
+            'cooldown_until': cooldownValue.toIso8601String(),
+            'cooldown_duration_minutes': cooldownDuration.inMinutes,
+            'reason': 'Multiple failures',
+            'original_subsystem': 'endpoints',
+          },
+        );
+      }
+
+      // Log failure with state transition
+      await logger.log(
         level: 'warning',
-        subsystem: 'endpoints',
-        message: 'HealthCheck failed for $endpoint',
+        subsystem: enteringCooldown ? 'state' : 'endpoints',
+        message: 'Health check failed',
+        operationId: operationId,
+        context: 'health_check',
+        durationMs: totalDuration,
         cause: e.toString(),
+        stateBefore: {
+          'health_score': healthScore,
+          'enabled': enabled,
+          'failure_count': failureCount,
+        },
+        stateAfter: {
+          'health_score': newHealthScore,
+          'enabled': newEnabled,
+          'failure_count': newFailureCount,
+        },
         extra: {
+          'url': endpoint,
           'failure_count': newFailureCount,
           'cooldown_until': cooldown?.toIso8601String(),
+          'entering_cooldown': enteringCooldown,
+          'stack_trace':
+              (e is Error) ? (e as Error).stackTrace.toString() : null,
         },
       );
     }
@@ -459,6 +767,10 @@ class EndpointManager {
   ///
   /// Results are cached for 30 seconds to avoid excessive network requests.
   Future<bool> quickAvailabilityCheck(String endpoint) async {
+    final operationId = 'quick_check_${DateTime.now().millisecondsSinceEpoch}';
+    final logger = StructuredLogger();
+    final startTime = DateTime.now();
+
     // Check cache first
     final cached = _quickCheckCache[endpoint];
     if (cached != null) {
@@ -467,14 +779,20 @@ class EndpointManager {
       final age = DateTime.now().difference(timestamp);
 
       if (age < _quickCheckCacheTTL) {
-        await StructuredLogger().log(
+        await logger.log(
           level: 'debug',
-          subsystem: 'endpoints',
+          subsystem: 'cache',
           message: 'Using cached quick availability check result',
+          operationId: operationId,
+          context: 'quick_availability_check',
+          durationMs: DateTime.now().difference(startTime).inMilliseconds,
           extra: {
             'url': endpoint,
             'result': result,
             'age_seconds': age.inSeconds,
+            'cache_used': true,
+            'cache_ttl_seconds': _quickCheckCacheTTL.inSeconds,
+            'original_subsystem': 'endpoints',
           },
         );
         return result;
@@ -488,14 +806,30 @@ class EndpointManager {
       final userAgentManager = UserAgentManager();
       final userAgent = await userAgentManager.getUserAgent();
 
+      final requestStartTime = DateTime.now();
       final dioInstance = Dio(BaseOptions(
         connectTimeout: const Duration(seconds: 5),
         receiveTimeout: const Duration(seconds: 5),
       ));
 
+      final requestUrl = '$endpoint/forum/index.php';
+
+      await logger.log(
+        level: 'debug',
+        subsystem: 'endpoints',
+        message: 'Quick availability check started',
+        operationId: operationId,
+        context: 'quick_availability_check',
+        extra: {
+          'url': requestUrl,
+          'method': 'GET',
+          'cache_used': false,
+        },
+      );
+
       final response = await dioInstance
           .get(
-            '$endpoint/forum/index.php',
+            requestUrl,
             options: Options(
               validateStatus: (status) => status != null && status < 500,
               headers: {
@@ -507,17 +841,25 @@ class EndpointManager {
           )
           .timeout(const Duration(seconds: 5));
 
+      final requestDuration =
+          DateTime.now().difference(requestStartTime).inMilliseconds;
+
       // Check for CloudFlare challenge - endpoint is reachable but protected
       final status = response.statusCode ?? 0;
       final headers = response.headers;
+      final serverHeader = headers.value('server') ?? '';
+      final cfRayHeader = headers.value('cf-ray') ?? '';
+
       final isCloudflare =
-          (headers.value('server')?.toLowerCase().contains('cloudflare') ??
-                  false) ||
+          (serverHeader.toLowerCase().contains('cloudflare')) ||
               headers.map.keys.any((k) => k.toLowerCase() == 'cf-ray');
 
       final body = response.data is String
           ? (response.data as String).toLowerCase()
           : '';
+      final bodySize =
+          response.data is String ? (response.data as String).length : 0;
+
       final looksLikeCf = body.contains('checking your browser') ||
           body.contains('please enable javascript') ||
           body.contains('cloudflare') ||
@@ -529,12 +871,47 @@ class EndpointManager {
       final isAvailable = (status >= 200 && status < 400) ||
           ((status == 403 || status == 503) && (isCloudflare || looksLikeCf));
 
+      final totalDuration = DateTime.now().difference(startTime).inMilliseconds;
+
       if (isAvailable && (isCloudflare || looksLikeCf)) {
-        await StructuredLogger().log(
+        await logger.log(
           level: 'info',
           subsystem: 'endpoints',
           message: 'Endpoint available but protected by CloudFlare',
-          extra: {'url': endpoint, 'status': status},
+          operationId: operationId,
+          context: 'quick_availability_check',
+          durationMs: totalDuration,
+          extra: {
+            'url': endpoint,
+            'status': status,
+            'is_cloudflare': isCloudflare,
+            'looks_like_cf': looksLikeCf,
+            'response_size_bytes': bodySize,
+            'headers': {
+              'server': serverHeader,
+              'cf-ray': cfRayHeader,
+            },
+          },
+        );
+      } else {
+        await logger.log(
+          level: 'info',
+          subsystem: 'endpoints',
+          message: 'Quick availability check completed',
+          operationId: operationId,
+          context: 'quick_availability_check',
+          durationMs: totalDuration,
+          extra: {
+            'url': endpoint,
+            'status': status,
+            'is_available': isAvailable,
+            'response_size_bytes': bodySize,
+            'rtt_ms': requestDuration,
+            'headers': {
+              'server': serverHeader,
+              'cf-ray': cfRayHeader,
+            },
+          },
         );
       }
 
@@ -546,21 +923,63 @@ class EndpointManager {
 
       return isAvailable;
     } on DioException catch (e) {
+      final totalDuration = DateTime.now().difference(startTime).inMilliseconds;
+
       // DNS errors indicate endpoint is unavailable
-      if (e.type == DioExceptionType.connectionError) {
+      final isDnsError = e.type == DioExceptionType.connectionError;
+      if (isDnsError) {
         final message = e.message?.toLowerCase() ?? '';
         if (message.contains('host lookup') ||
             message.contains('no address associated with hostname') ||
             message.contains('name or service not known')) {
-          await StructuredLogger().log(
+          await logger.log(
             level: 'warning',
             subsystem: 'endpoints',
             message: 'DNS lookup failed for endpoint availability check',
-            extra: {'url': endpoint, 'error': e.message},
+            operationId: operationId,
+            context: 'quick_availability_check',
+            durationMs: totalDuration,
+            extra: {
+              'url': endpoint,
+              'error': e.message,
+              'error_type': e.type.toString(),
+              'is_dns_error': true,
+              'stack_trace': e.stackTrace.toString(),
+            },
           );
+          // Cache negative result
+          _quickCheckCache[endpoint] = {
+            'result': false,
+            'timestamp': DateTime.now(),
+          };
           return false; // DNS error, endpoint unavailable
         }
       }
+
+      // Log other errors
+      final errorType = switch (e.type) {
+        DioExceptionType.connectionTimeout => 'Connection timeout',
+        DioExceptionType.receiveTimeout => 'Receive timeout',
+        DioExceptionType.connectionError => 'Connection error',
+        _ => 'Unknown error',
+      };
+
+      await logger.log(
+        level: 'warning',
+        subsystem: 'endpoints',
+        message: 'Quick availability check failed',
+        operationId: operationId,
+        context: 'quick_availability_check',
+        durationMs: totalDuration,
+        extra: {
+          'url': endpoint,
+          'error': e.message,
+          'error_type': errorType,
+          'status_code': e.response?.statusCode,
+          'stack_trace': e.stackTrace.toString(),
+        },
+      );
+
       // Other errors (timeouts, connection errors) might be temporary
       // Cache negative result with shorter TTL (10 seconds for failures)
       _quickCheckCache[endpoint] = {
@@ -568,7 +987,24 @@ class EndpointManager {
         'timestamp': DateTime.now(),
       };
       return false;
-    } on Exception {
+    } on Exception catch (e) {
+      final totalDuration = DateTime.now().difference(startTime).inMilliseconds;
+
+      await logger.log(
+        level: 'warning',
+        subsystem: 'endpoints',
+        message: 'Quick availability check exception',
+        operationId: operationId,
+        context: 'quick_availability_check',
+        durationMs: totalDuration,
+        cause: e.toString(),
+        extra: {
+          'url': endpoint,
+          'stack_trace':
+              (e is Error) ? (e as Error).stackTrace.toString() : null,
+        },
+      );
+
       // Cache negative result for exceptions too
       _quickCheckCache[endpoint] = {
         'result': false,
@@ -600,9 +1036,37 @@ class EndpointManager {
   /// Selects endpoints based on health score, RTT, and priority.
   /// Throws [NetworkFailure] if no healthy endpoints are available.
   Future<String> getActiveEndpoint() async {
+    final operationId =
+        'endpoint_selection_${DateTime.now().millisecondsSinceEpoch}';
+    final logger = StructuredLogger();
+    final startTime = DateTime.now();
+
     final record = await _endpointsRef.get(_db);
     final endpoints =
         List<Map<String, dynamic>>.from((record?['endpoints'] as List?) ?? []);
+
+    // Log all available endpoints before selection
+    final availableEndpoints = endpoints
+        .map((e) => {
+              'url': e['url'],
+              'health_score': e['health_score'] ?? 0,
+              'rtt': e['rtt'] ?? 9999,
+              'priority': e['priority'] ?? 999,
+              'enabled': e['enabled'] ?? false,
+            })
+        .toList();
+
+    await logger.log(
+      level: 'debug',
+      subsystem: 'endpoints',
+      message: 'Endpoint selection started',
+      operationId: operationId,
+      context: 'endpoint_selection',
+      extra: {
+        'available_endpoints': availableEndpoints,
+        'total_count': endpoints.length,
+      },
+    );
 
     // 1) If we already have a chosen active mirror, check availability before using it
     final activeFromStore = record?[_activeUrlKey] as String?;
@@ -619,22 +1083,52 @@ class EndpointManager {
           // Quick availability check (DNS + basic connectivity)
           final isAvailable = await quickAvailabilityCheck(activeFromStore);
           if (isAvailable) {
-            await StructuredLogger().log(
+            final duration =
+                DateTime.now().difference(startTime).inMilliseconds;
+            await logger.log(
               level: 'info',
               subsystem: 'endpoints',
               message: 'Using sticky active endpoint',
-              extra: {'url': activeFromStore},
+              operationId: operationId,
+              context: 'endpoint_selection',
+              durationMs: duration,
+              extra: {
+                'url': activeFromStore,
+                'selection_reason': 'sticky_endpoint_available',
+                'health_score': e['health_score'] ?? 0,
+                'rtt': e['rtt'] ?? 9999,
+                'priority': e['priority'] ?? 999,
+              },
             );
             return activeFromStore;
           } else {
             // Sticky endpoint unavailable, log and continue to selection
-            await StructuredLogger().log(
+            await logger.log(
               level: 'warning',
               subsystem: 'endpoints',
               message: 'Sticky endpoint unavailable, selecting new one',
-              extra: {'url': activeFromStore},
+              operationId: operationId,
+              context: 'endpoint_selection',
+              extra: {
+                'url': activeFromStore,
+                'reason': 'quick_availability_check_failed',
+              },
             );
           }
+        } else {
+          await logger.log(
+            level: 'debug',
+            subsystem: 'endpoints',
+            message: 'Sticky endpoint not usable',
+            operationId: operationId,
+            context: 'endpoint_selection',
+            extra: {
+              'url': activeFromStore,
+              'enabled': enabled,
+              'in_cooldown': inCooldown,
+              'reason': enabled ? 'in_cooldown' : 'disabled',
+            },
+          );
         }
       }
     }
@@ -646,14 +1140,34 @@ class EndpointManager {
         final cooldownUntil = DateTime.tryParse(cooldownUntilStr);
         if (cooldownUntil != null && DateTime.now().isAfter(cooldownUntil)) {
           // Cooldown expired: re-enable on probation with low health score
+          final oldState = {
+            'enabled': e['enabled'],
+            'health_score': e['health_score'] ?? 0,
+            'cooldown_until': e['cooldown_until'],
+          };
           e['enabled'] = true;
           e['health_score'] = (e['health_score'] as int? ?? 0).clamp(0, 40);
           e['cooldown_until'] = null;
-          await StructuredLogger().log(
+          final cooldownDuration =
+              DateTime.now().difference(cooldownUntil);
+          await logger.log(
             level: 'info',
-            subsystem: 'endpoints',
+            subsystem: 'state',
             message: 'Cooldown expired, re-enabling mirror',
-            extra: {'url': e['url']},
+            operationId: operationId,
+            context: 'endpoint_selection',
+            stateBefore: oldState,
+            stateAfter: {
+              'enabled': true,
+              'health_score': e['health_score'],
+              'cooldown_until': null,
+            },
+            extra: {
+              'url': e['url'],
+              'cooldown_duration_minutes': cooldownDuration.inMinutes,
+              'cooldown_started_at': cooldownUntilStr,
+              'original_subsystem': 'endpoints',
+            },
           );
         }
       }
@@ -665,20 +1179,65 @@ class EndpointManager {
             e['enabled'] == true && (e['health_score'] as int? ?? 0) > 50)
         .toList();
 
+    await logger.log(
+      level: 'debug',
+      subsystem: 'endpoints',
+      message: 'Filtered healthy endpoints',
+      operationId: operationId,
+      context: 'endpoint_selection',
+      extra: {
+        'healthy_count': healthyEndpoints.length,
+        'healthy_endpoints': healthyEndpoints
+            .map((e) => {
+                  'url': e['url'],
+                  'health_score': e['health_score'] ?? 0,
+                  'rtt': e['rtt'] ?? 9999,
+                  'priority': e['priority'] ?? 999,
+                })
+            .toList(),
+      },
+    );
+
     if (healthyEndpoints.isEmpty) {
       // Fallback to any enabled endpoint if no healthy ones
       // include unknown-health endpoints too (enabled ones)
       final fallbackEndpoints =
           endpoints.where((e) => e['enabled'] == true).toList();
+
+      await logger.log(
+        level: 'warning',
+        subsystem: 'endpoints',
+        message: 'No healthy endpoints found, using fallback logic',
+        operationId: operationId,
+        context: 'endpoint_selection',
+        extra: {
+          'fallback_count': fallbackEndpoints.length,
+          'fallback_endpoints': fallbackEndpoints
+              .map((e) => {
+                    'url': e['url'],
+                    'health_score': e['health_score'] ?? 0,
+                    'priority': e['priority'] ?? 999,
+                  })
+              .toList(),
+        },
+      );
+
       if (fallbackEndpoints.isEmpty) {
         // Ultimate fallback: use rutracker.net as guaranteed working mirror
         // Changed from rutracker.me (which is blocked by CloudFlare)
         const hardcodedFallback = 'https://rutracker.net';
-        await StructuredLogger().log(
+        final duration = DateTime.now().difference(startTime).inMilliseconds;
+        await logger.log(
           level: 'warning',
           subsystem: 'endpoints',
           message: 'No endpoints available, using hardcoded fallback',
-          extra: {'url': hardcodedFallback},
+          operationId: operationId,
+          context: 'endpoint_selection',
+          durationMs: duration,
+          extra: {
+            'url': hardcodedFallback,
+            'selection_reason': 'hardcoded_fallback',
+          },
         );
         return hardcodedFallback;
       }
@@ -686,16 +1245,33 @@ class EndpointManager {
       // Sort fallback by priority
       fallbackEndpoints.sort((a, b) => a['priority'].compareTo(b['priority']));
       final chosen = fallbackEndpoints.first['url'] as String;
+      final chosenData = fallbackEndpoints.first;
+
       // Persist sticky active
       await _endpointsRef.put(_db, {
         'endpoints': endpoints,
         _activeUrlKey: chosen,
       });
-      await StructuredLogger().log(
+
+      final duration = DateTime.now().difference(startTime).inMilliseconds;
+      await logger.log(
         level: 'warning',
         subsystem: 'endpoints',
         message: 'No healthy endpoints, using fallback',
-        extra: {'url': chosen},
+        operationId: operationId,
+        context: 'endpoint_selection',
+        durationMs: duration,
+        extra: {
+          'url': chosen,
+          'selection_reason': 'fallback_by_priority',
+          'health_score': chosenData['health_score'] ?? 0,
+          'priority': chosenData['priority'] ?? 999,
+          'selection_criteria': {
+            'primary': 'priority',
+            'healthy_count': 0,
+            'fallback_count': fallbackEndpoints.length,
+          },
+        },
       );
       return chosen;
     }
@@ -714,16 +1290,44 @@ class EndpointManager {
     });
 
     final chosen = healthyEndpoints.first['url'] as String;
+    final chosenData = healthyEndpoints.first;
+    final runnerUp = healthyEndpoints.length > 1 ? healthyEndpoints[1] : null;
+
     // Persist sticky active
     await _endpointsRef.put(_db, {
       'endpoints': endpoints,
       _activeUrlKey: chosen,
     });
-    await StructuredLogger().log(
+
+    final duration = DateTime.now().difference(startTime).inMilliseconds;
+    await logger.log(
       level: 'info',
       subsystem: 'endpoints',
       message: 'Active endpoint selected',
-      extra: {'url': chosen},
+      operationId: operationId,
+      context: 'endpoint_selection',
+      durationMs: duration,
+      extra: {
+        'url': chosen,
+        'selection_reason': 'best_health_score',
+        'health_score': chosenData['health_score'] ?? 0,
+        'rtt': chosenData['rtt'] ?? 9999,
+        'priority': chosenData['priority'] ?? 999,
+        'selection_criteria': {
+          'primary': 'health_score',
+          'secondary': 'rtt',
+          'tertiary': 'priority',
+        },
+        'selected_over': runnerUp != null
+            ? {
+                'url': runnerUp['url'],
+                'health_score': runnerUp['health_score'] ?? 0,
+                'rtt': runnerUp['rtt'] ?? 9999,
+                'priority': runnerUp['priority'] ?? 999,
+              }
+            : null,
+        'candidates_count': healthyEndpoints.length,
+      },
     );
     return chosen;
   }
@@ -895,23 +1499,70 @@ class EndpointManager {
   ///
   /// Returns true if switch was successful, false otherwise.
   Future<bool> trySwitchEndpoint(String currentEndpoint) async {
+    final operationId =
+        'endpoint_switch_${DateTime.now().millisecondsSinceEpoch}';
+    final logger = StructuredLogger();
+    final startTime = DateTime.now();
+
+    await logger.log(
+      level: 'info',
+      subsystem: 'state',
+      message: 'Attempting to switch endpoint',
+      operationId: operationId,
+      context: 'endpoint_switch',
+      extra: {
+        'current_endpoint': currentEndpoint,
+        'reason': 'current_endpoint_failing',
+      },
+    );
+
     final record = await _endpointsRef.get(_db);
     final endpoints =
         List<Map<String, dynamic>>.from((record?['endpoints'] as List?) ?? []);
 
-    // Disable current endpoint temporarily
+    // Get current endpoint state before modification
     final currentIndex =
         endpoints.indexWhere((e) => e['url'] == currentEndpoint);
+    Map<String, dynamic>? currentEndpointState;
     if (currentIndex != -1) {
+      currentEndpointState = Map<String, dynamic>.from(endpoints[currentIndex]);
+    }
+
+    // Disable current endpoint temporarily
+    if (currentIndex != -1) {
+      final oldState = {
+        'enabled': endpoints[currentIndex]['enabled'],
+        'failure_count': endpoints[currentIndex]['failure_count'] ?? 0,
+      };
       endpoints[currentIndex]['enabled'] = false;
       endpoints[currentIndex]['failure_count'] =
           (endpoints[currentIndex]['failure_count'] as int? ?? 0) + 1;
       await _updateEndpoints(endpoints);
+
+      await logger.log(
+        level: 'debug',
+        subsystem: 'state',
+        message: 'Disabled current endpoint before switch',
+        operationId: operationId,
+        context: 'endpoint_switch',
+        stateBefore: oldState,
+        stateAfter: {
+          'enabled': false,
+          'failure_count': endpoints[currentIndex]['failure_count'],
+        },
+        extra: {
+          'url': currentEndpoint,
+          'original_subsystem': 'endpoints',
+        },
+      );
     }
 
     // Try to get a new active endpoint
     try {
+      final selectionStartTime = DateTime.now();
       final newEndpoint = await getActiveEndpoint();
+      final selectionDuration =
+          DateTime.now().difference(selectionStartTime).inMilliseconds;
 
       if (newEndpoint != currentEndpoint) {
         // Clear cache for both endpoints since state changed
@@ -919,35 +1570,131 @@ class EndpointManager {
         clearQuickCheckCache(newEndpoint);
 
         // Sync cookies to new endpoint
+        final syncStartTime = DateTime.now();
         try {
           await DioClient.syncCookiesOnEndpointSwitch(
             currentEndpoint,
             newEndpoint,
           );
+          final syncDuration =
+              DateTime.now().difference(syncStartTime).inMilliseconds;
+
+          await logger.log(
+            level: 'debug',
+            subsystem: 'cookies',
+            message: 'Cookies synced on endpoint switch',
+            operationId: operationId,
+            context: 'endpoint_switch',
+            durationMs: syncDuration,
+            extra: {
+              'old_endpoint': currentEndpoint,
+              'new_endpoint': newEndpoint,
+              'original_subsystem': 'endpoints',
+            },
+          );
         } on Exception catch (e) {
-          await StructuredLogger().log(
+          final syncDuration =
+              DateTime.now().difference(syncStartTime).inMilliseconds;
+          await logger.log(
             level: 'warning',
-            subsystem: 'endpoints',
+            subsystem: 'cookies',
             message: 'Failed to sync cookies on endpoint switch',
+            operationId: operationId,
+            context: 'endpoint_switch',
+            durationMs: syncDuration,
             cause: e.toString(),
+            extra: {
+              'old_endpoint': currentEndpoint,
+              'new_endpoint': newEndpoint,
+              'original_subsystem': 'endpoints',
+            },
           );
         }
 
-        await StructuredLogger().log(
+        final totalDuration =
+            DateTime.now().difference(startTime).inMilliseconds;
+
+        // Get new endpoint state for logging
+        final newIndex = endpoints.indexWhere((e) => e['url'] == newEndpoint);
+        final newEndpointState = newIndex != -1
+            ? {
+                'health_score': endpoints[newIndex]['health_score'] ?? 0,
+                'enabled': endpoints[newIndex]['enabled'] ?? true,
+                'priority': endpoints[newIndex]['priority'] ?? 999,
+                'rtt': endpoints[newIndex]['rtt'] ?? 9999,
+              }
+            : null;
+
+        await logger.log(
           level: 'info',
-          subsystem: 'endpoints',
-          message: 'Automatically switched endpoint',
+          subsystem: 'state',
+          message: 'Successfully switched endpoint',
+          operationId: operationId,
+          context: 'endpoint_switch',
+          durationMs: totalDuration,
+          stateBefore: currentEndpointState != null
+              ? {
+                  'enabled': currentEndpointState['enabled'],
+                  'health_score': currentEndpointState['health_score'] ?? 0,
+                  'failure_count': currentEndpointState['failure_count'] ?? 0,
+                }
+              : null,
+          stateAfter: newEndpointState != null
+              ? {
+                  'enabled': newEndpointState['enabled'],
+                  'health_score': newEndpointState['health_score'],
+                }
+              : null,
           extra: {
-            'old': currentEndpoint,
-            'new': newEndpoint,
+            'old_endpoint': currentEndpoint,
+            'new_endpoint': newEndpoint,
+            'selection_duration_ms': selectionDuration,
+            if (newEndpointState != null) 'new_endpoint_state': newEndpointState,
+            'switch_reason': 'automatic_failure_recovery',
+            'original_subsystem': 'endpoints',
           },
         );
         return true;
+      } else {
+        // Same endpoint selected
+        final totalDuration =
+            DateTime.now().difference(startTime).inMilliseconds;
+        await logger.log(
+          level: 'warning',
+          subsystem: 'state',
+          message: 'Endpoint switch attempted but same endpoint selected',
+          operationId: operationId,
+          context: 'endpoint_switch',
+          durationMs: totalDuration,
+          extra: {
+            'current_endpoint': currentEndpoint,
+            'selected_endpoint': newEndpoint,
+            'selection_duration_ms': selectionDuration,
+            'switch_reason': 'no_alternative_available',
+            'original_subsystem': 'endpoints',
+          },
+        );
+        return false;
       }
-    } on Exception {
-      // Failed to get new endpoint
+    } on Exception catch (e) {
+      final totalDuration = DateTime.now().difference(startTime).inMilliseconds;
+      await logger.log(
+        level: 'error',
+        subsystem: 'state',
+        message: 'Failed to switch endpoint - exception during selection',
+        operationId: operationId,
+        context: 'endpoint_switch',
+        durationMs: totalDuration,
+        cause: e.toString(),
+        extra: {
+          'current_endpoint': currentEndpoint,
+          'switch_reason': 'selection_exception',
+          'stack_trace':
+              (e is Error) ? (e as Error).stackTrace.toString() : null,
+          'original_subsystem': 'endpoints',
+        },
+      );
+      return false;
     }
-
-    return false;
   }
 }
