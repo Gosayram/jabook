@@ -1,10 +1,10 @@
 # JaBook
 
-[![Kotlin](https://img.shields.io/badge/Kotlin-2.2.10-blue.svg)](https://kotlinlang.org/)
-[![Android](https://img.shields.io/badge/Android-7.0%2B-green.svg)](https://developer.android.com/)
+[![Flutter](https://img.shields.io/badge/Flutter-3.35.3-blue.svg)](https://flutter.dev/)
+[![Dart](https://img.shields.io/badge/Dart-3.2.0+-blue.svg)](https://dart.dev/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-green.svg)](LICENSE)
 
-Modern audiobook player for Android devices with RuTracker.net integration. Built with Kotlin 2.2.x, Jetpack Compose, and Material Design 3. Supports Android 6.0+ (API 23-35) with comprehensive offline-first architecture.
+Modern audiobook player for Android devices with RuTracker.net integration. Built with Flutter 3.35.3 and Dart 3.2.0+. Features offline-first architecture with torrent-based downloading, advanced player controls, and comprehensive library management.
 
 ## Table of Contents
 
@@ -17,13 +17,12 @@ Modern audiobook player for Android devices with RuTracker.net integration. Buil
   - [Usage](#usage)
     - [Basic Operations](#basic-operations)
     - [Main Features](#main-features)
-  - [Gradle Tasks](#gradle-tasks)
-    - [APK Build Tasks](#apk-build-tasks)
+  - [Build Commands](#build-commands)
   - [Testing \& Quality](#testing--quality)
   - [Architecture](#architecture)
     - [Technology Stack](#technology-stack)
     - [Module Structure](#module-structure)
-    - [Supported Android Versions](#supported-android-versions)
+    - [Supported Platforms](#supported-platforms)
   - [Contributing](#contributing)
     - [Code Style](#code-style)
   - [License](#license)
@@ -32,23 +31,27 @@ Modern audiobook player for Android devices with RuTracker.net integration. Buil
 ## Features
 
 - **Modern Material Design 3** with dynamic theming (light/dark/auto)
-- **RuTracker.net integration** for audiobook discovery and downloading
-- **Torrent-based downloading** with smart file extraction and progress tracking
-- **ExoPlayer integration** for high-quality audio playback with chapter navigation
+- **RuTracker.net integration** for audiobook discovery and downloading with dynamic mirror management
+- **Torrent-based downloading** with smart file extraction and progress tracking using dtorrent library
+- **Advanced audio player** with chapter navigation, playback speed control, sleep timer, and background playback
 - **Offline-first architecture** for uninterrupted listening experience
 - **Smart library management** with automatic metadata extraction and organization
-- **Universal Android support** - works on all devices (API 24-35)
+- **Search functionality** with history and caching for fast results
+- **Favorites system** for quick access to preferred audiobooks
+- **Multi-language support** (English and Russian)
 - **Privacy-focused** - no analytics or external tracking
-- **Advanced player features** - sleep timer, playback speed control, bookmarks
 - **Comprehensive download management** with pause/resume capabilities
+- **Backup and restore** functionality for user data
+- **Endpoint health monitoring** with automatic failover to working mirrors
 
 ## Getting Started
 
 ### Prerequisites
 
-- JDK 17, Kotlin 2.2.x, Gradle 8.14+
-- Android SDK with API 24-35
-- Android Studio (recommended) or command line tools
+- Flutter SDK 3.35.3 or higher
+- Dart SDK 3.2.0 or higher
+- Android SDK (API 21+) for Android development
+- Xcode (for iOS development, optional)
 
 ### Quick Install
 
@@ -57,14 +60,14 @@ Modern audiobook player for Android devices with RuTracker.net integration. Buil
 git clone https://github.com/Gosayram/jabook.git
 cd jabook
 
-# Build the application
-./gradlew build
-
-# Install on connected device
-./gradlew installDebug
+# Install dependencies
+flutter pub get
 
 # Run the application
-./gradlew run
+flutter run
+
+# Or build for Android
+flutter build apk --release
 ```
 
 ## Usage
@@ -72,123 +75,195 @@ cd jabook
 ### Basic Operations
 
 ```bash
-# Launch the application
-adb shell am start -n com.jabook.app/.MainActivity
+# Install dependencies
+make install
+# or
+flutter pub get
 
-# Install APK directly
-adb install app/build/outputs/apk/debug/app-debug.apk
+# Run the app
+flutter run
 
-# Build APK with timestamp
-./gradlew buildApk
+# Build Android APK (dev)
+make build-android-dev
+
+# Build Android APK (production)
+make build-android-prod
+
+# Run tests
+make test
+# or
+flutter test
+
+# Format code
+make fmt
+# or
+dart format .
+
+# Analyze code
+make analyze
+# or
+flutter analyze
 ```
 
 ### Main Features
 
 1. **Library Management**: Organize and browse your audiobook collection with smart filtering
-2. **Discovery**: Search and download audiobooks from RuTracker.net with real-time updates
-3. **Player**: Advanced audio playback with chapter navigation, sleep timer, and speed control
-4. **Downloads**: Monitor and manage torrent downloads with pause/resume functionality
+2. **Search**: Search and download audiobooks from RuTracker.net with real-time updates and caching
+3. **Player**: Advanced audio playback with chapter navigation, sleep timer, speed control, and background playback
+4. **Favorites**: Save and quickly access your favorite audiobooks
+5. **Downloads**: Monitor and manage torrent downloads with pause/resume functionality
+6. **Settings**: Configure mirrors, language, permissions, and app preferences
+7. **Mirrors**: Manage RuTracker mirrors with automatic health checking and failover
 
-## Gradle Tasks
+## Build Commands
 
-| Task                     | Description                                  |
-| ------------------------ | -------------------------------------------- |
-| `./gradlew build`        | Build the application                        |
-| `./gradlew test`         | Run unit tests                               |
-| `./gradlew check-all`    | Run all quality checks (lint, detekt, tests) |
-| `./gradlew ktlintCheck`  | Check Kotlin code style                      |
-| `./gradlew detekt`       | Run static code analysis                     |
-| `./gradlew installDebug` | Install debug APK on device                  |
-| `./gradlew clean`        | Clean build artifacts                        |
+The project includes a Makefile for convenient build operations:
 
-### APK Build Tasks
+| Command                    | Description                       |
+| -------------------------- | --------------------------------- |
+| `make install`             | Install Flutter dependencies      |
+| `make clean`               | Clean build artifacts             |
+| `make build-android-dev`   | Build Android dev variant         |
+| `make build-android-stage` | Build Android stage variant       |
+| `make build-android-prod`  | Build Android production variant  |
+| `make test`                | Run all tests                     |
+| `make test-unit`           | Run unit tests only               |
+| `make analyze`             | Run Flutter analysis              |
+| `make fmt`                 | Format code                       |
+| `make l10n`                | Generate localization files       |
+| `make release-android`     | Build all signed Android variants |
 
-| Task                        | Description                 |
-| --------------------------- | --------------------------- |
-| `./gradlew buildApk`        | Build debug APK to `bin/`   |
-| `./gradlew buildReleaseApk` | Build release APK to `bin/` |
-| `./gradlew cleanBin`        | Clean `bin/` directory      |
-
-APK files are saved to `bin/` directory with timestamps in filenames.
+For iOS builds, see `make help` for available iOS commands.
 
 ## Testing & Quality
 
-Run comprehensive tests across multiple Android versions:
+Run comprehensive tests:
 
 ```bash
 # Run all tests
-./gradlew test
+make test
+# or
+flutter test
 
-# Run instrumented tests
-./gradlew connectedAndroidTest
+# Run unit tests only
+make test-unit
 
-# Run quality checks
-./gradlew check-all
+# Run widget tests
+make test-widget
 
-# Generate coverage report
-./gradlew jacocoTestReport
+# Run integration tests
+make test-integration
+
+# Analyze code
+make analyze
+
+# Format code
+make fmt
 ```
 
 Quality tools configured:
-- **Ktlint** for Kotlin code formatting
-- **Detekt** for static code analysis
-- **JaCoCo** for test coverage (target: ≥80%)
-- **Unit tests** with MockK and Truth assertions
+- **Flutter Lints** for Dart code analysis
+- **Flutter Test** for unit and widget testing
+- **Integration Test** for end-to-end testing
+- **Code formatting** with `dart format`
+- **Localization** with `flutter gen-l10n`
+
+Unit tests are available for:
+- Cache management
+- Endpoint management
+- RuTracker parsing
+- Category parsing
+- CloudFlare utilities
+- User agent management
+- Safe async operations
+- Notification utilities
+- Bluetooth utilities
+- First launch helpers
 
 ## Architecture
 
 ### Technology Stack
 
-- **Language**: Kotlin 2.2.x targeting JVM 17
-- **UI**: Jetpack Compose with Material Design 3
-- **Architecture**: MVVM with Clean Architecture principles
-- **Dependency Injection**: Hilt/Dagger
-- **Database**: Room with SQLite
-- **Audio**: ExoPlayer (Media3)
-- **Networking**: Retrofit2 + OkHttp3
-- **Image Loading**: Coil
-- **State Management**: Kotlin Flow and StateFlow
+- **Framework**: Flutter 3.35.3
+- **Language**: Dart 3.2.0+
+- **State Management**: Flutter Riverpod
+- **Routing**: GoRouter
+- **Database**: Sembast (NoSQL document store)
+- **Audio Playback**: Just Audio with Audio Service for background playback
+- **Networking**: Dio with cookie management
+- **Torrent**: dtorrent library suite
+- **WebView**: flutter_inappwebview for RuTracker authentication
+- **Localization**: Flutter Localizations (ARB files)
+- **Image Loading**: cached_network_image
+- **Storage**: flutter_secure_storage for sensitive data
 
 ### Module Structure
 
 ```
-app/
-├── core/
-│   ├── network/          # RuTracker API client
-│   ├── database/         # Room database entities
-│   ├── torrent/          # Torrent download engine
-│   ├── storage/          # File management
-│   └── compat/           # Android version compatibility
-├── features/
-│   ├── library/          # Book library & organization
-│   ├── player/           # Audio player functionality
-│   ├── discovery/        # RuTracker browsing
-│   └── downloads/        # Download management
-└── shared/
-    ├── ui/               # Common UI components
-    ├── utils/            # Utilities & extensions
-    └── debug/            # Debug tools & logging
+lib/
+├── app/                      # Application entry point and configuration
+│   ├── app.dart              # Main app widget
+│   ├── router/               # Navigation configuration
+│   └── theme/                # Theme configuration
+├── core/                     # Core functionality
+│   ├── auth/                 # RuTracker authentication
+│   ├── backup/               # Backup and restore service
+│   ├── cache/                # Caching system
+│   ├── config/               # App configuration and language management
+│   ├── constants/            # Category constants
+│   ├── endpoints/            # Endpoint/mirror management
+│   ├── errors/               # Error handling
+│   ├── favorites/            # Favorites service
+│   ├── logging/              # Structured logging
+│   ├── metadata/             # Audiobook metadata management
+│   ├── net/                  # Network utilities (Dio, CloudFlare, User-Agent)
+│   ├── parse/                # HTML parsing for RuTracker
+│   ├── permissions/          # Permission management
+│   ├── player/               # Audio player service handler
+│   ├── rutracker/            # RuTracker-specific utilities
+│   ├── search/                # Search history service
+│   ├── stream/                # Local streaming server
+│   ├── torrent/               # Torrent download management
+│   └── utils/                 # Utility functions
+├── data/                      # Data layer
+│   └── db/                    # Database configuration
+├── features/                   # Feature modules
+│   ├── auth/                  # Authentication UI
+│   ├── debug/                 # Debug tools
+│   ├── library/               # Library and favorites screens
+│   ├── mirrors/               # Mirror management
+│   ├── permissions/           # Permission UI
+│   ├── player/                # Player screen
+│   ├── search/                 # Search screen
+│   ├── settings/               # Settings screens
+│   ├── topic/                  # Topic/details screen
+│   └── webview/                # WebView integration
+└── l10n/                       # Localization files
 ```
 
-### Supported Android Versions
+### Supported Platforms
 
-- **Minimum**: Android 7.0 (API 24) - covers ~98% of devices
-- **Target**: Android 15 (API 35)
-- **Features**: Adaptive UI, runtime permissions, scoped storage
+- **Android**: API 21+ (Android 5.0 Lollipop and higher)
+- **iOS**: Not currently configured (Android-focused project)
+- **Minimum SDK**: Android 5.0 (API 21) for broad device compatibility
+- **Target SDK**: Latest Android version
 
 ## Contributing
 
 1. Follow the existing code style and architecture patterns
 2. Write comprehensive tests for new features
 3. Update documentation for API changes
-4. Run `./gradlew check-all` before submitting
+4. Run `make analyze` and `make test` before submitting
+5. Follow Flutter/Dart style guidelines
 
 ### Code Style
 
-- Use 4 spaces for indentation
-- Follow Kotlin naming conventions
-- Write KDoc comments for public APIs
-- Maximum line length: 140 characters
+- Use 2 spaces for indentation
+- Follow Dart naming conventions
+- Write documentation comments for public APIs
+- Maximum line length: 140 characters (configurable)
+- Use `prefer_single_quotes` for strings
+- Follow the analyzer rules defined in `analysis_options.yaml`
 
 ## License
 
@@ -200,7 +275,7 @@ See [CHANGELOG.md](CHANGELOG.md) for the latest changes and version history.
 
 ---
 
-**Project Status**: In Development  
-**Current Version**: 0.1.0  
-**Supported Platforms**: Android 7.0+ (API 24-35)  
+**Project Status**: In Active Development  
+**Current Version**: 1.1.1+43  
+**Supported Platforms**: Android 5.0+ (API 21+)  
 **Distribution**: Direct APK (sideloading)
