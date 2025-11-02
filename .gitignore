@@ -219,7 +219,6 @@ lib/generated_plugin_registrant.dart
 firebase_app_id_file.json
 
 # Misc
-*.lock
 *.log
 *.tmp
 *.swp

@@ -14,8 +14,20 @@ class AuthRepositoryImpl implements AuthRepository {
   Future<bool> isLoggedIn() => _auth.isLoggedIn;
 
   @override
-  Future<bool> login(String username, String password) =>
-      _auth.login(username, password);
+  Future<bool> login(String username, String password) async {
+    // Try HTTP login first (faster and more reliable)
+    try {
+      final httpSuccess = await _auth.loginViaHttp(username, password);
+      if (httpSuccess) {
+        return true;
+      }
+    } on Exception {
+      // HTTP login failed, fallback to WebView
+    }
+
+    // Fallback to WebView login if HTTP login failed
+    return _auth.login(username, password);
+  }
 
   @override
   Future<void> logout() => _auth.logout();

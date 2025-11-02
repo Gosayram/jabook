@@ -11,7 +11,7 @@ jobs:
 
     steps:
       - name: Checkout (with LFS)
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
         with:
           fetch-depth: 0
           lfs: true
@@ -22,26 +22,30 @@ jobs:
           git lfs fetch --all
           git lfs checkout
 
-      - name: Verify Gradle Wrapper files
-        run: |
-          test -f gradlew || { echo "::error::gradlew is missing"; exit 1; }
-          test -f gradle/wrapper/gradle-wrapper.properties || { echo "::error::gradle-wrapper.properties is missing"; exit 1; }
-          test -f gradle/wrapper/gradle-wrapper.jar || { echo "::error::gradle-wrapper.jar is missing. Commit it to the repo (not via LFS)."; exit 1; }
-
-      - name: Set up Java 17
-        uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00
+      - name: Set up Flutter
+        uses: subosito/flutter-action@fd55f4c5af5b953cc57a2be44cb082c8f6635e8e
         with:
-          distribution: temurin
-          java-version: 17
+          flutter-version: '3.35.3'
+          channel: 'stable'
+          cache: true
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3
+      - name: Verify Flutter installation
+        run: flutter doctor -v
 
-      - name: Ensure gradlew is executable
-        run: chmod +x gradlew
+      - name: Install dependencies
+        run: flutter pub get
 
-      - name: Run check-all
-        run: ./gradlew check-all --no-daemon
+      - name: Generate localization files
+        run: flutter gen-l10n
+
+      - name: Verify code formatting
+        run: dart format --set-exit-if-changed .
+
+      - name: Analyze code
+        run: flutter analyze
+
+      - name: Run tests
+        run: flutter test
 
       - name: Extract version from tag
         if: startsWith(github.ref, 'refs/tags/v')
@@ -59,19 +63,24 @@ jobs:
           echo "VERSION_NAME=$VERSION_NAME" >> "$GITHUB_ENV"
           echo "VERSION_CODE=$VERSION_CODE" >> "$GITHUB_ENV"
 
-      - name: Update app version in build.gradle.kts
+      - name: Update app version in pubspec.yaml
         if: startsWith(github.ref, 'refs/tags/v')
         run: |
-          sed -i "s/versionName = \".*\"/versionName = \"${VERSION_NAME}\"/g" app/build.gradle.kts
-          sed -i "s/versionCode = [0-9][0-9]*/versionCode = ${VERSION_CODE}/g" app/build.gradle.kts
+          sed -i "s/^version: .*/version: ${VERSION_NAME}+${VERSION_CODE}/g" pubspec.yaml
 
       - name: Build APK (tag only)
         if: startsWith(github.ref, 'refs/tags/v')
-        run: ./gradlew assembleRelease --no-daemon
+        run: flutter build apk --target lib/main.dart --release
+
+      - name: Set APK artifact name
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          APK_NAME="jabook-release-${GITHUB_REF_NAME#v}.apk"
+          echo "APK_NAME=${APK_NAME}" >> "$GITHUB_ENV"
 
       - name: Upload APK
         if: startsWith(github.ref, 'refs/tags/v')
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
         with:
-          name: jabook-release-${{ env.VERSION_NAME }}.apk
-          path: app/build/outputs/apk/release/app-release.apk
+          name: ${{ env.APK_NAME }}
+          path: build/app/outputs/flutter-apk/app-release.apk
