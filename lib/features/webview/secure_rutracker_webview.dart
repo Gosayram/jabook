@@ -746,28 +746,59 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
                                   Duration(seconds: retryDelaySeconds));
 
                               // Try to reload or switch endpoint
+                              final retrySwitchStartTime = DateTime.now();
                               try {
                                 final db = AppDatabase().database;
                                 final endpointManager = EndpointManager(db);
                                 final currentUrl = request.url.toString();
 
                                 if (currentUrl.isNotEmpty) {
+                                  await logger.log(
+                                    level: 'debug',
+                                    subsystem: 'state',
+                                    message:
+                                        'Attempting endpoint switch during WebView retry',
+                                    operationId: operationId,
+                                    context: 'webview_retry',
+                                    extra: {
+                                      'retry_attempt': _retryCount,
+                                      'error_type': error.type.toString(),
+                                      'error_description': desc,
+                                      'is_dns_error': isDnsError,
+                                      'old_url': currentUrl,
+                                      'switch_reason': isDnsError
+                                          ? 'DNS_lookup_failed'
+                                          : 'Network_error',
+                                      'original_subsystem': 'webview',
+                                    },
+                                  );
+
                                   final switched = await endpointManager
                                       .trySwitchEndpoint(currentUrl);
+                                  final switchDuration = DateTime.now()
+                                      .difference(retrySwitchStartTime)
+                                      .inMilliseconds;
+
                                   if (switched) {
                                     final newEndpoint = await endpointManager
                                         .getActiveEndpoint();
 
                                     await logger.log(
                                       level: 'info',
-                                      subsystem: 'webview',
-                                      message: 'Retrying with new endpoint',
+                                      subsystem: 'state',
+                                      message:
+                                          'Successfully switched endpoint during WebView retry',
                                       operationId: operationId,
                                       context: 'webview_retry',
+                                      durationMs: switchDuration,
                                       extra: {
                                         'retry_attempt': _retryCount,
                                         'old_url': currentUrl,
                                         'new_endpoint': newEndpoint,
+                                        'switch_reason': isDnsError
+                                            ? 'DNS_lookup_failed'
+                                            : 'Network_error',
+                                        'original_subsystem': 'webview',
                                       },
                                     );
 
@@ -776,17 +807,47 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
                                           URLRequest(url: WebUri(newEndpoint)),
                                     );
                                     return; // Don't show error if retrying
+                                  } else {
+                                    await logger.log(
+                                      level: 'warning',
+                                      subsystem: 'state',
+                                      message:
+                                          'Endpoint switch failed during WebView retry',
+                                      operationId: operationId,
+                                      context: 'webview_retry',
+                                      durationMs: switchDuration,
+                                      extra: {
+                                        'retry_attempt': _retryCount,
+                                        'old_url': currentUrl,
+                                        'switch_reason':
+                                            'no_alternative_endpoint',
+                                        'original_subsystem': 'webview',
+                                      },
+                                    );
                                   }
                                 }
                               } on Exception catch (e) {
+                                final switchDuration = DateTime.now()
+                                    .difference(retrySwitchStartTime)
+                                    .inMilliseconds;
                                 await logger.log(
                                   level: 'warning',
-                                  subsystem: 'webview',
+                                  subsystem: 'state',
                                   message:
                                       'Exception during retry endpoint switch',
                                   operationId: operationId,
                                   context: 'webview_retry',
+                                  durationMs: switchDuration,
                                   cause: e.toString(),
+                                  extra: {
+                                    'retry_attempt': _retryCount,
+                                    'error_type': error.type.toString(),
+                                    'switch_reason': 'exception',
+                                    'stack_trace': (e is Error)
+                                        ? (e as Error).stackTrace.toString()
+                                        : null,
+                                    'original_subsystem': 'webview',
+                                  },
                                 );
                                 // Continue to show error
                               }

@@ -1,8 +1,11 @@
+import 'dart:io';
+
 import 'package:dio/dio.dart';
 import 'package:jabook/core/errors/failures.dart';
 import 'package:jabook/core/logging/structured_logger.dart';
 import 'package:jabook/core/net/dio_client.dart';
 import 'package:jabook/core/net/user_agent_manager.dart';
+import 'package:jabook/core/utils/dns_lookup.dart';
 import 'package:sembast/sembast.dart';
 
 /// Manages RuTracker endpoint configuration and health monitoring.
@@ -161,13 +164,16 @@ class EndpointManager {
     if (backoffMs > 0) {
       await logger.log(
         level: 'debug',
-        subsystem: 'endpoints',
+        subsystem: 'retry',
         message: 'Applied exponential backoff before health check',
         operationId: operationId,
         extra: {
           'url': endpoint,
           'backoff_ms': backoffMs,
           'failure_count': failureCount,
+          'backoff_type': 'exponential',
+          'backoff_formula': '1000 * (2^min(failure_count, 5))',
+          'original_subsystem': 'endpoints',
         },
       );
     }
@@ -200,6 +206,48 @@ class EndpointManager {
         final userAgentManager = UserAgentManager();
         final userAgent = await userAgentManager.getUserAgent();
 
+        // Perform DNS lookup before HTTP request
+        final endpointUri = Uri.parse(endpoint);
+        final host = endpointUri.host;
+        DnsLookupResult? dnsResult;
+
+        try {
+          dnsResult = await dnsLookup(
+            host,
+            type: InternetAddressType.any,
+            operationId: operationId,
+          );
+
+          await logger.log(
+            level: 'debug',
+            subsystem: 'network',
+            message: 'DNS lookup completed for health check',
+            operationId: operationId,
+            context: 'health_check',
+            extra: {
+              'host': host,
+              'dns_success': dnsResult.success,
+              'ip_addresses': dnsResult.ipAddresses,
+              'resolve_time_ms': dnsResult.resolveTime.inMilliseconds,
+              'original_subsystem': 'endpoints',
+            },
+          );
+        } on Exception catch (e) {
+          await logger.log(
+            level: 'warning',
+            subsystem: 'network',
+            message: 'DNS lookup failed before health check',
+            operationId: operationId,
+            context: 'health_check',
+            cause: e.toString(),
+            extra: {
+              'host': host,
+              'note': 'Continuing with HTTP request anyway',
+              'original_subsystem': 'endpoints',
+            },
+          );
+        }
+
         final requestStartTime = DateTime.now();
         final dio = await DioClient.instance;
         final cacheBuster = DateTime.now().millisecondsSinceEpoch;
@@ -226,6 +274,12 @@ class EndpointManager {
               'Referer': '$endpoint/',
             },
             'attempt': attempt + 1,
+            if (dnsResult != null)
+              'dns_lookup': {
+                'success': dnsResult.success,
+                'ip_addresses': dnsResult.ipAddresses,
+                'resolve_time_ms': dnsResult.resolveTime.inMilliseconds,
+              },
           },
         );
 
@@ -316,6 +370,13 @@ class EndpointManager {
             'is_cloudflare': isCloudflare,
             'looks_like_cf': looksLikeCf,
             'attempt': attempt + 1,
+            if (dnsResult != null)
+              'dns_lookup': {
+                'success': dnsResult.success,
+                'ip_addresses': dnsResult.ipAddresses,
+                'resolve_time_ms': dnsResult.resolveTime.inMilliseconds,
+                'ip_count': dnsResult.ipAddresses.length,
+              },
           },
         );
 
@@ -455,7 +516,7 @@ class EndpointManager {
         await logger.log(
           level: 'debug',
           subsystem: 'retry',
-          message: 'Health check retryable error, retrying',
+          message: 'Health check retryable error, retrying with linear backoff',
           operationId: operationId,
           context: 'health_check',
           extra: {
@@ -465,6 +526,8 @@ class EndpointManager {
             'error_type': errorType,
             'retry_delay_ms': retryDelayMs,
             'backoff_type': 'linear',
+            'backoff_formula': 'retry_delay * (attempt + 1)',
+            'base_retry_delay_ms': _retryDelay.inMilliseconds,
             'original_subsystem': 'endpoints',
           },
         );
@@ -808,6 +871,48 @@ class EndpointManager {
       final userAgentManager = UserAgentManager();
       final userAgent = await userAgentManager.getUserAgent();
 
+      // Perform DNS lookup before HTTP request
+      final endpointUri = Uri.parse(endpoint);
+      final host = endpointUri.host;
+      DnsLookupResult? dnsResult;
+
+      try {
+        dnsResult = await dnsLookup(
+          host,
+          type: InternetAddressType.any,
+          operationId: operationId,
+        );
+
+        await logger.log(
+          level: 'debug',
+          subsystem: 'network',
+          message: 'DNS lookup completed for quick availability check',
+          operationId: operationId,
+          context: 'quick_availability_check',
+          extra: {
+            'host': host,
+            'dns_success': dnsResult.success,
+            'ip_addresses': dnsResult.ipAddresses,
+            'resolve_time_ms': dnsResult.resolveTime.inMilliseconds,
+            'original_subsystem': 'endpoints',
+          },
+        );
+      } on Exception catch (e) {
+        await logger.log(
+          level: 'warning',
+          subsystem: 'network',
+          message: 'DNS lookup failed before quick availability check',
+          operationId: operationId,
+          context: 'quick_availability_check',
+          cause: e.toString(),
+          extra: {
+            'host': host,
+            'note': 'Continuing with HTTP request anyway',
+            'original_subsystem': 'endpoints',
+          },
+        );
+      }
+
       final requestStartTime = DateTime.now();
       final dioInstance = Dio(BaseOptions(
         connectTimeout: const Duration(seconds: 5),
@@ -826,6 +931,12 @@ class EndpointManager {
           'url': requestUrl,
           'method': 'GET',
           'cache_used': false,
+          if (dnsResult != null)
+            'dns_lookup': {
+              'success': dnsResult.success,
+              'ip_addresses': dnsResult.ipAddresses,
+              'resolve_time_ms': dnsResult.resolveTime.inMilliseconds,
+            },
         },
       );
 
@@ -885,17 +996,43 @@ class EndpointManager {
           durationMs: totalDuration,
           extra: {
             'url': endpoint,
-            'status': status,
+            'status_code': status,
             'is_cloudflare': isCloudflare,
             'looks_like_cf': looksLikeCf,
             'response_size_bytes': bodySize,
+            'rtt_ms': requestDuration,
+            'is_cloudflare_detected': true,
+            if (dnsResult != null)
+              'dns_lookup': {
+                'success': dnsResult.success,
+                'ip_addresses': dnsResult.ipAddresses,
+                'resolve_time_ms': dnsResult.resolveTime.inMilliseconds,
+                'ip_count': dnsResult.ipAddresses.length,
+              },
             'headers': {
               'server': serverHeader,
               'cf-ray': cfRayHeader,
+              'content-type': headers.value('content-type') ?? '',
+              'content-length': headers.value('content-length') ?? '',
             },
+            'all_headers': headers.map,
+            'response_url': response.realUri.toString(),
+            'is_redirect': response.requestOptions.uri.toString() !=
+                response.realUri.toString(),
+            if (response.realUri.toString() !=
+                response.requestOptions.uri.toString())
+              'redirect_location': response.realUri.toString(),
           },
         );
       } else {
+        // Check for CloudFlare detection
+        final isCloudflare = serverHeader
+                .toLowerCase()
+                .contains('cloudflare') ||
+            cfRayHeader.isNotEmpty ||
+            (response.data != null &&
+                response.data.toString().contains('cf-browser-verification'));
+
         await logger.log(
           level: 'info',
           subsystem: 'endpoints',
@@ -905,14 +1042,31 @@ class EndpointManager {
           durationMs: totalDuration,
           extra: {
             'url': endpoint,
-            'status': status,
+            'status_code': status,
             'is_available': isAvailable,
             'response_size_bytes': bodySize,
             'rtt_ms': requestDuration,
+            'is_cloudflare_detected': isCloudflare,
+            if (dnsResult != null)
+              'dns_lookup': {
+                'success': dnsResult.success,
+                'ip_addresses': dnsResult.ipAddresses,
+                'resolve_time_ms': dnsResult.resolveTime.inMilliseconds,
+                'ip_count': dnsResult.ipAddresses.length,
+              },
             'headers': {
               'server': serverHeader,
               'cf-ray': cfRayHeader,
+              'content-type': headers.value('content-type') ?? '',
+              'content-length': headers.value('content-length') ?? '',
             },
+            'all_headers': headers.map,
+            'response_url': response.realUri.toString(),
+            'is_redirect': response.requestOptions.uri.toString() !=
+                response.realUri.toString(),
+            if (response.realUri.toString() !=
+                response.requestOptions.uri.toString())
+              'redirect_location': response.realUri.toString(),
           },
         );
       }
@@ -1255,6 +1409,35 @@ class EndpointManager {
       });
 
       final duration = DateTime.now().difference(startTime).inMilliseconds;
+
+      // Build detailed fallback selection criteria
+      final fallbackCriteria = {
+        'primary_sort': 'priority',
+        'healthy_candidates': 0,
+        'fallback_candidates': fallbackEndpoints.length,
+        'selection_method': 'fallback_by_priority',
+        'fallback_reason': 'no_healthy_endpoints',
+      };
+
+      // Add comparison with other fallback candidates if available
+      Map<String, dynamic>? fallbackComparison;
+      if (fallbackEndpoints.length > 1) {
+        final sortedByPriority = [...fallbackEndpoints]
+          ..sort((a, b) => a['priority'].compareTo(b['priority']));
+        final runnerUpFallback =
+            sortedByPriority.length > 1 ? sortedByPriority[1] : null;
+
+        if (runnerUpFallback != null) {
+          fallbackComparison = {
+            'runner_up_url': runnerUpFallback['url'],
+            'runner_up_priority': runnerUpFallback['priority'] ?? 999,
+            'chosen_priority': chosenData['priority'] ?? 999,
+            'priority_diff': (chosenData['priority'] ?? 999) -
+                (runnerUpFallback['priority'] ?? 999),
+          };
+        }
+      }
+
       await logger.log(
         level: 'warning',
         subsystem: 'endpoints',
@@ -1267,11 +1450,9 @@ class EndpointManager {
           'selection_reason': 'fallback_by_priority',
           'health_score': chosenData['health_score'] ?? 0,
           'priority': chosenData['priority'] ?? 999,
-          'selection_criteria': {
-            'primary': 'priority',
-            'healthy_count': 0,
-            'fallback_count': fallbackEndpoints.length,
-          },
+          'selection_criteria': fallbackCriteria,
+          if (fallbackComparison != null)
+            'comparison_with_runner_up': fallbackComparison,
         },
       );
       return chosen;

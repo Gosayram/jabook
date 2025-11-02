@@ -128,6 +128,20 @@ class DioClient {
 
         // Extract important headers
         final headers = response.headers;
+
+        // Build redirect chain info if redirect occurred
+        Map<String, dynamic>? redirectChain;
+        if (isRedirect) {
+          redirectChain = {
+            'redirect_count':
+                1, // Dio handles redirects internally, we see final result
+            'original_url': requestUrl,
+            'final_url': responseUrl,
+            'redirect_detected': true,
+            'status_code': response.statusCode,
+            'location_header': headers.value('location') ?? '',
+          };
+        }
         final serverHeader = headers.value('server') ?? '';
         final cfRayHeader = headers.value('cf-ray') ?? '';
         final locationHeader = headers.value('location') ?? '';
@@ -159,6 +173,7 @@ class DioClient {
             'response_url': responseUrl,
             'is_redirect': isRedirect,
             if (locationHeader.isNotEmpty) 'location': locationHeader,
+            if (redirectChain != null) 'redirect_chain': redirectChain,
             if (responseSize != null) 'response_size_bytes': responseSize,
             if (isSlowRequest) 'performance_warning': true,
             if (isSlowRequest)
@@ -521,10 +536,11 @@ class DioClient {
 
           if (retryCount < 3) {
             int baseDelayMs;
+            int? retryAfterSeconds;
             if (status == 429) {
               // Honor Retry-After if provided
               final retryAfter = error.response?.headers.value('retry-after');
-              final retryAfterSeconds = int.tryParse(retryAfter ?? '') ?? 0;
+              retryAfterSeconds = int.tryParse(retryAfter ?? '') ?? 0;
               baseDelayMs = (retryAfterSeconds > 0
                   ? retryAfterSeconds * 1000
                   : (500 * (1 << retryCount)));
@@ -538,7 +554,7 @@ class DioClient {
             await StructuredLogger().log(
               level: 'warning',
               subsystem: 'retry',
-              message: 'Retrying HTTP request',
+              message: 'Retrying HTTP request with exponential backoff',
               operationId: operationId,
               context: 'http_retry',
               extra: {
@@ -547,12 +563,19 @@ class DioClient {
                 'status': status,
                 'retry_attempt': retryCount + 1,
                 'max_retries': 3,
-                'base_delay_ms': baseDelayMs,
-                'jitter_ms': jitterMs,
-                'total_delay_ms': delayMs,
+                'delay_breakdown': {
+                  'base_delay_ms': baseDelayMs,
+                  'jitter_ms': jitterMs,
+                  'total_delay_ms': delayMs,
+                },
                 'error_type': error.type.toString(),
                 'is_exponential_backoff': true,
                 'backoff_type': 'exponential_with_jitter',
+                'exponential_factor': retryCount + 1,
+                'base_delay_formula': '500 * (2^retry_count)',
+                'backoff_formula': 'base_delay + jitter (0-250ms)',
+                if (retryAfterSeconds != null && retryAfterSeconds > 0)
+                  'retry_after_header_seconds': retryAfterSeconds,
                 'original_subsystem': 'network',
               },
             );

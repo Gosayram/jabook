@@ -222,6 +222,34 @@ class ForumResolver {
           },
         );
 
+        // Parse HTML first to get forum count
+        final htmlParseStartTime = DateTime.now();
+        final document = parser.parse(decodedHtml);
+        final htmlParseDuration =
+            DateTime.now().difference(htmlParseStartTime).inMilliseconds;
+
+        // Count forums found in HTML for logging
+        final forumTables =
+            document.querySelectorAll('table.forums, table[id^="cf-"]');
+        final totalForumsInHtml = forumTables
+            .expand((table) => table.querySelectorAll('tr[id^="f-"]'))
+            .length;
+
+        await logger.log(
+          level: 'debug',
+          subsystem: 'forum_resolver',
+          message: 'HTML parsed - searching for forum',
+          operationId: operationId,
+          context: 'forum_resolution',
+          durationMs: htmlParseDuration,
+          extra: {
+            'entry_point': entryPoint,
+            'html_size': decodedHtml.length,
+            'forums_found_in_html': totalForumsInHtml,
+            'forum_tables_count': forumTables.length,
+          },
+        );
+
         // Parse and find forum
         final parseStartTime = DateTime.now();
         final resolvedUrl = await _findForumInHtml(
