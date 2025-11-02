@@ -11,7 +11,7 @@ jobs:
 
     steps:
       - name: Checkout (with LFS)
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
         with:
           fetch-depth: 0
           lfs: true
@@ -23,7 +23,7 @@ jobs:
           git lfs checkout
 
       - name: Set up Flutter
-        uses: subosito/flutter-action@dbfed470d67429bb648023a38f9e70a6f4ba11e6
+        uses: subosito/flutter-action@fd55f4c5af5b953cc57a2be44cb082c8f6635e8e
         with:
           flutter-version: '3.35.3'
           channel: 'stable'
@@ -80,7 +80,7 @@ jobs:
 
       - name: Upload APK
         if: startsWith(github.ref, 'refs/tags/v')
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
         with:
           name: ${{ env.APK_NAME }}
           path: build/app/outputs/flutter-apk/app-release.apk
