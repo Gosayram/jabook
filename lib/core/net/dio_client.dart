@@ -310,7 +310,8 @@ class DioClient {
                 'is_dns_error': isDnsError,
                 'current_endpoint': error.requestOptions.baseUrl,
                 'url': error.requestOptions.uri.toString(),
-                'switch_reason': isDnsError ? 'DNS_lookup_failed' : 'Connection_timeout',
+                'switch_reason':
+                    isDnsError ? 'DNS_lookup_failed' : 'Connection_timeout',
                 'original_subsystem': 'network',
               },
             );
@@ -325,8 +326,9 @@ class DioClient {
               final switched = await endpointManager.trySwitchEndpoint(
                 currentEndpoint,
               );
-              final switchAttemptDuration =
-                  DateTime.now().difference(switchAttemptStartTime).inMilliseconds;
+              final switchAttemptDuration = DateTime.now()
+                  .difference(switchAttemptStartTime)
+                  .inMilliseconds;
 
               if (switched) {
                 final newEndpoint = await endpointManager.getActiveEndpoint();
@@ -365,10 +367,12 @@ class DioClient {
 
                   try {
                     final retried = await dio.fetch(newOptions);
-                    final retryDuration =
-                        DateTime.now().difference(retryStartTime).inMilliseconds;
-                    final totalDuration =
-                        DateTime.now().difference(switchStartTime).inMilliseconds;
+                    final retryDuration = DateTime.now()
+                        .difference(retryStartTime)
+                        .inMilliseconds;
+                    final totalDuration = DateTime.now()
+                        .difference(switchStartTime)
+                        .inMilliseconds;
 
                     await logger.log(
                       level: 'info',
@@ -391,10 +395,12 @@ class DioClient {
                     );
                     return handler.resolve(retried);
                   } on Exception catch (e) {
-                    final retryDuration =
-                        DateTime.now().difference(retryStartTime).inMilliseconds;
-                    final totalDuration =
-                        DateTime.now().difference(switchStartTime).inMilliseconds;
+                    final retryDuration = DateTime.now()
+                        .difference(retryStartTime)
+                        .inMilliseconds;
+                    final totalDuration = DateTime.now()
+                        .difference(switchStartTime)
+                        .inMilliseconds;
 
                     await logger.log(
                       level: 'warning',
@@ -422,7 +428,8 @@ class DioClient {
                   await logger.log(
                     level: 'warning',
                     subsystem: 'retry',
-                    message: 'Endpoint switch successful but retry limit reached',
+                    message:
+                        'Endpoint switch successful but retry limit reached',
                     operationId: operationId,
                     context: 'endpoint_switch_retry',
                     extra: {
@@ -439,7 +446,8 @@ class DioClient {
                 await logger.log(
                   level: 'warning',
                   subsystem: 'state',
-                  message: 'Endpoint switch attempt failed - no alternative available',
+                  message:
+                      'Endpoint switch attempt failed - no alternative available',
                   operationId: operationId,
                   context: 'endpoint_switch_retry',
                   durationMs: totalDuration,

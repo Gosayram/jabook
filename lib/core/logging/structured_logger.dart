@@ -251,9 +251,7 @@ class StructuredLogger {
       }
     });
 
-    for (final key in keysToRemove) {
-      _deduplicationCache.remove(key);
-    }
+    keysToRemove.forEach(_deduplicationCache.remove);
   }
 
   // Redacts sensitive tokens, cookies, emails, magnets, and long IDs from strings

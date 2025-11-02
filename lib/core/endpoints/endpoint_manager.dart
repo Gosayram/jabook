@@ -526,7 +526,8 @@ class EndpointManager {
 
       // Check if entering cooldown
       final wasInCooldown = endpoints[endpointIndex]['cooldown_until'] != null;
-      final enteringCooldown = shouldDisable && cooldown != null && !wasInCooldown;
+      final enteringCooldown =
+          shouldDisable && cooldown != null && !wasInCooldown;
 
       // Log cooldown entry if applicable
       // enteringCooldown already ensures cooldown != null
@@ -642,7 +643,8 @@ class EndpointManager {
 
       // Check if entering cooldown
       final wasInCooldown = endpoints[endpointIndex]['cooldown_until'] != null;
-      final enteringCooldown = newFailureCount >= 2 && cooldown != null && !wasInCooldown;
+      final enteringCooldown =
+          newFailureCount >= 2 && cooldown != null && !wasInCooldown;
 
       // Log cooldown entry if applicable
       // enteringCooldown already ensures cooldown != null
@@ -1148,8 +1150,7 @@ class EndpointManager {
           e['enabled'] = true;
           e['health_score'] = (e['health_score'] as int? ?? 0).clamp(0, 40);
           e['cooldown_until'] = null;
-          final cooldownDuration =
-              DateTime.now().difference(cooldownUntil);
+          final cooldownDuration = DateTime.now().difference(cooldownUntil);
           await logger.log(
             level: 'info',
             subsystem: 'state',
@@ -1649,7 +1650,8 @@ class EndpointManager {
             'old_endpoint': currentEndpoint,
             'new_endpoint': newEndpoint,
             'selection_duration_ms': selectionDuration,
-            if (newEndpointState != null) 'new_endpoint_state': newEndpointState,
+            if (newEndpointState != null)
+              'new_endpoint_state': newEndpointState,
             'switch_reason': 'automatic_failure_recovery',
             'original_subsystem': 'endpoints',
           },
