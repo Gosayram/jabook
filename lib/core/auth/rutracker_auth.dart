@@ -358,7 +358,7 @@ class RuTrackerAuth {
             await sessionManager.saveSessionCookies(cookies, activeBase);
 
             // Start session monitoring after successful login
-            sessionManager.startSessionMonitoring();
+            await sessionManager.startSessionMonitoring();
 
             await logger.log(
               level: 'info',

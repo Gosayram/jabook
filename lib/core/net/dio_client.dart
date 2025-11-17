@@ -21,7 +21,9 @@ class DioClient {
   /// Private constructor to prevent direct instantiation.
   const DioClient._();
 
+  static Dio? _instance;
   static CookieJar? _cookieJar;
+  static SessionManager? _sessionManager;
 
   /// Gets the singleton Dio instance configured for RuTracker requests.
   ///
@@ -30,6 +32,11 @@ class DioClient {
   ///
   /// Returns a configured Dio instance ready for use.
   static Future<Dio> get instance async {
+    // Return cached instance if already initialized
+    if (_instance != null) {
+      return _instance!;
+    }
+
     final dio = Dio();
     final userAgentManager = UserAgentManager();
 
@@ -653,11 +660,23 @@ class DioClient {
     dio.interceptors.add(CookieManager(_cookieJar!));
 
     // Add SessionInterceptor for automatic session validation and refresh
-    // Create SessionManager instance for interceptor
-    final sessionManager = SessionManager();
-    dio.interceptors.add(SessionInterceptor(sessionManager));
+    // Use singleton SessionManager instance
+    _sessionManager ??= SessionManager();
+    dio.interceptors.add(SessionInterceptor(_sessionManager!));
 
-    return dio;
+    // Cache and return the instance
+    _instance = dio;
+    return _instance!;
+  }
+
+  /// Resets the singleton instance (useful for testing).
+  ///
+  /// This method clears the cached Dio instance and session manager,
+  /// allowing a fresh instance to be created on the next call to [instance].
+  static void reset() {
+    _instance = null;
+    _sessionManager = null;
+    // Keep _cookieJar to preserve cookies across resets
   }
 
   /// Gets the user agent string for HTTP requests.

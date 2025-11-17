@@ -68,26 +68,38 @@ class _JaBookAppState extends ConsumerState<JaBookApp> {
   }
 
   Future<void> _initializeApp() async {
+    final appStartTime = DateTime.now();
     try {
       // Initialize logger (critical, must be first)
+      final loggerInitStart = DateTime.now();
       logger.initialize();
+      final loggerInitDuration = DateTime.now().difference(loggerInitStart).inMilliseconds;
 
       // Log startup details (single receiver via cascade inside helper)
       _logStartupDetails();
 
       // Initialize database and cache (critical for app functionality)
+      final dbInitStart = DateTime.now();
       await _initializeDatabase();
+      final dbInitDuration = DateTime.now().difference(dbInitStart).inMilliseconds;
 
       // Initialize configuration based on flavor (lightweight, can run in parallel)
       // Request essential permissions (can be deferred, but better to do early)
       // Run these in parallel to speed up startup
+      final envInitStart = DateTime.now();
       await Future.wait([
         _initializeEnvironment(),
         _requestEssentialPermissions(),
       ]);
+      final envInitDuration = DateTime.now().difference(envInitStart).inMilliseconds;
 
-      // Single call — no cascade warning
-      logger.i('App initialization complete');
+      final totalInitDuration = DateTime.now().difference(appStartTime).inMilliseconds;
+
+      // Log initialization metrics
+      logger.i(
+        'App initialization complete. Metrics: total=${totalInitDuration}ms, '
+        'logger=${loggerInitDuration}ms, db=${dbInitDuration}ms, env=${envInitDuration}ms',
+      );
     } on Exception catch (e, stackTrace) {
       logger.e('Failed to initialize app', error: e, stackTrace: stackTrace);
       // Show error to user if critical initialization fails
@@ -132,16 +144,28 @@ class _JaBookAppState extends ConsumerState<JaBookApp> {
   }
 
   Future<void> _initializeDatabase() async {
+    final dbStartTime = DateTime.now();
     logger.i('Initializing database...');
     await database.initialize();
+    final dbInitDuration = DateTime.now().difference(dbStartTime).inMilliseconds;
+
+    final cacheStartTime = DateTime.now();
     await cacheService.initialize(database.database);
+    final cacheInitDuration = DateTime.now().difference(cacheStartTime).inMilliseconds;
 
     // AuthRepository will be initialized in build method when context is available
 
     // Initialize EndpointManager with default endpoints and health checks
+    final endpointStartTime = DateTime.now();
     final endpointManager = EndpointManager(database.database);
     await endpointManager
         .initialize(); // This includes initializeDefaultEndpoints() and health checks
+    final endpointInitDuration = DateTime.now().difference(endpointStartTime).inMilliseconds;
+
+    logger.i(
+      'Database initialization metrics: db=${dbInitDuration}ms, '
+      'cache=${cacheInitDuration}ms, endpoint=${endpointInitDuration}ms',
+    );
 
     // Run automatic endpoint health check if needed (non-blocking)
     try {
@@ -161,25 +185,29 @@ class _JaBookAppState extends ConsumerState<JaBookApp> {
 
     // Restore session from secure storage (non-blocking)
     // This is not critical for app startup, so run it in background
+    // Session validation is deferred until first use to avoid blocking startup
     safeUnawaited(
       () async {
         try {
+          final sessionRestoreStart = DateTime.now();
           final sessionManager = SessionManager();
           final restored = await sessionManager.restoreSession();
+          final sessionRestoreDuration = DateTime.now().difference(sessionRestoreStart).inMilliseconds;
+
           if (restored) {
-            logger.i('Session restored successfully on startup');
-            // Validate restored session
-            final isValid = await sessionManager.isSessionValid();
-            if (!isValid) {
-              logger.w('Restored session is invalid, user needs to re-authenticate');
-            } else {
-              logger.i('Restored session is valid');
-              // Start periodic session monitoring after successful restoration
-              sessionManager.startSessionMonitoring();
-              logger.i('Session monitoring started');
-            }
+            logger.i(
+              'Session restored successfully on startup (${sessionRestoreDuration}ms)',
+            );
+            // Don't validate session immediately - defer to first use
+            // This prevents blocking startup with network requests
+            // Session will be validated automatically on first HTTP request
+            // Start periodic session monitoring (validation will happen in background)
+            await sessionManager.startSessionMonitoring();
+            logger.i('Session monitoring started');
           } else {
-            logger.i('No session to restore on startup');
+            logger.i(
+              'No session to restore on startup (${sessionRestoreDuration}ms)',
+            );
           }
         } on Exception catch (e) {
           logger.w('Failed to restore session on startup: $e');

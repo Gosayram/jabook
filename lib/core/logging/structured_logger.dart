@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter/foundation.dart' show debugPrint; // debugPrint
+import 'package:flutter/foundation.dart' show debugPrint, kReleaseMode; // debugPrint
 import 'package:jabook/core/errors/failures.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
@@ -81,6 +81,9 @@ class StructuredLogger {
   /// [context] - Additional context about what the application is doing
   /// [state_before] - State before the operation (for state transitions)
   /// [state_after] - State after the operation (for state transitions)
+  ///
+  /// In release mode, only 'error' and 'warning' levels are logged to reduce
+  /// performance impact and log file size.
   Future<void> log({
     required String level,
     required String subsystem,
@@ -93,6 +96,14 @@ class StructuredLogger {
     Map<String, dynamic>? stateBefore,
     Map<String, dynamic>? stateAfter,
   }) async {
+    // In release mode, skip debug and info logs to improve performance
+    // Only log errors, warnings, and critical info
+    if (kReleaseMode) {
+      if (level != 'error' && level != 'warning' && level != 'critical') {
+        return; // Skip debug/info logs in release mode
+      }
+    }
+
     if (_logFile == null) {
       await initialize();
     }

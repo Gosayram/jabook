@@ -21,17 +21,32 @@ import 'package:jabook/data/db/app_database.dart';
 /// This class provides a unified interface for managing user sessions,
 /// including saving, restoring, validating, and synchronizing cookies
 /// between WebView and Dio client.
+///
+/// This class uses singleton pattern to ensure only one instance exists
+/// throughout the application lifecycle.
 class SessionManager {
-  /// Creates a new SessionManager instance.
+  /// Factory constructor that returns the singleton instance.
   ///
   /// The [rutrackerAuth] parameter is optional and will be created if not provided.
-  SessionManager({
+  /// On first call, creates a new instance. Subsequent calls return the same instance.
+  factory SessionManager({
+    RuTrackerAuth? rutrackerAuth,
+  }) {
+    _instance ??= SessionManager._internal(rutrackerAuth: rutrackerAuth);
+    return _instance!;
+  }
+
+  /// Private constructor for singleton pattern.
+  SessionManager._internal({
     RuTrackerAuth? rutrackerAuth,
   })  : _rutrackerAuth = rutrackerAuth,
         _sessionStorage = const SessionStorage(),
         _sessionValidator = const SessionValidator(),
         _cookieSyncService = const CookieSyncService(),
         _credentialManager = CredentialManager();
+
+  /// Singleton instance.
+  static SessionManager? _instance;
 
   /// RuTracker authentication instance.
   final RuTrackerAuth? _rutrackerAuth;
@@ -53,6 +68,13 @@ class SessionManager {
 
   /// Performance metrics for session operations.
   final Map<String, List<int>> _operationMetrics = {};
+
+  /// Cache for session validation results to avoid excessive network requests.
+  DateTime? _lastValidationTime;
+  bool? _cachedValidationResult;
+  
+  /// TTL for validation cache (5 minutes).
+  static const Duration _validationCacheTTL = Duration(minutes: 5);
 
   /// Gets performance metrics for session operations.
   ///
@@ -95,12 +117,33 @@ class SessionManager {
   /// Returns true if session cookies are valid and authentication is active,
   /// false otherwise.
   ///
+  /// The [force] parameter, when true, bypasses cache and forces a fresh validation.
+  ///
   /// Throws [AuthFailure] if validation fails due to network errors.
-  Future<bool> isSessionValid() async {
+  Future<bool> isSessionValid({bool force = false}) async {
     final operationId =
         'check_session_valid_${DateTime.now().millisecondsSinceEpoch}';
     final logger = StructuredLogger();
     final startTime = DateTime.now();
+
+    // Check cache first to avoid excessive network requests
+    if (!force &&
+        _cachedValidationResult != null &&
+        _lastValidationTime != null &&
+        DateTime.now().difference(_lastValidationTime!) < _validationCacheTTL) {
+      await logger.log(
+        level: 'debug',
+        subsystem: 'session_manager',
+        message: 'Using cached session validation result',
+        operationId: operationId,
+        context: 'session_validation',
+        extra: {
+          'cached_result': _cachedValidationResult,
+          'cache_age_seconds': DateTime.now().difference(_lastValidationTime!).inSeconds,
+        },
+      );
+      return _cachedValidationResult!;
+    }
 
     try {
       await logger.log(
@@ -136,6 +179,10 @@ class SessionManager {
       // Validate cookies by making a test request
       final isValid = await _sessionValidator.validateCookies(dio, cookieJar);
 
+      // Cache the validation result
+      _cachedValidationResult = isValid;
+      _lastValidationTime = DateTime.now();
+
       final duration = DateTime.now().difference(startTime).inMilliseconds;
       _recordMetric('isSessionValid', duration);
       await logger.log(
@@ -145,7 +192,7 @@ class SessionManager {
         operationId: operationId,
         context: 'session_validation',
         durationMs: duration,
-        extra: {'is_valid': isValid},
+        extra: {'is_valid': isValid, 'cached': false},
       );
 
       return isValid;
@@ -206,6 +253,10 @@ class SessionManager {
 
       // Sync to WebView storage
       await _cookieSyncService.syncFromDioToWebView(cookieJar);
+
+      // Invalidate validation cache when saving new session
+      _cachedValidationResult = null;
+      _lastValidationTime = null;
 
       final duration = DateTime.now().difference(startTime).inMilliseconds;
       _recordMetric('saveSessionCookies', duration);
@@ -494,6 +545,10 @@ class SessionManager {
       // Clear secure storage
       await _sessionStorage.clear();
 
+      // Clear validation cache
+      _cachedValidationResult = null;
+      _lastValidationTime = null;
+
       // Clear Dio cookie jar
       final dio = await DioClient.instance;
       final cookieJar = await _getCookieJar(dio);
@@ -641,7 +696,7 @@ class SessionManager {
   ///
   /// This method will automatically check session validity and refresh it
   /// if needed. It also checks for session expiration warnings.
-  void startSessionMonitoring({Duration? interval}) async {
+  Future<void> startSessionMonitoring({Duration? interval}) async {
     _sessionCheckTimer?.cancel();
 
     // Determine optimal interval based on session age

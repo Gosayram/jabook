@@ -8,6 +8,9 @@ import 'package:jabook/core/session/session_manager.dart';
 ///
 /// This interceptor checks session validity before requests and automatically
 /// refreshes the session if it has expired.
+///
+/// To avoid excessive network requests, validation is performed with caching
+/// and only when necessary (not on every request).
 class SessionInterceptor extends Interceptor {
   /// Creates a new SessionInterceptor instance.
   ///
@@ -16,6 +19,12 @@ class SessionInterceptor extends Interceptor {
 
   /// Session manager instance for validating and refreshing sessions.
   final SessionManager sessionManager;
+
+  /// Last time session was checked in this interceptor.
+  static DateTime? _lastCheck;
+
+  /// Minimum interval between session checks (5 minutes).
+  static const Duration _checkInterval = Duration(minutes: 5);
 
   @override
   Future<void> onRequest(
@@ -35,9 +44,17 @@ class SessionInterceptor extends Interceptor {
           path.contains('public');
 
       if (!skipValidation) {
-        // Check session validity
-        final isValid = await sessionManager.isSessionValid();
-        if (!isValid) {
+        // Check session validity only if enough time has passed since last check
+        // This prevents excessive network requests on every HTTP call
+        final shouldCheck = _lastCheck == null ||
+            DateTime.now().difference(_lastCheck!) > _checkInterval;
+
+        if (shouldCheck) {
+          // Check session validity (uses internal cache, won't make request if cached)
+          final isValid = await sessionManager.isSessionValid();
+          _lastCheck = DateTime.now();
+
+          if (!isValid) {
           // Try to refresh session
           final refreshed = await sessionManager.refreshSessionIfNeeded();
           if (!refreshed) {
@@ -86,17 +103,18 @@ class SessionInterceptor extends Interceptor {
             return;
           }
 
-          await logger.log(
-            level: 'info',
-            subsystem: 'session_interceptor',
-            message: 'Session refreshed automatically',
-            operationId: operationId,
-            context: 'session_interceptor',
-            extra: {
-              'method': options.method,
-              'path': options.path,
-            },
-          );
+            await logger.log(
+              level: 'info',
+              subsystem: 'session_interceptor',
+              message: 'Session refreshed automatically',
+              operationId: operationId,
+              context: 'session_interceptor',
+              extra: {
+                'method': options.method,
+                'path': options.path,
+              },
+            );
+          }
         }
       }
     } on Exception catch (e) {

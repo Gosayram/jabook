@@ -4,6 +4,7 @@ import 'package:jabook/core/logging/structured_logger.dart';
 import 'package:jabook/core/net/dio_client.dart';
 import 'package:jabook/core/net/user_agent_manager.dart';
 import 'package:jabook/core/utils/dns_lookup.dart';
+import 'package:jabook/core/utils/safe_async.dart';
 import 'package:sembast/sembast.dart';
 
 /// Manages RuTracker endpoint configuration and health monitoring.
@@ -34,9 +35,28 @@ class EndpointManager {
       _store.record(_storeKey);
 
   /// Initializes the EndpointManager with default endpoints and performs health checks.
+  ///
+  /// Health checks are performed asynchronously in the background to avoid
+  /// blocking application startup.
   Future<void> initialize() async {
     await initializeDefaultEndpoints();
-    await _performInitialHealthChecks();
+    // Perform health checks in background - don't block initialization
+    // This allows the app to start even if network is unavailable
+    safeUnawaited(
+      _performInitialHealthChecks(),
+      onError: (e, stack) {
+        final logger = StructuredLogger();
+        safeUnawaited(
+          logger.log(
+            level: 'warning',
+            subsystem: 'endpoints',
+            message: 'Health checks failed during initialization',
+            context: 'endpoint_init',
+            cause: e.toString(),
+          ),
+        );
+      },
+    );
   }
 
   /// Initializes the default RuTracker endpoints if none exist.
