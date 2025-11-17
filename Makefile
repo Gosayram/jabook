@@ -44,6 +44,7 @@ help:
 	@echo "  make fmt                           - Format code"
 	@echo "  make lint                          - Run linting"
 	@echo "  make l10n                          - Generate localization files (flutter gen-l10n)"
+	@echo "  make analyze-size                  - Analyze APK size with detailed breakdown"
 	@echo ""
 	@echo "Release Commands:"
 	@echo "  make release-android               - Build all signed Android release variants"
@@ -77,12 +78,21 @@ build-android-dev:
 
 .PHONY: build-android-stage
 build-android-stage:
-	flutter build apk --target lib/main.dart --release
+	flutter build apk --target lib/main.dart --release \
+		--obfuscate \
+		--split-debug-info=./debug-info \
+		--split-per-abi \
+		--tree-shake-icons
+	@echo "Android stage APK built with optimizations at: build/app/outputs/apk/"
 
 .PHONY: build-android-prod
 build-android-prod:
-	flutter build apk --target lib/main.dart --release
-	@echo "Android production APK built at: build/app/outputs/flutter-apk/app-release.apk"
+	flutter build apk --target lib/main.dart --release \
+		--obfuscate \
+		--split-debug-info=./debug-info \
+		--split-per-abi \
+		--tree-shake-icons
+	@echo "Android production APK built with optimizations at: build/app/outputs/apk/"
 
 .PHONY: sign-android
 sign-android:
@@ -132,10 +142,15 @@ patch-gradle-signing:
 build-android-bundle:
 	@if [ ! -f "android/key.properties" ]; then \
 		echo "Warning: android/key.properties not found, building unsigned bundle"; \
-		flutter build appbundle --target lib/main.dart --release; \
+		flutter build appbundle --target lib/main.dart --release \
+			--obfuscate \
+			--split-debug-info=./debug-info; \
+		echo "Android App Bundle built with optimizations at: build/app/outputs/bundle/release/app-release.aab"; \
 	else \
-		flutter build appbundle --target lib/main.dart --release; \
-		echo "Android App Bundle built at: build/app/outputs/bundle/release/app-release.aab"; \
+		flutter build appbundle --target lib/main.dart --release \
+			--obfuscate \
+			--split-debug-info=./debug-info; \
+		echo "Android App Bundle built with optimizations at: build/app/outputs/bundle/release/app-release.aab"; \
 	fi
 
 .PHONY: build-android-signed
@@ -144,9 +159,13 @@ build-android-signed: use-existing-android-cert patch-gradle-signing build-andro
 
 .PHONY: build-android-signed-apk
 build-android-signed-apk: use-existing-android-cert patch-gradle-signing
-	@echo "Building signed universal APK..."
-	flutter build apk --target lib/main.dart --release
-	@echo "Signed universal APK built at: build/app/outputs/apk/release/app-release.apk"
+	@echo "Building signed optimized APK..."
+	flutter build apk --target lib/main.dart --release \
+		--obfuscate \
+		--split-debug-info=./debug-info \
+		--split-per-abi \
+		--tree-shake-icons
+	@echo "Signed optimized APK built at: build/app/outputs/apk/"
 
 # iOS build commands
 .PHONY: build-ios-dev
@@ -245,9 +264,23 @@ docs:
 # Size analysis
 .PHONY: size
 size:
-	flutter build apk --split-per-abi --release
+	flutter build apk --target lib/main.dart --release \
+		--split-per-abi \
+		--tree-shake-icons
 	flutter pub run flutter_launcher_icons:main
 	@echo "App size analysis complete. Check build/app/outputs/apk/"
+	@echo "Note: Use 'make analyze-size' for detailed size breakdown"
+
+# Analyze APK size (detailed breakdown)
+# Note: --analyze-size cannot be used with --split-debug-info
+.PHONY: analyze-size
+analyze-size:
+	@echo "Building APK with size analysis..."
+	flutter build apk --target lib/main.dart --release \
+		--analyze-size \
+		--split-per-abi \
+		--tree-shake-icons
+	@echo "Size analysis complete. Check the output above for detailed breakdown."
 
 # Version management
 .PHONY: version
@@ -352,7 +385,12 @@ build-flavor:
 		echo "Usage: make build-flavor FLAVOR=dev|stage|prod"; \
 		exit 1; \
 	fi
-	flutter build apk --flavor $(FLAVOR) --target lib/main.dart --release
+	flutter build apk --flavor $(FLAVOR) --target lib/main.dart --release \
+		--obfuscate \
+		--split-debug-info=./debug-info \
+		--split-per-abi \
+		--tree-shake-icons
+	@echo "Android $(FLAVOR) APK built with optimizations at: build/app/outputs/apk/"
 
 # Run tests with coverage
 .PHONY: test-coverage

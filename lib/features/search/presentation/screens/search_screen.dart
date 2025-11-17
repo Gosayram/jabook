@@ -65,6 +65,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
   @override
   void dispose() {
+    _debounce?.cancel();
+    _cancelToken?.cancel();
     _searchController.dispose();
     _scrollController.dispose();
     _searchFocusNode.dispose();

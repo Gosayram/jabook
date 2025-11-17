@@ -68,20 +68,22 @@ class _JaBookAppState extends ConsumerState<JaBookApp> {
 
   Future<void> _initializeApp() async {
     try {
-      // Initialize logger
+      // Initialize logger (critical, must be first)
       logger.initialize();
 
       // Log startup details (single receiver via cascade inside helper)
       _logStartupDetails();
 
-      // Initialize database and cache
+      // Initialize database and cache (critical for app functionality)
       await _initializeDatabase();
 
-      // Request essential permissions
-      await _requestEssentialPermissions();
-
-      // Initialize configuration based on flavor
-      await _initializeEnvironment();
+      // Initialize configuration based on flavor (lightweight, can run in parallel)
+      // Request essential permissions (can be deferred, but better to do early)
+      // Run these in parallel to speed up startup
+      await Future.wait([
+        _initializeEnvironment(),
+        _requestEssentialPermissions(),
+      ]);
 
       // Single call — no cascade warning
       logger.i('App initialization complete');
@@ -156,13 +158,14 @@ class _JaBookAppState extends ConsumerState<JaBookApp> {
       logger.w('Failed to schedule endpoint health check: $e');
     }
 
-    // Synchronize cookies from WebView to DioClient on startup
-    try {
-      await DioClient.syncCookiesFromWebView();
-      logger.i('Cookies synchronized from WebView');
-    } on Exception catch (e) {
-      logger.w('Failed to sync cookies on startup: $e');
-    }
+    // Synchronize cookies from WebView to DioClient on startup (non-blocking)
+    // This is not critical for app startup, so run it in background
+    safeUnawaited(
+      DioClient.syncCookiesFromWebView(),
+      onError: (e, stack) {
+        logger.w('Failed to sync cookies on startup: $e');
+      },
+    );
 
     logger.i('Database, cache, auth, and endpoints initialized successfully');
   }
@@ -268,11 +271,21 @@ class _JaBookAppState extends ConsumerState<JaBookApp> {
     }
   }
 
+  // Cache locale to avoid repeated FutureBuilder calls
+  Locale? _cachedLocale;
+  Future<Locale>? _localeFuture;
+
   @override
   Widget build(BuildContext context) {
     final router = ref.watch(appRouterProvider);
     // Watch for language changes to trigger rebuild
     ref.watch(languageProvider);
+
+    // Initialize locale future only once
+    _localeFuture ??= languageManager.getLocale().then((locale) {
+      _cachedLocale = locale;
+      return locale;
+    });
 
     return ProviderScope(
       overrides: [
@@ -284,7 +297,8 @@ class _JaBookAppState extends ConsumerState<JaBookApp> {
         }),
       ],
       child: FutureBuilder<Locale>(
-        future: languageManager.getLocale(),
+        future: _localeFuture,
+        initialData: _cachedLocale ?? const Locale('en', 'US'),
         builder: (context, snapshot) {
           final locale = snapshot.data ?? const Locale('en', 'US');
 
@@ -295,6 +309,17 @@ class _JaBookAppState extends ConsumerState<JaBookApp> {
             routerConfig: router,
             debugShowCheckedModeBanner: config.isDebug,
             scaffoldMessengerKey: config.isDebug ? _scaffoldMessengerKey : null,
+            // Performance optimizations
+            builder: (context, child) => MediaQuery(
+              // Use text scaler from device but clamp it for consistency
+              data: MediaQuery.of(context).copyWith(
+                textScaler: MediaQuery.of(context).textScaler.clamp(
+                      minScaleFactor: 0.8,
+                      maxScaleFactor: 1.2,
+                    ),
+              ),
+              child: child!,
+            ),
             localizationsDelegates: const [
               AppLocalizations.delegate,
               GlobalMaterialLocalizations.delegate,

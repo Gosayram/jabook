@@ -294,14 +294,27 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
           ),
           const SizedBox(height: 16),
           if (coverUrl != null)
-            CachedNetworkImage(
-              imageUrl: coverUrl,
-              height: 200,
-              fit: BoxFit.cover,
-              placeholder: (context, url) => const Center(
-                child: CircularProgressIndicator(),
+            RepaintBoundary(
+              child: CachedNetworkImage(
+                imageUrl: coverUrl,
+                height: 200,
+                fit: BoxFit.cover,
+                placeholder: (context, url) => Container(
+                  height: 200,
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                  child: const Center(
+                    child: CircularProgressIndicator(),
+                  ),
+                ),
+                errorWidget: (context, url, e) => Container(
+                  height: 200,
+                  color: Theme.of(context).colorScheme.errorContainer,
+                  child: Icon(
+                    Icons.error_outline,
+                    color: Theme.of(context).colorScheme.onErrorContainer,
+                  ),
+                ),
               ),
-              errorWidget: (context, url, e) => const Icon(Icons.error),
             ),
           const SizedBox(height: 16),
           if (magnetUrl.isNotEmpty)
@@ -367,16 +380,19 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
                   AppLocalizations.of(context)?.unknownChapterText ??
                   'Unknown Chapter';
               final durationMs = chapter['durationMs'] as int? ?? 0;
-              return Card(
-                margin: const EdgeInsets.only(bottom: 8),
-                child: ListTile(
-                  leading: const Icon(Icons.play_circle_outline),
-                  title: Text(chapterTitle),
-                  subtitle: Text(_formatDuration(durationMs)),
-                  trailing: const Icon(Icons.more_vert),
-                  onTap: () {
-                    _playChapter(chapter);
-                  },
+              // Use RepaintBoundary to isolate repaints for each chapter item
+              return RepaintBoundary(
+                child: Card(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  child: ListTile(
+                    leading: const Icon(Icons.play_circle_outline),
+                    title: Text(chapterTitle),
+                    subtitle: Text(_formatDuration(durationMs)),
+                    trailing: const Icon(Icons.more_vert),
+                    onTap: () {
+                      _playChapter(chapter);
+                    },
+                  ),
                 ),
               );
             },

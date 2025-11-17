@@ -381,10 +381,10 @@ packages:
     dependency: "direct main"
     description:
       name: dtorrent_task_v2
-      sha256: "5641baadf496e09f00973bc71aa610d3f55cf83951bd260c9d8e9540b8b9937a"
+      sha256: e372f9381c966fdcf04f49a5d7a9232a5f25bda619d2eefc89d250a75899af55
       url: "https://pub.dev"
     source: hosted
-    version: "0.4.2"
+    version: "0.4.4"
   dtorrent_tracker:
     dependency: "direct main"
     description:
@@ -992,10 +992,10 @@ packages:
     dependency: "direct main"
     description:
       name: meta
-      sha256: e3641ec5d63ebf0d9b41bd43201a66e3fc79a65db5f61fc181f04cd27aab950c
+      sha256: "23f08335362185a5ea2ad3a4e597f1375e78bce8a040df5c600c8d3552ef2394"
       url: "https://pub.dev"
     source: hosted
-    version: "1.16.0"
+    version: "1.17.0"
   mime:
     dependency: "direct main"
     description:
