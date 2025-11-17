@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:jabook/core/endpoints/endpoint_provider.dart';
+import 'package:jabook/core/errors/failures.dart';
+import 'package:jabook/core/session/auth_error_handler.dart';
 import 'package:jabook/features/auth/data/providers/auth_provider.dart';
 import 'package:jabook/l10n/app_localizations.dart';
 
@@ -78,6 +80,15 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       if (success) {
         // Test connection after successful login
         await _testConnection();
+      }
+    } on AuthFailure catch (e) {
+      // Use AuthErrorHandler for authentication errors
+      if (mounted) {
+        AuthErrorHandler.showAuthErrorSnackBar(context, e);
+        setState(() {
+          _statusMessage = e.message;
+          _statusColor = Colors.red;
+        });
       }
     } on Exception catch (e) {
       setState(() {

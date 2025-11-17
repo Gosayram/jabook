@@ -7,6 +7,8 @@ import 'package:dio_cookie_manager/dio_cookie_manager.dart';
 import 'package:jabook/core/endpoints/endpoint_manager.dart';
 import 'package:jabook/core/logging/structured_logger.dart';
 import 'package:jabook/core/net/user_agent_manager.dart';
+import 'package:jabook/core/session/session_interceptor.dart';
+import 'package:jabook/core/session/session_manager.dart';
 import 'package:jabook/data/db/app_database.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -649,6 +651,11 @@ class DioClient {
 
     _cookieJar ??= CookieJar();
     dio.interceptors.add(CookieManager(_cookieJar!));
+
+    // Add SessionInterceptor for automatic session validation and refresh
+    // Create SessionManager instance for interceptor
+    final sessionManager = SessionManager();
+    dio.interceptors.add(SessionInterceptor(sessionManager));
 
     return dio;
   }

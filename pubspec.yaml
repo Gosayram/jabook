@@ -19,13 +19,14 @@ dependencies:
   dio: ^5.9.0
   dio_cookie_manager: ^3.3.0
   cookie_jar: ^4.0.6
+  crypto: ^3.0.7
   webview_flutter: ^4.13.0
   flutter_inappwebview: ^6.1.5
   html: ^0.15.6
   windows1251: ^2.0.0
   shelf: ^1.4.2
   shelf_static: ^1.1.3
-  sembast: ^3.8.0
+  sembast: ^3.8.5+2
   dtorrent_task_v2: ^0.4.4
   dtorrent_parser: ^1.0.8
   dtorrent_tracker: ^1.3.18

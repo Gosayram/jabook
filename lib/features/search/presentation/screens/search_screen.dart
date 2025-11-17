@@ -6,12 +6,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:jabook/core/cache/rutracker_cache_service.dart';
 import 'package:jabook/core/endpoints/endpoint_provider.dart';
+import 'package:jabook/core/errors/failures.dart';
 import 'package:jabook/core/favorites/favorites_service.dart';
 import 'package:jabook/core/logging/environment_logger.dart';
 import 'package:jabook/core/metadata/audiobook_metadata_service.dart';
 import 'package:jabook/core/net/dio_client.dart';
 import 'package:jabook/core/parse/rutracker_parser.dart';
 import 'package:jabook/core/search/search_history_service.dart';
+import 'package:jabook/core/session/auth_error_handler.dart';
 import 'package:jabook/core/utils/safe_async.dart';
 import 'package:jabook/data/db/app_database.dart';
 import 'package:jabook/features/auth/data/providers/auth_provider.dart';
@@ -632,11 +634,24 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
       if (lastException is DioException) {
         final e = lastException;
-        if (e.message?.contains('Authentication required') ?? false) {
+        // Check if it's an AuthFailure wrapped in DioException
+        if (e.error is AuthFailure) {
+          final authError = e.error as AuthFailure;
+          setState(() {
+            _errorKind = 'auth';
+            _errorMessage = authError.message;
+          });
+          // Show error using AuthErrorHandler
+          AuthErrorHandler.showAuthErrorSnackBar(context, authError);
+        } else if (e.message?.contains('Authentication required') ?? false ||
+            e.response?.statusCode == 401 ||
+            e.response?.statusCode == 403) {
           setState(() {
             _errorKind = 'auth';
             _errorMessage = 'Authentication required';
           });
+          // Show error using AuthErrorHandler
+          AuthErrorHandler.showAuthErrorSnackBar(context, e);
         } else if (e.type == DioExceptionType.connectionTimeout ||
             e.type == DioExceptionType.receiveTimeout ||
             e.type == DioExceptionType.sendTimeout) {

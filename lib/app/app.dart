@@ -16,6 +16,7 @@ import 'package:jabook/core/endpoints/endpoint_manager.dart';
 import 'package:jabook/core/logging/environment_logger.dart';
 import 'package:jabook/core/net/dio_client.dart';
 import 'package:jabook/core/permissions/permission_service.dart';
+import 'package:jabook/core/session/session_manager.dart';
 import 'package:jabook/core/utils/first_launch.dart';
 import 'package:jabook/core/utils/safe_async.dart';
 import 'package:jabook/data/db/app_database.dart';
@@ -157,6 +158,37 @@ class _JaBookAppState extends ConsumerState<JaBookApp> {
     } on Exception catch (e) {
       logger.w('Failed to schedule endpoint health check: $e');
     }
+
+    // Restore session from secure storage (non-blocking)
+    // This is not critical for app startup, so run it in background
+    safeUnawaited(
+      () async {
+        try {
+          final sessionManager = SessionManager();
+          final restored = await sessionManager.restoreSession();
+          if (restored) {
+            logger.i('Session restored successfully on startup');
+            // Validate restored session
+            final isValid = await sessionManager.isSessionValid();
+            if (!isValid) {
+              logger.w('Restored session is invalid, user needs to re-authenticate');
+            } else {
+              logger.i('Restored session is valid');
+              // Start periodic session monitoring after successful restoration
+              sessionManager.startSessionMonitoring();
+              logger.i('Session monitoring started');
+            }
+          } else {
+            logger.i('No session to restore on startup');
+          }
+        } on Exception catch (e) {
+          logger.w('Failed to restore session on startup: $e');
+        }
+      }(),
+      onError: (e, stack) {
+        logger.w('Failed to restore session on startup: $e');
+      },
+    );
 
     // Synchronize cookies from WebView to DioClient on startup (non-blocking)
     // This is not critical for app startup, so run it in background

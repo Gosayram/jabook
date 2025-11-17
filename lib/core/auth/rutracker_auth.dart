@@ -11,6 +11,7 @@ import 'package:jabook/core/endpoints/url_constants.dart';
 import 'package:jabook/core/errors/failures.dart';
 import 'package:jabook/core/logging/structured_logger.dart';
 import 'package:jabook/core/net/dio_client.dart';
+import 'package:jabook/core/session/session_manager.dart';
 import 'package:jabook/data/db/app_database.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
@@ -39,12 +40,21 @@ class RuTrackerAuth {
   /// Credential manager for secure storage.
   final CredentialManager _credentialManager = CredentialManager();
 
+  /// Session manager for centralized session management.
+  SessionManager? _sessionManager;
+
   /// Controller for auth status changes
   final StreamController<bool> _authStatusController =
       StreamController<bool>.broadcast();
 
   /// Tracks if login is currently in progress to prevent concurrent login attempts.
   bool _isLoggingIn = false;
+
+  /// Gets or creates the session manager instance.
+  SessionManager get sessionManager {
+    _sessionManager ??= SessionManager(rutrackerAuth: this);
+    return _sessionManager!;
+  }
 
   /// Attempts to log in to RuTracker via HTTP (using form parser).
   ///
@@ -326,6 +336,60 @@ class RuTrackerAuth {
           },
         );
         _authStatusController.add(true);
+
+        // Get cookies from Dio cookie jar and save via SessionManager
+        try {
+          final cookieJar = await _getCookieJar(dio);
+          final uri = Uri.parse(activeBase);
+          final cookies = await cookieJar.loadForRequest(uri);
+
+          if (cookies.isNotEmpty) {
+            await logger.log(
+              level: 'debug',
+              subsystem: 'auth',
+              message: 'Saving session cookies via SessionManager',
+              operationId: operationId,
+              context: 'http_login',
+              extra: {
+                'cookie_count': cookies.length,
+              },
+            );
+
+            await sessionManager.saveSessionCookies(cookies, activeBase);
+
+            // Start session monitoring after successful login
+            sessionManager.startSessionMonitoring();
+
+            await logger.log(
+              level: 'info',
+              subsystem: 'auth',
+              message: 'Session cookies saved successfully, monitoring started',
+              operationId: operationId,
+              context: 'http_login',
+            );
+          } else {
+            await logger.log(
+              level: 'warning',
+              subsystem: 'auth',
+              message: 'No cookies found after successful login',
+              operationId: operationId,
+              context: 'http_login',
+            );
+          }
+        } on Exception catch (e) {
+          await logger.log(
+            level: 'warning',
+            subsystem: 'auth',
+            message: 'Failed to save session cookies via SessionManager',
+            operationId: operationId,
+            context: 'http_login',
+            cause: e.toString(),
+            extra: {
+              'stack_trace':
+                  (e is Error) ? (e as Error).stackTrace.toString() : null,
+            },
+          );
+        }
 
         // Sync cookies from Dio to WebView storage so they're available everywhere
         try {
@@ -956,12 +1020,31 @@ class RuTrackerAuth {
   /// Throws [AuthFailure] if logout fails.
   Future<void> logout() async {
     try {
+      // Clear session via SessionManager
+      await sessionManager.clearSession();
+
+      // Also clear WebView and local cookies
       await _cookieManager.clearCookies();
       await _cookieJar.deleteAll();
       _authStatusController.add(false);
     } on Exception {
       throw const AuthFailure('Logout failed');
     }
+  }
+
+  /// Gets the cookie jar from Dio instance.
+  Future<CookieJar> _getCookieJar(Dio dio) async {
+    // Find CookieManager interceptor
+    final cookieInterceptors = dio.interceptors
+        .whereType<CookieManager>()
+        .toList();
+    if (cookieInterceptors.isNotEmpty) {
+      return cookieInterceptors.first.cookieJar;
+    }
+    // If no cookie manager found, create a new one
+    final cookieJar = CookieJar();
+    dio.interceptors.add(CookieManager(cookieJar));
+    return cookieJar;
   }
 
   /// Checks if the user is currently authenticated with RuTracker.

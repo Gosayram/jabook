@@ -1,6 +1,8 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:cookie_jar/cookie_jar.dart';
+import 'package:crypto/crypto.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:jabook/core/errors/failures.dart';
 import 'package:jabook/core/logging/structured_logger.dart';
@@ -68,11 +70,15 @@ class SessionStorage {
       final cookiesJson = jsonEncode(cookieList);
       await _storage.write(key: _cookiesKey, value: cookiesJson);
 
+      // Generate session ID based on cookies and timestamp
+      final sessionId = _generateSessionId(cookies, endpoint);
+
       // Save metadata
       final metadata = {
         'endpoint': endpoint,
         'created_at': DateTime.now().toIso8601String(),
         'cookie_count': cookies.length,
+        'session_id': sessionId,
       };
       await _storage.write(
         key: _metadataKey,
@@ -247,6 +253,34 @@ class SessionStorage {
       return cookiesJson != null && cookiesJson.isNotEmpty;
     } on Exception {
       return false;
+    }
+  }
+
+  /// Generates a unique session ID based on cookies and endpoint.
+  ///
+  /// This ID is used to identify the session and can be used
+  /// to bind cache entries to specific sessions.
+  String _generateSessionId(List<Cookie> cookies, String endpoint) {
+    // Create a hash from important cookie values and endpoint
+    final cookieData = cookies
+        .where((c) => c.name == 'bb_session' || c.name == 'bb_data')
+        .map((c) => '${c.name}=${c.value}')
+        .join('|');
+    final data = '$endpoint|$cookieData';
+    final bytes = Uint8List.fromList(data.codeUnits);
+    final digest = sha256.convert(bytes);
+    return digest.toString().substring(0, 16); // Use first 16 chars as session ID
+  }
+
+  /// Gets the current session ID from metadata.
+  ///
+  /// Returns the session ID if available, null otherwise.
+  Future<String?> getSessionId() async {
+    try {
+      final metadata = await loadMetadata();
+      return metadata?['session_id'] as String?;
+    } on Exception {
+      return null;
     }
   }
 }

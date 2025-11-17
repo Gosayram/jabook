@@ -7,8 +7,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:jabook/core/cache/rutracker_cache_service.dart';
 import 'package:jabook/core/endpoints/endpoint_provider.dart';
+import 'package:jabook/core/errors/failures.dart';
 import 'package:jabook/core/net/dio_client.dart';
 import 'package:jabook/core/parse/rutracker_parser.dart';
+import 'package:jabook/core/session/auth_error_handler.dart';
 import 'package:jabook/features/webview/secure_rutracker_webview.dart';
 import 'package:jabook/l10n/app_localizations.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -127,8 +129,15 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
           _hasError = true;
         });
 
-        // Handle authentication errors specifically
-        if (e.message?.contains('Authentication required') ?? false) {
+        // Handle authentication errors using AuthErrorHandler
+        if (e.error is AuthFailure) {
+          final authError = e.error as AuthFailure;
+          AuthErrorHandler.showAuthErrorSnackBar(context, authError);
+          _showAuthenticationPrompt(context);
+        } else if (e.message?.contains('Authentication required') ?? false ||
+            e.response?.statusCode == 401 ||
+            e.response?.statusCode == 403) {
+          AuthErrorHandler.showAuthErrorSnackBar(context, e);
           _showAuthenticationPrompt(context);
         } else {
           ScaffoldMessenger.of(context).showSnackBar(

@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:jabook/core/errors/failures.dart';
 import 'package:jabook/core/logging/structured_logger.dart';
+import 'package:jabook/core/session/auth_error_handler.dart';
 import 'package:jabook/core/session/session_manager.dart';
 
 /// Dio interceptor that automatically validates and refreshes session cookies.
@@ -53,6 +54,23 @@ class SessionInterceptor extends Interceptor {
               },
             );
 
+            // Create a more descriptive error
+            final errorType = AuthErrorHandler.getErrorType(
+              const AuthFailure.sessionExpired(),
+            );
+            await logger.log(
+              level: 'warning',
+              subsystem: 'session_interceptor',
+              message: 'Rejecting request due to expired session',
+              operationId: operationId,
+              context: 'session_interceptor',
+              extra: {
+                'error_type': errorType.toString(),
+                'method': options.method,
+                'path': options.path,
+              },
+            );
+
             handler.reject(
               DioException(
                 requestOptions: options,
@@ -61,7 +79,7 @@ class SessionInterceptor extends Interceptor {
                 response: Response(
                   requestOptions: options,
                   statusCode: 401,
-                  statusMessage: 'Session expired',
+                  statusMessage: 'Session expired. Please login again.',
                 ),
               ),
             );
