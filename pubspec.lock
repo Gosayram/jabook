@@ -82,7 +82,7 @@ packages:
     source: hosted
     version: "0.2.2"
   b_encode_decode:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: b_encode_decode
       sha256: "2382dc245ee57c28264bf2d0cb63404d7053f032039df85366999b04353a7289"
