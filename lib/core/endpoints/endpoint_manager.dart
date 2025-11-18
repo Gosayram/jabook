@@ -1452,10 +1452,40 @@ class EndpointManager {
         return hardcodedFallback;
       }
 
-      // Sort fallback by priority
+      // Sort fallback by priority, then check availability
       fallbackEndpoints.sort((a, b) => a['priority'].compareTo(b['priority']));
-      final chosen = fallbackEndpoints.first['url'] as String;
-      final chosenData = fallbackEndpoints.first;
+      
+      // Try endpoints in priority order, checking availability
+      String? chosen;
+      Map<String, dynamic>? chosenData;
+      var foundByAvailability = false;
+      for (final endpoint in fallbackEndpoints) {
+        final url = endpoint['url'] as String;
+        final isAvailable = await quickAvailabilityCheck(url);
+        if (isAvailable) {
+          chosen = url;
+          chosenData = endpoint;
+          foundByAvailability = true;
+          break;
+        }
+      }
+      
+      // If no available endpoint found, use first by priority anyway
+      if (chosen == null) {
+        chosen = fallbackEndpoints.first['url'] as String;
+        chosenData = fallbackEndpoints.first;
+        await logger.log(
+          level: 'error',
+          subsystem: 'endpoints',
+          message: 'All fallback endpoints failed availability check, using first by priority',
+          operationId: operationId,
+          context: 'endpoint_selection',
+          extra: {
+            'chosen_url': chosen,
+            'total_checked': fallbackEndpoints.length,
+          },
+        );
+      }
 
       // Persist sticky active
       await _endpointsRef.put(_db, {
@@ -1470,7 +1500,9 @@ class EndpointManager {
         'primary_sort': 'priority',
         'healthy_candidates': 0,
         'fallback_candidates': fallbackEndpoints.length,
-        'selection_method': 'fallback_by_priority',
+        'selection_method': foundByAvailability 
+            ? 'fallback_by_availability' 
+            : 'fallback_by_priority',
         'fallback_reason': 'no_healthy_endpoints',
       };
 
@@ -1486,8 +1518,8 @@ class EndpointManager {
           fallbackComparison = {
             'runner_up_url': runnerUpFallback['url'],
             'runner_up_priority': runnerUpFallback['priority'] ?? 999,
-            'chosen_priority': chosenData['priority'] ?? 999,
-            'priority_diff': (chosenData['priority'] ?? 999) -
+            'chosen_priority': chosenData?['priority'] ?? 999,
+            'priority_diff': (chosenData?['priority'] ?? 999) -
                 (runnerUpFallback['priority'] ?? 999),
           };
         }
@@ -1502,9 +1534,9 @@ class EndpointManager {
         durationMs: duration,
         extra: {
           'url': chosen,
-          'selection_reason': 'fallback_by_priority',
-          'health_score': chosenData['health_score'] ?? 0,
-          'priority': chosenData['priority'] ?? 999,
+          'selection_reason': fallbackCriteria['selection_method'] as String,
+          'health_score': chosenData?['health_score'] ?? 0,
+          'priority': chosenData?['priority'] ?? 999,
           'selection_criteria': fallbackCriteria,
           if (fallbackComparison != null)
             'comparison_with_runner_up': fallbackComparison,
