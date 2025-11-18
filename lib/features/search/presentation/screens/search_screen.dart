@@ -24,6 +24,7 @@ import 'package:jabook/core/endpoints/endpoint_provider.dart';
 import 'package:jabook/core/errors/failures.dart';
 import 'package:jabook/core/favorites/favorites_service.dart';
 import 'package:jabook/core/logging/environment_logger.dart';
+import 'package:jabook/core/logging/structured_logger.dart';
 import 'package:jabook/core/metadata/audiobook_metadata_service.dart';
 import 'package:jabook/core/net/dio_client.dart';
 import 'package:jabook/core/parse/rutracker_parser.dart';
@@ -339,20 +340,110 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
   /// Opens WebView for manual login.
   Future<void> _openWebViewLogin() async {
+    final operationId = 'webview_login_${DateTime.now().millisecondsSinceEpoch}';
+    final structuredLogger = StructuredLogger();
+    await structuredLogger.log(
+      level: 'info',
+      subsystem: 'auth',
+      message: 'Opening WebView for login',
+      operationId: operationId,
+      context: 'webview_login',
+    );
+    
     try {
-      await Navigator.push<String>(
-        context,
+      if (!mounted) return;
+      final navigator = Navigator.of(context);
+      await navigator.push<String>(
         MaterialPageRoute(
           builder: (_) => const SecureRutrackerWebView(),
         ),
       );
       if (!mounted) return;
 
-      // Sync cookies from WebView
+      await structuredLogger.log(
+        level: 'info',
+        subsystem: 'auth',
+        message: 'WebView closed, starting cookie sync',
+        operationId: operationId,
+        context: 'webview_login',
+      );
+
+      // Wait a bit for cookies to be saved in WebView
+      await Future.delayed(const Duration(milliseconds: 500));
+      await structuredLogger.log(
+        level: 'debug',
+        subsystem: 'auth',
+        message: 'Waited 500ms for cookies to be saved in WebView',
+        operationId: operationId,
+        context: 'webview_login',
+      );
+
+      // Sync cookies from WebView (multiple attempts to ensure sync)
+      for (var i = 0; i < 3; i++) {
+        await structuredLogger.log(
+          level: 'debug',
+          subsystem: 'auth',
+          message: 'Cookie sync attempt ${i + 1}/3',
+          operationId: operationId,
+          context: 'webview_login',
+          extra: {'attempt': i + 1},
+        );
+        try {
       await DioClient.syncCookiesFromWebView();
+          await structuredLogger.log(
+            level: 'debug',
+            subsystem: 'auth',
+            message: 'Cookie sync attempt ${i + 1} completed',
+            operationId: operationId,
+            context: 'webview_login',
+            extra: {'attempt': i + 1},
+          );
+        } on Exception catch (e) {
+          await structuredLogger.log(
+            level: 'warning',
+            subsystem: 'auth',
+            message: 'Cookie sync attempt ${i + 1} failed',
+            operationId: operationId,
+            context: 'webview_login',
+            cause: e.toString(),
+            extra: {'attempt': i + 1},
+          );
+        }
+        // Small delay between sync attempts
+        if (i < 2) {
+          await Future.delayed(const Duration(milliseconds: 200));
+        }
+      }
+
+      // Check cookies before validation
+      final hasCookies = await DioClient.hasValidCookies();
+      await structuredLogger.log(
+        level: 'debug',
+        subsystem: 'auth',
+        message: 'Has cookies check result',
+        operationId: operationId,
+        context: 'webview_login',
+        extra: {'has_cookies': hasCookies},
+      );
 
       // Validate authentication
+      await structuredLogger.log(
+        level: 'debug',
+        subsystem: 'auth',
+        message: 'Starting cookie validation',
+        operationId: operationId,
+        context: 'webview_login',
+      );
       final isValid = await DioClient.validateCookies();
+      await structuredLogger.log(
+        level: 'info',
+        subsystem: 'auth',
+        message: 'Cookie validation result',
+        operationId: operationId,
+        context: 'webview_login',
+        extra: {'is_valid': isValid, 'has_cookies': hasCookies},
+      );
+      
       if (isValid) {
         if (!mounted) return;
         // ignore: use_build_context_synchronously
@@ -374,6 +465,128 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           await _performSearch();
         }
       } else {
+        await structuredLogger.log(
+          level: 'warning',
+          subsystem: 'auth',
+          message: 'Cookie validation failed after WebView login',
+          operationId: operationId,
+          context: 'webview_login',
+          extra: {'has_cookies': hasCookies},
+        );
+        
+        // Try to get more details about why validation failed
+        try {
+          final db = AppDatabase().database;
+          final endpointManager = EndpointManager(db);
+          final activeBase = await endpointManager.getActiveEndpoint();
+          await DioClient.instance; // Ensure Dio is initialized
+          final uri = Uri.parse(activeBase);
+          
+          // CRITICAL: Check cookies in Dio jar with detailed logging
+          await structuredLogger.log(
+            level: 'debug',
+            subsystem: 'auth',
+            message: 'Checking Dio CookieJar for cookies',
+            operationId: operationId,
+            context: 'webview_login',
+            extra: {
+              'endpoint': activeBase,
+              'uri_host': uri.host,
+              'uri_scheme': uri.scheme,
+              'uri_path': uri.path,
+            },
+          );
+          
+          final cookieJar = await DioClient.getCookieJar();
+          if (cookieJar != null) {
+            // Try loading cookies for the exact URI
+            final dioCookies = await cookieJar.loadForRequest(uri);
+            
+            // Also try loading for base domain
+            final baseUri = Uri.parse('https://${uri.host}');
+            final baseCookies = await cookieJar.loadForRequest(baseUri);
+            
+            await structuredLogger.log(
+              level: 'warning',
+              subsystem: 'auth',
+              message: 'Cookies in Dio jar after failed validation',
+              operationId: operationId,
+              context: 'webview_login',
+              extra: {
+                'endpoint': activeBase,
+                'uri_host': uri.host,
+                'uri_full': uri.toString(),
+                'base_uri': baseUri.toString(),
+                'cookie_count_for_uri': dioCookies.length,
+                'cookie_count_for_base': baseCookies.length,
+                'cookies_for_uri': dioCookies.map((c) => {
+                  'name': c.name,
+                  'domain': c.domain ?? '<null>',
+                  'path': c.path ?? '/',
+                  'has_value': c.value.isNotEmpty,
+                  'value_length': c.value.length,
+                  'value_preview': c.value.isNotEmpty 
+                      ? '${c.value.substring(0, c.value.length > 20 ? 20 : c.value.length)}...' 
+                      : '<empty>',
+                  'secure': c.secure,
+                  'http_only': c.httpOnly,
+                  'is_session_cookie': c.name.toLowerCase().contains('session') ||
+                      c.name == 'bb_session' ||
+                      c.name == 'bb_data',
+                }).toList(),
+                'cookies_for_base': baseCookies.map((c) => {
+                  'name': c.name,
+                  'domain': c.domain ?? '<null>',
+                  'path': c.path ?? '/',
+                  'has_value': c.value.isNotEmpty,
+                  'value_length': c.value.length,
+                  'value_preview': c.value.isNotEmpty 
+                      ? '${c.value.substring(0, c.value.length > 20 ? 20 : c.value.length)}...' 
+                      : '<empty>',
+                  'secure': c.secure,
+                  'http_only': c.httpOnly,
+                  'is_session_cookie': c.name.toLowerCase().contains('session') ||
+                      c.name == 'bb_session' ||
+                      c.name == 'bb_data',
+                }).toList(),
+              },
+            );
+            
+            // CRITICAL: If no cookies found, log error
+            if (dioCookies.isEmpty && baseCookies.isEmpty) {
+              await structuredLogger.log(
+                level: 'error',
+                subsystem: 'auth',
+                message: 'CRITICAL: No cookies found in Dio CookieJar after WebView login!',
+                operationId: operationId,
+                context: 'webview_login',
+                extra: {
+                  'endpoint': activeBase,
+                  'uri_host': uri.host,
+                  'note': 'Cookies were not synced from WebView to Dio CookieJar',
+                },
+              );
+            }
+          } else {
+            await structuredLogger.log(
+              level: 'warning',
+              subsystem: 'auth',
+              message: 'CookieJar is null after failed validation',
+              operationId: operationId,
+              context: 'webview_login',
+            );
+          }
+        } on Exception catch (e) {
+          await structuredLogger.log(
+            level: 'warning',
+            subsystem: 'auth',
+            message: 'Failed to check cookies in Dio jar',
+            operationId: operationId,
+            context: 'webview_login',
+            cause: e.toString(),
+          );
+        }
+        
         if (!mounted) return;
         // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
@@ -476,8 +689,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     await DioClient.syncCookiesFromWebView();
 
     // Check if we have cookies before performing search
+    // First check if cookies exist (fast check), then validate if needed
     final hasCookies = await DioClient.hasValidCookies();
     if (!hasCookies) {
+      // No cookies at all - definitely need login
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -491,6 +706,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       }
       return;
     }
+    
+    // Cookies exist, but they might be invalid - try search anyway
+    // If search fails with auth error, we'll handle it in error handling
 
     // Fetch from network using EndpointManager with automatic fallback
     final endpointManager = ref.read(endpointManagerProvider);
@@ -907,7 +1125,18 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                                 builder: (_) => const SecureRutrackerWebView()),
                           );
                           if (!mounted) return;
+                          
+                          // Wait a bit for cookies to be saved in WebView
+                          await Future.delayed(const Duration(milliseconds: 500));
+                          
+                          // Sync cookies from WebView (multiple attempts to ensure sync)
+                          for (var i = 0; i < 3; i++) {
                           await DioClient.syncCookiesFromWebView();
+                            if (i < 2) {
+                              await Future.delayed(const Duration(milliseconds: 200));
+                            }
+                          }
+                          
                           setState(() {
                             _errorKind = null;
                             _errorMessage = null;

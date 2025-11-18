@@ -12,11 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:async';
+
 import 'package:dio/dio.dart';
-import 'package:jabook/core/errors/failures.dart';
+import 'package:jabook/core/endpoints/endpoint_manager.dart';
 import 'package:jabook/core/logging/structured_logger.dart';
-import 'package:jabook/core/session/auth_error_handler.dart';
+import 'package:jabook/core/net/dio_client.dart';
 import 'package:jabook/core/session/session_manager.dart';
+import 'package:jabook/data/db/app_database.dart';
 
 /// Dio interceptor that automatically validates and refreshes session cookies.
 ///
@@ -52,83 +55,64 @@ class SessionInterceptor extends Interceptor {
     try {
       // Check if this is a request that requires authentication
       // Skip validation for certain paths (e.g., login, public pages)
+      // Also skip if explicitly requested (e.g., for cookie validation)
       final path = options.path.toLowerCase();
       final skipValidation = path.contains('login') ||
           path.contains('register') ||
-          path.contains('public');
+          path.contains('public') ||
+          (options.extra['skip_session_check'] == true);
 
       if (!skipValidation) {
-        // Check session validity only if enough time has passed since last check
-        // This prevents excessive network requests on every HTTP call
+        // Check if we have cookies - if yes, allow request to proceed
+        // This is more legitimate than blocking requests based on cached validation
+        final cookieJar = await DioClient.getCookieJar();
+        if (cookieJar != null) {
+          final db = AppDatabase().database;
+          final endpointManager = EndpointManager(db);
+          final activeBase = await endpointManager.getActiveEndpoint();
+          final uri = Uri.parse(activeBase);
+          final cookies = await cookieJar.loadForRequest(uri);
+          
+          // If we have cookies, allow request to proceed
+          // Server will validate cookies and return 401 if invalid
+          // This is the legitimate way - don't block requests preemptively
+          if (cookies.isNotEmpty) {
+            // Check session validity only periodically to avoid excessive requests
+            final shouldCheck = _lastCheck == null ||
+                DateTime.now().difference(_lastCheck!) > _checkInterval;
+
+            if (shouldCheck) {
+              // Check session validity in background (non-blocking)
+              // This updates cache but doesn't block the request
+              unawaited(sessionManager.isSessionValid().then((isValid) {
+                if (!isValid) {
+                  // Try to refresh in background, but don't block
+                  unawaited(sessionManager.refreshSessionIfNeeded());
+                }
+              }).catchError((e) {
+                // Ignore errors in background check
+              }));
+              _lastCheck = DateTime.now();
+            }
+            
+            // Always allow request to proceed if we have cookies
+            // This is legitimate behavior - let server validate
+            handler.next(options);
+            return;
+          }
+        }
+        
+        // No cookies - check if we can refresh session
+        // But don't block - let request proceed and server will handle it
         final shouldCheck = _lastCheck == null ||
             DateTime.now().difference(_lastCheck!) > _checkInterval;
 
         if (shouldCheck) {
-          // Check session validity (uses internal cache, won't make request if cached)
-          final isValid = await sessionManager.isSessionValid();
+          // Try to refresh session in background
+          unawaited(sessionManager.refreshSessionIfNeeded().catchError(
+            (e) => false, // Ignore errors - return false to indicate refresh failed
+          ));
           _lastCheck = DateTime.now();
-
-          if (!isValid) {
-          // Try to refresh session
-          final refreshed = await sessionManager.refreshSessionIfNeeded();
-          if (!refreshed) {
-            // Session cannot be refreshed, reject the request
-            await logger.log(
-              level: 'warning',
-              subsystem: 'session_interceptor',
-              message: 'Session invalid and cannot be refreshed, rejecting request',
-              operationId: operationId,
-              context: 'session_interceptor',
-              extra: {
-                'method': options.method,
-                'path': options.path,
-              },
-            );
-
-            // Create a more descriptive error
-            final errorType = AuthErrorHandler.getErrorType(
-              const AuthFailure.sessionExpired(),
-            );
-            await logger.log(
-              level: 'warning',
-              subsystem: 'session_interceptor',
-              message: 'Rejecting request due to expired session',
-              operationId: operationId,
-              context: 'session_interceptor',
-              extra: {
-                'error_type': errorType.toString(),
-                'method': options.method,
-                'path': options.path,
-              },
-            );
-
-            handler.reject(
-              DioException(
-                requestOptions: options,
-                error: const AuthFailure.sessionExpired(),
-                type: DioExceptionType.badResponse,
-                response: Response(
-                  requestOptions: options,
-                  statusCode: 401,
-                  statusMessage: 'Session expired. Please login again.',
-                ),
-              ),
-            );
-            return;
-          }
-
-            await logger.log(
-              level: 'info',
-              subsystem: 'session_interceptor',
-              message: 'Session refreshed automatically',
-              operationId: operationId,
-              context: 'session_interceptor',
-              extra: {
-                'method': options.method,
-                'path': options.path,
-              },
-            );
-          }
         }
       }
     } on Exception catch (e) {

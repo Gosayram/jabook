@@ -14,10 +14,13 @@
 
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io' as io;
 
 import 'package:cookie_jar/cookie_jar.dart';
 import 'package:dio/dio.dart';
-import 'package:dio_cookie_manager/dio_cookie_manager.dart';
+import 'package:dio_cookie_manager/dio_cookie_manager.dart' as dio_cookie;
+import 'package:flutter_cookie_bridge/flutter_cookie_bridge.dart';
+import 'package:flutter_cookie_bridge/session_manager.dart' as bridge_session;
 import 'package:jabook/core/endpoints/endpoint_manager.dart';
 import 'package:jabook/core/logging/structured_logger.dart';
 import 'package:jabook/core/net/user_agent_manager.dart';
@@ -41,6 +44,8 @@ class DioClient {
   static SessionManager? _sessionManager;
   static DateTime? _appStartTime;
   static bool _firstRequestTracked = false;
+  static FlutterCookieBridge? _cookieBridge;
+  static bridge_session.SessionManager? _bridgeSessionManager;
 
   /// Gets the singleton Dio instance configured for RuTracker requests.
   ///
@@ -65,19 +70,24 @@ class DioClient {
     final endpointManager = EndpointManager(db);
     final activeBase = await endpointManager.getActiveEndpoint();
 
+    // Get User-Agent from WebView to ensure consistency (important for Cloudflare)
+    final userAgent = await userAgentManager.getUserAgent();
+    
     dio.options = BaseOptions(
       baseUrl: activeBase,
       connectTimeout: const Duration(seconds: 30),
       receiveTimeout: const Duration(seconds: 30),
       sendTimeout: const Duration(seconds: 30),
       headers: {
-        'User-Agent': await userAgentManager.getUserAgent(),
+        'User-Agent': userAgent, // Same as WebView - critical for Cloudflare
         'Accept':
             'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
         'Accept-Language': 'ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7',
         'Accept-Encoding': 'gzip, deflate, br',
         'Connection': 'keep-alive',
         'Referer': '$activeBase/',
+        // Don't set Cookie header manually - let CookieJar handle it
+        // This ensures cookies are sent automatically with requests
       },
     );
 
@@ -699,8 +709,103 @@ class DioClient {
       },
     ));
 
+    // Initialize FlutterCookieBridge for automatic cookie synchronization
+    // According to .report-issue-docs.md: this library handles cookie sync
+    // between WebView and Dio automatically, ensuring legitimate Cloudflare connections
+    _cookieBridge ??= FlutterCookieBridge();
+    _bridgeSessionManager ??= bridge_session.SessionManager();
+    
+    // Initialize cookie jar
     _cookieJar ??= CookieJar();
-    dio.interceptors.add(CookieManager(_cookieJar!));
+    dio.interceptors.add(dio_cookie.CookieManager(_cookieJar!));
+    
+    // Add FlutterCookieBridge interceptor for automatic cookie sync
+    // This ensures cookies from SessionManager are added to requests
+    // and cookies from responses are saved to SessionManager
+    dio.interceptors.add(InterceptorsWrapper(
+      onRequest: (request, handler) async {
+        try {
+          // Get cookies from FlutterCookieBridge SessionManager
+          final sessionCookies = await _bridgeSessionManager!.getSessionCookies();
+          if (sessionCookies.isNotEmpty) {
+            // Add cookies to request header (like NetworkManager does)
+            final cookieHeader = sessionCookies.join('; ');
+            request.headers['Cookie'] = cookieHeader;
+            
+            await StructuredLogger().log(
+              level: 'debug',
+              subsystem: 'cookies',
+              message: 'Added cookies from FlutterCookieBridge to request',
+              context: 'cookie_bridge_request',
+              extra: {
+                'uri': request.uri.toString(),
+                'cookie_count': sessionCookies.length,
+                'cookie_names': sessionCookies.map((c) => c.split('=').first).toList(),
+              },
+            );
+          }
+        } on Exception catch (e) {
+          await StructuredLogger().log(
+            level: 'debug',
+            subsystem: 'cookies',
+            message: 'Failed to get cookies from FlutterCookieBridge',
+            context: 'cookie_bridge_request',
+            cause: e.toString(),
+          );
+        }
+        handler.next(request);
+      },
+      onResponse: (response, handler) async {
+        try {
+          // Save cookies from response to FlutterCookieBridge SessionManager
+          // This is how NetworkManager._storeResponseCookies works
+          if (response.headers['set-cookie'] != null) {
+            final cookiesList = response.headers['set-cookie']!;
+            final filteredCookies = <String>[];
+            
+            for (final cookie in cookiesList) {
+              // Extract actual cookie (before first semicolon)
+              final actualCookie = cookie.split(';')[0];
+              if (actualCookie.isNotEmpty && !actualCookie.contains('redirect_url=')) {
+                filteredCookies.add(actualCookie);
+              }
+            }
+            
+            if (filteredCookies.isNotEmpty) {
+              await _bridgeSessionManager!.saveSessionCookies(filteredCookies);
+              
+              await StructuredLogger().log(
+                level: 'debug',
+                subsystem: 'cookies',
+                message: 'Saved cookies from response to FlutterCookieBridge',
+                context: 'cookie_bridge_response',
+                extra: {
+                  'uri': response.requestOptions.uri.toString(),
+                  'cookie_count': filteredCookies.length,
+                  'cookie_names': filteredCookies.map((c) => c.split('=').first).toList(),
+                },
+              );
+            }
+          }
+        } on Exception catch (e) {
+          await StructuredLogger().log(
+            level: 'debug',
+            subsystem: 'cookies',
+            message: 'Failed to save cookies to FlutterCookieBridge',
+            context: 'cookie_bridge_response',
+            cause: e.toString(),
+          );
+        }
+        handler.next(response);
+      },
+    ));
+    
+    await StructuredLogger().log(
+      level: 'info',
+      subsystem: 'cookies',
+      message: 'FlutterCookieBridge initialized for automatic cookie sync',
+      context: 'cookie_bridge_init',
+    );
 
     // Add SessionInterceptor for automatic session validation and refresh
     // Use singleton SessionManager instance
@@ -729,7 +834,19 @@ class DioClient {
     _sessionManager = null;
     _firstRequestTracked = false;
     _appStartTime = null;
-    // Keep _cookieJar to preserve cookies across resets
+    // Keep _cookieJar and _cookieBridge to preserve cookies across resets
+  }
+  
+  /// Gets the FlutterCookieBridge instance for WebView integration.
+  ///
+  /// This method returns the singleton FlutterCookieBridge instance
+  /// that handles automatic cookie synchronization between WebView and Dio.
+  ///
+  /// Returns the FlutterCookieBridge instance.
+  static Future<FlutterCookieBridge> get cookieBridge async {
+    await instance; // Ensure Dio is initialized
+    _cookieBridge ??= FlutterCookieBridge();
+    return _cookieBridge!;
   }
 
   /// Gets the user agent string for HTTP requests.
@@ -1057,6 +1174,183 @@ class DioClient {
         },
       );
     }
+  }
+
+  /// Saves cookies directly to Dio CookieJar.
+  ///
+  /// This is a helper method for direct cookie synchronization from WebView.
+  /// It bypasses SharedPreferences and saves cookies directly to the cookie jar.
+  static Future<void> saveCookiesDirectly(Uri uri, List<io.Cookie> cookies) async {
+    final logger = StructuredLogger();
+    final operationId = 'save_cookies_direct_${DateTime.now().millisecondsSinceEpoch}';
+    
+    await logger.log(
+      level: 'debug',
+      subsystem: 'cookies',
+      message: 'Saving cookies directly to Dio CookieJar',
+      operationId: operationId,
+      context: 'cookie_save_direct',
+      extra: {
+        'uri': uri.toString(),
+        'cookie_count': cookies.length,
+        'cookies': cookies.map((c) => {
+          'name': c.name,
+          'domain': c.domain ?? '<null>',
+          'path': c.path ?? '/',
+          'has_value': c.value.isNotEmpty,
+          'value_length': c.value.length,
+          'secure': c.secure,
+          'http_only': c.httpOnly,
+        }).toList(),
+      },
+    );
+    
+      _cookieJar ??= CookieJar();
+      
+      // Verify cookies before saving
+      await logger.log(
+        level: 'debug',
+        subsystem: 'cookies',
+        message: 'About to save cookies to Dio CookieJar',
+        operationId: operationId,
+        context: 'cookie_save_direct',
+        extra: {
+          'uri': uri.toString(),
+          'cookie_count': cookies.length,
+          'cookie_names': cookies.map((c) => c.name).toList(),
+          'cookie_domains': cookies.map((c) => c.domain ?? '<null>').toList(),
+        },
+      );
+      
+      // CRITICAL: Try to save cookies using saveFromResponse
+      // If that doesn't work, we'll try an alternative approach
+      try {
+        await _cookieJar!.saveFromResponse(uri, cookies);
+      } on Exception catch (e) {
+        await logger.log(
+          level: 'warning',
+          subsystem: 'cookies',
+          message: 'saveFromResponse failed, trying alternative method',
+          operationId: operationId,
+          context: 'cookie_save_direct',
+          cause: e.toString(),
+        );
+        
+        // Alternative: Try saving cookies one by one with explicit domain/path
+        // This ensures cookies are saved even if domain matching is strict
+        for (final cookie in cookies) {
+          try {
+            // Create a URI that matches the cookie's domain
+            final cookieUri = cookie.domain != null && cookie.domain!.isNotEmpty
+                ? Uri.parse('https://${cookie.domain!.replaceFirst('.', '')}')
+                : uri;
+            
+            // Save cookie with explicit domain/path
+            final cookieToSave = io.Cookie(cookie.name, cookie.value)
+              ..domain = cookie.domain ?? uri.host
+              ..path = cookie.path ?? '/'
+              ..secure = cookie.secure
+              ..httpOnly = cookie.httpOnly;
+            
+            await _cookieJar!.saveFromResponse(cookieUri, [cookieToSave]);
+          } on Exception catch (cookieError) {
+            await logger.log(
+              level: 'debug',
+              subsystem: 'cookies',
+              message: 'Failed to save individual cookie',
+              operationId: operationId,
+              context: 'cookie_save_direct',
+              cause: cookieError.toString(),
+              extra: {
+                'cookie_name': cookie.name,
+                'cookie_domain': cookie.domain,
+              },
+            );
+          }
+        }
+      }
+      
+      // CRITICAL: Verify cookies were saved by loading them back
+      // Use a small delay to ensure cookies are persisted
+      await Future.delayed(const Duration(milliseconds: 100));
+      
+      // Try loading from multiple URI variations to ensure we find saved cookies
+      final savedCookies = await _cookieJar!.loadForRequest(uri);
+      final baseUri = Uri.parse('https://${uri.host}');
+      final baseCookies = await _cookieJar!.loadForRequest(baseUri);
+      
+      // Combine cookies from both URIs (avoid duplicates)
+      final allSavedCookies = <io.Cookie>[];
+      for (final cookie in savedCookies) {
+        if (!allSavedCookies.any((c) => c.name == cookie.name)) {
+          allSavedCookies.add(cookie);
+        }
+      }
+      for (final cookie in baseCookies) {
+        if (!allSavedCookies.any((c) => c.name == cookie.name)) {
+          allSavedCookies.add(cookie);
+        }
+      }
+      
+      await logger.log(
+        level: 'info',
+        subsystem: 'cookies',
+        message: 'Cookies saved directly to Dio CookieJar',
+        operationId: operationId,
+        context: 'cookie_save_direct',
+        extra: {
+          'uri': uri.toString(),
+          'uri_host': uri.host,
+          'cookie_count': cookies.length,
+          'saved_cookie_count': allSavedCookies.length,
+          'saved_cookie_names': allSavedCookies.map((c) => c.name).toList(),
+          'saved_cookies': allSavedCookies.map((c) => {
+            'name': c.name,
+            'domain': c.domain ?? '<null>',
+            'path': c.path ?? '/',
+            'has_value': c.value.isNotEmpty,
+            'value_length': c.value.length,
+            'value_preview': c.value.isNotEmpty 
+                ? '${c.value.substring(0, c.value.length > 20 ? 20 : c.value.length)}...' 
+                : '<empty>',
+          }).toList(),
+          'verification': allSavedCookies.length == cookies.length 
+              ? 'success' 
+              : 'mismatch',
+          'uri_cookie_count': savedCookies.length,
+          'base_cookie_count': baseCookies.length,
+          'input_cookie_names': cookies.map((c) => c.name).toList(),
+        },
+      );
+      
+      // CRITICAL: If cookies were not saved, log error
+      if (allSavedCookies.isEmpty && cookies.isNotEmpty) {
+        await logger.log(
+          level: 'error',
+          subsystem: 'cookies',
+          message: 'CRITICAL: Cookies were NOT saved to Dio CookieJar!',
+          operationId: operationId,
+          context: 'cookie_save_direct',
+          extra: {
+            'uri': uri.toString(),
+            'uri_host': uri.host,
+            'input_cookie_count': cookies.length,
+            'saved_cookie_count': allSavedCookies.length,
+            'input_cookie_names': cookies.map((c) => c.name).toList(),
+            'input_cookie_domains': cookies.map((c) => c.domain ?? '<null>').toList(),
+            'note': 'Cookies may not match domain or path requirements',
+          },
+        );
+      }
+  }
+
+  /// Gets the CookieJar instance for debugging purposes.
+  ///
+  /// This method ensures the cookie jar is initialized and returns it.
+  static Future<CookieJar?> getCookieJar() async {
+    await instance; // Ensure Dio is initialized
+    _cookieJar ??= CookieJar();
+    return _cookieJar;
   }
 
   /// Synchronizes cookies from Dio cookie jar to WebView storage.
@@ -1552,6 +1846,14 @@ class DioClient {
                       'name': c.name,
                       'domain': c.domain ?? '<null>',
                       'path': c.path ?? '/',
+                      'has_value': c.value.isNotEmpty,
+                      'value_length': c.value.length,
+                      'value_preview': c.value.isNotEmpty 
+                          ? '${c.value.substring(0, c.value.length > 20 ? 20 : c.value.length)}...' 
+                          : '<empty>',
+                      'is_session_cookie': c.name.toLowerCase().contains('session') ||
+                          c.name == 'bb_session' ||
+                          c.name == 'bb_data',
                     })
                 .toList(),
             'endpoint': activeBase,
@@ -1561,13 +1863,54 @@ class DioClient {
         if (dioCookies.isEmpty) {
           // No cookies in Dio jar, sync from WebView
           await logger.log(
-            level: 'debug',
+            level: 'warning',
             subsystem: 'cookies',
             message: 'No cookies in Dio jar, syncing from WebView',
             operationId: operationId,
             context: 'cookie_validation',
+            extra: {
+              'endpoint': activeBase,
+              'uri_host': uri.host,
+            },
           );
           await syncCookiesFromWebView();
+          
+          // Check again after sync
+          final dioCookiesAfterSync = await _cookieJar!.loadForRequest(uri);
+          await logger.log(
+            level: 'info',
+            subsystem: 'cookies',
+            message: 'Cookies in Dio jar after sync from WebView',
+            operationId: operationId,
+            context: 'cookie_validation',
+            extra: {
+              'cookie_count': dioCookiesAfterSync.length,
+              'cookies': dioCookiesAfterSync.map((c) => {
+                'name': c.name,
+                'domain': c.domain ?? '<null>',
+                'path': c.path ?? '/',
+                'has_value': c.value.isNotEmpty,
+                'value_length': c.value.length,
+                'value_preview': c.value.isNotEmpty 
+                    ? '${c.value.substring(0, c.value.length > 20 ? 20 : c.value.length)}...' 
+                    : '<empty>',
+                'is_session_cookie': c.name.toLowerCase().contains('session') ||
+                    c.name == 'bb_session' ||
+                    c.name == 'bb_data',
+              }).toList(),
+            },
+          );
+          
+          if (dioCookiesAfterSync.isEmpty) {
+            await logger.log(
+              level: 'error',
+              subsystem: 'cookies',
+              message: 'No cookies in Dio jar after sync from WebView - validation will fail',
+              operationId: operationId,
+              context: 'cookie_validation',
+            );
+            return false;
+          }
         }
       } on Exception catch (e) {
         await logger.log(
@@ -1604,6 +1947,7 @@ class DioClient {
       try {
         // Try to access a protected page (user profile or settings would require auth)
         // Using index.php as a lightweight test
+        // Use normal request flow - SessionInterceptor now allows requests with cookies
         final testRequestStartTime = DateTime.now();
         final response = await dio
             .get(

@@ -36,8 +36,8 @@ class EndpointHealthScheduler {
   /// Key for storing scheduler state.
   static const String _stateKey = 'endpoint_health_sync_state';
 
-  /// Health check interval in hours (default: 6 hours).
-  static const int healthCheckIntervalHours = 6;
+  /// Health check interval in hours (default: 12 hours - increased to reduce Cloudflare rate limiting).
+  static const int healthCheckIntervalHours = 12;
 
   /// Checks if automatic health check should run.
   ///
@@ -104,8 +104,8 @@ class EndpointHealthScheduler {
             healthyCount++;
           }
 
-          // Small delay between checks to avoid overwhelming the server
-          await Future.delayed(const Duration(seconds: 2));
+          // Increased delay between checks to avoid Cloudflare rate limiting
+          await Future.delayed(const Duration(seconds: 5));
         } on Exception catch (e) {
           await StructuredLogger().log(
             level: 'warning',

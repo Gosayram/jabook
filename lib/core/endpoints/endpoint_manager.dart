@@ -54,6 +54,7 @@ class EndpointManager {
   ///
   /// This is the single source of truth for all RuTracker mirrors.
   /// All endpoints are defined here and used throughout the application.
+  /// Priority: lower number = higher priority (1 is highest).
   static List<Map<String, dynamic>> getDefaultEndpoints() => [
         {'url': 'https://rutracker.me', 'priority': 1, 'enabled': true},
         {'url': 'https://rutracker.net', 'priority': 2, 'enabled': true},
@@ -77,8 +78,8 @@ class EndpointManager {
   /// Returns the primary fallback endpoint URL.
   ///
   /// This is used as the ultimate fallback when all other endpoints fail.
-  /// Currently returns rutracker.net as it's the most stable mirror.
-  static String getPrimaryFallbackEndpoint() => 'https://rutracker.net';
+  /// Currently returns rutracker.me as it's the most stable and accessible mirror.
+  static String getPrimaryFallbackEndpoint() => 'https://rutracker.me';
 
   /// Initializes the EndpointManager with default endpoints and performs health checks.
   ///
@@ -133,11 +134,11 @@ class EndpointManager {
   }
 
   /// Performs a health check on the specified endpoint with exponential backoff.
-  /// Minimum time between health checks for the same endpoint (5 minutes).
-  static const Duration _healthCheckCacheTTL = Duration(minutes: 5);
+  /// Minimum time between health checks for the same endpoint (15 minutes - increased to reduce Cloudflare rate limiting).
+  static const Duration _healthCheckCacheTTL = Duration(minutes: 15);
 
-  /// Cache TTL for quick availability checks (30 seconds - much shorter than full health check).
-  static const Duration _quickCheckCacheTTL = Duration(seconds: 30);
+  /// Cache TTL for quick availability checks (5 minutes - increased to reduce Cloudflare rate limiting).
+  static const Duration _quickCheckCacheTTL = Duration(minutes: 5);
 
   /// Maximum retries for temporary errors.
   static const int _maxRetries = 3;
@@ -1043,11 +1044,11 @@ class EndpointManager {
           'url': requestUrl,
           'method': 'GET',
           'cache_used': false,
-          'dns_lookup': {
-            'success': dnsResult.success,
-            'ip_addresses': dnsResult.ipAddresses,
-            'resolve_time_ms': dnsResult.resolveTime.inMilliseconds,
-          },
+            'dns_lookup': {
+              'success': dnsResult.success,
+              'ip_addresses': dnsResult.ipAddresses,
+              'resolve_time_ms': dnsResult.resolveTime.inMilliseconds,
+            },
         },
       );
 
@@ -1055,7 +1056,9 @@ class EndpointManager {
           .get(
             requestUrl,
             options: Options(
-              validateStatus: (status) => status != null && status < 500,
+              // Accept 500 as "available but server error" - endpoint is reachable
+              // Only reject 5xx if it's a real server error, not Cloudflare
+              validateStatus: (status) => status != null && status < 600,
               headers: {
                 'User-Agent': userAgent,
                 'Accept':
@@ -1092,13 +1095,17 @@ class EndpointManager {
       // Endpoint is available if:
       // 1. Status 200-399 (success/redirect)
       // 2. Status 401/403/503 with CloudFlare headers/body (reachable but protected)
-      // 3. Status 401/403 without CloudFlare - might be auth issue, not availability
+      // 3. Status 401/403 without Cloudflare - might be auth issue, not availability
       //    (endpoint is reachable, but needs authentication)
+      // 4. Status 500 - server error but endpoint is reachable (not DNS/network issue)
+      //    This means endpoint is available, just having server problems
       final isAvailable = (status >= 200 && status < 400) ||
           ((status == 401 || status == 403 || status == 503) &&
               (isCloudflare || looksLikeCf)) ||
           // 401/403 without Cloudflare = endpoint is reachable, auth is separate issue
-          (status == 401 || status == 403);
+          (status == 401 || status == 403) ||
+          // 500 = server error but endpoint is reachable (not DNS/network issue)
+          (status == 500);
 
       final totalDuration = DateTime.now().difference(startTime).inMilliseconds;
 
@@ -1118,12 +1125,12 @@ class EndpointManager {
             'response_size_bytes': bodySize,
             'rtt_ms': requestDuration,
             'is_cloudflare_detected': true,
-            'dns_lookup': {
-              'success': dnsResult.success,
-              'ip_addresses': dnsResult.ipAddresses,
-              'resolve_time_ms': dnsResult.resolveTime.inMilliseconds,
-              'ip_count': dnsResult.ipAddresses.length,
-            },
+              'dns_lookup': {
+                'success': dnsResult.success,
+                'ip_addresses': dnsResult.ipAddresses,
+                'resolve_time_ms': dnsResult.resolveTime.inMilliseconds,
+                'ip_count': dnsResult.ipAddresses.length,
+              },
             'headers': {
               'server': serverHeader,
               'cf-ray': cfRayHeader,
@@ -1162,12 +1169,12 @@ class EndpointManager {
             'response_size_bytes': bodySize,
             'rtt_ms': requestDuration,
             'is_cloudflare_detected': isCloudflare,
-            'dns_lookup': {
-              'success': dnsResult.success,
-              'ip_addresses': dnsResult.ipAddresses,
-              'resolve_time_ms': dnsResult.resolveTime.inMilliseconds,
-              'ip_count': dnsResult.ipAddresses.length,
-            },
+              'dns_lookup': {
+                'success': dnsResult.success,
+                'ip_addresses': dnsResult.ipAddresses,
+                'resolve_time_ms': dnsResult.resolveTime.inMilliseconds,
+                'ip_count': dnsResult.ipAddresses.length,
+              },
             'headers': {
               'server': serverHeader,
               'cf-ray': cfRayHeader,
@@ -1195,7 +1202,41 @@ class EndpointManager {
     } on DioException catch (e) {
       final totalDuration = DateTime.now().difference(startTime).inMilliseconds;
 
+      // Check for 401/403/500 FIRST - endpoint is reachable, but needs auth or has server error
+      // This is not an availability issue, but an authentication/server issue
+      // IMPORTANT: Check status code BEFORE checking DNS errors, because 500 is not a DNS error
+      final statusCode = e.response?.statusCode;
+      if (statusCode == 401 || statusCode == 403 || statusCode == 500) {
+        final message = statusCode == 500 
+            ? 'Endpoint available but server returned error'
+            : 'Endpoint available but requires authentication';
+        await logger.log(
+          level: 'info',
+          subsystem: 'endpoints',
+          message: message,
+          operationId: operationId,
+          context: 'quick_availability_check',
+          durationMs: totalDuration,
+          extra: {
+            'url': endpoint,
+            'status_code': statusCode,
+            'is_auth_issue': statusCode == 401 || statusCode == 403,
+            'is_server_error': statusCode == 500,
+            'note': statusCode == 500 
+                ? 'Endpoint is reachable, server error is temporary'
+                : 'Endpoint is reachable, authentication is separate issue',
+          },
+        );
+        // Cache positive result - endpoint is available
+        _quickCheckCache[endpoint] = {
+          'result': true,
+          'timestamp': DateTime.now(),
+        };
+        return true; // Available but needs auth or has server error
+      }
+
       // DNS errors indicate endpoint is unavailable
+      // Check this AFTER status code checks, because 500 is not a DNS error
       final isDnsError = e.type == DioExceptionType.connectionError;
       if (isDnsError) {
         final message = e.message?.toLowerCase() ?? '';
@@ -1224,32 +1265,6 @@ class EndpointManager {
           };
           return false; // DNS error, endpoint unavailable
         }
-      }
-
-      // Check for 401/403 - endpoint is reachable, but needs auth
-      // This is not an availability issue, but an authentication issue
-      final statusCode = e.response?.statusCode;
-      if (statusCode == 401 || statusCode == 403) {
-        await logger.log(
-          level: 'info',
-          subsystem: 'endpoints',
-          message: 'Endpoint available but requires authentication',
-          operationId: operationId,
-          context: 'quick_availability_check',
-          durationMs: totalDuration,
-          extra: {
-            'url': endpoint,
-            'status_code': statusCode,
-            'is_auth_issue': true,
-            'note': 'Endpoint is reachable, authentication is separate issue',
-          },
-        );
-        // Cache positive result - endpoint is available
-        _quickCheckCache[endpoint] = {
-          'result': true,
-          'timestamp': DateTime.now(),
-        };
-        return true; // Available but needs auth
       }
 
       // Log other errors
@@ -1575,21 +1590,21 @@ class EndpointManager {
           );
         } else {
           // Last resort: use first by priority even if unavailable
-          chosen = fallbackEndpoints.first['url'] as String;
-          chosenData = fallbackEndpoints.first;
-          await logger.log(
-            level: 'error',
-            subsystem: 'endpoints',
+        chosen = fallbackEndpoints.first['url'] as String;
+        chosenData = fallbackEndpoints.first;
+        await logger.log(
+          level: 'error',
+          subsystem: 'endpoints',
             message: 'All endpoints including hardcoded fallback failed availability check, using first by priority',
-            operationId: operationId,
-            context: 'endpoint_selection',
-            extra: {
-              'chosen_url': chosen,
-              'total_checked': fallbackEndpoints.length,
+          operationId: operationId,
+          context: 'endpoint_selection',
+          extra: {
+            'chosen_url': chosen,
+            'total_checked': fallbackEndpoints.length,
               'hardcoded_available': false,
               'warning': 'Selected endpoint may be unavailable',
-            },
-          );
+          },
+        );
         }
       }
 

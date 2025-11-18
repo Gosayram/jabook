@@ -14,12 +14,14 @@
 
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
+import 'dart:io' as io;
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_cookie_bridge/session_manager.dart' as bridge_session;
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+
 import 'package:jabook/core/endpoints/endpoint_manager.dart';
 import 'package:jabook/core/logging/structured_logger.dart';
 import 'package:jabook/core/net/dio_client.dart';
@@ -74,13 +76,20 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView>
 
   // Cookie synchronization
   Timer? _cookieSyncTimer;
-  static const Duration _cookieSyncInterval = Duration(seconds: 5);
+  // Increased interval to avoid Cloudflare rate limiting
+  // Cookies sync every 30 seconds instead of 5 to reduce request frequency
+  static const Duration _cookieSyncInterval = Duration(seconds: 30);
+  
+  // FlutterCookieBridge SessionManager for automatic cookie sync
+  bridge_session.SessionManager? _bridgeSessionManager;
 
   @override
   void initState() {
     super.initState();
     // Add lifecycle observer to track app state changes
     WidgetsBinding.instance.addObserver(this);
+    // Initialize FlutterCookieBridge for automatic cookie sync
+    _initCookieBridge();
     // Set fallback URL immediately to prevent null issues
     initialUrl = EndpointManager.getPrimaryFallbackEndpoint();
     // Get User-Agent for legitimate connection (required for Cloudflare)
@@ -107,6 +116,30 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView>
       }
     });
     _restoreWebViewHistory();
+  }
+  
+  /// Initializes FlutterCookieBridge SessionManager for automatic cookie synchronization.
+  Future<void> _initCookieBridge() async {
+    try {
+      // Initialize SessionManager (singleton, same instance as in DioClient)
+      _bridgeSessionManager = bridge_session.SessionManager();
+      // Ensure DioClient is initialized (which initializes FlutterCookieBridge)
+      await DioClient.instance;
+      await StructuredLogger().log(
+        level: 'info',
+        subsystem: 'webview',
+        message: 'FlutterCookieBridge SessionManager initialized in WebView',
+        context: 'cookie_bridge_init',
+      );
+    } on Exception catch (e) {
+      await StructuredLogger().log(
+        level: 'warning',
+        subsystem: 'webview',
+        message: 'Failed to initialize FlutterCookieBridge SessionManager',
+        context: 'cookie_bridge_init',
+        cause: e.toString(),
+      );
+    }
   }
 
   /// Gets User-Agent for legitimate connection to pass Cloudflare checks.
@@ -155,7 +188,7 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView>
             context: 'app_lifecycle',
           );
           await _saveCookies();
-          await DioClient.syncCookiesFromWebView();
+        await DioClient.syncCookiesFromWebView();
           await StructuredLogger().log(
             level: 'info',
             subsystem: 'cookies',
@@ -170,8 +203,8 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView>
             context: 'app_lifecycle',
             cause: e.toString(),
           );
-        }
-      });
+      }
+    });
     }
   }
 
@@ -220,7 +253,7 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView>
         // Endpoint is available, but do a quick DNS check to ensure it resolves
         try {
           final uri = Uri.parse(endpoint);
-          await InternetAddress.lookup(uri.host)
+          await io.InternetAddress.lookup(uri.host)
               .timeout(const Duration(seconds: 3));
         } on Exception catch (e) {
           // DNS lookup failed, try fallbacks
@@ -277,7 +310,7 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView>
       try {
         // Quick DNS check
         final uri = Uri.parse(fallback);
-        await InternetAddress.lookup(uri.host)
+        await io.InternetAddress.lookup(uri.host)
             .timeout(const Duration(seconds: 2));
 
         // Quick availability check
@@ -482,68 +515,90 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView>
       );
 
       // Collect cookies from all RuTracker domains
+      // IMPORTANT: Use full URLs with paths, not just domain roots
+      // This ensures we get all cookies, including those set for specific paths
       final allCookies = <Cookie>[];
       final rutrackerDomains = EndpointManager.getRutrackerDomains();
       
+      // Try multiple URL variations to ensure we get all cookies
+      final urlsToCheck = <String>[urlToUse];
+      
+      // 2. Base URLs for each domain
       for (final domain in rutrackerDomains) {
+        urlsToCheck
+          ..add('https://$domain')
+          ..add('https://$domain/')
+          ..add('https://$domain/forum/')
+          ..add('https://$domain/forum/index.php');
+      }
+      
+      // Remove duplicates
+      final uniqueUrls = urlsToCheck.toSet().toList();
+      
+      await logger.log(
+        level: 'debug',
+        subsystem: 'cookies',
+        message: 'Checking multiple URLs for cookies',
+        operationId: operationId,
+        context: 'webview_cookie_save',
+        extra: {
+          'urls_to_check': uniqueUrls,
+          'url_count': uniqueUrls.length,
+        },
+      );
+      
+      for (final url in uniqueUrls) {
         try {
-          final domainUrl = 'https://$domain';
           final cookies = await CookieManager.instance()
-              .getCookies(url: WebUri(domainUrl));
-          allCookies.addAll(cookies);
+              .getCookies(url: WebUri(url));
+          
+          await logger.log(
+            level: 'debug',
+            subsystem: 'cookies',
+            message: 'Retrieved cookies for URL',
+            operationId: operationId,
+            context: 'webview_cookie_save',
+            extra: {
+              'url': url,
+              'cookie_count': cookies.length,
+              'cookie_names': cookies.map((c) => c.name).toList(),
+            },
+          );
+          
+          // Add only new cookies (avoid duplicates by name+domain)
+          for (final cookie in cookies) {
+            if (!allCookies.any((c) =>
+                c.name == cookie.name && 
+                (c.domain ?? '') == (cookie.domain ?? ''))) {
+              allCookies.add(cookie);
+            }
+          }
         } on Exception catch (e) {
           await logger.log(
             level: 'debug',
             subsystem: 'cookies',
-            message: 'Failed to get cookies for domain',
+            message: 'Failed to get cookies for URL',
             operationId: operationId,
             context: 'webview_cookie_save',
             extra: {
-              'domain': domain,
+              'url': url,
               'error': e.toString(),
             },
           );
         }
       }
 
-      // Also get cookies from current URL if it's a RuTracker domain
-      try {
-        final uri = Uri.tryParse(urlToUse);
-        if (uri != null && rutrackerDomains.contains(uri.host)) {
-          final cookies = await CookieManager.instance()
-              .getCookies(url: WebUri(urlToUse));
-          // Add only new cookies (avoid duplicates)
-          for (final cookie in cookies) {
-            if (!allCookies.any((c) =>
-                c.name == cookie.name && c.domain == cookie.domain)) {
-              allCookies.add(cookie);
-            }
-          }
-        }
-      } on Exception catch (e) {
-        await logger.log(
-          level: 'debug',
-          subsystem: 'cookies',
-          message: 'Failed to get cookies from current URL',
-          operationId: operationId,
-          context: 'webview_cookie_save',
-          extra: {
-            'url': urlToUse,
-            'error': e.toString(),
-          },
-        );
-      }
-
       final cookies = allCookies;
 
       await logger.log(
-        level: 'debug',
+        level: 'info',
         subsystem: 'cookies',
-        message: 'Retrieved cookies from WebView',
+        message: 'Retrieved cookies from WebView CookieManager',
         operationId: operationId,
         context: 'webview_cookie_save',
         extra: {
           'cookie_count': cookies.length,
+          'domains_checked': rutrackerDomains,
           'cookies': cookies
               .map((c) => {
                     'name': c.name,
@@ -551,10 +606,34 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView>
                     'path': c.path ?? '/',
                     'is_secure': c.isSecure ?? false,
                     'is_http_only': c.isHttpOnly ?? false,
+                    'has_value': c.value.isNotEmpty,
+                    'value_length': c.value.length,
+                    'value_preview': c.value.isNotEmpty 
+                        ? '${c.value.substring(0, c.value.length > 20 ? 20 : c.value.length)}...' 
+                        : '<empty>',
+                    'is_session_cookie': c.name.toLowerCase().contains('session') ||
+                        c.name == 'bb_session' ||
+                        c.name == 'bb_data',
                   })
               .toList(),
         },
       );
+      
+      // CRITICAL: If no cookies found, log warning
+      if (cookies.isEmpty) {
+        await logger.log(
+          level: 'warning',
+          subsystem: 'cookies',
+          message: 'NO COOKIES FOUND in WebView CookieManager - this is a problem!',
+          operationId: operationId,
+          context: 'webview_cookie_save',
+          extra: {
+            'domains_checked': rutrackerDomains,
+            'current_url': urlToUse,
+            'note': 'WebView may not have cookies yet, or they were not set properly',
+          },
+        );
+      }
 
       final cookieJson = jsonEncode(cookies
           .map((c) => {
@@ -590,13 +669,50 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView>
         },
       );
 
-      // Always sync cookies to DioClient after saving
+      // Sync cookies to FlutterCookieBridge SessionManager
+      // This ensures automatic sync between WebView and Dio (as per .report-issue-docs.md)
       try {
-        await DioClient.syncCookiesFromWebView();
+        if (_bridgeSessionManager != null && cookies.isNotEmpty) {
+          // Convert WebView cookies to format expected by SessionManager
+          // SessionManager expects List<String> where each string is "name=value"
+          final cookieStrings = cookies
+              .map((c) => '${c.name}=${c.value}')
+              .where((s) => s.isNotEmpty && s.contains('='))
+              .toList();
+          
+          if (cookieStrings.isNotEmpty) {
+            await _bridgeSessionManager!.saveSessionCookies(cookieStrings);
+            await logger.log(
+              level: 'info',
+              subsystem: 'cookies',
+              message: 'Cookies saved to FlutterCookieBridge SessionManager',
+              operationId: operationId,
+              context: 'webview_cookie_save',
+              extra: {
+                'cookie_count': cookieStrings.length,
+                'cookie_names': cookies.map((c) => c.name).toList(),
+              },
+            );
+          }
+        }
+      } on Exception catch (bridgeError) {
+        await logger.log(
+          level: 'warning',
+          subsystem: 'cookies',
+          message: 'Failed to save cookies to FlutterCookieBridge SessionManager',
+          operationId: operationId,
+          context: 'webview_cookie_save',
+          cause: bridgeError.toString(),
+        );
+      }
+      
+      // Also sync to Dio CookieJar (for backward compatibility)
+      try {
+        await _syncCookiesDirectlyToDio(cookies, operationId);
         await logger.log(
           level: 'info',
           subsystem: 'cookies',
-          message: 'Cookies synced to DioClient after save',
+          message: 'Cookies synced directly to Dio CookieJar',
           operationId: operationId,
           context: 'webview_cookie_save',
         );
@@ -604,7 +720,7 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView>
         await logger.log(
           level: 'warning',
           subsystem: 'cookies',
-          message: 'Failed to sync cookies to DioClient after save',
+          message: 'Failed to sync cookies directly to Dio',
           operationId: operationId,
           context: 'webview_cookie_save',
           cause: syncError.toString(),
@@ -628,6 +744,254 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView>
         },
       );
       debugPrint('Failed to save cookies: $e');
+    }
+  }
+
+  /// Directly syncs cookies from WebView CookieManager to Dio CookieJar.
+  ///
+  /// This is the proper way to sync cookies: WebView CookieManager → Dio CookieJar.
+  /// SharedPreferences is only used as a backup.
+  Future<void> _syncCookiesDirectlyToDio(
+      List<Cookie> webViewCookies, String operationId) async {
+    try {
+      final logger = StructuredLogger();
+      final rutrackerDomains = EndpointManager.getRutrackerDomains();
+
+      await logger.log(
+        level: 'info',
+        subsystem: 'cookies',
+        message: 'Starting direct cookie sync to Dio',
+        operationId: operationId,
+        context: 'cookie_sync_direct',
+        extra: {
+          'webview_cookie_count': webViewCookies.length,
+          'webview_cookies': webViewCookies.map((c) => {
+            'name': c.name,
+            'domain': c.domain ?? '<null>',
+            'path': c.path ?? '/',
+            'has_value': c.value.isNotEmpty,
+            'value_length': c.value.length,
+            'value_preview': c.value.isNotEmpty 
+                ? '${c.value.substring(0, c.value.length > 20 ? 20 : c.value.length)}...' 
+                : '<empty>',
+            'is_session_cookie': c.name.toLowerCase().contains('session') ||
+                c.name == 'bb_session' ||
+                c.name == 'bb_data',
+          }).toList(),
+        },
+      );
+      
+      // CRITICAL: If no cookies to sync, log error
+      if (webViewCookies.isEmpty) {
+        await logger.log(
+          level: 'error',
+          subsystem: 'cookies',
+          message: 'CRITICAL: No cookies to sync from WebView to Dio!',
+          operationId: operationId,
+          context: 'cookie_sync_direct',
+          extra: {
+            'note': 'This means cookies were not extracted from WebView CookieManager',
+          },
+        );
+        return; // Nothing to sync
+      }
+
+      // Convert WebView cookies (flutter_inappwebview Cookie) to Dio Cookie format (dart:io Cookie)
+      // Use explicit type to avoid conflict between flutter_inappwebview.Cookie and dart:io.Cookie
+      final dioCookies = <io.Cookie>[];
+      var conversionErrors = 0;
+      for (final webViewCookie in webViewCookies) {
+        try {
+          // dart:io.Cookie constructor: Cookie(String name, String value)
+          final dioCookie = io.Cookie(webViewCookie.name, webViewCookie.value)
+            ..domain = webViewCookie.domain
+            ..path = webViewCookie.path ?? '/'
+            ..secure = webViewCookie.isSecure ?? true
+            ..httpOnly = webViewCookie.isHttpOnly ?? false;
+          dioCookies.add(dioCookie);
+        } on Exception catch (e) {
+          conversionErrors++;
+          await logger.log(
+            level: 'warning',
+            subsystem: 'cookies',
+            message: 'Failed to convert WebView cookie to Dio format',
+            operationId: operationId,
+            context: 'cookie_sync_direct',
+            cause: e.toString(),
+            extra: {
+              'cookie_name': webViewCookie.name,
+              'cookie_domain': webViewCookie.domain,
+              'cookie_value_length': webViewCookie.value.length,
+            },
+          );
+        }
+      }
+
+      await logger.log(
+        level: 'info',
+        subsystem: 'cookies',
+        message: 'Cookie conversion completed',
+        operationId: operationId,
+        context: 'cookie_sync_direct',
+        extra: {
+          'webview_cookie_count': webViewCookies.length,
+          'dio_cookie_count': dioCookies.length,
+          'conversion_errors': conversionErrors,
+          'dio_cookies': dioCookies.map((c) => {
+            'name': c.name,
+            'domain': c.domain ?? '<null>',
+            'path': c.path ?? '/',
+            'has_value': c.value.isNotEmpty,
+            'value_length': c.value.length,
+            'value_preview': c.value.isNotEmpty 
+                ? '${c.value.substring(0, c.value.length > 20 ? 20 : c.value.length)}...' 
+                : '<empty>',
+          }).toList(),
+        },
+      );
+
+      if (dioCookies.isEmpty) {
+        await logger.log(
+          level: 'error',
+          subsystem: 'cookies',
+          message: 'CRITICAL: No cookies to sync after conversion - all cookies were lost!',
+          operationId: operationId,
+          context: 'cookie_sync_direct',
+          extra: {
+            'webview_cookie_count': webViewCookies.length,
+            'conversion_errors': conversionErrors,
+            'note': 'This indicates a problem with cookie conversion from WebView to Dio format',
+          },
+        );
+        return;
+      }
+
+      // Save cookies for RuTracker domains directly to Dio CookieJar
+      // Use smart domain matching: cookies should match the domain they came from
+      // But also save important cookies (session, cf_clearance) to all domains
+      for (final domain in rutrackerDomains) {
+        try {
+          final domainUri = Uri.parse('https://$domain');
+          
+          // Smart filtering: match cookies to their domain, but include important ones
+          final domainCookies = dioCookies.where((cookie) {
+            final cookieDomain = (cookie.domain ?? '').toLowerCase();
+            final targetDomain = domain.toLowerCase();
+            
+            // Important cookies (session, cf_clearance) should be saved for all domains
+            final isImportantCookie = cookie.name.toLowerCase().contains('session') ||
+                cookie.name == 'bb_session' ||
+                cookie.name == 'bb_data' ||
+                cookie.name == 'cf_clearance' ||
+                cookie.name.startsWith('cf_');
+            
+            // If cookie has no domain, it's for the current domain
+            if (cookieDomain.isEmpty) {
+              return true; // Save domainless cookies for this domain
+            }
+            
+            // Exact match
+            if (cookieDomain == targetDomain || cookieDomain == '.$targetDomain') {
+              return true;
+            }
+            
+            // Subdomain match (e.g., .rutracker.me matches rutracker.me)
+            if (cookieDomain.startsWith('.') && cookieDomain.substring(1) == targetDomain) {
+              return true;
+            }
+            
+            // Important cookies for all domains
+            if (isImportantCookie) {
+              return true;
+            }
+            
+            // Domain contains target (e.g., rutracker.me in .rutracker.me)
+            if (cookieDomain.contains(targetDomain)) {
+              return true;
+            }
+            
+            return false;
+          }).toList();
+
+          if (domainCookies.isNotEmpty) {
+            await logger.log(
+              level: 'debug',
+              subsystem: 'cookies',
+              message: 'Saving filtered cookies for domain',
+              operationId: operationId,
+              context: 'cookie_sync_direct',
+              extra: {
+                'domain': domain,
+                'cookie_count': domainCookies.length,
+                'total_cookies': dioCookies.length,
+                'cookies': domainCookies.map((c) => {
+                  'name': c.name,
+                  'domain': c.domain ?? '<null>',
+                  'path': c.path ?? '/',
+                  'has_value': c.value.isNotEmpty,
+                }).toList(),
+              },
+            );
+            // Save cookies directly to Dio CookieJar via DioClient
+            await DioClient.saveCookiesDirectly(domainUri, domainCookies);
+            await logger.log(
+              level: 'info',
+              subsystem: 'cookies',
+              message: 'Successfully saved cookies to Dio CookieJar for domain',
+              operationId: operationId,
+              context: 'cookie_sync_direct',
+              extra: {
+                'domain': domain,
+                'cookie_count': domainCookies.length,
+              },
+            );
+          } else {
+            await logger.log(
+              level: 'debug',
+              subsystem: 'cookies',
+              message: 'No matching cookies to save for domain',
+              operationId: operationId,
+              context: 'cookie_sync_direct',
+              extra: {
+                'domain': domain,
+                'total_cookies': dioCookies.length,
+              },
+            );
+          }
+        } on Exception catch (e) {
+          await logger.log(
+            level: 'warning',
+            subsystem: 'cookies',
+            message: 'Failed to save cookies for domain',
+            operationId: operationId,
+            context: 'cookie_sync_direct',
+            cause: e.toString(),
+            extra: {'domain': domain},
+          );
+        }
+      }
+
+      await logger.log(
+        level: 'info',
+        subsystem: 'cookies',
+        message: 'Cookies synced directly from WebView to Dio CookieJar',
+        operationId: operationId,
+        context: 'cookie_sync_direct',
+        extra: {
+          'total_cookies': dioCookies.length,
+          'domains': rutrackerDomains,
+        },
+      );
+    } on Exception catch (e) {
+      await StructuredLogger().log(
+        level: 'warning',
+        subsystem: 'cookies',
+        message: 'Failed to sync cookies directly to Dio',
+        operationId: operationId,
+        context: 'cookie_sync_direct',
+        cause: e.toString(),
+      );
+      rethrow;
     }
   }
 
@@ -771,19 +1135,55 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView>
     }
   }
 
+  /// Checks if HTML looks like an active Cloudflare challenge page.
+  ///
+  /// Returns true only if it's actually a challenge page, not just a page
+  /// that mentions Cloudflare (e.g., in headers or meta tags).
   bool _looksLikeCloudflare(String html) {
     final h = html.toLowerCase();
-    return h.contains('checking your browser') ||
+    
+    // Check for active challenge indicators (strong signals)
+    final hasActiveChallenge = h.contains('checking your browser') ||
         h.contains('please enable javascript') ||
         h.contains('attention required') ||
         h.contains('cf-chl-bypass') ||
-        h.contains('cloudflare') ||
-        h.contains('ddos-guard') ||
         h.contains('just a moment') ||
         h.contains('verifying you are human') ||
         h.contains('security check') ||
         h.contains('cf-browser-verification') ||
-        h.contains('cf-challenge-running');
+        h.contains('cf-challenge-running') ||
+        h.contains('ddos-guard');
+    
+    if (!hasActiveChallenge) {
+      return false;
+    }
+    
+    // If we have active challenge indicators, check if page has real content
+    // Challenge pages are usually small and don't have forum content
+    final hasRealContent = h.contains('forum') ||
+        h.contains('трекер') ||
+        h.contains('torrent') ||
+        h.contains('login') ||
+        h.contains('поиск') ||
+        h.contains('search') ||
+        h.contains('profile') ||
+        h.contains('index.php') ||
+        h.contains('viewtopic') ||
+        h.contains('viewforum');
+    
+    // If page has real content, it's not a challenge page
+    // (even if it mentions Cloudflare in headers)
+    if (hasRealContent) {
+      return false;
+    }
+    
+    // Check page size - challenge pages are usually small (< 50KB)
+    // Real pages with content are usually larger
+    if (html.length > 50000) {
+      return false;
+    }
+    
+    return true;
   }
 
   @override
@@ -1013,13 +1413,13 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView>
                             mixedContentMode:
                                 MixedContentMode.MIXED_CONTENT_ALWAYS_ALLOW,
                           ),
-                          onWebViewCreated: (controller) {
+                          onWebViewCreated: (controller) async {
                             _webViewController = controller;
                             _hasError =
                                 false; // Reset error state when WebView is recreated
 
                             // Log WebView creation
-                            StructuredLogger().log(
+                            await StructuredLogger().log(
                               level: 'info',
                               subsystem: 'webview',
                               message: 'WebView created successfully',
@@ -1029,13 +1429,59 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView>
                               },
                             );
                             
+                            // Load cookies from FlutterCookieBridge SessionManager into WebView
+                            // This ensures cookies from previous sessions are available
+                            try {
+                              if (_bridgeSessionManager != null) {
+                                final sessionCookies = await _bridgeSessionManager!.getSessionCookies();
+                                if (sessionCookies.isNotEmpty && initialUrl != null) {
+                                  // Set cookies in WebView (like FlutterCookieBridge does)
+                                  final cookieManager = CookieManager.instance();
+                                  final uri = Uri.tryParse(initialUrl!);
+                                  if (uri != null) {
+                                    for (final cookieString in sessionCookies) {
+                                      final parts = cookieString.split('=');
+                                      if (parts.length >= 2) {
+                                        final name = parts[0].trim();
+                                        final value = parts.sublist(1).join('=').trim();
+                                        if (name.isNotEmpty && value.isNotEmpty) {
+                                          await cookieManager.setCookie(
+                                            url: WebUri(initialUrl!),
+                                            name: name,
+                                            value: value,
+                                            domain: uri.host,
+                                          );
+                                        }
+                                      }
+                                    }
+                                    await StructuredLogger().log(
+                                      level: 'info',
+                                      subsystem: 'cookies',
+                                      message: 'Loaded cookies from FlutterCookieBridge into WebView',
+                                      extra: {
+                                        'cookie_count': sessionCookies.length,
+                                        'url': initialUrl,
+                                      },
+                                    );
+                                  }
+                                }
+                              }
+                            } on Exception catch (e) {
+                              await StructuredLogger().log(
+                                level: 'debug',
+                                subsystem: 'cookies',
+                                message: 'Failed to load cookies from FlutterCookieBridge into WebView',
+                                cause: e.toString(),
+                              );
+                            }
+                            
                             // Start periodic cookie synchronization
                             _startCookieSyncTimer();
                             
                             // Ensure WebView loads the URL if it wasn't loaded automatically
                             // This is a safety measure in case initialUrlRequest didn't work
                             if (initialUrl != null && initialUrl!.isNotEmpty) {
-                              Future.microtask(() async {
+                              unawaited(Future.microtask(() async {
                                 try {
                                   final currentUrl = await controller.getUrl();
                                   if (currentUrl == null || currentUrl.toString().isEmpty) {
@@ -1073,7 +1519,7 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView>
                                     extra: {'initial_url': initialUrl},
                                   );
                                 }
-                              });
+                              }));
                             }
                           },
                           onProgressChanged: (controller, p) {
@@ -1531,7 +1977,18 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView>
                             final html = await controller.getHtml();
                             final htmlSize = html?.length ?? 0;
 
-                            if (html != null && _looksLikeCloudflare(html)) {
+                            // Check if we have session cookies - if yes, user is already authenticated
+                            // and we shouldn't show Cloudflare overlay
+                            final hasSessionCookies = await _checkLoginSuccess(controller);
+
+                            // Only show Cloudflare overlay if:
+                            // 1. HTML looks like active challenge
+                            // 2. User doesn't have session cookies (not authenticated yet)
+                            // 3. Overlay is not already shown
+                            if (html != null && 
+                                _looksLikeCloudflare(html) && 
+                                !hasSessionCookies &&
+                                !_isCloudflareDetected) {
                               await logger.log(
                                 level: 'info',
                                 subsystem: 'webview',
@@ -1543,6 +2000,7 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView>
                                 extra: {
                                   'url': urlString,
                                   'html_size': htmlSize,
+                                  'has_session_cookies': false,
                                 },
                               );
                               _showCloudflareHint();
@@ -1553,6 +2011,10 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView>
                               // Similar to curl script: wait 2 seconds, then check if challenge passed
                               _startCloudflareWait(controller, urlString);
                             } else {
+                              // Hide overlay if it was shown but challenge is gone or user is authenticated
+                              if (_isCloudflareDetected && (hasSessionCookies || html == null || !_looksLikeCloudflare(html))) {
+                                _hideCloudflareOverlay();
+                              }
                               // Cloudflare challenge passed or not present
                               if (_isCloudflareDetected) {
                                 // Challenge was detected before, now it's gone - reload page
@@ -1592,7 +2054,49 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView>
                                     'detection_method': 'session_cookies_or_url',
                                   },
                                 );
-                                // Cookies are already synced by _saveCookies() above
+                                // Sync cookies after successful login
+                                // According to recommendations: extract cookies once, use them in Dio
+                                // Don't make multiple sync attempts to avoid Cloudflare rate limiting
+                                await logger.log(
+                                  level: 'info',
+                                  subsystem: 'cookies',
+                                  message: 'Starting cookie sync after successful login',
+                                  operationId: operationId,
+                                  context: 'webview_login',
+                                );
+                                
+                                // Extract and save cookies from WebView
+                                await _saveCookies();
+                                
+                                // Small delay to ensure cookies are fully saved
+                                await Future.delayed(const Duration(milliseconds: 300));
+                                
+                                // Verify User-Agent matches WebView (important for Cloudflare)
+                                try {
+                                  final userAgentManager = UserAgentManager();
+                                  final currentUserAgent = await userAgentManager.getUserAgent();
+                                  await logger.log(
+                                    level: 'debug',
+                                    subsystem: 'cookies',
+                                    message: 'User-Agent verification after login',
+                                    operationId: operationId,
+                                    context: 'webview_login',
+                                    extra: {
+                                      'user_agent': currentUserAgent,
+                                      'matches_webview': currentUserAgent == _userAgent,
+                                    },
+                                  );
+                                } on Exception {
+                                  // Ignore User-Agent check errors
+                                }
+                                
+                                await logger.log(
+                                  level: 'info',
+                                  subsystem: 'cookies',
+                                  message: 'Cookies synced after login',
+                                  operationId: operationId,
+                                  context: 'webview_login',
+                                );
                               }
 
                               // Set active mirror based on current host
@@ -1729,75 +2233,9 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView>
                                     Colors.blue.shade600),
                               ),
                             ),
-                            const SizedBox(height: 16),
-                            TextButton.icon(
-                              onPressed: () async {
-                                try {
-                                  String? urlString;
-                                  
-                                  // Try to get URL from WebView controller
-                                  try {
-                                    final url = await _webViewController.getUrl();
-                                    if (url != null && url.toString().isNotEmpty) {
-                                      urlString = url.toString();
-                                    }
-                                  } on Exception {
-                                    // If getting URL from controller fails, continue with fallback
-                                  }
-
-                                  // Fallback to initialUrl if WebView URL is not available
-                                  if (urlString == null || urlString.isEmpty) {
-                                    urlString = initialUrl;
-                                  }
-
-                                  // Final fallback to default rutracker URL
-                                  if (urlString == null || urlString.isEmpty) {
-                                    urlString =
-                                        EndpointManager.getPrimaryFallbackEndpoint();
-                                  }
-
-                                  final uri = Uri.tryParse(urlString);
-                                  if (uri != null &&
-                                      uri.hasScheme &&
-                                      uri.hasAuthority) {
-                                    try {
-                                      await launchUrl(
-                                        uri,
-                                        mode: LaunchMode.externalApplication,
-                                      );
-                                    } on Exception catch (launchError) {
-                                      await StructuredLogger().log(
-                                        level: 'error',
-                                        subsystem: 'webview',
-                                        message: 'Failed to launch URL in browser',
-                                        cause: launchError.toString(),
-                                        extra: {'url': urlString},
-                                      );
-                                      debugPrint('Failed to launch URL: $launchError');
-                                    }
-                                  } else {
-                                    await StructuredLogger().log(
-                                      level: 'warning',
-                                      subsystem: 'webview',
-                                      message: 'Invalid URL format for browser',
-                                      extra: {'url': urlString},
-                                    );
-                                  }
-                                } on Exception catch (e) {
-                                  await StructuredLogger().log(
-                                    level: 'error',
-                                    subsystem: 'webview',
-                                    message: 'Failed to open in browser',
-                                    cause: e.toString(),
-                                  );
-                                  debugPrint('Failed to open in browser: $e');
-                                }
-                              },
-                              icon: const Icon(Icons.open_in_browser),
-                              label: Text(AppLocalizations.of(context)
-                                      ?.openInBrowserButton ??
-                                  'Open in Browser'),
-                            ),
+                            // Note: Opening in external browser doesn't help with cookies
+                            // as cookies from browser are not accessible to WebView/app
+                            // Cloudflare challenge should be handled within WebView
                           ],
                         ),
                       ),
@@ -1921,8 +2359,8 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView>
     Future.delayed(const Duration(seconds: 2), () {
       if (!mounted) return;
       
-      // Start periodic checks every 1 second
-      _cloudflareCheckTimer = Timer.periodic(const Duration(seconds: 1), (timer) async {
+      // Increased interval to 10 seconds to avoid Cloudflare rate limiting
+      _cloudflareCheckTimer = Timer.periodic(const Duration(seconds: 10), (timer) async {
         if (!mounted) {
           timer.cancel();
           return;

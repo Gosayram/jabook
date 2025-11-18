@@ -212,6 +212,38 @@ class StructuredLogger {
 
       final logLine = jsonEncode(logEntry);
 
+      // In debug mode, also print to console for immediate visibility
+      if (!kReleaseMode) {
+        final levelEmoji = switch (level) {
+          'error' => '❌',
+          'warning' => '⚠️',
+          'info' => 'ℹ️',
+          'debug' => '🔍',
+          'critical' => '🚨',
+          _ => '📝',
+        };
+        final subsystemStr = subsystem.padRight(12);
+        final messageStr = message.length > 60 ? '${message.substring(0, 60)}...' : message;
+        debugPrint('$levelEmoji [$subsystemStr] $messageStr');
+        
+        // For network subsystem, show more details
+        if (subsystem == 'network' && extra != null) {
+          final method = extra['method']?.toString() ?? '';
+          final url = extra['url']?.toString() ?? extra['request_url']?.toString() ?? '';
+          final statusCode = extra['status_code']?.toString() ?? '';
+          final duration = durationMs != null ? '${durationMs}ms' : '';
+          
+          if (method.isNotEmpty && url.isNotEmpty) {
+            final shortUrl = url.length > 50 ? '${url.substring(0, 50)}...' : url;
+            if (statusCode.isNotEmpty) {
+              debugPrint('   → $method $statusCode $shortUrl $duration');
+            } else {
+              debugPrint('   → $method $shortUrl $duration');
+            }
+          }
+        }
+      }
+
       await _logFile!.writeAsString(
         '$logLine\n',
         mode: FileMode.append,
@@ -313,7 +345,26 @@ class StructuredLogger {
           lowerKey.contains('password') ||
           lowerKey.contains('set-cookie');
 
-      if (isSensitiveKey) {
+      // For cookies list, show structure but redact values
+      if (lowerKey == 'cookies' && value is List) {
+        result[key] = value.map((e) {
+          if (e is Map) {
+            final cookieMap = <String, dynamic>{};
+            e.forEach((k, v) {
+              final cookieKey = k.toString().toLowerCase();
+              if (cookieKey == 'value' || cookieKey == 'cookie_value') {
+                cookieMap[k] = v != null && v.toString().isNotEmpty 
+                    ? '${v.toString().substring(0, v.toString().length > 10 ? 10 : v.toString().length)}...' 
+                    : '<empty>';
+              } else {
+                cookieMap[k] = v;
+              }
+            });
+            return cookieMap;
+          }
+          return e;
+        }).toList();
+      } else if (isSensitiveKey && lowerKey != 'cookies') {
         result[key] = '<redacted>';
       } else if (value is String) {
         result[key] = _scrubSensitiveData(value);
