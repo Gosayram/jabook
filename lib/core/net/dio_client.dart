@@ -9,6 +9,7 @@ import 'package:jabook/core/logging/structured_logger.dart';
 import 'package:jabook/core/net/user_agent_manager.dart';
 import 'package:jabook/core/session/session_interceptor.dart';
 import 'package:jabook/core/session/session_manager.dart';
+import 'package:jabook/core/utils/safe_async.dart';
 import 'package:jabook/data/db/app_database.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -24,6 +25,8 @@ class DioClient {
   static Dio? _instance;
   static CookieJar? _cookieJar;
   static SessionManager? _sessionManager;
+  static DateTime? _appStartTime;
+  static bool _firstRequestTracked = false;
 
   /// Gets the singleton Dio instance configured for RuTracker requests.
   ///
@@ -70,6 +73,32 @@ class DioClient {
         final operationId =
             'http_request_${DateTime.now().millisecondsSinceEpoch}_${request.hashCode}';
         final startTime = DateTime.now();
+
+        // Track first network request time (for startup metrics)
+        if (!_firstRequestTracked) {
+          _firstRequestTracked = true;
+          final timeToFirstRequest = _appStartTime != null
+              ? DateTime.now().difference(_appStartTime!).inMilliseconds
+              : null;
+          if (timeToFirstRequest != null) {
+            final logger = StructuredLogger();
+            safeUnawaited(
+              logger.log(
+                level: 'info',
+                subsystem: 'performance',
+                message: 'First network request initiated',
+                context: 'app_startup',
+                durationMs: timeToFirstRequest,
+                extra: {
+                  'time_to_first_request_ms': timeToFirstRequest,
+                  'metric_type': 'first_network_request',
+                  'url': request.uri.toString(),
+                  'method': request.method,
+                },
+              ),
+            );
+          }
+        }
 
         // Store operation ID and start time in request extra for later use
         request.extra['operation_id'] = operationId;
@@ -669,6 +698,14 @@ class DioClient {
     return _instance!;
   }
 
+  /// Sets the application start time for performance metrics tracking.
+  ///
+  /// This should be called early in the application lifecycle (e.g., in main())
+  /// to enable tracking of time to first network request.
+  static set appStartTime(DateTime startTime) {
+    _appStartTime = startTime;
+  }
+
   /// Resets the singleton instance (useful for testing).
   ///
   /// This method clears the cached Dio instance and session manager,
@@ -676,6 +713,8 @@ class DioClient {
   static void reset() {
     _instance = null;
     _sessionManager = null;
+    _firstRequestTracked = false;
+    _appStartTime = null;
     // Keep _cookieJar to preserve cookies across resets
   }
 

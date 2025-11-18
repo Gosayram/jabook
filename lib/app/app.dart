@@ -14,6 +14,7 @@ import 'package:jabook/core/config/language_provider.dart';
 import 'package:jabook/core/endpoints/endpoint_health_scheduler.dart';
 import 'package:jabook/core/endpoints/endpoint_manager.dart';
 import 'package:jabook/core/logging/environment_logger.dart';
+import 'package:jabook/core/logging/structured_logger.dart';
 import 'package:jabook/core/net/dio_client.dart';
 import 'package:jabook/core/permissions/permission_service.dart';
 import 'package:jabook/core/session/session_manager.dart';
@@ -59,16 +60,21 @@ class _JaBookAppState extends ConsumerState<JaBookApp> {
       GlobalKey<ScaffoldMessengerState>();
 
   bool _hasShownOnboarding = false;
+  bool _firstFrameTracked = false;
+  DateTime? _appStartTime;
 
   @override
   void initState() {
     super.initState();
+    // Record app start time for UI render metrics
+    _appStartTime = DateTime.now();
     // Run initialization in the background to avoid blocking UI
     Future.microtask(_initializeApp);
   }
 
   Future<void> _initializeApp() async {
     final appStartTime = DateTime.now();
+    final structuredLogger = StructuredLogger();
     try {
       // Initialize logger (critical, must be first)
       final loggerInitStart = DateTime.now();
@@ -95,7 +101,28 @@ class _JaBookAppState extends ConsumerState<JaBookApp> {
 
       final totalInitDuration = DateTime.now().difference(appStartTime).inMilliseconds;
 
-      // Log initialization metrics
+      // Log initialization metrics using StructuredLogger
+      await structuredLogger.log(
+        level: 'info',
+        subsystem: 'performance',
+        message: 'App initialization complete',
+        context: 'app_startup',
+        durationMs: totalInitDuration,
+        extra: {
+          'total_init_duration_ms': totalInitDuration,
+          'logger_init_duration_ms': loggerInitDuration,
+          'db_init_duration_ms': dbInitDuration,
+          'env_init_duration_ms': envInitDuration,
+          'metric_type': 'app_initialization',
+          'breakdown': {
+            'logger': loggerInitDuration,
+            'database': dbInitDuration,
+            'environment': envInitDuration,
+          },
+        },
+      );
+
+      // Also log to environment logger for backward compatibility
       logger.i(
         'App initialization complete. Metrics: total=${totalInitDuration}ms, '
         'logger=${loggerInitDuration}ms, db=${dbInitDuration}ms, env=${envInitDuration}ms',
@@ -145,6 +172,7 @@ class _JaBookAppState extends ConsumerState<JaBookApp> {
 
   Future<void> _initializeDatabase() async {
     final dbStartTime = DateTime.now();
+    final structuredLogger = StructuredLogger();
     logger.i('Initializing database...');
     await database.initialize();
     final dbInitDuration = DateTime.now().difference(dbStartTime).inMilliseconds;
@@ -161,6 +189,27 @@ class _JaBookAppState extends ConsumerState<JaBookApp> {
     await endpointManager
         .initialize(); // This includes initializeDefaultEndpoints() and health checks
     final endpointInitDuration = DateTime.now().difference(endpointStartTime).inMilliseconds;
+
+    // Log database initialization metrics using StructuredLogger
+    await structuredLogger.log(
+      level: 'info',
+      subsystem: 'performance',
+      message: 'Database initialization complete',
+      context: 'app_startup',
+      durationMs: dbInitDuration + cacheInitDuration + endpointInitDuration,
+      extra: {
+        'db_init_duration_ms': dbInitDuration,
+        'cache_init_duration_ms': cacheInitDuration,
+        'endpoint_init_duration_ms': endpointInitDuration,
+        'total_db_init_duration_ms': dbInitDuration + cacheInitDuration + endpointInitDuration,
+        'metric_type': 'database_initialization',
+        'breakdown': {
+          'database': dbInitDuration,
+          'cache': cacheInitDuration,
+          'endpoints': endpointInitDuration,
+        },
+      },
+    );
 
     logger.i(
       'Database initialization metrics: db=${dbInitDuration}ms, '
@@ -370,16 +419,43 @@ class _JaBookAppState extends ConsumerState<JaBookApp> {
             debugShowCheckedModeBanner: config.isDebug,
             scaffoldMessengerKey: config.isDebug ? _scaffoldMessengerKey : null,
             // Performance optimizations
-            builder: (context, child) => MediaQuery(
-              // Use text scaler from device but clamp it for consistency
-              data: MediaQuery.of(context).copyWith(
-                textScaler: MediaQuery.of(context).textScaler.clamp(
-                      minScaleFactor: 0.8,
-                      maxScaleFactor: 1.2,
-                    ),
-              ),
-              child: child!,
-            ),
+            builder: (context, child) {
+              // Track first frame render time
+              if (!_firstFrameTracked && _appStartTime != null) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (!_firstFrameTracked) {
+                    _firstFrameTracked = true;
+                    final timeToFirstFrame =
+                        DateTime.now().difference(_appStartTime!).inMilliseconds;
+                    final structuredLogger = StructuredLogger();
+                    safeUnawaited(
+                      structuredLogger.log(
+                        level: 'info',
+                        subsystem: 'performance',
+                        message: 'First UI frame rendered',
+                        context: 'app_startup',
+                        durationMs: timeToFirstFrame,
+                        extra: {
+                          'time_to_first_frame_ms': timeToFirstFrame,
+                          'metric_type': 'ui_render_time',
+                        },
+                      ),
+                    );
+                    logger.i('First UI frame rendered in ${timeToFirstFrame}ms');
+                  }
+                });
+              }
+              return MediaQuery(
+                // Use text scaler from device but clamp it for consistency
+                data: MediaQuery.of(context).copyWith(
+                  textScaler: MediaQuery.of(context).textScaler.clamp(
+                        minScaleFactor: 0.8,
+                        maxScaleFactor: 1.2,
+                      ),
+                ),
+                child: child!,
+              );
+            },
             localizationsDelegates: const [
               AppLocalizations.delegate,
               GlobalMaterialLocalizations.delegate,

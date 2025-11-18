@@ -6,8 +6,13 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:jabook/app/app.dart';
 import 'package:jabook/core/logging/environment_logger.dart';
+import 'package:jabook/core/net/dio_client.dart';
 
 void main() {
+  // Record app start time for performance metrics
+  final appStartTime = DateTime.now();
+  DioClient.appStartTime = appStartTime;
+  
   // Enable performance optimizations before runApp
   _enablePerformanceOptimizations();
   // Setup global error handling
