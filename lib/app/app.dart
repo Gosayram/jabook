@@ -348,12 +348,23 @@ class _JaBookAppState extends ConsumerState<JaBookApp> {
       },
     );
 
-    // Synchronize cookies from WebView to DioClient on startup (non-blocking)
+    // Restore cookies from SecureStorage on startup (non-blocking)
+    // This restores cookies saved after WebView login for auto-login
+    // According to .plan-idea-docs.md: cookies should be restored from SecureStorage
+    // and synced to both CookieManager (Kotlin) and Dio CookieJar
+    safeUnawaited(
+      DioClient.restoreCookiesFromSecureStorage(),
+      onError: (e, stack) {
+        logger.w('Failed to restore cookies from SecureStorage on startup: $e');
+      },
+    );
+
+    // Also synchronize cookies from WebView SharedPreferences (legacy/fallback)
     // This is not critical for app startup, so run it in background
     safeUnawaited(
       DioClient.syncCookiesFromWebView(),
       onError: (e, stack) {
-        logger.w('Failed to sync cookies on startup: $e');
+        logger.w('Failed to sync cookies from WebView on startup: $e');
       },
     );
 

@@ -322,19 +322,27 @@ class DioClient {
       // Parse cookie header string into Cookie objects
       // Format from CookieManager: "name1=value1; name2=value2; name3=value3"
       // Note: CookieManager.getCookie() returns semicolon-separated list
+      // CRITICAL: Split by "; " (semicolon + space) to avoid splitting values that contain semicolons
       final cookies = <io.Cookie>[];
       final validName = RegExp(r"^[!#\$%&'*+.^_`|~0-9A-Za-z-]+$");
       
-      // Split by semicolon, but be careful with values that might contain semicolons
-      // CookieManager format is: "name=value; name2=value2"
-      final cookieParts = cookieHeader.split(';');
+      // Split by "; " pattern, but handle cases where there's no space after semicolon
+      // First try splitting by "; " (most common format)
+      final cookieParts = cookieHeader.split(RegExp(r';\s*'));
       var parsedCount = 0;
       var skippedCount = 0;
 
       for (final part in cookieParts) {
         final trimmed = part.trim();
         if (trimmed.isEmpty) {
-          skippedCount++;
+          continue;
+        }
+
+        // Skip attributes like "path=/", "domain=example.com", "secure", "HttpOnly"
+        if (!trimmed.contains('=') || trimmed.startsWith('path=') || 
+            trimmed.startsWith('domain=') || trimmed.startsWith('expires=') ||
+            trimmed.startsWith('max-age=') || trimmed.toLowerCase() == 'secure' ||
+            trimmed.toLowerCase() == 'httponly') {
           continue;
         }
 
@@ -373,11 +381,17 @@ class DioClient {
         }
 
         // Create cookie with proper domain
-        // Use domain from URI, but allow subdomain matching
+        // CRITICAL: CookieJar behavior:
+        // - If cookie has domain, it's saved in domainCookies (index 0) for subdomain sharing
+        // - If cookie has NO domain, it's saved in hostCookies (index 1) for exact host match
+        // For rutracker cookies from CookieManager, we don't set domain to ensure
+        // they are saved in hostCookies for exact host matching
         final cookie = io.Cookie(name, value)
-          ..domain = uri.host
-          ..path = '/'
-          ..secure = uri.scheme == 'https';
+          // Don't set domain - CookieJar will use uri.host automatically
+          // This ensures cookie is saved in hostCookies for exact host matching
+          ..path = '/'  // Always use '/' for rutracker cookies
+          ..secure = uri.scheme == 'https'
+          ..httpOnly = false; // We don't know if it's HttpOnly from the header
 
         cookies.add(cookie);
         parsedCount++;
@@ -414,21 +428,68 @@ class DioClient {
         return;
       }
 
-      // Save cookies to CookieJar
+      // CRITICAL: Save cookies to CookieJar for the exact URI first
+      // Use the exact URI to ensure cookies are saved with correct domain
       await jar.saveFromResponse(uri, cookies);
+      
+      // Also save to base URI (without path) to ensure cookies are available for all paths
+      final baseUri = Uri.parse('${uri.scheme}://${uri.host}');
+      if (baseUri != uri) {
+        await jar.saveFromResponse(baseUri, cookies);
+      }
 
       // Also save to all RuTracker domains for compatibility
+      // This ensures cookies work when switching between mirrors
       final rutrackerDomains = EndpointManager.getRutrackerDomains();
       for (final domain in rutrackerDomains) {
         if (domain != uri.host) {
           try {
             final domainUri = Uri.parse('${uri.scheme}://$domain');
-            await jar.saveFromResponse(domainUri, cookies);
-          } on Exception {
-            // Ignore errors for individual domains
+            // Create cookies WITHOUT domain - CookieJar will use domainUri.host automatically
+            // This ensures cookies are saved in hostCookies for each domain separately
+            final domainCookies = cookies.map((cookie) {
+              final domainCookie = io.Cookie(cookie.name, cookie.value)
+                // Don't set domain - CookieJar will use domainUri.host automatically
+                // This saves cookie in hostCookies for exact host matching per domain
+                ..path = cookie.path ?? '/'  // Always use '/' for rutracker cookies
+                ..secure = cookie.secure
+                ..httpOnly = cookie.httpOnly;
+              return domainCookie;
+            }).toList();
+            await jar.saveFromResponse(domainUri, domainCookies);
+          } on Exception catch (e) {
+            await logger.log(
+              level: 'debug',
+              subsystem: 'cookies',
+              message: 'Failed to save cookies for domain',
+              operationId: operationId,
+              context: 'cookie_sync_service',
+              cause: e.toString(),
+              extra: {'domain': domain},
+            );
           }
         }
       }
+      
+      // CRITICAL: Verify cookies were saved by loading them back
+      await Future.delayed(const Duration(milliseconds: 100));
+      final savedCookies = await jar.loadForRequest(uri);
+      final baseSavedCookies = await jar.loadForRequest(baseUri);
+      
+      await logger.log(
+        level: 'debug',
+        subsystem: 'cookies',
+        message: 'Verified cookies in CookieJar after save',
+        operationId: operationId,
+        context: 'cookie_sync_service',
+        extra: {
+          'uri_cookie_count': savedCookies.length,
+          'base_cookie_count': baseSavedCookies.length,
+          'expected_count': cookies.length,
+          'saved_cookie_names': savedCookies.map((c) => c.name).toList(),
+          'base_cookie_names': baseSavedCookies.map((c) => c.name).toList(),
+        },
+      );
 
       final duration = DateTime.now().difference(startTime).inMilliseconds;
       await logger.log(

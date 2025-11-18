@@ -730,6 +730,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   /// [updateExisting] - if true, updates existing results instead of replacing them.
   Future<void> _performNetworkSearch(String query,
       {bool updateExisting = false}) async {
+    final structuredLogger = StructuredLogger();
+    
     // Ensure cookies are synced before network search
     await DioClient.syncCookiesFromWebView();
 
@@ -805,6 +807,66 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       final endpoint = endpointData['url'] as String;
 
       try {
+        // CRITICAL: Before making search request, verify cookies are available for this endpoint
+        final searchUri = Uri.parse('$endpoint/forum/search.php');
+        final cookieJar = await DioClient.getCookieJar();
+        if (cookieJar != null) {
+          final cookiesForSearch = await cookieJar.loadForRequest(searchUri);
+          final baseUri = Uri.parse(endpoint);
+          final cookiesForBase = await cookieJar.loadForRequest(baseUri);
+          
+          await structuredLogger.log(
+            level: cookiesForSearch.isNotEmpty || cookiesForBase.isNotEmpty ? 'debug' : 'warning',
+            subsystem: 'search',
+            message: 'Cookies loaded for search request',
+            context: 'search_request',
+            extra: {
+              'endpoint': endpoint,
+              'search_uri': searchUri.toString(),
+              'cookie_count_for_search_uri': cookiesForSearch.length,
+              'cookie_count_for_base_uri': cookiesForBase.length,
+              'cookie_names_for_search': cookiesForSearch.map((c) => c.name).toList(),
+              'cookie_names_for_base': cookiesForBase.map((c) => c.name).toList(),
+              'has_session_cookies': cookiesForSearch.any((c) => 
+                c.name.toLowerCase().contains('session') || 
+                c.name == 'bb_session' || 
+                c.name == 'bb_data'
+              ) || cookiesForBase.any((c) => 
+                c.name.toLowerCase().contains('session') || 
+                c.name == 'bb_session' || 
+                c.name == 'bb_data'
+              ),
+            },
+          );
+          
+          // If no cookies found for this endpoint, try to sync from WebView
+          if (cookiesForSearch.isEmpty && cookiesForBase.isEmpty) {
+            await structuredLogger.log(
+              level: 'warning',
+              subsystem: 'search',
+              message: 'No cookies found for search endpoint, syncing from WebView',
+              context: 'search_request',
+              extra: {'endpoint': endpoint},
+            );
+            await DioClient.syncCookiesFromWebView();
+            
+            // Check again after sync
+            final cookiesAfterSync = await cookieJar.loadForRequest(searchUri);
+            final cookiesAfterSyncBase = await cookieJar.loadForRequest(baseUri);
+            await structuredLogger.log(
+              level: cookiesAfterSync.isNotEmpty || cookiesAfterSyncBase.isNotEmpty ? 'info' : 'warning',
+              subsystem: 'search',
+              message: 'Cookies after sync from WebView',
+              context: 'search_request',
+              extra: {
+                'endpoint': endpoint,
+                'cookie_count_after_sync': cookiesAfterSync.length,
+                'cookie_count_base_after_sync': cookiesAfterSyncBase.length,
+              },
+            );
+          }
+        }
+        
         final response = await dio
             .get(
               '$endpoint/forum/search.php',

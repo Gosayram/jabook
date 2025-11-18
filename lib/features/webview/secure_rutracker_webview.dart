@@ -226,6 +226,16 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
         _loginDetected = true;
         _showLoginSuccessHint();
         
+        // CRITICAL: Save cookies FIRST to ensure they're synced to Android CookieManager
+        // This must happen BEFORE _syncCookiesAfterLogin tries to read them
+        await _cookieManager?.saveCookies(
+          callerContext: 'login_success',
+          initialUrl: url?.toString(),
+        );
+        
+        // Wait a bit for Android CookieManager to process the cookies
+        await Future.delayed(const Duration(milliseconds: 500));
+        
         // NEW APPROACH: Get cookies from CookieManager (Kotlin) and sync to Dio
         await _syncCookiesAfterLogin(url?.toString());
       }
@@ -233,11 +243,13 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
       // Save WebView state
       await _stateManager?.saveWebViewHistory();
       
-      // Save cookies periodically
+      // Save cookies periodically (if not already saved during login)
+      if (!loginSuccess) {
       await _cookieManager?.saveCookies(
         callerContext: 'page_load',
         initialUrl: url?.toString(),
       );
+      }
     } on Exception catch (e) {
       await StructuredLogger().log(
         level: 'warning',
@@ -263,14 +275,32 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
     final errorMessage = error.description;
     final errorType = error.type;
     
-    // Handle non-critical errors
+    // Handle non-critical errors (advertisements, blocked resources, etc.)
     if (errorMessage.contains('ERR_BLOCKED_BY_ORB') ||
         errorMessage.contains('ERR_BLOCKED_BY_CLIENT') ||
         errorMessage.contains('ERR_BLOCKED_BY_RESPONSE') ||
+        errorMessage.contains('ERR_NAME_NOT_RESOLVED') || // DNS errors from ads/external links
         errorMessage.contains('CORS') ||
         errorMessage.contains('Cross-Origin') ||
         errorMessage.contains('ERR_INSECURE_RESPONSE') ||
         errorMessage.contains('Mixed Content')) {
+      // Log but don't show error to user - these are usually from ads or external resources
+      final url = request.url.toString();
+      if (!url.contains('rutracker')) {
+        // Only log non-rutracker errors (ads, external links)
+        await StructuredLogger().log(
+          level: 'debug',
+          subsystem: 'webview',
+          message: 'Non-critical WebView error (likely from ads/external resources)',
+          context: 'webview_error',
+          extra: {
+            'error_message': errorMessage,
+            'error_type': errorType.toString(),
+            'url': url,
+            'note': 'This error is from external resources and can be ignored',
+          },
+        );
+      }
       return;
     }
     
@@ -477,6 +507,27 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
 
       final rutrackerBaseUrl = '${uri.scheme}://${uri.host}';
 
+      // CRITICAL: First, ensure cookies are synced from InAppWebView to Android CookieManager
+      // This is a fallback in case saveCookies() didn't run or didn't complete
+      if (_cookieManager != null && _webViewController != null) {
+        await StructuredLogger().log(
+          level: 'info',
+          subsystem: 'cookies',
+          message: 'Forcing cookie sync from InAppWebView to Android CookieManager before reading',
+          operationId: operationId,
+          context: 'webview_login_sync',
+        );
+        
+        // Force save cookies to ensure they're in Android CookieManager
+        await _cookieManager!.saveCookies(
+          callerContext: 'sync_before_read',
+          initialUrl: baseUrl,
+        );
+        
+        // Wait for Android CookieManager to process
+        await Future.delayed(const Duration(milliseconds: 300));
+      }
+
       // Get cookies from CookieManager (Kotlin) with retries
       // Cookies may not be immediately available after login, so retry with delays
       String? cookieHeader;
@@ -489,8 +540,28 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
         }
         
         // Try with full URL first, then base URL
-        cookieHeader = await CookieService.getCookiesForUrl(baseUrl) ??
-            await CookieService.getCookiesForUrl(rutrackerBaseUrl);
+        final cookiesFromFullUrl = await CookieService.getCookiesForUrl(baseUrl);
+        final cookiesFromBaseUrl = await CookieService.getCookiesForUrl(rutrackerBaseUrl);
+        
+        cookieHeader = cookiesFromFullUrl ?? cookiesFromBaseUrl;
+        
+        await StructuredLogger().log(
+          level: 'debug',
+          subsystem: 'cookies',
+          message: 'Attempting to get cookies from CookieManager',
+          operationId: operationId,
+          context: 'webview_login_sync',
+          extra: {
+            'attempt': attempt + 1,
+            'max_retries': maxRetries,
+            'full_url': baseUrl,
+            'base_url': rutrackerBaseUrl,
+            'cookies_from_full_url': cookiesFromFullUrl != null && cookiesFromFullUrl.isNotEmpty,
+            'cookies_from_base_url': cookiesFromBaseUrl != null && cookiesFromBaseUrl.isNotEmpty,
+            'full_url_length': cookiesFromFullUrl?.length ?? 0,
+            'base_url_length': cookiesFromBaseUrl?.length ?? 0,
+          },
+        );
         
         if (cookieHeader != null && cookieHeader.isNotEmpty) {
           await StructuredLogger().log(
@@ -501,8 +572,11 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
             context: 'webview_login_sync',
             extra: {
               'attempt': attempt + 1,
-              'url_used': baseUrl,
+              'url_used': cookiesFromFullUrl != null ? baseUrl : rutrackerBaseUrl,
               'cookie_header_length': cookieHeader.length,
+              'cookie_header_preview': cookieHeader.length > 200
+                  ? '${cookieHeader.substring(0, 200)}...'
+                  : cookieHeader,
             },
           );
           break;
@@ -518,6 +592,7 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
             'attempt': attempt + 1,
             'max_retries': maxRetries,
             'url_tried': baseUrl,
+            'base_url_tried': rutrackerBaseUrl,
           },
         );
       }

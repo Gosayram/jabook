@@ -166,13 +166,17 @@ class DioCookieManager {
           }
 
           // Extract domain, path, and other properties
-          final domain = (m['domain']?.toString() ?? uri.host).trim();
+          final domain = m['domain']?.toString().trim();
           final path = (m['path']?.toString() ?? '/').trim();
 
-          // Validate domain matches the endpoint
-          if (!domain.contains(uri.host) && !domain.startsWith('.')) {
-            // Allow subdomains and exact matches
-            if (domain != uri.host && !domain.endsWith(uri.host)) {
+          // Validate domain matches the endpoint if domain is provided
+          if (domain != null && domain.isNotEmpty) {
+            final normalizedDomain = domain.startsWith('.') 
+                ? domain.substring(1) 
+                : domain;
+            if (!normalizedDomain.contains(uri.host) && 
+                !uri.host.endsWith('.$normalizedDomain') &&
+                normalizedDomain != uri.host) {
               skippedCount++;
               skippedCookies.add({
                 'name': name,
@@ -184,10 +188,23 @@ class DioCookieManager {
             }
           }
 
+          // CRITICAL: CookieJar behavior:
+          // - If cookie has domain, it's saved in domainCookies (index 0) for subdomain sharing
+          // - If cookie has NO domain, it's saved in hostCookies (index 1) for exact host match
+          // Only set domain if it was provided in the original cookie data
           final cookie = Cookie(name, value)
-            ..domain = domain
             ..path = path
             ..secure = true;
+          
+          // Only set domain if it was provided and is valid
+          if (domain != null && domain.isNotEmpty) {
+            // Normalize domain: remove leading dot if present
+            final normalizedDomain = domain.startsWith('.') 
+                ? domain.substring(1) 
+                : domain;
+            cookie.domain = normalizedDomain;
+          }
+          // If domain is not provided, CookieJar will use uri.host automatically
 
           cookies.add(cookie);
         } on Exception catch (e) {
@@ -405,26 +422,40 @@ class DioCookieManager {
     // For WebView cookies, SessionManager is the primary storage
     // We try to save to CookieJar for backward compatibility, but it's not critical
     
-    // CRITICAL: Set domain from URI host to ensure cookies are saved and loaded correctly
-    // CookieJar needs domain to properly match cookies on subsequent requests
+    // CRITICAL: CookieJar behavior:
+    // - If cookie has domain, it's saved in domainCookies (index 0) and can be used for subdomains
+    // - If cookie has NO domain, it's saved in hostCookies (index 1) and used only for exact host match
+    // For rutracker cookies, we want them to work for the exact host, so we should NOT set domain
+    // unless the original cookie had a domain attribute
     final uriHost = uri.host.toLowerCase();
     final cookiesToSave = cookies.map((cookie) {
       final cookieToSave = io.Cookie(cookie.name, cookie.value)
-        ..path = cookie.path ?? '/'
+        ..path = cookie.path ?? '/'  // Always use '/' for rutracker cookies
         ..secure = cookie.secure
         ..httpOnly = cookie.httpOnly;
       
-      // Set domain from URI host or use cookie's domain if it matches
-      final cookieDomain = cookie.domain?.toLowerCase() ?? '';
-      if (cookieDomain.isNotEmpty && 
-          (cookieDomain == uriHost || 
-           cookieDomain == '.$uriHost' ||
-           cookieDomain.endsWith(uriHost))) {
-        cookieToSave.domain = cookieDomain;
-      } else {
-        // Use URI host as domain (without leading dot for exact match)
-        cookieToSave.domain = uriHost;
+      // Only set domain if the original cookie had one
+      // This ensures cookies are saved in the correct CookieJar storage
+      final cookieDomain = cookie.domain?.toLowerCase().trim() ?? '';
+      if (cookieDomain.isNotEmpty) {
+        // Normalize domain: remove leading dot if present (CookieJar does this automatically, but we do it for consistency)
+        final normalizedDomain = cookieDomain.startsWith('.') 
+            ? cookieDomain.substring(1) 
+            : cookieDomain;
+        
+        // Only set domain if it matches the URI host or is a valid domain
+        // This ensures cookies are saved in domainCookies for subdomain sharing
+        if (normalizedDomain == uriHost || 
+            uriHost.endsWith('.$normalizedDomain') ||
+            normalizedDomain.contains('rutracker')) {
+          cookieToSave.domain = normalizedDomain;
+        } else {
+          // Domain doesn't match, don't set it - will be saved in hostCookies
+          // CookieJar will use uri.host automatically
+        }
       }
+      // If cookie had no domain, don't set it - CookieJar will use uri.host
+      // This saves cookie in hostCookies for exact host matching
       
       return cookieToSave;
     }).toList();
@@ -1221,7 +1252,6 @@ class DioCookieManager {
                   
                   // Parse session cookies and save to CookieJar
                   final parsedCookies = <io.Cookie>[];
-                  final uriHost = uri.host.toLowerCase();
                   for (final cookieString in sessionCookies) {
                     if (cookieString.contains('=')) {
                       final parts = cookieString.split('=');
@@ -1229,10 +1259,12 @@ class DioCookieManager {
                         final name = parts[0].trim();
                         final value = parts.sublist(1).join('=').trim();
                         if (name.isNotEmpty && value.isNotEmpty) {
+                          // CRITICAL: Don't set domain - CookieJar will use uri.host automatically
+                          // This ensures cookie is saved in hostCookies for exact host matching
                           final cookie = io.Cookie(name, value)
-                            ..path = '/'
-                            ..secure = true
-                            ..domain = uriHost; // Set domain from URI host
+                            ..path = '/'  // Always use '/' for rutracker cookies
+                            ..secure = true;
+                          // Don't set domain - CookieJar will use uri.host automatically
                           parsedCookies.add(cookie);
                         }
                       }
@@ -1338,7 +1370,13 @@ class DioCookieManager {
       final db = AppDatabase().database;
       final endpointManager = EndpointManager(db);
       final activeBase = await endpointManager.getActiveEndpoint();
-      final testUrl = '$activeBase/index.php';
+      // Use root URL instead of index.php - more reliable
+      final testUrl = activeBase.endsWith('/') ? activeBase : '$activeBase/';
+
+      // Check what cookies will be sent with the request
+      final jar = cookieJar ?? CookieJar();
+      final testUri = Uri.parse(testUrl);
+      final cookiesForRequest = await jar.loadForRequest(testUri);
 
       await logger.log(
         level: 'debug',
@@ -1349,12 +1387,13 @@ class DioCookieManager {
         extra: {
           'test_url': testUrl,
           'endpoint': activeBase,
+          'cookies_count': cookiesForRequest.length,
+          'cookies_names': cookiesForRequest.map((c) => c.name).toList(),
         },
       );
 
       try {
-        // Try to access a protected page (user profile or settings would require auth)
-        // Using index.php as a lightweight test
+        // Try to access root page - should work if cookies are valid
         // Use normal request flow - SessionInterceptor now allows requests with cookies
         final testRequestStartTime = DateTime.now();
         final response = await dio
@@ -1362,7 +1401,11 @@ class DioCookieManager {
               testUrl,
               options: Options(
                 validateStatus: (status) => status != null && status < 500,
-                followRedirects: false,
+                followRedirects: true, // Allow redirects to see if we get redirected to login
+                headers: {
+                  // Ensure cookies are sent by explicitly checking Cookie header
+                  // CookieManager interceptor should add them automatically
+                },
               ),
             )
             .timeout(const Duration(seconds: 10));

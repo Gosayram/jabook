@@ -22,6 +22,7 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:jabook/core/endpoints/endpoint_manager.dart';
 import 'package:jabook/core/logging/structured_logger.dart';
 import 'package:jabook/core/net/dio_client.dart';
+import 'package:jabook/core/services/cookie_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Manages cookie synchronization between WebView and Dio HTTP client.
@@ -380,6 +381,81 @@ class WebViewCookieManager {
             'has_http_only': cookieManagerCookies.any((c) => c.isHttpOnly ?? false),
           },
         );
+        
+        // CRITICAL: Sync cookies from InAppWebView CookieManager to Android CookieManager
+        // This ensures that CookieService.getCookiesForUrl() can read them
+        if (cookieManagerCookies.isNotEmpty) {
+          await logger.log(
+            level: 'info',
+            subsystem: 'cookies',
+            message: 'Syncing cookies from InAppWebView to Android CookieManager',
+            operationId: operationId,
+            context: 'webview_cookie_save',
+            extra: {
+              'cookie_count': cookieManagerCookies.length,
+            },
+          );
+          
+          // Sync cookies to Android CookieManager for all RuTracker domains
+          // CRITICAL: Android CookieManager.setCookie() expects format: "name=value; path=/; domain=example.com"
+          for (final domain in EndpointManager.getRutrackerDomains()) {
+            try {
+              final domainUrl = 'https://$domain';
+              
+              // Build cookie strings for Android CookieManager
+              // Format: "name=value; path=/; domain=example.com"
+              final cookieStrings = <String>[];
+              var syncedCount = 0;
+              
+              for (final cookie in cookieManagerCookies) {
+                // Get domain from cookie or use fallback domain
+                var cookieDomain = cookie.domain ?? domain;
+                // Remove leading dot if present (Android CookieManager doesn't need it)
+                if (cookieDomain.startsWith('.')) {
+                  cookieDomain = cookieDomain.substring(1);
+                }
+                // Ensure domain matches the target domain
+                if (!cookieDomain.contains(domain) && domain != cookieDomain) {
+                  cookieDomain = domain;
+                }
+                
+                // Build cookie string in format expected by Android CookieManager
+                // Format: "name=value; path=/path; domain=example.com"
+                final cookieString = '${cookie.name}=${cookie.value}; path=${cookie.path ?? '/'}; domain=$cookieDomain';
+                cookieStrings.add(cookieString);
+                
+                // Set each cookie individually in Android CookieManager
+                final success = await CookieService.setCookie(domainUrl, cookieString);
+                if (success) {
+                  syncedCount++;
+                }
+              }
+              
+              await logger.log(
+                level: syncedCount > 0 ? 'info' : 'warning',
+                subsystem: 'cookies',
+                message: 'Synced cookies to Android CookieManager for domain',
+                operationId: operationId,
+                context: 'webview_cookie_save',
+                extra: {
+                  'domain': domain,
+                  'cookie_count': cookieStrings.length,
+                  'synced_count': syncedCount,
+                },
+              );
+            } on Exception catch (e) {
+              await logger.log(
+                level: 'warning',
+                subsystem: 'cookies',
+                message: 'Failed to sync cookies to Android CookieManager for domain',
+                operationId: operationId,
+                context: 'webview_cookie_save',
+                cause: e.toString(),
+                extra: {'domain': domain},
+              );
+            }
+          }
+        }
         
         // Save CookieManager cookies to SessionManager
         if (sessionManager != null && jsCookieStrings.isNotEmpty) {
