@@ -72,6 +72,7 @@ install:
 clean:
 	rm -rf build/
 	rm -rf android/
+	rm -rf debug-info/
 	@echo "Cleaned build artifacts"
 
 .PHONY: run
@@ -184,6 +185,14 @@ build-android-signed-apk: use-existing-android-cert patch-gradle-signing
 		--split-per-abi \
 		--tree-shake-icons
 	@echo "Signed optimized APK built at: build/app/outputs/apk/"
+
+.PHONY: build-android-debug-apk
+build-android-debug-apk: use-existing-android-cert patch-gradle-signing
+	@echo "Building signed debug APK (no obfuscation for easier debugging)..."
+	flutter build apk --target lib/main.dart --release \
+		--split-per-abi \
+		--tree-shake-icons
+	@echo "Signed debug APK built at: build/app/outputs/apk/"
 
 # iOS build commands
 .PHONY: build-ios-dev
