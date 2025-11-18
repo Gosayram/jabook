@@ -754,25 +754,42 @@ class DioClient {
             }
             
             await StructuredLogger().log(
-              level: 'debug',
+              level: 'info',
               subsystem: 'cookies',
-              message: 'Merged cookies from FlutterCookieBridge with request',
+              message: 'Adding cookies from FlutterCookieBridge SessionManager to request',
               context: 'cookie_bridge_request',
               extra: {
                 'uri': request.uri.toString(),
                 'session_cookie_count': sessionCookies.length,
                 'has_existing_cookies': existingCookieHeader != null && existingCookieHeader.isNotEmpty,
                 'cookie_names': sessionCookies.map((c) => c.split('=').first).toList(),
+                'final_cookie_header_length': request.headers['Cookie']?.length ?? 0,
+              },
+            );
+          } else {
+            // No cookies in SessionManager - log for debugging
+            await StructuredLogger().log(
+              level: 'debug',
+              subsystem: 'cookies',
+              message: 'No cookies found in FlutterCookieBridge SessionManager',
+              context: 'cookie_bridge_request',
+              extra: {
+                'uri': request.uri.toString(),
+                'note': 'Request will proceed without SessionManager cookies (may use CookieJar cookies)',
               },
             );
           }
         } on Exception catch (e) {
           await StructuredLogger().log(
-            level: 'debug',
+            level: 'warning',
             subsystem: 'cookies',
-            message: 'Failed to get cookies from FlutterCookieBridge',
+            message: 'Failed to get cookies from FlutterCookieBridge SessionManager',
             context: 'cookie_bridge_request',
             cause: e.toString(),
+            extra: {
+              'uri': request.uri.toString(),
+              'note': 'Request will proceed without SessionManager cookies',
+            },
           );
         }
         handler.next(request);
@@ -1244,51 +1261,79 @@ class DioClient {
         },
       );
       
-      // CRITICAL: Try to save cookies using saveFromResponse
-      // If that doesn't work, we'll try an alternative approach
+      // IMPORTANT: CookieJar is primarily for cookies from HTTP responses
+      // For WebView cookies, SessionManager is the primary storage
+      // We try to save to CookieJar for backward compatibility, but it's not critical
+      
+      // Try simple batch save first (most reliable method)
       try {
-        await _cookieJar!.saveFromResponse(uri, cookies);
-      } on Exception catch (e) {
         await logger.log(
-          level: 'warning',
+          level: 'debug',
           subsystem: 'cookies',
-          message: 'saveFromResponse failed, trying alternative method',
+          message: 'Attempting batch save to CookieJar',
           operationId: operationId,
           context: 'cookie_save_direct',
-          cause: e.toString(),
+          extra: {
+            'uri': uri.toString(),
+            'cookie_count': cookies.length,
+          },
         );
         
-        // Alternative: Try saving cookies one by one with explicit domain/path
-        // This ensures cookies are saved even if domain matching is strict
+        // Use the exact URI provided - CookieJar will handle domain matching
+        await _cookieJar!.saveFromResponse(uri, cookies);
+        
+        await logger.log(
+          level: 'debug',
+          subsystem: 'cookies',
+          message: 'Batch save to CookieJar completed',
+          operationId: operationId,
+          context: 'cookie_save_direct',
+        );
+      } on Exception catch (batchError) {
+        await logger.log(
+          level: 'debug',
+          subsystem: 'cookies',
+          message: 'Batch save to CookieJar failed (non-critical)',
+          operationId: operationId,
+          context: 'cookie_save_direct',
+          cause: batchError.toString(),
+          extra: {
+            'note': 'Cookies are stored in SessionManager, which is the primary storage for WebView cookies',
+          },
+        );
+        
+        // Try individual saves as fallback (only if batch failed)
+        var savedCount = 0;
         for (final cookie in cookies) {
           try {
-            // Create a URI that matches the cookie's domain
-            final cookieUri = cookie.domain != null && cookie.domain!.isNotEmpty
-                ? Uri.parse('https://${cookie.domain!.replaceFirst('.', '')}')
-                : uri;
-            
-            // Save cookie with explicit domain/path
+            // Create cookie without domain (let CookieJar use URI host)
             final cookieToSave = io.Cookie(cookie.name, cookie.value)
-              ..domain = cookie.domain ?? uri.host
               ..path = cookie.path ?? '/'
               ..secure = cookie.secure
               ..httpOnly = cookie.httpOnly;
             
-            await _cookieJar!.saveFromResponse(cookieUri, [cookieToSave]);
-          } on Exception catch (cookieError) {
-            await logger.log(
-              level: 'debug',
-              subsystem: 'cookies',
-              message: 'Failed to save individual cookie',
-              operationId: operationId,
-              context: 'cookie_save_direct',
-              cause: cookieError.toString(),
-              extra: {
-                'cookie_name': cookie.name,
-                'cookie_domain': cookie.domain,
-              },
-            );
+            // Don't set domain - let CookieJar use URI host automatically
+            // This is more reliable than trying to normalize domains
+            
+            await _cookieJar!.saveFromResponse(uri, [cookieToSave]);
+            savedCount++;
+          } on Exception {
+            // Ignore individual failures - not critical
           }
+        }
+        
+        if (savedCount > 0) {
+          await logger.log(
+            level: 'debug',
+            subsystem: 'cookies',
+            message: 'Some cookies saved individually to CookieJar',
+            operationId: operationId,
+            context: 'cookie_save_direct',
+            extra: {
+              'saved_count': savedCount,
+              'total_count': cookies.length,
+            },
+          );
         }
       }
       
@@ -1345,12 +1390,14 @@ class DioClient {
         },
       );
       
-      // CRITICAL: If cookies were not saved, log error
+      // NOTE: If cookies were not saved to CookieJar, it's not critical
+      // SessionManager is the primary storage for WebView cookies
+      // CookieJar is primarily for cookies from HTTP responses
       if (allSavedCookies.isEmpty && cookies.isNotEmpty) {
         await logger.log(
-          level: 'error',
+          level: 'debug',
           subsystem: 'cookies',
-          message: 'CRITICAL: Cookies were NOT saved to Dio CookieJar!',
+          message: 'Cookies not found in CookieJar after save (non-critical)',
           operationId: operationId,
           context: 'cookie_save_direct',
           extra: {
@@ -1359,8 +1406,7 @@ class DioClient {
             'input_cookie_count': cookies.length,
             'saved_cookie_count': allSavedCookies.length,
             'input_cookie_names': cookies.map((c) => c.name).toList(),
-            'input_cookie_domains': cookies.map((c) => c.domain ?? '<null>').toList(),
-            'note': 'Cookies may not match domain or path requirements',
+            'note': 'Cookies are stored in SessionManager, which is the primary storage. CookieJar is primarily for HTTP response cookies.',
           },
         );
       }

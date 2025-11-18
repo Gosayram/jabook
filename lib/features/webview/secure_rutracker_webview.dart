@@ -18,6 +18,7 @@ import 'dart:io' as io;
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_cookie_bridge/session_manager.dart' as bridge_session;
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -90,9 +91,11 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView>
     WidgetsBinding.instance.addObserver(this);
     // Initialize FlutterCookieBridge for automatic cookie sync
     _initCookieBridge();
-    // Set fallback URL immediately to prevent null issues
+    // Set fallback URL immediately to prevent null issues and ensure WebView can render
     initialUrl = EndpointManager.getPrimaryFallbackEndpoint();
-    // Get User-Agent for legitimate connection (required for Cloudflare)
+    // Set default User-Agent immediately to prevent UI blocking (WebView won't render without it)
+    _userAgent = 'Mozilla/5.0 (Linux; Android 13; SM-S918B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.6099.210 Mobile Safari/537.36';
+    // Get actual User-Agent asynchronously (will update if successful, but WebView can start with default)
     _getUserAgent();
     // Resolve initial URL with timeout to prevent hanging
     _resolveInitialUrl()
@@ -168,9 +171,12 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView>
     _cloudflareCheckTimer?.cancel();
     // Cancel cookie sync timer
     _cookieSyncTimer?.cancel();
-    // Save cookies one final time before disposing
-    // Save cookies one final time (sync happens automatically in _saveCookies)
-    _saveCookies();
+    // Save cookies one final time before disposing (only if still mounted)
+    // Note: If WebView was closed via navigator.pop(), it may already be unmounted
+    // In that case, cookies should have been saved before closing
+    if (mounted) {
+      unawaited(_saveCookies(callerContext: 'dispose'));
+    }
     _saveWebViewHistory();
     super.dispose();
   }
@@ -178,16 +184,27 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     // Sync cookies when app resumes (e.g., returning from browser after Cloudflare challenge)
-    if (state == AppLifecycleState.resumed) {
-      Future.microtask(() async {
-        try {
-          await StructuredLogger().log(
-            level: 'debug',
-            subsystem: 'cookies',
-            message: 'App resumed, syncing cookies from WebView',
-            context: 'app_lifecycle',
-          );
-          await _saveCookies();
+        if (state == AppLifecycleState.resumed) {
+          Future.microtask(() async {
+            try {
+              // Only sync cookies if WebView is still mounted
+              if (!mounted) {
+                await StructuredLogger().log(
+                  level: 'debug',
+                  subsystem: 'cookies',
+                  message: 'App resumed but WebView is not mounted, skipping cookie sync',
+                  context: 'app_lifecycle',
+                );
+                return;
+              }
+              
+              await StructuredLogger().log(
+                level: 'debug',
+                subsystem: 'cookies',
+                message: 'App resumed, syncing cookies from WebView',
+                context: 'app_lifecycle',
+              );
+          await _saveCookies(callerContext: 'app_lifecycle_resumed');
         await DioClient.syncCookiesFromWebView();
           await StructuredLogger().log(
             level: 'info',
@@ -472,11 +489,51 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView>
     }
   }
 
-  Future<void> _saveCookies() async {
+  Future<void> _saveCookies({String? callerContext}) async {
+    // CRITICAL: Check if WebView is still mounted BEFORE attempting to get cookies
+    // If WebView is closed, we cannot access it to get cookies
+    if (!mounted) {
+      // Get stack trace to see where this was called from
+      final stackTrace = StackTrace.current;
+      final stackLines = stackTrace.toString().split('\n');
+      final callerInfo = stackLines.length > 2 
+          ? stackLines[2].trim() 
+          : 'unknown';
+      
+      await StructuredLogger().log(
+        level: 'warning',
+        subsystem: 'cookies',
+        message: 'Cannot save cookies - WebView is not mounted',
+        context: 'webview_cookie_save',
+        extra: {
+          'note': 'WebView may have been closed. Cookies should have been saved before closing.',
+          'caller_context': callerContext ?? 'not_provided',
+          'caller_stack': callerInfo,
+          'stack_trace_preview': stackLines.length > 5 
+              ? stackLines.sublist(0, 5).join('\n') 
+              : stackTrace.toString(),
+        },
+      );
+      return;
+    }
+    
     final operationId =
         'webview_cookie_save_${DateTime.now().millisecondsSinceEpoch}';
     final logger = StructuredLogger();
     final startTime = DateTime.now();
+
+    // Log that we're starting to save cookies
+    await logger.log(
+      level: 'info',
+      subsystem: 'cookies',
+      message: 'Starting cookie save from WebView',
+      operationId: operationId,
+      context: 'webview_cookie_save',
+      extra: {
+        'caller_context': callerContext ?? 'not_provided',
+        'is_mounted': mounted,
+      },
+    );
 
     try {
       // Get current URL from WebView if available, otherwise use initialUrl
@@ -514,123 +571,609 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView>
         },
       );
 
-      // Collect cookies from all RuTracker domains
-      // IMPORTANT: Use full URLs with paths, not just domain roots
-      // This ensures we get all cookies, including those set for specific paths
-      final allCookies = <Cookie>[];
-      final rutrackerDomains = EndpointManager.getRutrackerDomains();
+      // PRIMARY METHOD: Get cookies via CookieManager (includes HttpOnly cookies)
+      // HttpOnly cookies (like bb_session) are NOT accessible via JavaScript
+      // CookieManager can access ALL cookies including HttpOnly ones
+      final cookies = <Cookie>[];
+      final jsCookieStrings = <String>[];
       
-      // Try multiple URL variations to ensure we get all cookies
-      final urlsToCheck = <String>[urlToUse];
+      // PRIMARY METHOD: Get cookies via CookieManager (includes HttpOnly cookies)
+      // HttpOnly cookies like bb_session are NOT accessible via JavaScript
+      List<Cookie>? cookieManagerCookies;
+      Exception? cookieManagerError;
+      String? jsCookiesString;
+      Exception? lastError;
       
-      // 2. Base URLs for each domain
-      for (final domain in rutrackerDomains) {
-        urlsToCheck
-          ..add('https://$domain')
-          ..add('https://$domain/')
-          ..add('https://$domain/forum/')
-          ..add('https://$domain/forum/index.php');
-      }
-      
-      // Remove duplicates
-      final uniqueUrls = urlsToCheck.toSet().toList();
-      
-      await logger.log(
-        level: 'debug',
-        subsystem: 'cookies',
-        message: 'Checking multiple URLs for cookies',
-        operationId: operationId,
-        context: 'webview_cookie_save',
-        extra: {
-          'urls_to_check': uniqueUrls,
-          'url_count': uniqueUrls.length,
-        },
-      );
-      
-      for (final url in uniqueUrls) {
+      // Try CookieManager with retries (cookies may not be immediately available)
+      for (var cookieManagerAttempt = 0; cookieManagerAttempt < 3; cookieManagerAttempt++) {
         try {
-          final cookies = await CookieManager.instance()
-              .getCookies(url: WebUri(url));
+          // Wait before retry (except first attempt)
+          if (cookieManagerAttempt > 0) {
+            await logger.log(
+              level: 'debug',
+              subsystem: 'cookies',
+              message: 'Retrying CookieManager (attempt ${cookieManagerAttempt + 1}/3)',
+              operationId: operationId,
+              context: 'webview_cookie_save',
+              extra: {
+                'attempt': cookieManagerAttempt + 1,
+                'delay_ms': 500 * cookieManagerAttempt,
+              },
+            );
+            await Future.delayed(Duration(milliseconds: 500 * cookieManagerAttempt));
+            
+            if (!mounted) {
+              await logger.log(
+                level: 'warning',
+                subsystem: 'cookies',
+                message: 'WebView unmounted during CookieManager retry',
+                operationId: operationId,
+                context: 'webview_cookie_save',
+              );
+              break;
+            }
+          }
           
           await logger.log(
-            level: 'debug',
+            level: cookieManagerAttempt == 0 ? 'info' : 'debug',
             subsystem: 'cookies',
-            message: 'Retrieved cookies for URL',
+            message: 'Getting cookies via CookieManager (attempt ${cookieManagerAttempt + 1}/3)',
             operationId: operationId,
             context: 'webview_cookie_save',
             extra: {
-              'url': url,
-              'cookie_count': cookies.length,
-              'cookie_names': cookies.map((c) => c.name).toList(),
+              'current_url': urlToUse,
+              'attempt': cookieManagerAttempt + 1,
+              'note': 'CookieManager can access ALL cookies including HttpOnly ones',
             },
           );
           
-          // Add only new cookies (avoid duplicates by name+domain)
-          for (final cookie in cookies) {
-            if (!allCookies.any((c) =>
-                c.name == cookie.name && 
-                (c.domain ?? '') == (cookie.domain ?? ''))) {
-              allCookies.add(cookie);
+          // Get cookies from CookieManager for current URL and all RuTracker domains
+          final rutrackerDomains = EndpointManager.getRutrackerDomains();
+          final allCookies = <Cookie>[];
+          
+          // Try current URL first
+          try {
+            final currentUri = WebUri(urlToUse);
+            final currentCookies = await CookieManager.instance().getCookies(url: currentUri);
+            allCookies.addAll(currentCookies);
+            await logger.log(
+              level: 'debug',
+              subsystem: 'cookies',
+              message: 'Got cookies from CookieManager for current URL',
+              operationId: operationId,
+              context: 'webview_cookie_save',
+              extra: {
+                'url': urlToUse,
+                'cookie_count': currentCookies.length,
+                'cookie_names': currentCookies.map((c) => c.name).toList(),
+                'attempt': cookieManagerAttempt + 1,
+              },
+            );
+          } on Exception catch (e) {
+            await logger.log(
+              level: 'warning',
+              subsystem: 'cookies',
+              message: 'Failed to get cookies from CookieManager for current URL',
+              operationId: operationId,
+              context: 'webview_cookie_save',
+              cause: e.toString(),
+              extra: {
+                'attempt': cookieManagerAttempt + 1,
+              },
+            );
+          }
+          
+          // Try all RuTracker domains to ensure we get all cookies
+          for (final domain in rutrackerDomains) {
+            try {
+              final domainUri = WebUri('https://$domain');
+              final domainCookies = await CookieManager.instance().getCookies(url: domainUri);
+              
+              // Add cookies that we don't already have
+              for (final cookie in domainCookies) {
+                if (!allCookies.any((c) => c.name == cookie.name && c.domain == cookie.domain)) {
+                  allCookies.add(cookie);
+                }
+              }
+              
+              if (domainCookies.isNotEmpty) {
+                await logger.log(
+                  level: 'debug',
+                  subsystem: 'cookies',
+                  message: 'Got cookies from CookieManager for domain',
+                  operationId: operationId,
+                  context: 'webview_cookie_save',
+                  extra: {
+                    'domain': domain,
+                    'cookie_count': domainCookies.length,
+                    'cookie_names': domainCookies.map((c) => c.name).toList(),
+                    'attempt': cookieManagerAttempt + 1,
+                  },
+                );
+              }
+            } on Exception catch (e) {
+              // Ignore errors for individual domains
+              await logger.log(
+                level: 'debug',
+                subsystem: 'cookies',
+                message: 'Failed to get cookies from CookieManager for domain',
+                operationId: operationId,
+                context: 'webview_cookie_save',
+                cause: e.toString(),
+                extra: {
+                  'domain': domain,
+                  'attempt': cookieManagerAttempt + 1,
+                },
+              );
+            }
+          }
+          
+          cookieManagerCookies = allCookies;
+          
+          if (cookieManagerCookies.isNotEmpty) {
+            await logger.log(
+              level: 'info',
+              subsystem: 'cookies',
+              message: 'Successfully got cookies via CookieManager',
+              operationId: operationId,
+              context: 'webview_cookie_save',
+              extra: {
+                'total_cookie_count': cookieManagerCookies.length,
+                'cookie_names': cookieManagerCookies.map((c) => c.name).toList(),
+                'has_http_only_cookies': cookieManagerCookies.any((c) => c.isHttpOnly ?? false),
+                'attempt': cookieManagerAttempt + 1,
+              },
+            );
+            break; // Success, exit retry loop
+          } else {
+            await logger.log(
+              level: 'warning',
+              subsystem: 'cookies',
+              message: 'CookieManager returned no cookies (attempt ${cookieManagerAttempt + 1}/3)',
+              operationId: operationId,
+              context: 'webview_cookie_save',
+              extra: {
+                'current_url': urlToUse,
+                'domains_checked': rutrackerDomains,
+                'attempt': cookieManagerAttempt + 1,
+                'will_retry': cookieManagerAttempt < 2,
+              },
+            );
+            
+            // If this is the last attempt, don't retry
+            if (cookieManagerAttempt >= 2) {
+              break;
             }
           }
         } on Exception catch (e) {
+          cookieManagerError = e;
           await logger.log(
-            level: 'debug',
+            level: 'error',
             subsystem: 'cookies',
-            message: 'Failed to get cookies for URL',
+            message: 'Failed to get cookies via CookieManager (attempt ${cookieManagerAttempt + 1}/3)',
             operationId: operationId,
             context: 'webview_cookie_save',
+            cause: e.toString(),
             extra: {
-              'url': url,
-              'error': e.toString(),
+              'current_url': urlToUse,
+              'attempt': cookieManagerAttempt + 1,
+              'will_retry': cookieManagerAttempt < 2,
+              'error_type': cookieManagerError.runtimeType.toString(),
             },
           );
+          
+          // If this is the last attempt, don't retry
+          if (cookieManagerAttempt >= 2) {
+            break;
+          }
         }
       }
-
-      final cookies = allCookies;
-
-      await logger.log(
-        level: 'info',
-        subsystem: 'cookies',
-        message: 'Retrieved cookies from WebView CookieManager',
-        operationId: operationId,
-        context: 'webview_cookie_save',
-        extra: {
-          'cookie_count': cookies.length,
-          'domains_checked': rutrackerDomains,
-          'cookies': cookies
-              .map((c) => {
-                    'name': c.name,
-                    'domain': c.domain ?? '<null>',
-                    'path': c.path ?? '/',
-                    'is_secure': c.isSecure ?? false,
-                    'is_http_only': c.isHttpOnly ?? false,
-                    'has_value': c.value.isNotEmpty,
-                    'value_length': c.value.length,
-                    'value_preview': c.value.isNotEmpty 
-                        ? '${c.value.substring(0, c.value.length > 20 ? 20 : c.value.length)}...' 
-                        : '<empty>',
-                    'is_session_cookie': c.name.toLowerCase().contains('session') ||
-                        c.name == 'bb_session' ||
-                        c.name == 'bb_data',
-                  })
-              .toList(),
-        },
-      );
       
-      // CRITICAL: If no cookies found, log warning
-      if (cookies.isEmpty) {
+      // FALLBACK METHOD: Try JavaScript if CookieManager failed or returned no cookies
+      // JavaScript can only access non-HttpOnly cookies
+      if (cookieManagerCookies == null || cookieManagerCookies.isEmpty) {
         await logger.log(
-          level: 'warning',
+          level: 'info',
           subsystem: 'cookies',
-          message: 'NO COOKIES FOUND in WebView CookieManager - this is a problem!',
+          message: 'Trying JavaScript as fallback (CookieManager failed or returned no cookies)',
           operationId: operationId,
           context: 'webview_cookie_save',
           extra: {
-            'domains_checked': rutrackerDomains,
+            'note': 'JavaScript can only access non-HttpOnly cookies',
+          },
+        );
+        
+        for (var attempt = 0; attempt < 3; attempt++) {
+          try {
+            // Check if WebView is still available
+            if (!mounted) {
+              await logger.log(
+                level: 'warning',
+                subsystem: 'cookies',
+                message: 'WebView widget is not mounted, skipping JavaScript cookie extraction',
+                operationId: operationId,
+                context: 'webview_cookie_save',
+                extra: {
+                  'attempt': attempt + 1,
+                },
+              );
+              break;
+            }
+            
+            // Wait before retry (except first attempt)
+            if (attempt > 0) {
+              await Future.delayed(Duration(milliseconds: 500 * attempt));
+              if (!mounted) break;
+            }
+            
+            final jsCookiesResult = await _webViewController.evaluateJavascript(source: 'document.cookie');
+          
+          await logger.log(
+            level: 'debug',
+            subsystem: 'cookies',
+            message: 'evaluateJavascript completed',
+            operationId: operationId,
+            context: 'webview_cookie_save',
+            extra: {
+              'attempt': attempt + 1,
+              'result_type': jsCookiesResult.runtimeType.toString(),
+              'result_is_null': jsCookiesResult == null,
+            },
+          );
+          
+          if (jsCookiesResult != null) {
+            jsCookiesString = jsCookiesResult.toString();
+            
+            await logger.log(
+              level: 'debug',
+              subsystem: 'cookies',
+              message: 'JavaScript cookie string received',
+              operationId: operationId,
+              context: 'webview_cookie_save',
+              extra: {
+                'attempt': attempt + 1,
+                'cookie_string_length': jsCookiesString.length,
+                'cookie_string_preview': jsCookiesString.length > 100 
+                    ? '${jsCookiesString.substring(0, 100)}...' 
+                    : jsCookiesString,
+                'is_empty': jsCookiesString.isEmpty,
+              },
+            );
+            
+            if (jsCookiesString.isNotEmpty) {
+              // Success! Break out of retry loop
+              await logger.log(
+                level: 'info',
+                subsystem: 'cookies',
+                message: 'Successfully got cookies via JavaScript (attempt ${attempt + 1})',
+                operationId: operationId,
+                context: 'webview_cookie_save',
+                extra: {
+                  'attempt': attempt + 1,
+                  'cookie_string_length': jsCookiesString.length,
+                },
+              );
+              break; // Exit retry loop on success
+            } else {
+              // Empty string - might need to wait longer
+              await logger.log(
+                level: 'debug',
+                subsystem: 'cookies',
+                message: 'JavaScript returned empty cookie string (attempt ${attempt + 1})',
+                operationId: operationId,
+                context: 'webview_cookie_save',
+                extra: {
+                  'attempt': attempt + 1,
+                  'will_retry': attempt < 2,
+                },
+              );
+              if (attempt < 2) {
+                // Will retry
+                continue;
+              }
+            }
+          } else {
+            // Null result - might need to wait longer
+            await logger.log(
+              level: 'debug',
+              subsystem: 'cookies',
+              message: 'JavaScript returned null (attempt ${attempt + 1})',
+              operationId: operationId,
+              context: 'webview_cookie_save',
+              extra: {
+                'attempt': attempt + 1,
+                'will_retry': attempt < 2,
+              },
+            );
+            if (attempt < 2) {
+              // Will retry
+              continue;
+            }
+          }
+        } on MissingPluginException catch (e) {
+          lastError = e;
+          await logger.log(
+            level: 'warning',
+            subsystem: 'cookies',
+            message: 'MissingPluginException on attempt ${attempt + 1}/3 - WebView may not be ready yet',
+            operationId: operationId,
+            context: 'webview_cookie_save',
+            cause: e.toString(),
+            extra: {
+              'attempt': attempt + 1,
+              'will_retry': attempt < 2,
+              'error_type': 'MissingPluginException',
+              'is_mounted': mounted,
+            },
+          );
+          if (attempt < 2) {
+            continue; // Retry
+        }
+      } on Exception catch (e) {
+          lastError = e;
+        await logger.log(
+            level: 'warning',
+          subsystem: 'cookies',
+            message: 'Exception getting cookies via JavaScript (attempt ${attempt + 1}/3)',
+          operationId: operationId,
+          context: 'webview_cookie_save',
+            cause: e.toString(),
+          extra: {
+              'attempt': attempt + 1,
+              'will_retry': attempt < 2,
+              'error_type': e.runtimeType.toString(),
+              'is_mounted': mounted,
+            },
+          );
+          if (attempt < 2) {
+            continue; // Retry
+          }
+        }
+        }
+      }
+      
+      // Process cookies: Use CookieManager cookies as PRIMARY, JavaScript as supplement
+      if (cookieManagerCookies != null && cookieManagerCookies.isNotEmpty) {
+        // Use CookieManager cookies (includes HttpOnly cookies like bb_session)
+        cookies.addAll(cookieManagerCookies);
+        
+        // Convert CookieManager cookies to strings for SessionManager
+        for (final cookie in cookieManagerCookies) {
+          jsCookieStrings.add('${cookie.name}=${cookie.value}');
+        }
+        
+        await logger.log(
+          level: 'info',
+          subsystem: 'cookies',
+          message: 'Using cookies from CookieManager (PRIMARY METHOD)',
+          operationId: operationId,
+          context: 'webview_cookie_save',
+          extra: {
+            'cookie_count': cookieManagerCookies.length,
+            'cookie_names': cookieManagerCookies.map((c) => c.name).toList(),
+            'has_http_only': cookieManagerCookies.any((c) => c.isHttpOnly ?? false),
+          },
+        );
+        
+        // Save CookieManager cookies to SessionManager
+        if (_bridgeSessionManager != null && (jsCookieStrings.isNotEmpty)) {
+          await logger.log(
+            level: 'info',
+            subsystem: 'cookies',
+            message: 'About to save CookieManager cookies to FlutterCookieBridge SessionManager',
+            operationId: operationId,
+            context: 'webview_cookie_save',
+            extra: {
+              'cookie_count': jsCookieStrings.length,
+              'cookie_names': jsCookieStrings
+                  .map((s) {
+                    final parts = s.split('=');
+                    return parts.isNotEmpty ? parts[0].trim() : '';
+                  })
+                  .where((name) => name.isNotEmpty)
+                  .toList(),
+              'caller_context': callerContext ?? 'not_provided',
+            },
+          );
+          
+          await _bridgeSessionManager!.saveSessionCookies(jsCookieStrings);
+          
+          await logger.log(
+            level: 'info',
+            subsystem: 'cookies',
+            message: 'CookieManager cookies saved to FlutterCookieBridge SessionManager',
+            operationId: operationId,
+            context: 'webview_cookie_save',
+            extra: {
+              'cookie_count': jsCookieStrings.length,
+              'cookie_names': jsCookieStrings
+                  .map((s) {
+                    final parts = s.split('=');
+                    return parts.isNotEmpty ? parts[0].trim() : '';
+                  })
+                  .where((name) => name.isNotEmpty)
+                  .toList(),
+              'caller_context': callerContext ?? 'not_provided',
+              'saved_to_session_manager': true,
+            },
+          );
+        } else if (_bridgeSessionManager == null) {
+          await logger.log(
+            level: 'error',
+            subsystem: 'cookies',
+            message: 'CRITICAL: FlutterCookieBridge SessionManager is not initialized!',
+            operationId: operationId,
+            context: 'webview_cookie_save',
+            extra: {
+              'caller_context': callerContext ?? 'not_provided',
+              'cookie_count_attempted': jsCookieStrings.length,
+            },
+          );
+        }
+      } else if (jsCookiesString != null && jsCookiesString.isNotEmpty) {
+        // Fallback to JavaScript cookies (non-HttpOnly only)
+        await logger.log(
+          level: 'info',
+          subsystem: 'cookies',
+          message: 'Found cookies via JavaScript',
+          operationId: operationId,
+          context: 'webview_cookie_save',
+          extra: {
+            'js_cookies_preview': jsCookiesString.length > 200 
+                ? '${jsCookiesString.substring(0, 200)}...' 
+                : jsCookiesString,
+            'js_cookies_length': jsCookiesString.length,
+          },
+        );
+        
+        // Parse JavaScript cookies: format is "name=value; name2=value2"
+        // Handle both "; " and ";" separators
+        final rawCookieStrings = jsCookiesString.split(RegExp(r';\s*'));
+        for (final rawCookie in rawCookieStrings) {
+          final trimmed = rawCookie.trim();
+          if (trimmed.isNotEmpty && trimmed.contains('=')) {
+            jsCookieStrings.add(trimmed);
+          }
+        }
+        
+        if (jsCookieStrings.isNotEmpty) {
+      await logger.log(
+            level: 'info',
+        subsystem: 'cookies',
+            message: 'Parsed JavaScript cookies',
+        operationId: operationId,
+        context: 'webview_cookie_save',
+        extra: {
+              'parsed_cookie_count': jsCookieStrings.length,
+              'parsed_cookie_names': jsCookieStrings
+                  .map((s) {
+                    final parts = s.split('=');
+                    return parts.isNotEmpty ? parts[0].trim() : '';
+                  })
+                  .where((name) => name.isNotEmpty)
+              .toList(),
+        },
+      );
+          
+          // Save JavaScript cookies directly to SessionManager
+          // This is the PRIMARY and ONLY method for cookie synchronization
+          if (_bridgeSessionManager != null) {
+            await logger.log(
+              level: 'info',
+              subsystem: 'cookies',
+              message: 'About to save cookies to FlutterCookieBridge SessionManager',
+              operationId: operationId,
+              context: 'webview_cookie_save',
+              extra: {
+                'cookie_count': jsCookieStrings.length,
+                'cookie_names': jsCookieStrings
+                    .map((s) {
+                      final parts = s.split('=');
+                      return parts.isNotEmpty ? parts[0].trim() : '';
+                    })
+                    .where((name) => name.isNotEmpty)
+                    .toList(),
+                'caller_context': callerContext ?? 'not_provided',
+              },
+            );
+            
+            await _bridgeSessionManager!.saveSessionCookies(jsCookieStrings);
+            
+            await logger.log(
+              level: 'info',
+              subsystem: 'cookies',
+              message: 'JavaScript cookies saved to FlutterCookieBridge SessionManager',
+              operationId: operationId,
+              context: 'webview_cookie_save',
+              extra: {
+                'cookie_count': jsCookieStrings.length,
+                'cookie_names': jsCookieStrings
+                    .map((s) {
+                      final parts = s.split('=');
+                      return parts.isNotEmpty ? parts[0].trim() : '';
+                    })
+                    .where((name) => name.isNotEmpty)
+                    .toList(),
+                'caller_context': callerContext ?? 'not_provided',
+                'saved_to_session_manager': true,
+              },
+            );
+          } else {
+            await logger.log(
+              level: 'error',
+              subsystem: 'cookies',
+              message: 'CRITICAL: FlutterCookieBridge SessionManager is not initialized!',
+              operationId: operationId,
+              context: 'webview_cookie_save',
+              extra: {
+                'caller_context': callerContext ?? 'not_provided',
+                'cookie_count_attempted': jsCookieStrings.length,
+              },
+            );
+          }
+          
+          // Convert to WebView Cookie format for backward compatibility (SharedPreferences)
+          try {
+            final currentUri = Uri.parse(urlToUse);
+            
+            for (final cookieString in jsCookieStrings) {
+              final parts = cookieString.split('=');
+              if (parts.length >= 2) {
+                final name = parts[0].trim();
+                final value = parts.sublist(1).join('=').trim();
+                
+                if (name.isNotEmpty && value.isNotEmpty) {
+                  final cookie = Cookie(
+                    name: name,
+                    value: value,
+                    domain: currentUri.host,
+                    path: '/',
+                    isSecure: currentUri.scheme == 'https',
+                    isHttpOnly: false,
+                  );
+                  cookies.add(cookie);
+                }
+              }
+            }
+          } on Exception catch (convertError) {
+            await logger.log(
+              level: 'warning',
+              subsystem: 'cookies',
+              message: 'Failed to convert JavaScript cookies to WebView format',
+              operationId: operationId,
+              context: 'webview_cookie_save',
+              cause: convertError.toString(),
+            );
+          }
+        } else {
+          await logger.log(
+            level: 'warning',
+            subsystem: 'cookies',
+            message: 'JavaScript returned cookies string but parsing resulted in empty list',
+            operationId: operationId,
+            context: 'webview_cookie_save',
+            extra: {
+              'js_cookies_string': jsCookiesString,
+            },
+          );
+        }
+      } else {
+        // Failed to get cookies after all retries
+        await logger.log(
+          level: 'error',
+          subsystem: 'cookies',
+          message: 'CRITICAL: Failed to get cookies via JavaScript after all retries',
+          operationId: operationId,
+          context: 'webview_cookie_save',
+          cause: lastError?.toString() ?? 'Unknown error - no exception was caught',
+          extra: {
             'current_url': urlToUse,
-            'note': 'WebView may not have cookies yet, or they were not set properly',
+            'note': 'This is the PRIMARY method - cookies will not be available for Dio requests',
+            'retries': 3,
+            'last_error_type': lastError?.runtimeType.toString() ?? 'null',
+            'is_mounted': mounted,
+            'final_js_cookies_string': jsCookiesString ?? 'null',
+            'final_js_cookies_string_length': jsCookiesString?.length ?? 0,
           },
         );
       }
@@ -669,44 +1212,11 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView>
         },
       );
 
-      // Sync cookies to FlutterCookieBridge SessionManager
-      // This ensures automatic sync between WebView and Dio (as per .report-issue-docs.md)
-      try {
-        if (_bridgeSessionManager != null && cookies.isNotEmpty) {
-          // Convert WebView cookies to format expected by SessionManager
-          // SessionManager expects List<String> where each string is "name=value"
-          final cookieStrings = cookies
-              .map((c) => '${c.name}=${c.value}')
-              .where((s) => s.isNotEmpty && s.contains('='))
-              .toList();
-          
-          if (cookieStrings.isNotEmpty) {
-            await _bridgeSessionManager!.saveSessionCookies(cookieStrings);
-            await logger.log(
-              level: 'info',
-              subsystem: 'cookies',
-              message: 'Cookies saved to FlutterCookieBridge SessionManager',
-              operationId: operationId,
-              context: 'webview_cookie_save',
-              extra: {
-                'cookie_count': cookieStrings.length,
-                'cookie_names': cookies.map((c) => c.name).toList(),
-              },
-            );
-          }
-        }
-      } on Exception catch (bridgeError) {
-        await logger.log(
-          level: 'warning',
-          subsystem: 'cookies',
-          message: 'Failed to save cookies to FlutterCookieBridge SessionManager',
-          operationId: operationId,
-          context: 'webview_cookie_save',
-          cause: bridgeError.toString(),
-        );
-      }
+      // Note: Cookies are already saved to FlutterCookieBridge SessionManager above
+      // (in the JavaScript parsing section, lines 586-604)
+      // SessionManager is the PRIMARY storage - it automatically syncs to Dio via interceptor
       
-      // Also sync to Dio CookieJar (for backward compatibility)
+      // Also sync to Dio CookieJar (for backward compatibility, but SessionManager is primary)
       try {
         await _syncCookiesDirectlyToDio(cookies, operationId);
         await logger.log(
@@ -802,9 +1312,17 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView>
       var conversionErrors = 0;
       for (final webViewCookie in webViewCookies) {
         try {
+          // Normalize domain: remove leading dot if present (CookieJar expects host format)
+          var normalizedDomain = webViewCookie.domain;
+          if (normalizedDomain != null && normalizedDomain.isNotEmpty) {
+            if (normalizedDomain.startsWith('.')) {
+              normalizedDomain = normalizedDomain.substring(1);
+            }
+          }
+          
           // dart:io.Cookie constructor: Cookie(String name, String value)
           final dioCookie = io.Cookie(webViewCookie.name, webViewCookie.value)
-            ..domain = webViewCookie.domain
+            ..domain = normalizedDomain  // Use normalized domain (no leading dot)
             ..path = webViewCookie.path ?? '/'
             ..secure = webViewCookie.isSecure ?? true
             ..httpOnly = webViewCookie.isHttpOnly ?? false;
@@ -997,61 +1515,129 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView>
 
   /// Checks if login was successful by verifying session cookies.
   ///
-  /// This method checks for the presence of session cookies (bb_session, bb_data, etc.)
-  /// which indicate a successful login. Falls back to URL/HTML checks if cookies
-  /// are not available.
+  /// PRIMARY METHOD: Checks cookies via JavaScript (as cookies are set via JavaScript).
+  /// Falls back to URL/HTML checks if JavaScript cookies are not available.
   Future<bool> _checkLoginSuccess(InAppWebViewController controller) async {
-    try {
-      // First, try to check for session cookies
-      final urlToCheck = initialUrl ?? 'https://rutracker.net';
-      final cookies = await CookieManager.instance()
-          .getCookies(url: WebUri(urlToCheck));
-
-      // Check for key session cookies that indicate successful login
-      final hasSessionCookie = cookies.any((c) =>
-          c.name == 'bb_session' ||
-          c.name == 'bb_data' ||
-          c.name.toLowerCase().contains('session'));
-
-      if (hasSessionCookie) {
+    // PRIMARY METHOD: Check cookies via JavaScript with retries
+    String? jsCookiesString;
+    Exception? lastError;
+    
+    for (var attempt = 0; attempt < 3; attempt++) {
+      try {
+        // Wait a bit before retry (except first attempt)
+        if (attempt > 0) {
+          await Future.delayed(Duration(milliseconds: 300 * attempt));
+        }
+        
+        final jsCookiesResult = await controller.evaluateJavascript(source: 'document.cookie');
+        if (jsCookiesResult != null) {
+          jsCookiesString = jsCookiesResult.toString();
+          if (jsCookiesString.isNotEmpty) {
+            // Success! Break out of retry loop
+            break;
+          }
+        }
+      } on MissingPluginException catch (e) {
+        lastError = e;
+        if (attempt < 2) {
+          continue; // Retry
+        }
+      } on Exception catch (e) {
+        lastError = e;
+        if (attempt < 2) {
+          continue; // Retry
+        }
+      }
+    }
+    
+    // Process cookies if we got them
+    if (jsCookiesString != null && jsCookiesString.isNotEmpty) {
+      // Check if JavaScript cookies contain session cookies
+      // Key indicators: bb_session, bb_data (these are set ONLY after successful login)
+      // IMPORTANT: We check for specific session cookies, not just "session" in name
+      // This prevents false positives from other cookies
+      final hasBbSession = jsCookiesString.contains('bb_session=');
+      final hasBbData = jsCookiesString.contains('bb_data=');
+      final hasSessionInJs = hasBbSession || hasBbData;
+      
+      if (hasSessionInJs) {
         await StructuredLogger().log(
-          level: 'debug',
+          level: 'info',
           subsystem: 'webview',
-          message: 'Login success detected via session cookies',
+          message: 'Login success detected via session cookies (JavaScript)',
           extra: {
-            'session_cookies': cookies
-                .where((c) =>
-                    c.name == 'bb_session' ||
-                    c.name == 'bb_data' ||
-                    c.name.toLowerCase().contains('session'))
-                .map((c) => {'name': c.name, 'domain': c.domain})
-                .toList(),
+            'has_bb_session': hasBbSession,
+            'has_bb_data': hasBbData,
+            'js_cookies_preview': jsCookiesString.length > 200 
+                ? '${jsCookiesString.substring(0, 200)}...' 
+                : jsCookiesString,
+            'js_cookies_length': jsCookiesString.length,
           },
         );
         return true;
+      } else {
+        await StructuredLogger().log(
+          level: 'debug',
+          subsystem: 'webview',
+          message: 'JavaScript cookies found but no session cookies (bb_session/bb_data) detected',
+          extra: {
+            'js_cookies_preview': jsCookiesString.length > 200 
+                ? '${jsCookiesString.substring(0, 200)}...' 
+                : jsCookiesString,
+            'note': 'User may not be logged in yet, or cookies are still being set',
+          },
+        );
       }
-    } on Exception catch (e) {
+    } else {
+      // Failed to get cookies after all retries
       await StructuredLogger().log(
         level: 'debug',
         subsystem: 'webview',
-        message: 'Failed to check session cookies, falling back to URL/HTML check',
-        cause: e.toString(),
+        message: 'Failed to get cookies via JavaScript after all retries, falling back to URL/HTML check',
+        cause: lastError?.toString() ?? 'Unknown error',
+        extra: {
+          'retries': 3,
+        },
       );
     }
 
-    // Fallback to URL/HTML check if cookie check fails
+    // Final fallback: URL/HTML check ONLY if JavaScript cookies were found but no session cookies
+    // IMPORTANT: We don't rely on URL/HTML alone - user might just open index.php without login
+    // This is only a fallback when JavaScript is unavailable
     try {
       final currentUrl = await controller.getUrl();
       final urlString = currentUrl?.toString().toLowerCase() ?? '';
       final html = await controller.getHtml();
 
-      final isLoginSuccess = urlString.contains('profile.php') ||
-          (urlString.contains('index.php') && !urlString.contains('login')) ||
-          (html != null &&
-              (html.toLowerCase().contains('выход') ||
-                  html.toLowerCase().contains('logout') ||
-                  html.toLowerCase().contains('личный кабинет')));
+      // Only check URL/HTML if we have some indication that login might have happened
+      // Check for profile.php (strong indicator) or HTML with logout button (user is logged in)
+      final urlIndicatesLogin = urlString.contains('profile.php');
+      
+      // HTML check: look for logout button or profile link (strong indicators)
+      final htmlIndicatesLogin = html != null &&
+          (html.toLowerCase().contains('выход') ||
+              html.toLowerCase().contains('logout') ||
+              html.toLowerCase().contains('личный кабинет'));
 
+      // Only return true if we have STRONG indicators (profile.php or logout button)
+      // Don't rely on just index.php - user might just open it without login
+      final isLoginSuccess = urlIndicatesLogin || htmlIndicatesLogin;
+
+      if (isLoginSuccess) {
+        await StructuredLogger().log(
+          level: 'debug',
+          subsystem: 'webview',
+          message: 'Login success detected via URL/HTML check (fallback)',
+          extra: {
+            'url': urlString,
+            'has_html': html != null,
+            'url_indicates_login': urlIndicatesLogin,
+            'html_indicates_login': htmlIndicatesLogin,
+            'note': 'This is a fallback - primary method is JavaScript cookies',
+          },
+        );
+      }
+      
       return isLoginSuccess;
     } on Exception {
       return false;
@@ -1072,7 +1658,7 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView>
       
       try {
         // Save cookies from WebView (sync happens automatically in _saveCookies)
-        await _saveCookies();
+        await _saveCookies(callerContext: 'periodic_timer');
       } on Exception catch (e) {
         // Log but don't spam - only log occasionally
         if (timer.tick % 12 == 0) { // Log every ~60 seconds (12 * 5s)
@@ -1377,7 +1963,7 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView>
                 ),
                 // WebView
                 Expanded(
-                  child: initialUrl == null || _userAgent == null
+                  child: (initialUrl == null || _userAgent == null)
                       ? const Center(child: CircularProgressIndicator())
                       : InAppWebView(
                           initialUrlRequest: URLRequest(
@@ -1534,6 +2120,11 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView>
 
                             final urlString = url?.toString() ?? '';
                             final logger = StructuredLogger();
+                            
+                            // NOTE: We don't check for login success in onLoadStart
+                            // This is too early - user might just be opening the page without login
+                            // Login success is checked in onLoadStop after page fully loads and cookies are set
+                            // Checking here causes premature WebView closure when user opens index.php
 
                             // Log when page starts loading
                             await logger.log(
@@ -1949,6 +2540,10 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView>
 
                             final urlString = url?.toString() ?? '';
                             final logger = StructuredLogger();
+                            
+                            // Save Navigator before any async operations to avoid BuildContext issues
+                            // We need it in case login is successful
+                            final navigator = Navigator.of(context);
 
                             // Reset retry count and clear error state on successful load
                             if (mounted) {
@@ -2032,12 +2627,42 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView>
                                   await controller.reload();
                                 }
                               }
-                              await _saveCookies();
+                              // IMPORTANT: Wait before first cookie save to allow cookies to be set
+                              // Cookies may be set via JavaScript or HTTP headers after page load
+                              // Especially after redirects (like login redirect to index.php)
+                              await logger.log(
+                                level: 'debug',
+                                subsystem: 'cookies',
+                                message: 'Waiting before first cookie save in onLoadStop',
+                                operationId: operationId,
+                                context: 'webview_cookie_save',
+                                extra: {
+                                  'wait_ms': 2000,
+                                  'note': 'Allowing time for cookies to be set after page load',
+                                },
+                              );
+                              await Future.delayed(const Duration(milliseconds: 2000));
+                              
+                              // Save cookies first (only if WebView is still mounted)
+                              if (mounted) {
+                                await _saveCookies(callerContext: 'onLoadStop_after_wait');
+                              }
+
+                              // Wait a bit more for cookies to be set by JavaScript (especially after redirect)
+                              // Cookies may be set via JavaScript after page load, so we need to wait
+                              await Future.delayed(const Duration(milliseconds: 1500));
+                              
+                              // Try to get cookies again after delay (they might be set by JavaScript)
+                              // Check mounted again after delay - WebView might have been closed
+                              if (mounted) {
+                                await _saveCookies(callerContext: 'onLoadStop_after_delay');
+                              }
 
                               // Check if user successfully logged in using improved detection
                               final isLoginSuccess = await _checkLoginSuccess(controller);
 
                               if (isLoginSuccess) {
+                                
                                 final currentUrl = await controller.getUrl();
                                 final urlStringForLog =
                                     currentUrl?.toString().toLowerCase() ?? '';
@@ -2057,46 +2682,100 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView>
                                 // Sync cookies after successful login
                                 // According to recommendations: extract cookies once, use them in Dio
                                 // Don't make multiple sync attempts to avoid Cloudflare rate limiting
+                                  await logger.log(
+                                    level: 'info',
+                                    subsystem: 'cookies',
+                                  message: 'Starting cookie sync after successful login',
+                                    operationId: operationId,
+                                    context: 'webview_login',
+                                  );
+                                
+                                // Extract and save cookies from WebView BEFORE closing
+                                // IMPORTANT: Save cookies while WebView is still mounted and accessible
+                                  await logger.log(
+                                  level: 'info',
+                                    subsystem: 'cookies',
+                                  message: 'Saving cookies before closing WebView',
+                                    operationId: operationId,
+                                    context: 'webview_login',
+                                  extra: {
+                                    'is_mounted': mounted,
+                                  },
+                                );
+                                
+                                // Save cookies while WebView is still mounted
+                                await _saveCookies(callerContext: 'onLoadStop_login_success');
+                                
+                                // Verify cookies were saved
                                 await logger.log(
                                   level: 'info',
                                   subsystem: 'cookies',
-                                  message: 'Starting cookie sync after successful login',
+                                  message: 'Cookies saved, verifying before closing WebView',
                                   operationId: operationId,
                                   context: 'webview_login',
+                                  extra: {
+                                    'is_mounted': mounted,
+                                  },
                                 );
                                 
-                                // Extract and save cookies from WebView
-                                await _saveCookies();
-                                
-                                // Small delay to ensure cookies are fully saved
+                                // Small delay to ensure cookies are fully saved to SessionManager
                                 await Future.delayed(const Duration(milliseconds: 300));
                                 
                                 // Verify User-Agent matches WebView (important for Cloudflare)
                                 try {
                                   final userAgentManager = UserAgentManager();
                                   final currentUserAgent = await userAgentManager.getUserAgent();
-                                  await logger.log(
-                                    level: 'debug',
-                                    subsystem: 'cookies',
+                                await logger.log(
+                                  level: 'debug',
+                                  subsystem: 'cookies',
                                     message: 'User-Agent verification after login',
-                                    operationId: operationId,
+                                  operationId: operationId,
                                     context: 'webview_login',
-                                    extra: {
+                                  extra: {
                                       'user_agent': currentUserAgent,
                                       'matches_webview': currentUserAgent == _userAgent,
-                                    },
-                                  );
+                                  },
+                                );
                                 } on Exception {
                                   // Ignore User-Agent check errors
                                 }
-                                
+
                                 await logger.log(
                                   level: 'info',
                                   subsystem: 'cookies',
-                                  message: 'Cookies synced after login',
+                                  message: 'Cookies synced after login, ready to close WebView',
                                   operationId: operationId,
                                   context: 'webview_login',
+                                  extra: {
+                                    'is_mounted': mounted,
+                                  },
                                 );
+                                
+                                // Automatically close WebView and return to search screen
+                                // User has successfully logged in, cookies are saved
+                                await logger.log(
+                                  level: 'info',
+                                  subsystem: 'webview',
+                                  message: 'Automatically closing WebView after successful login',
+                                  operationId: operationId,
+                                  context: 'webview_login',
+                                  extra: {
+                                    'is_mounted': mounted,
+                                  },
+                                );
+                                
+                                // Close WebView - cookies are already saved
+                                if (mounted) {
+                                  navigator.pop('login_success');
+                                } else {
+                                  await logger.log(
+                                    level: 'warning',
+                                    subsystem: 'webview',
+                                    message: 'WebView is not mounted, cannot close',
+                                    operationId: operationId,
+                                    context: 'webview_login',
+                                  );
+                                }
                               }
 
                               // Set active mirror based on current host
@@ -2161,7 +2840,10 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView>
                               // _saveCookies() automatically syncs to DioClient
                               unawaited(Future.microtask(() async {
                                 try {
-                                  await _saveCookies();
+                                  // Only sync if WebView is still mounted
+                                  if (mounted) {
+                                    await _saveCookies(callerContext: 'shouldOverrideUrlLoading');
+                                  }
                                 } on Exception {
                                   // Ignore sync errors during navigation
                                 }
