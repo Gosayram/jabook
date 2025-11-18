@@ -14,6 +14,7 @@
 
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
@@ -74,7 +75,7 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
   void initState() {
     super.initState();
     // Set fallback URL immediately to prevent null issues
-    initialUrl = 'https://rutracker.net';
+    initialUrl = EndpointManager.getPrimaryFallbackEndpoint();
     // Get User-Agent for legitimate connection (required for Cloudflare)
     _getUserAgent();
     // Resolve initial URL with timeout to prevent hanging
@@ -83,7 +84,7 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
           const Duration(seconds: 10),
           onTimeout: () {
             // If resolution times out, use fallback
-            initialUrl = 'https://rutracker.net';
+            initialUrl = EndpointManager.getPrimaryFallbackEndpoint();
           },
         )
         .then((_) {
@@ -93,7 +94,7 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
       }
     }).catchError((e) {
       // If URL resolution fails, ensure we have a fallback
-      initialUrl ??= 'https://rutracker.net';
+      initialUrl ??= EndpointManager.getPrimaryFallbackEndpoint();
       if (mounted) {
         setState(() {});
       }
@@ -140,6 +141,9 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
     final db = AppDatabase().database;
     final endpointManager = EndpointManager(db);
 
+    // List of endpoints to try in order of preference (matching EndpointManager priorities)
+    final fallbackEndpoints = EndpointManager.getDefaultEndpointUrls();
+
     try {
       // Get active endpoint with health check
       var endpoint = await endpointManager.getActiveEndpoint();
@@ -162,9 +166,33 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
         final switched = await endpointManager.trySwitchEndpoint(endpoint);
         if (switched) {
           endpoint = await endpointManager.getActiveEndpoint();
+          // Re-check availability of new endpoint
+          final newIsAvailable = await endpointManager.quickAvailabilityCheck(
+            endpoint,
+          );
+          if (!newIsAvailable) {
+            // New endpoint also not available, try fallbacks
+            endpoint = await _tryFallbackEndpoints(fallbackEndpoints);
+          }
         } else {
-          // Switch failed, use fallback
-          endpoint = 'https://rutracker.net';
+          // Switch failed, try fallbacks
+          endpoint = await _tryFallbackEndpoints(fallbackEndpoints);
+        }
+      } else {
+        // Endpoint is available, but do a quick DNS check to ensure it resolves
+        try {
+          final uri = Uri.parse(endpoint);
+          await InternetAddress.lookup(uri.host)
+              .timeout(const Duration(seconds: 3));
+        } on Exception catch (e) {
+          // DNS lookup failed, try fallbacks
+          await StructuredLogger().log(
+            level: 'warning',
+            subsystem: 'webview',
+            message: 'DNS lookup failed for endpoint, trying fallbacks',
+            extra: {'failed_endpoint': endpoint, 'error': e.toString()},
+          );
+          endpoint = await _tryFallbackEndpoints(fallbackEndpoints);
         }
       }
 
@@ -182,20 +210,69 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
             .timeout(const Duration(seconds: 5));
 
         initialUrl = endpoint;
-      } on Exception {
-        // Even fallback failed, but use it anyway (WebView will show error)
+      } on Exception catch (e) {
+        // Even validation failed, try fallbacks
         await StructuredLogger().log(
           level: 'warning',
           subsystem: 'webview',
-          message: 'Endpoint validation failed, using anyway',
-          extra: {'endpoint': endpoint},
+          message: 'Endpoint validation failed, trying fallbacks',
+          extra: {'failed_endpoint': endpoint, 'error': e.toString()},
         );
+        endpoint = await _tryFallbackEndpoints(fallbackEndpoints);
         initialUrl = endpoint;
       }
-    } on Exception {
+    } on Exception catch (e) {
       // If all fails, use hardcoded fallback
-      initialUrl = 'https://rutracker.net';
+      await StructuredLogger().log(
+        level: 'error',
+        subsystem: 'webview',
+        message: 'All endpoint resolution failed, using hardcoded fallback',
+        cause: e.toString(),
+      );
+      initialUrl = EndpointManager.getPrimaryFallbackEndpoint();
     }
+  }
+
+  /// Tries fallback endpoints in order until one works.
+  Future<String> _tryFallbackEndpoints(List<String> endpoints) async {
+    for (final fallback in endpoints) {
+      try {
+        // Quick DNS check
+        final uri = Uri.parse(fallback);
+        await InternetAddress.lookup(uri.host)
+            .timeout(const Duration(seconds: 2));
+
+        // Quick availability check
+        final db = AppDatabase().database;
+        final endpointManager = EndpointManager(db);
+        final isAvailable = await endpointManager.quickAvailabilityCheck(
+          fallback,
+        );
+
+        if (isAvailable) {
+          await StructuredLogger().log(
+            level: 'info',
+            subsystem: 'webview',
+            message: 'Using fallback endpoint',
+            extra: {'endpoint': fallback},
+          );
+          return fallback;
+        }
+      } on Exception {
+        // Try next fallback
+        continue;
+      }
+    }
+
+    // If all fallbacks failed, return the first one anyway
+    // (WebView will show error, but at least it will try to load)
+    await StructuredLogger().log(
+      level: 'warning',
+      subsystem: 'webview',
+      message: 'All fallback endpoints failed, using first fallback',
+      extra: {'endpoint': endpoints.first},
+    );
+    return endpoints.first;
   }
 
   Future<void> _restoreCookies() async {
@@ -525,7 +602,7 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
 
                   // Final fallback to default rutracker URL
                   if (urlString == null || urlString.isEmpty) {
-                    urlString = 'https://rutracker.net';
+                    urlString = EndpointManager.getPrimaryFallbackEndpoint();
                   }
 
                   // Validate and parse URL
@@ -938,16 +1015,36 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
                                     },
                                   );
 
-                                  final switched = await endpointManager
-                                      .trySwitchEndpoint(currentUrl);
+                                  // For DNS errors, try fallback endpoints directly
+                                  String? newEndpoint;
+                                  if (isDnsError) {
+                                    // DNS error - try fallback endpoints directly
+                                    // Try all endpoints in priority order
+                                    final fallbackEndpoints =
+                                        EndpointManager.getDefaultEndpointUrls();
+                                    newEndpoint = await _tryFallbackEndpoints(
+                                      fallbackEndpoints,
+                                    );
+                                    if (newEndpoint != currentUrl) {
+                                      // Update initialUrl for future use
+                                      initialUrl = newEndpoint;
+                                    }
+                                  } else {
+                                    // For other errors, use EndpointManager
+                                    final switched = await endpointManager
+                                        .trySwitchEndpoint(currentUrl);
+                                    if (switched) {
+                                      newEndpoint = await endpointManager
+                                          .getActiveEndpoint();
+                                    }
+                                  }
+
                                   final switchDuration = DateTime.now()
                                       .difference(retrySwitchStartTime)
                                       .inMilliseconds;
 
-                                  if (switched) {
-                                    final newEndpoint = await endpointManager
-                                        .getActiveEndpoint();
-
+                                  if (newEndpoint != null &&
+                                      newEndpoint != currentUrl) {
                                     await logger.log(
                                       level: 'info',
                                       subsystem: 'state',
@@ -1480,7 +1577,8 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
 
                                   // Final fallback to default rutracker URL
                                   if (urlString == null || urlString.isEmpty) {
-                                    urlString = 'https://rutracker.net';
+                                    urlString =
+                                        EndpointManager.getPrimaryFallbackEndpoint();
                                   }
 
                                   final uri = Uri.tryParse(urlString);

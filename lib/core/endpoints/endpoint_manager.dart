@@ -48,6 +48,36 @@ class EndpointManager {
   RecordRef<String, Map<String, dynamic>> get _endpointsRef =>
       _store.record(_storeKey);
 
+  /// Default RuTracker endpoints configuration.
+  ///
+  /// This is the single source of truth for all RuTracker mirrors.
+  /// All endpoints are defined here and used throughout the application.
+  static List<Map<String, dynamic>> getDefaultEndpoints() => [
+        {'url': 'https://rutracker.me', 'priority': 1, 'enabled': true},
+        {'url': 'https://rutracker.net', 'priority': 2, 'enabled': true},
+        {'url': 'https://rutracker.org', 'priority': 3, 'enabled': true},
+      ];
+
+  /// Returns list of default endpoint URLs in priority order.
+  ///
+  /// This method provides a convenient way to get all endpoint URLs
+  /// without needing to parse the full endpoint configuration.
+  static List<String> getDefaultEndpointUrls() => getDefaultEndpoints()
+      .map((e) => e['url'] as String)
+      .toList();
+
+  /// Returns list of RuTracker domain names (without protocol).
+  ///
+  /// Used for cookie management and domain matching.
+  static List<String> getRutrackerDomains() =>
+      ['rutracker.me', 'rutracker.net', 'rutracker.org'];
+
+  /// Returns the primary fallback endpoint URL.
+  ///
+  /// This is used as the ultimate fallback when all other endpoints fail.
+  /// Currently returns rutracker.net as it's the most stable mirror.
+  static String getPrimaryFallbackEndpoint() => 'https://rutracker.net';
+
   /// Initializes the EndpointManager with default endpoints and performs health checks.
   ///
   /// Health checks are performed asynchronously in the background to avoid
@@ -75,11 +105,7 @@ class EndpointManager {
 
   /// Initializes the default RuTracker endpoints if none exist.
   Future<void> initializeDefaultEndpoints() async {
-    final defaultEndpoints = [
-      {'url': 'https://rutracker.me', 'priority': 1, 'enabled': true},
-      {'url': 'https://rutracker.net', 'priority': 2, 'enabled': true},
-      {'url': 'https://rutracker.org', 'priority': 3, 'enabled': true},
-    ];
+    final defaultEndpoints = getDefaultEndpoints();
 
     final record = await _endpointsRef.get(_db);
     if (record == null) {
@@ -1408,9 +1434,8 @@ class EndpointManager {
       );
 
       if (fallbackEndpoints.isEmpty) {
-        // Ultimate fallback: use rutracker.net as guaranteed working mirror
-        // Changed from rutracker.me (which is blocked by CloudFlare)
-        const hardcodedFallback = 'https://rutracker.net';
+        // Ultimate fallback: use primary fallback endpoint
+        final hardcodedFallback = getPrimaryFallbackEndpoint();
         final duration = DateTime.now().difference(startTime).inMilliseconds;
         await logger.log(
           level: 'warning',

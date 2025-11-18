@@ -15,6 +15,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:jabook/core/endpoints/endpoint_manager.dart';
 import 'package:jabook/core/endpoints/endpoint_provider.dart';
 import 'package:jabook/core/errors/failures.dart';
 import 'package:jabook/core/logging/structured_logger.dart';
@@ -502,11 +503,7 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
 
   Future<void> _deleteMirror(String url) async {
     // Check if it's one of default mirrors
-    final defaultMirrors = [
-      'https://rutracker.net',
-      'https://rutracker.me',
-      'https://rutracker.org',
-    ];
+    final defaultMirrors = EndpointManager.getDefaultEndpointUrls();
     final isDefault = defaultMirrors.contains(url);
 
     final confirmed = await showDialog<bool>(

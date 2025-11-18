@@ -19,6 +19,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:jabook/core/cache/rutracker_cache_service.dart';
+import 'package:jabook/core/endpoints/endpoint_manager.dart';
 import 'package:jabook/core/endpoints/endpoint_provider.dart';
 import 'package:jabook/core/errors/failures.dart';
 import 'package:jabook/core/favorites/favorites_service.dart';
@@ -485,7 +486,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     // Ensure we have at least the fallback endpoint
     if (enabledEndpoints.isEmpty) {
       enabledEndpoints.add({
-        'url': 'https://rutracker.net',
+        'url': EndpointManager.getPrimaryFallbackEndpoint(),
         'priority': 1,
         'health_score': 100,
       });

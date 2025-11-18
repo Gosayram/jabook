@@ -963,11 +963,7 @@ class DioClient {
 
       // Save cookies for all rutracker domains (net, me, org) to ensure
       // cookies work when switching between mirrors
-      final rutrackerDomains = [
-        'rutracker.net',
-        'rutracker.me',
-        'rutracker.org'
-      ];
+      final rutrackerDomains = EndpointManager.getRutrackerDomains();
       final savedDomains = <String>[];
       final domainCookieCounts = <String, int>{};
 
@@ -1340,11 +1336,7 @@ class DioClient {
 
       if (compatibleCookies.isNotEmpty) {
         // Save cookies for all rutracker domains to ensure compatibility
-        final rutrackerDomains = [
-          'rutracker.net',
-          'rutracker.me',
-          'rutracker.org'
-        ];
+        final rutrackerDomains = EndpointManager.getRutrackerDomains();
 
         final savedDomains = <String>[];
         for (final domain in rutrackerDomains) {

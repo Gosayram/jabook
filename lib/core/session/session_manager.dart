@@ -362,7 +362,7 @@ class SessionManager {
       // Load metadata
       final metadata = await _sessionStorage.loadMetadata();
       final endpoint = metadata?['endpoint'] as String? ??
-          'https://rutracker.net';
+          EndpointManager.getPrimaryFallbackEndpoint();
 
       // Restore to Dio cookie jar with error handling
       try {
