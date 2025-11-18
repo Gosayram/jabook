@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 import 'package:jabook/core/errors/failures.dart';
 import 'package:jabook/core/logging/structured_logger.dart';
@@ -928,16 +930,44 @@ class EndpointManager {
       final userAgentManager = UserAgentManager();
       final userAgent = await userAgentManager.getUserAgent();
 
-      // Perform DNS lookup before HTTP request
+      // Perform DNS lookup before HTTP request with timeout
       final endpointUri = Uri.parse(endpoint);
       final host = endpointUri.host;
       DnsLookupResult? dnsResult;
 
       try {
+        // DNS lookup with timeout to prevent hanging
         dnsResult = await dnsLookup(
           host,
           operationId: operationId,
+        ).timeout(
+          const Duration(seconds: 3),
+          onTimeout: () {
+            throw TimeoutException('DNS lookup timed out after 3 seconds');
+          },
         );
+
+        // If DNS lookup failed, endpoint is unavailable
+        if (!dnsResult.success) {
+          await logger.log(
+            level: 'warning',
+            subsystem: 'network',
+            message: 'DNS lookup failed - endpoint unavailable',
+            operationId: operationId,
+            context: 'quick_availability_check',
+            extra: {
+              'host': host,
+              'dns_success': false,
+              'original_subsystem': 'endpoints',
+            },
+          );
+          // Cache negative result
+          _quickCheckCache[endpoint] = {
+            'result': false,
+            'timestamp': DateTime.now(),
+          };
+          return false;
+        }
 
         await logger.log(
           level: 'debug',
@@ -953,20 +983,46 @@ class EndpointManager {
             'original_subsystem': 'endpoints',
           },
         );
-      } on Exception catch (e) {
+      } on TimeoutException {
+        // DNS timeout - endpoint unavailable
         await logger.log(
           level: 'warning',
           subsystem: 'network',
-          message: 'DNS lookup failed before quick availability check',
+          message: 'DNS lookup timed out - endpoint unavailable',
+          operationId: operationId,
+          context: 'quick_availability_check',
+          extra: {
+            'host': host,
+            'timeout_seconds': 3,
+            'original_subsystem': 'endpoints',
+          },
+        );
+        // Cache negative result
+        _quickCheckCache[endpoint] = {
+          'result': false,
+          'timestamp': DateTime.now(),
+        };
+        return false;
+      } on Exception catch (e) {
+        // DNS error - endpoint unavailable
+        await logger.log(
+          level: 'warning',
+          subsystem: 'network',
+          message: 'DNS lookup failed - endpoint unavailable',
           operationId: operationId,
           context: 'quick_availability_check',
           cause: e.toString(),
           extra: {
             'host': host,
-            'note': 'Continuing with HTTP request anyway',
             'original_subsystem': 'endpoints',
           },
         );
+        // Cache negative result
+        _quickCheckCache[endpoint] = {
+          'result': false,
+          'timestamp': DateTime.now(),
+        };
+        return false;
       }
 
       final requestStartTime = DateTime.now();
@@ -987,12 +1043,11 @@ class EndpointManager {
           'url': requestUrl,
           'method': 'GET',
           'cache_used': false,
-          if (dnsResult != null)
-            'dns_lookup': {
-              'success': dnsResult.success,
-              'ip_addresses': dnsResult.ipAddresses,
-              'resolve_time_ms': dnsResult.resolveTime.inMilliseconds,
-            },
+          'dns_lookup': {
+            'success': dnsResult.success,
+            'ip_addresses': dnsResult.ipAddresses,
+            'resolve_time_ms': dnsResult.resolveTime.inMilliseconds,
+          },
         },
       );
 
@@ -1036,9 +1091,14 @@ class EndpointManager {
 
       // Endpoint is available if:
       // 1. Status 200-399 (success/redirect)
-      // 2. Status 403/503 with CloudFlare headers/body (reachable but protected)
+      // 2. Status 401/403/503 with CloudFlare headers/body (reachable but protected)
+      // 3. Status 401/403 without CloudFlare - might be auth issue, not availability
+      //    (endpoint is reachable, but needs authentication)
       final isAvailable = (status >= 200 && status < 400) ||
-          ((status == 403 || status == 503) && (isCloudflare || looksLikeCf));
+          ((status == 401 || status == 403 || status == 503) &&
+              (isCloudflare || looksLikeCf)) ||
+          // 401/403 without Cloudflare = endpoint is reachable, auth is separate issue
+          (status == 401 || status == 403);
 
       final totalDuration = DateTime.now().difference(startTime).inMilliseconds;
 
@@ -1058,13 +1118,12 @@ class EndpointManager {
             'response_size_bytes': bodySize,
             'rtt_ms': requestDuration,
             'is_cloudflare_detected': true,
-            if (dnsResult != null)
-              'dns_lookup': {
-                'success': dnsResult.success,
-                'ip_addresses': dnsResult.ipAddresses,
-                'resolve_time_ms': dnsResult.resolveTime.inMilliseconds,
-                'ip_count': dnsResult.ipAddresses.length,
-              },
+            'dns_lookup': {
+              'success': dnsResult.success,
+              'ip_addresses': dnsResult.ipAddresses,
+              'resolve_time_ms': dnsResult.resolveTime.inMilliseconds,
+              'ip_count': dnsResult.ipAddresses.length,
+            },
             'headers': {
               'server': serverHeader,
               'cf-ray': cfRayHeader,
@@ -1103,13 +1162,12 @@ class EndpointManager {
             'response_size_bytes': bodySize,
             'rtt_ms': requestDuration,
             'is_cloudflare_detected': isCloudflare,
-            if (dnsResult != null)
-              'dns_lookup': {
-                'success': dnsResult.success,
-                'ip_addresses': dnsResult.ipAddresses,
-                'resolve_time_ms': dnsResult.resolveTime.inMilliseconds,
-                'ip_count': dnsResult.ipAddresses.length,
-              },
+            'dns_lookup': {
+              'success': dnsResult.success,
+              'ip_addresses': dnsResult.ipAddresses,
+              'resolve_time_ms': dnsResult.resolveTime.inMilliseconds,
+              'ip_count': dnsResult.ipAddresses.length,
+            },
             'headers': {
               'server': serverHeader,
               'cf-ray': cfRayHeader,
@@ -1168,6 +1226,32 @@ class EndpointManager {
         }
       }
 
+      // Check for 401/403 - endpoint is reachable, but needs auth
+      // This is not an availability issue, but an authentication issue
+      final statusCode = e.response?.statusCode;
+      if (statusCode == 401 || statusCode == 403) {
+        await logger.log(
+          level: 'info',
+          subsystem: 'endpoints',
+          message: 'Endpoint available but requires authentication',
+          operationId: operationId,
+          context: 'quick_availability_check',
+          durationMs: totalDuration,
+          extra: {
+            'url': endpoint,
+            'status_code': statusCode,
+            'is_auth_issue': true,
+            'note': 'Endpoint is reachable, authentication is separate issue',
+          },
+        );
+        // Cache positive result - endpoint is available
+        _quickCheckCache[endpoint] = {
+          'result': true,
+          'timestamp': DateTime.now(),
+        };
+        return true; // Available but needs auth
+      }
+
       // Log other errors
       final errorType = switch (e.type) {
         DioExceptionType.connectionTimeout => 'Connection timeout',
@@ -1187,7 +1271,7 @@ class EndpointManager {
           'url': endpoint,
           'error': e.message,
           'error_type': errorType,
-          'status_code': e.response?.statusCode,
+          'status_code': statusCode,
           'stack_trace': e.stackTrace.toString(),
         },
       );
@@ -1470,21 +1554,43 @@ class EndpointManager {
         }
       }
       
-      // If no available endpoint found, use first by priority anyway
+      // If no available endpoint found, try hardcoded fallback
       if (chosen == null) {
-        chosen = fallbackEndpoints.first['url'] as String;
-        chosenData = fallbackEndpoints.first;
-        await logger.log(
-          level: 'error',
-          subsystem: 'endpoints',
-          message: 'All fallback endpoints failed availability check, using first by priority',
-          operationId: operationId,
-          context: 'endpoint_selection',
-          extra: {
-            'chosen_url': chosen,
-            'total_checked': fallbackEndpoints.length,
-          },
-        );
+        final hardcodedFallback = getPrimaryFallbackEndpoint();
+        // Check if hardcoded fallback is available
+        final isHardcodedAvailable = await quickAvailabilityCheck(hardcodedFallback);
+        if (isHardcodedAvailable) {
+          chosen = hardcodedFallback;
+          await logger.log(
+            level: 'warning',
+            subsystem: 'endpoints',
+            message: 'All fallback endpoints failed, using hardcoded fallback (available)',
+            operationId: operationId,
+            context: 'endpoint_selection',
+            extra: {
+              'chosen_url': chosen,
+              'total_checked': fallbackEndpoints.length,
+              'hardcoded_available': true,
+            },
+          );
+        } else {
+          // Last resort: use first by priority even if unavailable
+          chosen = fallbackEndpoints.first['url'] as String;
+          chosenData = fallbackEndpoints.first;
+          await logger.log(
+            level: 'error',
+            subsystem: 'endpoints',
+            message: 'All endpoints including hardcoded fallback failed availability check, using first by priority',
+            operationId: operationId,
+            context: 'endpoint_selection',
+            extra: {
+              'chosen_url': chosen,
+              'total_checked': fallbackEndpoints.length,
+              'hardcoded_available': false,
+              'warning': 'Selected endpoint may be unavailable',
+            },
+          );
+        }
       }
 
       // Persist sticky active
@@ -1558,9 +1664,60 @@ class EndpointManager {
       return a['priority'].compareTo(b['priority']);
     });
 
-    final chosen = healthyEndpoints.first['url'] as String;
-    final chosenData = healthyEndpoints.first;
-    final runnerUp = healthyEndpoints.length > 1 ? healthyEndpoints[1] : null;
+    // Check availability of healthy endpoints before selection
+    String? chosen;
+    Map<String, dynamic>? chosenData;
+    Map<String, dynamic>? runnerUp;
+    for (final endpoint in healthyEndpoints) {
+      final url = endpoint['url'] as String;
+      final isAvailable = await quickAvailabilityCheck(url);
+      if (isAvailable) {
+        chosen = url;
+        chosenData = endpoint;
+        final chosenIndex = healthyEndpoints.indexOf(endpoint);
+        runnerUp = chosenIndex + 1 < healthyEndpoints.length
+            ? healthyEndpoints[chosenIndex + 1]
+            : null;
+        break;
+      }
+    }
+
+    // If no available healthy endpoint found, fall back to fallback logic
+    if (chosen == null) {
+      await logger.log(
+        level: 'warning',
+        subsystem: 'endpoints',
+        message: 'No available healthy endpoints found, falling back to fallback logic',
+        operationId: operationId,
+        context: 'endpoint_selection',
+        extra: {
+          'healthy_count': healthyEndpoints.length,
+          'all_checked_unavailable': true,
+        },
+      );
+      // Fall through to fallback logic below
+      // This will be handled by the fallback section above
+      final fallbackEndpoints =
+          endpoints.where((e) => e['enabled'] == true).toList();
+      if (fallbackEndpoints.isEmpty) {
+        final hardcodedFallback = getPrimaryFallbackEndpoint();
+        return hardcodedFallback;
+      }
+      fallbackEndpoints.sort((a, b) => a['priority'].compareTo(b['priority']));
+      for (final endpoint in fallbackEndpoints) {
+        final url = endpoint['url'] as String;
+        final isAvailable = await quickAvailabilityCheck(url);
+        if (isAvailable) {
+          chosen = url;
+          chosenData = endpoint;
+          break;
+        }
+      }
+      if (chosen == null) {
+        chosen = fallbackEndpoints.first['url'] as String;
+        chosenData = fallbackEndpoints.first;
+      }
+    }
 
     // Persist sticky active
     await _endpointsRef.put(_db, {
@@ -1579,9 +1736,9 @@ class EndpointManager {
       extra: {
         'url': chosen,
         'selection_reason': 'best_health_score',
-        'health_score': chosenData['health_score'] ?? 0,
-        'rtt': chosenData['rtt'] ?? 9999,
-        'priority': chosenData['priority'] ?? 999,
+        'health_score': chosenData?['health_score'] ?? 0,
+        'rtt': chosenData?['rtt'] ?? 9999,
+        'priority': chosenData?['priority'] ?? 999,
         'selection_criteria': {
           'primary': 'health_score',
           'secondary': 'rtt',

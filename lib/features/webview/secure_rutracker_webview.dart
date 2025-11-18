@@ -45,7 +45,8 @@ class SecureRutrackerWebView extends StatefulWidget {
 /// State class for SecureRutrackerWebView widget.
 ///
 /// Manages the WebView controller, progress tracking, and Cloudflare detection.
-class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
+class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView>
+    with WidgetsBindingObserver {
   late InAppWebViewController _webViewController;
   double progress = 0.0;
   final storage = const FlutterSecureStorage();
@@ -71,9 +72,15 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
   String? _currentOperationId;
   DateTime? _currentPageLoadStartTime;
 
+  // Cookie synchronization
+  Timer? _cookieSyncTimer;
+  static const Duration _cookieSyncInterval = Duration(seconds: 5);
+
   @override
   void initState() {
     super.initState();
+    // Add lifecycle observer to track app state changes
+    WidgetsBinding.instance.addObserver(this);
     // Set fallback URL immediately to prevent null issues
     initialUrl = EndpointManager.getPrimaryFallbackEndpoint();
     // Get User-Agent for legitimate connection (required for Cloudflare)
@@ -122,19 +129,50 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
 
   @override
   void dispose() {
+    // Remove lifecycle observer
+    WidgetsBinding.instance.removeObserver(this);
     // Cancel Cloudflare check timer
     _cloudflareCheckTimer?.cancel();
+    // Cancel cookie sync timer
+    _cookieSyncTimer?.cancel();
     // Save cookies one final time before disposing
-    _saveCookies().then((_) async {
-      // Sync cookies to DioClient after saving
-      try {
-        await DioClient.syncCookiesFromWebView();
-      } on Exception {
-        // Ignore sync errors on dispose
-      }
-    });
+    // Save cookies one final time (sync happens automatically in _saveCookies)
+    _saveCookies();
     _saveWebViewHistory();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Sync cookies when app resumes (e.g., returning from browser after Cloudflare challenge)
+    if (state == AppLifecycleState.resumed) {
+      Future.microtask(() async {
+        try {
+          await StructuredLogger().log(
+            level: 'debug',
+            subsystem: 'cookies',
+            message: 'App resumed, syncing cookies from WebView',
+            context: 'app_lifecycle',
+          );
+          await _saveCookies();
+          await DioClient.syncCookiesFromWebView();
+          await StructuredLogger().log(
+            level: 'info',
+            subsystem: 'cookies',
+            message: 'Cookies synced after app resume',
+            context: 'app_lifecycle',
+          );
+        } on Exception catch (e) {
+          await StructuredLogger().log(
+            level: 'warning',
+            subsystem: 'cookies',
+            message: 'Failed to sync cookies after app resume',
+            context: 'app_lifecycle',
+            cause: e.toString(),
+          );
+        }
+      });
+    }
   }
 
   Future<void> _resolveInitialUrl() async {
@@ -408,11 +446,21 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
     final startTime = DateTime.now();
 
     try {
-      if (initialUrl == null) {
+      // Get current URL from WebView if available, otherwise use initialUrl
+      String? currentUrl;
+      try {
+        final url = await _webViewController.getUrl();
+        currentUrl = url?.toString();
+      } on Exception {
+        // Ignore errors getting current URL
+      }
+
+      final urlToUse = currentUrl ?? initialUrl;
+      if (urlToUse == null) {
         await logger.log(
           level: 'debug',
           subsystem: 'cookies',
-          message: 'Cannot save cookies: initialUrl is null',
+          message: 'Cannot save cookies: no URL available',
           operationId: operationId,
           context: 'webview_cookie_save',
           durationMs: DateTime.now().difference(startTime).inMilliseconds,
@@ -427,12 +475,66 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
         operationId: operationId,
         context: 'webview_cookie_save',
         extra: {
+          'current_url': currentUrl,
           'initial_url': initialUrl,
+          'url_used': urlToUse,
         },
       );
 
-      final cookies =
-          await CookieManager.instance().getCookies(url: WebUri(initialUrl!));
+      // Collect cookies from all RuTracker domains
+      final allCookies = <Cookie>[];
+      final rutrackerDomains = EndpointManager.getRutrackerDomains();
+      
+      for (final domain in rutrackerDomains) {
+        try {
+          final domainUrl = 'https://$domain';
+          final cookies = await CookieManager.instance()
+              .getCookies(url: WebUri(domainUrl));
+          allCookies.addAll(cookies);
+        } on Exception catch (e) {
+          await logger.log(
+            level: 'debug',
+            subsystem: 'cookies',
+            message: 'Failed to get cookies for domain',
+            operationId: operationId,
+            context: 'webview_cookie_save',
+            extra: {
+              'domain': domain,
+              'error': e.toString(),
+            },
+          );
+        }
+      }
+
+      // Also get cookies from current URL if it's a RuTracker domain
+      try {
+        final uri = Uri.tryParse(urlToUse);
+        if (uri != null && rutrackerDomains.contains(uri.host)) {
+          final cookies = await CookieManager.instance()
+              .getCookies(url: WebUri(urlToUse));
+          // Add only new cookies (avoid duplicates)
+          for (final cookie in cookies) {
+            if (!allCookies.any((c) =>
+                c.name == cookie.name && c.domain == cookie.domain)) {
+              allCookies.add(cookie);
+            }
+          }
+        }
+      } on Exception catch (e) {
+        await logger.log(
+          level: 'debug',
+          subsystem: 'cookies',
+          message: 'Failed to get cookies from current URL',
+          operationId: operationId,
+          context: 'webview_cookie_save',
+          extra: {
+            'url': urlToUse,
+            'error': e.toString(),
+          },
+        );
+      }
+
+      final cookies = allCookies;
 
       await logger.log(
         level: 'debug',
@@ -487,6 +589,27 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
               .toList(),
         },
       );
+
+      // Always sync cookies to DioClient after saving
+      try {
+        await DioClient.syncCookiesFromWebView();
+        await logger.log(
+          level: 'info',
+          subsystem: 'cookies',
+          message: 'Cookies synced to DioClient after save',
+          operationId: operationId,
+          context: 'webview_cookie_save',
+        );
+      } on Exception catch (syncError) {
+        await logger.log(
+          level: 'warning',
+          subsystem: 'cookies',
+          message: 'Failed to sync cookies to DioClient after save',
+          operationId: operationId,
+          context: 'webview_cookie_save',
+          cause: syncError.toString(),
+        );
+      }
     } on Exception catch (e) {
       final duration = DateTime.now().difference(startTime).inMilliseconds;
       // If cookie saving fails, log but don't crash
@@ -506,6 +629,98 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
       );
       debugPrint('Failed to save cookies: $e');
     }
+  }
+
+  /// Checks if login was successful by verifying session cookies.
+  ///
+  /// This method checks for the presence of session cookies (bb_session, bb_data, etc.)
+  /// which indicate a successful login. Falls back to URL/HTML checks if cookies
+  /// are not available.
+  Future<bool> _checkLoginSuccess(InAppWebViewController controller) async {
+    try {
+      // First, try to check for session cookies
+      final urlToCheck = initialUrl ?? 'https://rutracker.net';
+      final cookies = await CookieManager.instance()
+          .getCookies(url: WebUri(urlToCheck));
+
+      // Check for key session cookies that indicate successful login
+      final hasSessionCookie = cookies.any((c) =>
+          c.name == 'bb_session' ||
+          c.name == 'bb_data' ||
+          c.name.toLowerCase().contains('session'));
+
+      if (hasSessionCookie) {
+        await StructuredLogger().log(
+          level: 'debug',
+          subsystem: 'webview',
+          message: 'Login success detected via session cookies',
+          extra: {
+            'session_cookies': cookies
+                .where((c) =>
+                    c.name == 'bb_session' ||
+                    c.name == 'bb_data' ||
+                    c.name.toLowerCase().contains('session'))
+                .map((c) => {'name': c.name, 'domain': c.domain})
+                .toList(),
+          },
+        );
+        return true;
+      }
+    } on Exception catch (e) {
+      await StructuredLogger().log(
+        level: 'debug',
+        subsystem: 'webview',
+        message: 'Failed to check session cookies, falling back to URL/HTML check',
+        cause: e.toString(),
+      );
+    }
+
+    // Fallback to URL/HTML check if cookie check fails
+    try {
+      final currentUrl = await controller.getUrl();
+      final urlString = currentUrl?.toString().toLowerCase() ?? '';
+      final html = await controller.getHtml();
+
+      final isLoginSuccess = urlString.contains('profile.php') ||
+          (urlString.contains('index.php') && !urlString.contains('login')) ||
+          (html != null &&
+              (html.toLowerCase().contains('выход') ||
+                  html.toLowerCase().contains('logout') ||
+                  html.toLowerCase().contains('личный кабинет')));
+
+      return isLoginSuccess;
+    } on Exception {
+      return false;
+    }
+  }
+
+  /// Starts periodic cookie synchronization timer.
+  ///
+  /// This ensures cookies are regularly synced from WebView to DioClient,
+  /// especially important after Cloudflare challenges or when returning from browser.
+  void _startCookieSyncTimer() {
+    _cookieSyncTimer?.cancel();
+    _cookieSyncTimer = Timer.periodic(_cookieSyncInterval, (timer) async {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      
+      try {
+        // Save cookies from WebView (sync happens automatically in _saveCookies)
+        await _saveCookies();
+      } on Exception catch (e) {
+        // Log but don't spam - only log occasionally
+        if (timer.tick % 12 == 0) { // Log every ~60 seconds (12 * 5s)
+          await StructuredLogger().log(
+            level: 'debug',
+            subsystem: 'cookies',
+            message: 'Periodic cookie sync failed',
+            cause: e.toString(),
+          );
+        }
+      }
+    });
   }
 
   // WebView state management
@@ -813,6 +1028,9 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
                                 'user_agent': _userAgent?.substring(0, 50) ?? 'null',
                               },
                             );
+                            
+                            // Start periodic cookie synchronization
+                            _startCookieSyncTimer();
                             
                             // Ensure WebView loads the URL if it wasn't loaded automatically
                             // This is a safety measure in case initialUrlRequest didn't work
@@ -1354,24 +1572,13 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
                               }
                               await _saveCookies();
 
-                              // Check if user successfully logged in by detecting profile/index pages
-                              final currentUrl = await controller.getUrl();
-                              final urlString =
-                                  currentUrl?.toString().toLowerCase() ?? '';
-                              final isLoginSuccess = urlString
-                                      .contains('profile.php') ||
-                                  (urlString.contains('index.php') &&
-                                      !urlString.contains('login')) ||
-                                  (html != null &&
-                                      (html.toLowerCase().contains('выход') ||
-                                          html
-                                              .toLowerCase()
-                                              .contains('logout') ||
-                                          html
-                                              .toLowerCase()
-                                              .contains('личный кабинет')));
+                              // Check if user successfully logged in using improved detection
+                              final isLoginSuccess = await _checkLoginSuccess(controller);
 
                               if (isLoginSuccess) {
+                                final currentUrl = await controller.getUrl();
+                                final urlStringForLog =
+                                    currentUrl?.toString().toLowerCase() ?? '';
                                 await logger.log(
                                   level: 'info',
                                   subsystem: 'webview',
@@ -1380,61 +1587,12 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
                                   context: 'webview_login',
                                   durationMs: duration,
                                   extra: {
-                                    'url': urlString,
-                                    'has_profile_content': html != null &&
-                                        html.toLowerCase().contains('profile'),
+                                    'url': urlStringForLog,
                                     'html_size': htmlSize,
+                                    'detection_method': 'session_cookies_or_url',
                                   },
                                 );
-                              }
-
-                              // Automatically sync cookies to DioClient after saving
-                              try {
-                                await logger.log(
-                                  level: 'debug',
-                                  subsystem: 'cookies',
-                                  message:
-                                      'Syncing cookies from WebView to DioClient',
-                                  operationId: operationId,
-                                  context: 'webview_cookie_sync',
-                                  extra: {
-                                    'url': urlString,
-                                  },
-                                );
-
-                                await DioClient.syncCookiesFromWebView();
-
-                                await logger.log(
-                                  level: 'info',
-                                  subsystem: 'cookies',
-                                  message:
-                                      'Cookies synced from WebView to DioClient',
-                                  operationId: operationId,
-                                  context: 'webview_cookie_sync',
-                                  durationMs: duration,
-                                  extra: {
-                                    'url': urlString,
-                                  },
-                                );
-                              } on Exception catch (e) {
-                                await logger.log(
-                                  level: 'warning',
-                                  subsystem: 'cookies',
-                                  message:
-                                      'Failed to sync cookies to DioClient',
-                                  operationId: operationId,
-                                  context: 'webview_cookie_sync',
-                                  durationMs: duration,
-                                  cause: e.toString(),
-                                  extra: {
-                                    'url': urlString,
-                                    'stack_trace': (e is Error)
-                                        ? (e as Error).stackTrace.toString()
-                                        : null,
-                                  },
-                                );
-                                debugPrint(
-                                    'Failed to sync cookies to DioClient: $e');
+                                // Cookies are already synced by _saveCookies() above
                               }
 
                               // Set active mirror based on current host
@@ -1489,6 +1647,23 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
                               await launchUrl(uri);
                               return NavigationActionPolicy.CANCEL;
                             }
+                            
+                            // If returning to rutracker domain (e.g., from browser),
+                            // sync cookies immediately
+                            final rutrackerDomains = EndpointManager.getRutrackerDomains();
+                            if (rutrackerDomains.contains(uri.host)) {
+                              // Sync cookies when navigating to rutracker domain
+                              // This helps when returning from browser after Cloudflare challenge
+                              // _saveCookies() automatically syncs to DioClient
+                              unawaited(Future.microtask(() async {
+                                try {
+                                  await _saveCookies();
+                                } on Exception {
+                                  // Ignore sync errors during navigation
+                                }
+                              }));
+                            }
+                            
                             return NavigationActionPolicy.ALLOW;
                           },
                         ),

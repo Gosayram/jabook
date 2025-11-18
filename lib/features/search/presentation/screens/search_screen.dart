@@ -173,6 +173,15 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     try {
       final endpointManager = ref.read(endpointManagerProvider);
       final base = await endpointManager.getActiveEndpoint();
+      
+      // Verify endpoint is available before displaying
+      final isAvailable = await endpointManager.quickAvailabilityCheck(base);
+      if (!isAvailable) {
+        // If current endpoint is unavailable, try to get a better one
+        logger.w('Current active endpoint $base is unavailable, trying to get available one');
+        // getActiveEndpoint should already handle this, but we verify anyway
+      }
+      
       final host = Uri.parse(base).host;
       if (mounted) {
         setState(() => _activeHost = host);
@@ -463,8 +472,25 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   /// [updateExisting] - if true, updates existing results instead of replacing them.
   Future<void> _performNetworkSearch(String query,
       {bool updateExisting = false}) async {
-    // Ensure cookies are synced and validated before network search
+    // Ensure cookies are synced before network search
     await DioClient.syncCookiesFromWebView();
+
+    // Check if we have cookies before performing search
+    final hasCookies = await DioClient.hasValidCookies();
+    if (!hasCookies) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorKind = 'auth';
+          _errorMessage = AppLocalizations.of(context)
+                  ?.authorizationFailedMessage ??
+              'Please log in first to perform search';
+        });
+        // Show login prompt
+        safeUnawaited(_openWebViewLogin());
+      }
+      return;
+    }
 
     // Fetch from network using EndpointManager with automatic fallback
     final endpointManager = ref.read(endpointManagerProvider);
@@ -493,8 +519,26 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     }
 
     // Try each endpoint until one succeeds
-    Exception? lastException;
+    // First, filter out unavailable endpoints (DNS errors)
+    final availableEndpoints = <Map<String, dynamic>>[];
     for (final endpointData in enabledEndpoints) {
+      final endpoint = endpointData['url'] as String;
+      // Quick availability check before attempting search
+      final isAvailable = await endpointManager.quickAvailabilityCheck(endpoint);
+      if (isAvailable) {
+        availableEndpoints.add(endpointData);
+      } else {
+        logger.w('Skipping unavailable endpoint: $endpoint');
+      }
+    }
+
+    // If no available endpoints, try all enabled endpoints anyway (last resort)
+    final endpointsToTry = availableEndpoints.isNotEmpty
+        ? availableEndpoints
+        : enabledEndpoints;
+
+    Exception? lastException;
+    for (final endpointData in endpointsToTry) {
       final endpoint = endpointData['url'] as String;
 
       try {
@@ -554,7 +598,18 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             }
           }
 
-          // Success - break retry loop
+          // Success - update active endpoint and break retry loop
+          try {
+            await endpointManager.setActiveEndpoint(endpoint);
+            logger.i('Updated active endpoint to $endpoint after successful search');
+            // Update active host display to show real endpoint being used
+            if (mounted) {
+              final host = Uri.parse(endpoint).host;
+              setState(() => _activeHost = host);
+            }
+          } on Exception catch (e) {
+            logger.w('Failed to update active endpoint: $e');
+          }
           return;
         } else {
           // Non-200 status - try next endpoint if it's a server error (5xx)
