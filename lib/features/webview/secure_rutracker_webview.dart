@@ -21,6 +21,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:jabook/core/endpoints/endpoint_manager.dart';
 import 'package:jabook/core/logging/structured_logger.dart';
 import 'package:jabook/core/net/dio_client.dart';
+import 'package:jabook/core/net/user_agent_manager.dart';
 import 'package:jabook/data/db/app_database.dart';
 import 'package:jabook/l10n/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -47,6 +48,7 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
   double progress = 0.0;
   final storage = const FlutterSecureStorage();
   String? initialUrl; // resolved dynamically from EndpointManager
+  String? _userAgent; // User-Agent for legitimate connection
 
   // State restoration
   final String _webViewStateKey = 'rutracker_webview_state';
@@ -67,11 +69,50 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
   @override
   void initState() {
     super.initState();
-    _resolveInitialUrl().then((_) {
+    // Set fallback URL immediately to prevent null issues
+    initialUrl = 'https://rutracker.net';
+    // Get User-Agent for legitimate connection (required for Cloudflare)
+    _getUserAgent();
+    // Resolve initial URL with timeout to prevent hanging
+    _resolveInitialUrl()
+        .timeout(
+          const Duration(seconds: 10),
+          onTimeout: () {
+            // If resolution times out, use fallback
+            initialUrl = 'https://rutracker.net';
+          },
+        )
+        .then((_) {
       _restoreCookies();
-      setState(() {});
+      if (mounted) {
+        setState(() {});
+      }
+    }).catchError((e) {
+      // If URL resolution fails, ensure we have a fallback
+      initialUrl ??= 'https://rutracker.net';
+      if (mounted) {
+        setState(() {});
+      }
     });
     _restoreWebViewHistory();
+  }
+
+  /// Gets User-Agent for legitimate connection to pass Cloudflare checks.
+  Future<void> _getUserAgent() async {
+    try {
+      final userAgentManager = UserAgentManager();
+      _userAgent = await userAgentManager.getUserAgent();
+      if (mounted) {
+        setState(() {});
+      }
+    } on Exception {
+      // Use default User-Agent if extraction fails
+      // Modern mobile browser User-Agent for Cloudflare compatibility
+      _userAgent = 'Mozilla/5.0 (Linux; Android 13; SM-S918B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.6099.210 Mobile Safari/537.36';
+      if (mounted) {
+        setState(() {});
+      }
+    }
   }
 
   @override
@@ -196,23 +237,26 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
           var loadedCount = 0;
           final failedCookies = <Map<String, dynamic>>[];
 
-          for (final cookie in cookies) {
-            try {
-              await CookieManager.instance().setCookie(
-                url: WebUri(initialUrl!),
-                name: cookie['name'],
-                value: cookie['value'],
-                domain: cookie['domain'],
-                path: cookie['path'],
-                // Note: flutter_inappwebview doesn't support setting expires directly
-                // Cookies will expire based on their natural expiration
-              );
-              loadedCount++;
-            } on Exception catch (e) {
-              failedCookies.add({
-                'name': cookie['name'],
-                'error': e.toString(),
-              });
+          // Only restore cookies if initialUrl is set
+          if (initialUrl != null) {
+            for (final cookie in cookies) {
+              try {
+                await CookieManager.instance().setCookie(
+                  url: WebUri(initialUrl!),
+                  name: cookie['name'],
+                  value: cookie['value'],
+                  domain: cookie['domain'],
+                  path: cookie['path'],
+                  // Note: flutter_inappwebview doesn't support setting expires directly
+                  // Cookies will expire based on their natural expiration
+                );
+                loadedCount++;
+              } on Exception catch (e) {
+                failedCookies.add({
+                  'name': cookie['name'],
+                  'error': e.toString(),
+                });
+              }
             }
           }
 
@@ -233,10 +277,12 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
           );
         } on Exception catch (e) {
           // If cookie restoration fails, clear old cookies and start fresh
-          await CookieManager.instance().deleteCookies(
-            url: WebUri(initialUrl!),
-            domain: Uri.parse(initialUrl!).host,
-          );
+          if (initialUrl != null) {
+            await CookieManager.instance().deleteCookies(
+              url: WebUri(initialUrl!),
+              domain: Uri.parse(initialUrl!).host,
+            );
+          }
 
           await logger.log(
             level: 'warning',
@@ -607,16 +653,34 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
                 ),
                 // WebView
                 Expanded(
-                  child: initialUrl == null
+                  child: initialUrl == null || _userAgent == null
                       ? const Center(child: CircularProgressIndicator())
                       : InAppWebView(
-                          initialUrlRequest:
-                              URLRequest(url: WebUri(initialUrl!)),
+                          initialUrlRequest: URLRequest(
+                            url: WebUri(initialUrl!),
+                            // Add legitimate headers for Cloudflare compatibility
+                            headers: {
+                              'User-Agent': _userAgent!,
+                              'Accept':
+                                  'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+                              'Accept-Language': 'ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7',
+                              'Accept-Encoding': 'gzip, deflate, br',
+                              'Upgrade-Insecure-Requests': '1',
+                              'Cache-Control': 'no-cache',
+                              'Sec-Fetch-Dest': 'document',
+                              'Sec-Fetch-Mode': 'navigate',
+                              'Sec-Fetch-Site': 'none',
+                              'Sec-Fetch-User': '?1',
+                            },
+                          ),
                           initialSettings: InAppWebViewSettings(
                             useShouldOverrideUrlLoading: true,
                             sharedCookiesEnabled: true,
                             allowsInlineMediaPlayback: true,
                             mediaPlaybackRequiresUserGesture: false,
+                            // Set User-Agent for all requests (required for Cloudflare)
+                            userAgent: _userAgent,
+                            // JavaScript is enabled by default (required for Cloudflare challenge)
                             // Error handling
                             supportZoom: false,
                             // Memory management
