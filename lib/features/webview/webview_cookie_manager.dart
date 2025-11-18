@@ -579,21 +579,17 @@ class WebViewCookieManager {
       }
 
       // Convert WebView cookies to Dio Cookie format
+      // CRITICAL: Don't set domain - let CookieJar use URI host automatically
+      // This is more reliable than trying to normalize domains manually
       final dioCookies = <io.Cookie>[];
       for (final webViewCookie in webViewCookies) {
         try {
-          var normalizedDomain = webViewCookie.domain;
-          if (normalizedDomain != null && normalizedDomain.isNotEmpty) {
-            if (normalizedDomain.startsWith('.')) {
-              normalizedDomain = normalizedDomain.substring(1);
-            }
-          }
-          
           final dioCookie = io.Cookie(webViewCookie.name, webViewCookie.value)
-            ..domain = normalizedDomain
             ..path = webViewCookie.path ?? '/'
             ..secure = webViewCookie.isSecure ?? true
             ..httpOnly = webViewCookie.isHttpOnly ?? false;
+          // Don't set domain - let CookieJar use URI host automatically
+          // This ensures cookies are saved correctly regardless of domain format
           dioCookies.add(dioCookie);
         } on Exception catch (e) {
           await logger.log(
@@ -622,49 +618,58 @@ class WebViewCookieManager {
       }
 
       // Save cookies for RuTracker domains directly to Dio CookieJar
+      // CRITICAL: Save ALL cookies to ALL domains to ensure they work across mirrors
       for (final domain in rutrackerDomains) {
         try {
           final domainUri = Uri.parse('https://$domain');
           
-          final domainCookies = dioCookies.where((cookie) {
-            final cookieDomain = (cookie.domain ?? '').toLowerCase();
-            final targetDomain = domain.toLowerCase();
+          // Save ALL cookies to each domain (not filtered) - CookieJar will handle domain matching
+          // This ensures cookies work when switching between rutracker mirrors
+          if (dioCookies.isNotEmpty) {
+            await logger.log(
+              level: 'debug',
+              subsystem: 'cookies',
+              message: 'Saving cookies to domain via DioClient.saveCookiesDirectly',
+              operationId: operationId,
+              context: 'cookie_sync_direct',
+              extra: {
+                'domain': domain,
+                'cookie_count': dioCookies.length,
+                'cookie_names': dioCookies.map((c) => c.name).toList(),
+              },
+            );
             
-            final isImportantCookie = cookie.name.toLowerCase().contains('session') ||
-                cookie.name == 'bb_session' ||
-                cookie.name == 'bb_data' ||
-                cookie.name == 'cf_clearance' ||
-                cookie.name.startsWith('cf_');
+            await DioClient.saveCookiesDirectly(domainUri, dioCookies);
             
-            if (cookieDomain.isEmpty) {
-              return true;
-            }
+            // CRITICAL: Wait a bit and verify cookies were saved
+            await Future.delayed(const Duration(milliseconds: 200));
             
-            if (cookieDomain == targetDomain || cookieDomain == '.$targetDomain') {
-              return true;
-            }
+            // Verify cookies were saved by loading them back
+            final cookieJar = await DioClient.getCookieJar();
+            final savedCookies = cookieJar != null 
+                ? await cookieJar.loadForRequest(domainUri)
+                : <io.Cookie>[];
             
-            if (cookieDomain.startsWith('.') && cookieDomain.substring(1) == targetDomain) {
-              return true;
-            }
-            
-            if (isImportantCookie) {
-              return true;
-            }
-            
-            if (cookieDomain.contains(targetDomain)) {
-              return true;
-            }
-            
-            return false;
-          }).toList();
-
-          if (domainCookies.isNotEmpty) {
-            await DioClient.saveCookiesDirectly(domainUri, domainCookies);
+            await logger.log(
+              level: savedCookies.isNotEmpty ? 'info' : 'warning',
+              subsystem: 'cookies',
+              message: savedCookies.isNotEmpty 
+                  ? 'Cookies verified in Dio CookieJar after save'
+                  : 'WARNING: Cookies not found in Dio CookieJar after save',
+              operationId: operationId,
+              context: 'cookie_sync_direct',
+              extra: {
+                'domain': domain,
+                'saved_count': savedCookies.length,
+                'expected_count': dioCookies.length,
+                'saved_cookie_names': savedCookies.map((c) => c.name).toList(),
+                'expected_cookie_names': dioCookies.map((c) => c.name).toList(),
+              },
+            );
           }
         } on Exception catch (e) {
           await logger.log(
-            level: 'warning',
+            level: 'error',
             subsystem: 'cookies',
             message: 'Failed to save cookies for domain',
             operationId: operationId,
