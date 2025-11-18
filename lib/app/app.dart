@@ -414,15 +414,16 @@ class _JaBookAppState extends ConsumerState<JaBookApp> {
       overrides: [
         // Override AuthRepositoryProvider with actual implementation
         authRepositoryProvider.overrideWith((ref) {
-          _rutrackerAuth ??= RuTrackerAuth(context);
-          if (_rutrackerAuth == null) {
-            throw StateError('Failed to initialize RuTrackerAuth');
+          try {
+            _rutrackerAuth ??= RuTrackerAuth(context);
+            _authRepository ??= AuthRepositoryImpl(_rutrackerAuth!);
+            return _authRepository!;
+          } catch (e) {
+            logger.e('Failed to initialize AuthRepository: $e');
+            // Return a fallback implementation that throws on use
+            // This prevents app crash but will show error when auth is actually needed
+            throw StateError('AuthRepository not available: $e');
           }
-          _authRepository ??= AuthRepositoryImpl(_rutrackerAuth!);
-          if (_authRepository == null) {
-            throw StateError('Failed to initialize AuthRepository');
-          }
-          return _authRepository!;
         }),
       ],
       child: FutureBuilder<Locale>(

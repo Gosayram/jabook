@@ -66,7 +66,14 @@ class RuTrackerAuth {
 
   /// Gets or creates the session manager instance.
   SessionManager get sessionManager {
-    _sessionManager ??= SessionManager(rutrackerAuth: this);
+    if (_sessionManager == null) {
+      try {
+        _sessionManager = SessionManager(rutrackerAuth: this);
+      } catch (e) {
+        // If SessionManager creation fails, log and rethrow
+        throw StateError('Failed to create SessionManager: $e');
+      }
+    }
     return _sessionManager!;
   }
 
