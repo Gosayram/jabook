@@ -68,13 +68,23 @@ class RuTrackerAuth {
   SessionManager get sessionManager {
     if (_sessionManager == null) {
       try {
+        // Create SessionManager with this instance
+        // SessionManager is a singleton, so this is safe
         _sessionManager = SessionManager(rutrackerAuth: this);
+        // Verify that the instance was created successfully
+        if (_sessionManager == null) {
+          throw StateError('SessionManager creation returned null');
+        }
       } catch (e) {
         // If SessionManager creation fails, log and rethrow
         throw StateError('Failed to create SessionManager: $e');
       }
     }
-    return _sessionManager!;
+    final manager = _sessionManager;
+    if (manager == null) {
+      throw StateError('SessionManager is null after creation');
+    }
+    return manager;
   }
 
   /// Attempts to log in to RuTracker via HTTP (using form parser).
@@ -987,9 +997,15 @@ class RuTrackerAuth {
           onPageFinished: (url) {
             if (url.contains('profile.php')) {
               _syncCookies();
-              // use_if_null_to_convert_nulls_to_bools
-              if (dialogContext?.mounted ?? false) {
-                Navigator.of(dialogContext!).pop(true);
+              // On Android 16, context may become null between check and use
+              // Store context in local variable to avoid race condition
+              final context = dialogContext;
+              if (context != null && context.mounted) {
+                try {
+                  Navigator.of(context).pop(true);
+                } on Exception {
+                  // Context may have become invalid, ignore
+                }
               }
             }
           },

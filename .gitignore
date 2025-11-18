@@ -234,7 +234,6 @@ firebase_app_id_file.json
 .env
 .bin/
 
-android/
 .metadata
 
 # Secret key template

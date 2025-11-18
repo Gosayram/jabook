@@ -141,6 +141,7 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
 
   Future<void> _exportLogs(BuildContext context) async {
     final scaffoldMessenger = ScaffoldMessenger.of(context);
+    final localizations = AppLocalizations.of(context);
     try {
       final structuredLogger = StructuredLogger();
       await structuredLogger.initialize();
@@ -149,8 +150,7 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
       if (!mounted) return;
       scaffoldMessenger.showSnackBar(
         SnackBar(
-            content: Text(AppLocalizations.of(context)
-                    ?.logsExportedSuccessfullyMessage ??
+            content: Text(localizations?.logsExportedSuccessfullyMessage ??
                 'Logs exported successfully')),
       );
     } on Exception catch (e) {
@@ -159,7 +159,7 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
       scaffoldMessenger.showSnackBar(
         SnackBar(
             content: Text(
-                '${AppLocalizations.of(context)?.failedToExportLogsMessage ?? 'Failed to export logs'}: $e')),
+                '${localizations?.failedToExportLogsMessage ?? 'Failed to export logs'}: $e')),
       );
     }
   }
@@ -191,14 +191,14 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
 
   Future<void> _clearCache(BuildContext context) async {
     final scaffoldMessenger = ScaffoldMessenger.of(context);
+    final localizations = AppLocalizations.of(context);
     try {
       await _cacheService.clearSearchResultsCache();
       await _loadCacheStats();
       if (!mounted) return;
       scaffoldMessenger.showSnackBar(
         SnackBar(
-            content: Text(AppLocalizations.of(context)
-                    ?.cacheClearedSuccessfullyMessage ??
+            content: Text(localizations?.cacheClearedSuccessfullyMessage ??
                 'Cache cleared successfully')),
       );
     } on Exception catch (e) {
@@ -206,8 +206,8 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
       if (!mounted) return;
       scaffoldMessenger.showSnackBar(
         SnackBar(
-            content: Text(AppLocalizations.of(context)!
-                    .failedToClearCacheMessage(e.toString())),
+            content: Text(localizations?.failedToClearCacheMessage(e.toString()) ?? 
+                    'Failed to clear cache: ${e.toString()}'),
         ),
       );
     }
@@ -215,6 +215,7 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
 
   Future<void> _testAllMirrors(BuildContext context) async {
     final scaffoldMessenger = ScaffoldMessenger.of(context);
+    final localizations = AppLocalizations.of(context);
     try {
       // Test all mirrors using EndpointManager
       final mirrors = await _endpointManager.getAllEndpoints();
@@ -229,7 +230,7 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
       if (!mounted) return;
       scaffoldMessenger.showSnackBar(
         SnackBar(
-            content: Text(AppLocalizations.of(context)
+            content: Text(localizations
                     ?.mirrorHealthCheckCompletedMessage(mirrors.length, mirrors.length) ??
                 'Mirror health check completed'),
         ),
@@ -239,8 +240,8 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
       if (!mounted) return;
       scaffoldMessenger.showSnackBar(
         SnackBar(
-            content: Text(AppLocalizations.of(context)!
-                    .failedToTestMirrorsMessage(e.toString())),
+            content: Text(localizations?.failedToTestMirrorsMessage(e.toString()) ?? 
+                    'Failed to test mirrors: ${e.toString()}'),
         ),
       );
     }

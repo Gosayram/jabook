@@ -451,6 +451,8 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
             IconButton(
               icon: const Icon(Icons.open_in_browser),
               onPressed: () async {
+                final scaffoldMessenger = ScaffoldMessenger.of(context);
+                final localizations = AppLocalizations.of(context);
                 try {
                   final url = await _webViewController.getUrl();
                   String? urlString;
@@ -470,10 +472,9 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
                             mode: LaunchMode.externalApplication);
                       } else {
                         if (!mounted) return;
-                        // ignore: use_build_context_synchronously
-                        ScaffoldMessenger.of(context).showSnackBar(
+                        scaffoldMessenger.showSnackBar(
                           SnackBar(
-                            content: Text(AppLocalizations.of(context)
+                            content: Text(localizations
                                     ?.urlUnavailable ??
                                 'URL unavailable'),
                             duration: const Duration(seconds: 2),
@@ -482,11 +483,10 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
                       }
                     } else {
                       if (!mounted) return;
-                      // ignore: use_build_context_synchronously
-                      ScaffoldMessenger.of(context).showSnackBar(
+                      scaffoldMessenger.showSnackBar(
                         SnackBar(
-                          content: Text(AppLocalizations.of(context)!
-                                  .invalidUrlFormat(urlString)),
+                          content: Text(localizations?.invalidUrlFormat(urlString) ?? 
+                                  'Invalid URL format: $urlString'),
                           duration: const Duration(seconds: 3),
                         ),
                       );
@@ -499,10 +499,9 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
                     }
                   } else {
                     if (!mounted) return;
-                    // ignore: use_build_context_synchronously
-                    ScaffoldMessenger.of(context).showSnackBar(
+                    scaffoldMessenger.showSnackBar(
                       SnackBar(
-                        content: Text(AppLocalizations.of(context)
+                        content: Text(localizations
                                 ?.urlUnavailable ??
                             'URL unavailable'),
                         duration: const Duration(seconds: 2),
@@ -517,11 +516,10 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
                     message: 'Failed to open URL in browser',
                     cause: e.toString(),
                   );
-                  // ignore: use_build_context_synchronously
-                  ScaffoldMessenger.of(context).showSnackBar(
+                  scaffoldMessenger.showSnackBar(
                     SnackBar(
-                      content: Text(AppLocalizations.of(context)!
-                              .genericError(e.toString())),
+                      content: Text(localizations?.genericError(e.toString()) ?? 
+                              'Error: ${e.toString()}'),
                       duration: const Duration(seconds: 3),
                     ),
                   );

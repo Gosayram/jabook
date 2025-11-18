@@ -49,12 +49,15 @@ class AudiobookCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // On Android 16, AppLocalizations may not be initialized yet during early startup
+    // Use safe access with fallback values
+    final localizations = AppLocalizations.of(context);
     final title = audiobook['title'] as String? ??
-        AppLocalizations.of(context)!.unknownTitle;
+        localizations?.unknownTitle ?? 'Unknown Title';
     final author = audiobook['author'] as String? ??
-        AppLocalizations.of(context)!.unknownAuthor;
+        localizations?.unknownAuthor ?? 'Unknown Author';
     final size = audiobook['size'] as String? ??
-        AppLocalizations.of(context)!.unknownSize;
+        localizations?.unknownSize ?? 'Unknown Size';
     final seeders = audiobook['seeders'] as int? ?? 0;
     final leechers = audiobook['leechers'] as int? ?? 0;
     final category = audiobook['category'] as String? ??

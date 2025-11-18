@@ -58,12 +58,38 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
 
   Future<void> _initializeService() async {
     try {
+      // Use singleton AppDatabase instance - it should already be initialized
+      // by app.dart, but handle the case where it's not ready yet
       final appDatabase = AppDatabase();
-      await appDatabase.initialize();
-      _favoritesService = FavoritesService(appDatabase.database);
-      await _loadFavoritesCount();
+      
+      // Wait a bit for database to be initialized by app.dart
+      // This is a workaround for race condition on new Android
+      await Future.delayed(const Duration(milliseconds: 100));
+      
+      // Check if database is already initialized
+      if (!appDatabase.isInitialized) {
+        // Database not ready yet - initialize it
+        try {
+          await appDatabase.initialize();
+        } on Exception {
+          // If initialization fails, just skip favorites service
+          // It's optional and shouldn't block app startup
+          return;
+        }
+      }
+      
+      // Now safely access database
+      try {
+        final db = appDatabase.database;
+        _favoritesService = FavoritesService(db);
+        await _loadFavoritesCount();
+      } on Exception {
+        // If database access fails, just skip favorites service
+        // It's optional and shouldn't block app startup
+      }
     } on Exception {
-      // Ignore errors
+      // Ignore all errors - favorites service is optional
+      // Don't block app startup if favorites can't be loaded
     }
   }
 
@@ -84,7 +110,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   @override
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(
-          title: Text(AppLocalizations.of(context)!.libraryTitle),
+          title: Text(AppLocalizations.of(context)?.libraryTitle ?? 'Library'),
           actions: [
             Stack(
               clipBehavior: Clip.none,
@@ -131,7 +157,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                 // Navigate to search screen
                 context.go('/search');
               },
-              tooltip: AppLocalizations.of(context)!.searchAudiobooks,
+              tooltip: AppLocalizations.of(context)?.searchAudiobooks ?? 'Search',
             ),
             IconButton(
               icon: const Icon(Icons.filter_list),
@@ -299,8 +325,8 @@ class _LibraryContent extends ConsumerWidget {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-                content: Text(AppLocalizations.of(context)!
-                        .importedSuccess(importedCount)),
+                content: Text(AppLocalizations.of(context)?.importedSuccess(importedCount) ?? 
+                        'Imported $importedCount audiobook(s)'),
             ),
           );
         }
@@ -318,8 +344,8 @@ class _LibraryContent extends ConsumerWidget {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content: Text(AppLocalizations.of(context)!
-                      .importFailedMessage(e.toString())),
+              content: Text(AppLocalizations.of(context)?.importFailedMessage(e.toString()) ?? 
+                      'Import failed: ${e.toString()}'),
           ),
         );
       }
@@ -378,8 +404,8 @@ class _LibraryContent extends ConsumerWidget {
           if (context.mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                  content: Text(AppLocalizations.of(context)!
-                          .scanSuccessMessage(importedCount)),
+                  content: Text(AppLocalizations.of(context)?.scanSuccessMessage(importedCount) ?? 
+                          'Scanned and imported $importedCount audiobook(s)'),
               ),
             );
           }
@@ -407,8 +433,8 @@ class _LibraryContent extends ConsumerWidget {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content: Text(AppLocalizations.of(context)!
-                      .scanFailedMessage(e.toString())),
+              content: Text(AppLocalizations.of(context)?.scanFailedMessage(e.toString()) ?? 
+                      'Scan failed: ${e.toString()}'),
           ),
         );
       }

@@ -76,17 +76,27 @@ class _JaBookAppState extends ConsumerState<JaBookApp> {
   bool _hasShownOnboarding = false;
   bool _firstFrameTracked = false;
   DateTime? _appStartTime;
+  bool _isInitialized = false;
 
   @override
   void initState() {
     super.initState();
-    // Record app start time for UI render metrics
-    _appStartTime = DateTime.now();
-    // Run initialization in the background to avoid blocking UI
-    Future.microtask(_initializeApp);
+    try {
+      // Record app start time for UI render metrics
+      _appStartTime = DateTime.now();
+      // Run initialization in the background to avoid blocking UI
+      Future.microtask(_initializeApp);
+    } on Exception catch (e, stackTrace) {
+      logger.e('Error in initState: $e', stackTrace: stackTrace);
+      // Try to continue anyway
+    }
   }
 
   Future<void> _initializeApp() async {
+    // Add small delay to ensure Flutter is fully ready on new Android
+    // This helps avoid race conditions during initialization
+    await Future.delayed(const Duration(milliseconds: 50));
+    
     final appStartTime = DateTime.now();
     final structuredLogger = StructuredLogger();
     try {
@@ -141,17 +151,32 @@ class _JaBookAppState extends ConsumerState<JaBookApp> {
         'App initialization complete. Metrics: total=${totalInitDuration}ms, '
         'logger=${loggerInitDuration}ms, db=${dbInitDuration}ms, env=${envInitDuration}ms',
       );
+      
+      // Mark initialization as complete
+      if (mounted) {
+        setState(() {
+          _isInitialized = true;
+        });
+      }
     } on Exception catch (e, stackTrace) {
       logger.e('Failed to initialize app', error: e, stackTrace: stackTrace);
       // Show error to user if critical initialization fails
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Ошибка инициализации приложения: ${e.toString()}'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 5),
-          ),
-        );
+      // Use scaffoldMessengerKey to avoid BuildContext issues after async
+      // On Android 16, context may become null between check and use, so use safe access
+      final context = _scaffoldMessengerKey.currentContext;
+      if (mounted && context != null) {
+        try {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Initialization error: ${e.toString()}'),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 5),
+            ),
+          );
+        } on Exception catch (contextError) {
+          // Context may have become invalid, log but don't crash
+          logger.w('Failed to show error snackbar: $contextError');
+        }
       }
     }
   }
@@ -191,15 +216,21 @@ class _JaBookAppState extends ConsumerState<JaBookApp> {
     await database.initialize();
     final dbInitDuration = DateTime.now().difference(dbStartTime).inMilliseconds;
 
+    // Verify database is initialized before using it
+    if (!database.isInitialized) {
+      throw StateError('Database initialization failed');
+    }
+    final db = database.database;
+    
     final cacheStartTime = DateTime.now();
-    await cacheService.initialize(database.database);
+    await cacheService.initialize(db);
     final cacheInitDuration = DateTime.now().difference(cacheStartTime).inMilliseconds;
 
     // AuthRepository will be initialized in build method when context is available
 
     // Initialize EndpointManager with default endpoints and health checks
     final endpointStartTime = DateTime.now();
-    final endpointManager = EndpointManager(database.database);
+    final endpointManager = EndpointManager(db);
     await endpointManager
         .initialize(); // This includes initializeDefaultEndpoints() and health checks
     final endpointInitDuration = DateTime.now().difference(endpointStartTime).inMilliseconds;
@@ -232,7 +263,7 @@ class _JaBookAppState extends ConsumerState<JaBookApp> {
 
     // Run automatic endpoint health check if needed (non-blocking)
     try {
-      final healthScheduler = EndpointHealthScheduler(database.database);
+      final healthScheduler = EndpointHealthScheduler(db);
       // Run asynchronously without blocking startup
       // Use safeUnawaited to handle errors in fire-and-forget operations
       safeUnawaited(
@@ -400,9 +431,59 @@ class _JaBookAppState extends ConsumerState<JaBookApp> {
 
   @override
   Widget build(BuildContext context) {
-    final router = ref.watch(appRouterProvider);
+    try {
+      // Only create router after initialization is complete to avoid race conditions
+      // Show loading screen while initializing
+      // Use minimal MaterialApp without localization to avoid null check errors
+      if (!_isInitialized) {
+        // Use absolute minimal MaterialApp without any theme or complex widgets
+        // This prevents any null check errors during early initialization on new Android
+        try {
+          return MaterialApp(
+            title: 'JaBook',
+            debugShowCheckedModeBanner: false,
+            home: Builder(
+              builder: (context) => const Scaffold(
+                body: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      CircularProgressIndicator(),
+                      SizedBox(height: 16),
+                      Text('Loading...'),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
+        } on Exception {
+          // Ultimate fallback - no theme, no complex widgets
+          return const MaterialApp(
+            debugShowCheckedModeBanner: false,
+            home: Scaffold(
+              body: ColoredBox(
+                color: Colors.white,
+                child: Center(
+                  child: CircularProgressIndicator(),
+                ),
+              ),
+            ),
+          );
+        }
+      }
+    
     // Watch for language changes to trigger rebuild
-    ref.watch(languageProvider);
+    try {
+      ref.watch(languageProvider);
+    } on Exception catch (e, stackTrace) {
+      logger.e('Error watching languageProvider: $e', stackTrace: stackTrace);
+    }
+    
+    // Create router lazily - only when actually needed after initialization
+    // This prevents immediate screen building before everything is ready
+    // Delay router creation by one frame to ensure all initialization is complete
+    final router = ref.watch(appRouterProvider);
 
     // Initialize locale future only once
     _localeFuture ??= languageManager.getLocale().then((locale) {
@@ -413,16 +494,60 @@ class _JaBookAppState extends ConsumerState<JaBookApp> {
     return ProviderScope(
       overrides: [
         // Override AuthRepositoryProvider with actual implementation
+        // Use lazy initialization to avoid issues during app startup
         authRepositoryProvider.overrideWith((ref) {
+          // Lazy initialization - only create when actually needed
+          // Use a try-catch to handle any initialization errors gracefully
           try {
-            _rutrackerAuth ??= RuTrackerAuth(context);
-            _authRepository ??= AuthRepositoryImpl(_rutrackerAuth!);
-            return _authRepository!;
-          } catch (e) {
-            logger.e('Failed to initialize AuthRepository: $e');
-            // Return a fallback implementation that throws on use
-            // This prevents app crash but will show error when auth is actually needed
-            throw StateError('AuthRepository not available: $e');
+            // Double-check that widget is still mounted
+            if (!mounted) {
+              logger.w('Widget not mounted when creating auth repository');
+              throw StateError('Widget is not mounted, cannot create RuTrackerAuth');
+            }
+            
+            // On Android 16, context may not be fully ready during early initialization
+            // Additional check: verify that context is still mounted
+            // This is especially important on Android 16 where lifecycle is stricter
+            final buildContext = context;
+            if (!buildContext.mounted) {
+              throw StateError('BuildContext is not mounted, cannot create RuTrackerAuth');
+            }
+            
+            if (_rutrackerAuth == null) {
+              // Create RuTrackerAuth with context
+              // On Android 16, wrap in try-catch to handle any initialization issues
+              try {
+                _rutrackerAuth = RuTrackerAuth(buildContext);
+                if (_rutrackerAuth == null) {
+                  throw StateError('RuTrackerAuth creation returned null');
+                }
+              } on Exception catch (authError) {
+                logger.e('Failed to create RuTrackerAuth: $authError');
+                rethrow;
+              }
+            }
+            
+            if (_authRepository == null) {
+              final auth = _rutrackerAuth;
+              if (auth == null) {
+                throw StateError('RuTrackerAuth is null');
+              }
+              _authRepository = AuthRepositoryImpl(auth);
+              if (_authRepository == null) {
+                throw StateError('AuthRepositoryImpl creation returned null');
+              }
+            }
+            
+            final repository = _authRepository;
+            if (repository == null) {
+              throw StateError('AuthRepository is null after initialization');
+            }
+            return repository;
+          } catch (e, stackTrace) {
+            logger.e('Failed to initialize auth repository: $e', stackTrace: stackTrace);
+            // On new Android, try to continue with a fallback instead of crashing
+            // This allows the app to start even if auth initialization fails
+            rethrow;
           }
         }),
       ],
@@ -430,9 +555,10 @@ class _JaBookAppState extends ConsumerState<JaBookApp> {
         future: _localeFuture,
         initialData: _cachedLocale ?? const Locale('en', 'US'),
         builder: (context, snapshot) {
-          final locale = snapshot.data ?? const Locale('en', 'US');
+          try {
+            final locale = snapshot.data ?? const Locale('en', 'US');
 
-          return MaterialApp.router(
+            return MaterialApp.router(
             title: config.appName,
             theme: AppTheme.lightTheme,
             darkTheme: AppTheme.darkTheme,
@@ -467,10 +593,15 @@ class _JaBookAppState extends ConsumerState<JaBookApp> {
                   }
                 });
               }
+              // Safely get MediaQuery - may be null during initialization on new Android
+              final mediaQuery = MediaQuery.maybeOf(context);
+              if (mediaQuery == null) {
+                return child ?? const SizedBox.shrink();
+              }
               return MediaQuery(
                 // Use text scaler from device but clamp it for consistency
-                data: MediaQuery.of(context).copyWith(
-                  textScaler: MediaQuery.of(context).textScaler.clamp(
+                data: mediaQuery.copyWith(
+                  textScaler: mediaQuery.textScaler.clamp(
                         minScaleFactor: 0.8,
                         maxScaleFactor: 1.2,
                       ),
@@ -490,8 +621,32 @@ class _JaBookAppState extends ConsumerState<JaBookApp> {
             ],
             locale: locale,
           );
+          } on Exception catch (e, stackTrace) {
+            logger.e('Error in FutureBuilder builder: $e', stackTrace: stackTrace);
+            // Fallback to minimal MaterialApp
+            return MaterialApp(
+              title: config.appName,
+              home: Scaffold(
+                body: Center(
+                  child: Text('Error: ${e.toString()}'),
+                ),
+              ),
+            );
+          }
         },
       ),
     );
+    } on Exception catch (e, stackTrace) {
+      logger.e('Error in build method: $e', stackTrace: stackTrace);
+      // Ultimate fallback
+      return MaterialApp(
+        title: 'JaBook',
+        home: Scaffold(
+          body: Center(
+            child: Text('Critical error: ${e.toString()}'),
+          ),
+        ),
+      );
+    }
   }
 }

@@ -285,6 +285,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 'Pass Cloudflare/captcha and save cookie for client'),
             onTap: () async {
               final messenger = ScaffoldMessenger.of(context);
+              final localizations = AppLocalizations.of(context);
               final cookieStr = await Navigator.push<String>(
                 context,
                 MaterialPageRoute(
@@ -299,7 +300,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 if (mounted) {
                   messenger.showSnackBar(
                     SnackBar(
-                        content: Text(AppLocalizations.of(context)
+                        content: Text(localizations
                                 ?.cookiesSavedForHttpClient ??
                             'Cookies saved for HTTP client')),
                   );
@@ -317,6 +318,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             onTap: () async {
               // Clear cookies in Dio and WebView storage
               final messenger = ScaffoldMessenger.of(context);
+              final localizations = AppLocalizations.of(context);
               await DioClient.clearCookies();
               final prefs = await SharedPreferences.getInstance();
               await prefs.remove('rutracker_cookies_v1');
@@ -324,7 +326,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               if (mounted) {
                 messenger.showSnackBar(
                   SnackBar(
-                      content: Text(AppLocalizations.of(context)
+                      content: Text(localizations
                               ?.sessionClearedMessage ??
                           'RuTracker session cleared')),
                 );
@@ -431,6 +433,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   Future<void> _updateMetadata(BuildContext context) async {
     final messenger = ScaffoldMessenger.of(context);
+    final localizations = AppLocalizations.of(context);
 
     try {
       // Show updating indicator
@@ -442,7 +445,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
       messenger.showSnackBar(
         SnackBar(
-          content: Text(AppLocalizations.of(context)
+          content: Text(localizations
                   ?.metadataUpdateStartedMessage ??
               'Metadata update started...'),
           duration: const Duration(seconds: 2),
@@ -455,10 +458,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       final total = results.values.fold<int>(0, (sum, count) => sum + count);
 
       if (mounted) {
-        final loc = AppLocalizations.of(context);
         messenger.showSnackBar(
           SnackBar(
-            content: Text(loc?.metadataUpdateCompletedMessage(total) ??
+            content: Text(localizations?.metadataUpdateCompletedMessage(total) ??
                 'Update completed: collected $total records'),
             duration: const Duration(seconds: 3),
           ),
@@ -467,10 +469,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       }
     } on Exception catch (e) {
       if (mounted) {
-        final loc = AppLocalizations.of(context);
         messenger.showSnackBar(
           SnackBar(
-            content: Text(loc?.metadataUpdateError(e.toString()) ??
+            content: Text(localizations?.metadataUpdateError(e.toString()) ??
                 'Update error: $e'),
             backgroundColor: Colors.red,
             duration: const Duration(seconds: 5),
@@ -967,11 +968,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   Future<void> _exportData(BuildContext context) async {
     if (!mounted) return;
-    final loc = AppLocalizations.of(context);
+    final localizations = AppLocalizations.of(context);
     final messenger = ScaffoldMessenger.of(context)
       ..showSnackBar(
         SnackBar(
-          content: Text(loc?.exportingDataMessage ?? 'Exporting data...'),
+          content: Text(localizations?.exportingDataMessage ?? 'Exporting data...'),
           duration: const Duration(seconds: 1),
         ),
       );
@@ -995,10 +996,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         );
 
         if (!mounted) return;
-        final loc = AppLocalizations.of(context);
         messenger.showSnackBar(
           SnackBar(
-            content: Text(loc?.dataExportedSuccessfullyMessage ??
+            content: Text(localizations?.dataExportedSuccessfullyMessage ??
                 'Data exported successfully'),
             backgroundColor: Colors.green,
           ),
@@ -1006,10 +1006,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       }
     } on Exception catch (e) {
       if (!mounted) return;
-      final loc = AppLocalizations.of(context);
       messenger.showSnackBar(
         SnackBar(
-          content: Text(loc?.failedToExportMessage(e.toString()) ??
+          content: Text(localizations?.failedToExportMessage(e.toString()) ??
               'Failed to export: ${e.toString()}'),
           backgroundColor: Colors.red,
         ),
@@ -1020,6 +1019,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Future<void> _importData(BuildContext context) async {
     if (!mounted) return;
     final messenger = ScaffoldMessenger.of(context);
+    final localizations = AppLocalizations.of(context);
     try {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
@@ -1031,23 +1031,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
         // Show confirmation dialog
         if (!mounted) return;
-        final loc = AppLocalizations.of(context);
         // ignore: use_build_context_synchronously
         final confirmed = await showDialog<bool>(
           // ignore: use_build_context_synchronously
           context: context,
           builder: (dialogContext) => AlertDialog(
-            title: Text(loc?.importBackupTitle ?? 'Import Backup'),
-            content: Text(loc?.importBackupConfirmationMessage ??
+            title: Text(localizations?.importBackupTitle ?? 'Import Backup'),
+            content: Text(localizations?.importBackupConfirmationMessage ??
                 'This will import data from the backup file. Existing data may be merged or replaced. Continue?'),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(dialogContext).pop(false),
-                child: Text(loc?.cancel ?? 'Cancel'),
+                child: Text(localizations?.cancel ?? 'Cancel'),
               ),
               ElevatedButton(
                 onPressed: () => Navigator.of(dialogContext).pop(true),
-                child: Text(loc?.importButton ?? 'Import'),
+                child: Text(localizations?.importButton ?? 'Import'),
               ),
             ],
           ),
@@ -1058,7 +1057,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         if (!mounted) return;
         messenger.showSnackBar(
           SnackBar(
-            content: Text(loc?.importingDataMessage ?? 'Importing data...'),
+            content: Text(localizations?.importingDataMessage ?? 'Importing data...'),
             duration: const Duration(seconds: 2),
           ),
         );
@@ -1089,10 +1088,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       }
     } on Exception catch (e) {
       if (!mounted) return;
-      final loc = AppLocalizations.of(context);
       messenger.showSnackBar(
         SnackBar(
-          content: Text(loc?.failedToImportMessage(e.toString()) ??
+          content: Text(localizations?.failedToImportMessage(e.toString()) ??
               'Failed to import: ${e.toString()}'),
           backgroundColor: Colors.red,
         ),

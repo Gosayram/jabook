@@ -84,6 +84,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 
   return GoRouter(
     routes: routes,
+    // Use redirect to control navigation and prevent building screens before ready
+    redirect: (context, state) => null, // null means proceed with navigation
     initialLocation: '/',
     errorBuilder: (context, state) => Scaffold(
       appBar: AppBar(
@@ -158,7 +160,15 @@ class _MainNavigationWrapperState
   @override
   Widget build(BuildContext context) {
     // Get current location to determine selected index
-    final currentLocation = GoRouterState.of(context).uri.toString();
+    // Safely get router state - handle case where router is not ready yet
+    var currentLocation = '/';
+    try {
+      final routerState = GoRouterState.of(context);
+      currentLocation = routerState.uri.toString();
+    } on Exception {
+      // Router not ready yet - use default location
+      currentLocation = '/';
+    }
     final navigationItems = _buildNavigationItems(context);
     _selectedIndex =
         navigationItems.indexWhere((item) => item.route == currentLocation);

@@ -47,7 +47,11 @@ class SessionManager {
     RuTrackerAuth? rutrackerAuth,
   }) {
     _instance ??= SessionManager._internal(rutrackerAuth: rutrackerAuth);
-    return _instance!;
+    final instance = _instance;
+    if (instance == null) {
+      throw StateError('SessionManager instance is null after creation');
+    }
+    return instance;
   }
 
   /// Private constructor for singleton pattern.
@@ -505,7 +509,9 @@ class SessionManager {
         return false;
       }
 
-      final success = await _rutrackerAuth.loginViaHttp(username, password);
+      // _rutrackerAuth is guaranteed to be non-null here due to check above
+      final auth = _rutrackerAuth;
+      final success = await auth.loginViaHttp(username, password);
 
       final duration = DateTime.now().difference(startTime).inMilliseconds;
       _recordMetric('refreshSessionIfNeeded', duration);

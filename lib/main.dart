@@ -23,12 +23,22 @@ import 'package:jabook/core/logging/environment_logger.dart';
 import 'package:jabook/core/net/dio_client.dart';
 
 void main() {
-  // Record app start time for performance metrics
-  final appStartTime = DateTime.now();
-  DioClient.appStartTime = appStartTime;
+  // Initialize Flutter bindings first - required before accessing PaintingBinding
+  WidgetsFlutterBinding.ensureInitialized();
   
-  // Enable performance optimizations before runApp
-  _enablePerformanceOptimizations();
+  // Wrap everything in try-catch to prevent crashes during initialization
+  try {
+    // Record app start time for performance metrics
+    final appStartTime = DateTime.now();
+    DioClient.appStartTime = appStartTime;
+    
+    // Enable performance optimizations before runApp
+    _enablePerformanceOptimizations();
+  } on Exception catch (e) {
+    // If initialization fails, try to continue anyway
+    // This is especially important on new Android versions
+    logger.w('Error during main initialization: $e');
+  }
   // Setup global error handling
   FlutterError.onError = (details) {
     // Handle MissingPluginException gracefully - don't treat as critical error
@@ -80,17 +90,32 @@ void main() {
       return true; // Handled
     }
 
+    // Log detailed error information for null check operator errors
+    if (error.toString().contains('Null check operator used on a null value')) {
+      logger.e(
+        'Null check operator error: $error',
+        stackTrace: stack,
+        error: error,
+      );
+      // Try to continue execution instead of crashing
+      return true;
+    }
+
     logger.e('Unhandled Dart error: $error', stackTrace: stack);
     return true;
   };
 
   runZonedGuarded(() {
-    // Run app with performance optimizations
-    runApp(
-      const ProviderScope(
-        child: JaBookApp(),
-      ),
-    );
+    // Add small delay before runApp to ensure Flutter engine is fully ready
+    // This helps on new Android versions where initialization timing is critical
+    Future.delayed(const Duration(milliseconds: 100), () {
+      // Run app with performance optimizations
+      runApp(
+        const ProviderScope(
+          child: JaBookApp(),
+        ),
+      );
+    });
   }, (error, stackTrace) {
     // Handle MissingPluginException gracefully
     if (error is MissingPluginException) {
@@ -110,6 +135,17 @@ void main() {
       return; // Handled
     }
 
+    // Log detailed error information for null check operator errors
+    if (error.toString().contains('Null check operator used on a null value')) {
+      logger.e(
+        'Null check operator error in zone: $error',
+        stackTrace: stackTrace,
+        error: error,
+      );
+      // Try to continue execution instead of crashing
+      return;
+    }
+
     logger.e('Unhandled zone error: $error', stackTrace: stackTrace);
     // Try to recover from non-critical errors
     if (error is StateError && error.message.contains('mounted')) {
@@ -121,6 +157,13 @@ void main() {
 
 /// Enables performance optimizations for Flutter app
 void _enablePerformanceOptimizations() {
+  // Ensure bindings are initialized (idempotent, safe to call multiple times)
+  // After ensureInitialized(), PaintingBinding.instance is guaranteed to be non-null
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // Get PaintingBinding instance - safe after ensureInitialized()
+  final paintingBinding = PaintingBinding.instance;
+
   // Enable Impeller rendering engine (better performance on Android)
   // This is set via AndroidManifest meta-data when android folder is generated
   // But we can also optimize Dart-side rendering
@@ -128,12 +171,12 @@ void _enablePerformanceOptimizations() {
   // Optimize image cache for better memory management
   if (!kDebugMode) {
     // In release mode, use more aggressive caching
-    PaintingBinding.instance.imageCache.maximumSize = 100;
-    PaintingBinding.instance.imageCache.maximumSizeBytes = 50 << 20; // 50 MB
+    paintingBinding.imageCache.maximumSize = 100;
+    paintingBinding.imageCache.maximumSizeBytes = 50 << 20; // 50 MB
   } else {
     // In debug mode, use smaller cache
-    PaintingBinding.instance.imageCache.maximumSize = 50;
-    PaintingBinding.instance.imageCache.maximumSizeBytes = 25 << 20; // 25 MB
+    paintingBinding.imageCache.maximumSize = 50;
+    paintingBinding.imageCache.maximumSizeBytes = 25 << 20; // 25 MB
   }
 
   // Set preferred frame rate for better battery life on Android

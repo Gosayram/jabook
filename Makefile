@@ -157,6 +157,16 @@ patch-gradle-signing:
 		exit 1; \
 	fi
 
+.PHONY: patch-gradle-minsdk
+patch-gradle-minsdk:
+	@echo "Patching Gradle minSdk to 21..."
+	@if [ -f "scripts/patch-gradle-minsdk.sh" ]; then \
+		scripts/patch-gradle-minsdk.sh; \
+		echo "minSdk patched successfully"; \
+	else \
+		echo "Warning: patch-gradle-minsdk.sh not found, skipping minSdk patch"; \
+	fi
+
 .PHONY: build-android-bundle
 build-android-bundle:
 	@if [ ! -f "android/key.properties" ]; then \
@@ -173,11 +183,11 @@ build-android-bundle:
 	fi
 
 .PHONY: build-android-signed
-build-android-signed: use-existing-android-cert patch-gradle-signing build-android-bundle
+build-android-signed: use-existing-android-cert patch-gradle-signing patch-gradle-minsdk build-android-bundle
 	@echo "Signed Android App Bundle built successfully"
 
 .PHONY: build-android-signed-apk
-build-android-signed-apk: use-existing-android-cert patch-gradle-signing
+build-android-signed-apk: use-existing-android-cert patch-gradle-signing patch-gradle-minsdk
 	@echo "Building signed optimized APK (without obfuscation for easier debugging)..."
 	flutter build apk --target lib/main.dart --release \
 		--split-per-abi \
@@ -185,7 +195,7 @@ build-android-signed-apk: use-existing-android-cert patch-gradle-signing
 	@echo "Signed optimized APK built at: build/app/outputs/apk/"
 
 .PHONY: build-android-debug-apk
-build-android-debug-apk: use-existing-android-cert patch-gradle-signing
+build-android-debug-apk: use-existing-android-cert patch-gradle-signing patch-gradle-minsdk
 	@echo "Building signed debug APK (no obfuscation for easier debugging)..."
 	flutter build apk --target lib/main.dart --release \
 		--split-per-abi \
@@ -405,6 +415,13 @@ install-ios:
 setup-android:
 	@echo "Setting up Android project configuration..."
 	flutter create . --org com.jabook.app --platforms=android -a kotlin
+	@echo "Patching Android minSdk to 21 (Android 5.0+)..."
+	@if [ -f "scripts/patch-gradle-minsdk.sh" ]; then \
+		scripts/patch-gradle-minsdk.sh; \
+		echo "minSdk patched successfully"; \
+	else \
+		echo "Warning: patch-gradle-minsdk.sh not found, skipping minSdk patch"; \
+	fi
 	@echo "Generating custom launcher icons..."
 	dart run flutter_launcher_icons:main
 	@echo "Android project setup complete!"

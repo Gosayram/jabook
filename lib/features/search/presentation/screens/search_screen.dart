@@ -315,8 +315,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       // Show error message but still open WebView
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(AppLocalizations.of(context)!
-                  .authorizationCheckError(e.toString())),
+          content: Text(AppLocalizations.of(context)?.authorizationCheckError(e.toString()) ?? 
+                  'Authorization check error: ${e.toString()}'),
           backgroundColor: Colors.orange,
           duration: const Duration(seconds: 3),
         ),
@@ -381,8 +381,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(AppLocalizations.of(context)!
-                  .authorizationPageError(e.toString())),
+          content: Text(AppLocalizations.of(context)?.authorizationPageError(e.toString()) ?? 
+                  'Authorization page error: ${e.toString()}'),
           backgroundColor: Colors.red,
           duration: const Duration(seconds: 3),
         ),
@@ -725,7 +725,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   @override
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(
-          title: Text(AppLocalizations.of(context)!.searchAudiobooks),
+          title: Text(AppLocalizations.of(context)?.searchAudiobooks ?? 'Search Audiobooks'),
           actions: [
             if (_activeHost != null)
               Padding(
@@ -781,8 +781,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                   controller: _searchController,
                   focusNode: _searchFocusNode,
                   decoration: InputDecoration(
-                    labelText: AppLocalizations.of(context)!.searchPlaceholder,
-                    hintText: AppLocalizations.of(context)!.searchPlaceholder,
+                    labelText: AppLocalizations.of(context)?.searchPlaceholder ?? 'Enter title, author, or keywords',
+                    hintText: AppLocalizations.of(context)?.searchPlaceholder ?? 'Enter title, author, or keywords',
                     suffixIcon: _searchController.text.isNotEmpty
                         ? IconButton(
                             icon: const Icon(Icons.clear),
@@ -887,7 +887,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                                   size: 16, color: Colors.blue[700]),
                               const SizedBox(width: 8),
                               Text(
-                                AppLocalizations.of(context)!.resultsFromCache,
+                                AppLocalizations.of(context)?.resultsFromCache ?? 'Results from cache',
                                 style: TextStyle(
                                   color: Colors.blue[700],
                                   fontSize: 12,

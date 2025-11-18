@@ -30,19 +30,33 @@ class AppDatabase {
   static AppDatabase? _instance;
 
   /// Database instance for all operations.
-  late Database _db;
+  Database? _db;
+  bool _isInitialized = false;
 
   /// Gets the database instance for direct operations.
-  Database get database => _db;
+  /// Throws StateError if database is not initialized.
+  Database get database {
+    if (!_isInitialized || _db == null) {
+      throw StateError('Database is not initialized. Call initialize() first.');
+    }
+    return _db!;
+  }
+  
+  /// Checks if database is initialized.
+  bool get isInitialized => _isInitialized && _db != null;
 
   /// Initializes the database and creates all necessary stores.
   ///
   /// This method should be called once when the app starts.
   Future<void> initialize() async {
+    if (_isInitialized && _db != null) {
+      return; // Already initialized
+    }
     final appDocumentDir = await getApplicationDocumentsDirectory();
     final dbPath = '${appDocumentDir.path}/jabook.db';
 
     _db = await databaseFactoryIo.openDatabase(dbPath);
+    _isInitialized = true;
   }
 
   /// Gets the user preferences store.
@@ -87,6 +101,10 @@ class AppDatabase {
 
   /// Closes the database connection.
   Future<void> close() async {
-    await _db.close();
+    if (_isInitialized && _db != null) {
+      await _db!.close();
+      _db = null;
+      _isInitialized = false;
+    }
   }
 }

@@ -358,9 +358,7 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
                       overflow: TextOverflow.ellipsis,
                     ),
                     trailing: const Icon(Icons.copy),
-                    onTap: () {
-                      _copyMagnetLink();
-                    },
+                    onTap: _copyMagnetLink,
                   ),
                   const Divider(height: 1),
                   ListTile(
