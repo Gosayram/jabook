@@ -1,328 +1,535 @@
 # Localization Todo List
 
+## Статус локализации
+
+Этот файл содержит полный список всех найденных хардкодных строк в проекте, которые необходимо локализовать.
+
 ## Hardcoded Strings Found in Codebase
 
-### 1. Debug Screen
+### 1. Debug Screen (lib/features/debug/presentation/screens/debug_screen.dart)
 
-- "Debug Tools" - appBar title
-- "Logs" - tab text
-- "Mirrors" - tab text
-- "Downloads" - tab text
-- "Cache" - tab text
-- "Test all mirrors" - button text
-- "Status: $statusText" - mirror status text
-- "Last OK: $lastOk" - mirror status text
-- "RTT: $rtt ms" - mirror status text
-- "Download ${download['id']}" - download title
-- "Status: $status" - download status
-- "Progress: ${progress.toStringAsFixed(1)}%" - download progress
-- "Delete download" - delete button
-- "Cache Statistics" - section title
-- "Total entries: " - cache stat label
-- "Search cache: " - cache stat label
-- "Topic cache: " - cache stat label
-- "Memory usage: " - cache stat label
-- "Clear all cache" - button text
-- "Cache is empty" - empty cache message
-- "Refresh debug data" - refresh button
-- "Export logs" - export button
+- ✅ "Debug Tools" - appBar title (уже есть debugToolsTitle)
+- ✅ "Logs" - tab text (уже есть logsTab)
+- ✅ "Mirrors" - tab text (уже есть mirrorsTab)
+- ✅ "Downloads" - tab text (уже есть downloadsTab)
+- ✅ "Cache" - tab text (уже есть cacheTab)
+- ✅ "Test all mirrors" - button text (уже есть testAllMirrorsButton)
+- ✅ "Status: $statusText" - mirror status text (уже есть statusLabelText)
+- ✅ "Last OK: $lastOk" - mirror status text (уже есть lastOkLabelText)
+- ✅ "RTT: $rtt ms" - mirror status text (уже есть rttLabelText, millisecondsText)
+- ✅ "Download ${download['id']}" - download title (уже есть downloadLabelText)
+- ✅ "Status: $status" - download status (уже есть statusLabel)
+- ✅ "Progress: ${progress.toStringAsFixed(1)}%" - download progress (уже есть downloadProgressLabelText)
+- ✅ "Delete download" - delete button (уже есть deleteDownloadButton)
+- ✅ "Cache Statistics" - section title (уже есть cacheStatisticsTitle)
+- ✅ "Total entries: " - cache stat label (уже есть totalEntriesText)
+- ✅ "Search cache: " - cache stat label (уже есть searchCacheText)
+- ✅ "Topic cache: " - cache stat label (уже есть topicCacheText)
+- ✅ "Memory usage: " - cache stat label (уже есть memoryUsageText)
+- ✅ "Clear all cache" - button text (уже есть clearAllCacheButton)
+- ✅ "Cache is empty" - empty cache message (уже есть cacheIsEmptyMessage)
+- ✅ "Refresh debug data" - refresh button (уже есть refreshDebugDataButton)
+- ✅ "Export logs" - export button (уже есть exportLogsButton)
+- ✅ "Logs exported successfully" - success message (уже есть logsExportedSuccessfullyMessage)
+- ✅ "Failed to export logs: $e" - error message (уже есть failedToExportLogsMessage)
+- ✅ "Cache cleared successfully" - success message (уже есть cacheClearedSuccessfullyMessage)
+- ✅ "Failed to clear cache: $e" - error message (нужно добавить)
+- ✅ "Mirror health check completed" - success message (уже есть mirrorHealthCheckCompletedMessage)
+- ✅ "Failed to test mirrors: $e" - error message (нужно добавить)
+- ⚠️ "Degraded" - mirror status (нужно добавить)
+- ⚠️ "Unhealthy" - mirror status (нужно добавить)
 
-### 2. WebView Screen
+### 2. WebView Screen (lib/features/webview/secure_rutracker_webview.dart, rutracker_login_screen.dart)
 
-- "RuTracker" - appBar title
-- "Этот сайт использует проверки безопасности Cloudflare. Пожалуйста, дождитесь завершения проверки и взаимодействуйте с открывшейся страницей при необходимости." - cloudflare message
-- "Повторить попытку" - retry button
-- "Перейти на главную" - home button
-- "Сайт проверяет ваш браузер — пожалуйста, дождитесь завершения проверки в этой странице." - browser check message
-- "Скачать торрент" - dialog title
-- "Выберите действие:" - dialog content
-- "Открыть" - open button
-- "Скачать" - download button
-- "Для скачивания файла, пожалуйста, откройте ссылку в браузере" - download message
+- ✅ "RuTracker" - appBar title (уже есть webViewTitle)
+- ✅ "Этот сайт использует проверки безопасности Cloudflare..." - cloudflare message (уже есть cloudflareMessage)
+- ✅ "Повторить попытку" - retry button (уже есть retryButtonText)
+- ✅ "Перейти на главную" - home button (уже есть goHomeButtonText)
+- ✅ "Сайт проверяет ваш браузер..." - browser check message (уже есть browserCheckMessage)
+- ✅ "Скачать торрент" - dialog title (уже есть downloadTorrentTitle)
+- ✅ "Выберите действие:" - dialog content (уже есть selectActionText)
+- ✅ "Открыть" - open button (уже есть openButtonText)
+- ✅ "Скачать" - download button (уже есть downloadButtonText)
+- ✅ "Для скачивания файла, пожалуйста, откройте ссылку в браузере" - download message (уже есть downloadInBrowserMessage)
+- ⚠️ "URL недоступен" - error message (нужно добавить)
+- ⚠️ "Неверный формат URL: $urlString" - error message (нужно добавить)
+- ⚠️ "Ошибка: $e" - error message (нужно добавить)
+- ⚠️ "Повторная попытка подключения ($_retryCount/$_maxRetries)..." - retry message (нужно добавить)
+- ⚠️ "Ошибка загрузки: $desc" - error message (нужно добавить)
+- ⚠️ "Произошла ошибка при загрузке страницы" - error message (нужно добавить)
+- ⚠️ "Security verification in progress - please wait..." - security message (нужно добавить)
+- ⚠️ "Open in Browser" - button text (нужно добавить)
+- ⚠️ "Login successful!" - success message (нужно добавить)
+- ⚠️ "Для загрузки файл будет открыт в браузере" - download message (нужно добавить)
 
-### 3. Library Screen
+### 3. Library Screen (lib/features/library/presentation/screens/library_screen.dart)
 
-- "Import Audiobooks" - dialog title
-- "Select audiobook files from your device to add to your library" - dialog content
-- "Cancel" - cancel button
-- "Import" - import button
-- "Imported $importedCount audiobook(s)" - success message
-- "No files selected" - no files message
-- "Failed to import: $e" - error message
-- "Scan Folder" - dialog title
-- "Scan a folder on your device for audiobook files" - dialog content
-- "Scan" - scan button
-- "Found and imported $importedCount audiobook(s)" - success message
-- "No audiobook files found in selected folder" - no files message
-- "No folder selected" - no folder message
-- "Failed to scan folder: $e" - error message
+- ✅ "Import Audiobooks" - dialog title (уже есть importAudiobooksTitle)
+- ✅ "Select audiobook files from your device to add to your library" - dialog content (уже есть selectFilesMessage)
+- ✅ "Cancel" - cancel button (уже есть cancel)
+- ✅ "Import" - import button (уже есть importButtonText)
+- ✅ "Imported $importedCount audiobook(s)" - success message (уже есть importedSuccess)
+- ✅ "No files selected" - no files message (уже есть noFilesSelectedMessage)
+- ✅ "Failed to import: $e" - error message (уже есть importFailedMessage)
+- ✅ "Scan Folder" - dialog title (уже есть scanFolderTitle)
+- ✅ "Scan a folder on your device for audiobook files" - dialog content (уже есть scanFolderMessage)
+- ✅ "Scan" - scan button (уже есть scanButtonText)
+- ✅ "Found and imported $importedCount audiobook(s)" - success message (уже есть scanSuccessMessage)
+- ✅ "No audiobook files found in selected folder" - no files message (уже есть noAudiobooksFoundMessage)
+- ✅ "No folder selected" - no folder message (уже есть noFolderSelectedMessage)
+- ✅ "Failed to scan folder: $e" - error message (уже есть scanFailedMessage)
+- ⚠️ "Избранное" - favorites tooltip (нужно добавить)
+- ⚠️ "Filter library" - filter tooltip (нужно добавить)
+- ⚠️ "Add audiobook" - FAB tooltip (нужно добавить)
+- ⚠️ "Your library is empty" - empty library message (нужно добавить)
+- ⚠️ "Add audiobooks to your library to start listening" - empty library hint (нужно добавить)
+- ⚠️ "Search for audiobooks" - button label (нужно добавить)
+- ⚠️ "Import from Files" - button label (нужно добавить)
+- ⚠️ "Scan Folder" - button label (уже есть scanFolderTitle, но нужно для кнопки)
 
-### 4. Auth Screen
+### 4. Auth Screen (lib/features/auth/presentation/screens/auth_screen.dart)
 
-- "RuTracker Connection" - appBar title
-- "Username" - label
-- "Password" - label
-- "Remember me" - checkbox text
-- "Login" - login button
-- "Test Connection" - test button
-- "Logout" - logout button
-- "Login to RuTracker to access audiobook search and downloads. Your credentials are stored securely." - help text
-- "Please enter username and password" - status message
-- "Logging in..." - status message
-- "Login successful!" - success message
-- "Login failed. Please check credentials" - failure message
-- "Login error: ${e.toString()}" - error message
-- "Testing connection..." - status message
-- "Connection successful! Using: $activeEndpoint" - success message
-- "Connection test failed: ${e.toString()}" - error message
-- "Logging out..." - status message
-- "Logged out successfully" - success message
-- "Logout error: ${e.toString()}" - error message
+- ✅ "RuTracker Connection" - appBar title (уже есть authScreenTitle)
+- ✅ "Username" - label (уже есть usernameLabelText)
+- ✅ "Password" - label (уже есть passwordLabelText)
+- ✅ "Remember me" - checkbox text (уже есть rememberMeLabelText)
+- ✅ "Login" - login button (уже есть loginButtonText)
+- ✅ "Test Connection" - test button (уже есть testConnectionButtonText)
+- ✅ "Logout" - logout button (уже есть logoutButtonText)
+- ✅ "Login to RuTracker to access audiobook search and downloads. Your credentials are stored securely." - help text (уже есть authHelpText)
+- ⚠️ "Please enter username and password" - status message (нужно добавить)
+- ✅ "Logging in..." - status message (уже есть loggingInText)
+- ✅ "Login successful!" - success message (уже есть loginSuccessMessage)
+- ✅ "Login failed. Please check credentials" - failure message (уже есть loginFailedMessage)
+- ✅ "Login error: ${e.toString()}" - error message (уже есть loginErrorMessage)
+- ⚠️ "Testing connection..." - status message (нужно добавить)
+- ✅ "Connection successful! Using: $activeEndpoint" - success message (уже есть connectionSuccessMessage)
+- ✅ "Connection test failed: ${e.toString()}" - error message (уже есть connectionFailedMessage)
+- ✅ "Logging out..." - status message (уже есть loggingOutText)
+- ✅ "Logged out successfully" - success message (уже есть logoutSuccessMessage)
+- ✅ "Logout error: ${e.toString()}" - error message (уже есть logoutErrorMessage)
 
-### 5. Settings Screen
+### 5. Settings Screen (lib/features/settings/presentation/screens/settings_screen.dart)
 
-- "Manage Mirrors" - subtitle
-- "Configure and test RuTracker mirrors" - subtitle
-- "Playback Speed" - title
-- "1.0x" - subtitle
-- "Skip Duration" - title
-- "15 seconds" - subtitle
-- "Download Location" - title
-- "/storage/emulated/0/Download" - subtitle
-- "Dark Mode" - title
-- "High Contrast" - title
-- "Wi-Fi Only Downloads" - title
+- ✅ "Manage Mirrors" - subtitle (уже есть mirrorsScreenTitle)
+- ✅ "Configure and test RuTracker mirrors" - subtitle (уже есть configureMirrorsSubtitle)
+- ✅ "Playback Speed" - title (уже есть playbackSpeedTitle)
+- ⚠️ "1.0x" - subtitle (нужно добавить)
+- ✅ "Skip Duration" - title (уже есть skipDurationTitle)
+- ⚠️ "15 seconds" - subtitle (нужно добавить)
+- ✅ "Download Location" - title (уже есть downloadLocationTitle)
+- ⚠️ "/storage/emulated/0/Download" - subtitle (пример пути, не нужно локализовать)
+- ✅ "Dark Mode" - title (уже есть darkModeTitle)
+- ✅ "High Contrast" - title (уже есть highContrastTitle)
+- ✅ "Wi-Fi Only Downloads" - title (уже есть wifiOnlyDownloadsTitle)
+- ⚠️ "Управление сессией RuTracker (cookie)" - section description (нужно добавить)
+- ⚠️ "Войти в RuTracker через WebView" - button text (нужно добавить)
+- ⚠️ "Пройти Cloudflare/капчу и сохранить cookie для клиента" - button subtitle (нужно добавить)
+- ⚠️ "Cookie сохранены для HTTP-клиента" - success message (нужно добавить)
+- ⚠️ "Очистить сессию RuTracker (cookie)" - button text (нужно добавить)
+- ⚠️ "Удалить сохранённые cookie и выйти из аккаунта" - button subtitle (нужно добавить)
+- ⚠️ "Сессия RuTracker очищена" - success message (нужно добавить)
+- ⚠️ "Метаданные аудиокниг" - section title (нужно добавить)
+- ⚠️ "Управление локальной базой метаданных аудиокниг" - section description (нужно добавить)
+- ⚠️ "Всего записей" - stat label (нужно добавить)
+- ⚠️ "Последнее обновление" - stat label (нужно добавить)
+- ⚠️ "Обновление..." - button text (нужно добавить)
+- ⚠️ "Обновить метаданные" - button text (нужно добавить)
+- ⚠️ "Начато обновление метаданных..." - status message (нужно добавить)
+- ⚠️ "Обновление завершено: собрано $total записей" - success message (нужно добавить)
+- ⚠️ "Ошибка обновления: $e" - error message (нужно добавить)
+- ⚠️ "Никогда" - date text (нужно добавить)
+- ⚠️ "Только что" - date text (нужно добавить)
+- ⚠️ "Неизвестно" - date text (нужно добавить)
+- ⚠️ "X дн. назад" - date format (нужно добавить)
+- ⚠️ "X ч. назад" - date format (нужно добавить)
+- ⚠️ "X мин. назад" - date format (нужно добавить)
+- ⚠️ "App Permissions" - section title (нужно добавить)
+- ⚠️ "Storage" - permission name (нужно добавить)
+- ⚠️ "Save audiobook files and cache data" - permission description (нужно добавить)
+- ⚠️ "Notifications" - permission name (нужно добавить)
+- ⚠️ "Show playback controls and updates" - permission description (нужно добавить)
+- ⚠️ "Grant All Permissions" - button text (нужно добавить)
+- ⚠️ "All permissions granted" - success message (нужно добавить)
+- ⚠️ "File access available" - status message (нужно добавить)
+- ⚠️ "File access unavailable" - status message (нужно добавить)
+- ⚠️ "Notifications available" - status message (нужно добавить)
+- ⚠️ "Notifications unavailable" - status message (нужно добавить)
+- ⚠️ "Capabilities: $grantedCount/${results.length}" - status message (нужно добавить)
+- ⚠️ "Backup & Restore" - section title (нужно добавить)
+- ⚠️ "Export and import your data (favorites, history, metadata)" - section description (нужно добавить)
+- ⚠️ "Export Data" - button text (нужно добавить)
+- ⚠️ "Save all your data to a backup file" - button subtitle (нужно добавить)
+- ⚠️ "Import Data" - button text (нужно добавить)
+- ⚠️ "Restore data from a backup file" - button subtitle (нужно добавить)
+- ⚠️ "Exporting data..." - status message (нужно добавить)
+- ⚠️ "Data exported successfully" - success message (нужно добавить)
+- ⚠️ "Failed to export: ${e.toString()}" - error message (нужно добавить)
+- ⚠️ "Import Backup" - dialog title (нужно добавить)
+- ⚠️ "Importing data..." - status message (нужно добавить)
+- ⚠️ "Failed to import: ${e.toString()}" - error message (нужно добавить)
+- ⚠️ "Clear Expired Cache" - button text (нужно добавить)
+- ⚠️ "Language changed to ${languageName}" - success message (нужно добавить)
 
-### 6. Mirror Settings Screen
+### 6. Mirror Settings Screen (lib/features/settings/presentation/screens/mirror_settings_screen.dart)
 
-- "Failed to load mirrors: $e" - error message
-- "Mirror $url tested successfully" - success message
-- "Failed to test mirror $url: $e" - error message
-- "Mirror ${enabled ? 'enabled' : 'disabled'}" - status message
-- "Failed to update mirror: $e" - error message
-- "Add Custom Mirror" - dialog title
-- "Mirror URL" - label
-- "https://rutracker.example.com" - hint text
-- "Priority (1-10)" - label
-- "5" - hint text
-- "Add" - add button
-- "Mirror ${urlController.text} added" - success message
-- "Failed to add mirror: $e" - error message
-- "Mirror Settings" - appBar title
-- "Configure RuTracker mirrors for optimal search performance. Enabled mirrors will be used automatically." - description
-- "Add Custom Mirror" - button text
-- "Priority: $priority" - priority text
-- "Response time: $rtt ms" - response time text
-- "Last checked: ${\_formatDate(lastOk)}" - last check text
-- "Test this mirror" - button text
-- "Active" - active status
-- "Disabled" - disabled status
-- "Never" - never date
-- "Invalid date" - invalid date message
+- ✅ "Failed to load mirrors: $e" - error message (уже есть failedToLoadMirrorsMessage)
+- ✅ "Mirror $url tested successfully" - success message (уже есть mirrorTestSuccessMessage)
+- ✅ "Failed to test mirror $url: $e" - error message (уже есть mirrorTestFailedMessage)
+- ✅ "Mirror ${enabled ? 'enabled' : 'disabled'}" - status message (уже есть mirrorStatusText)
+- ✅ "Failed to update mirror: $e" - error message (уже есть failedToUpdateMirrorMessage)
+- ✅ "Add Custom Mirror" - dialog title (уже есть addCustomMirrorTitle)
+- ✅ "Mirror URL" - label (уже есть mirrorUrlLabelText)
+- ✅ "https://rutracker.example.com" - hint text (уже есть mirrorUrlHintText)
+- ✅ "Priority (1-10)" - label (уже есть priorityLabelText)
+- ✅ "5" - hint text (уже есть priorityHintText)
+- ✅ "Add" - add button (уже есть addMirrorButtonText)
+- ✅ "Mirror ${urlController.text} added" - success message (уже есть mirrorAddedMessage)
+- ✅ "Failed to add mirror: $e" - error message (уже есть failedToAddMirrorMessage)
+- ✅ "Mirror Settings" - appBar title (уже есть mirrorSettingsTitle)
+- ✅ "Configure RuTracker mirrors for optimal search performance. Enabled mirrors will be used automatically." - description (уже есть mirrorSettingsDescription)
+- ✅ "Add Custom Mirror" - button text (уже есть addCustomMirrorButtonText)
+- ✅ "Priority: $priority" - priority text (уже есть priorityText)
+- ✅ "Response time: $rtt ms" - response time text (уже есть responseTimeText)
+- ✅ "Last checked: ${\_formatDate(lastOk)}" - last check text (уже есть lastCheckedText)
+- ✅ "Test this mirror" - button text (уже есть testMirrorButtonText)
+- ✅ "Active" - active status (уже есть activeStatusText)
+- ✅ "Disabled" - disabled status (уже есть disabledStatusText)
+- ✅ "Never" - never date (уже есть neverDateText)
+- ✅ "Invalid date" - invalid date message (уже есть invalidDateText)
+- ⚠️ "Нет активных зеркал для проверки" - error message (нужно добавить)
+- ⚠️ "Проверка завершена: $tested/$total зеркал" - success message (нужно добавить)
+- ⚠️ "Активное зеркало установлено: $url" - success message (нужно добавить)
+- ⚠️ "Не удалось установить активное зеркало: $e" - error message (нужно добавить)
+- ⚠️ "Изменить приоритет" - dialog title (нужно добавить)
+- ⚠️ "URL: $url" - dialog content (нужно добавить)
+- ⚠️ "Приоритет (1-10)" - label (уже есть, но на русском нужно проверить)
+- ⚠️ "Меньше число = выше приоритет" - helper text (нужно добавить)
+- ⚠️ "Сохранить" - save button (нужно добавить)
+- ⚠️ "Приоритет обновлен: $priority" - success message (нужно добавить)
+- ⚠️ "Не удалось обновить приоритет: $e" - error message (нужно добавить)
+- ⚠️ "Active mirror: $best" - success message (нужно добавить)
+- ⚠️ "Failed to set best mirror: $e" - error message (нужно добавить)
+- ⚠️ "URL скопирован в буфер обмена" - success message (нужно добавить)
+- ⚠️ "Удалить зеркало?" - dialog title (нужно добавить)
+- ⚠️ "Внимание: это зеркало по умолчанию..." - warning message (нужно добавить)
+- ⚠️ "Вы уверены, что хотите удалить это зеркало?" - confirmation message (нужно добавить)
+- ⚠️ "Удалить" - delete button (нужно добавить)
+- ⚠️ "Зеркало удалено: $url" - success message (нужно добавить)
+- ⚠️ "Не удалось удалить зеркало: $e" - error message (нужно добавить)
+- ⚠️ "Неверный формат URL" - error message (нужно добавить)
+- ⚠️ "Это зеркало уже существует в списке" - error message (нужно добавить)
+- ⚠️ "Только активные" - filter label (нужно добавить)
+- ⚠️ "Только здоровые" - filter label (нужно добавить)
+- ⚠️ "По приоритету" - sort label (нужно добавить)
+- ⚠️ "По здоровью" - sort label (нужно добавить)
+- ⚠️ "По скорости" - sort label (нужно добавить)
+- ⚠️ "Нет зеркал, соответствующих фильтрам" - empty message (нужно добавить)
+- ⚠️ "Сбросить фильтры" - button text (нужно добавить)
+- ⚠️ "Здоровье: $healthScore%" - health text (нужно добавить)
+- ⚠️ "Проверено: ${_formatDate(lastOk)}" - checked text (нужно добавить)
+- ⚠️ "Установить как активное" - tooltip (нужно добавить)
+- ⚠️ "Копировать URL" - tooltip (нужно добавить)
+- ⚠️ "Удалить зеркало" - tooltip (нужно добавить)
+- ⚠️ "Set Best Mirror" - button text (нужно добавить)
 
-### 7. Player Screen
+### 7. Player Screen (lib/features/player/presentation/screens/player_screen.dart)
 
-- "Player: ${widget.bookId}" - appBar title
-- "Failed to load audiobook" - error message
-- "Retry" - retry button
-- "by ${\_audiobook!.author}" - author text
-- "Chapters" - chapters title
-- "Download functionality coming soon!" - download message
-- "Sample Audiobook" - sample title
-- "Sample Author" - sample author
-- "Fiction" - sample category
-- "150 MB" - sample size
-- "Chapter 1" - sample chapter
-- "Chapter 2" - sample chapter
+- ✅ "Player: ${widget.bookId}" - appBar title (уже есть playerScreenTitle)
+- ✅ "Failed to load audiobook" - error message (уже есть failedToLoadAudioMessage)
+- ✅ "Retry" - retry button (уже есть retry)
+- ✅ "by ${\_audiobook!.author}" - author text (уже есть byAuthorText)
+- ✅ "Chapters" - chapters title (уже есть chaptersLabelText)
+- ✅ "Download functionality coming soon!" - download message (уже есть downloadFunctionalityComingSoonMessage)
+- ✅ "Sample Audiobook" - sample title (уже есть sampleTitleText)
+- ✅ "Sample Author" - sample author (уже есть sampleAuthorText)
+- ✅ "Fiction" - sample category (уже есть sampleCategoryText)
+- ✅ "150 MB" - sample size (уже есть sampleSizeText)
+- ✅ "Chapter 1" - sample chapter (уже есть sampleChapter1Text)
+- ✅ "Chapter 2" - sample chapter (уже есть sampleChapter2Text)
 
-### 8. Topic Screen
+### 8. Topic Screen (lib/features/topic/presentation/screens/topic_screen.dart)
 
-- "Topic: ${widget.topicId}" - appBar title
-- "Request timed out. Please check your connection." - timeout message
-- "Network error: ${e.message}" - network error message
-- "Error loading topic: $e" - error message
-- "Failed to load topic" - error message
-- "Retry" - retry button
-- "Data loaded from cache" - cache message
-- "$seeders seeders" - seeders text
-- "$leechers leechers" - leechers text
-- "Magnet Link" - magnet link title
-- "Magnet link copied to clipboard" - copy success message
-- "$label copied to clipboard" - copy success message
-- "Unknown chapter" - unknown chapter text
+- ✅ "Topic: ${widget.topicId}" - appBar title (уже есть topicScreenTitle)
+- ✅ "Request timed out. Please check your connection." - timeout message (уже есть requestTimedOutMessage)
+- ✅ "Network error: ${e.message}" - network error message (уже есть networkErrorMessage)
+- ✅ "Error loading topic: $e" - error message (уже есть errorLoadingTopicMessage)
+- ✅ "Failed to load topic" - error message (уже есть failedToLoadTopicMessage)
+- ✅ "Retry" - retry button (уже есть retry)
+- ✅ "Data loaded from cache" - cache message (уже есть dataLoadedFromCacheMessage)
+- ✅ "$seeders seeders" - seeders text (уже есть seedersLabel)
+- ✅ "$leechers leechers" - leechers text (уже есть leechersLabel)
+- ✅ "Magnet Link" - magnet link title (уже есть magnetLinkLabelText)
+- ✅ "Magnet link copied to clipboard" - copy success message (уже есть magnetLinkCopiedMessage)
+- ✅ "$label copied to clipboard" - copy success message (уже есть copyToClipboardMessage)
+- ✅ "Unknown chapter" - unknown chapter text (уже есть unknownChapterText)
+- ⚠️ "Copy Magnet Link" - menu item (нужно добавить)
+- ⚠️ "Download Torrent" - menu item (нужно добавить)
+- ⚠️ "Open torrent file in external app" - subtitle (нужно добавить)
+- ⚠️ "Failed to open torrent: $e" - error message (нужно добавить)
 
-### 9. Search Screen
+### 9. Search Screen (lib/features/search/presentation/screens/search_screen.dart)
 
-- "Request timed out. Please check your connection." - timeout message
-- "Network error: ${e.message}" - network error message
-- "Error: $e" - error message
-- "Navigate to login screen" - navigation text
+- ✅ "Request timed out. Please check your connection." - timeout message (уже есть requestTimedOutMessage)
+- ✅ "Network error: ${e.message}" - network error message (уже есть networkErrorMessage)
+- ✅ "Error: $e" - error message (нужно добавить общий ключ)
+- ✅ "Navigate to login screen" - navigation text (уже есть loginRequiredForSearch)
+- ⚠️ "Подождите, выполняется биометрическая аутентификация..." - status message (нужно добавить)
+- ⚠️ "Авторизация успешна" - success message (нужно добавить)
+- ⚠️ "Авторизация" - dialog title (нужно добавить)
+- ⚠️ "Биометрическая аутентификация недоступна или не удалась. Открыть WebView для входа?" - dialog content (нужно добавить)
+- ⚠️ "Отмена" - cancel button (уже есть cancel)
+- ⚠️ "Открыть WebView" - button text (нужно добавить)
+- ⚠️ "Биометрическая аутентификация недоступна. Открыть WebView для входа?" - dialog content (нужно добавить)
+- ⚠️ "Ошибка при проверке авторизации: ${e.toString()}" - error message (нужно добавить)
+- ⚠️ "Авторизация не удалась. Проверьте логин и пароль" - error message (нужно добавить)
+- ⚠️ "Ошибка открытия страницы авторизации: ${e.toString()}" - error message (нужно добавить)
+- ⚠️ "Не удалось подключиться к зеркалам RuTracker. Проверьте подключение к интернету или попробуйте выбрать другое зеркало в настройках" - error message (нужно добавить)
+- ⚠️ "Не удалось подключиться к зеркалам RuTracker" - error message (нужно добавить)
+- ⚠️ "Фильтры:" - label (нужно добавить)
+- ⚠️ "Сбросить" - button text (нужно добавить)
+- ⚠️ "Другое" - category fallback (нужно добавить)
+- ⚠️ "История поиска" - section title (нужно добавить)
+- ⚠️ "Очистить" - button text (нужно добавить)
+- ⚠️ "Не удалось добавить в избранное" - error message (нужно добавить)
+- ⚠️ "Не удалось удалить из избранного" - error message (нужно добавить)
+- ⚠️ "Load more" - button text (нужно добавить)
 
-### 10. Core/Permissions
+### 10. Core/Permissions (lib/core/permissions/permission_service.dart, permission_service_v2.dart)
 
-- "Отмена" - cancel button (Russian)
-- "Разрешить" - allow button (Russian)
+- ⚠️ "Отмена" - cancel button (уже есть cancel, но нужно проверить использование)
+- ⚠️ "Разрешить" - allow button (нужно добавить)
+- ✅ "Permissions Required" - dialog title (уже есть permissionsRequired)
+- ✅ "JaBook needs the following permissions to work properly:" - explanation (уже есть permissionExplanation)
+- ✅ "Storage: To save audiobook files and cache data" - storage description (нужно добавить отдельный ключ)
+- ✅ "Notifications: To show playback controls and updates" - notification description (нужно добавить отдельный ключ)
+- ✅ "Grant Permissions" - button text (уже есть grantPermissions)
+- ⚠️ "Cancel" - cancel button (уже есть cancel)
 
-### 11. Core/Auth
+### 11. Core/Auth (lib/core/auth/rutracker_auth.dart)
 
-- "Login to RuTracker" - dialog title
-- "Cancel" - cancel button
-- "Logout failed" - error message
-- "Cookie sync failed: ${e.toString()}" - error message
+- ✅ "Login to RuTracker" - dialog title (уже есть authDialogTitle)
+- ✅ "Cancel" - cancel button (уже есть cancel)
+- ⚠️ "Logout failed" - error message (нужно добавить)
+- ⚠️ "Cookie sync failed: ${e.toString()}" - error message (нужно добавить)
 
-### 12. Core/Player
+### 12. Core/Player (lib/core/player/audio_service_handler.dart)
 
-- "Failed to start audio service" - error message
-- "Failed to play media" - error message
-- "Failed to pause media" - error message
-- "Failed to stop media" - error message
-- "Failed to seek" - error message
-- "Failed to set speed" - error message
+- ⚠️ "Failed to start audio service" - error message (нужно добавить)
+- ⚠️ "Failed to play media" - error message (нужно добавить)
+- ⚠️ "Failed to pause media" - error message (нужно добавить)
+- ⚠️ "Failed to stop media" - error message (нужно добавить)
+- ⚠️ "Failed to seek" - error message (нужно добавить)
+- ⚠️ "Failed to set speed" - error message (нужно добавить)
 
-### 13. Core/Logging
+### 13. Core/Logging (lib/core/logging/structured_logger.dart)
 
-- "Failed to initialize logger" - error message
-- "Failed to write log" - error message
-- "Log rotation failed" - error message
-- "Failed to rotate logs" - error message
-- "Failed to clean old logs" - error message
-- "Failed to export logs" - error message
-- "Error sharing logs: $e" - error message
-- "Failed to share logs" - error message
-- "Failed to read logs" - error message
+- ⚠️ "Failed to initialize logger" - error message (нужно добавить)
+- ⚠️ "Failed to write log" - error message (нужно добавить)
+- ⚠️ "Log rotation failed" - error message (нужно добавить)
+- ⚠️ "Failed to rotate logs" - error message (нужно добавить)
+- ⚠️ "Failed to clean old logs" - error message (нужно добавить)
+- ⚠️ "Failed to export logs" - error message (уже есть failedToExportLogsMessage)
+- ⚠️ "Error sharing logs: $e" - error message (нужно добавить)
+- ⚠️ "Failed to share logs" - error message (нужно добавить)
+- ⚠️ "Failed to read logs" - error message (нужно добавить)
 
-### 14. Core/Stream
+### 14. Core/Stream (lib/core/stream/local_stream_server.dart)
 
-- "Local stream server started on http://$_host:$\_port" - success message
-- "Failed to start stream server: ${e.toString()}" - error message
-- "Local stream server stopped" - success message
-- "Failed to stop stream server: ${e.toString()}" - error message
-- "Missing book ID parameter" - error message
-- "Invalid file index parameter" - error message
-- "File not found" - error message
-- "Streaming error" - error message
-- "Invalid range header" - error message
-- "Requested range not satisfiable" - error message
-- "Range request error" - error message
-- "Static file error" - error message
+- ⚠️ "Local stream server started on http://$_host:$\_port" - success message (нужно добавить)
+- ⚠️ "Failed to start stream server: ${e.toString()}" - error message (нужно добавить)
+- ⚠️ "Local stream server stopped" - success message (нужно добавить)
+- ⚠️ "Failed to stop stream server: ${e.toString()}" - error message (нужно добавить)
+- ⚠️ "Missing book ID parameter" - error message (нужно добавить)
+- ⚠️ "Invalid file index parameter" - error message (нужно добавить)
+- ⚠️ "File not found" - error message (нужно добавить)
+- ⚠️ "Streaming error" - error message (нужно добавить)
+- ⚠️ "Invalid range header" - error message (нужно добавить)
+- ⚠️ "Requested range not satisfiable" - error message (нужно добавить)
+- ⚠️ "Range request error" - error message (нужно добавить)
+- ⚠️ "Static file error" - error message (нужно добавить)
 
-### 15. Core/Cache
+### 15. Core/Cache (lib/core/cache/cache_manager.dart)
 
-- "CacheManager not initialized" - error message
+- ⚠️ "CacheManager not initialized" - error message (нужно добавить)
 
-### 16. Core/Parse
+### 16. Core/Parse (lib/core/parse/rutracker_parser.dart, category_parser.dart)
 
-- "Failed to parse search results" - error message
-- "Failed to parse topic details" - error message
-- "Failed to parse categories" - error message
-- "Failed to parse category topics" - error message
+- ⚠️ "Failed to parse search results" - error message (нужно добавить)
+- ⚠️ "Failed to parse topic details" - error message (нужно добавить)
+- ⚠️ "Failed to parse categories" - error message (нужно добавить)
+- ⚠️ "Failed to parse category topics" - error message (нужно добавить)
+- ⚠️ "Радиоспектакль" - category (нужно добавить)
+- ⚠️ "Аудиокнига" - category (нужно добавить)
+- ⚠️ "Биография" - category (нужно добавить)
+- ⚠️ "Мемуары" - category (нужно добавить)
+- ⚠️ "История" - category (нужно добавить)
+- ⚠️ "Другое" - category (нужно добавить)
+- ⚠️ "Добавлено" - date label (нужно добавить)
+- ⚠️ "Сиды" - seeders label (уже есть seedersLabel, но нужно проверить)
+- ⚠️ "Личи" - leechers label (уже есть leechersLabel, но нужно проверить)
 
-### 17. Core/Torrent
+### 17. Core/Torrent (lib/core/torrent/audiobook_torrent_manager.dart)
 
-- "Invalid magnet URL: missing info hash" - error message
-- "Invalid info hash length" - error message
-- "Failed to start download: ${e.toString()}" - error message
-- "Download not found" - error message
-- "Failed to pause download: ${e.toString()}" - error message
-- "Failed to resume download: ${e.toString()}" - error message
-- "Failed to remove download: ${e.toString()}" - error message
-- "Failed to get active downloads: ${e.toString()}" - error message
-- "Failed to shutdown torrent manager: ${e.toString()}" - error message
+- ⚠️ "Invalid magnet URL: missing info hash" - error message (нужно добавить)
+- ⚠️ "Invalid info hash length" - error message (нужно добавить)
+- ⚠️ "Failed to start download: ${e.toString()}" - error message (нужно добавить)
+- ⚠️ "Download not found" - error message (нужно добавить)
+- ⚠️ "Failed to pause download: ${e.toString()}" - error message (нужно добавить)
+- ⚠️ "Failed to resume download: ${e.toString()}" - error message (нужно добавить)
+- ⚠️ "Failed to remove download: ${e.toString()}" - error message (нужно добавить)
+- ⚠️ "Failed to get active downloads: ${e.toString()}" - error message (нужно добавить)
+- ⚠️ "Failed to shutdown torrent manager: ${e.toString()}" - error message (нужно добавить)
 
-### 18. Core/Endpoints
+### 18. Core/Endpoints (lib/core/endpoints/endpoint_manager.dart)
 
-- "No healthy endpoints available" - error message
+- ⚠️ "No healthy endpoints available" - error message (нужно добавить)
 
-### 19. Core/Config
+### 19. Core/Config (lib/core/config/app_config.dart)
 
-- "AuthRepositoryProvider must be overridden with proper context" - error message
-- "Use EndpointManager.getActiveEndpoint() for dynamic mirror selection" - deprecated message
-- "CacheManager not initialized" - error message
+- ⚠️ "AuthRepositoryProvider must be overridden with proper context" - error message (нужно добавить)
+- ⚠️ "Use EndpointManager.getActiveEndpoint() for dynamic mirror selection" - deprecated message (нужно добавить)
+- ⚠️ "CacheManager not initialized" - error message (нужно добавить)
 
-### 20. Core/Net
+### 20. Core/Net (lib/core/net/dio_client.dart)
 
-- "Search failed: ${e.message}" - error message
-- "Failed to search audiobooks" - error message
-- "Failed to fetch categories: ${e.message}" - error message
-- "Failed to get categories" - error message
-- "Failed to get category audiobooks: ${e.message}" - error message
-- "Failed to get category audiobooks" - error message
-- "Failed to fetch audiobook details: ${e.message}" - error message
-- "Failed to get audiobook details" - error message
-- "Failed to fetch new releases: ${e.message}" - error message
+- ⚠️ "Search failed: ${e.message}" - error message (нужно добавить)
+- ⚠️ "Failed to search audiobooks" - error message (нужно добавить)
+- ⚠️ "Failed to fetch categories: ${e.message}" - error message (нужно добавить)
+- ⚠️ "Failed to get categories" - error message (нужно добавить)
+- ⚠️ "Failed to get category audiobooks: ${e.message}" - error message (нужно добавить)
+- ⚠️ "Failed to get category audiobooks" - error message (нужно добавить)
+- ⚠️ "Failed to fetch audiobook details: ${e.message}" - error message (нужно добавить)
+- ⚠️ "Failed to get audiobook details" - error message (нужно добавить)
+- ⚠️ "Failed to fetch new releases: ${e.message}" - error message (нужно добавить)
 
-### 21. Core/Auth/Credential Manager
+### 21. Core/Auth/Credential Manager (lib/core/auth/credential_manager.dart)
 
-- "Failed to save credentials: ${e.toString()}" - error message
-- "Failed to retrieve credentials: ${e.toString()}" - error message
-- "Failed to clear credentials: ${e.toString()}" - error message
-- "No credentials to export" - error message
-- "Unsupported export format: $format" - error message
-- "Invalid CSV format" - error message
-- "Invalid CSV data" - error message
-- "Invalid JSON format" - error message
-- "Unsupported import format: $format" - error message
-- "Failed to import credentials: ${e.toString()}" - error message
+- ⚠️ "Failed to save credentials: ${e.toString()}" - error message (нужно добавить)
+- ⚠️ "Failed to retrieve credentials: ${e.toString()}" - error message (нужно добавить)
+- ⚠️ "Failed to clear credentials: ${e.toString()}" - error message (нужно добавить)
+- ⚠️ "No credentials to export" - error message (нужно добавить)
+- ⚠️ "Unsupported export format: $format" - error message (нужно добавить)
+- ⚠️ "Invalid CSV format" - error message (нужно добавить)
+- ⚠️ "Invalid CSV data" - error message (нужно добавить)
+- ⚠️ "Invalid JSON format" - error message (нужно добавить)
+- ⚠️ "Unsupported import format: $format" - error message (нужно добавить)
+- ⚠️ "Failed to import credentials: ${e.toString()}" - error message (нужно добавить)
 
-### 22. Core/Net/Cloudflare Utils
+### 22. Core/Net/Cloudflare Utils (lib/core/net/cloudflare_utils.dart)
 
-- "checking your browser" - cloudflare check
-- "please enable javascript" - cloudflare check
-- "attention required" - cloudflare check
-- "cf-chl-bypass" - cloudflare check
-- "challenges.cloudflare.com" - cloudflare check
-- "cf-turnstile" - cloudflare check
+- ⚠️ "checking your browser" - cloudflare check (нужно добавить)
+- ⚠️ "please enable javascript" - cloudflare check (нужно добавить)
+- ⚠️ "attention required" - cloudflare check (нужно добавить)
+- ⚠️ "cf-chl-bypass" - cloudflare check (нужно добавить)
+- ⚠️ "challenges.cloudflare.com" - cloudflare check (нужно добавить)
+- ⚠️ "cf-turnstile" - cloudflare check (нужно добавить)
 
-### 23. Core/Parse/Category Parser
+### 23. Core/Parse/Category Parser (lib/core/parse/category_parser.dart)
 
-- "Failed to parse categories" - error message
-- "Failed to parse category topics" - error message
+- ⚠️ "Failed to parse categories" - error message (нужно добавить)
+- ⚠️ "Failed to parse category topics" - error message (нужно добавить)
 
-### 24. Core/Net/User Agent Manager
+### 24. Core/Net/User Agent Manager (lib/core/net/user_agent_manager.dart)
 
-- "Failed to store user agent: $e" - error message
-- "Failed to clear user agent: $e" - error message
+- ⚠️ "Failed to store user agent: $e" - error message (нужно добавить)
+- ⚠️ "Failed to clear user agent: $e" - error message (нужно добавить)
 
-### 25. Core/Parse/Rutracker Parser
+### 25. Core/Parse/Rutracker Parser (lib/core/parse/rutracker_parser.dart)
 
-- "Failed to parse search results" - error message
-- "Failed to parse topic details" - error message
-- "Радиоспектакль" - category
-- "Аудиокнига" - category
-- "Биография" - category
-- "Мемуары" - category
-- "История" - category
-- "Другое" - category
-- "Добавлено" - date label
-- "Сиды" - seeders label
-- "Личи" - leechers label
+- ⚠️ "Failed to parse search results" - error message (нужно добавить)
+- ⚠️ "Failed to parse topic details" - error message (нужно добавить)
 
-### 26. App/Router
+### 26. App/Router (lib/app/router/app_router.dart)
 
-- "Error" - error title
-- "Library" - navigation title
-- "Connect" - navigation title
-- "Search" - navigation title
-- "Settings" - navigation title
-- "Debug" - navigation title
+- ✅ "Error" - error title (уже есть error)
+- ✅ "Library" - navigation title (уже есть navLibrary)
+- ✅ "Connect" - navigation title (уже есть navAuth)
+- ✅ "Search" - navigation title (уже есть navSearch)
+- ✅ "Settings" - navigation title (уже есть navSettings)
+- ✅ "Debug" - navigation title (уже есть navDebug)
 
-### 27. App/App
+### 27. App/App (lib/app/app.dart)
 
-- "App initialization complete" - log message
-- "Initializing JaBook app..." - log message
-- "Build flavor: ${config.flavor}" - log message
-- "App version: ${config.appVersion}" - log message
-- "API base URL: ${config.apiBaseUrl}" - log message
-- "Log level: ${config.logLevel}" - log message
-- "Unknown flavor: ${config.flavor}, falling back to dev" - log message
-- "Initializing database..." - log message
-- "Database, cache, and endpoints initialized successfully" - log message
-- "Initializing development environment" - log message
-- "Debug features enabled" - log message
-- "Initializing stage environment" - log message
-- "Analytics enabled for stage environment" - log message
-- "Crash reporting enabled for stage environment" - log message
-- "Initializing production environment" - log message
-- "Analytics enabled for production environment" - log message
-- "Crash reporting enabled for production environment" - log message
-- "Debug features disabled for production environment" - log message
+- ⚠️ "App initialization complete" - log message (не нужно локализовать - это логи)
+- ⚠️ "Initializing JaBook app..." - log message (не нужно локализовать)
+- ⚠️ "Build flavor: ${config.flavor}" - log message (не нужно локализовать)
+- ⚠️ "App version: ${config.appVersion}" - log message (не нужно локализовать)
+- ⚠️ "API base URL: ${config.apiBaseUrl}" - log message (не нужно локализовать)
+- ⚠️ "Log level: ${config.logLevel}" - log message (не нужно локализовать)
+- ⚠️ "Unknown flavor: ${config.flavor}, falling back to dev" - log message (не нужно локализовать)
+- ⚠️ "Initializing database..." - log message (не нужно локализовать)
+- ⚠️ "Database, cache, and endpoints initialized successfully" - log message (не нужно локализовать)
+- ⚠️ "Initializing development environment" - log message (не нужно локализовать)
+- ⚠️ "Debug features enabled" - log message (не нужно локализовать)
+- ⚠️ "Initializing stage environment" - log message (не нужно локализовать)
+- ⚠️ "Analytics enabled for stage environment" - log message (не нужно локализовать)
+- ⚠️ "Crash reporting enabled for stage environment" - log message (не нужно локализовать)
+- ⚠️ "Initializing production environment" - log message (не нужно локализовать)
+- ⚠️ "Analytics enabled for production environment" - log message (не нужно локализовать)
+- ⚠️ "Crash reporting enabled for production environment" - log message (не нужно локализовать)
+- ⚠️ "Debug features disabled for production environment" - log message (не нужно локализовать)
+
+### 28. Favorites Screen (lib/features/library/presentation/screens/favorites_screen.dart)
+
+- ⚠️ "Избранное" - appBar title (нужно добавить)
+- ⚠️ "Обновить" - refresh tooltip (нужно добавить)
+- ⚠️ "Нет избранных аудиокниг" - empty state message (нужно добавить)
+- ⚠️ "Добавьте аудиокниги в избранное из результатов поиска" - empty state hint (нужно добавить)
+- ⚠️ "Перейти к поиску" - button text (нужно добавить)
+- ⚠️ "Удалено из избранного" - success message (нужно добавить)
+- ⚠️ "Не удалось удалить из избранного" - error message (нужно добавить)
+
+### 29. Permissions Onboarding Dialog (lib/features/permissions/presentation/widgets/permissions_onboarding_dialog.dart)
+
+- ⚠️ "Разрешения для JaBook" - dialog title (нужно добавить)
+- ⚠️ "Доступ к файлам" - permission title (нужно добавить)
+- ⚠️ "Нужен для сохранения и воспроизведения аудиокниг." - permission description (нужно добавить)
+- ⚠️ "Уведомления" - permission title (нужно добавить)
+- ⚠️ "Для управления воспроизведением из уведомлений." - permission description (нужно добавить)
+- ⚠️ "Оптимизация батареи" - permission title (нужно добавить)
+- ⚠️ "Чтобы приложение работало в фоне для воспроизведения." - permission description (нужно добавить)
+- ⚠️ "Эти разрешения помогут обеспечить лучший опыт использования приложения." - explanation (нужно добавить)
+- ⚠️ "Продолжить" - continue button (нужно добавить)
+
+### 30. System Capabilities Widget (lib/features/settings/presentation/widgets/system_capabilities_widget.dart)
+
+- ⚠️ "Ошибка проверки возможностей: $e" - error message (нужно добавить)
+- ⚠️ "Выбрано файлов: ${files.length}" - success message (нужно добавить)
+- ⚠️ "Ошибка выбора файлов: $e" - error message (нужно добавить)
+- ⚠️ "Выбрано изображений: ${images.length}" - success message (нужно добавить)
+- ⚠️ "Ошибка выбора изображений: $e" - error message (нужно добавить)
+- ⚠️ "Тест уведомления" - notification title (нужно добавить)
+- ⚠️ "Это тестовое уведомление от JaBook" - notification body (нужно добавить)
+- ⚠️ "Уведомление отправлено" - success message (нужно добавить)
+- ⚠️ "Не удалось отправить уведомление (канал не реализован)" - error message (нужно добавить)
+- ⚠️ "Сопряженных устройств: ${pairedDevices.length}" - status message (нужно добавить)
+- ⚠️ "Ошибка проверки Bluetooth: $e" - error message (нужно добавить)
+- ⚠️ "Системные возможности" - section title (нужно добавить)
+- ⚠️ "Доступ к файлам" - capability name (нужно добавить)
+- ⚠️ "Доступ к изображениям" - capability name (нужно добавить)
+- ⚠️ "Камера" - capability name (нужно добавить)
+- ⚠️ "Фото сделано: $photo" - success message (нужно добавить)
+- ⚠️ "Фото не сделано" - error message (нужно добавить)
+- ⚠️ "Ошибка камеры: $e" - error message (нужно добавить)
+- ⚠️ "Уведомления" - capability name (нужно добавить)
+- ⚠️ "Объяснение возможностей" - button text (нужно добавить)
+- ⚠️ "Тест" - test button (нужно добавить)
+
+### 31. Mirrors Screen (lib/features/mirrors/presentation/screens/mirrors_screen.dart)
+
+- ⚠️ "Активное зеркало установлено: $url" - success message (нужно добавить)
+- ⚠️ "Не удалось установить активное зеркало: $e" - error message (нужно добавить)
+
+### 32. Library Repository (lib/features/library/data/repositories/rutracker_repository_impl.dart)
+
+- ⚠️ "Посл. сообщение" - sort option (нужно добавить)
+- ⚠️ "Название темы" - sort option (нужно добавить)
+- ⚠️ "Время размещения" - sort option (нужно добавить)
+
+## Примечания
+
+- ✅ = Уже локализовано
+- ⚠️ = Требует локализации
+- Логи и технические сообщения не требуют локализации
+- Некоторые строки могут быть техническими и не требуют локализации
