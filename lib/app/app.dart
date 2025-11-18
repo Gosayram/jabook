@@ -85,10 +85,39 @@ class _JaBookAppState extends ConsumerState<JaBookApp> {
       // Record app start time for UI render metrics
       _appStartTime = DateTime.now();
       // Run initialization in the background to avoid blocking UI
-      Future.microtask(_initializeApp);
+      // Add timeout to prevent infinite loading if initialization hangs
+      Future.microtask(() async {
+        try {
+          await _initializeApp().timeout(
+            const Duration(seconds: 10),
+            onTimeout: () {
+              logger.w('App initialization timed out after 10 seconds');
+              // Mark as initialized even on timeout to prevent infinite loading
+              if (mounted) {
+                setState(() {
+                  _isInitialized = true;
+                });
+              }
+            },
+          );
+        } on Exception catch (e, stackTrace) {
+          logger.e('Error in initialization timeout handler: $e', stackTrace: stackTrace);
+          // Ensure app continues even if timeout handler fails
+          if (mounted) {
+            setState(() {
+              _isInitialized = true;
+            });
+          }
+        }
+      });
     } on Exception catch (e, stackTrace) {
       logger.e('Error in initState: $e', stackTrace: stackTrace);
-      // Try to continue anyway
+      // Try to continue anyway - mark as initialized to prevent infinite loading
+      if (mounted) {
+        setState(() {
+          _isInitialized = true;
+        });
+      }
     }
   }
 
@@ -177,6 +206,13 @@ class _JaBookAppState extends ConsumerState<JaBookApp> {
           // Context may have become invalid, log but don't crash
           logger.w('Failed to show error snackbar: $contextError');
         }
+      }
+      // CRITICAL: Always mark as initialized even on error to prevent infinite loading
+      // App should continue to work even if some initialization steps fail
+      if (mounted) {
+        setState(() {
+          _isInitialized = true;
+        });
       }
     }
   }
@@ -338,19 +374,34 @@ class _JaBookAppState extends ConsumerState<JaBookApp> {
         logger.i('Some permissions are missing, requesting...');
 
         // Show onboarding dialog on first launch
+        // Use scaffoldMessengerKey.currentContext to avoid BuildContext issues after async
         if (mounted && !_hasShownOnboarding) {
           final isFirstLaunch = await FirstLaunchHelper.isFirstLaunch();
           if (isFirstLaunch && mounted) {
-            final proceed = await PermissionsOnboardingDialog.show(context);
-            _hasShownOnboarding = true;
-            if (!proceed) {
-              logger.i('User cancelled permission onboarding');
-              // Mark as launched even if cancelled
+            // Get context from scaffoldMessengerKey to ensure it's valid
+            final dialogContext = _scaffoldMessengerKey.currentContext;
+            if (dialogContext != null && dialogContext.mounted) {
+              try {
+                final proceed = await PermissionsOnboardingDialog.show(dialogContext);
+                _hasShownOnboarding = true;
+                if (!proceed) {
+                  logger.i('User cancelled permission onboarding');
+                  // Mark as launched even if cancelled
+                  await FirstLaunchHelper.markAsLaunched();
+                  return;
+                }
+                // Mark as launched after showing dialog
+                await FirstLaunchHelper.markAsLaunched();
+              } on Exception catch (dialogError) {
+                logger.w('Failed to show permissions onboarding dialog: $dialogError');
+                // Continue without dialog if it fails
+                await FirstLaunchHelper.markAsLaunched();
+              }
+            } else {
+              logger.w('Context not available for permissions onboarding dialog');
+              // Continue without dialog if context is not available
               await FirstLaunchHelper.markAsLaunched();
-              return;
             }
-            // Mark as launched after showing dialog
-            await FirstLaunchHelper.markAsLaunched();
           }
         }
 
