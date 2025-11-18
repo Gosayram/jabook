@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Network Security Configuration for Jabook
+    
+    This configuration allows the app to:
+    - Use cleartext traffic for HTTP connections (required for some RuTracker mirrors)
+    - Trust system certificates
+    - Support both HTTP and HTTPS connections
+    
+    For Android 9+ (API 28+), cleartext traffic is disabled by default.
+    This configuration enables it for RuTracker domains.
+-->
+<network-security-config>
+    <!-- Base configuration: trust system certificates -->
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+    
+    <!-- Domain-specific configuration for RuTracker mirrors -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">rutracker.net</domain>
+        <domain includeSubdomains="true">rutracker.org</domain>
+        <domain includeSubdomains="true">rutracker.me</domain>
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </domain-config>
+</network-security-config>

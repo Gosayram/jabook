@@ -341,6 +341,19 @@ class _LibraryContent extends ConsumerWidget {
         }
       }
     } on Exception catch (e) {
+      // Handle "already_active" error gracefully
+      if (e.toString().contains('already_active')) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text(
+                    'File picker is already open. Please close it first.'),
+            ),
+          );
+        }
+        return;
+      }
+      
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -430,6 +443,19 @@ class _LibraryContent extends ConsumerWidget {
         }
       }
     } on Exception catch (e) {
+      // Handle "already_active" error gracefully
+      if (e.toString().contains('already_active')) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text(
+                    'File picker is already open. Please close it first.'),
+            ),
+          );
+        }
+        return;
+      }
+      
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

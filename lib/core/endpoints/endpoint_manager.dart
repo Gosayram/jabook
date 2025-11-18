@@ -396,15 +396,16 @@ class EndpointManager {
             body.contains('cf-challenge-running') ||
             body.contains('cf-ray');
 
-        // Consider healthy: 2xx-3xx, or CF challenge (403/503 + CF headers/body)
+        // Consider healthy: 2xx-3xx, or CF challenge (401/403/503 + CF headers/body)
         // Even if CF challenge, mirror is working, just protected
+        // 401/403/503 without Cloudflare = NOT healthy (blocked/forbidden/server error)
         final isHealthy = (status >= 200 && status < 400) ||
-            ((status == 403 || status == 503) && (isCloudflare || looksLikeCf));
+            ((status == 401 || status == 403 || status == 503) && (isCloudflare || looksLikeCf));
 
         // Calculate health score (0-100)
         var newHealthScore =
             _calculateHealthScore(rtt, isHealthy ? 200 : status);
-        if ((status == 403 || status == 503) && (isCloudflare || looksLikeCf)) {
+        if ((status == 401 || status == 403 || status == 503) && (isCloudflare || looksLikeCf)) {
           // Cloudflare challenge: mirror is working, just protected
           // Give it a reasonable health score (60-80) to indicate it's usable
           newHealthScore = (newHealthScore - 20).clamp(60, 85);
@@ -1093,19 +1094,17 @@ class EndpointManager {
           body.contains('just a moment');
 
       // Endpoint is available if:
-      // 1. Status 200-399 (success/redirect)
-      // 2. Status 401/403/503 with CloudFlare headers/body (reachable but protected)
-      // 3. Status 401/403 without Cloudflare - might be auth issue, not availability
-      //    (endpoint is reachable, but needs authentication)
-      // 4. Status 500 - server error but endpoint is reachable (not DNS/network issue)
-      //    This means endpoint is available, just having server problems
+      // 1. Status 200-399 (success/redirect) - definitely available
+      // 2. Status 401/403/503 with CloudFlare headers/body (reachable but protected by CF)
+      //    Cloudflare challenge means endpoint is working, just needs CF verification
+      // 
+      // Endpoint is NOT available if:
+      // - Status 401/403 without Cloudflare (blocked/forbidden - endpoint is not usable)
+      // - Status 500 (server error - endpoint is not working properly)
+      // - Status 4xx/5xx without Cloudflare protection
       final isAvailable = (status >= 200 && status < 400) ||
           ((status == 401 || status == 403 || status == 503) &&
-              (isCloudflare || looksLikeCf)) ||
-          // 401/403 without Cloudflare = endpoint is reachable, auth is separate issue
-          (status == 401 || status == 403) ||
-          // 500 = server error but endpoint is reachable (not DNS/network issue)
-          (status == 500);
+              (isCloudflare || looksLikeCf));
 
       final totalDuration = DateTime.now().difference(startTime).inMilliseconds;
 
@@ -1202,37 +1201,67 @@ class EndpointManager {
     } on DioException catch (e) {
       final totalDuration = DateTime.now().difference(startTime).inMilliseconds;
 
-      // Check for 401/403/500 FIRST - endpoint is reachable, but needs auth or has server error
-      // This is not an availability issue, but an authentication/server issue
-      // IMPORTANT: Check status code BEFORE checking DNS errors, because 500 is not a DNS error
+      // Check for 401/403/500 - these indicate endpoint is NOT available for use
+      // 401/403 without Cloudflare = endpoint is blocked/forbidden (not usable)
+      // 500 = server error (endpoint is not working properly)
+      // IMPORTANT: Only 401/403 WITH Cloudflare should be considered available
       final statusCode = e.response?.statusCode;
       if (statusCode == 401 || statusCode == 403 || statusCode == 500) {
-        final message = statusCode == 500 
-            ? 'Endpoint available but server returned error'
-            : 'Endpoint available but requires authentication';
-        await logger.log(
-          level: 'info',
-          subsystem: 'endpoints',
-          message: message,
-          operationId: operationId,
-          context: 'quick_availability_check',
-          durationMs: totalDuration,
-          extra: {
-            'url': endpoint,
-            'status_code': statusCode,
-            'is_auth_issue': statusCode == 401 || statusCode == 403,
-            'is_server_error': statusCode == 500,
-            'note': statusCode == 500 
-                ? 'Endpoint is reachable, server error is temporary'
-                : 'Endpoint is reachable, authentication is separate issue',
-          },
+        // Check if it's Cloudflare challenge (only for 401/403, not 500)
+        final headers = e.response?.headers;
+        final isCloudflare = statusCode != 500 && headers != null && (
+          (headers.value('server')?.toLowerCase().contains('cloudflare') ?? false) ||
+          headers.map.keys.any((k) => k.toLowerCase() == 'cf-ray')
         );
-        // Cache positive result - endpoint is available
-        _quickCheckCache[endpoint] = {
-          'result': true,
-          'timestamp': DateTime.now(),
-        };
-        return true; // Available but needs auth or has server error
+        
+        // Only consider available if it's 401/403 with Cloudflare (not 500)
+        if (isCloudflare && statusCode != 500) {
+          await logger.log(
+            level: 'info',
+            subsystem: 'endpoints',
+            message: 'Endpoint available but protected by CloudFlare',
+            operationId: operationId,
+            context: 'quick_availability_check',
+            durationMs: totalDuration,
+            extra: {
+              'url': endpoint,
+              'status_code': statusCode,
+              'is_cloudflare': true,
+            },
+          );
+          // Cache positive result - endpoint is available (CF protected)
+          _quickCheckCache[endpoint] = {
+            'result': true,
+            'timestamp': DateTime.now(),
+          };
+          return true;
+        } else {
+          // 401/403 without Cloudflare or 500 = endpoint is NOT available
+          final message = statusCode == 500 
+              ? 'Endpoint unavailable: server error'
+              : 'Endpoint unavailable: blocked/forbidden';
+          await logger.log(
+            level: 'warning',
+            subsystem: 'endpoints',
+            message: message,
+            operationId: operationId,
+            context: 'quick_availability_check',
+            durationMs: totalDuration,
+            extra: {
+              'url': endpoint,
+              'status_code': statusCode,
+              'is_server_error': statusCode == 500,
+              'is_blocked': statusCode == 401 || statusCode == 403,
+              'is_cloudflare': false,
+            },
+          );
+          // Cache negative result - endpoint is not available
+          _quickCheckCache[endpoint] = {
+            'result': false,
+            'timestamp': DateTime.now(),
+          };
+          return false; // Not available
+        }
       }
 
       // DNS errors indicate endpoint is unavailable

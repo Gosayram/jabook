@@ -112,6 +112,11 @@ Future<String?> pickDirectory() async {
   try {
     return FilePicker.platform.getDirectoryPath();
   } catch (e) {
+    // Handle "already_active" error - file picker is already open
+    if (e.toString().contains('already_active')) {
+      // Return null instead of throwing - caller should handle this gracefully
+      return null;
+    }
     throw Exception('Failed to pick directory: $e');
   }
 }

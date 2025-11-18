@@ -392,15 +392,23 @@ class StructuredLogger {
     if (_logFile == null) return;
 
     try {
+      // Check if file exists before trying to get its size
+      if (!await _logFile!.exists()) {
+        return; // File doesn't exist yet, no rotation needed
+      }
+
       final fileSize = await _logFile!.length();
 
       if (fileSize > _maxLogSize) {
         await _rotateLogs();
       }
-    } on Exception {
+    } on Exception catch (e) {
       // Log rotation failure shouldn't prevent normal logging
-      // ignore: avoid_print
-      print('Log rotation failed');
+      // Only log in debug mode to avoid console spam
+      if (!kReleaseMode) {
+        debugPrint('Log rotation check failed (non-critical): $e');
+      }
+      // Silently continue - rotation will be retried on next write
     }
   }
 
@@ -409,42 +417,76 @@ class StructuredLogger {
     if (_logFile == null) return;
 
     try {
+      // Check if file exists before rotation
+      if (!await _logFile!.exists()) {
+        return; // Nothing to rotate
+      }
+
       final logDir = _logFile!.parent;
+      
+      // Ensure log directory exists
+      if (!await logDir.exists()) {
+        await logDir.create(recursive: true);
+        return; // Directory didn't exist, nothing to rotate
+      }
+
       final fileName = _logFile!.uri.pathSegments.last;
       final baseName = fileName.replaceAll('.ndjson', '');
 
       // Delete old log files if we have too many
-      final allFiles = await logDir
-          .list()
-          .where((entity) => entity is File && entity.path.contains(baseName))
-          .cast<File>()
-          .toList();
-
-      // Sort by last modified date (newest first)
       try {
-        allFiles.sort((a, b) {
-          final aMod = a.statSync().modified;
-          final bMod = b.statSync().modified;
-          return bMod.compareTo(aMod);
-        });
-      } on Exception {
-        // Fallback to simple name-based sorting
-        allFiles.sort((a, b) => b.path.compareTo(a.path));
-      }
+        final allFiles = await logDir
+            .list()
+            .where((entity) => entity is File && entity.path.contains(baseName))
+            .cast<File>()
+            .toList();
 
-      for (var i = _maxLogFiles; i < allFiles.length; i++) {
-        await allFiles[i].delete();
+        // Sort by last modified date (newest first)
+        try {
+          allFiles.sort((a, b) {
+            final aMod = a.statSync().modified;
+            final bMod = b.statSync().modified;
+            return bMod.compareTo(aMod);
+          });
+        } on Exception {
+          // Fallback to simple name-based sorting
+          allFiles.sort((a, b) => b.path.compareTo(a.path));
+        }
+
+        // Delete old files beyond the limit
+        for (var i = _maxLogFiles; i < allFiles.length; i++) {
+          try {
+            await allFiles[i].delete();
+          } on Exception {
+            // Ignore deletion errors for old files
+          }
+        }
+      } on Exception {
+        // Ignore errors listing/deleting old files - continue with rotation
       }
 
       // Rename current log file with timestamp
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       final backupFile = File('${logDir.path}/$baseName.$timestamp.ndjson');
-      await _logFile!.rename(backupFile.path);
+      
+      // Check if backup file already exists (unlikely but possible)
+      if (await backupFile.exists()) {
+        // Add random suffix to avoid conflicts
+        final randomSuffix = DateTime.now().microsecondsSinceEpoch;
+        final backupFileWithSuffix = File('${logDir.path}/$baseName.$timestamp.$randomSuffix.ndjson');
+        await _logFile!.rename(backupFileWithSuffix.path);
+      } else {
+        await _logFile!.rename(backupFile.path);
+      }
 
       // Create new log file
       _logFile = File('${logDir.path}/$baseName.ndjson');
-    } on Exception {
-      throw const LoggingFailure('Failed to rotate logs');
+    } on Exception catch (e) {
+      // Log rotation failure shouldn't prevent normal logging
+      if (!kReleaseMode) {
+        debugPrint('Log rotation failed (non-critical): $e');
+      }
+      // Don't throw - allow logging to continue with existing file
     }
   }
 

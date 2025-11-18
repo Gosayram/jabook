@@ -18,6 +18,7 @@ import 'dart:io' as io;
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import 'package:jabook/core/cache/rutracker_cache_service.dart';
 import 'package:jabook/core/endpoints/endpoint_manager.dart';
@@ -183,12 +184,31 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         // getActiveEndpoint should already handle this, but we verify anyway
       }
       
-      final host = Uri.parse(base).host;
-      if (mounted) {
-        setState(() => _activeHost = host);
+      final uri = Uri.tryParse(base);
+      if (uri != null && uri.hasScheme && uri.hasAuthority) {
+        final host = uri.host;
+        if (mounted && host.isNotEmpty) {
+          setState(() => _activeHost = host);
+        }
+      } else {
+        // Fallback: try to extract host from base string
+        try {
+          final host = Uri.parse(base).host;
+          if (mounted && host.isNotEmpty) {
+            setState(() => _activeHost = host);
+          }
+        } on Exception {
+          // If parsing fails, set to null
+          if (mounted) {
+            setState(() => _activeHost = null);
+          }
+        }
       }
-    } on Object {
-      // ignore
+    } on Exception catch (e) {
+      logger.w('Failed to load active host: $e');
+      if (mounted) {
+        setState(() => _activeHost = null);
+      }
     }
   }
 
@@ -201,119 +221,50 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       final hasStored = await repository.hasStoredCredentials();
 
       if (hasStored) {
-        // Check if biometric authentication is available
-        final isBiometricAvailable = await repository.isBiometricAvailable();
+        // Try to login with stored credentials first (without biometric check to avoid permission request)
+        // This will only use biometric if credentials require it
+        try {
+          final success = await repository.loginWithStoredCredentials(
+            useBiometric: false, // Don't use biometric to avoid permission request on button click
+          );
 
-        if (isBiometricAvailable) {
-          // Show loading indicator
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(AppLocalizations.of(context)
-                        ?.biometricAuthInProgress ??
-                    'Please wait, biometric authentication in progress...'),
-                duration: const Duration(seconds: 2),
-              ),
-            );
-          }
+          if (success) {
+            // HTTP login already syncs cookies, just validate
+            final isValid = await DioClient.validateCookies();
 
-          // Attempt login with biometric authentication
-          try {
-            final success = await repository.loginWithStoredCredentials(
-              useBiometric: true,
-            );
+            if (isValid) {
+              if (!mounted) return;
+              // ignore: use_build_context_synchronously
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(AppLocalizations.of(context)
+                          ?.authorizationSuccessful ??
+                      'Authorization successful'),
+                  backgroundColor: Colors.green,
+                  duration: const Duration(seconds: 2),
+                ),
+              );
 
-            if (success) {
-              // HTTP login already syncs cookies, just validate
-              // Note: syncCookiesFromWebView() is not needed here because
-              // loginViaHttp already synced cookies TO WebView via syncCookiesToWebView()
-              final isValid = await DioClient.validateCookies();
-
-              if (isValid) {
-                if (!mounted) return;
-                // ignore: use_build_context_synchronously
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(AppLocalizations.of(context)
-                            ?.authorizationSuccessful ??
-                        'Authorization successful'),
-                    backgroundColor: Colors.green,
-                    duration: const Duration(seconds: 2),
-                  ),
-                );
-
-                // Clear auth errors if any
-                if (_errorKind == 'auth') {
-                  setState(() {
-                    _errorKind = null;
-                    _errorMessage = null;
-                  });
-                  await _performSearch();
-                }
-                return;
+              // Clear auth errors if any
+              if (_errorKind == 'auth') {
+                setState(() {
+                  _errorKind = null;
+                  _errorMessage = null;
+                });
+                await _performSearch();
               }
+              return;
             }
-          } on Exception catch (e) {
-            logger.w('Biometric authentication failed: $e');
-            // Fall through to WebView login (don't show dialog on error)
           }
-
-          // If biometric failed or not available, show dialog
-          if (!mounted) return;
-          final useWebView = await showDialog<bool>(
-            context: context,
-            builder: (context) => AlertDialog(
-              title: Text(AppLocalizations.of(context)?.authorizationTitle ??
-                  'Authorization'),
-              content: Text(AppLocalizations.of(context)
-                      ?.biometricUnavailableMessage ??
-                  'Biometric authentication is unavailable or failed. Open WebView to login?'),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context, false),
-                  child: Text(AppLocalizations.of(context)?.cancel ?? 'Cancel'),
-                ),
-                ElevatedButton(
-                  onPressed: () => Navigator.pop(context, true),
-                  child: Text(AppLocalizations.of(context)?.openWebViewButton ??
-                      'Open WebView'),
-                ),
-              ],
-            ),
-          );
-
-          if (useWebView ?? false) {
-            await _openWebViewLogin();
-          }
-        } else {
-          // No biometric available, show dialog
-          if (!mounted) return;
-          final useWebView = await showDialog<bool>(
-            context: context,
-            builder: (context) => AlertDialog(
-              title: Text(AppLocalizations.of(context)?.authorizationTitle ??
-                  'Authorization'),
-              content: Text(AppLocalizations.of(context)
-                      ?.biometricUnavailableMessage ??
-                  'Biometric authentication is unavailable or failed. Open WebView to login?'),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context, false),
-                  child: Text(AppLocalizations.of(context)?.cancel ?? 'Cancel'),
-                ),
-                ElevatedButton(
-                  onPressed: () => Navigator.pop(context, true),
-                  child: Text(AppLocalizations.of(context)?.openWebViewButton ??
-                      'Open WebView'),
-                ),
-              ],
-            ),
-          );
-
-          if (useWebView ?? false) {
-            await _openWebViewLogin();
-          }
+        } on Exception catch (e) {
+          logger.w('Login with stored credentials failed: $e');
+          // Fall through to WebView login
         }
+
+        // If stored credentials login failed, open WebView directly
+        // We don't check biometric availability here to avoid permission request
+        // User can use biometric if they want when opening WebView
+        await _openWebViewLogin();
       } else {
         // No stored credentials, open WebView directly
         await _openWebViewLogin();
@@ -731,26 +682,79 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       {bool updateExisting = false}) async {
     final structuredLogger = StructuredLogger();
     
+    await structuredLogger.log(
+      level: 'info',
+      subsystem: 'search',
+      message: 'Starting network search',
+      context: 'search_request',
+      extra: {
+        'query': query,
+        'update_existing': updateExisting,
+      },
+    );
+    
     // Ensure cookies are synced before network search
-    await DioClient.syncCookiesFromWebView();
+    try {
+      await DioClient.syncCookiesFromWebView();
+      await structuredLogger.log(
+        level: 'debug',
+        subsystem: 'search',
+        message: 'Cookies synced from WebView',
+        context: 'search_request',
+      );
+    } on Exception catch (e) {
+      await structuredLogger.log(
+        level: 'warning',
+        subsystem: 'search',
+        message: 'Failed to sync cookies from WebView, continuing anyway',
+        context: 'search_request',
+        cause: e.toString(),
+      );
+    }
 
     // Check if we have cookies before performing search
     // First check if cookies exist (fast check), then validate if needed
-    final hasCookies = await DioClient.hasValidCookies();
-    if (!hasCookies) {
-      // No cookies at all - definitely need login
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-          _errorKind = 'auth';
-          _errorMessage = AppLocalizations.of(context)
-                  ?.authorizationFailedMessage ??
-              'Please log in first to perform search';
-        });
-        // Show login prompt
-        safeUnawaited(_openWebViewLogin());
+    try {
+      final hasCookies = await DioClient.hasValidCookies();
+      await structuredLogger.log(
+        level: 'debug',
+        subsystem: 'search',
+        message: 'Cookie validation check',
+        context: 'search_request',
+        extra: {'has_cookies': hasCookies},
+      );
+      
+      if (!hasCookies) {
+        // No cookies at all - definitely need login
+        await structuredLogger.log(
+          level: 'warning',
+          subsystem: 'search',
+          message: 'No valid cookies found, requiring login',
+          context: 'search_request',
+        );
+        
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+            _errorKind = 'auth';
+            _errorMessage = AppLocalizations.of(context)
+                    ?.authorizationFailedMessage ??
+                'Please log in first to perform search';
+          });
+          // Show login prompt
+          safeUnawaited(_openWebViewLogin());
+        }
+        return;
       }
-      return;
+    } on Exception catch (e) {
+      await structuredLogger.log(
+        level: 'error',
+        subsystem: 'search',
+        message: 'Error checking cookies, continuing with search attempt',
+        context: 'search_request',
+        cause: e.toString(),
+      );
+      // Continue with search attempt even if cookie check fails
     }
     
     // Cookies exist, but they might be invalid - try search anyway
@@ -983,8 +987,21 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
         // Success - update active host display (don't change endpoint)
         if (mounted) {
-          final host = Uri.parse(endpoint).host;
-          setState(() => _activeHost = host);
+          final uri = Uri.tryParse(endpoint);
+          if (uri != null && uri.hasScheme && uri.hasAuthority && uri.host.isNotEmpty) {
+            setState(() => _activeHost = uri.host);
+          } else {
+            // Fallback: try to extract host from endpoint string
+            try {
+              final host = Uri.parse(endpoint).host;
+              if (host.isNotEmpty) {
+                setState(() => _activeHost = host);
+              }
+            } on Exception {
+              // If parsing fails, try to reload host
+              await _loadActiveHost();
+            }
+          }
         }
         
         await structuredLogger.log(
@@ -1046,7 +1063,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       }
       return;
     } on DioException catch (e) {
-      if (CancelToken.isCancel(e)) {
+      // Check if request was cancelled
+      if (e.type == DioExceptionType.cancel) {
         // Silently ignore cancelled request
         await structuredLogger.log(
           level: 'debug',
@@ -1058,8 +1076,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         return;
       }
 
+      // Log detailed error information
       await structuredLogger.log(
-        level: 'warning',
+        level: 'error',
         subsystem: 'search',
         message: 'Search request failed',
         context: 'search_request',
@@ -1067,8 +1086,17 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         extra: {
           'endpoint': endpoint,
           'error_type': e.type.toString(),
+          'error_message': e.message,
           'status_code': e.response?.statusCode,
+          'response_data_preview': e.response?.data?.toString().length != null 
+              ? (e.response!.data!.toString().length > 200 
+                  ? e.response!.data!.toString().substring(0, 200) 
+                  : e.response!.data!.toString())
+              : 'null',
           'is_auth_error': e.response?.statusCode == 401 || e.response?.statusCode == 403,
+          'request_path': e.requestOptions.path,
+          'request_method': e.requestOptions.method,
+          'request_headers': e.requestOptions.headers,
         },
       );
 
@@ -1094,7 +1122,24 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         final message = e.message?.toLowerCase() ?? '';
         final isDnsError = message.contains('host lookup') ||
             message.contains('no address associated with hostname') ||
-            message.contains('name or service not known');
+            message.contains('name or service not known') ||
+            message.contains('failed host lookup') ||
+            message.contains('network is unreachable');
+
+        await structuredLogger.log(
+          level: 'error',
+          subsystem: 'search',
+          message: 'Connection error detected',
+          context: 'search_request',
+          cause: e.toString(),
+          extra: {
+            'endpoint': endpoint,
+            'error_type': e.type.toString(),
+            'error_message': e.message,
+            'is_dns_error': isDnsError,
+            'request_path': e.requestOptions.path,
+          },
+        );
 
         if (mounted) {
           setState(() {
@@ -1110,7 +1155,22 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         return;
       }
 
-      // Other errors
+      // Handle other DioException types
+      await structuredLogger.log(
+        level: 'error',
+        subsystem: 'search',
+        message: 'Other DioException error',
+        context: 'search_request',
+        cause: e.toString(),
+        extra: {
+          'endpoint': endpoint,
+          'error_type': e.type.toString(),
+          'error_message': e.message,
+          'status_code': e.response?.statusCode,
+          'request_path': e.requestOptions.path,
+        },
+      );
+
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -1603,7 +1663,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     return GroupedAudiobookList(
       audiobooks: filteredResults,
       onAudiobookTap: (id) {
-        Navigator.pushNamed(context, '/topic/$id');
+        context.push('/topic/$id');
       },
       loadMore: _hasMore && !_isLoadingMore ? _loadMore : null,
       hasMore: _hasMore,

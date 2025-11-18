@@ -1758,7 +1758,7 @@
   "@mirrorsTooltip": {
     "description": "Tooltip for mirrors button"
   },
-  "currentMirrorLabel": "Current mirror: $host",
+  "currentMirrorLabel": "Current mirror: {host}",
   "@currentMirrorLabel": {
     "description": "Label showing current active mirror",
     "placeholders": {

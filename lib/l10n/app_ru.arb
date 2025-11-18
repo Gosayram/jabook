@@ -1743,7 +1743,7 @@
   "@mirrorsTooltip": {
     "description": "Подсказка для кнопки зеркал"
   },
-  "currentMirrorLabel": "Текущее зеркало: $host",
+  "currentMirrorLabel": "Текущее зеркало: {host}",
   "@currentMirrorLabel": {
     "description": "Метка показывающая текущее активное зеркало",
     "placeholders": {
