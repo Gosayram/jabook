@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
@@ -61,6 +62,9 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
 
   // Cloudflare detection
   bool _isCloudflareDetected = false;
+  Timer? _cloudflareCheckTimer;
+  late DateTime? _cloudflareChallengeStartTime;
+  static const Duration _cloudflareWaitDuration = Duration(seconds: 10);
 
   // Navigation tracking
   String? _currentOperationId;
@@ -117,6 +121,8 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
 
   @override
   void dispose() {
+    // Cancel Cloudflare check timer
+    _cloudflareCheckTimer?.cancel();
     // Save cookies one final time before disposing
     _saveCookies().then((_) async {
       // Sync cookies to DioClient after saving
@@ -500,57 +506,81 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
                 final scaffoldMessenger = ScaffoldMessenger.of(context);
                 final localizations = AppLocalizations.of(context);
                 try {
-                  final url = await _webViewController.getUrl();
                   String? urlString;
+                  
+                  // Try to get URL from WebView controller
+                  try {
+                    final url = await _webViewController.getUrl();
+                    if (url != null && url.toString().isNotEmpty) {
+                      urlString = url.toString();
+                    }
+                  } on Exception {
+                    // If getting URL from controller fails, continue with fallback
+                  }
 
-                  if (url != null) {
-                    urlString = url.toString();
-                  } else if (initialUrl != null) {
+                  // Fallback to initialUrl if WebView URL is not available
+                  if (urlString == null || urlString.isEmpty) {
                     urlString = initialUrl;
                   }
 
-                  if (urlString != null && urlString.isNotEmpty) {
-                    // Validate and parse URL
-                    final uri = Uri.tryParse(urlString);
-                    if (uri != null && uri.hasScheme && uri.hasAuthority) {
-                      if (await canLaunchUrl(uri)) {
-                        await launchUrl(uri,
-                            mode: LaunchMode.externalApplication);
-                      } else {
-                        if (!mounted) return;
+                  // Final fallback to default rutracker URL
+                  if (urlString == null || urlString.isEmpty) {
+                    urlString = 'https://rutracker.net';
+                  }
+
+                  // Validate and parse URL
+                  final uri = Uri.tryParse(urlString);
+                  if (uri != null && uri.hasScheme && uri.hasAuthority) {
+                    // Try to launch URL - don't check canLaunchUrl first as it may fail
+                    // even when the URL can be launched
+                    try {
+                      final launched = await launchUrl(
+                        uri,
+                        mode: LaunchMode.externalApplication,
+                      );
+                      if (!launched && mounted) {
                         scaffoldMessenger.showSnackBar(
                           SnackBar(
-                            content: Text(localizations
-                                    ?.urlUnavailable ??
+                            content: Text(localizations?.urlUnavailable ??
                                 'URL unavailable'),
                             duration: const Duration(seconds: 2),
                           ),
                         );
                       }
-                    } else {
+                    } on Exception catch (launchError) {
                       if (!mounted) return;
+                      await StructuredLogger().log(
+                        level: 'error',
+                        subsystem: 'webview',
+                        message: 'Failed to launch URL in browser',
+                        cause: launchError.toString(),
+                        extra: {'url': urlString},
+                      );
                       scaffoldMessenger.showSnackBar(
                         SnackBar(
-                          content: Text(localizations?.invalidUrlFormat(urlString) ?? 
-                                  'Invalid URL format: $urlString'),
+                          content: Text(
+                            localizations?.urlUnavailable ??
+                                'Cannot open URL in browser: ${launchError.toString()}',
+                          ),
                           duration: const Duration(seconds: 3),
                         ),
-                      );
-                      await StructuredLogger().log(
-                        level: 'warning',
-                        subsystem: 'webview',
-                        message: 'Invalid URL format for browser',
-                        extra: {'url': urlString},
                       );
                     }
                   } else {
                     if (!mounted) return;
+                    await StructuredLogger().log(
+                      level: 'warning',
+                      subsystem: 'webview',
+                      message: 'Invalid URL format for browser',
+                      extra: {'url': urlString},
+                    );
                     scaffoldMessenger.showSnackBar(
                       SnackBar(
-                        content: Text(localizations
-                                ?.urlUnavailable ??
-                            'URL unavailable'),
-                        duration: const Duration(seconds: 2),
+                        content: Text(
+                          localizations?.invalidUrlFormat(urlString) ??
+                              'Invalid URL format: $urlString',
+                        ),
+                        duration: const Duration(seconds: 3),
                       ),
                     );
                   }
@@ -564,8 +594,10 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
                   );
                   scaffoldMessenger.showSnackBar(
                     SnackBar(
-                      content: Text(localizations?.genericError(e.toString()) ?? 
-                              'Error: ${e.toString()}'),
+                      content: Text(
+                        localizations?.genericError(e.toString()) ??
+                            'Error: ${e.toString()}',
+                      ),
                       duration: const Duration(seconds: 3),
                     ),
                   );
@@ -699,8 +731,55 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
                               level: 'info',
                               subsystem: 'webview',
                               message: 'WebView created successfully',
-                              extra: {'initial_url': initialUrl},
+                              extra: {
+                                'initial_url': initialUrl,
+                                'user_agent': _userAgent?.substring(0, 50) ?? 'null',
+                              },
                             );
+                            
+                            // Ensure WebView loads the URL if it wasn't loaded automatically
+                            // This is a safety measure in case initialUrlRequest didn't work
+                            if (initialUrl != null && initialUrl!.isNotEmpty) {
+                              Future.microtask(() async {
+                                try {
+                                  final currentUrl = await controller.getUrl();
+                                  if (currentUrl == null || currentUrl.toString().isEmpty) {
+                                    await StructuredLogger().log(
+                                      level: 'debug',
+                                      subsystem: 'webview',
+                                      message: 'WebView URL is empty, loading initial URL',
+                                      extra: {'initial_url': initialUrl},
+                                    );
+                                    await controller.loadUrl(
+                                      urlRequest: URLRequest(
+                                        url: WebUri(initialUrl!),
+                                        headers: {
+                                          'User-Agent': _userAgent ?? '',
+                                          'Accept':
+                                              'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+                                          'Accept-Language': 'ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7',
+                                          'Accept-Encoding': 'gzip, deflate, br',
+                                          'Upgrade-Insecure-Requests': '1',
+                                          'Cache-Control': 'no-cache',
+                                          'Sec-Fetch-Dest': 'document',
+                                          'Sec-Fetch-Mode': 'navigate',
+                                          'Sec-Fetch-Site': 'none',
+                                          'Sec-Fetch-User': '?1',
+                                        },
+                                      ),
+                                    );
+                                  }
+                                } on Exception catch (e) {
+                                  await StructuredLogger().log(
+                                    level: 'warning',
+                                    subsystem: 'webview',
+                                    message: 'Failed to ensure URL load in WebView',
+                                    cause: e.toString(),
+                                    extra: {'initial_url': initialUrl},
+                                  );
+                                }
+                              });
+                            }
                           },
                           onProgressChanged: (controller, p) {
                             setState(() => progress = p / 100.0);
@@ -1154,7 +1233,28 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
                               _showCloudflareHint();
                               // Show a more prominent Cloudflare indicator
                               _showCloudflareOverlay();
+                              
+                              // Start waiting for Cloudflare challenge to complete
+                              // Similar to curl script: wait 2 seconds, then check if challenge passed
+                              _startCloudflareWait(controller, urlString);
                             } else {
+                              // Cloudflare challenge passed or not present
+                              if (_isCloudflareDetected) {
+                                // Challenge was detected before, now it's gone - reload page
+                                await logger.log(
+                                  level: 'info',
+                                  subsystem: 'webview',
+                                  message: 'CloudFlare challenge completed, reloading page',
+                                  operationId: operationId,
+                                  context: 'webview_cloudflare',
+                                );
+                                _hideCloudflareOverlay();
+                                // Reload page to get actual content (like curl script does)
+                                if (mounted) {
+                                  await Future.delayed(const Duration(milliseconds: 500));
+                                  await controller.reload();
+                                }
+                              }
                               await _saveCookies();
 
                               // Check if user successfully logged in by detecting profile/index pages
@@ -1361,35 +1461,54 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
                             TextButton.icon(
                               onPressed: () async {
                                 try {
-                                  final url = await _webViewController.getUrl();
                                   String? urlString;
+                                  
+                                  // Try to get URL from WebView controller
+                                  try {
+                                    final url = await _webViewController.getUrl();
+                                    if (url != null && url.toString().isNotEmpty) {
+                                      urlString = url.toString();
+                                    }
+                                  } on Exception {
+                                    // If getting URL from controller fails, continue with fallback
+                                  }
 
-                                  if (url != null) {
-                                    urlString = url.toString();
-                                  } else if (initialUrl != null) {
+                                  // Fallback to initialUrl if WebView URL is not available
+                                  if (urlString == null || urlString.isEmpty) {
                                     urlString = initialUrl;
                                   }
 
-                                  if (urlString != null &&
-                                      urlString.isNotEmpty) {
-                                    final uri = Uri.tryParse(urlString);
-                                    if (uri != null &&
-                                        uri.hasScheme &&
-                                        uri.hasAuthority) {
-                                      if (await canLaunchUrl(uri)) {
-                                        await launchUrl(uri,
-                                            mode:
-                                                LaunchMode.externalApplication);
-                                      }
-                                    } else {
+                                  // Final fallback to default rutracker URL
+                                  if (urlString == null || urlString.isEmpty) {
+                                    urlString = 'https://rutracker.net';
+                                  }
+
+                                  final uri = Uri.tryParse(urlString);
+                                  if (uri != null &&
+                                      uri.hasScheme &&
+                                      uri.hasAuthority) {
+                                    try {
+                                      await launchUrl(
+                                        uri,
+                                        mode: LaunchMode.externalApplication,
+                                      );
+                                    } on Exception catch (launchError) {
                                       await StructuredLogger().log(
-                                        level: 'warning',
+                                        level: 'error',
                                         subsystem: 'webview',
-                                        message:
-                                            'Invalid URL format for browser',
+                                        message: 'Failed to launch URL in browser',
+                                        cause: launchError.toString(),
                                         extra: {'url': urlString},
                                       );
+                                      debugPrint('Failed to launch URL: $launchError');
                                     }
+                                  } else {
+                                    await StructuredLogger().log(
+                                      level: 'warning',
+                                      subsystem: 'webview',
+                                      message: 'Invalid URL format for browser',
+                                      extra: {'url': urlString},
+                                    );
                                   }
                                 } on Exception catch (e) {
                                   await StructuredLogger().log(
@@ -1515,6 +1634,81 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
           ],
         ),
       );
+
+  /// Starts waiting for Cloudflare challenge to complete.
+  /// Similar to curl script: wait 2 seconds, then periodically check if challenge passed.
+  void _startCloudflareWait(InAppWebViewController controller, String url) {
+    // Cancel any existing timer
+    _cloudflareCheckTimer?.cancel();
+    
+    // Record challenge start time
+    _cloudflareChallengeStartTime = DateTime.now();
+    
+    // Wait 2 seconds first (like curl script), then check periodically
+    Future.delayed(const Duration(seconds: 2), () {
+      if (!mounted) return;
+      
+      // Start periodic checks every 1 second
+      _cloudflareCheckTimer = Timer.periodic(const Duration(seconds: 1), (timer) async {
+        if (!mounted) {
+          timer.cancel();
+          return;
+        }
+        
+        final elapsed = DateTime.now().difference(_cloudflareChallengeStartTime!);
+        
+        // Check if we've waited too long
+        if (elapsed > _cloudflareWaitDuration) {
+          timer.cancel();
+          if (mounted) {
+            // Force reload after timeout (challenge should be complete by now)
+            await StructuredLogger().log(
+              level: 'info',
+              subsystem: 'webview',
+              message: 'CloudFlare wait timeout, reloading page',
+              context: 'webview_cloudflare',
+              extra: {
+                'wait_duration_ms': elapsed.inMilliseconds,
+                'url': url,
+              },
+            );
+            try {
+              await controller.reload();
+            } on Exception catch (e) {
+              debugPrint('Failed to reload after Cloudflare wait: $e');
+            }
+          }
+          return;
+        }
+        
+        // Check if challenge has passed
+        try {
+          final html = await controller.getHtml();
+          if (html != null && !_looksLikeCloudflare(html)) {
+            // Challenge passed! Reload to get actual content
+            timer.cancel();
+            if (mounted) {
+              await StructuredLogger().log(
+                level: 'info',
+                subsystem: 'webview',
+                message: 'CloudFlare challenge completed, reloading page',
+                context: 'webview_cloudflare',
+                extra: {
+                  'wait_duration_ms': elapsed.inMilliseconds,
+                  'url': url,
+                },
+              );
+              _hideCloudflareOverlay();
+              await Future.delayed(const Duration(milliseconds: 500));
+              await controller.reload();
+            }
+          }
+        } on Exception {
+          // Ignore errors during check, continue waiting
+        }
+      });
+    });
+  }
 
   void _showCloudflareHint() {
     ScaffoldMessenger.of(context).showSnackBar(
