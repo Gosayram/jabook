@@ -19,7 +19,7 @@ help:
 	@echo "Development Commands:"
 	@echo "  make install                       - Install dependencies"
 	@echo "  make clean                         - Clean build artifacts"
-	@echo "  make run                           - Run built APK (build/app/outputs/apk/release/app-release.apk)"
+	@echo "  make run                           - Run built APK (build/app/outputs/apk/release/app-arm64-v8a-release.apk)"
 	@echo "  make setup-android                 - Setup Android project configuration"
 	@echo "  make setup-ios                     - Setup iOS project configuration"
 	@echo "  make setup                         - Setup both Android and iOS projects"
@@ -76,12 +76,13 @@ clean:
 
 .PHONY: run
 run:
-	@if [ ! -f "build/app/outputs/apk/release/app-release.apk" ]; then \
-		echo "Error: APK not found at build/app/outputs/apk/release/app-release.apk"; \
-		echo "Please build the APK first using: make build-android-prod"; \
+	@APK_PATH="build/app/outputs/apk/release/app-arm64-v8a-release.apk"; \
+	if [ ! -f "$$APK_PATH" ]; then \
+		echo "Error: APK not found at $$APK_PATH"; \
+		echo "Please build the APK first using: make build-android-signed-apk"; \
 		exit 1; \
 	fi
-	flutter run --use-application-binary=build/app/outputs/apk/release/app-release.apk
+	flutter run --use-application-binary=build/app/outputs/apk/release/app-arm64-v8a-release.apk
 
 # Android build commands
 .PHONY: build-android-dev
