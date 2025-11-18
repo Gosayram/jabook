@@ -164,7 +164,7 @@ class _JaBookAppState extends ConsumerState<JaBookApp> {
       // Use scaffoldMessengerKey to avoid BuildContext issues after async
       // On Android 16, context may become null between check and use, so use safe access
       final context = _scaffoldMessengerKey.currentContext;
-      if (mounted && context != null) {
+      if (context != null && context.mounted) {
         try {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
