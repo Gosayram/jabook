@@ -87,8 +87,6 @@ run:
 		--verbose \
 		--profile \
 		--trace-startup \
-		--enable-software-rendering \
-		--skia-deterministic-rendering \
 		--device-timeout=30
 
 # Android build commands

@@ -415,7 +415,13 @@ class _JaBookAppState extends ConsumerState<JaBookApp> {
         // Override AuthRepositoryProvider with actual implementation
         authRepositoryProvider.overrideWith((ref) {
           _rutrackerAuth ??= RuTrackerAuth(context);
+          if (_rutrackerAuth == null) {
+            throw StateError('Failed to initialize RuTrackerAuth');
+          }
           _authRepository ??= AuthRepositoryImpl(_rutrackerAuth!);
+          if (_authRepository == null) {
+            throw StateError('Failed to initialize AuthRepository');
+          }
           return _authRepository!;
         }),
       ],
@@ -435,12 +441,13 @@ class _JaBookAppState extends ConsumerState<JaBookApp> {
             // Performance optimizations
             builder: (context, child) {
               // Track first frame render time
-              if (!_firstFrameTracked && _appStartTime != null) {
+              final appStartTime = _appStartTime;
+              if (!_firstFrameTracked && appStartTime != null) {
                 WidgetsBinding.instance.addPostFrameCallback((_) {
                   if (!_firstFrameTracked) {
                     _firstFrameTracked = true;
                     final timeToFirstFrame =
-                        DateTime.now().difference(_appStartTime!).inMilliseconds;
+                        DateTime.now().difference(appStartTime).inMilliseconds;
                     final structuredLogger = StructuredLogger();
                     safeUnawaited(
                       structuredLogger.log(
@@ -467,7 +474,7 @@ class _JaBookAppState extends ConsumerState<JaBookApp> {
                         maxScaleFactor: 1.2,
                       ),
                 ),
-                child: child!,
+                child: child ?? const SizedBox.shrink(),
               );
             },
             localizationsDelegates: const [
