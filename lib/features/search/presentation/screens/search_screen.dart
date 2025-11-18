@@ -197,10 +197,11 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           // Show loading indicator
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text(
-                    'Подождите, выполняется биометрическая аутентификация...'),
-                duration: Duration(seconds: 2),
+              SnackBar(
+                content: Text(AppLocalizations.of(context)
+                        ?.biometricAuthInProgress ??
+                    'Please wait, biometric authentication in progress...'),
+                duration: const Duration(seconds: 2),
               ),
             );
           }
@@ -221,10 +222,12 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 if (!mounted) return;
                 // ignore: use_build_context_synchronously
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Авторизация успешна'),
+                  SnackBar(
+                    content: Text(AppLocalizations.of(context)
+                            ?.authorizationSuccessful ??
+                        'Authorization successful'),
                     backgroundColor: Colors.green,
-                    duration: Duration(seconds: 2),
+                    duration: const Duration(seconds: 2),
                   ),
                 );
 
@@ -249,19 +252,20 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           final useWebView = await showDialog<bool>(
             context: context,
             builder: (context) => AlertDialog(
-              title: const Text('Авторизация'),
-              content: const Text(
-                'Биометрическая аутентификация недоступна или не удалась. '
-                'Открыть WebView для входа?',
-              ),
+              title: Text(AppLocalizations.of(context)?.authorizationTitle ??
+                  'Authorization'),
+              content: Text(AppLocalizations.of(context)
+                      ?.biometricUnavailableMessage ??
+                  'Biometric authentication is unavailable or failed. Open WebView to login?'),
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context, false),
-                  child: const Text('Отмена'),
+                  child: Text(AppLocalizations.of(context)?.cancel ?? 'Cancel'),
                 ),
                 ElevatedButton(
                   onPressed: () => Navigator.pop(context, true),
-                  child: const Text('Открыть WebView'),
+                  child: Text(AppLocalizations.of(context)?.openWebViewButton ??
+                      'Open WebView'),
                 ),
               ],
             ),
@@ -276,19 +280,20 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           final useWebView = await showDialog<bool>(
             context: context,
             builder: (context) => AlertDialog(
-              title: const Text('Авторизация'),
-              content: const Text(
-                'Биометрическая аутентификация недоступна. '
-                'Открыть WebView для входа?',
-              ),
+              title: Text(AppLocalizations.of(context)?.authorizationTitle ??
+                  'Authorization'),
+              content: Text(AppLocalizations.of(context)
+                      ?.biometricUnavailableMessage ??
+                  'Biometric authentication is unavailable or failed. Open WebView to login?'),
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context, false),
-                  child: const Text('Отмена'),
+                  child: Text(AppLocalizations.of(context)?.cancel ?? 'Cancel'),
                 ),
                 ElevatedButton(
                   onPressed: () => Navigator.pop(context, true),
-                  child: const Text('Открыть WebView'),
+                  child: Text(AppLocalizations.of(context)?.openWebViewButton ??
+                      'Open WebView'),
                 ),
               ],
             ),
@@ -310,7 +315,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       // Show error message but still open WebView
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Ошибка при проверке авторизации: ${e.toString()}'),
+          content: Text(AppLocalizations.of(context)!
+                  .authorizationCheckError(e.toString())),
           backgroundColor: Colors.orange,
           duration: const Duration(seconds: 3),
         ),
@@ -341,10 +347,12 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         if (!mounted) return;
         // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Авторизация успешна'),
+          SnackBar(
+            content: Text(AppLocalizations.of(context)
+                    ?.authorizationSuccessful ??
+                'Authorization successful'),
             backgroundColor: Colors.green,
-            duration: Duration(seconds: 2),
+            duration: const Duration(seconds: 2),
           ),
         );
         // Clear auth errors if any
@@ -359,12 +367,12 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         if (!mounted) return;
         // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Авторизация не удалась. Проверьте логин и пароль',
-            ),
+          SnackBar(
+            content: Text(AppLocalizations.of(context)
+                    ?.authorizationFailedMessage ??
+                'Authorization failed. Please check your login and password'),
             backgroundColor: Colors.orange,
-            duration: Duration(seconds: 3),
+            duration: const Duration(seconds: 3),
           ),
         );
       }
@@ -373,8 +381,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content:
-              Text('Ошибка открытия страницы авторизации: ${e.toString()}'),
+          content: Text(AppLocalizations.of(context)!
+                  .authorizationPageError(e.toString())),
           backgroundColor: Colors.red,
           duration: const Duration(seconds: 3),
         ),
@@ -671,8 +679,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             e.type == DioExceptionType.sendTimeout) {
           setState(() {
             _errorKind = 'timeout';
-            _errorMessage =
-                'Request timed out. Проверьте подключение к интернету';
+            _errorMessage = AppLocalizations.of(context)
+                    ?.requestTimedOutMessage ??
+                'Request timed out. Check your connection.';
           });
         } else if (e.type == DioExceptionType.connectionError) {
           final message = e.message?.toLowerCase() ?? '';
@@ -683,25 +692,31 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           if (isDnsError) {
             setState(() {
               _errorKind = 'mirror';
-              _errorMessage =
-                  'Не удалось подключиться к зеркалам RuTracker. Проверьте подключение к интернету или попробуйте выбрать другое зеркало в настройках';
+              _errorMessage = AppLocalizations.of(context)
+                      ?.networkConnectionError ??
+                  'Could not connect. Check your internet or choose another mirror in Settings → Sources.';
             });
           } else {
             setState(() {
               _errorKind = 'mirror';
-              _errorMessage = 'Не удалось подключиться к зеркалам RuTracker';
+              _errorMessage = AppLocalizations.of(context)
+                      ?.connectionFailed ??
+                  'Connection failed. Please check your internet connection or try a different mirror.';
             });
           }
         } else {
           setState(() {
             _errorKind = 'network';
-            _errorMessage = e.message ?? 'Unknown error';
+            _errorMessage = e.message ??
+                (AppLocalizations.of(context)?.unknownError ?? 'Unknown error');
           });
         }
       } else {
         setState(() {
           _errorKind = 'network';
-          _errorMessage = lastException?.toString() ?? 'All mirrors failed';
+          _errorMessage = lastException?.toString() ??
+              (AppLocalizations.of(context)?.allMirrorsFailedMessage ??
+                  'All mirrors failed');
         });
       }
     }
@@ -729,12 +744,13 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 ),
               ),
             IconButton(
-              tooltip: 'RuTracker Login',
+              tooltip: AppLocalizations.of(context)?.rutrackerLoginTooltip ??
+                  'RuTracker Login',
               icon: const Icon(Icons.vpn_key),
               onPressed: _handleLogin,
             ),
             IconButton(
-              tooltip: 'Mirrors',
+              tooltip: AppLocalizations.of(context)?.mirrorsTooltip ?? 'Mirrors',
               icon: const Icon(Icons.dns),
               onPressed: () {
                 unawaited(Navigator.push(
@@ -955,7 +971,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           Row(
             children: [
               Text(
-                'Фильтры:',
+                AppLocalizations.of(context)?.filtersLabel ?? 'Filters:',
                 style: Theme.of(context).textTheme.labelMedium,
               ),
               if (_selectedCategories.isNotEmpty) ...[
@@ -965,7 +981,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                     _selectedCategories.clear();
                     setState(() {});
                   },
-                  child: const Text('Сбросить'),
+                  child: Text(AppLocalizations.of(context)?.resetButton ?? 'Reset'),
                 ),
               ],
             ],
@@ -1014,7 +1030,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       return _searchResults;
     }
     return _searchResults.where((result) {
-      final category = result['category'] as String? ?? 'Другое';
+      final category = result['category'] as String? ??
+          (AppLocalizations.of(context)?.otherCategory ?? 'Other');
       return _selectedCategories.contains(category);
     }).toList();
   }
@@ -1042,7 +1059,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               child: Row(
                 children: [
                   Text(
-                    'История поиска',
+                    AppLocalizations.of(context)?.searchHistoryTitle ??
+                        'Search History',
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
                           fontWeight: FontWeight.bold,
                         ),
@@ -1061,7 +1079,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                           }
                         }
                       },
-                      child: const Text('Очистить'),
+                      child: Text(AppLocalizations.of(context)?.clearButton ??
+                          'Clear'),
                     ),
                 ],
               ),
@@ -1193,8 +1212,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           SnackBar(
             content: Text(
               isFavorite
-                  ? 'Не удалось добавить в избранное'
-                  : 'Не удалось удалить из избранного',
+                  ? (AppLocalizations.of(context)?.failedToAddToFavorites ??
+                      'Failed to add to favorites')
+                  : (AppLocalizations.of(context)?.failedToRemoveFromFavorites ??
+                      'Failed to remove from favorites'),
             ),
           ),
         );
@@ -1406,7 +1427,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                     Icon(Icons.dns, size: 16, color: Colors.grey.shade600),
                     const SizedBox(width: 6),
                     Text(
-                      'Current mirror: $_activeHost',
+                      AppLocalizations.of(context)
+                              ?.currentMirrorLabel(_activeHost!) ??
+                          'Current mirror: $_activeHost',
                       style: TextStyle(
                         fontSize: 12,
                         color: Colors.grey.shade600,

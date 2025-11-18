@@ -148,13 +148,18 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
 
       if (!mounted) return;
       scaffoldMessenger.showSnackBar(
-        const SnackBar(content: Text('Logs exported successfully')),
+        SnackBar(
+            content: Text(AppLocalizations.of(context)
+                    ?.logsExportedSuccessfullyMessage ??
+                'Logs exported successfully')),
       );
     } on Exception catch (e) {
       _logger.e('Failed to export logs: $e');
       if (!mounted) return;
       scaffoldMessenger.showSnackBar(
-        SnackBar(content: Text('Failed to export logs: $e')),
+        SnackBar(
+            content: Text(
+                '${AppLocalizations.of(context)?.failedToExportLogsMessage ?? 'Failed to export logs'}: $e')),
       );
     }
   }
@@ -191,13 +196,19 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
       await _loadCacheStats();
       if (!mounted) return;
       scaffoldMessenger.showSnackBar(
-        const SnackBar(content: Text('Cache cleared successfully')),
+        SnackBar(
+            content: Text(AppLocalizations.of(context)
+                    ?.cacheClearedSuccessfullyMessage ??
+                'Cache cleared successfully')),
       );
     } on Exception catch (e) {
       _logger.e('Failed to clear cache: $e');
       if (!mounted) return;
       scaffoldMessenger.showSnackBar(
-        SnackBar(content: Text('Failed to clear cache: $e')),
+        SnackBar(
+            content: Text(AppLocalizations.of(context)!
+                    .failedToClearCacheMessage(e.toString())),
+        ),
       );
     }
   }
@@ -217,13 +228,20 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
 
       if (!mounted) return;
       scaffoldMessenger.showSnackBar(
-        const SnackBar(content: Text('Mirror health check completed')),
+        SnackBar(
+            content: Text(AppLocalizations.of(context)
+                    ?.mirrorHealthCheckCompletedMessage(mirrors.length, mirrors.length) ??
+                'Mirror health check completed'),
+        ),
       );
     } on Exception catch (e) {
       _logger.e('Failed to test mirrors: $e');
       if (!mounted) return;
       scaffoldMessenger.showSnackBar(
-        SnackBar(content: Text('Failed to test mirrors: $e')),
+        SnackBar(
+            content: Text(AppLocalizations.of(context)!
+                    .failedToTestMirrorsMessage(e.toString())),
+        ),
       );
     }
   }
@@ -235,22 +253,23 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
               AppLocalizations.of(context)?.debugToolsTitle ?? 'Debug Tools'),
           bottom: TabBar(
             controller: _tabController,
-            tabs: const [
+            tabs: [
               Tab(
-                text: 'Logs',
-                icon: Icon(Icons.description),
+                text: AppLocalizations.of(context)?.logsTab ?? 'Logs',
+                icon: const Icon(Icons.description),
               ),
               Tab(
-                text: 'Mirrors',
-                icon: Icon(Icons.dns),
+                text: AppLocalizations.of(context)?.mirrorsTab ?? 'Mirrors',
+                icon: const Icon(Icons.dns),
               ),
               Tab(
-                text: 'Downloads',
-                icon: Icon(Icons.download),
+                text: AppLocalizations.of(context)?.downloadsTab ??
+                    'Downloads',
+                icon: const Icon(Icons.download),
               ),
               Tab(
-                text: 'Cache',
-                icon: Icon(Icons.cached),
+                text: AppLocalizations.of(context)?.cacheTab ?? 'Cache',
+                icon: const Icon(Icons.cached),
               ),
             ],
           ),
@@ -339,13 +358,15 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
                   statusColor = Colors.green;
                 } else if (healthScore >= 30) {
                   isActuallyActive = true;
-                  statusText =
-                      'Degraded'; // TODO: Add localization key for degraded status
+                  statusText = AppLocalizations.of(context)
+                          ?.mirrorStatusDegraded ??
+                      'Degraded';
                   statusColor = Colors.orange;
                 } else {
                   isActuallyActive = false;
-                  statusText =
-                      'Unhealthy'; // TODO: Add localization key for unhealthy status
+                  statusText = AppLocalizations.of(context)
+                          ?.mirrorStatusUnhealthy ??
+                      'Unhealthy';
                   statusColor = Colors.red;
                 }
 
@@ -437,7 +458,8 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
                 ),
                 trailing: Semantics(
                   button: true,
-                  label: 'Delete download',
+                  label: AppLocalizations.of(context)?.deleteDownloadButton ??
+                      'Delete download',
                   child: IconButton(
                     icon: const Icon(Icons.delete),
                     onPressed: () {
@@ -553,7 +575,8 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
         children: [
           Semantics(
             button: true,
-            label: 'Refresh debug data',
+            label: AppLocalizations.of(context)?.refreshDebugDataButton ??
+                'Refresh debug data',
             child: FloatingActionButton(
               heroTag: 'refresh',
               mini: true,
@@ -564,7 +587,8 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
           const SizedBox(height: 8),
           Semantics(
             button: true,
-            label: 'Export logs',
+            label: AppLocalizations.of(context)?.exportLogsButton ??
+                'Export logs',
             child: FloatingActionButton(
               heroTag: 'export',
               mini: true,

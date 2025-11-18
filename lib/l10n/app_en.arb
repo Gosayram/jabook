@@ -755,7 +755,12 @@
   },
   "logoutErrorMessage": "Logout error: $error",
   "@logoutErrorMessage": {
-    "description": "Message for logout error"
+    "description": "Message for logout error",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
   },
   "configureMirrorsSubtitle": "Configure and test RuTracker mirrors",
   "@configureMirrorsSubtitle": {
@@ -859,7 +864,12 @@
   },
   "lastCheckedText": "Last checked: $date",
   "@lastCheckedText": {
-    "description": "Text for showing mirror last check time"
+    "description": "Text for showing mirror last check time",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
   },
   "testMirrorButtonText": "Test this mirror",
   "@testMirrorButtonText": {
@@ -935,11 +945,21 @@
   },
   "networkErrorMessage": "Network error: $error",
   "@networkErrorMessage": {
-    "description": "Message for network error"
+    "description": "Message for network error",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
   },
   "errorLoadingTopicMessage": "Error loading topic: $error",
   "@errorLoadingTopicMessage": {
-    "description": "Message for topic loading error"
+    "description": "Message for topic loading error",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
   },
   "failedToLoadTopicMessage": "Failed to load topic",
   "@failedToLoadTopicMessage": {
@@ -963,7 +983,12 @@
   },
   "copyToClipboardMessage": "$label copied to clipboard",
   "@copyToClipboardMessage": {
-    "description": "Message for copy to clipboard"
+    "description": "Message for copy to clipboard",
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
   },
   "navLibraryText": "Library",
   "@navLibraryText": {
@@ -989,7 +1014,7 @@
   "@authDialogTitle": {
     "description": "Title for login screen"
   },
-  "authHelpText": "Enter your credentials",
+  "authHelpText": "Login to RuTracker to access audiobook search and downloads. Your credentials are stored securely.",
   "@authHelpText": {
     "description": "Help text for authentication"
   },
@@ -1009,9 +1034,217 @@
   "@logsExportedSuccessfullyMessage": {
     "description": "Message for successful log export"
   },
-  "mirrorHealthCheckCompletedMessage": "Mirror health check completed",
+  "mirrorHealthCheckCompletedMessage": "Mirror health check completed: $tested/$total mirrors",
   "@mirrorHealthCheckCompletedMessage": {
-    "description": "Message for completed mirror health check"
+    "description": "Message for completed mirror health check",
+    "placeholders": {
+      "tested": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "noActiveMirrorsMessage": "No active mirrors to test",
+  "@noActiveMirrorsMessage": {
+    "description": "Message when no active mirrors available for testing"
+  },
+  "activeMirrorSetMessage": "Active mirror set: $url",
+  "@activeMirrorSetMessage": {
+    "description": "Message when active mirror is set",
+    "placeholders": {
+      "url": {
+        "type": "String"
+      }
+    }
+  },
+  "failedToSetActiveMirrorMessage": "Failed to set active mirror: $error",
+  "@failedToSetActiveMirrorMessage": {
+    "description": "Message when failed to set active mirror",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "activeMirrorText": "Active mirror: $url",
+  "@activeMirrorText": {
+    "description": "Text showing active mirror",
+    "placeholders": {
+      "url": {
+        "type": "String"
+      }
+    }
+  },
+  "failedToSetBestMirrorMessage": "Failed to set best mirror: $error",
+  "@failedToSetBestMirrorMessage": {
+    "description": "Message when failed to set best mirror",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "activeMirrorDisabledMessage": "Active mirror disabled. Switched to: $url",
+  "@activeMirrorDisabledMessage": {
+    "description": "Message when active mirror is disabled and switched",
+    "placeholders": {
+      "url": {
+        "type": "String"
+      }
+    }
+  },
+  "warningFailedToSelectNewActiveMirrorMessage": "Warning: failed to select new active mirror: $error",
+  "@warningFailedToSelectNewActiveMirrorMessage": {
+    "description": "Warning message when failed to select new active mirror",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "urlCopiedToClipboardMessage": "URL copied to clipboard",
+  "@urlCopiedToClipboardMessage": {
+    "description": "Message when URL is copied to clipboard"
+  },
+  "editPriorityTitle": "Edit Priority",
+  "@editPriorityTitle": {
+    "description": "Title for edit priority dialog"
+  },
+  "priorityHelperText": "Lower number = higher priority",
+  "@priorityHelperText": {
+    "description": "Helper text for priority input"
+  },
+  "saveButtonText": "Save",
+  "@saveButtonText": {
+    "description": "Save button text"
+  },
+  "priorityUpdatedMessage": "Priority updated: $priority",
+  "@priorityUpdatedMessage": {
+    "description": "Message when priority is updated",
+    "placeholders": {
+      "priority": {
+        "type": "int"
+      }
+    }
+  },
+  "failedToUpdatePriorityMessage": "Failed to update priority: $error",
+  "@failedToUpdatePriorityMessage": {
+    "description": "Message when failed to update priority",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "deleteMirrorTitle": "Delete Mirror?",
+  "@deleteMirrorTitle": {
+    "description": "Title for delete mirror dialog"
+  },
+  "defaultMirrorWarningMessage": "Warning: this is a default mirror. It will be removed from the list, but can be added again.",
+  "@defaultMirrorWarningMessage": {
+    "description": "Warning message for default mirror deletion"
+  },
+  "confirmDeleteMirrorMessage": "Are you sure you want to delete this mirror?",
+  "@confirmDeleteMirrorMessage": {
+    "description": "Confirmation message for mirror deletion"
+  },
+  "deleteButtonText": "Delete",
+  "@deleteButtonText": {
+    "description": "Delete button text"
+  },
+  "mirrorDeletedMessage": "Mirror deleted: $url",
+  "@mirrorDeletedMessage": {
+    "description": "Message when mirror is deleted",
+    "placeholders": {
+      "url": {
+        "type": "String"
+      }
+    }
+  },
+  "failedToDeleteMirrorMessage": "Failed to delete mirror: $error",
+  "@failedToDeleteMirrorMessage": {
+    "description": "Message when failed to delete mirror",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "urlMustStartWithHttpMessage": "URL must start with http:// or https://",
+  "@urlMustStartWithHttpMessage": {
+    "description": "Message when URL format is invalid"
+  },
+  "invalidUrlFormatMessage": "Invalid URL format",
+  "@invalidUrlFormatMessage": {
+    "description": "Message for invalid URL format"
+  },
+  "mirrorAlreadyExistsMessage": "This mirror already exists in the list",
+  "@mirrorAlreadyExistsMessage": {
+    "description": "Message when mirror already exists"
+  },
+  "onlyActiveFilterText": "Only Active",
+  "@onlyActiveFilterText": {
+    "description": "Filter text for showing only active mirrors"
+  },
+  "onlyHealthyFilterText": "Only Healthy",
+  "@onlyHealthyFilterText": {
+    "description": "Filter text for showing only healthy mirrors"
+  },
+  "sortByPriorityText": "By Priority",
+  "@sortByPriorityText": {
+    "description": "Sort option text for priority"
+  },
+  "sortByHealthText": "By Health",
+  "@sortByHealthText": {
+    "description": "Sort option text for health"
+  },
+  "sortBySpeedText": "By Speed",
+  "@sortBySpeedText": {
+    "description": "Sort option text for speed"
+  },
+  "noMirrorsMatchFiltersMessage": "No mirrors match the filters",
+  "@noMirrorsMatchFiltersMessage": {
+    "description": "Message when no mirrors match filters"
+  },
+  "setBestMirrorButtonText": "Set Best Mirror",
+  "@setBestMirrorButtonText": {
+    "description": "Button text for setting best mirror"
+  },
+  "healthScoreText": "Health: $score%",
+  "@healthScoreText": {
+    "description": "Text showing health score",
+    "placeholders": {
+      "score": {
+        "type": "int"
+      }
+    }
+  },
+  "priorityText": "Priority: $priority",
+  "@priorityText": {
+    "description": "Text showing priority",
+    "placeholders": {
+      "priority": {
+        "type": "int"
+      }
+    }
+  },
+  "setAsActiveTooltip": "Set as active",
+  "@setAsActiveTooltip": {
+    "description": "Tooltip for set as active button"
+  },
+  "copyUrlTooltip": "Copy URL",
+  "@copyUrlTooltip": {
+    "description": "Tooltip for copy URL button"
+  },
+  "deleteMirrorTooltip": "Delete mirror",
+  "@deleteMirrorTooltip": {
+    "description": "Tooltip for delete mirror button"
+  },
+  "activeLabelText": "Active",
+  "@activeLabelText": {
+    "description": "Label text for active status"
   },
   "failedToClearCacheMessage": "Failed to clear cache: $error",
   "@failedToClearCacheMessage": {
@@ -1516,5 +1749,38 @@
         "type": "String"
       }
     }
+  },
+  "rutrackerLoginTooltip": "RuTracker Login",
+  "@rutrackerLoginTooltip": {
+    "description": "Tooltip for RuTracker login button"
+  },
+  "mirrorsTooltip": "Mirrors",
+  "@mirrorsTooltip": {
+    "description": "Tooltip for mirrors button"
+  },
+  "currentMirrorLabel": "Current mirror: $host",
+  "@currentMirrorLabel": {
+    "description": "Label showing current active mirror",
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "allMirrorsFailedMessage": "All mirrors failed",
+  "@allMirrorsFailedMessage": {
+    "description": "Error message when all mirrors fail"
+  },
+  "unknownError": "Unknown error",
+  "@unknownError": {
+    "description": "Message for unknown error"
+  },
+  "mirrorConnectionError": "Could not connect to RuTracker mirrors. Check your internet connection or try selecting another mirror in settings",
+  "@mirrorConnectionError": {
+    "description": "Error message when cannot connect to RuTracker mirrors"
+  },
+  "mirrorConnectionFailed": "Could not connect to RuTracker mirrors",
+  "@mirrorConnectionFailed": {
+    "description": "Short error message when cannot connect to RuTracker mirrors"
   }
 }

@@ -472,9 +472,11 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
                         if (!mounted) return;
                         // ignore: use_build_context_synchronously
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Не удалось открыть в браузере'),
-                            duration: Duration(seconds: 2),
+                          SnackBar(
+                            content: Text(AppLocalizations.of(context)
+                                    ?.urlUnavailable ??
+                                'URL unavailable'),
+                            duration: const Duration(seconds: 2),
                           ),
                         );
                       }
@@ -483,7 +485,8 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
                       // ignore: use_build_context_synchronously
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text('Неверный формат URL: $urlString'),
+                          content: Text(AppLocalizations.of(context)!
+                                  .invalidUrlFormat(urlString)),
                           duration: const Duration(seconds: 3),
                         ),
                       );
@@ -498,9 +501,11 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
                     if (!mounted) return;
                     // ignore: use_build_context_synchronously
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('URL недоступен'),
-                        duration: Duration(seconds: 2),
+                      SnackBar(
+                        content: Text(AppLocalizations.of(context)
+                                ?.urlUnavailable ??
+                            'URL unavailable'),
+                        duration: const Duration(seconds: 2),
                       ),
                     );
                   }
@@ -515,7 +520,8 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
                   // ignore: use_build_context_synchronously
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('Ошибка: $e'),
+                      content: Text(AppLocalizations.of(context)!
+                              .genericError(e.toString())),
                       duration: const Duration(seconds: 3),
                     ),
                   );
@@ -549,7 +555,8 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
                         const SizedBox(width: 8.0),
                         Expanded(
                           child: Text(
-                            'Повторная попытка подключения ($_retryCount/$_maxRetries)...',
+                            AppLocalizations.of(context)!
+                                    .retryConnectionMessage(_retryCount, _maxRetries),
                             style: TextStyle(
                               color: Colors.orange.shade800,
                               fontSize: 12.0,
@@ -576,7 +583,9 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Security Check in Progress',
+                              AppLocalizations.of(context)
+                                      ?.securityVerificationInProgress ??
+                                  'Security verification in progress - please wait...',
                               style: TextStyle(
                                 color: Colors.blue.shade800,
                                 fontSize: 14.0,
@@ -585,7 +594,8 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              'RuTracker uses Cloudflare protection. Please wait for the verification to complete (5-10 seconds).',
+                              AppLocalizations.of(context)?.cloudflareMessage ??
+                                  'This site uses Cloudflare security checks. Please wait for the check to complete and interact with the page that opens if needed.',
                               style: TextStyle(
                                 color: Colors.blue.shade700,
                                 fontSize: 12.0,
@@ -906,7 +916,8 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
                             if (mounted) {
                               setState(() {
                                 _hasError = true;
-                                _errorMessage = 'Ошибка загрузки: $desc';
+                                _errorMessage = AppLocalizations.of(context)!
+                                        .loadError(desc);
                               });
                             }
                           },
@@ -1020,7 +1031,8 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
                             if (mounted) {
                               setState(() {
                                 _hasError = true;
-                                _errorMessage = 'HTTP ошибка: $statusCode';
+                                _errorMessage = AppLocalizations.of(context)!
+                                        .genericError('HTTP $statusCode');
                               });
                             }
                           },
@@ -1255,7 +1267,9 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
                             ),
                             const SizedBox(height: 16),
                             Text(
-                              'Security Verification',
+                              AppLocalizations.of(context)
+                                      ?.securityVerificationInProgress ??
+                                  'Security verification in progress - please wait...',
                               style: TextStyle(
                                 fontSize: 20,
                                 fontWeight: FontWeight.bold,
@@ -1264,7 +1278,8 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
                             ),
                             const SizedBox(height: 8),
                             Text(
-                              'RuTracker is verifying your browser.\nPlease wait 5-10 seconds for the check to complete.',
+                              AppLocalizations.of(context)?.cloudflareMessage ??
+                                  'This site uses Cloudflare security checks. Please wait for the check to complete and interact with the page that opens if needed.',
                               textAlign: TextAlign.center,
                               style: TextStyle(
                                 fontSize: 14,
@@ -1325,7 +1340,9 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
                                 }
                               },
                               icon: const Icon(Icons.open_in_browser),
-                              label: const Text('Open in Browser'),
+                              label: Text(AppLocalizations.of(context)
+                                      ?.openInBrowserButton ??
+                                  'Open in Browser'),
                             ),
                           ],
                         ),
@@ -1352,7 +1369,8 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
                         padding: const EdgeInsets.symmetric(horizontal: 24.0),
                         child: Text(
                           _errorMessage ??
-                              'Произошла ошибка при загрузке страницы',
+                              (AppLocalizations.of(context)?.pageLoadError ??
+                                  'An error occurred while loading the page'),
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontSize: 16,
@@ -1407,7 +1425,9 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
                           // Fallback to reload
                           await _webViewController.reload();
                         },
-                        child: const Text('Повторить попытку'),
+                        child: Text(AppLocalizations.of(context)
+                                ?.retryButtonText ??
+                            'Retry'),
                       ),
                       const SizedBox(height: 16),
                       TextButton(
@@ -1422,7 +1442,9 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
                                     URLRequest(url: WebUri(initialUrl!)));
                           }
                         },
-                        child: const Text('Перейти на главную'),
+                        child: Text(AppLocalizations.of(context)
+                                ?.goHomeButtonText ??
+                            'Go to Home'),
                       ),
                     ],
                   ),
@@ -1434,9 +1456,11 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
 
   void _showCloudflareHint() {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Security verification in progress - please wait...'),
-        duration: Duration(seconds: 3),
+      SnackBar(
+        content: Text(AppLocalizations.of(context)
+                ?.securityVerificationInProgress ??
+            'Security verification in progress - please wait...'),
+        duration: const Duration(seconds: 3),
       ),
     );
   }
@@ -1458,16 +1482,19 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
     final action = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Скачать торрент'),
-        content: const Text('Выберите действие:'),
+        title: Text(AppLocalizations.of(context)?.downloadTorrentTitle ??
+            'Download Torrent'),
+        content: Text(AppLocalizations.of(context)?.selectActionText ??
+            'Select action:'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, 'open'),
-            child: const Text('Открыть'),
+            child: Text(AppLocalizations.of(context)?.openButtonText ?? 'Open'),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, 'download'),
-            child: const Text('Скачать'),
+            child: Text(AppLocalizations.of(context)?.downloadButtonText ??
+                'Download'),
           ),
         ],
       ),
@@ -1481,8 +1508,9 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
       // For now, we'll show a message and let the user handle it manually
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
+          SnackBar(
+            content: Text(AppLocalizations.of(context)
+                    ?.downloadInBrowserMessage ??
                 'To download the file, please open the link in your browser'),
           ),
         );

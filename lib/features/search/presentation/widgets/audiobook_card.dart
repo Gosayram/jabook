@@ -57,7 +57,8 @@ class AudiobookCard extends StatelessWidget {
         AppLocalizations.of(context)!.unknownSize;
     final seeders = audiobook['seeders'] as int? ?? 0;
     final leechers = audiobook['leechers'] as int? ?? 0;
-    final category = audiobook['category'] as String? ?? 'Другое';
+    final category = audiobook['category'] as String? ??
+        (AppLocalizations.of(context)?.otherCategory ?? 'Other');
     final coverUrl = audiobook['coverUrl'] as String?;
 
     // Wrap card in RepaintBoundary to isolate repaints

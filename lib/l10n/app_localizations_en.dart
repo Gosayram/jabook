@@ -563,7 +563,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get logoutSuccessMessage => 'Logout completed';
 
   @override
-  String get logoutErrorMessage => 'Logout error: \$error';
+  String logoutErrorMessage(String error) {
+    return 'Logout error: \$error';
+  }
 
   @override
   String get configureMirrorsSubtitle => 'Configure and test RuTracker mirrors';
@@ -635,13 +637,17 @@ class AppLocalizationsEn extends AppLocalizations {
   String get addCustomMirrorButtonText => 'Add Custom Mirror';
 
   @override
-  String get priorityText => 'Priority: \$priority';
+  String priorityText(int priority) {
+    return 'Priority: \$priority';
+  }
 
   @override
   String get responseTimeText => 'Response time: \$rtt ms';
 
   @override
-  String get lastCheckedText => 'Last checked: \$date';
+  String lastCheckedText(String date) {
+    return 'Last checked: \$date';
+  }
 
   @override
   String get testMirrorButtonText => 'Test this mirror';
@@ -698,10 +704,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get requestTimedOutMessage => 'Request timed out. Check your connection.';
 
   @override
-  String get networkErrorMessage => 'Network error: \$error';
+  String networkErrorMessage(String error) {
+    return 'Network error: \$error';
+  }
 
   @override
-  String get errorLoadingTopicMessage => 'Error loading topic: \$error';
+  String errorLoadingTopicMessage(String error) {
+    return 'Error loading topic: \$error';
+  }
 
   @override
   String get failedToLoadTopicMessage => 'Failed to load topic';
@@ -719,7 +729,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get magnetLinkCopiedMessage => 'Magnet link copied to clipboard';
 
   @override
-  String get copyToClipboardMessage => '\$label copied to clipboard';
+  String copyToClipboardMessage(String label) {
+    return '\$label copied to clipboard';
+  }
 
   @override
   String get navLibraryText => 'Library';
@@ -740,7 +752,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get authDialogTitle => 'Login';
 
   @override
-  String get authHelpText => 'Enter your credentials';
+  String get authHelpText => 'Login to RuTracker to access audiobook search and downloads. Your credentials are stored securely.';
 
   @override
   String get cacheClearedSuccessfullyMessage => 'Cache cleared successfully';
@@ -755,7 +767,133 @@ class AppLocalizationsEn extends AppLocalizations {
   String get logsExportedSuccessfullyMessage => 'Logs exported successfully';
 
   @override
-  String get mirrorHealthCheckCompletedMessage => 'Mirror health check completed';
+  String mirrorHealthCheckCompletedMessage(int tested, int total) {
+    return 'Mirror health check completed: \$tested/\$total mirrors';
+  }
+
+  @override
+  String get noActiveMirrorsMessage => 'No active mirrors to test';
+
+  @override
+  String activeMirrorSetMessage(String url) {
+    return 'Active mirror set: \$url';
+  }
+
+  @override
+  String failedToSetActiveMirrorMessage(String error) {
+    return 'Failed to set active mirror: \$error';
+  }
+
+  @override
+  String activeMirrorText(String url) {
+    return 'Active mirror: \$url';
+  }
+
+  @override
+  String failedToSetBestMirrorMessage(String error) {
+    return 'Failed to set best mirror: \$error';
+  }
+
+  @override
+  String activeMirrorDisabledMessage(String url) {
+    return 'Active mirror disabled. Switched to: \$url';
+  }
+
+  @override
+  String warningFailedToSelectNewActiveMirrorMessage(String error) {
+    return 'Warning: failed to select new active mirror: \$error';
+  }
+
+  @override
+  String get urlCopiedToClipboardMessage => 'URL copied to clipboard';
+
+  @override
+  String get editPriorityTitle => 'Edit Priority';
+
+  @override
+  String get priorityHelperText => 'Lower number = higher priority';
+
+  @override
+  String get saveButtonText => 'Save';
+
+  @override
+  String priorityUpdatedMessage(int priority) {
+    return 'Priority updated: \$priority';
+  }
+
+  @override
+  String failedToUpdatePriorityMessage(String error) {
+    return 'Failed to update priority: \$error';
+  }
+
+  @override
+  String get deleteMirrorTitle => 'Delete Mirror?';
+
+  @override
+  String get defaultMirrorWarningMessage => 'Warning: this is a default mirror. It will be removed from the list, but can be added again.';
+
+  @override
+  String get confirmDeleteMirrorMessage => 'Are you sure you want to delete this mirror?';
+
+  @override
+  String get deleteButtonText => 'Delete';
+
+  @override
+  String mirrorDeletedMessage(String url) {
+    return 'Mirror deleted: \$url';
+  }
+
+  @override
+  String failedToDeleteMirrorMessage(String error) {
+    return 'Failed to delete mirror: \$error';
+  }
+
+  @override
+  String get urlMustStartWithHttpMessage => 'URL must start with http:// or https://';
+
+  @override
+  String get invalidUrlFormatMessage => 'Invalid URL format';
+
+  @override
+  String get mirrorAlreadyExistsMessage => 'This mirror already exists in the list';
+
+  @override
+  String get onlyActiveFilterText => 'Only Active';
+
+  @override
+  String get onlyHealthyFilterText => 'Only Healthy';
+
+  @override
+  String get sortByPriorityText => 'By Priority';
+
+  @override
+  String get sortByHealthText => 'By Health';
+
+  @override
+  String get sortBySpeedText => 'By Speed';
+
+  @override
+  String get noMirrorsMatchFiltersMessage => 'No mirrors match the filters';
+
+  @override
+  String get setBestMirrorButtonText => 'Set Best Mirror';
+
+  @override
+  String healthScoreText(int score) {
+    return 'Health: \$score%';
+  }
+
+  @override
+  String get setAsActiveTooltip => 'Set as active';
+
+  @override
+  String get copyUrlTooltip => 'Copy URL';
+
+  @override
+  String get deleteMirrorTooltip => 'Delete mirror';
+
+  @override
+  String get activeLabelText => 'Active';
 
   @override
   String failedToClearCacheMessage(String error) {
@@ -1098,4 +1236,27 @@ class AppLocalizationsEn extends AppLocalizations {
   String failedToImportMessage(String error) {
     return 'Failed to import: \$error';
   }
+
+  @override
+  String get rutrackerLoginTooltip => 'RuTracker Login';
+
+  @override
+  String get mirrorsTooltip => 'Mirrors';
+
+  @override
+  String currentMirrorLabel(String host) {
+    return 'Current mirror: \$host';
+  }
+
+  @override
+  String get allMirrorsFailedMessage => 'All mirrors failed';
+
+  @override
+  String get unknownError => 'Unknown error';
+
+  @override
+  String get mirrorConnectionError => 'Could not connect to RuTracker mirrors. Check your internet connection or try selecting another mirror in settings';
+
+  @override
+  String get mirrorConnectionFailed => 'Could not connect to RuTracker mirrors';
 }

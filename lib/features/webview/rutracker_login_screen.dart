@@ -328,10 +328,11 @@ class _RutrackerLoginScreenState extends State<RutrackerLoginScreen> {
   }
 
   void _showLoginSuccessHint() => ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Login successful!'),
+        SnackBar(
+          content: Text(AppLocalizations.of(context)?.loginSuccessMessage ??
+              'Login successful!'),
           backgroundColor: Colors.green,
-          duration: Duration(seconds: 3),
+          duration: const Duration(seconds: 3),
         ),
       );
 
@@ -368,16 +369,19 @@ class _RutrackerLoginScreenState extends State<RutrackerLoginScreen> {
     final action = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Скачать торрент'),
-        content: const Text('Выберите действие:'),
+        title: Text(AppLocalizations.of(context)?.downloadTorrentTitle ??
+            'Download Torrent'),
+        content: Text(AppLocalizations.of(context)?.selectActionText ??
+            'Select action:'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, 'open'),
-            child: const Text('Открыть'),
+            child: Text(AppLocalizations.of(context)?.openButtonText ?? 'Open'),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, 'download'),
-            child: const Text('Скачать'),
+            child: Text(AppLocalizations.of(context)?.downloadButtonText ??
+                'Download'),
           ),
         ],
       ),
@@ -388,8 +392,10 @@ class _RutrackerLoginScreenState extends State<RutrackerLoginScreen> {
       await _launchExternal(uri);
     } else if (action == 'download') {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Для загрузки файл будет открыт в браузере')),
+        SnackBar(
+            content: Text(AppLocalizations.of(context)
+                    ?.fileWillOpenInBrowser ??
+                'The file will be opened in browser for download')),
       );
       await _launchExternal(uri);
     }

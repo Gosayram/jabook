@@ -749,7 +749,12 @@
   },
   "logoutErrorMessage": "Ошибка выхода: $error",
   "@logoutErrorMessage": {
-    "description": "Сообщение об ошибке выхода"
+    "description": "Сообщение об ошибке выхода",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
   },
   "configureMirrorsSubtitle": "Настройте и проверьте зеркала RuTracker",
   "@configureMirrorsSubtitle": {
@@ -853,7 +858,12 @@
   },
   "lastCheckedText": "Последняя проверка: $date",
   "@lastCheckedText": {
-    "description": "Текст показа времени последней проверки зеркала"
+    "description": "Текст показа времени последней проверки зеркала",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
   },
   "testMirrorButtonText": "Проверить это зеркало",
   "@testMirrorButtonText": {
@@ -929,11 +939,21 @@
   },
   "networkErrorMessage": "Сетевая ошибка: $error",
   "@networkErrorMessage": {
-    "description": "Сообщение о сетевой ошибке"
+    "description": "Сообщение о сетевой ошибке",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
   },
   "errorLoadingTopicMessage": "Ошибка загрузки топика: $error",
   "@errorLoadingTopicMessage": {
-    "description": "Сообщение об ошибке загрузки топика"
+    "description": "Сообщение об ошибке загрузки топика",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
   },
   "failedToLoadTopicMessage": "Не удалось загрузить топик",
   "@failedToLoadTopicMessage": {
@@ -983,7 +1003,7 @@
   "@authDialogTitle": {
     "description": "Заголовок экрана входа"
   },
-  "authHelpText": "Введите ваши учетные данные",
+  "authHelpText": "Войдите в RuTracker для доступа к поиску и загрузке аудиокниг. Ваши учетные данные хранятся в безопасности.",
   "@authHelpText": {
     "description": "Текст помощи для аутентификации"
   },
@@ -1003,9 +1023,217 @@
   "@logsExportedSuccessfullyMessage": {
     "description": "Сообщение об успешном экспорте логов"
   },
-  "mirrorHealthCheckCompletedMessage": "Проверка здоровья зеркал завершена",
+  "mirrorHealthCheckCompletedMessage": "Проверка завершена: $tested/$total зеркал",
   "@mirrorHealthCheckCompletedMessage": {
-    "description": "Сообщение о завершении проверки зеркал"
+    "description": "Сообщение о завершении проверки зеркал",
+    "placeholders": {
+      "tested": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "noActiveMirrorsMessage": "Нет активных зеркал для проверки",
+  "@noActiveMirrorsMessage": {
+    "description": "Сообщение когда нет активных зеркал для проверки"
+  },
+  "activeMirrorSetMessage": "Активное зеркало установлено: $url",
+  "@activeMirrorSetMessage": {
+    "description": "Сообщение когда активное зеркало установлено",
+    "placeholders": {
+      "url": {
+        "type": "String"
+      }
+    }
+  },
+  "failedToSetActiveMirrorMessage": "Не удалось установить активное зеркало: $error",
+  "@failedToSetActiveMirrorMessage": {
+    "description": "Сообщение когда не удалось установить активное зеркало",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "activeMirrorText": "Активное зеркало: $url",
+  "@activeMirrorText": {
+    "description": "Текст показывающий активное зеркало",
+    "placeholders": {
+      "url": {
+        "type": "String"
+      }
+    }
+  },
+  "failedToSetBestMirrorMessage": "Не удалось установить лучшее зеркало: $error",
+  "@failedToSetBestMirrorMessage": {
+    "description": "Сообщение когда не удалось установить лучшее зеркало",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "activeMirrorDisabledMessage": "Активное зеркало отключено. Переключено на: $url",
+  "@activeMirrorDisabledMessage": {
+    "description": "Сообщение когда активное зеркало отключено и переключено",
+    "placeholders": {
+      "url": {
+        "type": "String"
+      }
+    }
+  },
+  "warningFailedToSelectNewActiveMirrorMessage": "Предупреждение: не удалось выбрать новое активное зеркало: $error",
+  "@warningFailedToSelectNewActiveMirrorMessage": {
+    "description": "Предупреждение когда не удалось выбрать новое активное зеркало",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "urlCopiedToClipboardMessage": "URL скопирован в буфер обмена",
+  "@urlCopiedToClipboardMessage": {
+    "description": "Сообщение когда URL скопирован в буфер обмена"
+  },
+  "editPriorityTitle": "Изменить приоритет",
+  "@editPriorityTitle": {
+    "description": "Заголовок диалога изменения приоритета"
+  },
+  "priorityHelperText": "Меньше число = выше приоритет",
+  "@priorityHelperText": {
+    "description": "Вспомогательный текст для ввода приоритета"
+  },
+  "saveButtonText": "Сохранить",
+  "@saveButtonText": {
+    "description": "Текст кнопки сохранения"
+  },
+  "priorityUpdatedMessage": "Приоритет обновлен: $priority",
+  "@priorityUpdatedMessage": {
+    "description": "Сообщение когда приоритет обновлен",
+    "placeholders": {
+      "priority": {
+        "type": "int"
+      }
+    }
+  },
+  "failedToUpdatePriorityMessage": "Не удалось обновить приоритет: $error",
+  "@failedToUpdatePriorityMessage": {
+    "description": "Сообщение когда не удалось обновить приоритет",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "deleteMirrorTitle": "Удалить зеркало?",
+  "@deleteMirrorTitle": {
+    "description": "Заголовок диалога удаления зеркала"
+  },
+  "defaultMirrorWarningMessage": "Внимание: это зеркало по умолчанию. Оно будет удалено из списка, но может быть добавлено снова.",
+  "@defaultMirrorWarningMessage": {
+    "description": "Предупреждение при удалении зеркала по умолчанию"
+  },
+  "confirmDeleteMirrorMessage": "Вы уверены, что хотите удалить это зеркало?",
+  "@confirmDeleteMirrorMessage": {
+    "description": "Сообщение подтверждения удаления зеркала"
+  },
+  "deleteButtonText": "Удалить",
+  "@deleteButtonText": {
+    "description": "Текст кнопки удаления"
+  },
+  "mirrorDeletedMessage": "Зеркало удалено: $url",
+  "@mirrorDeletedMessage": {
+    "description": "Сообщение когда зеркало удалено",
+    "placeholders": {
+      "url": {
+        "type": "String"
+      }
+    }
+  },
+  "failedToDeleteMirrorMessage": "Не удалось удалить зеркало: $error",
+  "@failedToDeleteMirrorMessage": {
+    "description": "Сообщение когда не удалось удалить зеркало",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "urlMustStartWithHttpMessage": "URL должен начинаться с http:// или https://",
+  "@urlMustStartWithHttpMessage": {
+    "description": "Сообщение когда формат URL неверный"
+  },
+  "invalidUrlFormatMessage": "Неверный формат URL",
+  "@invalidUrlFormatMessage": {
+    "description": "Сообщение о неверном формате URL"
+  },
+  "mirrorAlreadyExistsMessage": "Это зеркало уже существует в списке",
+  "@mirrorAlreadyExistsMessage": {
+    "description": "Сообщение когда зеркало уже существует"
+  },
+  "onlyActiveFilterText": "Только активные",
+  "@onlyActiveFilterText": {
+    "description": "Текст фильтра для показа только активных зеркал"
+  },
+  "onlyHealthyFilterText": "Только здоровые",
+  "@onlyHealthyFilterText": {
+    "description": "Текст фильтра для показа только здоровых зеркал"
+  },
+  "sortByPriorityText": "По приоритету",
+  "@sortByPriorityText": {
+    "description": "Текст опции сортировки по приоритету"
+  },
+  "sortByHealthText": "По здоровью",
+  "@sortByHealthText": {
+    "description": "Текст опции сортировки по здоровью"
+  },
+  "sortBySpeedText": "По скорости",
+  "@sortBySpeedText": {
+    "description": "Текст опции сортировки по скорости"
+  },
+  "noMirrorsMatchFiltersMessage": "Нет зеркал, соответствующих фильтрам",
+  "@noMirrorsMatchFiltersMessage": {
+    "description": "Сообщение когда нет зеркал соответствующих фильтрам"
+  },
+  "setBestMirrorButtonText": "Установить лучшее зеркало",
+  "@setBestMirrorButtonText": {
+    "description": "Текст кнопки для установки лучшего зеркала"
+  },
+  "healthScoreText": "Здоровье: $score%",
+  "@healthScoreText": {
+    "description": "Текст показывающий здоровье",
+    "placeholders": {
+      "score": {
+        "type": "int"
+      }
+    }
+  },
+  "priorityText": "Приоритет: $priority",
+  "@priorityText": {
+    "description": "Текст показывающий приоритет",
+    "placeholders": {
+      "priority": {
+        "type": "int"
+      }
+    }
+  },
+  "setAsActiveTooltip": "Установить как активное",
+  "@setAsActiveTooltip": {
+    "description": "Подсказка для кнопки установки как активное"
+  },
+  "copyUrlTooltip": "Копировать URL",
+  "@copyUrlTooltip": {
+    "description": "Подсказка для кнопки копирования URL"
+  },
+  "deleteMirrorTooltip": "Удалить зеркало",
+  "@deleteMirrorTooltip": {
+    "description": "Подсказка для кнопки удаления зеркала"
+  },
+  "activeLabelText": "Активно",
+  "@activeLabelText": {
+    "description": "Текст метки для активного статуса"
   },
   "failedToClearCacheMessage": "Не удалось очистить кэш: $error",
   "@failedToClearCacheMessage": {
@@ -1506,5 +1734,38 @@
         "type": "String"
       }
     }
+  },
+  "rutrackerLoginTooltip": "Вход в RuTracker",
+  "@rutrackerLoginTooltip": {
+    "description": "Подсказка для кнопки входа в RuTracker"
+  },
+  "mirrorsTooltip": "Зеркала",
+  "@mirrorsTooltip": {
+    "description": "Подсказка для кнопки зеркал"
+  },
+  "currentMirrorLabel": "Текущее зеркало: $host",
+  "@currentMirrorLabel": {
+    "description": "Метка показывающая текущее активное зеркало",
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "allMirrorsFailedMessage": "Все зеркала недоступны",
+  "@allMirrorsFailedMessage": {
+    "description": "Сообщение об ошибке когда все зеркала недоступны"
+  },
+  "unknownError": "Неизвестная ошибка",
+  "@unknownError": {
+    "description": "Сообщение для неизвестной ошибки"
+  },
+  "mirrorConnectionError": "Не удалось подключиться к зеркалам RuTracker. Проверьте подключение к интернету или попробуйте выбрать другое зеркало в настройках",
+  "@mirrorConnectionError": {
+    "description": "Сообщение об ошибке когда не удается подключиться к зеркалам RuTracker"
+  },
+  "mirrorConnectionFailed": "Не удалось подключиться к зеркалам RuTracker",
+  "@mirrorConnectionFailed": {
+    "description": "Краткое сообщение об ошибке когда не удается подключиться к зеркалам RuTracker"
   }
 }

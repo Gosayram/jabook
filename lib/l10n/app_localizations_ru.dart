@@ -563,7 +563,9 @@ class AppLocalizationsRu extends AppLocalizations {
   String get logoutSuccessMessage => 'Выполнен выход из системы';
 
   @override
-  String get logoutErrorMessage => 'Ошибка выхода: \$error';
+  String logoutErrorMessage(String error) {
+    return 'Ошибка выхода: \$error';
+  }
 
   @override
   String get configureMirrorsSubtitle => 'Настройте и проверьте зеркала RuTracker';
@@ -635,13 +637,17 @@ class AppLocalizationsRu extends AppLocalizations {
   String get addCustomMirrorButtonText => 'Добавить зеркало';
 
   @override
-  String get priorityText => 'Приоритет: \$priority';
+  String priorityText(int priority) {
+    return 'Приоритет: \$priority';
+  }
 
   @override
   String get responseTimeText => 'Время отклика: \$rtt мс';
 
   @override
-  String get lastCheckedText => 'Последняя проверка: \$date';
+  String lastCheckedText(String date) {
+    return 'Последняя проверка: \$date';
+  }
 
   @override
   String get testMirrorButtonText => 'Проверить это зеркало';
@@ -698,10 +704,14 @@ class AppLocalizationsRu extends AppLocalizations {
   String get requestTimedOutMessage => 'Время запроса истекло. Проверьте соединение.';
 
   @override
-  String get networkErrorMessage => 'Сетевая ошибка: \$error';
+  String networkErrorMessage(String error) {
+    return 'Сетевая ошибка: \$error';
+  }
 
   @override
-  String get errorLoadingTopicMessage => 'Ошибка загрузки топика: \$error';
+  String errorLoadingTopicMessage(String error) {
+    return 'Ошибка загрузки топика: \$error';
+  }
 
   @override
   String get failedToLoadTopicMessage => 'Не удалось загрузить топик';
@@ -719,7 +729,9 @@ class AppLocalizationsRu extends AppLocalizations {
   String get magnetLinkCopiedMessage => 'Magnet-ссылка скопирована в буфер обмена';
 
   @override
-  String get copyToClipboardMessage => '\$label скопирован в буфер обмена';
+  String copyToClipboardMessage(String label) {
+    return '\$label скопирован в буфер обмена';
+  }
 
   @override
   String get navLibraryText => 'Библиотека';
@@ -740,7 +752,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get authDialogTitle => 'Вход';
 
   @override
-  String get authHelpText => 'Введите ваши учетные данные';
+  String get authHelpText => 'Войдите в RuTracker для доступа к поиску и загрузке аудиокниг. Ваши учетные данные хранятся в безопасности.';
 
   @override
   String get cacheClearedSuccessfullyMessage => 'Кэш успешно очищен';
@@ -755,7 +767,133 @@ class AppLocalizationsRu extends AppLocalizations {
   String get logsExportedSuccessfullyMessage => 'Логи успешно экспортированы';
 
   @override
-  String get mirrorHealthCheckCompletedMessage => 'Проверка здоровья зеркал завершена';
+  String mirrorHealthCheckCompletedMessage(int tested, int total) {
+    return 'Проверка завершена: \$tested/\$total зеркал';
+  }
+
+  @override
+  String get noActiveMirrorsMessage => 'Нет активных зеркал для проверки';
+
+  @override
+  String activeMirrorSetMessage(String url) {
+    return 'Активное зеркало установлено: \$url';
+  }
+
+  @override
+  String failedToSetActiveMirrorMessage(String error) {
+    return 'Не удалось установить активное зеркало: \$error';
+  }
+
+  @override
+  String activeMirrorText(String url) {
+    return 'Активное зеркало: \$url';
+  }
+
+  @override
+  String failedToSetBestMirrorMessage(String error) {
+    return 'Не удалось установить лучшее зеркало: \$error';
+  }
+
+  @override
+  String activeMirrorDisabledMessage(String url) {
+    return 'Активное зеркало отключено. Переключено на: \$url';
+  }
+
+  @override
+  String warningFailedToSelectNewActiveMirrorMessage(String error) {
+    return 'Предупреждение: не удалось выбрать новое активное зеркало: \$error';
+  }
+
+  @override
+  String get urlCopiedToClipboardMessage => 'URL скопирован в буфер обмена';
+
+  @override
+  String get editPriorityTitle => 'Изменить приоритет';
+
+  @override
+  String get priorityHelperText => 'Меньше число = выше приоритет';
+
+  @override
+  String get saveButtonText => 'Сохранить';
+
+  @override
+  String priorityUpdatedMessage(int priority) {
+    return 'Приоритет обновлен: \$priority';
+  }
+
+  @override
+  String failedToUpdatePriorityMessage(String error) {
+    return 'Не удалось обновить приоритет: \$error';
+  }
+
+  @override
+  String get deleteMirrorTitle => 'Удалить зеркало?';
+
+  @override
+  String get defaultMirrorWarningMessage => 'Внимание: это зеркало по умолчанию. Оно будет удалено из списка, но может быть добавлено снова.';
+
+  @override
+  String get confirmDeleteMirrorMessage => 'Вы уверены, что хотите удалить это зеркало?';
+
+  @override
+  String get deleteButtonText => 'Удалить';
+
+  @override
+  String mirrorDeletedMessage(String url) {
+    return 'Зеркало удалено: \$url';
+  }
+
+  @override
+  String failedToDeleteMirrorMessage(String error) {
+    return 'Не удалось удалить зеркало: \$error';
+  }
+
+  @override
+  String get urlMustStartWithHttpMessage => 'URL должен начинаться с http:// или https://';
+
+  @override
+  String get invalidUrlFormatMessage => 'Неверный формат URL';
+
+  @override
+  String get mirrorAlreadyExistsMessage => 'Это зеркало уже существует в списке';
+
+  @override
+  String get onlyActiveFilterText => 'Только активные';
+
+  @override
+  String get onlyHealthyFilterText => 'Только здоровые';
+
+  @override
+  String get sortByPriorityText => 'По приоритету';
+
+  @override
+  String get sortByHealthText => 'По здоровью';
+
+  @override
+  String get sortBySpeedText => 'По скорости';
+
+  @override
+  String get noMirrorsMatchFiltersMessage => 'Нет зеркал, соответствующих фильтрам';
+
+  @override
+  String get setBestMirrorButtonText => 'Установить лучшее зеркало';
+
+  @override
+  String healthScoreText(int score) {
+    return 'Здоровье: \$score%';
+  }
+
+  @override
+  String get setAsActiveTooltip => 'Установить как активное';
+
+  @override
+  String get copyUrlTooltip => 'Копировать URL';
+
+  @override
+  String get deleteMirrorTooltip => 'Удалить зеркало';
+
+  @override
+  String get activeLabelText => 'Активно';
 
   @override
   String failedToClearCacheMessage(String error) {
@@ -1098,4 +1236,27 @@ class AppLocalizationsRu extends AppLocalizations {
   String failedToImportMessage(String error) {
     return 'Не удалось импортировать: \$error';
   }
+
+  @override
+  String get rutrackerLoginTooltip => 'Вход в RuTracker';
+
+  @override
+  String get mirrorsTooltip => 'Зеркала';
+
+  @override
+  String currentMirrorLabel(String host) {
+    return 'Текущее зеркало: \$host';
+  }
+
+  @override
+  String get allMirrorsFailedMessage => 'Все зеркала недоступны';
+
+  @override
+  String get unknownError => 'Неизвестная ошибка';
+
+  @override
+  String get mirrorConnectionError => 'Не удалось подключиться к зеркалам RuTracker. Проверьте подключение к интернету или попробуйте выбрать другое зеркало в настройках';
+
+  @override
+  String get mirrorConnectionFailed => 'Не удалось подключиться к зеркалам RuTracker';
 }

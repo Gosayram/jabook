@@ -156,8 +156,8 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-                content:
-                    Text('Network error: ${e.message ?? "Unknown error"}')),
+                content: Text(AppLocalizations.of(context)!
+                    .networkErrorMessage(e.message ?? 'Unknown error'))),
           );
         }
       }
@@ -168,7 +168,8 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
           _hasError = true;
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading topic: $e')),
+          SnackBar(content: Text(AppLocalizations.of(context)!
+              .errorLoadingTopicMessage(e.toString()))),
         );
       }
     }
@@ -201,19 +202,21 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
                 icon: const Icon(Icons.download),
                 onSelected: _handleDownloadAction,
                 itemBuilder: (context) => [
-                  const PopupMenuItem(
+                  PopupMenuItem(
                     value: 'magnet',
                     child: ListTile(
-                      leading: Icon(Icons.link),
-                      title: Text('Copy Magnet Link'),
+                      leading: const Icon(Icons.link),
+                      title: Text(AppLocalizations.of(context)?.copyMagnetLink ??
+                          'Copy Magnet Link'),
                       contentPadding: EdgeInsets.zero,
                     ),
                   ),
-                  const PopupMenuItem(
+                  PopupMenuItem(
                     value: 'torrent',
                     child: ListTile(
-                      leading: Icon(Icons.file_download),
-                      title: Text('Download Torrent'),
+                      leading: const Icon(Icons.file_download),
+                      title: Text(AppLocalizations.of(context)?.downloadTorrentMenu ??
+                          'Download Torrent'),
                       contentPadding: EdgeInsets.zero,
                     ),
                   ),
@@ -356,18 +359,17 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
                     ),
                     trailing: const Icon(Icons.copy),
                     onTap: () {
-                      _copyToClipboard(
-                          magnetUrl,
-                          AppLocalizations.of(context)
-                                  ?.magnetLinkCopiedMessage ??
-                              'Magnet link');
+                      _copyMagnetLink();
                     },
                   ),
                   const Divider(height: 1),
                   ListTile(
                     leading: const Icon(Icons.file_download),
-                    title: const Text('Download Torrent'),
-                    subtitle: const Text('Open torrent file in external app'),
+                    title: Text(AppLocalizations.of(context)?.downloadTorrentMenu ??
+                        'Download Torrent'),
+                    subtitle: Text(AppLocalizations.of(context)
+                            ?.openTorrentInExternalApp ??
+                        'Open torrent file in external app'),
                     trailing: const Icon(Icons.open_in_new),
                     onTap: _downloadTorrent,
                   ),
@@ -453,13 +455,10 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
 
   void _copyMagnetLink() {
     if (_audiobook != null && (_audiobook!['magnetUrl'] as String).isNotEmpty) {
-      _copyToClipboard(_audiobook!['magnetUrl'] as String, 'Magnet link');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text(
-                AppLocalizations.of(context)?.magnetLinkCopiedMessage ??
-                    'Magnet link copied to clipboard')),
-      );
+      final magnetLinkLabel = AppLocalizations.of(context)
+              ?.magnetLinkLabelText ??
+          'Magnet link';
+      _copyToClipboard(_audiobook!['magnetUrl'] as String, magnetLinkLabel);
     }
   }
 
@@ -480,7 +479,9 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
     } on Exception catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to open torrent: $e')),
+          SnackBar(
+              content: Text(AppLocalizations.of(context)!
+                  .failedToOpenTorrent(e.toString()))),
         );
       }
     }
@@ -501,7 +502,9 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
   void _copyToClipboard(String text, String label) {
     Clipboard.setData(ClipboardData(text: text));
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$label copied to clipboard')),
+      SnackBar(
+          content: Text(AppLocalizations.of(context)!
+              .copyToClipboardMessage(label))),
     );
   }
 }

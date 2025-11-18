@@ -58,14 +58,16 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   Future<void> _login() async {
     if (_usernameController.text.isEmpty || _passwordController.text.isEmpty) {
       setState(() {
-        _statusMessage = 'Please enter username and password';
+        _statusMessage = AppLocalizations.of(context)?.pleaseEnterCredentials ??
+            'Please enter username and password';
         _statusColor = Colors.red;
       });
       return;
     }
 
     setState(() {
-      _statusMessage = 'Logging in...';
+      _statusMessage =
+          AppLocalizations.of(context)?.loggingInText ?? 'Logging in...';
       _statusColor = Colors.blue;
     });
 
@@ -86,8 +88,10 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
 
       setState(() {
         _statusMessage = success
-            ? 'Login successful!'
-            : 'Login failed. Please check credentials';
+            ? (AppLocalizations.of(context)?.loginSuccessMessage ??
+                'Login successful!')
+            : (AppLocalizations.of(context)?.loginFailedMessage ??
+                'Login failed. Please check credentials');
         _statusColor = success ? Colors.green : Colors.red;
       });
 
@@ -106,7 +110,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       }
     } on Exception catch (e) {
       setState(() {
-        _statusMessage = 'Login error: ${e.toString()}';
+        _statusMessage = AppLocalizations.of(context)!
+            .loginErrorMessage(e.toString());
         _statusColor = Colors.red;
       });
     }
@@ -114,7 +119,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
 
   Future<void> _testConnection() async {
     setState(() {
-      _statusMessage = 'Testing connection...';
+      _statusMessage = AppLocalizations.of(context)?.testingConnectionText ??
+          'Testing connection...';
       _statusColor = Colors.blue;
     });
 
@@ -123,12 +129,14 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       final activeEndpoint = await endpointManager.getActiveEndpoint();
 
       setState(() {
-        _statusMessage = 'Connection successful! Using: $activeEndpoint';
+        _statusMessage = AppLocalizations.of(context)!
+            .connectionSuccessMessage(activeEndpoint);
         _statusColor = Colors.green;
       });
     } on Exception catch (e) {
       setState(() {
-        _statusMessage = 'Connection test failed: ${e.toString()}';
+        _statusMessage = AppLocalizations.of(context)!
+            .connectionFailedMessage(e.toString());
         _statusColor = Colors.red;
       });
     }
@@ -155,8 +163,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       });
     } on Exception catch (e) {
       setState(() {
-        _statusMessage =
-            '${AppLocalizations.of(context)?.logoutErrorMessage ?? 'Logout error:'} ${e.toString()}';
+        _statusMessage = AppLocalizations.of(context)!
+            .logoutErrorMessage(e.toString());
         _statusColor = Colors.red;
       });
     }

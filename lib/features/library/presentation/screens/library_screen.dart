@@ -95,7 +95,8 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                     context.go('/favorites');
                     // Count will be reloaded when screen becomes visible again
                   },
-                  tooltip: 'Избранное',
+                  tooltip: AppLocalizations.of(context)?.favoritesTooltip ??
+                      'Favorites',
                 ),
                 if (_favoritesCount > 0)
                   Positioned(
@@ -138,7 +139,8 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                 // Show filter options - navigate to settings for now
                 context.go('/settings');
               },
-              tooltip: 'Filter library',
+              tooltip: AppLocalizations.of(context)?.filterLibraryTooltip ??
+                  'Filter library',
             ),
           ],
         ),
@@ -148,7 +150,8 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
             // Navigate to search screen for now - FAB functionality
             context.go('/search');
           },
-          tooltip: 'Add audiobook',
+          tooltip: AppLocalizations.of(context)?.addAudiobookTooltip ??
+              'Add audiobook',
           child: const Icon(Icons.add),
         ),
       );
@@ -174,14 +177,15 @@ class _LibraryContent extends ConsumerWidget {
             ),
             const SizedBox(height: 16),
             Text(
-              AppLocalizations.of(context)?.libraryContentPlaceholder ??
+              AppLocalizations.of(context)?.libraryEmptyMessage ??
                   'Your library is empty',
               style: Theme.of(context).textTheme.titleMedium,
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
             Text(
-              'Add audiobooks to your library to start listening',
+              AppLocalizations.of(context)?.addAudiobooksHint ??
+                  'Add audiobooks to your library to start listening',
               style: Theme.of(context)
                   .textTheme
                   .bodyMedium
@@ -198,8 +202,9 @@ class _LibraryContent extends ConsumerWidget {
                   child: _buildActionButton(
                     context,
                     icon: Icons.search,
-                    label: AppLocalizations.of(context)?.searchAudiobooks ??
-                        'Search Audiobooks',
+                    label: AppLocalizations.of(context)
+                            ?.searchForAudiobooksButton ??
+                        'Search for audiobooks',
                     onPressed: () => context.go('/search'),
                   ),
                 ),
@@ -210,7 +215,9 @@ class _LibraryContent extends ConsumerWidget {
                   child: _buildActionButton(
                     context,
                     icon: Icons.folder_open,
-                    label: 'Import from Files',
+                    label: AppLocalizations.of(context)
+                            ?.importFromFilesButton ??
+                        'Import from Files',
                     onPressed: () => _showImportDialog(context),
                   ),
                 ),
@@ -221,7 +228,8 @@ class _LibraryContent extends ConsumerWidget {
                   child: _buildActionButton(
                     context,
                     icon: Icons.folder,
-                    label: 'Scan Folder',
+                    label: AppLocalizations.of(context)?.scanFolderTitle ??
+                        'Scan Folder',
                     onPressed: () => _showScanDialog(context),
                   ),
                 ),
@@ -290,7 +298,10 @@ class _LibraryContent extends ConsumerWidget {
 
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Imported $importedCount audiobook(s)')),
+            SnackBar(
+                content: Text(AppLocalizations.of(context)!
+                        .importedSuccess(importedCount)),
+            ),
           );
         }
       } else {
@@ -306,7 +317,10 @@ class _LibraryContent extends ConsumerWidget {
     } on Exception catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to import: $e')),
+          SnackBar(
+              content: Text(AppLocalizations.of(context)!
+                      .importFailedMessage(e.toString())),
+          ),
         );
       }
     }
@@ -364,8 +378,9 @@ class _LibraryContent extends ConsumerWidget {
           if (context.mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                  content:
-                      Text('Found and imported $importedCount audiobook(s)')),
+                  content: Text(AppLocalizations.of(context)!
+                          .scanSuccessMessage(importedCount)),
+              ),
             );
           }
         } else {
@@ -391,7 +406,10 @@ class _LibraryContent extends ConsumerWidget {
     } on Exception catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to scan folder: $e')),
+          SnackBar(
+              content: Text(AppLocalizations.of(context)!
+                      .scanFailedMessage(e.toString())),
+          ),
         );
       }
     }

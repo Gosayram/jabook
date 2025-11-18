@@ -74,11 +74,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
     // Show confirmation message
     if (mounted) {
+      final loc = AppLocalizations.of(context);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            'Language changed to ${_languageManager.getLanguageName(languageCode)}',
-          ),
+          content: Text(loc?.languageChangedMessage(
+                  _languageManager.getLanguageName(languageCode)) ??
+              'Language changed to ${_languageManager.getLanguageName(languageCode)}'),
           duration: const Duration(seconds: 2),
         ),
       );
@@ -270,15 +271,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Управление сессией RuTracker (cookie)',
+            AppLocalizations.of(context)?.rutrackerSessionDescription ??
+                'RuTracker session management (cookie)',
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: 16),
           ListTile(
             leading: const Icon(Icons.login),
-            title: const Text('Войти в RuTracker через WebView'),
-            subtitle: const Text(
-                'Пройти Cloudflare/капчу и сохранить cookie для клиента'),
+            title: Text(AppLocalizations.of(context)?.loginViaWebViewButton ??
+                'Login to RuTracker via WebView'),
+            subtitle: Text(AppLocalizations.of(context)
+                    ?.loginViaWebViewSubtitle ??
+                'Pass Cloudflare/captcha and save cookie for client'),
             onTap: () async {
               final messenger = ScaffoldMessenger.of(context);
               final cookieStr = await Navigator.push<String>(
@@ -294,8 +298,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 await DioClient.syncCookiesFromWebView();
                 if (mounted) {
                   messenger.showSnackBar(
-                    const SnackBar(
-                        content: Text('Cookie сохранены для HTTP-клиента')),
+                    SnackBar(
+                        content: Text(AppLocalizations.of(context)
+                                ?.cookiesSavedForHttpClient ??
+                            'Cookies saved for HTTP client')),
                   );
                 }
               }
@@ -303,9 +309,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
           ListTile(
             leading: const Icon(Icons.logout),
-            title: const Text('Очистить сессию RuTracker (cookie)'),
-            subtitle:
-                const Text('Удалить сохранённые cookie и выйти из аккаунта'),
+            title: Text(AppLocalizations.of(context)?.clearSessionButton ??
+                'Clear RuTracker session (cookie)'),
+            subtitle: Text(AppLocalizations.of(context)
+                    ?.clearSessionSubtitle ??
+                'Delete saved cookies and logout from account'),
             onTap: () async {
               // Clear cookies in Dio and WebView storage
               final messenger = ScaffoldMessenger.of(context);
@@ -315,7 +323,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               await prefs.remove('rutracker_cookie_string');
               if (mounted) {
                 messenger.showSnackBar(
-                  const SnackBar(content: Text('Сессия RuTracker очищена')),
+                  SnackBar(
+                      content: Text(AppLocalizations.of(context)
+                              ?.sessionClearedMessage ??
+                          'RuTracker session cleared')),
                 );
               }
             },
@@ -336,12 +347,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Метаданные аудиокниг',
+                AppLocalizations.of(context)?.metadataSectionTitle ??
+                    'Audiobook Metadata',
                 style: Theme.of(context).textTheme.titleLarge,
               ),
               const SizedBox(height: 8),
               Text(
-                'Управление локальной базой метаданных аудиокниг',
+                AppLocalizations.of(context)?.metadataSectionDescription ??
+                    'Manage local audiobook metadata database',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
               const SizedBox(height: 16),
@@ -354,10 +367,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildStatRow('Всего записей', '${stats['total'] ?? 0}'),
+                    _buildStatRow(
+                        AppLocalizations.of(context)?.totalRecordsLabel ??
+                            'Total records',
+                        '${stats['total'] ?? 0}'),
                     if (stats['last_sync'] != null)
                       _buildStatRow(
-                        'Последнее обновление',
+                        AppLocalizations.of(context)?.lastUpdateLabel ??
+                            'Last update',
                         _formatDateTime(stats['last_sync'] as String?),
                       ),
                   ],
@@ -379,8 +396,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
                       : const Icon(Icons.sync),
-                  label: Text(
-                      isUpdating ? 'Обновление...' : 'Обновить метаданные'),
+                  label: Text(isUpdating
+                      ? (AppLocalizations.of(context)?.updatingText ??
+                          'Updating...')
+                      : (AppLocalizations.of(context)?.updateMetadataButton ??
+                          'Update Metadata')),
                 ),
               ),
             ],
@@ -421,9 +441,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       final scheduler = MetadataSyncScheduler(db, metadataService);
 
       messenger.showSnackBar(
-        const SnackBar(
-          content: Text('Начато обновление метаданных...'),
-          duration: Duration(seconds: 2),
+        SnackBar(
+          content: Text(AppLocalizations.of(context)
+                  ?.metadataUpdateStartedMessage ??
+              'Metadata update started...'),
+          duration: const Duration(seconds: 2),
         ),
       );
 
@@ -433,9 +455,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       final total = results.values.fold<int>(0, (sum, count) => sum + count);
 
       if (mounted) {
+        final loc = AppLocalizations.of(context);
         messenger.showSnackBar(
           SnackBar(
-            content: Text('Обновление завершено: собрано $total записей'),
+            content: Text(loc?.metadataUpdateCompletedMessage(total) ??
+                'Update completed: collected $total records'),
             duration: const Duration(seconds: 3),
           ),
         );
@@ -443,9 +467,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       }
     } on Exception catch (e) {
       if (mounted) {
+        final loc = AppLocalizations.of(context);
         messenger.showSnackBar(
           SnackBar(
-            content: Text('Ошибка обновления: $e'),
+            content: Text(loc?.metadataUpdateError(e.toString()) ??
+                'Update error: $e'),
             backgroundColor: Colors.red,
             duration: const Duration(seconds: 5),
           ),
@@ -456,23 +482,27 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   String _formatDateTime(String? isoString) {
-    if (isoString == null) return 'Никогда';
+    final loc = AppLocalizations.of(context);
+    if (isoString == null) {
+      return loc?.neverDate ?? 'Never';
+    }
     try {
       final dateTime = DateTime.parse(isoString);
       final now = DateTime.now();
       final diff = now.difference(dateTime);
 
       if (diff.inDays > 0) {
-        return '${diff.inDays} дн. назад';
+        return loc?.daysAgo(diff.inDays) ?? '${diff.inDays} days ago';
       } else if (diff.inHours > 0) {
-        return '${diff.inHours} ч. назад';
+        return loc?.hoursAgo(diff.inHours) ?? '${diff.inHours} hours ago';
       } else if (diff.inMinutes > 0) {
-        return '${diff.inMinutes} мин. назад';
+        return loc?.minutesAgo(diff.inMinutes) ??
+            '${diff.inMinutes} minutes ago';
       } else {
-        return 'Только что';
+        return loc?.justNow ?? 'Just now';
       }
     } on Exception {
-      return 'Неизвестно';
+      return loc?.unknownDate ?? 'Unknown';
     }
   }
 
@@ -548,7 +578,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             title: Text(localizations?.playbackSpeedTitle ??
                 localizations?.playbackSpeed ??
                 'Playback Speed'),
-            subtitle: const Text('1.0x'),
+            subtitle: Text(AppLocalizations.of(context)?.playbackSpeedDefault ??
+                '1.0x'),
             onTap: () {
               // TODO: Implement playback speed selection
             },
@@ -562,7 +593,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             title: Text(localizations?.skipDurationTitle ??
                 localizations?.skipDuration ??
                 'Skip Duration'),
-            subtitle: const Text('15 seconds'),
+            subtitle: Text(AppLocalizations.of(context)?.skipDurationDefault ??
+                '15 seconds'),
             onTap: () {
               // TODO: Implement skip duration selection
             },
@@ -669,7 +701,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   }
                 },
                 icon: const Icon(Icons.auto_delete),
-                label: const Text('Clear Expired Cache'),
+                label: Text(AppLocalizations.of(context)
+                        ?.clearExpiredCacheButton ??
+                    'Clear Expired Cache'),
               ),
               OutlinedButton.icon(
                 onPressed: () async {
@@ -749,22 +783,29 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'App Permissions',
+                AppLocalizations.of(context)?.appPermissionsTitle ??
+                    'App Permissions',
                 style: Theme.of(context).textTheme.titleLarge,
               ),
               const SizedBox(height: 8),
               _buildPermissionRow(
                 icon: Icons.folder,
-                title: 'Storage',
-                description: 'Save audiobook files and cache data',
+                title: AppLocalizations.of(context)?.storagePermissionName ??
+                    'Storage',
+                description: AppLocalizations.of(context)
+                        ?.storagePermissionDescription ??
+                    'Save audiobook files and cache data',
                 isGranted: hasStorage,
                 onTap: _requestStoragePermission,
               ),
               const SizedBox(height: 8),
               _buildPermissionRow(
                 icon: Icons.notifications,
-                title: 'Notifications',
-                description: 'Show playback controls and updates',
+                title: AppLocalizations.of(context)?.notificationsPermissionName ??
+                    'Notifications',
+                description: AppLocalizations.of(context)
+                        ?.notificationsPermissionDescription ??
+                    'Show playback controls and updates',
                 isGranted: hasNotification,
                 onTap: _requestNotificationPermission,
               ),
@@ -775,7 +816,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   child: ElevatedButton.icon(
                     onPressed: _requestAllPermissions,
                     icon: const Icon(Icons.security),
-                    label: const Text('Grant All Permissions'),
+                    label: Text(AppLocalizations.of(context)
+                            ?.grantAllPermissionsButton ??
+                        'Grant All Permissions'),
                   ),
                 ),
               if (allGranted)
@@ -791,7 +834,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       Icon(Icons.check_circle, color: Colors.green.shade600),
                       const SizedBox(width: 8),
                       Text(
-                        'All permissions granted',
+                        AppLocalizations.of(context)?.allPermissionsGranted ??
+                            'All permissions granted',
                         style: TextStyle(
                           color: Colors.green.shade800,
                           fontWeight: FontWeight.w500,
@@ -843,7 +887,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-              granted ? 'File access available' : 'File access unavailable'),
+              granted
+                  ? (AppLocalizations.of(context)?.fileAccessAvailable ??
+                      'File access available')
+                  : (AppLocalizations.of(context)?.fileAccessUnavailable ??
+                      'File access unavailable')),
         ),
       );
     }
@@ -856,8 +904,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(granted
-              ? 'Notifications available'
-              : 'Notifications unavailable'),
+              ? (AppLocalizations.of(context)?.notificationsAvailable ??
+                  'Notifications available')
+              : (AppLocalizations.of(context)?.notificationsUnavailable ??
+                  'Notifications unavailable')),
         ),
       );
     }
@@ -868,9 +918,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final grantedCount = results.values.where((e) => e).length;
     if (mounted) {
       setState(() {});
+      final loc = AppLocalizations.of(context);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Capabilities: $grantedCount/${results.length}'),
+          content: Text(loc?.capabilitiesStatus(grantedCount, results.length) ??
+              'Capabilities: $grantedCount/${results.length}'),
         ),
       );
     }
@@ -880,26 +932,33 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Backup & Restore',
+            AppLocalizations.of(context)?.backupRestoreTitle ??
+                'Backup & Restore',
             style: Theme.of(context).textTheme.titleLarge,
           ),
           const SizedBox(height: 8),
           Text(
-            'Export and import your data (favorites, history, metadata)',
+            AppLocalizations.of(context)?.backupRestoreDescription ??
+                'Export and import your data (favorites, history, metadata)',
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: 16),
           ListTile(
             leading: const Icon(Icons.file_download),
-            title: const Text('Export Data'),
-            subtitle: const Text('Save all your data to a backup file'),
+            title: Text(AppLocalizations.of(context)?.exportDataButton ??
+                'Export Data'),
+            subtitle: Text(AppLocalizations.of(context)
+                    ?.exportDataSubtitle ??
+                'Save all your data to a backup file'),
             trailing: const Icon(Icons.arrow_forward_ios),
             onTap: () => _exportData(context),
           ),
           ListTile(
             leading: const Icon(Icons.file_upload),
-            title: const Text('Import Data'),
-            subtitle: const Text('Restore data from a backup file'),
+            title: Text(AppLocalizations.of(context)?.importDataButton ??
+                'Import Data'),
+            subtitle: Text(AppLocalizations.of(context)?.importDataSubtitle ??
+                'Restore data from a backup file'),
             trailing: const Icon(Icons.arrow_forward_ios),
             onTap: () => _importData(context),
           ),
@@ -908,11 +967,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   Future<void> _exportData(BuildContext context) async {
     if (!mounted) return;
+    final loc = AppLocalizations.of(context);
     final messenger = ScaffoldMessenger.of(context)
       ..showSnackBar(
-        const SnackBar(
-          content: Text('Exporting data...'),
-          duration: Duration(seconds: 1),
+        SnackBar(
+          content: Text(loc?.exportingDataMessage ?? 'Exporting data...'),
+          duration: const Duration(seconds: 1),
         ),
       );
 
@@ -935,18 +995,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         );
 
         if (!mounted) return;
+        final loc = AppLocalizations.of(context);
         messenger.showSnackBar(
-          const SnackBar(
-            content: Text('Data exported successfully'),
+          SnackBar(
+            content: Text(loc?.dataExportedSuccessfullyMessage ??
+                'Data exported successfully'),
             backgroundColor: Colors.green,
           ),
         );
       }
     } on Exception catch (e) {
       if (!mounted) return;
+      final loc = AppLocalizations.of(context);
       messenger.showSnackBar(
         SnackBar(
-          content: Text('Failed to export: ${e.toString()}'),
+          content: Text(loc?.failedToExportMessage(e.toString()) ??
+              'Failed to export: ${e.toString()}'),
           backgroundColor: Colors.red,
         ),
       );
@@ -967,23 +1031,23 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
         // Show confirmation dialog
         if (!mounted) return;
+        final loc = AppLocalizations.of(context);
         // ignore: use_build_context_synchronously
         final confirmed = await showDialog<bool>(
           // ignore: use_build_context_synchronously
           context: context,
           builder: (dialogContext) => AlertDialog(
-            title: const Text('Import Backup'),
-            content: const Text(
-              'This will import data from the backup file. Existing data may be merged or replaced. Continue?',
-            ),
+            title: Text(loc?.importBackupTitle ?? 'Import Backup'),
+            content: Text(loc?.importBackupConfirmationMessage ??
+                'This will import data from the backup file. Existing data may be merged or replaced. Continue?'),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(dialogContext).pop(false),
-                child: const Text('Cancel'),
+                child: Text(loc?.cancel ?? 'Cancel'),
               ),
               ElevatedButton(
                 onPressed: () => Navigator.of(dialogContext).pop(true),
-                child: const Text('Import'),
+                child: Text(loc?.importButton ?? 'Import'),
               ),
             ],
           ),
@@ -993,9 +1057,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
         if (!mounted) return;
         messenger.showSnackBar(
-          const SnackBar(
-            content: Text('Importing data...'),
-            duration: Duration(seconds: 2),
+          SnackBar(
+            content: Text(loc?.importingDataMessage ?? 'Importing data...'),
+            duration: const Duration(seconds: 2),
           ),
         );
 
@@ -1025,9 +1089,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       }
     } on Exception catch (e) {
       if (!mounted) return;
+      final loc = AppLocalizations.of(context);
       messenger.showSnackBar(
         SnackBar(
-          content: Text('Failed to import: ${e.toString()}'),
+          content: Text(loc?.failedToImportMessage(e.toString()) ??
+              'Failed to import: ${e.toString()}'),
           backgroundColor: Colors.red,
         ),
       );

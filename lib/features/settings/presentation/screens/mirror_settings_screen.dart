@@ -190,9 +190,11 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
       if (total == 0) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Нет активных зеркал для проверки'),
-              duration: Duration(seconds: 2),
+            SnackBar(
+              content: Text(AppLocalizations.of(context)
+                      ?.noActiveMirrorsMessage ??
+                  'No active mirrors to test'),
+              duration: const Duration(seconds: 2),
             ),
           );
         }
@@ -230,10 +232,8 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              AppLocalizations.of(context)?.mirrorHealthCheckCompletedMessage ??
-                  'Проверка завершена: $tested/$total зеркал',
-            ),
+            content: Text(AppLocalizations.of(context)!
+                .mirrorHealthCheckCompletedMessage(tested, total)),
             backgroundColor: tested == total ? Colors.green : Colors.orange,
             duration: const Duration(seconds: 3),
           ),
@@ -302,7 +302,8 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Активное зеркало установлено: $url'),
+            content: Text(AppLocalizations.of(context)!
+                .activeMirrorSetMessage(url)),
             backgroundColor: Colors.green,
             duration: const Duration(seconds: 2),
           ),
@@ -312,7 +313,8 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Не удалось установить активное зеркало: $e'),
+            content: Text(AppLocalizations.of(context)!
+                .failedToSetActiveMirrorMessage(e.toString())),
             backgroundColor: Colors.red,
             duration: const Duration(seconds: 3),
           ),
@@ -328,7 +330,8 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
     final result = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Изменить приоритет'),
+        title: Text(AppLocalizations.of(context)?.editPriorityTitle ??
+            'Edit Priority'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -336,10 +339,12 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
             const SizedBox(height: 16),
             TextField(
               controller: priorityController,
-              decoration: const InputDecoration(
-                labelText: 'Приоритет (1-10)',
+              decoration: InputDecoration(
+                labelText: AppLocalizations.of(context)?.priorityLabelText ??
+                    'Priority (1-10)',
                 hintText: '5',
-                helperText: 'Меньше число = выше приоритет',
+                helperText: AppLocalizations.of(context)?.priorityHelperText ??
+                    'Lower number = higher priority',
               ),
               keyboardType: TextInputType.number,
             ),
@@ -352,7 +357,7 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Сохранить'),
+            child: Text(AppLocalizations.of(context)?.saveButtonText ?? 'Save'),
           ),
         ],
       ),
@@ -369,7 +374,8 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Приоритет обновлен: $priority'),
+              content: Text(AppLocalizations.of(context)!
+                  .priorityUpdatedMessage(priority)),
               backgroundColor: Colors.green,
               duration: const Duration(seconds: 2),
             ),
@@ -379,7 +385,8 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Не удалось обновить приоритет: $e'),
+              content: Text(AppLocalizations.of(context)!
+                  .failedToUpdatePriorityMessage(e.toString())),
               backgroundColor: Colors.red,
               duration: const Duration(seconds: 3),
             ),
@@ -396,14 +403,17 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
       final best = await endpointManager.getActiveEndpoint();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Active mirror: $best')),
+          SnackBar(
+              content: Text(AppLocalizations.of(context)!.activeMirrorText(best))),
         );
       }
       await _loadMirrors();
     } on Exception catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to set best mirror: $e')),
+          SnackBar(
+              content: Text(AppLocalizations.of(context)!
+                  .failedToSetBestMirrorMessage(e.toString()))),
         );
       }
     }
@@ -427,8 +437,8 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text(
-                    'Активное зеркало отключено. Переключено на: $newActive'),
+                content: Text(AppLocalizations.of(context)!
+                    .activeMirrorDisabledMessage(newActive)),
                 backgroundColor: Colors.blue,
                 duration: const Duration(seconds: 3),
               ),
@@ -438,8 +448,8 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text(
-                    'Предупреждение: не удалось выбрать новое активное зеркало: $e'),
+                content: Text(AppLocalizations.of(context)!
+                    .warningFailedToSelectNewActiveMirrorMessage(e.toString())),
                 backgroundColor: Colors.orange,
                 duration: const Duration(seconds: 3),
               ),
@@ -480,9 +490,11 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
     await Clipboard.setData(ClipboardData(text: url));
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('URL скопирован в буфер обмена'),
-          duration: Duration(seconds: 2),
+        SnackBar(
+          content: Text(AppLocalizations.of(context)
+                  ?.urlCopiedToClipboardMessage ??
+              'URL copied to clipboard'),
+          duration: const Duration(seconds: 2),
         ),
       );
     }
@@ -500,7 +512,8 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Удалить зеркало?'),
+        title: Text(AppLocalizations.of(context)?.deleteMirrorTitle ??
+            'Delete Mirror?'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -508,13 +521,15 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
             Text('URL: $url'),
             if (isDefault) ...[
               const SizedBox(height: 8),
-              const Text(
-                'Внимание: это зеркало по умолчанию. Оно будет удалено из списка, но может быть добавлено снова.',
-                style: TextStyle(color: Colors.orange),
+              Text(
+                AppLocalizations.of(context)?.defaultMirrorWarningMessage ??
+                    'Warning: this is a default mirror. It will be removed from the list, but can be added again.',
+                style: const TextStyle(color: Colors.orange),
               ),
             ],
             const SizedBox(height: 8),
-            const Text('Вы уверены, что хотите удалить это зеркало?'),
+            Text(AppLocalizations.of(context)?.confirmDeleteMirrorMessage ??
+                'Are you sure you want to delete this mirror?'),
           ],
         ),
         actions: [
@@ -525,7 +540,8 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Удалить'),
+            child: Text(AppLocalizations.of(context)?.deleteButtonText ??
+                'Delete'),
           ),
         ],
       ),
@@ -566,7 +582,8 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Зеркало удалено: $url'),
+              content: Text(AppLocalizations.of(context)!
+                  .mirrorDeletedMessage(url)),
               backgroundColor: Colors.orange,
               duration: const Duration(seconds: 2),
             ),
@@ -576,7 +593,8 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Не удалось удалить зеркало: $e'),
+              content: Text(AppLocalizations.of(context)!
+                  .failedToDeleteMirrorMessage(e.toString())),
               backgroundColor: Colors.red,
               duration: const Duration(seconds: 3),
             ),
@@ -638,10 +656,12 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
         if (!url.startsWith('http://') && !url.startsWith('https://')) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('URL должен начинаться с http:// или https://'),
+              SnackBar(
+                content: Text(AppLocalizations.of(context)
+                        ?.urlMustStartWithHttpMessage ??
+                    'URL must start with http:// or https://'),
                 backgroundColor: Colors.orange,
-                duration: Duration(seconds: 3),
+                duration: const Duration(seconds: 3),
               ),
             );
           }
@@ -665,10 +685,12 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
         } on Exception {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Неверный формат URL'),
+              SnackBar(
+                content: Text(AppLocalizations.of(context)
+                        ?.invalidUrlFormatMessage ??
+                    'Invalid URL format'),
                 backgroundColor: Colors.orange,
-                duration: Duration(seconds: 3),
+                duration: const Duration(seconds: 3),
               ),
             );
           }
@@ -684,10 +706,12 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
         if (allMirrors.any((m) => m['url'] == url)) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Это зеркало уже существует в списке'),
+              SnackBar(
+                content: Text(AppLocalizations.of(context)
+                        ?.mirrorAlreadyExistsMessage ??
+                    'This mirror already exists in the list'),
                 backgroundColor: Colors.orange,
-                duration: Duration(seconds: 3),
+                duration: const Duration(seconds: 3),
               ),
             );
           }
@@ -750,7 +774,9 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
                           runSpacing: 8.0,
                           children: [
                             FilterChip(
-                              label: const Text('Только активные'),
+                              label: Text(AppLocalizations.of(context)
+                                      ?.onlyActiveFilterText ??
+                                  'Only Active'),
                               selected: _showOnlyEnabled,
                               onSelected: (selected) {
                                 setState(() {
@@ -760,7 +786,9 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
                               },
                             ),
                             FilterChip(
-                              label: const Text('Только здоровые'),
+                              label: Text(AppLocalizations.of(context)
+                                      ?.onlyHealthyFilterText ??
+                                  'Only Healthy'),
                               selected: _showOnlyHealthy,
                               onSelected: (selected) {
                                 setState(() {
@@ -777,7 +805,9 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
                           runSpacing: 8.0,
                           children: [
                             ChoiceChip(
-                              label: const Text('По приоритету'),
+                              label: Text(AppLocalizations.of(context)
+                                      ?.sortByPriorityText ??
+                                  'By Priority'),
                               selected: _sortBy == 'priority',
                               onSelected: (selected) {
                                 if (selected) {
@@ -789,7 +819,9 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
                               },
                             ),
                             ChoiceChip(
-                              label: const Text('По здоровью'),
+                              label: Text(AppLocalizations.of(context)
+                                      ?.sortByHealthText ??
+                                  'By Health'),
                               selected: _sortBy == 'health',
                               onSelected: (selected) {
                                 if (selected) {
@@ -801,7 +833,9 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
                               },
                             ),
                             ChoiceChip(
-                              label: const Text('По скорости'),
+                              label: Text(AppLocalizations.of(context)
+                                      ?.sortBySpeedText ??
+                                  'By Speed'),
                               selected: _sortBy == 'rtt',
                               onSelected: (selected) {
                                 if (selected) {
@@ -829,7 +863,9 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
                                   const Icon(Icons.filter_list, size: 64),
                                   const SizedBox(height: 16),
                                   Text(
-                                    'Нет зеркал, соответствующих фильтрам',
+                                    AppLocalizations.of(context)
+                                            ?.noMirrorsMatchFiltersMessage ??
+                                        'No mirrors match the filters',
                                     style:
                                         Theme.of(context).textTheme.titleMedium,
                                   ),
@@ -842,7 +878,9 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
                                         _applyFilters();
                                       });
                                     },
-                                    child: const Text('Сбросить фильтры'),
+                                    child: Text(AppLocalizations.of(context)
+                                            ?.resetFiltersButton ??
+                                        'Reset Filters'),
                                   ),
                                 ],
                               ),
@@ -877,7 +915,9 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
                         OutlinedButton.icon(
                           onPressed: _setBestMirrorAsActive,
                           icon: const Icon(Icons.auto_mode),
-                          label: const Text('Set Best Mirror'),
+                          label: Text(AppLocalizations.of(context)
+                                  ?.setBestMirrorButtonText ??
+                              'Set Best Mirror'),
                         ),
                         const SizedBox(height: 8),
                         ElevatedButton.icon(
@@ -930,13 +970,15 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
       statusText = healthStatus;
       statusColor = Colors.green.shade600;
     } else if (healthScore >= 40) {
-      statusText = 'Degraded';
+      statusText = AppLocalizations.of(context)?.mirrorStatusDegraded ??
+          'Degraded';
       statusColor = Colors.orange;
     } else if (healthScore >= 20) {
       statusText = 'Poor';
       statusColor = Colors.orange.shade800;
     } else {
-      statusText = 'Unhealthy';
+      statusText = AppLocalizations.of(context)?.mirrorStatusUnhealthy ??
+          'Unhealthy';
       statusColor = Colors.red;
     }
 
@@ -977,18 +1019,20 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
                       color: Colors.green,
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Row(
+                    child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(
+                        const Icon(
                           Icons.check_circle,
                           color: Colors.white,
                           size: 16,
                         ),
-                        SizedBox(width: 4),
+                        const SizedBox(width: 4),
                         Text(
-                          'Active',
-                          style: TextStyle(
+                          AppLocalizations.of(context)?.activeLabelText ??
+                              AppLocalizations.of(context)?.activeStatusText ??
+                              'Active',
+                          style: const TextStyle(
                             color: Colors.white,
                             fontSize: 12,
                             fontWeight: FontWeight.bold,
@@ -1033,14 +1077,15 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        'Здоровье: $healthScore%',
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.onSurface,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
+                        Text(
+                          AppLocalizations.of(context)!
+                              .healthScoreText(healthScore),
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.onSurface,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
-                      ),
                       if (rtt != null)
                         Text(
                           'RTT: $rtt ms',
@@ -1079,8 +1124,7 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        AppLocalizations.of(context)?.priorityText ??
-                            'Priority: $priority',
+                        AppLocalizations.of(context)!.priorityText(priority),
                         style: TextStyle(
                           color: Theme.of(context).colorScheme.onSurface,
                           fontSize: 14,
@@ -1097,8 +1141,8 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
                 ),
                 if (lastOk != null)
                   Text(
-                    AppLocalizations.of(context)?.lastCheckedText ??
-                        'Проверено: ${_formatDate(lastOk)}',
+                    AppLocalizations.of(context)!
+                        .lastCheckedText(_formatDate(lastOk)),
                     style: TextStyle(
                       color: Theme.of(context)
                           .colorScheme
@@ -1145,21 +1189,26 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
                       IconButton(
                         icon: const Icon(Icons.star, size: 20),
                         color: Colors.amber,
-                        tooltip: 'Установить как активное',
+                        tooltip: AppLocalizations.of(context)
+                                ?.setAsActiveTooltip ??
+                            'Set as active',
                         onPressed: () => _setActiveMirror(url),
                       ),
                     ],
                     const SizedBox(width: 4),
                     IconButton(
                       icon: const Icon(Icons.copy, size: 18),
-                      tooltip: 'Копировать URL',
+                      tooltip: AppLocalizations.of(context)?.copyUrlTooltip ??
+                          'Copy URL',
                       onPressed: () => _copyUrlToClipboard(url),
                     ),
                     const SizedBox(width: 4),
                     IconButton(
                       icon: const Icon(Icons.delete_outline, size: 18),
                       color: Colors.red.shade400,
-                      tooltip: 'Удалить зеркало',
+                      tooltip: AppLocalizations.of(context)
+                              ?.deleteMirrorTooltip ??
+                          'Delete mirror',
                       onPressed: () => _deleteMirror(url),
                     ),
                   ],
@@ -1170,7 +1219,8 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
                   children: [
                     Text(
                       enabled
-                          ? AppLocalizations.of(context)?.activeStatusText ??
+                          ? AppLocalizations.of(context)?.activeLabelText ??
+                              AppLocalizations.of(context)?.activeStatusText ??
                               'Active'
                           : AppLocalizations.of(context)?.disabledStatusText ??
                               'Disabled',

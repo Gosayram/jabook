@@ -85,7 +85,8 @@ class _GroupedAudiobookListState extends State<GroupedAudiobookList> {
     final grouped = <String, List<Map<String, dynamic>>>{};
 
     for (final audiobook in widget.audiobooks) {
-      final category = audiobook['category'] as String? ?? 'Другое';
+      final category = audiobook['category'] as String? ??
+          (AppLocalizations.of(context)?.otherCategory ?? 'Other');
       grouped.putIfAbsent(category, () => []).add(audiobook);
     }
 
@@ -127,7 +128,9 @@ class _GroupedAudiobookListState extends State<GroupedAudiobookList> {
                     : widget.loadMore != null
                         ? OutlinedButton(
                             onPressed: widget.loadMore,
-                            child: const Text('Load more'),
+                            child: Text(AppLocalizations.of(context)
+                                    ?.loadMoreButton ??
+                                'Load more'),
                           )
                         : const SizedBox.shrink(),
               ),
