@@ -178,10 +178,8 @@ build-android-signed: use-existing-android-cert patch-gradle-signing build-andro
 
 .PHONY: build-android-signed-apk
 build-android-signed-apk: use-existing-android-cert patch-gradle-signing
-	@echo "Building signed optimized APK..."
+	@echo "Building signed optimized APK (without obfuscation for easier debugging)..."
 	flutter build apk --target lib/main.dart --release \
-		--obfuscate \
-		--split-debug-info=./debug-info \
 		--split-per-abi \
 		--tree-shake-icons
 	@echo "Signed optimized APK built at: build/app/outputs/apk/"
