@@ -13,6 +13,7 @@
 // limitations under the License.
 
 import 'dart:async';
+import 'dart:io' as io;
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
@@ -21,7 +22,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:jabook/core/cache/rutracker_cache_service.dart';
 import 'package:jabook/core/endpoints/endpoint_manager.dart';
 import 'package:jabook/core/endpoints/endpoint_provider.dart';
-import 'package:jabook/core/errors/failures.dart';
 import 'package:jabook/core/favorites/favorites_service.dart';
 import 'package:jabook/core/logging/environment_logger.dart';
 import 'package:jabook/core/logging/structured_logger.dart';
@@ -30,7 +30,6 @@ import 'package:jabook/core/net/dio_client.dart';
 import 'package:jabook/core/parse/rutracker_parser.dart';
 import 'package:jabook/core/search/search_history_service.dart';
 import 'package:jabook/core/services/cookie_service.dart';
-import 'package:jabook/core/session/auth_error_handler.dart';
 import 'package:jabook/core/utils/safe_async.dart';
 import 'package:jabook/data/db/app_database.dart';
 import 'package:jabook/features/auth/data/providers/auth_provider.dart';
@@ -757,349 +756,390 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     // Cookies exist, but they might be invalid - try search anyway
     // If search fails with auth error, we'll handle it in error handling
 
-    // Fetch from network using EndpointManager with automatic fallback
+    // CRITICAL: Use ONLY the active endpoint for search - don't switch mirrors
     final endpointManager = ref.read(endpointManagerProvider);
+    final activeEndpoint = await endpointManager.getActiveEndpoint();
     final dio = await DioClient.instance;
 
-    // Get all enabled endpoints sorted by priority and health
-    final allEndpoints = await endpointManager.getAllEndpoints();
-    final enabledEndpoints =
-        allEndpoints.where((e) => e['enabled'] == true).toList()
-          ..sort((a, b) {
-            // Sort by health score (descending), then priority (ascending)
-            final healthA = a['health_score'] as int? ?? 0;
-            final healthB = b['health_score'] as int? ?? 0;
-            if (healthA != healthB) return healthB.compareTo(healthA);
-            return (a['priority'] as int? ?? 999)
-                .compareTo(b['priority'] as int? ?? 999);
-          });
+    await structuredLogger.log(
+      level: 'info',
+      subsystem: 'search',
+      message: 'Starting search with active endpoint',
+      context: 'search_request',
+      extra: {
+        'query': query,
+        'active_endpoint': activeEndpoint,
+        'start_offset': _startOffset,
+      },
+    );
 
-    // Ensure we have at least the fallback endpoint
-    if (enabledEndpoints.isEmpty) {
-      enabledEndpoints.add({
-        'url': EndpointManager.getPrimaryFallbackEndpoint(),
-        'priority': 1,
-        'health_score': 100,
-      });
-    }
+    // Use only the active endpoint - don't try other endpoints
+    final endpoint = activeEndpoint;
 
-    // Try each endpoint until one succeeds
-    // First, filter out unavailable endpoints (DNS errors)
-    final availableEndpoints = <Map<String, dynamic>>[];
-    for (final endpointData in enabledEndpoints) {
-      final endpoint = endpointData['url'] as String;
-      // Quick availability check before attempting search
-      final isAvailable = await endpointManager.quickAvailabilityCheck(endpoint);
-      if (isAvailable) {
-        availableEndpoints.add(endpointData);
-      } else {
-        logger.w('Skipping unavailable endpoint: $endpoint');
-      }
-    }
-
-    // If no available endpoints, try all enabled endpoints anyway (last resort)
-    final endpointsToTry = availableEndpoints.isNotEmpty
-        ? availableEndpoints
-        : enabledEndpoints;
-
-    Exception? lastException;
-    for (final endpointData in endpointsToTry) {
-      final endpoint = endpointData['url'] as String;
-
-      try {
-        // CRITICAL: Before making search request, verify cookies are available for this endpoint
-        final searchUri = Uri.parse('$endpoint/forum/search.php');
-        final cookieJar = await DioClient.getCookieJar();
-        if (cookieJar != null) {
-          final cookiesForSearch = await cookieJar.loadForRequest(searchUri);
-          final baseUri = Uri.parse(endpoint);
-          final cookiesForBase = await cookieJar.loadForRequest(baseUri);
-          
-          await structuredLogger.log(
-            level: cookiesForSearch.isNotEmpty || cookiesForBase.isNotEmpty ? 'debug' : 'warning',
-            subsystem: 'search',
-            message: 'Cookies loaded for search request',
-            context: 'search_request',
-            extra: {
-              'endpoint': endpoint,
-              'search_uri': searchUri.toString(),
-              'cookie_count_for_search_uri': cookiesForSearch.length,
-              'cookie_count_for_base_uri': cookiesForBase.length,
-              'cookie_names_for_search': cookiesForSearch.map((c) => c.name).toList(),
-              'cookie_names_for_base': cookiesForBase.map((c) => c.name).toList(),
-              'has_session_cookies': cookiesForSearch.any((c) => 
-                c.name.toLowerCase().contains('session') || 
-                c.name == 'bb_session' || 
-                c.name == 'bb_data'
-              ) || cookiesForBase.any((c) => 
-                c.name.toLowerCase().contains('session') || 
-                c.name == 'bb_session' || 
-                c.name == 'bb_data'
-              ),
-            },
-          );
-          
-          // If no cookies found for this endpoint, try to sync from WebView
-          if (cookiesForSearch.isEmpty && cookiesForBase.isEmpty) {
+    try {
+      // CRITICAL: Before making search request, verify cookies are available for active endpoint
+      final searchUri = Uri.parse('$endpoint/forum/search.php');
+      final cookieJar = await DioClient.getCookieJar();
+      
+      // Load cookies that will be sent with the request
+      final cookiesForRequest = cookieJar != null 
+          ? await cookieJar.loadForRequest(searchUri)
+          : <io.Cookie>[];
+      
+      await structuredLogger.log(
+        level: cookiesForRequest.isNotEmpty ? 'info' : 'warning',
+        subsystem: 'search',
+        message: 'Cookies loaded for search request',
+        context: 'search_request',
+        extra: {
+          'endpoint': endpoint,
+          'search_uri': searchUri.toString(),
+          'cookie_count': cookiesForRequest.length,
+          'cookie_names': cookiesForRequest.map((c) => c.name).toList(),
+          'has_session_cookies': cookiesForRequest.any((c) => 
+            c.name.toLowerCase().contains('session') || 
+            c.name == 'bb_session' || 
+            c.name == 'bb_data'
+          ),
+        },
+      );
+      
+      // If no cookies found for active endpoint, try to sync from WebView/CookieService
+      if (cookiesForRequest.isEmpty && cookieJar != null) {
+        await structuredLogger.log(
+          level: 'warning',
+          subsystem: 'search',
+          message: 'No cookies found for active endpoint, syncing from WebView/CookieService',
+          context: 'search_request',
+          extra: {'endpoint': endpoint},
+        );
+        
+        // Try CookieService first (Android CookieManager) - most reliable
+        try {
+          final cookieHeader = await CookieService.getCookiesForUrl(endpoint);
+          if (cookieHeader != null && cookieHeader.isNotEmpty) {
             await structuredLogger.log(
-              level: 'warning',
+              level: 'info',
               subsystem: 'search',
-              message: 'No cookies found for search endpoint, syncing from WebView',
+              message: 'Found cookies in CookieService, syncing to Dio',
               context: 'search_request',
-              extra: {'endpoint': endpoint},
+              extra: {
+                'endpoint': endpoint,
+                'cookie_header_length': cookieHeader.length,
+              },
             );
-            await DioClient.syncCookiesFromWebView();
             
-            // Check again after sync
+            await DioClient.syncCookiesFromCookieService(cookieHeader, endpoint);
+            
+            // Wait a bit and reload cookies
+            await Future.delayed(const Duration(milliseconds: 200));
             final cookiesAfterSync = await cookieJar.loadForRequest(searchUri);
-            final cookiesAfterSyncBase = await cookieJar.loadForRequest(baseUri);
+            
             await structuredLogger.log(
-              level: cookiesAfterSync.isNotEmpty || cookiesAfterSyncBase.isNotEmpty ? 'info' : 'warning',
+              level: cookiesAfterSync.isNotEmpty ? 'info' : 'warning',
+              subsystem: 'search',
+              message: 'Cookies after sync from CookieService',
+              context: 'search_request',
+              extra: {
+                'endpoint': endpoint,
+                'cookie_count_after_sync': cookiesAfterSync.length,
+                'cookie_names_after_sync': cookiesAfterSync.map((c) => c.name).toList(),
+              },
+            );
+          } else {
+            // Fallback to WebView sync
+            await DioClient.syncCookiesFromWebView();
+            await Future.delayed(const Duration(milliseconds: 200));
+            final cookiesAfterSync = await cookieJar.loadForRequest(searchUri);
+            
+            await structuredLogger.log(
+              level: cookiesAfterSync.isNotEmpty ? 'info' : 'warning',
               subsystem: 'search',
               message: 'Cookies after sync from WebView',
               context: 'search_request',
               extra: {
                 'endpoint': endpoint,
                 'cookie_count_after_sync': cookiesAfterSync.length,
-                'cookie_count_base_after_sync': cookiesAfterSyncBase.length,
+                'cookie_names_after_sync': cookiesAfterSync.map((c) => c.name).toList(),
               },
             );
           }
+        } on Exception catch (e) {
+          await structuredLogger.log(
+            level: 'warning',
+            subsystem: 'search',
+            message: 'Failed to sync cookies, trying WebView fallback',
+            context: 'search_request',
+            cause: e.toString(),
+            extra: {'endpoint': endpoint},
+          );
+          
+          // Fallback to WebView sync
+          await DioClient.syncCookiesFromWebView();
+        }
+      }
+      
+      // Make the search request
+      final requestStartTime = DateTime.now();
+      final requestUri = '$endpoint/forum/search.php';
+      final requestQueryParams = {
+        'nm': query,
+        'o': '1', // Sort by relevance
+        'start': _startOffset,
+      };
+      
+      // Get cookies that will actually be sent (after sync)
+      final finalCookies = cookieJar != null 
+          ? await cookieJar.loadForRequest(searchUri)
+          : <io.Cookie>[];
+      
+      await structuredLogger.log(
+        level: 'info',
+        subsystem: 'search',
+        message: 'Making search request',
+        context: 'search_request',
+        extra: {
+          'endpoint': endpoint,
+          'request_uri': requestUri,
+          'query_params': requestQueryParams,
+          'cookies_count': finalCookies.length,
+          'cookies_names': finalCookies.map((c) => c.name).toList(),
+          'will_send_cookies': finalCookies.isNotEmpty,
+        },
+      );
+      
+      final response = await dio
+          .get(
+            requestUri,
+            queryParameters: requestQueryParams,
+            cancelToken: _cancelToken,
+          )
+          .timeout(const Duration(seconds: 30));
+      
+      final requestDuration = DateTime.now().difference(requestStartTime).inMilliseconds;
+      
+      await structuredLogger.log(
+        level: response.statusCode == 200 ? 'info' : 'warning',
+        subsystem: 'search',
+        message: 'Search request completed',
+        context: 'search_request',
+        durationMs: requestDuration,
+        extra: {
+          'endpoint': endpoint,
+          'status_code': response.statusCode,
+          'response_size': response.data?.toString().length ?? 0,
+          'cookies_were_sent': finalCookies.isNotEmpty,
+          'cookies_sent_count': finalCookies.length,
+          'response_headers': {
+            'content-type': response.headers.value('content-type'),
+            'set-cookie': response.headers.value('set-cookie') != null ? 'present' : 'absent',
+          },
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final results = await _parser.parseSearchResults(response.data);
+
+        // Cache the results
+        // Convert Audiobook objects to maps for caching
+        final resultsMap = results.map(_audiobookToMap).toList();
+        await _cacheService.cacheSearchResults(query, resultsMap);
+
+        if (updateExisting && mounted) {
+          // Update existing results (for background refresh from local DB)
+          setState(() {
+            final networkResults = results.map(_audiobookToMap).toList();
+            // Merge with existing, avoiding duplicates
+            final existingIds =
+                _searchResults.map((r) => r['id'] as String?).toSet();
+            final newResults = networkResults
+                .where((r) => !existingIds.contains(r['id'] as String?))
+                .toList();
+            _searchResults = [..._searchResults, ...newResults];
+            _isFromLocalDb = false; // Switch to network results
+            _errorKind = null;
+            _errorMessage = null;
+            _hasMore = results.isNotEmpty;
+          });
+        } else {
+          setState(() {
+            // Convert Audiobook objects to maps for UI
+            _searchResults = results.map(_audiobookToMap).toList();
+            _isLoading = false;
+            _isFromCache = false;
+            _isFromLocalDb = false;
+            _errorKind = null;
+            _errorMessage = null;
+            _hasMore = results.isNotEmpty;
+            _showHistory = false;
+          });
+
+          // Save to search history
+          if (_historyService != null && query.isNotEmpty) {
+            await _historyService!.saveSearchQuery(query);
+            await _loadSearchHistory();
+          }
+        }
+
+        // Success - update active host display (don't change endpoint)
+        if (mounted) {
+          final host = Uri.parse(endpoint).host;
+          setState(() => _activeHost = host);
         }
         
-        final response = await dio
-            .get(
-              '$endpoint/forum/search.php',
-              queryParameters: {
-                'nm': query,
-                'o': '1', // Sort by relevance
-                'start': _startOffset,
-              },
-              cancelToken: _cancelToken,
-            )
-            .timeout(const Duration(seconds: 30));
-
-        if (response.statusCode == 200) {
-          final results = await _parser.parseSearchResults(response.data);
-
-          // Cache the results
-          // Convert Audiobook objects to maps for caching
-          final resultsMap = results.map(_audiobookToMap).toList();
-          await _cacheService.cacheSearchResults(query, resultsMap);
-
-          if (updateExisting && mounted) {
-            // Update existing results (for background refresh from local DB)
-            setState(() {
-              final networkResults = results.map(_audiobookToMap).toList();
-              // Merge with existing, avoiding duplicates
-              final existingIds =
-                  _searchResults.map((r) => r['id'] as String?).toSet();
-              final newResults = networkResults
-                  .where((r) => !existingIds.contains(r['id'] as String?))
-                  .toList();
-              _searchResults = [..._searchResults, ...newResults];
-              _isFromLocalDb = false; // Switch to network results
-              _errorKind = null;
-              _errorMessage = null;
-              _hasMore = results.isNotEmpty;
-            });
-          } else {
-            setState(() {
-              // Convert Audiobook objects to maps for UI
-              _searchResults = results.map(_audiobookToMap).toList();
-              _isLoading = false;
-              _isFromCache = false;
-              _isFromLocalDb = false;
-              _errorKind = null;
-              _errorMessage = null;
-              _hasMore = results.isNotEmpty;
-              _showHistory = false;
-            });
-
-            // Save to search history
-            if (_historyService != null && query.isNotEmpty) {
-              await _historyService!.saveSearchQuery(query);
-              await _loadSearchHistory();
-            }
-          }
-
-          // Success - update active endpoint and break retry loop
-          try {
-            await endpointManager.setActiveEndpoint(endpoint);
-            logger.i('Updated active endpoint to $endpoint after successful search');
-            // Update active host display to show real endpoint being used
-            if (mounted) {
-              final host = Uri.parse(endpoint).host;
-              setState(() => _activeHost = host);
-            }
-          } on Exception catch (e) {
-            logger.w('Failed to update active endpoint: $e');
-          }
-          return;
-        } else {
-          // Non-200 status - try next endpoint if it's a server error (5xx)
-          if (response.statusCode != null && response.statusCode! >= 500) {
-            continue;
-          }
-          // Client error (4xx) - don't retry, show error
-          if (mounted) {
-            setState(() {
-              _isLoading = false;
-              _errorKind = 'network';
-              _errorMessage = 'HTTP ${response.statusCode}';
-            });
-          }
-          return;
-        }
-      } on TimeoutException {
-        lastException = TimeoutException('Request timed out');
-        // Log timeout as warning
-        logger.w('Request timeout for endpoint $endpoint');
-
-        // Try to switch endpoint automatically
-        try {
-          final switched = await endpointManager.trySwitchEndpoint(endpoint);
-          if (switched) {
-            final newEndpoint = await endpointManager.getActiveEndpoint();
-            logger.i(
-                'Auto-switched from $endpoint to $newEndpoint due to timeout');
-          }
-        } on Exception catch (switchError) {
-          logger.w('Failed to auto-switch endpoint: $switchError');
-        }
-
-        // Continue to next endpoint
-        continue;
-      } on DioException catch (e) {
-        lastException = e;
-
-        if (CancelToken.isCancel(e)) {
-          // Silently ignore cancelled request
-          return;
-        }
-
-        // DNS errors should skip to next endpoint immediately
-        if (e.type == DioExceptionType.connectionError) {
-          final message = e.message?.toLowerCase() ?? '';
-          final isDnsError = message.contains('host lookup') ||
-              message.contains('no address associated with hostname') ||
-              message.contains('name or service not known');
-
-          if (isDnsError) {
-            // Log DNS error as warning, not error (it's expected when endpoint is unavailable)
-            logger.w('DNS error for endpoint $endpoint: ${e.message}');
-
-            // Try to switch endpoint automatically via EndpointManager
-            try {
-              final switched =
-                  await endpointManager.trySwitchEndpoint(endpoint);
-              if (switched) {
-                final newEndpoint = await endpointManager.getActiveEndpoint();
-                logger.i(
-                    'Auto-switched from $endpoint to $newEndpoint due to DNS error');
-              }
-            } on Exception catch (switchError) {
-              logger.w('Failed to auto-switch endpoint: $switchError');
-            }
-
-            // Try next endpoint (don't wait for timeout)
-            continue;
-          }
-        }
-
-        // For connection errors, timeouts, or server errors (5xx), try next endpoint
-        if (e.type == DioExceptionType.connectionError ||
-            e.type == DioExceptionType.connectionTimeout ||
-            e.type == DioExceptionType.receiveTimeout ||
-            e.type == DioExceptionType.sendTimeout ||
-            (e.type == DioExceptionType.badResponse &&
-                e.response?.statusCode != null &&
-                e.response!.statusCode! >= 500)) {
-          // Try next endpoint
-          continue;
-        }
-
-        // For auth errors or client errors (4xx except 5xx), don't retry
-        // Break and show error
-        break;
-      } on Exception catch (e) {
-        lastException = e;
-        // Try next endpoint for other exceptions
-        continue;
-      }
-    }
-
-    // All endpoints failed - show error
-    if (mounted) {
-      setState(() {
-        _isLoading = false;
-      });
-
-      if (lastException is DioException) {
-        final e = lastException;
-        // Check if it's an AuthFailure wrapped in DioException
-        if (e.error is AuthFailure) {
-          final authError = e.error as AuthFailure;
-          setState(() {
-            _errorKind = 'auth';
-            _errorMessage = authError.message;
-          });
-          // Show error using AuthErrorHandler
-          AuthErrorHandler.showAuthErrorSnackBar(context, authError);
-        } else if (e.message?.contains('Authentication required') ?? false ||
-            e.response?.statusCode == 401 ||
-            e.response?.statusCode == 403) {
-          setState(() {
-            _errorKind = 'auth';
-            _errorMessage = 'Authentication required';
-          });
-          // Show error using AuthErrorHandler
-          AuthErrorHandler.showAuthErrorSnackBar(context, e);
-        } else if (e.type == DioExceptionType.connectionTimeout ||
-            e.type == DioExceptionType.receiveTimeout ||
-            e.type == DioExceptionType.sendTimeout) {
-          setState(() {
-            _errorKind = 'timeout';
-            _errorMessage = AppLocalizations.of(context)
-                    ?.requestTimedOutMessage ??
-                'Request timed out. Check your connection.';
-          });
-        } else if (e.type == DioExceptionType.connectionError) {
-          final message = e.message?.toLowerCase() ?? '';
-          final isDnsError = message.contains('host lookup') ||
-              message.contains('no address associated with hostname') ||
-              message.contains('name or service not known');
-
-          if (isDnsError) {
-            setState(() {
-              _errorKind = 'mirror';
-              _errorMessage = AppLocalizations.of(context)
-                      ?.networkConnectionError ??
-                  'Could not connect. Check your internet or choose another mirror in Settings → Sources.';
-            });
-          } else {
-            setState(() {
-              _errorKind = 'mirror';
-              _errorMessage = AppLocalizations.of(context)
-                      ?.connectionFailed ??
-                  'Connection failed. Please check your internet connection or try a different mirror.';
-            });
-          }
-        } else {
-          setState(() {
-            _errorKind = 'network';
-            _errorMessage = e.message ??
-                (AppLocalizations.of(context)?.unknownError ?? 'Unknown error');
-          });
-        }
+        await structuredLogger.log(
+          level: 'info',
+          subsystem: 'search',
+          message: 'Search completed successfully',
+          context: 'search_request',
+          extra: {
+            'endpoint': endpoint,
+            'results_count': results.length,
+            'has_more': _hasMore,
+          },
+        );
+        return;
       } else {
+        // Non-200 status - show error
+        await structuredLogger.log(
+          level: 'warning',
+          subsystem: 'search',
+          message: 'Search request returned non-200 status',
+          context: 'search_request',
+          extra: {
+            'endpoint': endpoint,
+            'status_code': response.statusCode,
+            'response_size': response.data?.toString().length ?? 0,
+          },
+        );
+        
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+            _errorKind = 'network';
+            _errorMessage = 'HTTP ${response.statusCode}';
+          });
+        }
+        return;
+      }
+    } on TimeoutException catch (e) {
+      await structuredLogger.log(
+        level: 'warning',
+        subsystem: 'search',
+        message: 'Search request timed out',
+        context: 'search_request',
+        cause: e.toString(),
+        extra: {
+          'endpoint': endpoint,
+          'timeout_seconds': 30,
+        },
+      );
+      
+      if (mounted) {
         setState(() {
-          _errorKind = 'network';
-          _errorMessage = lastException?.toString() ??
-              (AppLocalizations.of(context)?.allMirrorsFailedMessage ??
-                  'All mirrors failed');
+          _isLoading = false;
+          _errorKind = 'timeout';
+          _errorMessage = AppLocalizations.of(context)
+                  ?.requestTimedOutMessage ??
+              'Request timed out. Check your connection.';
         });
       }
+      return;
+    } on DioException catch (e) {
+      if (CancelToken.isCancel(e)) {
+        // Silently ignore cancelled request
+        await structuredLogger.log(
+          level: 'debug',
+          subsystem: 'search',
+          message: 'Search request cancelled',
+          context: 'search_request',
+          extra: {'endpoint': endpoint},
+        );
+        return;
+      }
+
+      await structuredLogger.log(
+        level: 'warning',
+        subsystem: 'search',
+        message: 'Search request failed',
+        context: 'search_request',
+        cause: e.toString(),
+        extra: {
+          'endpoint': endpoint,
+          'error_type': e.type.toString(),
+          'status_code': e.response?.statusCode,
+          'is_auth_error': e.response?.statusCode == 401 || e.response?.statusCode == 403,
+        },
+      );
+
+      // Handle auth errors
+      if (e.response?.statusCode == 401 || e.response?.statusCode == 403 ||
+          (e.message?.contains('Authentication required') ?? false)) {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+            _errorKind = 'auth';
+            _errorMessage = AppLocalizations.of(context)
+                    ?.authorizationFailedMessage ??
+                'Authentication required. Please log in.';
+          });
+          safeUnawaited(_openWebViewLogin());
+        }
+        return;
+      }
+
+      // Handle connection errors
+      if (e.type == DioExceptionType.connectionError ||
+          e.type == DioExceptionType.connectionTimeout) {
+        final message = e.message?.toLowerCase() ?? '';
+        final isDnsError = message.contains('host lookup') ||
+            message.contains('no address associated with hostname') ||
+            message.contains('name or service not known');
+
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+            _errorKind = isDnsError ? 'mirror' : 'network';
+            _errorMessage = isDnsError
+                ? (AppLocalizations.of(context)?.networkConnectionError ??
+                    'Could not connect. Check your internet or choose another mirror in Settings → Sources.')
+                : (AppLocalizations.of(context)?.connectionFailed ??
+                    'Connection failed. Please check your internet connection.');
+          });
+        }
+        return;
+      }
+
+      // Other errors
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorKind = 'network';
+          _errorMessage = e.message ?? 'Network error occurred';
+        });
+      }
+      return;
+    } on Exception catch (e) {
+      await structuredLogger.log(
+        level: 'error',
+        subsystem: 'search',
+        message: 'Unexpected error during search',
+        context: 'search_request',
+        cause: e.toString(),
+        extra: {
+          'endpoint': endpoint,
+          'error_type': e.runtimeType.toString(),
+        },
+      );
+      
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorKind = 'network';
+          _errorMessage = e.toString();
+        });
+      }
+      return;
     }
   }
 
