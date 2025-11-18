@@ -1,17 +1,3 @@
-// Copyright 2025 Jabook Contributors
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 // ignore: unused_import
 import 'package:intl/intl.dart' as intl;
 import 'app_localizations.dart';
@@ -113,15 +99,13 @@ class AppLocalizationsRu extends AppLocalizations {
   String get addBookComingSoon => 'Функция добавления книг скоро появится!';
 
   @override
-  String get libraryContentPlaceholder =>
-      'Содержимое библиотеки будет отображаться здесь';
+  String get libraryContentPlaceholder => 'Содержимое библиотеки будет отображаться здесь';
 
   @override
   String get authenticationRequired => 'Требуется аутентификация';
 
   @override
-  String get loginRequiredForSearch =>
-      'Пожалуйста, войдите в RuTracker для доступа к функции поиска.';
+  String get loginRequiredForSearch => 'Пожалуйста, войдите в RuTracker для доступа к функции поиска.';
 
   @override
   String get cancel => 'Отмена';
@@ -130,12 +114,10 @@ class AppLocalizationsRu extends AppLocalizations {
   String get login => 'Войти';
 
   @override
-  String get networkConnectionError =>
-      'Не удалось подключиться. Проверьте интернет или выберите другое зеркало в Настройках → Источники.';
+  String get networkConnectionError => 'Не удалось подключиться. Проверьте интернет или выберите другое зеркало в Настройках → Источники.';
 
   @override
-  String get connectionFailed =>
-      'Соединение не установлено. Проверьте интернет-подключение или попробуйте другое зеркало.';
+  String get connectionFailed => 'Соединение не установлено. Проверьте интернет-подключение или попробуйте другое зеркало.';
 
   @override
   String get chooseMirror => 'Выбрать зеркало';
@@ -144,16 +126,13 @@ class AppLocalizationsRu extends AppLocalizations {
   String get networkErrorUser => 'Проблема с сетевым подключением';
 
   @override
-  String get dnsError =>
-      'Не удалось разрешить домен. Это может быть связано с сетевыми ограничениями или неактивным зеркалом.';
+  String get dnsError => 'Не удалось разрешить домен. Это может быть связано с сетевыми ограничениями или неактивным зеркалом.';
 
   @override
-  String get timeoutError =>
-      'Запрос занял слишком много времени. Проверьте соединение и попробуйте снова.';
+  String get timeoutError => 'Запрос занял слишком много времени. Проверьте соединение и попробуйте снова.';
 
   @override
-  String get serverError =>
-      'Сервер временно недоступен. Попробуйте позже или выберите другое зеркало.';
+  String get serverError => 'Сервер временно недоступен. Попробуйте позже или выберите другое зеркало.';
 
   @override
   String get recentSearches => 'Недавние поиски';
@@ -180,8 +159,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get permissionsRequired => 'Требуются разрешения';
 
   @override
-  String get permissionExplanation =>
-      'Это приложение требует разрешения на хранение для загрузки и сохранения аудиофайлов. Пожалуйста, предоставьте необходимые разрешения для продолжения.';
+  String get permissionExplanation => 'Это приложение требует разрешения на хранение для загрузки и сохранения аудиофайлов. Пожалуйста, предоставьте необходимые разрешения для продолжения.';
 
   @override
   String get grantPermissions => 'Предоставить разрешения';
@@ -190,8 +168,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get permissionDeniedTitle => 'В разрешении отказано';
 
   @override
-  String get permissionDeniedMessage =>
-      'Для загрузки файлов требуется разрешение на хранение. Пожалуйста, включите его в настройках приложения.';
+  String get permissionDeniedMessage => 'Для загрузки файлов требуется разрешение на хранение. Пожалуйста, включите его в настройках приложения.';
 
   @override
   String get permissionDeniedButton => 'Открыть настройки';
@@ -299,8 +276,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get chaptersLabel => 'Главы';
 
   @override
-  String get downloadFunctionalityComingSoon =>
-      'Функция загрузки скоро появится';
+  String get downloadFunctionalityComingSoon => 'Функция загрузки скоро появится';
 
   @override
   String get requestTimedOut => 'Время запроса истекло';
@@ -459,12 +435,10 @@ class AppLocalizationsRu extends AppLocalizations {
   String get webViewTitle => 'RuTracker';
 
   @override
-  String get webViewLoginInstruction =>
-      'Войдите в RuTracker. После успешного входа нажмите «Готово», чтобы извлечь cookie для клиента.';
+  String get webViewLoginInstruction => 'Войдите в RuTracker. После успешного входа нажмите «Готово», чтобы извлечь cookie для клиента.';
 
   @override
-  String get cloudflareMessage =>
-      'Этот сайт использует проверки безопасности Cloudflare. Пожалуйста, дождитесь завершения проверки и взаимодействуйте с открывшейся страницей при необходимости.';
+  String get cloudflareMessage => 'Этот сайт использует проверки безопасности Cloudflare. Пожалуйста, дождитесь завершения проверки и взаимодействуйте с открывшейся страницей при необходимости.';
 
   @override
   String get retryButtonText => 'Повторить';
@@ -473,8 +447,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get goHomeButtonText => 'Перейти на главную';
 
   @override
-  String get browserCheckMessage =>
-      'Сайт проверяет ваш браузер - пожалуйста, дождитесь завершения проверки на этой странице.';
+  String get browserCheckMessage => 'Сайт проверяет ваш браузер - пожалуйста, дождитесь завершения проверки на этой странице.';
 
   @override
   String get downloadTorrentTitle => 'Скачать торрент';
@@ -489,51 +462,54 @@ class AppLocalizationsRu extends AppLocalizations {
   String get downloadButtonText => 'Скачать';
 
   @override
-  String get downloadInBrowserMessage =>
-      'Чтобы скачать файл, пожалуйста, откройте ссылку в браузере';
+  String get downloadInBrowserMessage => 'Чтобы скачать файл, пожалуйста, откройте ссылку в браузере';
 
   @override
   String get importAudiobooksTitle => 'Импортировать аудиокниги';
 
   @override
-  String get selectFilesMessage =>
-      'Выберите файлы аудиокниг с вашего устройства для добавления в библиотеку';
+  String get selectFilesMessage => 'Выберите файлы аудиокниг с вашего устройства для добавления в библиотеку';
 
   @override
   String get importButtonText => 'Импортировать';
 
   @override
-  String get importedSuccess => 'Импортировано \$count аудиокнига(и)';
+  String importedSuccess(int count) {
+    return 'Импортировано \$count аудиокнига(и)';
+  }
 
   @override
   String get noFilesSelectedMessage => 'Файлы не выбраны';
 
   @override
-  String get importFailedMessage => 'Не удалось импортировать: \$error';
+  String importFailedMessage(String error) {
+    return 'Не удалось импортировать: \$error';
+  }
 
   @override
   String get scanFolderTitle => 'Сканировать папку';
 
   @override
-  String get scanFolderMessage =>
-      'Сканируйте папку на вашем устройстве в поисках файлов аудиокниг';
+  String get scanFolderMessage => 'Сканируйте папку на вашем устройстве в поисках файлов аудиокниг';
 
   @override
   String get scanButtonText => 'Сканировать';
 
   @override
-  String get scanSuccessMessage =>
-      'Найдено и импортировано \$count аудиокнига(и)';
+  String scanSuccessMessage(int count) {
+    return 'Найдено и импортировано \$count аудиокнига(и)';
+  }
 
   @override
-  String get noAudiobooksFoundMessage =>
-      'В выбранной папке не найдено файлов аудиокниг';
+  String get noAudiobooksFoundMessage => 'В выбранной папке не найдено файлов аудиокниг';
 
   @override
   String get noFolderSelectedMessage => 'Папка не выбрана';
 
   @override
-  String get scanFailedMessage => 'Не удалось просканировать папку: \$error';
+  String scanFailedMessage(String error) {
+    return 'Не удалось просканировать папку: \$error';
+  }
 
   @override
   String get authScreenTitle => 'Подключение к RuTracker';
@@ -557,6 +533,30 @@ class AppLocalizationsRu extends AppLocalizations {
   String get logoutButtonText => 'Выйти';
 
   @override
+  String get loggingInText => 'Вход в систему...';
+
+  @override
+  String get loginSuccessMessage => 'Вход выполнен успешно!';
+
+  @override
+  String get loginFailedMessage => 'Вход не удался. Пожалуйста, проверьте учетные данные';
+
+  @override
+  String loginErrorMessage(String error) {
+    return 'Ошибка входа: \$error';
+  }
+
+  @override
+  String connectionSuccessMessage(String endpoint) {
+    return 'Соединение установлено! Используется: \$endpoint';
+  }
+
+  @override
+  String connectionFailedMessage(String error) {
+    return 'Проверка соединения не удалась: \$error';
+  }
+
+  @override
   String get loggingOutText => 'Выход из системы...';
 
   @override
@@ -566,8 +566,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get logoutErrorMessage => 'Ошибка выхода: \$error';
 
   @override
-  String get configureMirrorsSubtitle =>
-      'Настройте и проверьте зеркала RuTracker';
+  String get configureMirrorsSubtitle => 'Настройте и проверьте зеркала RuTracker';
 
   @override
   String get playbackSpeedTitle => 'Скорость воспроизведения';
@@ -588,22 +587,19 @@ class AppLocalizationsRu extends AppLocalizations {
   String get wifiOnlyDownloadsTitle => 'Загрузки только по Wi-Fi';
 
   @override
-  String get failedToLoadMirrorsMessage =>
-      'Не удалось загрузить зеркала: \$error';
+  String get failedToLoadMirrorsMessage => 'Не удалось загрузить зеркала: \$error';
 
   @override
   String get mirrorTestSuccessMessage => 'Зеркало \$url проверено успешно';
 
   @override
-  String get mirrorTestFailedMessage =>
-      'Не удалось проверить зеркало \$url: \$error';
+  String get mirrorTestFailedMessage => 'Не удалось проверить зеркало \$url: \$error';
 
   @override
   String get mirrorStatusText => 'Зеркало \$status';
 
   @override
-  String get failedToUpdateMirrorMessage =>
-      'Не удалось обновить зеркало: \$error';
+  String get failedToUpdateMirrorMessage => 'Не удалось обновить зеркало: \$error';
 
   @override
   String get addCustomMirrorTitle => 'Добавить зеркало';
@@ -633,8 +629,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get mirrorSettingsTitle => 'Настройки зеркал';
 
   @override
-  String get mirrorSettingsDescription =>
-      'Настройте зеркала RuTracker для оптимальной производительности поиска. Включенные зеркала будут использоваться автоматически.';
+  String get mirrorSettingsDescription => 'Настройте зеркала RuTracker для оптимальной производительности поиска. Включенные зеркала будут использоваться автоматически.';
 
   @override
   String get addCustomMirrorButtonText => 'Добавить зеркало';
@@ -676,8 +671,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get chaptersLabelText => 'Главы';
 
   @override
-  String get downloadFunctionalityComingSoonMessage =>
-      'Функция загрузки скоро появится!';
+  String get downloadFunctionalityComingSoonMessage => 'Функция загрузки скоро появится!';
 
   @override
   String get sampleTitleText => 'Пример аудиокниги';
@@ -701,8 +695,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get topicScreenTitle => 'Топик';
 
   @override
-  String get requestTimedOutMessage =>
-      'Время запроса истекло. Проверьте соединение.';
+  String get requestTimedOutMessage => 'Время запроса истекло. Проверьте соединение.';
 
   @override
   String get networkErrorMessage => 'Сетевая ошибка: \$error';
@@ -723,8 +716,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get magnetLinkLabelText => 'Magnet-ссылка';
 
   @override
-  String get magnetLinkCopiedMessage =>
-      'Magnet-ссылка скопирована в буфер обмена';
+  String get magnetLinkCopiedMessage => 'Magnet-ссылка скопирована в буфер обмена';
 
   @override
   String get copyToClipboardMessage => '\$label скопирован в буфер обмена';
@@ -763,6 +755,347 @@ class AppLocalizationsRu extends AppLocalizations {
   String get logsExportedSuccessfullyMessage => 'Логи успешно экспортированы';
 
   @override
-  String get mirrorHealthCheckCompletedMessage =>
-      'Проверка здоровья зеркал завершена';
+  String get mirrorHealthCheckCompletedMessage => 'Проверка здоровья зеркал завершена';
+
+  @override
+  String failedToClearCacheMessage(String error) {
+    return 'Не удалось очистить кэш: \$error';
+  }
+
+  @override
+  String failedToTestMirrorsMessage(String error) {
+    return 'Не удалось проверить зеркала: \$error';
+  }
+
+  @override
+  String get mirrorStatusDegraded => 'Деградировано';
+
+  @override
+  String get mirrorStatusUnhealthy => 'Неисправно';
+
+  @override
+  String get pleaseEnterCredentials => 'Пожалуйста, введите имя пользователя и пароль';
+
+  @override
+  String get testingConnectionText => 'Проверка соединения...';
+
+  @override
+  String get favoritesTitle => 'Избранное';
+
+  @override
+  String get refreshTooltip => 'Обновить';
+
+  @override
+  String get noFavoritesMessage => 'Нет избранных аудиокниг';
+
+  @override
+  String get addFavoritesHint => 'Добавьте аудиокниги в избранное из результатов поиска';
+
+  @override
+  String get goToSearchButton => 'Перейти к поиску';
+
+  @override
+  String get removedFromFavorites => 'Удалено из избранного';
+
+  @override
+  String get failedToRemoveFromFavorites => 'Не удалось удалить из избранного';
+
+  @override
+  String get favoritesTooltip => 'Избранное';
+
+  @override
+  String get filterLibraryTooltip => 'Фильтр библиотеки';
+
+  @override
+  String get addAudiobookTooltip => 'Добавить аудиокнигу';
+
+  @override
+  String get libraryEmptyMessage => 'Ваша библиотека пуста';
+
+  @override
+  String get addAudiobooksHint => 'Добавьте аудиокниги в библиотеку, чтобы начать прослушивание';
+
+  @override
+  String get searchForAudiobooksButton => 'Поиск аудиокниг';
+
+  @override
+  String get importFromFilesButton => 'Импорт из файлов';
+
+  @override
+  String get biometricAuthInProgress => 'Подождите, выполняется биометрическая аутентификация...';
+
+  @override
+  String get authorizationSuccessful => 'Авторизация успешна';
+
+  @override
+  String get authorizationTitle => 'Авторизация';
+
+  @override
+  String get biometricUnavailableMessage => 'Биометрическая аутентификация недоступна или не удалась. Открыть WebView для входа?';
+
+  @override
+  String get openWebViewButton => 'Открыть WebView';
+
+  @override
+  String authorizationCheckError(String error) {
+    return 'Ошибка при проверке авторизации: \$error';
+  }
+
+  @override
+  String get authorizationFailedMessage => 'Авторизация не удалась. Проверьте логин и пароль';
+
+  @override
+  String authorizationPageError(String error) {
+    return 'Ошибка открытия страницы авторизации: \$error';
+  }
+
+  @override
+  String get filtersLabel => 'Фильтры:';
+
+  @override
+  String get resetButton => 'Сбросить';
+
+  @override
+  String get otherCategory => 'Другое';
+
+  @override
+  String get searchHistoryTitle => 'История поиска';
+
+  @override
+  String get clearButton => 'Очистить';
+
+  @override
+  String get failedToAddToFavorites => 'Не удалось добавить в избранное';
+
+  @override
+  String get loadMoreButton => 'Загрузить еще';
+
+  @override
+  String get allowButton => 'Разрешить';
+
+  @override
+  String get copyMagnetLink => 'Скопировать Magnet-ссылку';
+
+  @override
+  String get downloadTorrentMenu => 'Скачать торрент';
+
+  @override
+  String get openTorrentInExternalApp => 'Открыть файл торрента во внешнем приложении';
+
+  @override
+  String failedToOpenTorrent(String error) {
+    return 'Не удалось открыть торрент: \$error';
+  }
+
+  @override
+  String get urlUnavailable => 'URL недоступен';
+
+  @override
+  String invalidUrlFormat(String url) {
+    return 'Неверный формат URL: \$url';
+  }
+
+  @override
+  String genericError(String error) {
+    return 'Ошибка: \$error';
+  }
+
+  @override
+  String retryConnectionMessage(int current, int max) {
+    return 'Повторная попытка подключения (\$current/\$max)...';
+  }
+
+  @override
+  String loadError(String desc) {
+    return 'Ошибка загрузки: \$desc';
+  }
+
+  @override
+  String get pageLoadError => 'Произошла ошибка при загрузке страницы';
+
+  @override
+  String get securityVerificationInProgress => 'Проверка безопасности выполняется - пожалуйста, подождите...';
+
+  @override
+  String get openInBrowserButton => 'Открыть в браузере';
+
+  @override
+  String get fileWillOpenInBrowser => 'Для загрузки файл будет открыт в браузере';
+
+  @override
+  String get resetFiltersButton => 'Сбросить фильтры';
+
+  @override
+  String languageChangedMessage(String languageName) {
+    return 'Язык изменен на \$languageName';
+  }
+
+  @override
+  String get rutrackerSessionDescription => 'Управление сессией RuTracker (cookie)';
+
+  @override
+  String get loginViaWebViewButton => 'Войти в RuTracker через WebView';
+
+  @override
+  String get loginViaWebViewSubtitle => 'Пройти Cloudflare/капчу и сохранить cookie для клиента';
+
+  @override
+  String get cookiesSavedForHttpClient => 'Cookie сохранены для HTTP-клиента';
+
+  @override
+  String get clearSessionButton => 'Очистить сессию RuTracker (cookie)';
+
+  @override
+  String get clearSessionSubtitle => 'Удалить сохранённые cookie и выйти из аккаунта';
+
+  @override
+  String get sessionClearedMessage => 'Сессия RuTracker очищена';
+
+  @override
+  String get metadataSectionTitle => 'Метаданные аудиокниг';
+
+  @override
+  String get metadataSectionDescription => 'Управление локальной базой метаданных аудиокниг';
+
+  @override
+  String get totalRecordsLabel => 'Всего записей';
+
+  @override
+  String get lastUpdateLabel => 'Последнее обновление';
+
+  @override
+  String get updatingText => 'Обновление...';
+
+  @override
+  String get updateMetadataButton => 'Обновить метаданные';
+
+  @override
+  String get metadataUpdateStartedMessage => 'Начато обновление метаданных...';
+
+  @override
+  String metadataUpdateCompletedMessage(int total) {
+    return 'Обновление завершено: собрано \$total записей';
+  }
+
+  @override
+  String metadataUpdateError(String error) {
+    return 'Ошибка обновления: \$error';
+  }
+
+  @override
+  String get neverDate => 'Никогда';
+
+  @override
+  String daysAgo(int days) {
+    return '\$days дн. назад';
+  }
+
+  @override
+  String hoursAgo(int hours) {
+    return '\$hours ч. назад';
+  }
+
+  @override
+  String minutesAgo(int minutes) {
+    return '\$minutes мин. назад';
+  }
+
+  @override
+  String get justNow => 'Только что';
+
+  @override
+  String get unknownDate => 'Неизвестно';
+
+  @override
+  String get playbackSpeedDefault => '1.0x';
+
+  @override
+  String get skipDurationDefault => '15 секунд';
+
+  @override
+  String get clearExpiredCacheButton => 'Очистить устаревший кэш';
+
+  @override
+  String get appPermissionsTitle => 'Разрешения приложения';
+
+  @override
+  String get storagePermissionName => 'Хранилище';
+
+  @override
+  String get storagePermissionDescription => 'Сохранять файлы аудиокниг и данные кэша';
+
+  @override
+  String get notificationsPermissionName => 'Уведомления';
+
+  @override
+  String get notificationsPermissionDescription => 'Показывать элементы управления воспроизведением и обновления';
+
+  @override
+  String get grantAllPermissionsButton => 'Предоставить все разрешения';
+
+  @override
+  String get allPermissionsGranted => 'Все разрешения предоставлены';
+
+  @override
+  String get fileAccessAvailable => 'Доступ к файлам доступен';
+
+  @override
+  String get fileAccessUnavailable => 'Доступ к файлам недоступен';
+
+  @override
+  String get notificationsAvailable => 'Уведомления доступны';
+
+  @override
+  String get notificationsUnavailable => 'Уведомления недоступны';
+
+  @override
+  String capabilitiesStatus(int grantedCount, int total) {
+    return 'Возможности: \$grantedCount/\$total';
+  }
+
+  @override
+  String get backupRestoreTitle => 'Резервное копирование и восстановление';
+
+  @override
+  String get backupRestoreDescription => 'Экспорт и импорт ваших данных (избранное, история, метаданные)';
+
+  @override
+  String get exportDataButton => 'Экспортировать данные';
+
+  @override
+  String get exportDataSubtitle => 'Сохранить все ваши данные в файл резервной копии';
+
+  @override
+  String get importDataButton => 'Импортировать данные';
+
+  @override
+  String get importDataSubtitle => 'Восстановить данные из файла резервной копии';
+
+  @override
+  String get exportingDataMessage => 'Экспорт данных...';
+
+  @override
+  String get dataExportedSuccessfullyMessage => 'Данные успешно экспортированы';
+
+  @override
+  String failedToExportMessage(String error) {
+    return 'Не удалось экспортировать: \$error';
+  }
+
+  @override
+  String get importBackupTitle => 'Импорт резервной копии';
+
+  @override
+  String get importBackupConfirmationMessage => 'Это импортирует данные из файла резервной копии. Существующие данные могут быть объединены или заменены. Продолжить?';
+
+  @override
+  String get importButton => 'Импортировать';
+
+  @override
+  String get importingDataMessage => 'Импорт данных...';
+
+  @override
+  String failedToImportMessage(String error) {
+    return 'Не удалось импортировать: \$error';
+  }
 }

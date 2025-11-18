@@ -620,7 +620,12 @@
   },
   "importedSuccess": "Импортировано $count аудиокнига(и)",
   "@importedSuccess": {
-    "description": "Сообщение об успешном импорте аудиокниг"
+    "description": "Сообщение об успешном импорте аудиокниг",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "noFilesSelectedMessage": "Файлы не выбраны",
   "@noFilesSelectedMessage": {
@@ -628,7 +633,12 @@
   },
   "importFailedMessage": "Не удалось импортировать: $error",
   "@importFailedMessage": {
-    "description": "Сообщение об ошибке импорта"
+    "description": "Сообщение об ошибке импорта",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
   },
   "scanFolderTitle": "Сканировать папку",
   "@scanFolderTitle": {
@@ -644,7 +654,12 @@
   },
   "scanSuccessMessage": "Найдено и импортировано $count аудиокнига(и)",
   "@scanSuccessMessage": {
-    "description": "Сообщение об успешном сканировании папки"
+    "description": "Сообщение об успешном сканировании папки",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "noAudiobooksFoundMessage": "В выбранной папке не найдено файлов аудиокниг",
   "@noAudiobooksFoundMessage": {
@@ -656,7 +671,12 @@
   },
   "scanFailedMessage": "Не удалось просканировать папку: $error",
   "@scanFailedMessage": {
-    "description": "Сообщение об ошибке сканирования папки"
+    "description": "Сообщение об ошибке сканирования папки",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
   },
   "authScreenTitle": "Подключение к RuTracker",
   "@authScreenTitle": {
@@ -986,5 +1006,505 @@
   "mirrorHealthCheckCompletedMessage": "Проверка здоровья зеркал завершена",
   "@mirrorHealthCheckCompletedMessage": {
     "description": "Сообщение о завершении проверки зеркал"
+  },
+  "failedToClearCacheMessage": "Не удалось очистить кэш: $error",
+  "@failedToClearCacheMessage": {
+    "description": "Сообщение об ошибке очистки кэша",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "failedToTestMirrorsMessage": "Не удалось проверить зеркала: $error",
+  "@failedToTestMirrorsMessage": {
+    "description": "Сообщение об ошибке проверки зеркал",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "mirrorStatusDegraded": "Деградировано",
+  "@mirrorStatusDegraded": {
+    "description": "Статус деградированного зеркала"
+  },
+  "mirrorStatusUnhealthy": "Неисправно",
+  "@mirrorStatusUnhealthy": {
+    "description": "Статус неисправного зеркала"
+  },
+  "pleaseEnterCredentials": "Пожалуйста, введите имя пользователя и пароль",
+  "@pleaseEnterCredentials": {
+    "description": "Запрос для ввода учетных данных"
+  },
+  "favoritesTitle": "Избранное",
+  "@favoritesTitle": {
+    "description": "Заголовок экрана избранного"
+  },
+  "refreshTooltip": "Обновить",
+  "@refreshTooltip": {
+    "description": "Подсказка для кнопки обновления"
+  },
+  "noFavoritesMessage": "Нет избранных аудиокниг",
+  "@noFavoritesMessage": {
+    "description": "Сообщение при отсутствии избранного"
+  },
+  "addFavoritesHint": "Добавьте аудиокниги в избранное из результатов поиска",
+  "@addFavoritesHint": {
+    "description": "Подсказка для пустого избранного"
+  },
+  "goToSearchButton": "Перейти к поиску",
+  "@goToSearchButton": {
+    "description": "Кнопка для перехода к поиску"
+  },
+  "removedFromFavorites": "Удалено из избранного",
+  "@removedFromFavorites": {
+    "description": "Сообщение при удалении из избранного"
+  },
+  "failedToRemoveFromFavorites": "Не удалось удалить из избранного",
+  "@failedToRemoveFromFavorites": {
+    "description": "Сообщение об ошибке удаления"
+  },
+  "favoritesTooltip": "Избранное",
+  "@favoritesTooltip": {
+    "description": "Подсказка для кнопки избранного"
+  },
+  "filterLibraryTooltip": "Фильтр библиотеки",
+  "@filterLibraryTooltip": {
+    "description": "Подсказка для кнопки фильтра"
+  },
+  "addAudiobookTooltip": "Добавить аудиокнигу",
+  "@addAudiobookTooltip": {
+    "description": "Подсказка для кнопки добавления"
+  },
+  "libraryEmptyMessage": "Ваша библиотека пуста",
+  "@libraryEmptyMessage": {
+    "description": "Сообщение при пустой библиотеке"
+  },
+  "addAudiobooksHint": "Добавьте аудиокниги в библиотеку, чтобы начать прослушивание",
+  "@addAudiobooksHint": {
+    "description": "Подсказка для пустой библиотеки"
+  },
+  "searchForAudiobooksButton": "Поиск аудиокниг",
+  "@searchForAudiobooksButton": {
+    "description": "Метка кнопки для поиска"
+  },
+  "importFromFilesButton": "Импорт из файлов",
+  "@importFromFilesButton": {
+    "description": "Метка кнопки для импорта файлов"
+  },
+  "biometricAuthInProgress": "Подождите, выполняется биометрическая аутентификация...",
+  "@biometricAuthInProgress": {
+    "description": "Сообщение во время биометрической аутентификации"
+  },
+  "authorizationSuccessful": "Авторизация успешна",
+  "@authorizationSuccessful": {
+    "description": "Сообщение об успешной авторизации"
+  },
+  "authorizationTitle": "Авторизация",
+  "@authorizationTitle": {
+    "description": "Заголовок диалога авторизации"
+  },
+  "biometricUnavailableMessage": "Биометрическая аутентификация недоступна или не удалась. Открыть WebView для входа?",
+  "@biometricUnavailableMessage": {
+    "description": "Сообщение когда биометрическая аутентификация недоступна"
+  },
+  "openWebViewButton": "Открыть WebView",
+  "@openWebViewButton": {
+    "description": "Кнопка для открытия WebView входа"
+  },
+  "authorizationCheckError": "Ошибка при проверке авторизации: $error",
+  "@authorizationCheckError": {
+    "description": "Сообщение об ошибке проверки авторизации",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "authorizationFailedMessage": "Авторизация не удалась. Проверьте логин и пароль",
+  "@authorizationFailedMessage": {
+    "description": "Сообщение о неудачной авторизации"
+  },
+  "authorizationPageError": "Ошибка открытия страницы авторизации: $error",
+  "@authorizationPageError": {
+    "description": "Сообщение об ошибке страницы авторизации",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "filtersLabel": "Фильтры:",
+  "@filtersLabel": {
+    "description": "Метка для раздела фильтров"
+  },
+  "resetButton": "Сбросить",
+  "@resetButton": {
+    "description": "Кнопка для сброса фильтров"
+  },
+  "otherCategory": "Другое",
+  "@otherCategory": {
+    "description": "Запасное название категории"
+  },
+  "searchHistoryTitle": "История поиска",
+  "@searchHistoryTitle": {
+    "description": "Заголовок раздела истории поиска"
+  },
+  "clearButton": "Очистить",
+  "@clearButton": {
+    "description": "Кнопка для очистки истории"
+  },
+  "failedToAddToFavorites": "Не удалось добавить в избранное",
+  "@failedToAddToFavorites": {
+    "description": "Сообщение об ошибке добавления в избранное"
+  },
+  "loadMoreButton": "Загрузить еще",
+  "@loadMoreButton": {
+    "description": "Кнопка для загрузки дополнительных результатов"
+  },
+  "allowButton": "Разрешить",
+  "@allowButton": {
+    "description": "Кнопка для разрешения доступа"
+  },
+  "copyMagnetLink": "Скопировать Magnet-ссылку",
+  "@copyMagnetLink": {
+    "description": "Пункт меню для копирования magnet-ссылки"
+  },
+  "downloadTorrentMenu": "Скачать торрент",
+  "@downloadTorrentMenu": {
+    "description": "Пункт меню для скачивания торрента"
+  },
+  "openTorrentInExternalApp": "Открыть файл торрента во внешнем приложении",
+  "@openTorrentInExternalApp": {
+    "description": "Подзаголовок для скачивания торрента"
+  },
+  "failedToOpenTorrent": "Не удалось открыть торрент: $error",
+  "@failedToOpenTorrent": {
+    "description": "Сообщение об ошибке открытия торрента",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "urlUnavailable": "URL недоступен",
+  "@urlUnavailable": {
+    "description": "Сообщение об ошибке недоступного URL"
+  },
+  "invalidUrlFormat": "Неверный формат URL: $url",
+  "@invalidUrlFormat": {
+    "description": "Сообщение об ошибке неверного URL",
+    "placeholders": {
+      "url": {
+        "type": "String"
+      }
+    }
+  },
+  "genericError": "Ошибка: $error",
+  "@genericError": {
+    "description": "Общее сообщение об ошибке",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "retryConnectionMessage": "Повторная попытка подключения ($current/$max)...",
+  "@retryConnectionMessage": {
+    "description": "Сообщение о повторной попытке подключения",
+    "placeholders": {
+      "current": {
+        "type": "int"
+      },
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "loadError": "Ошибка загрузки: $desc",
+  "@loadError": {
+    "description": "Сообщение об ошибке загрузки",
+    "placeholders": {
+      "desc": {
+        "type": "String"
+      }
+    }
+  },
+  "pageLoadError": "Произошла ошибка при загрузке страницы",
+  "@pageLoadError": {
+    "description": "Сообщение об ошибке загрузки страницы"
+  },
+  "securityVerificationInProgress": "Проверка безопасности выполняется - пожалуйста, подождите...",
+  "@securityVerificationInProgress": {
+    "description": "Сообщение во время проверки безопасности"
+  },
+  "openInBrowserButton": "Открыть в браузере",
+  "@openInBrowserButton": {
+    "description": "Кнопка для открытия в браузере"
+  },
+  "fileWillOpenInBrowser": "Для загрузки файл будет открыт в браузере",
+  "@fileWillOpenInBrowser": {
+    "description": "Сообщение для загрузки файла в браузере"
+  },
+  "resetFiltersButton": "Сбросить фильтры",
+  "@resetFiltersButton": {
+    "description": "Кнопка для сброса фильтров"
+  },
+  "languageChangedMessage": "Язык изменен на $languageName",
+  "@languageChangedMessage": {
+    "description": "Сообщение при изменении языка",
+    "placeholders": {
+      "languageName": {
+        "type": "String"
+      }
+    }
+  },
+  "rutrackerSessionDescription": "Управление сессией RuTracker (cookie)",
+  "@rutrackerSessionDescription": {
+    "description": "Описание раздела сессии RuTracker"
+  },
+  "loginViaWebViewButton": "Войти в RuTracker через WebView",
+  "@loginViaWebViewButton": {
+    "description": "Текст кнопки входа через WebView"
+  },
+  "loginViaWebViewSubtitle": "Пройти Cloudflare/капчу и сохранить cookie для клиента",
+  "@loginViaWebViewSubtitle": {
+    "description": "Подзаголовок для кнопки входа через WebView"
+  },
+  "cookiesSavedForHttpClient": "Cookie сохранены для HTTP-клиента",
+  "@cookiesSavedForHttpClient": {
+    "description": "Сообщение при сохранении cookie"
+  },
+  "clearSessionButton": "Очистить сессию RuTracker (cookie)",
+  "@clearSessionButton": {
+    "description": "Текст кнопки очистки сессии"
+  },
+  "clearSessionSubtitle": "Удалить сохранённые cookie и выйти из аккаунта",
+  "@clearSessionSubtitle": {
+    "description": "Подзаголовок для кнопки очистки сессии"
+  },
+  "sessionClearedMessage": "Сессия RuTracker очищена",
+  "@sessionClearedMessage": {
+    "description": "Сообщение при очистке сессии"
+  },
+  "metadataSectionTitle": "Метаданные аудиокниг",
+  "@metadataSectionTitle": {
+    "description": "Заголовок раздела метаданных"
+  },
+  "metadataSectionDescription": "Управление локальной базой метаданных аудиокниг",
+  "@metadataSectionDescription": {
+    "description": "Описание раздела метаданных"
+  },
+  "totalRecordsLabel": "Всего записей",
+  "@totalRecordsLabel": {
+    "description": "Метка для общего количества записей"
+  },
+  "lastUpdateLabel": "Последнее обновление",
+  "@lastUpdateLabel": {
+    "description": "Метка для последнего обновления"
+  },
+  "updatingText": "Обновление...",
+  "@updatingText": {
+    "description": "Текст во время обновления"
+  },
+  "updateMetadataButton": "Обновить метаданные",
+  "@updateMetadataButton": {
+    "description": "Текст кнопки обновления метаданных"
+  },
+  "metadataUpdateStartedMessage": "Начато обновление метаданных...",
+  "@metadataUpdateStartedMessage": {
+    "description": "Сообщение при начале обновления метаданных"
+  },
+  "metadataUpdateCompletedMessage": "Обновление завершено: собрано $total записей",
+  "@metadataUpdateCompletedMessage": {
+    "description": "Сообщение при завершении обновления метаданных",
+    "placeholders": {
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "metadataUpdateError": "Ошибка обновления: $error",
+  "@metadataUpdateError": {
+    "description": "Сообщение об ошибке обновления метаданных",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "neverDate": "Никогда",
+  "@neverDate": {
+    "description": "Текст для никогда"
+  },
+  "daysAgo": "$days дн. назад",
+  "@daysAgo": {
+    "description": "Текст для дней назад",
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "hoursAgo": "$hours ч. назад",
+  "@hoursAgo": {
+    "description": "Текст для часов назад",
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      }
+    }
+  },
+  "minutesAgo": "$minutes мин. назад",
+  "@minutesAgo": {
+    "description": "Текст для минут назад",
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "justNow": "Только что",
+  "@justNow": {
+    "description": "Текст для только что"
+  },
+  "unknownDate": "Неизвестно",
+  "@unknownDate": {
+    "description": "Текст для неизвестной даты"
+  },
+  "playbackSpeedDefault": "1.0x",
+  "@playbackSpeedDefault": {
+    "description": "Скорость воспроизведения по умолчанию"
+  },
+  "skipDurationDefault": "15 секунд",
+  "@skipDurationDefault": {
+    "description": "Длительность пропуска по умолчанию"
+  },
+  "clearExpiredCacheButton": "Очистить устаревший кэш",
+  "@clearExpiredCacheButton": {
+    "description": "Текст кнопки очистки устаревшего кэша"
+  },
+  "appPermissionsTitle": "Разрешения приложения",
+  "@appPermissionsTitle": {
+    "description": "Заголовок раздела разрешений"
+  },
+  "storagePermissionName": "Хранилище",
+  "@storagePermissionName": {
+    "description": "Название разрешения на хранилище"
+  },
+  "storagePermissionDescription": "Сохранять файлы аудиокниг и данные кэша",
+  "@storagePermissionDescription": {
+    "description": "Описание разрешения на хранилище"
+  },
+  "notificationsPermissionName": "Уведомления",
+  "@notificationsPermissionName": {
+    "description": "Название разрешения на уведомления"
+  },
+  "notificationsPermissionDescription": "Показывать элементы управления воспроизведением и обновления",
+  "@notificationsPermissionDescription": {
+    "description": "Описание разрешения на уведомления"
+  },
+  "grantAllPermissionsButton": "Предоставить все разрешения",
+  "@grantAllPermissionsButton": {
+    "description": "Текст кнопки предоставления всех разрешений"
+  },
+  "allPermissionsGranted": "Все разрешения предоставлены",
+  "@allPermissionsGranted": {
+    "description": "Сообщение когда все разрешения предоставлены"
+  },
+  "fileAccessAvailable": "Доступ к файлам доступен",
+  "@fileAccessAvailable": {
+    "description": "Сообщение когда доступ к файлам доступен"
+  },
+  "fileAccessUnavailable": "Доступ к файлам недоступен",
+  "@fileAccessUnavailable": {
+    "description": "Сообщение когда доступ к файлам недоступен"
+  },
+  "notificationsAvailable": "Уведомления доступны",
+  "@notificationsAvailable": {
+    "description": "Сообщение когда уведомления доступны"
+  },
+  "notificationsUnavailable": "Уведомления недоступны",
+  "@notificationsUnavailable": {
+    "description": "Сообщение когда уведомления недоступны"
+  },
+  "capabilitiesStatus": "Возможности: $grantedCount/$total",
+  "@capabilitiesStatus": {
+    "description": "Сообщение о статусе возможностей",
+    "placeholders": {
+      "grantedCount": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "backupRestoreTitle": "Резервное копирование и восстановление",
+  "@backupRestoreTitle": {
+    "description": "Заголовок раздела резервного копирования и восстановления"
+  },
+  "backupRestoreDescription": "Экспорт и импорт ваших данных (избранное, история, метаданные)",
+  "@backupRestoreDescription": {
+    "description": "Описание раздела резервного копирования и восстановления"
+  },
+  "exportDataButton": "Экспортировать данные",
+  "@exportDataButton": {
+    "description": "Текст кнопки экспорта данных"
+  },
+  "exportDataSubtitle": "Сохранить все ваши данные в файл резервной копии",
+  "@exportDataSubtitle": {
+    "description": "Подзаголовок для кнопки экспорта данных"
+  },
+  "importDataButton": "Импортировать данные",
+  "@importDataButton": {
+    "description": "Текст кнопки импорта данных"
+  },
+  "importDataSubtitle": "Восстановить данные из файла резервной копии",
+  "@importDataSubtitle": {
+    "description": "Подзаголовок для кнопки импорта данных"
+  },
+  "exportingDataMessage": "Экспорт данных...",
+  "@exportingDataMessage": {
+    "description": "Сообщение при экспорте данных"
+  },
+  "dataExportedSuccessfullyMessage": "Данные успешно экспортированы",
+  "@dataExportedSuccessfullyMessage": {
+    "description": "Сообщение при успешном экспорте данных"
+  },
+  "failedToExportMessage": "Не удалось экспортировать: $error",
+  "@failedToExportMessage": {
+    "description": "Сообщение об ошибке при неудачном экспорте",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "importBackupTitle": "Импорт резервной копии",
+  "@importBackupTitle": {
+    "description": "Заголовок диалога импорта резервной копии"
+  },
+  "importBackupConfirmationMessage": "Это импортирует данные из файла резервной копии. Существующие данные могут быть объединены или заменены. Продолжить?",
+  "@importBackupConfirmationMessage": {
+    "description": "Сообщение подтверждения для импорта резервной копии"
+  },
+  "importButton": "Импортировать",
+  "@importButton": {
+    "description": "Текст кнопки импорта"
+  },
+  "importingDataMessage": "Импорт данных...",
+  "@importingDataMessage": {
+    "description": "Сообщение при импорте данных"
+  },
+  "failedToImportMessage": "Не удалось импортировать: $error",
+  "@failedToImportMessage": {
+    "description": "Сообщение об ошибке при неудачном импорте",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
   }
 }

@@ -1,17 +1,3 @@
-// Copyright 2025 Jabook Contributors
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 // ignore: unused_import
 import 'package:intl/intl.dart' as intl;
 import 'app_localizations.dart';
@@ -113,15 +99,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get addBookComingSoon => 'Add book functionality coming soon!';
 
   @override
-  String get libraryContentPlaceholder =>
-      'Library content will be displayed here';
+  String get libraryContentPlaceholder => 'Library content will be displayed here';
 
   @override
   String get authenticationRequired => 'Authentication Required';
 
   @override
-  String get loginRequiredForSearch =>
-      'Please login to RuTracker to access search functionality.';
+  String get loginRequiredForSearch => 'Please login to RuTracker to access search functionality.';
 
   @override
   String get cancel => 'Cancel';
@@ -130,12 +114,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get login => 'Login';
 
   @override
-  String get networkConnectionError =>
-      'Could not connect. Check your internet or choose another mirror in Settings → Sources.';
+  String get networkConnectionError => 'Could not connect. Check your internet or choose another mirror in Settings → Sources.';
 
   @override
-  String get connectionFailed =>
-      'Connection failed. Please check your internet connection or try a different mirror.';
+  String get connectionFailed => 'Connection failed. Please check your internet connection or try a different mirror.';
 
   @override
   String get chooseMirror => 'Choose Mirror';
@@ -144,16 +126,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get networkErrorUser => 'Network connection issue';
 
   @override
-  String get dnsError =>
-      'Could not resolve domain. This may be due to network restrictions or an inactive mirror.';
+  String get dnsError => 'Could not resolve domain. This may be due to network restrictions or an inactive mirror.';
 
   @override
-  String get timeoutError =>
-      'Request took too long. Please check your connection and try again.';
+  String get timeoutError => 'Request took too long. Please check your connection and try again.';
 
   @override
-  String get serverError =>
-      'Server is temporarily unavailable. Please try again later or choose another mirror.';
+  String get serverError => 'Server is temporarily unavailable. Please try again later or choose another mirror.';
 
   @override
   String get recentSearches => 'Recent Searches';
@@ -180,8 +159,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get permissionsRequired => 'Permissions Required';
 
   @override
-  String get permissionExplanation =>
-      'This app needs storage permission to download and save audiobook files. Please grant the required permissions to continue.';
+  String get permissionExplanation => 'This app needs storage permission to download and save audiobook files. Please grant the required permissions to continue.';
 
   @override
   String get grantPermissions => 'Grant Permissions';
@@ -190,8 +168,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get permissionDeniedTitle => 'Permission Denied';
 
   @override
-  String get permissionDeniedMessage =>
-      'Storage permission is required to download files. Please enable it in app settings.';
+  String get permissionDeniedMessage => 'Storage permission is required to download files. Please enable it in app settings.';
 
   @override
   String get permissionDeniedButton => 'Open Settings';
@@ -299,8 +276,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chaptersLabel => 'Chapters';
 
   @override
-  String get downloadFunctionalityComingSoon =>
-      'Download functionality coming soon';
+  String get downloadFunctionalityComingSoon => 'Download functionality coming soon';
 
   @override
   String get requestTimedOut => 'Request timed out';
@@ -459,12 +435,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get webViewTitle => 'RuTracker';
 
   @override
-  String get webViewLoginInstruction =>
-      'Please log in to RuTracker. After successful login, tap Done to extract cookies for the client.';
+  String get webViewLoginInstruction => 'Please log in to RuTracker. After successful login, tap Done to extract cookies for the client.';
 
   @override
-  String get cloudflareMessage =>
-      'This site uses Cloudflare security checks. Please wait for the check to complete and interact with the page that opens if needed.';
+  String get cloudflareMessage => 'This site uses Cloudflare security checks. Please wait for the check to complete and interact with the page that opens if needed.';
 
   @override
   String get retryButtonText => 'Retry';
@@ -473,8 +447,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get goHomeButtonText => 'Go to Home';
 
   @override
-  String get browserCheckMessage =>
-      'The site is checking your browser - please wait for the check to complete on this page.';
+  String get browserCheckMessage => 'The site is checking your browser - please wait for the check to complete on this page.';
 
   @override
   String get downloadTorrentTitle => 'Download Torrent';
@@ -489,50 +462,54 @@ class AppLocalizationsEn extends AppLocalizations {
   String get downloadButtonText => 'Download';
 
   @override
-  String get downloadInBrowserMessage =>
-      'To download the file, please open the link in your browser';
+  String get downloadInBrowserMessage => 'To download the file, please open the link in your browser';
 
   @override
   String get importAudiobooksTitle => 'Import Audiobooks';
 
   @override
-  String get selectFilesMessage =>
-      'Select audiobook files from your device to add to your library';
+  String get selectFilesMessage => 'Select audiobook files from your device to add to your library';
 
   @override
   String get importButtonText => 'Import';
 
   @override
-  String get importedSuccess => 'Imported \$count audiobook(s)';
+  String importedSuccess(int count) {
+    return 'Imported \$count audiobook(s)';
+  }
 
   @override
   String get noFilesSelectedMessage => 'No files selected';
 
   @override
-  String get importFailedMessage => 'Failed to import: \$error';
+  String importFailedMessage(String error) {
+    return 'Failed to import: \$error';
+  }
 
   @override
   String get scanFolderTitle => 'Scan Folder';
 
   @override
-  String get scanFolderMessage =>
-      'Scan a folder on your device for audiobook files';
+  String get scanFolderMessage => 'Scan a folder on your device for audiobook files';
 
   @override
   String get scanButtonText => 'Scan';
 
   @override
-  String get scanSuccessMessage => 'Found and imported \$count audiobook(s)';
+  String scanSuccessMessage(int count) {
+    return 'Found and imported \$count audiobook(s)';
+  }
 
   @override
-  String get noAudiobooksFoundMessage =>
-      'No audiobook files found in selected folder';
+  String get noAudiobooksFoundMessage => 'No audiobook files found in selected folder';
 
   @override
   String get noFolderSelectedMessage => 'No folder selected';
 
   @override
-  String get scanFailedMessage => 'Failed to scan folder: \$error';
+  String scanFailedMessage(String error) {
+    return 'Failed to scan folder: \$error';
+  }
 
   @override
   String get authScreenTitle => 'RuTracker Connection';
@@ -554,6 +531,30 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get logoutButtonText => 'Logout';
+
+  @override
+  String get loggingInText => 'Logging in...';
+
+  @override
+  String get loginSuccessMessage => 'Login successful!';
+
+  @override
+  String get loginFailedMessage => 'Login failed. Please check credentials';
+
+  @override
+  String loginErrorMessage(String error) {
+    return 'Login error: \$error';
+  }
+
+  @override
+  String connectionSuccessMessage(String endpoint) {
+    return 'Connection successful! Using: \$endpoint';
+  }
+
+  @override
+  String connectionFailedMessage(String error) {
+    return 'Connection test failed: \$error';
+  }
 
   @override
   String get loggingOutText => 'Logging out...';
@@ -628,8 +629,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get mirrorSettingsTitle => 'Mirror Settings';
 
   @override
-  String get mirrorSettingsDescription =>
-      'Configure RuTracker mirrors for optimal search performance. Enabled mirrors will be used automatically.';
+  String get mirrorSettingsDescription => 'Configure RuTracker mirrors for optimal search performance. Enabled mirrors will be used automatically.';
 
   @override
   String get addCustomMirrorButtonText => 'Add Custom Mirror';
@@ -671,8 +671,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chaptersLabelText => 'Chapters';
 
   @override
-  String get downloadFunctionalityComingSoonMessage =>
-      'Download functionality coming soon!';
+  String get downloadFunctionalityComingSoonMessage => 'Download functionality coming soon!';
 
   @override
   String get sampleTitleText => 'Sample Audiobook';
@@ -696,8 +695,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get topicScreenTitle => 'Topic';
 
   @override
-  String get requestTimedOutMessage =>
-      'Request timed out. Check your connection.';
+  String get requestTimedOutMessage => 'Request timed out. Check your connection.';
 
   @override
   String get networkErrorMessage => 'Network error: \$error';
@@ -757,6 +755,347 @@ class AppLocalizationsEn extends AppLocalizations {
   String get logsExportedSuccessfullyMessage => 'Logs exported successfully';
 
   @override
-  String get mirrorHealthCheckCompletedMessage =>
-      'Mirror health check completed';
+  String get mirrorHealthCheckCompletedMessage => 'Mirror health check completed';
+
+  @override
+  String failedToClearCacheMessage(String error) {
+    return 'Failed to clear cache: \$error';
+  }
+
+  @override
+  String failedToTestMirrorsMessage(String error) {
+    return 'Failed to test mirrors: \$error';
+  }
+
+  @override
+  String get mirrorStatusDegraded => 'Degraded';
+
+  @override
+  String get mirrorStatusUnhealthy => 'Unhealthy';
+
+  @override
+  String get pleaseEnterCredentials => 'Please enter username and password';
+
+  @override
+  String get testingConnectionText => 'Testing connection...';
+
+  @override
+  String get favoritesTitle => 'Favorites';
+
+  @override
+  String get refreshTooltip => 'Refresh';
+
+  @override
+  String get noFavoritesMessage => 'No favorite audiobooks';
+
+  @override
+  String get addFavoritesHint => 'Add audiobooks to favorites from search results';
+
+  @override
+  String get goToSearchButton => 'Go to Search';
+
+  @override
+  String get removedFromFavorites => 'Removed from favorites';
+
+  @override
+  String get failedToRemoveFromFavorites => 'Failed to remove from favorites';
+
+  @override
+  String get favoritesTooltip => 'Favorites';
+
+  @override
+  String get filterLibraryTooltip => 'Filter library';
+
+  @override
+  String get addAudiobookTooltip => 'Add audiobook';
+
+  @override
+  String get libraryEmptyMessage => 'Your library is empty';
+
+  @override
+  String get addAudiobooksHint => 'Add audiobooks to your library to start listening';
+
+  @override
+  String get searchForAudiobooksButton => 'Search for audiobooks';
+
+  @override
+  String get importFromFilesButton => 'Import from Files';
+
+  @override
+  String get biometricAuthInProgress => 'Please wait, biometric authentication in progress...';
+
+  @override
+  String get authorizationSuccessful => 'Authorization successful';
+
+  @override
+  String get authorizationTitle => 'Authorization';
+
+  @override
+  String get biometricUnavailableMessage => 'Biometric authentication is unavailable or failed. Open WebView to login?';
+
+  @override
+  String get openWebViewButton => 'Open WebView';
+
+  @override
+  String authorizationCheckError(String error) {
+    return 'Error checking authorization: \$error';
+  }
+
+  @override
+  String get authorizationFailedMessage => 'Authorization failed. Please check your login and password';
+
+  @override
+  String authorizationPageError(String error) {
+    return 'Error opening authorization page: \$error';
+  }
+
+  @override
+  String get filtersLabel => 'Filters:';
+
+  @override
+  String get resetButton => 'Reset';
+
+  @override
+  String get otherCategory => 'Other';
+
+  @override
+  String get searchHistoryTitle => 'Search History';
+
+  @override
+  String get clearButton => 'Clear';
+
+  @override
+  String get failedToAddToFavorites => 'Failed to add to favorites';
+
+  @override
+  String get loadMoreButton => 'Load more';
+
+  @override
+  String get allowButton => 'Allow';
+
+  @override
+  String get copyMagnetLink => 'Copy Magnet Link';
+
+  @override
+  String get downloadTorrentMenu => 'Download Torrent';
+
+  @override
+  String get openTorrentInExternalApp => 'Open torrent file in external app';
+
+  @override
+  String failedToOpenTorrent(String error) {
+    return 'Failed to open torrent: \$error';
+  }
+
+  @override
+  String get urlUnavailable => 'URL unavailable';
+
+  @override
+  String invalidUrlFormat(String url) {
+    return 'Invalid URL format: \$url';
+  }
+
+  @override
+  String genericError(String error) {
+    return 'Error: \$error';
+  }
+
+  @override
+  String retryConnectionMessage(int current, int max) {
+    return 'Retrying connection (\$current/\$max)...';
+  }
+
+  @override
+  String loadError(String desc) {
+    return 'Load error: \$desc';
+  }
+
+  @override
+  String get pageLoadError => 'An error occurred while loading the page';
+
+  @override
+  String get securityVerificationInProgress => 'Security verification in progress - please wait...';
+
+  @override
+  String get openInBrowserButton => 'Open in Browser';
+
+  @override
+  String get fileWillOpenInBrowser => 'The file will be opened in browser for download';
+
+  @override
+  String get resetFiltersButton => 'Reset Filters';
+
+  @override
+  String languageChangedMessage(String languageName) {
+    return 'Language changed to \$languageName';
+  }
+
+  @override
+  String get rutrackerSessionDescription => 'RuTracker session management (cookie)';
+
+  @override
+  String get loginViaWebViewButton => 'Login to RuTracker via WebView';
+
+  @override
+  String get loginViaWebViewSubtitle => 'Pass Cloudflare/captcha and save cookie for client';
+
+  @override
+  String get cookiesSavedForHttpClient => 'Cookies saved for HTTP client';
+
+  @override
+  String get clearSessionButton => 'Clear RuTracker session (cookie)';
+
+  @override
+  String get clearSessionSubtitle => 'Delete saved cookies and logout from account';
+
+  @override
+  String get sessionClearedMessage => 'RuTracker session cleared';
+
+  @override
+  String get metadataSectionTitle => 'Audiobook Metadata';
+
+  @override
+  String get metadataSectionDescription => 'Manage local audiobook metadata database';
+
+  @override
+  String get totalRecordsLabel => 'Total records';
+
+  @override
+  String get lastUpdateLabel => 'Last update';
+
+  @override
+  String get updatingText => 'Updating...';
+
+  @override
+  String get updateMetadataButton => 'Update Metadata';
+
+  @override
+  String get metadataUpdateStartedMessage => 'Metadata update started...';
+
+  @override
+  String metadataUpdateCompletedMessage(int total) {
+    return 'Update completed: collected \$total records';
+  }
+
+  @override
+  String metadataUpdateError(String error) {
+    return 'Update error: \$error';
+  }
+
+  @override
+  String get neverDate => 'Never';
+
+  @override
+  String daysAgo(int days) {
+    return '\$days days ago';
+  }
+
+  @override
+  String hoursAgo(int hours) {
+    return '\$hours hours ago';
+  }
+
+  @override
+  String minutesAgo(int minutes) {
+    return '\$minutes minutes ago';
+  }
+
+  @override
+  String get justNow => 'Just now';
+
+  @override
+  String get unknownDate => 'Unknown';
+
+  @override
+  String get playbackSpeedDefault => '1.0x';
+
+  @override
+  String get skipDurationDefault => '15 seconds';
+
+  @override
+  String get clearExpiredCacheButton => 'Clear Expired Cache';
+
+  @override
+  String get appPermissionsTitle => 'App Permissions';
+
+  @override
+  String get storagePermissionName => 'Storage';
+
+  @override
+  String get storagePermissionDescription => 'Save audiobook files and cache data';
+
+  @override
+  String get notificationsPermissionName => 'Notifications';
+
+  @override
+  String get notificationsPermissionDescription => 'Show playback controls and updates';
+
+  @override
+  String get grantAllPermissionsButton => 'Grant All Permissions';
+
+  @override
+  String get allPermissionsGranted => 'All permissions granted';
+
+  @override
+  String get fileAccessAvailable => 'File access available';
+
+  @override
+  String get fileAccessUnavailable => 'File access unavailable';
+
+  @override
+  String get notificationsAvailable => 'Notifications available';
+
+  @override
+  String get notificationsUnavailable => 'Notifications unavailable';
+
+  @override
+  String capabilitiesStatus(int grantedCount, int total) {
+    return 'Capabilities: \$grantedCount/\$total';
+  }
+
+  @override
+  String get backupRestoreTitle => 'Backup & Restore';
+
+  @override
+  String get backupRestoreDescription => 'Export and import your data (favorites, history, metadata)';
+
+  @override
+  String get exportDataButton => 'Export Data';
+
+  @override
+  String get exportDataSubtitle => 'Save all your data to a backup file';
+
+  @override
+  String get importDataButton => 'Import Data';
+
+  @override
+  String get importDataSubtitle => 'Restore data from a backup file';
+
+  @override
+  String get exportingDataMessage => 'Exporting data...';
+
+  @override
+  String get dataExportedSuccessfullyMessage => 'Data exported successfully';
+
+  @override
+  String failedToExportMessage(String error) {
+    return 'Failed to export: \$error';
+  }
+
+  @override
+  String get importBackupTitle => 'Import Backup';
+
+  @override
+  String get importBackupConfirmationMessage => 'This will import data from the backup file. Existing data may be merged or replaced. Continue?';
+
+  @override
+  String get importButton => 'Import';
+
+  @override
+  String get importingDataMessage => 'Importing data...';
+
+  @override
+  String failedToImportMessage(String error) {
+    return 'Failed to import: \$error';
+  }
 }
