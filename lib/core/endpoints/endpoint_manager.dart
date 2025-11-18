@@ -121,15 +121,81 @@ class EndpointManager {
 
   /// Performs initial health checks on all endpoints
   Future<void> _performInitialHealthChecks() async {
-    final record = await _endpointsRef.get(_db);
-    final endpoints =
-        List<Map<String, dynamic>>.from((record?['endpoints'] as List?) ?? []);
+    try {
+      final record = await _endpointsRef.get(_db);
+      final endpoints =
+          List<Map<String, dynamic>>.from((record?['endpoints'] as List?) ?? []);
 
-    for (final endpoint in endpoints) {
-      final url = endpoint['url'] as String;
-      if (endpoint['enabled'] == true) {
-        await healthCheck(url);
+      for (final endpoint in endpoints) {
+        final url = endpoint['url'] as String;
+        if (endpoint['enabled'] == true) {
+          try {
+            await healthCheck(url);
+          } on StateError catch (e) {
+            // Handle "Bad state: read only" error - database may not be ready yet
+            if (e.message.contains('read only') || e.message.contains('read-only')) {
+              final logger = StructuredLogger();
+              await logger.log(
+                level: 'warning',
+                subsystem: 'endpoints',
+                message: 'Health check skipped - database not ready',
+                context: 'endpoint_init',
+                cause: e.toString(),
+                extra: {
+                  'url': url,
+                  'note': 'Database may be in read-only mode during initialization',
+                },
+              );
+              // Skip this health check, continue with others
+              continue;
+            }
+            // Re-throw other StateErrors
+            rethrow;
+          } on Exception catch (e) {
+            // Log other errors but continue with other endpoints
+            final logger = StructuredLogger();
+            await logger.log(
+              level: 'warning',
+              subsystem: 'endpoints',
+              message: 'Health check failed for endpoint',
+              context: 'endpoint_init',
+              cause: e.toString(),
+              extra: {'url': url},
+            );
+            // Continue with other endpoints
+            continue;
+          }
+        }
       }
+    } on StateError catch (e) {
+      // Handle "Bad state: read only" error at the top level
+      if (e.message.contains('read only') || e.message.contains('read-only')) {
+        final logger = StructuredLogger();
+        await logger.log(
+          level: 'warning',
+          subsystem: 'endpoints',
+          message: 'Initial health checks skipped - database not ready',
+          context: 'endpoint_init',
+          cause: e.toString(),
+          extra: {
+            'note': 'Database may be in read-only mode during initialization. Health checks will be retried later.',
+          },
+        );
+        return; // Exit gracefully
+      }
+      // Re-throw other StateErrors
+      rethrow;
+    } on Exception catch (e) {
+      // Log other errors
+      final logger = StructuredLogger();
+      await logger.log(
+        level: 'warning',
+        subsystem: 'endpoints',
+        message: 'Initial health checks failed',
+        context: 'endpoint_init',
+        cause: e.toString(),
+      );
+      // Don't rethrow - allow app to continue
     }
   }
 
@@ -455,7 +521,29 @@ class EndpointManager {
           'last_failure': null,
           'cooldown_until': null,
         });
-        await _endpointsRef.put(_db, {'endpoints': endpoints});
+        try {
+          await _endpointsRef.put(_db, {'endpoints': endpoints});
+        } on StateError catch (e) {
+          // Handle "Bad state: read only" error - database may not be ready
+          if (e.message.contains('read only') || e.message.contains('read-only')) {
+            await logger.log(
+              level: 'warning',
+              subsystem: 'endpoints',
+              message: 'Failed to save health check result - database not ready',
+              operationId: operationId,
+              context: 'health_check',
+              cause: e.toString(),
+              extra: {
+                'url': endpoint,
+                'note': 'Health check completed but result not saved. Will retry later.',
+              },
+            );
+            // Don't throw - health check succeeded, just couldn't save
+            return;
+          }
+          // Re-throw other StateErrors
+          rethrow;
+        }
 
         // Update quick check cache with fresh result
         _quickCheckCache[endpoint] = {

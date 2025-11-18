@@ -23,6 +23,7 @@ import 'package:go_router/go_router.dart';
 import 'package:jabook/core/cache/rutracker_cache_service.dart';
 import 'package:jabook/core/endpoints/endpoint_manager.dart';
 import 'package:jabook/core/endpoints/endpoint_provider.dart';
+import 'package:jabook/core/errors/failures.dart';
 import 'package:jabook/core/favorites/favorites_service.dart';
 import 'package:jabook/core/logging/environment_logger.dart';
 import 'package:jabook/core/logging/structured_logger.dart';
@@ -224,9 +225,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         // Try to login with stored credentials first (without biometric check to avoid permission request)
         // This will only use biometric if credentials require it
         try {
-          final success = await repository.loginWithStoredCredentials(
-            useBiometric: false, // Don't use biometric to avoid permission request on button click
-          );
+          final success = await repository.loginWithStoredCredentials();
 
           if (success) {
             // HTTP login already syncs cookies, just validate
@@ -394,17 +393,44 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       }
       
       if (!cookiesSynced) {
+        // Try alternative sync method from SharedPreferences (WebView storage)
         await structuredLogger.log(
           level: 'debug',
           subsystem: 'auth',
-          message: 'No cookies found in CookieManager after WebView login (cookies may be saved but not yet accessible)',
+          message: 'No cookies found in CookieManager, trying SharedPreferences sync',
           operationId: operationId,
           context: 'webview_login',
           extra: {
             'domains_tried': rutrackerDomains,
-            'note': 'Cookies may be available later or saved via WebView CookieManager',
+            'fallback_method': 'SharedPreferences',
           },
         );
+        
+        try {
+          // Try syncing from SharedPreferences (where WebView stores cookies)
+          await DioClient.syncCookiesFromWebView();
+          await structuredLogger.log(
+            level: 'info',
+            subsystem: 'auth',
+            message: 'Cookies synced from SharedPreferences (WebView storage)',
+            operationId: operationId,
+            context: 'webview_login',
+          );
+          cookiesSynced = true;
+        } on Exception catch (e) {
+          await structuredLogger.log(
+            level: 'debug',
+            subsystem: 'auth',
+            message: 'No cookies found in SharedPreferences either (cookies may be saved but not yet accessible)',
+            operationId: operationId,
+            context: 'webview_login',
+            cause: e.toString(),
+            extra: {
+              'domains_tried': rutrackerDomains,
+              'note': 'Cookies may be available later or saved via WebView CookieManager',
+            },
+          );
+        }
       }
 
       // Check cookies before validation
@@ -942,17 +968,46 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       );
 
       if (response.statusCode == 200) {
-        final results = await _parser.parseSearchResults(response.data);
+        List<Map<String, dynamic>> results;
+        try {
+          final parsedResults = await _parser.parseSearchResults(response.data);
+          results = parsedResults.map(_audiobookToMap).toList();
+        } on ParsingFailure catch (e) {
+          await structuredLogger.log(
+            level: 'error',
+            subsystem: 'search',
+            message: 'Failed to parse search results',
+            context: 'search_request',
+            cause: e.message,
+            extra: {
+              'endpoint': endpoint,
+              'status_code': response.statusCode,
+              'response_size': response.data?.toString().length ?? 0,
+              'response_preview': response.data?.toString().length != null && response.data!.toString().length > 500
+                  ? response.data!.toString().substring(0, 500)
+                  : response.data?.toString() ?? '<empty>',
+              'error_type': 'ParsingFailure',
+            },
+          );
+          
+          if (mounted) {
+            setState(() {
+              _isLoading = false;
+              _errorKind = 'network';
+              _errorMessage = 'Failed to parse search results. The page structure may have changed.';
+            });
+          }
+          return;
+        }
 
         // Cache the results
-        // Convert Audiobook objects to maps for caching
-        final resultsMap = results.map(_audiobookToMap).toList();
-        await _cacheService.cacheSearchResults(query, resultsMap);
+        // Results are already maps
+        await _cacheService.cacheSearchResults(query, results);
 
         if (updateExisting && mounted) {
           // Update existing results (for background refresh from local DB)
           setState(() {
-            final networkResults = results.map(_audiobookToMap).toList();
+            final networkResults = results;
             // Merge with existing, avoiding duplicates
             final existingIds =
                 _searchResults.map((r) => r['id'] as String?).toSet();
@@ -967,8 +1022,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           });
         } else {
           setState(() {
-            // Convert Audiobook objects to maps for UI
-            _searchResults = results.map(_audiobookToMap).toList();
+            // Results are already maps
+            _searchResults = results;
             _isLoading = false;
             _isFromCache = false;
             _isFromLocalDb = false;
@@ -1741,12 +1796,32 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         },
       );
       if (res.statusCode == 200) {
-        final more = await _parser.parseSearchResults(res.data);
-        if (mounted) {
-          setState(() {
-            _searchResults.addAll(more.map(_audiobookToMap));
-            _hasMore = more.isNotEmpty;
-          });
+        try {
+          final more = await _parser.parseSearchResults(res.data);
+          if (mounted) {
+            setState(() {
+              _searchResults.addAll(more.map(_audiobookToMap));
+              _hasMore = more.isNotEmpty;
+            });
+          }
+        } on ParsingFailure catch (e) {
+          await StructuredLogger().log(
+            level: 'error',
+            subsystem: 'search',
+            message: 'Failed to parse additional search results',
+            context: 'search_pagination',
+            cause: e.message,
+            extra: {
+              'start_offset': _startOffset,
+              'error_type': 'ParsingFailure',
+            },
+          );
+          // Don't show error to user for pagination failures, just stop loading more
+          if (mounted) {
+            setState(() {
+              _hasMore = false;
+            });
+          }
         }
       }
     } on Object {
