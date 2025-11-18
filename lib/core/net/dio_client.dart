@@ -720,26 +720,48 @@ class DioClient {
     dio.interceptors.add(dio_cookie.CookieManager(_cookieJar!));
     
     // Add FlutterCookieBridge interceptor for automatic cookie sync
-    // This ensures cookies from SessionManager are added to requests
-    // and cookies from responses are saved to SessionManager
+    // IMPORTANT: This interceptor must be AFTER CookieManager so that:
+    // 1. CookieManager adds cookies from CookieJar to requests
+    // 2. This interceptor merges cookies from SessionManager with existing Cookie header
+    // 3. CookieManager saves cookies from responses to CookieJar
+    // 4. This interceptor also saves cookies from responses to SessionManager
     dio.interceptors.add(InterceptorsWrapper(
       onRequest: (request, handler) async {
         try {
           // Get cookies from FlutterCookieBridge SessionManager
           final sessionCookies = await _bridgeSessionManager!.getSessionCookies();
           if (sessionCookies.isNotEmpty) {
-            // Add cookies to request header (like NetworkManager does)
-            final cookieHeader = sessionCookies.join('; ');
-            request.headers['Cookie'] = cookieHeader;
+            // Merge with existing Cookie header (if any) from CookieManager
+            final existingCookieHeader = request.headers['Cookie'];
+            final sessionCookieHeader = sessionCookies.join('; ');
+            
+            if (existingCookieHeader != null && existingCookieHeader.isNotEmpty) {
+              // Merge cookies: combine existing and session cookies, avoiding duplicates
+              final existingCookies = existingCookieHeader.split('; ').map((c) => c.split('=').first).toSet();
+              final newCookies = sessionCookies.where((c) {
+                final name = c.split('=').first;
+                return !existingCookies.contains(name);
+              }).toList();
+              
+              if (newCookies.isNotEmpty) {
+                request.headers['Cookie'] = '$existingCookieHeader; ${newCookies.join('; ')}';
+              } else {
+                request.headers['Cookie'] = existingCookieHeader;
+              }
+            } else {
+              // No existing cookies, just use session cookies
+              request.headers['Cookie'] = sessionCookieHeader;
+            }
             
             await StructuredLogger().log(
               level: 'debug',
               subsystem: 'cookies',
-              message: 'Added cookies from FlutterCookieBridge to request',
+              message: 'Merged cookies from FlutterCookieBridge with request',
               context: 'cookie_bridge_request',
               extra: {
                 'uri': request.uri.toString(),
-                'cookie_count': sessionCookies.length,
+                'session_cookie_count': sessionCookies.length,
+                'has_existing_cookies': existingCookieHeader != null && existingCookieHeader.isNotEmpty,
                 'cookie_names': sessionCookies.map((c) => c.split('=').first).toList(),
               },
             );
