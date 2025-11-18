@@ -29,6 +29,7 @@ import 'package:jabook/core/metadata/audiobook_metadata_service.dart';
 import 'package:jabook/core/net/dio_client.dart';
 import 'package:jabook/core/parse/rutracker_parser.dart';
 import 'package:jabook/core/search/search_history_service.dart';
+import 'package:jabook/core/services/cookie_service.dart';
 import 'package:jabook/core/session/auth_error_handler.dart';
 import 'package:jabook/core/utils/safe_async.dart';
 import 'package:jabook/data/db/app_database.dart';
@@ -368,51 +369,92 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         context: 'webview_login',
       );
 
-      // Wait a bit for cookies to be saved in WebView
-      await Future.delayed(const Duration(milliseconds: 500));
+      // Wait a bit for cookies to be saved in CookieManager
+      await Future.delayed(const Duration(milliseconds: 1500));
       await structuredLogger.log(
         level: 'debug',
         subsystem: 'auth',
-        message: 'Waited 500ms for cookies to be saved in WebView',
+        message: 'Waited 1500ms for cookies to be saved in CookieManager',
         operationId: operationId,
         context: 'webview_login',
       );
 
-      // Sync cookies from WebView (multiple attempts to ensure sync)
-      for (var i = 0; i < 3; i++) {
-        await structuredLogger.log(
-          level: 'debug',
-          subsystem: 'auth',
-          message: 'Cookie sync attempt ${i + 1}/3',
-          operationId: operationId,
-          context: 'webview_login',
-          extra: {'attempt': i + 1},
-        );
+      // NEW APPROACH: Sync cookies from CookieManager (Kotlin) to Dio
+      // Try multiple RuTracker domains with retries to ensure we get all cookies
+      final rutrackerDomains = ['rutracker.me', 'rutracker.net', 'rutracker.org'];
+      var cookiesSynced = false;
+      const maxRetries = 5;
+      const retryDelay = Duration(milliseconds: 500);
+      
+      for (final domain in rutrackerDomains) {
         try {
-      await DioClient.syncCookiesFromWebView();
+          final url = 'https://$domain';
+          
+          // Try multiple times with delays
+          String? cookieHeader;
+          for (var attempt = 0; attempt < maxRetries; attempt++) {
+            if (attempt > 0) {
+              await Future.delayed(retryDelay);
+            }
+            
+            await structuredLogger.log(
+              level: 'debug',
+              subsystem: 'auth',
+              message: 'Attempting to sync cookies from CookieManager for domain (attempt ${attempt + 1}/$maxRetries)',
+              operationId: operationId,
+              context: 'webview_login',
+              extra: {'domain': domain, 'url': url, 'attempt': attempt + 1},
+            );
+            
+            cookieHeader = await CookieService.getCookiesForUrl(url);
+            if (cookieHeader != null && cookieHeader.isNotEmpty) {
+              break; // Found cookies, exit retry loop
+            }
+          }
+          
+          if (cookieHeader != null && cookieHeader.isNotEmpty) {
+            await DioClient.syncCookiesFromCookieService(cookieHeader, url);
+            await DioClient.saveCookiesToSecureStorage(cookieHeader, url);
+            cookiesSynced = true;
+            
+            await structuredLogger.log(
+              level: 'info',
+              subsystem: 'auth',
+              message: 'Cookies synced from CookieManager for domain',
+              operationId: operationId,
+              context: 'webview_login',
+              extra: {
+                'domain': domain,
+                'cookie_header_length': cookieHeader.length,
+              },
+            );
+            break; // Success, no need to try other domains
+          }
+        } on Exception catch (e) {
           await structuredLogger.log(
             level: 'debug',
             subsystem: 'auth',
-            message: 'Cookie sync attempt ${i + 1} completed',
-            operationId: operationId,
-            context: 'webview_login',
-            extra: {'attempt': i + 1},
-          );
-        } on Exception catch (e) {
-          await structuredLogger.log(
-            level: 'warning',
-            subsystem: 'auth',
-            message: 'Cookie sync attempt ${i + 1} failed',
+            message: 'Failed to sync cookies from CookieManager for domain',
             operationId: operationId,
             context: 'webview_login',
             cause: e.toString(),
-            extra: {'attempt': i + 1},
+            extra: {'domain': domain},
           );
         }
-        // Small delay between sync attempts
-        if (i < 2) {
-          await Future.delayed(const Duration(milliseconds: 200));
-        }
+      }
+      
+      if (!cookiesSynced) {
+        await structuredLogger.log(
+          level: 'debug',
+          subsystem: 'auth',
+          message: 'No cookies found in CookieManager after WebView login (cookies may be saved but not yet accessible)',
+          operationId: operationId,
+          context: 'webview_login',
+          extra: {
+            'domains_tried': rutrackerDomains,
+            'note': 'Cookies may be available later or saved via WebView CookieManager',
+          },
+        );
       }
 
       // Check cookies before validation
@@ -466,12 +508,15 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         }
       } else {
         await structuredLogger.log(
-          level: 'warning',
+          level: 'debug',
           subsystem: 'auth',
-          message: 'Cookie validation failed after WebView login',
+          message: 'Cookie validation failed after WebView login (cookies may need time to sync, this is expected)',
           operationId: operationId,
           context: 'webview_login',
-          extra: {'has_cookies': hasCookies},
+          extra: {
+            'has_cookies': hasCookies,
+            'note': 'Cookies may be available but validation failed due to timing or endpoint issues',
+          },
         );
         
         // Try to get more details about why validation failed
@@ -507,9 +552,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             final baseCookies = await cookieJar.loadForRequest(baseUri);
             
             await structuredLogger.log(
-              level: 'warning',
+              level: 'debug',
               subsystem: 'auth',
-              message: 'Cookies in Dio jar after failed validation',
+              message: 'Cookies in Dio jar after failed validation (debug info)',
               operationId: operationId,
               context: 'webview_login',
               extra: {

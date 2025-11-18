@@ -20,11 +20,13 @@ import 'package:dio/dio.dart';
 import 'package:dio_cookie_manager/dio_cookie_manager.dart' as dio_cookie;
 import 'package:flutter_cookie_bridge/flutter_cookie_bridge.dart';
 import 'package:flutter_cookie_bridge/session_manager.dart' as bridge_session;
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:jabook/core/endpoints/endpoint_manager.dart';
 import 'package:jabook/core/logging/structured_logger.dart';
 import 'package:jabook/core/net/dio_cookie_manager.dart';
 import 'package:jabook/core/net/dio_interceptors.dart';
 import 'package:jabook/core/net/user_agent_manager.dart';
+import 'package:jabook/core/services/cookie_service.dart';
 import 'package:jabook/core/session/session_interceptor.dart';
 import 'package:jabook/core/session/session_manager.dart';
 import 'package:jabook/data/db/app_database.dart';
@@ -238,6 +240,10 @@ class DioClient {
   /// from any authenticated sessions.
   static Future<void> clearCookies() async {
     await DioCookieManager.clearCookies(_cookieJar);
+    // Also clear from SecureStorage
+    await clearCookiesFromSecureStorage();
+    // Clear from CookieManager (Kotlin)
+    await CookieService.clearAllCookies();
   }
 
   /// Checks if valid cookies are available for authentication.
@@ -256,5 +262,391 @@ class DioClient {
       _cookieJar,
       _bridgeSessionManager,
     );
+  }
+
+  /// Synchronizes cookies from CookieService (Android CookieManager) to Dio CookieJar.
+  ///
+  /// This is the new approach: get cookies directly from Android CookieManager
+  /// (which WebView uses) and sync them to Dio CookieJar.
+  ///
+  /// The [cookieHeader] parameter is the Cookie header string from CookieManager.
+  /// The [url] parameter is the base URL for the cookies (e.g., "https://rutracker.org").
+  static Future<void> syncCookiesFromCookieService(
+    String cookieHeader,
+    String url,
+  ) async {
+    final operationId =
+        'cookie_sync_service_${DateTime.now().millisecondsSinceEpoch}';
+    final startTime = DateTime.now();
+    final logger = StructuredLogger();
+
+    try {
+      await logger.log(
+        level: 'info',
+        subsystem: 'cookies',
+        message: 'Syncing cookies from CookieService to Dio',
+        operationId: operationId,
+        context: 'cookie_sync_service',
+        extra: {
+          'url': url,
+          'cookie_header_length': cookieHeader.length,
+        },
+      );
+
+      if (cookieHeader.isEmpty) {
+        await logger.log(
+          level: 'warning',
+          subsystem: 'cookies',
+          message: 'Empty cookie header from CookieService',
+          operationId: operationId,
+          context: 'cookie_sync_service',
+          durationMs: DateTime.now().difference(startTime).inMilliseconds,
+        );
+        return;
+      }
+
+      final uri = Uri.parse(url);
+      final jar = await getCookieJar();
+      if (jar == null) {
+        await logger.log(
+          level: 'error',
+          subsystem: 'cookies',
+          message: 'CookieJar is not initialized',
+          operationId: operationId,
+          context: 'cookie_sync_service',
+          durationMs: DateTime.now().difference(startTime).inMilliseconds,
+        );
+        return;
+      }
+
+      // Parse cookie header string into Cookie objects
+      // Format from CookieManager: "name1=value1; name2=value2; name3=value3"
+      // Note: CookieManager.getCookie() returns semicolon-separated list
+      final cookies = <io.Cookie>[];
+      final validName = RegExp(r"^[!#\$%&'*+.^_`|~0-9A-Za-z-]+$");
+      
+      // Split by semicolon, but be careful with values that might contain semicolons
+      // CookieManager format is: "name=value; name2=value2"
+      final cookieParts = cookieHeader.split(';');
+      var parsedCount = 0;
+      var skippedCount = 0;
+
+      for (final part in cookieParts) {
+        final trimmed = part.trim();
+        if (trimmed.isEmpty) {
+          skippedCount++;
+          continue;
+        }
+
+        final equalIndex = trimmed.indexOf('=');
+        if (equalIndex <= 0) {
+          skippedCount++;
+          continue;
+        }
+
+        var name = trimmed.substring(0, equalIndex).trim();
+        var value = trimmed.substring(equalIndex + 1).trim();
+
+        // Strip surrounding quotes if present
+        if (name.length >= 2 && name.startsWith('"') && name.endsWith('"')) {
+          name = name.substring(1, name.length - 1);
+        }
+        if (value.length >= 2 && value.startsWith('"') && value.endsWith('"')) {
+          value = value.substring(1, value.length - 1);
+        }
+
+        // Validate cookie name
+        if (name.isEmpty || !validName.hasMatch(name)) {
+          skippedCount++;
+          await logger.log(
+            level: 'debug',
+            subsystem: 'cookies',
+            message: 'Skipped invalid cookie name',
+            operationId: operationId,
+            context: 'cookie_sync_service',
+            extra: {
+              'name': name.isEmpty ? '<empty>' : name,
+              'value_length': value.length,
+            },
+          );
+          continue;
+        }
+
+        // Create cookie with proper domain
+        // Use domain from URI, but allow subdomain matching
+        final cookie = io.Cookie(name, value)
+          ..domain = uri.host
+          ..path = '/'
+          ..secure = uri.scheme == 'https';
+
+        cookies.add(cookie);
+        parsedCount++;
+      }
+      
+      await logger.log(
+        level: 'debug',
+        subsystem: 'cookies',
+        message: 'Parsed cookies from cookie header',
+        operationId: operationId,
+        context: 'cookie_sync_service',
+        extra: {
+          'total_parts': cookieParts.length,
+          'parsed_count': parsedCount,
+          'skipped_count': skippedCount,
+          'cookie_names': cookies.map((c) => c.name).toList(),
+        },
+      );
+
+      if (cookies.isEmpty) {
+        await logger.log(
+          level: 'warning',
+          subsystem: 'cookies',
+          message: 'No valid cookies parsed from cookie header',
+          operationId: operationId,
+          context: 'cookie_sync_service',
+          durationMs: DateTime.now().difference(startTime).inMilliseconds,
+          extra: {
+            'cookie_header_preview': cookieHeader.length > 200
+                ? '${cookieHeader.substring(0, 200)}...'
+                : cookieHeader,
+          },
+        );
+        return;
+      }
+
+      // Save cookies to CookieJar
+      await jar.saveFromResponse(uri, cookies);
+
+      // Also save to all RuTracker domains for compatibility
+      final rutrackerDomains = EndpointManager.getRutrackerDomains();
+      for (final domain in rutrackerDomains) {
+        if (domain != uri.host) {
+          try {
+            final domainUri = Uri.parse('${uri.scheme}://$domain');
+            await jar.saveFromResponse(domainUri, cookies);
+          } on Exception {
+            // Ignore errors for individual domains
+          }
+        }
+      }
+
+      final duration = DateTime.now().difference(startTime).inMilliseconds;
+      await logger.log(
+        level: 'info',
+        subsystem: 'cookies',
+        message: 'Cookies synced from CookieService to Dio',
+        operationId: operationId,
+        context: 'cookie_sync_service',
+        durationMs: duration,
+        extra: {
+          'url': url,
+          'cookie_count': cookies.length,
+          'cookie_names': cookies.map((c) => c.name).toList(),
+        },
+      );
+    } on Exception catch (e) {
+      final duration = DateTime.now().difference(startTime).inMilliseconds;
+      await logger.log(
+        level: 'error',
+        subsystem: 'cookies',
+        message: 'Failed to sync cookies from CookieService',
+        operationId: operationId,
+        context: 'cookie_sync_service',
+        durationMs: duration,
+        cause: e.toString(),
+        extra: {'url': url},
+      );
+    }
+  }
+
+  /// Saves cookies to SecureStorage for auto-login on app restart.
+  ///
+  /// The [cookieHeader] parameter is the Cookie header string from CookieManager.
+  /// The [url] parameter is the base URL for the cookies.
+  static Future<void> saveCookiesToSecureStorage(
+    String cookieHeader,
+    String url,
+  ) async {
+    final operationId =
+        'cookie_save_secure_${DateTime.now().millisecondsSinceEpoch}';
+    final startTime = DateTime.now();
+    final logger = StructuredLogger();
+    const storage = FlutterSecureStorage();
+    const cookieKey = 'rutracker_cookie_header_v2';
+
+    try {
+      await logger.log(
+        level: 'info',
+        subsystem: 'cookies',
+        message: 'Saving cookies to SecureStorage',
+        operationId: operationId,
+        context: 'cookie_save_secure',
+        extra: {
+          'url': url,
+          'cookie_header_length': cookieHeader.length,
+        },
+      );
+
+      // Save cookie header and URL
+      await storage.write(key: cookieKey, value: cookieHeader);
+      await storage.write(key: '${cookieKey}_url', value: url);
+
+      final duration = DateTime.now().difference(startTime).inMilliseconds;
+      await logger.log(
+        level: 'info',
+        subsystem: 'cookies',
+        message: 'Cookies saved to SecureStorage',
+        operationId: operationId,
+        context: 'cookie_save_secure',
+        durationMs: duration,
+        extra: {
+          'url': url,
+          'cookie_header_length': cookieHeader.length,
+        },
+      );
+    } on Exception catch (e) {
+      final duration = DateTime.now().difference(startTime).inMilliseconds;
+      await logger.log(
+        level: 'error',
+        subsystem: 'cookies',
+        message: 'Failed to save cookies to SecureStorage',
+        operationId: operationId,
+        context: 'cookie_save_secure',
+        durationMs: duration,
+        cause: e.toString(),
+        extra: {'url': url},
+      );
+    }
+  }
+
+  /// Restores cookies from SecureStorage and syncs them to Dio and CookieManager.
+  ///
+  /// This should be called on app startup to restore authentication state.
+  /// Returns true if cookies were restored successfully, false otherwise.
+  static Future<bool> restoreCookiesFromSecureStorage() async {
+    final operationId =
+        'cookie_restore_secure_${DateTime.now().millisecondsSinceEpoch}';
+    final startTime = DateTime.now();
+    final logger = StructuredLogger();
+    const storage = FlutterSecureStorage();
+    const cookieKey = 'rutracker_cookie_header_v2';
+
+    try {
+      await logger.log(
+        level: 'info',
+        subsystem: 'cookies',
+        message: 'Restoring cookies from SecureStorage',
+        operationId: operationId,
+        context: 'cookie_restore_secure',
+      );
+
+      // Read cookie header and URL from SecureStorage
+      final cookieHeader = await storage.read(key: cookieKey);
+      final url = await storage.read(key: '${cookieKey}_url');
+
+      if (cookieHeader == null || cookieHeader.isEmpty || url == null) {
+        await logger.log(
+          level: 'debug',
+          subsystem: 'cookies',
+          message: 'No cookies found in SecureStorage',
+          operationId: operationId,
+          context: 'cookie_restore_secure',
+          durationMs: DateTime.now().difference(startTime).inMilliseconds,
+        );
+        return false;
+      }
+
+      await logger.log(
+        level: 'info',
+        subsystem: 'cookies',
+        message: 'Found cookies in SecureStorage, restoring',
+        operationId: operationId,
+        context: 'cookie_restore_secure',
+        extra: {
+          'url': url,
+          'cookie_header_length': cookieHeader.length,
+        },
+      );
+
+      // Sync cookies to CookieManager (Kotlin) first
+      await CookieService.setCookie(url, cookieHeader);
+
+      // Sync cookies to Dio CookieJar
+      await syncCookiesFromCookieService(cookieHeader, url);
+
+      final duration = DateTime.now().difference(startTime).inMilliseconds;
+      await logger.log(
+        level: 'info',
+        subsystem: 'cookies',
+        message: 'Cookies restored from SecureStorage',
+        operationId: operationId,
+        context: 'cookie_restore_secure',
+        durationMs: duration,
+        extra: {
+          'url': url,
+          'cookie_header_length': cookieHeader.length,
+        },
+      );
+
+      return true;
+    } on Exception catch (e) {
+      final duration = DateTime.now().difference(startTime).inMilliseconds;
+      await logger.log(
+        level: 'error',
+        subsystem: 'cookies',
+        message: 'Failed to restore cookies from SecureStorage',
+        operationId: operationId,
+        context: 'cookie_restore_secure',
+        durationMs: duration,
+        cause: e.toString(),
+      );
+      return false;
+    }
+  }
+
+  /// Clears cookies from SecureStorage.
+  ///
+  /// This should be called on logout to remove stored authentication cookies.
+  static Future<void> clearCookiesFromSecureStorage() async {
+    final operationId =
+        'cookie_clear_secure_${DateTime.now().millisecondsSinceEpoch}';
+    final startTime = DateTime.now();
+    final logger = StructuredLogger();
+    const storage = FlutterSecureStorage();
+    const cookieKey = 'rutracker_cookie_header_v2';
+
+    try {
+      await logger.log(
+        level: 'info',
+        subsystem: 'cookies',
+        message: 'Clearing cookies from SecureStorage',
+        operationId: operationId,
+        context: 'cookie_clear_secure',
+      );
+
+      await storage.delete(key: cookieKey);
+      await storage.delete(key: '${cookieKey}_url');
+
+      final duration = DateTime.now().difference(startTime).inMilliseconds;
+      await logger.log(
+        level: 'info',
+        subsystem: 'cookies',
+        message: 'Cookies cleared from SecureStorage',
+        operationId: operationId,
+        context: 'cookie_clear_secure',
+        durationMs: duration,
+      );
+    } on Exception catch (e) {
+      final duration = DateTime.now().difference(startTime).inMilliseconds;
+      await logger.log(
+        level: 'error',
+        subsystem: 'cookies',
+        message: 'Failed to clear cookies from SecureStorage',
+        operationId: operationId,
+        context: 'cookie_clear_secure',
+        durationMs: duration,
+        cause: e.toString(),
+      );
+    }
   }
 }

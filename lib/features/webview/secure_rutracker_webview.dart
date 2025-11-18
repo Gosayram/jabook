@@ -18,7 +18,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_cookie_bridge/session_manager.dart' as bridge_session;
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:jabook/core/logging/structured_logger.dart';
+import 'package:jabook/core/net/dio_client.dart';
 import 'package:jabook/core/net/user_agent_manager.dart';
+import 'package:jabook/core/services/cookie_service.dart';
 import 'package:jabook/features/webview/permission_wrapper.dart';
 import 'package:jabook/features/webview/webview_cloudflare_handler.dart';
 import 'package:jabook/features/webview/webview_cookie_manager.dart';
@@ -224,11 +226,8 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
         _loginDetected = true;
         _showLoginSuccessHint();
         
-        // Save cookies immediately after login
-        await _cookieManager?.saveCookies(
-          callerContext: 'login_detected',
-          initialUrl: url?.toString(),
-        );
+        // NEW APPROACH: Get cookies from CookieManager (Kotlin) and sync to Dio
+        await _syncCookiesAfterLogin(url?.toString());
       }
       
       // Save WebView state
@@ -422,6 +421,195 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
       if (url != null) {
         await _launchExternal(Uri.parse(url.toString()));
       }
+    }
+  }
+
+  /// Syncs cookies from CookieManager (Kotlin) to Dio after successful login.
+  ///
+  /// This is the new approach: get cookies directly from Android CookieManager
+  /// (which WebView uses) and sync them to Dio CookieJar.
+  Future<void> _syncCookiesAfterLogin(String? currentUrl) async {
+    final operationId = 'cookie_sync_after_login_${DateTime.now().millisecondsSinceEpoch}';
+    final startTime = DateTime.now();
+
+    try {
+      await StructuredLogger().log(
+        level: 'info',
+        subsystem: 'cookies',
+        message: 'Syncing cookies after login using CookieService',
+        operationId: operationId,
+        context: 'webview_login_sync',
+        extra: {'current_url': currentUrl},
+      );
+
+      // Get base URL for RuTracker (use current URL or default)
+      var baseUrl = currentUrl;
+      if (baseUrl == null || !baseUrl.contains('rutracker')) {
+        // Try to get from WebView
+        try {
+          final webViewUrl = await _webViewController?.getUrl();
+          if (webViewUrl != null && webViewUrl.toString().contains('rutracker')) {
+            baseUrl = webViewUrl.toString();
+          }
+        } on Exception {
+          // Ignore
+        }
+        
+        // Fallback to default RuTracker URL
+        if (baseUrl == null || !baseUrl.contains('rutracker')) {
+          baseUrl = 'https://rutracker.org';
+        }
+      }
+
+      // Extract base URL (scheme + host)
+      final uri = Uri.tryParse(baseUrl);
+      if (uri == null) {
+        await StructuredLogger().log(
+          level: 'error',
+          subsystem: 'cookies',
+          message: 'Failed to parse URL for cookie sync',
+          operationId: operationId,
+          context: 'webview_login_sync',
+          extra: {'base_url': baseUrl},
+        );
+        return;
+      }
+
+      final rutrackerBaseUrl = '${uri.scheme}://${uri.host}';
+
+      // Get cookies from CookieManager (Kotlin) with retries
+      // Cookies may not be immediately available after login, so retry with delays
+      String? cookieHeader;
+      const maxRetries = 5;
+      const retryDelay = Duration(milliseconds: 500);
+      
+      for (var attempt = 0; attempt < maxRetries; attempt++) {
+        if (attempt > 0) {
+          await Future.delayed(retryDelay);
+        }
+        
+        // Try with full URL first, then base URL
+        cookieHeader = await CookieService.getCookiesForUrl(baseUrl) ??
+            await CookieService.getCookiesForUrl(rutrackerBaseUrl);
+        
+        if (cookieHeader != null && cookieHeader.isNotEmpty) {
+          await StructuredLogger().log(
+            level: 'info',
+            subsystem: 'cookies',
+            message: 'Got cookies from CookieManager after retry',
+            operationId: operationId,
+            context: 'webview_login_sync',
+            extra: {
+              'attempt': attempt + 1,
+              'url_used': baseUrl,
+              'cookie_header_length': cookieHeader.length,
+            },
+          );
+          break;
+        }
+        
+        await StructuredLogger().log(
+          level: 'debug',
+          subsystem: 'cookies',
+          message: 'No cookies found in CookieManager, retrying',
+          operationId: operationId,
+          context: 'webview_login_sync',
+          extra: {
+            'attempt': attempt + 1,
+            'max_retries': maxRetries,
+            'url_tried': baseUrl,
+          },
+        );
+      }
+
+      if (cookieHeader == null || cookieHeader.isEmpty) {
+        // Try all RuTracker domains as fallback
+        final rutrackerDomains = ['rutracker.me', 'rutracker.net', 'rutracker.org'];
+        for (final domain in rutrackerDomains) {
+          if (domain == uri.host) continue; // Already tried
+          
+          final domainUrl = 'https://$domain';
+          cookieHeader = await CookieService.getCookiesForUrl(domainUrl);
+          
+          if (cookieHeader != null && cookieHeader.isNotEmpty) {
+            await StructuredLogger().log(
+              level: 'info',
+              subsystem: 'cookies',
+              message: 'Got cookies from CookieManager for fallback domain',
+              operationId: operationId,
+              context: 'webview_login_sync',
+              extra: {
+                'domain': domain,
+                'cookie_header_length': cookieHeader.length,
+              },
+            );
+            break;
+          }
+        }
+      }
+
+      if (cookieHeader == null || cookieHeader.isEmpty) {
+        await StructuredLogger().log(
+          level: 'debug',
+          subsystem: 'cookies',
+          message: 'No cookies found in CookieManager after login (cookies may be saved but not yet accessible via CookieManager.getCookie)',
+          operationId: operationId,
+          context: 'webview_login_sync',
+          durationMs: DateTime.now().difference(startTime).inMilliseconds,
+          extra: {
+            'rutracker_url': rutrackerBaseUrl,
+            'base_url': baseUrl,
+            'note': 'Cookies may be available later or saved via WebView CookieManager',
+          },
+        );
+        return;
+      }
+
+      await StructuredLogger().log(
+        level: 'info',
+        subsystem: 'cookies',
+        message: 'Got cookies from CookieManager, syncing to Dio',
+        operationId: operationId,
+        context: 'webview_login_sync',
+        extra: {
+          'rutracker_url': rutrackerBaseUrl,
+          'cookie_header_length': cookieHeader.length,
+          'cookie_header_preview': cookieHeader.length > 200
+              ? '${cookieHeader.substring(0, 200)}...'
+              : cookieHeader,
+        },
+      );
+
+      // Sync cookies to Dio using DioClient
+      await DioClient.syncCookiesFromCookieService(cookieHeader, rutrackerBaseUrl);
+
+      // Save cookies to SecureStorage for auto-login on app restart
+      await DioClient.saveCookiesToSecureStorage(cookieHeader, rutrackerBaseUrl);
+
+      final duration = DateTime.now().difference(startTime).inMilliseconds;
+      await StructuredLogger().log(
+        level: 'info',
+        subsystem: 'cookies',
+        message: 'Cookies synced to Dio after login',
+        operationId: operationId,
+        context: 'webview_login_sync',
+        durationMs: duration,
+        extra: {
+          'rutracker_url': rutrackerBaseUrl,
+          'cookie_header_length': cookieHeader.length,
+        },
+      );
+    } on Exception catch (e) {
+      final duration = DateTime.now().difference(startTime).inMilliseconds;
+      await StructuredLogger().log(
+        level: 'error',
+        subsystem: 'cookies',
+        message: 'Failed to sync cookies after login',
+        operationId: operationId,
+        context: 'webview_login_sync',
+        durationMs: duration,
+        cause: e.toString(),
+      );
     }
   }
 

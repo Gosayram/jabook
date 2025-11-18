@@ -579,8 +579,7 @@ class WebViewCookieManager {
       }
 
       // Convert WebView cookies to Dio Cookie format
-      // CRITICAL: Don't set domain - let CookieJar use URI host automatically
-      // This is more reliable than trying to normalize domains manually
+      // CRITICAL: Set domain from cookie or URI host to ensure proper saving
       final dioCookies = <io.Cookie>[];
       for (final webViewCookie in webViewCookies) {
         try {
@@ -588,8 +587,16 @@ class WebViewCookieManager {
             ..path = webViewCookie.path ?? '/'
             ..secure = webViewCookie.isSecure ?? true
             ..httpOnly = webViewCookie.isHttpOnly ?? false;
-          // Don't set domain - let CookieJar use URI host automatically
-          // This ensures cookies are saved correctly regardless of domain format
+          
+          // Set domain from cookie if available, otherwise will be set by saveCookiesDirectly
+          if (webViewCookie.domain != null && webViewCookie.domain!.isNotEmpty) {
+            final cookieDomain = webViewCookie.domain!.toLowerCase();
+            // Normalize domain: remove leading dot if present, CookieJar handles it
+            dioCookie.domain = cookieDomain.startsWith('.') 
+                ? cookieDomain.substring(1) 
+                : cookieDomain;
+          }
+          
           dioCookies.add(dioCookie);
         } on Exception catch (e) {
           await logger.log(
@@ -642,30 +649,70 @@ class WebViewCookieManager {
             await DioClient.saveCookiesDirectly(domainUri, dioCookies);
             
             // CRITICAL: Wait a bit and verify cookies were saved
-            await Future.delayed(const Duration(milliseconds: 200));
+            // DioCookieManager.saveCookiesDirectly already does verification,
+            // but we check here as well for additional confirmation
+            await Future.delayed(const Duration(milliseconds: 300));
             
             // Verify cookies were saved by loading them back
+            // Try multiple URI variations to ensure we find saved cookies
             final cookieJar = await DioClient.getCookieJar();
-            final savedCookies = cookieJar != null 
-                ? await cookieJar.loadForRequest(domainUri)
-                : <io.Cookie>[];
-            
-            await logger.log(
-              level: savedCookies.isNotEmpty ? 'info' : 'warning',
-              subsystem: 'cookies',
-              message: savedCookies.isNotEmpty 
-                  ? 'Cookies verified in Dio CookieJar after save'
-                  : 'WARNING: Cookies not found in Dio CookieJar after save',
-              operationId: operationId,
-              context: 'cookie_sync_direct',
-              extra: {
-                'domain': domain,
-                'saved_count': savedCookies.length,
-                'expected_count': dioCookies.length,
-                'saved_cookie_names': savedCookies.map((c) => c.name).toList(),
-                'expected_cookie_names': dioCookies.map((c) => c.name).toList(),
-              },
-            );
+            if (cookieJar != null) {
+              final savedCookies = await cookieJar.loadForRequest(domainUri);
+              final baseUri = Uri.parse('https://$domain');
+              final baseCookies = await cookieJar.loadForRequest(baseUri);
+              final pathUri = Uri.parse('https://$domain/');
+              final pathCookies = await cookieJar.loadForRequest(pathUri);
+              
+              // Combine all found cookies (avoid duplicates)
+              final allSavedCookies = <io.Cookie>[];
+              for (final cookie in savedCookies) {
+                if (!allSavedCookies.any((c) => c.name == cookie.name)) {
+                  allSavedCookies.add(cookie);
+                }
+              }
+              for (final cookie in baseCookies) {
+                if (!allSavedCookies.any((c) => c.name == cookie.name)) {
+                  allSavedCookies.add(cookie);
+                }
+              }
+              for (final cookie in pathCookies) {
+                if (!allSavedCookies.any((c) => c.name == cookie.name)) {
+                  allSavedCookies.add(cookie);
+                }
+              }
+              
+              await logger.log(
+                level: allSavedCookies.isNotEmpty ? 'info' : 'debug',
+                subsystem: 'cookies',
+                message: allSavedCookies.isNotEmpty 
+                    ? 'Cookies verified in Dio CookieJar after save'
+                    : 'Cookies not found in Dio CookieJar after save (may be in SessionManager, non-critical)',
+                operationId: operationId,
+                context: 'cookie_sync_direct',
+                extra: {
+                  'domain': domain,
+                  'saved_count': allSavedCookies.length,
+                  'expected_count': dioCookies.length,
+                  'saved_cookie_names': allSavedCookies.map((c) => c.name).toList(),
+                  'expected_cookie_names': dioCookies.map((c) => c.name).toList(),
+                  'uri_cookie_count': savedCookies.length,
+                  'base_cookie_count': baseCookies.length,
+                  'path_cookie_count': pathCookies.length,
+                },
+              );
+            } else {
+              await logger.log(
+                level: 'warning',
+                subsystem: 'cookies',
+                message: 'CookieJar is null, cannot verify cookies',
+                operationId: operationId,
+                context: 'cookie_sync_direct',
+                extra: {
+                  'domain': domain,
+                  'expected_count': dioCookies.length,
+                },
+              );
+            }
           }
         } on Exception catch (e) {
           await logger.log(
