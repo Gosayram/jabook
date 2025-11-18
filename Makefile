@@ -82,7 +82,14 @@ run:
 		echo "Please build the APK first using: make build-android-signed-apk"; \
 		exit 1; \
 	fi
-	flutter run --use-application-binary=build/app/outputs/apk/release/app-arm64-v8a-release.apk
+	flutter run \
+		--use-application-binary=build/app/outputs/apk/release/app-arm64-v8a-release.apk \
+		--verbose \
+		--profile \
+		--trace-startup \
+		--enable-software-rendering \
+		--skia-deterministic-rendering \
+		--device-timeout=30
 
 # Android build commands
 .PHONY: build-android-dev
