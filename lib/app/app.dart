@@ -171,12 +171,70 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
 
   /// Handles app resume event.
   ///
-  /// Checks download status and ensures notifications are up to date.
+  /// Checks download status and automatically resumes restored downloads.
   Future<void> _onAppResumed() async {
     try {
-      // Downloads should continue automatically - no action needed
-      // State is already persisted via _saveDownloadMetadata during download progress
-      logger.i('App resumed - downloads should continue automatically');
+      logger.i('App resumed - checking for restored downloads to resume');
+
+      // Get torrent manager instance
+      final torrentManager = AudiobookTorrentManager();
+
+      // Ensure torrent manager is initialized with database
+      if (database.isInitialized) {
+        await torrentManager.initialize(database.database);
+      }
+
+      // Get all downloads (active and restored)
+      final downloads = await torrentManager.getActiveDownloads();
+
+      // Find restored downloads (not active, status is 'restored')
+      final restoredDownloads = downloads.where((download) {
+        final isActive = download['isActive'] as bool? ?? false;
+        final status = download['status'] as String? ?? '';
+        return !isActive && status == 'restored';
+      }).toList();
+
+      if (restoredDownloads.isEmpty) {
+        logger.i('No restored downloads found to resume');
+        return;
+      }
+
+      logger.i(
+        'Found ${restoredDownloads.length} restored download(s) - resuming automatically',
+      );
+
+      // Resume each restored download
+      var successCount = 0;
+      var failureCount = 0;
+
+      for (final download in restoredDownloads) {
+        final downloadId = download['id'] as String?;
+        if (downloadId == null) continue;
+
+        try {
+          final downloadName = download['name'] as String? ??
+              download['title'] as String? ??
+              'Unknown';
+          logger
+              .i('Resuming restored download: $downloadName (id: $downloadId)');
+
+          await torrentManager.resumeRestoredDownload(downloadId);
+          successCount++;
+
+          logger.i(
+            'Successfully resumed download: $downloadName (id: $downloadId)',
+          );
+        } on Exception catch (e) {
+          failureCount++;
+          logger.w(
+            'Failed to resume download $downloadId: $e',
+          );
+        }
+      }
+
+      logger.i(
+        'Download resume completed - success: $successCount, failures: $failureCount',
+      );
     } on Exception catch (e) {
       logger.w('Error handling app resume: $e');
     }

@@ -575,6 +575,8 @@ class AudiobookTorrentManager {
       StreamController<TorrentProgress> progressController) {
     // Track last log time to avoid spamming logs
     DateTime? lastLogTime;
+    // Track last save time to avoid spamming database
+    DateTime? lastSaveTime;
 
     // Update progress periodically
     Timer.periodic(const Duration(seconds: 1), (timer) async {
@@ -620,8 +622,22 @@ class AudiobookTorrentManager {
           status,
         ));
 
-        // Log progress every 10 seconds
+        // Save progress and status to metadata every 5 seconds
         final now = DateTime.now();
+        if (lastSaveTime == null ||
+            now.difference(lastSaveTime!) >= const Duration(seconds: 5)) {
+          if (metadata != null) {
+            metadata['progress'] = progress.progress;
+            metadata['status'] = status;
+            metadata['downloadedBytes'] = progress.downloadedBytes;
+            metadata['totalBytes'] = progress.totalBytes;
+            metadata['lastUpdated'] = now.toIso8601String();
+            safeUnawaited(_saveDownloadMetadata(downloadId, metadata));
+          }
+          lastSaveTime = now;
+        }
+
+        // Log progress every 10 seconds
         if (lastLogTime == null ||
             now.difference(lastLogTime!) >= const Duration(seconds: 10)) {
           EnvironmentLogger()
@@ -945,18 +961,27 @@ class AudiobookTorrentManager {
         );
         restoredCount++;
 
+        // Restore progress from metadata if available
+        final restoredProgress =
+            (metadata['progress'] as num?)?.toDouble() ?? 0.0;
+        final restoredStatus = metadata['status'] as String? ?? 'restored';
+        final restoredDownloadedBytes =
+            (metadata['downloadedBytes'] as num?)?.toInt() ?? 0;
+        final restoredTotalBytes =
+            (metadata['totalBytes'] as num?)?.toInt() ?? 0;
+
         downloads.add({
           'id': downloadId,
           'name': metadata['title'] as String? ?? 'Unknown',
           'title': metadata['title'],
-          'progress': 0.0, // Unknown progress for restored downloads
+          'progress': restoredProgress,
           'downloadSpeed': 0.0,
           'uploadSpeed': 0.0,
-          'downloadedBytes': 0,
-          'totalBytes': 0,
+          'downloadedBytes': restoredDownloadedBytes,
+          'totalBytes': restoredTotalBytes,
           'seeders': 0,
           'leechers': 0,
-          'status': 'restored', // New status for restored downloads
+          'status': restoredStatus,
           'startedAt': metadata['startedAt'],
           'pausedAt': metadata['pausedAt'],
           'savePath': savePath,
