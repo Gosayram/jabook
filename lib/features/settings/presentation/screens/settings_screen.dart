@@ -662,8 +662,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ),
         const SizedBox(height: 16),
         Semantics(
-          button: true,
-          label: 'Set download location',
+          label: 'Download location',
           child: ListTile(
             leading: const Icon(Icons.folder),
             title: Text(localizations?.downloadLocationTitle ??
@@ -718,20 +717,27 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 if (Platform.isAndroid)
-                  IconButton(
-                    icon: const Icon(Icons.help_outline),
-                    onPressed: () => _showFolderSelectionInstructions(context),
-                    tooltip: 'Show instructions',
+                  Semantics(
+                    button: true,
+                    label: 'Show folder selection instructions',
+                    child: IconButton(
+                      icon: const Icon(Icons.help_outline),
+                      onPressed: () =>
+                          _showFolderSelectionInstructions(context),
+                      tooltip: 'Show instructions',
+                    ),
                   ),
-                if (_downloadFolderPath != null)
-                  IconButton(
+                Semantics(
+                  button: true,
+                  label: 'Change download folder',
+                  child: IconButton(
                     icon: const Icon(Icons.edit),
                     onPressed: () => _selectDownloadFolder(context),
                     tooltip: 'Change folder',
                   ),
+                ),
               ],
             ),
-            onTap: () => _selectDownloadFolder(context),
           ),
         ),
         ListTile(
