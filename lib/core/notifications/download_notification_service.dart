@@ -14,10 +14,10 @@
 
 import 'dart:io';
 
-import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:go_router/go_router.dart';
 import 'package:jabook/core/logging/environment_logger.dart';
+import 'package:jabook/core/permissions/permission_service.dart';
 import 'package:jabook/core/torrent/audiobook_torrent_manager.dart';
 
 /// Service for managing download notifications on Android.
@@ -38,10 +38,15 @@ class DownloadNotificationService {
   bool _initialized = false;
   final Map<String, int> _notificationIds = {};
   int _nextNotificationId = 1000;
-  final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
+  GoRouter? _router;
 
-  /// Gets the navigator key for navigation from notifications.
-  GlobalKey<NavigatorState> get navigatorKey => _navigatorKey;
+  /// Sets the GoRouter instance for navigation from notifications.
+  ///
+  /// This should be called once when the app starts, after the router is created.
+  void setRouter(GoRouter router) {
+    _router = router;
+    EnvironmentLogger().d('DownloadNotificationService: Router set');
+  }
 
   /// Initializes the notification service.
   ///
@@ -87,18 +92,35 @@ class DownloadNotificationService {
   Future<void> _createDownloadChannel() async {
     if (!Platform.isAndroid || _notifications == null) return;
 
-    const androidChannel = AndroidNotificationChannel(
-      'downloads',
-      'Downloads',
-      description: 'Notifications for active torrent downloads',
-      importance: Importance.low,
-      showBadge: false,
-    );
+    try {
+      const androidChannel = AndroidNotificationChannel(
+        'downloads',
+        'Downloads',
+        description: 'Notifications for active torrent downloads',
+        importance: Importance.low,
+        showBadge: false,
+      );
 
-    await _notifications!
-        .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
-        ?.createNotificationChannel(androidChannel);
+      final androidImplementation = _notifications!
+          .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>();
+
+      if (androidImplementation != null) {
+        await androidImplementation.createNotificationChannel(androidChannel);
+        EnvironmentLogger().d(
+          'DownloadNotificationService: Created notification channel "downloads"',
+        );
+      } else {
+        EnvironmentLogger().w(
+          'DownloadNotificationService: Android implementation not available',
+        );
+      }
+    } on Exception catch (e) {
+      EnvironmentLogger().e(
+        'DownloadNotificationService: Failed to create notification channel',
+        error: e,
+      );
+    }
   }
 
   /// Shows or updates a download notification.
@@ -121,6 +143,24 @@ class DownloadNotificationService {
     }
 
     if (!Platform.isAndroid) return;
+
+    // Check notification permission before showing
+    try {
+      final permissionService = PermissionService();
+      final hasPermission = await permissionService.hasNotificationPermission();
+      if (!hasPermission) {
+        EnvironmentLogger().w(
+          'DownloadNotificationService: Notification permission not granted, skipping notification',
+        );
+        return;
+      }
+    } on Exception catch (e) {
+      EnvironmentLogger().e(
+        'DownloadNotificationService: Error checking notification permission',
+        error: e,
+      );
+      // Continue anyway - permission check might fail on older Android versions
+    }
 
     try {
       // Get or create notification ID for this download
@@ -261,22 +301,31 @@ class DownloadNotificationService {
   ///
   /// If [downloadId] is provided, navigates to the specific download.
   void _navigateToDownloads({String? downloadId}) {
-    final context = _navigatorKey.currentContext;
-    if (context != null) {
-      try {
-        // Use GoRouter for navigation with downloadId if provided
-        final route = downloadId != null
-            ? '/downloads?downloadId=$downloadId'
-            : '/downloads';
-        context.go(route);
-        EnvironmentLogger().d(
-          'Navigated to downloads screen from notification${downloadId != null ? ' (downloadId: $downloadId)' : ''}',
-        );
-      } on Exception catch (e) {
-        EnvironmentLogger().e('Failed to navigate to downloads: $e');
-      }
-    } else {
-      EnvironmentLogger().w('Navigator context not available, cannot navigate');
+    if (_router == null) {
+      EnvironmentLogger().w(
+        'DownloadNotificationService: Router not set, cannot navigate. Setting up delayed navigation.',
+      );
+      // Try to navigate after a short delay to allow router to be set
+      Future.delayed(const Duration(milliseconds: 500), () {
+        _navigateToDownloads(downloadId: downloadId);
+      });
+      return;
+    }
+
+    try {
+      // Use GoRouter for navigation with downloadId if provided
+      final route = downloadId != null
+          ? '/downloads?downloadId=$downloadId'
+          : '/downloads';
+      _router!.go(route);
+      EnvironmentLogger().d(
+        'DownloadNotificationService: Navigated to downloads screen from notification${downloadId != null ? ' (downloadId: $downloadId)' : ''}',
+      );
+    } on Exception catch (e) {
+      EnvironmentLogger().e(
+        'DownloadNotificationService: Failed to navigate to downloads',
+        error: e,
+      );
     }
   }
 
