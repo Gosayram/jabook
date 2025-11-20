@@ -39,7 +39,18 @@ jobs:
         run: flutter gen-l10n
 
       - name: Verify code formatting
-        run: dart format --set-exit-if-changed .
+        run: |
+          # Find Dart files excluding generated and build directories
+          # Use -print0 and -0 for safe handling of filenames with spaces
+          find . -name "*.dart" \
+            -not -path "./lib/l10n/*" \
+            -not -path "./build/*" \
+            -not -path "./.dart_tool/*" \
+            -not -path "./.git/*" \
+            -not -path "./android/*" \
+            -not -path "./ios/*" \
+            -not -path "./web/*" \
+            -print0 | xargs -0 -r dart format --set-exit-if-changed
 
       - name: Analyze code
         run: flutter analyze

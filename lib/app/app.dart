@@ -237,6 +237,7 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
       // Request essential permissions (can be deferred, but better to do early)
       // Initialize default storage path
       // Initialize background service for downloads
+      // Initialize notification service
       // Run these in parallel to speed up startup
       final envInitStart = DateTime.now();
       await Future.wait([
@@ -244,6 +245,7 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
         _requestEssentialPermissions(),
         StoragePathUtils().initializeDefaultPath(),
         _initializeBackgroundService(),
+        _initializeNotificationService(),
       ]);
       final envInitDuration =
           DateTime.now().difference(envInitStart).inMilliseconds;
@@ -632,6 +634,20 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
     }
   }
 
+  /// Initializes the notification service for downloads.
+  Future<void> _initializeNotificationService() async {
+    try {
+      logger.i('Initializing download notification service...');
+      final notificationService = DownloadNotificationService();
+      await notificationService.initialize();
+      logger.i('Download notification service initialized');
+    } on Exception catch (e) {
+      logger.w('Failed to initialize notification service: $e');
+      // Continue without notification service - downloads will still work
+      // but notifications won't be shown
+    }
+  }
+
   // Cache locale to avoid repeated FutureBuilder calls
   Locale? _cachedLocale;
   Future<Locale>? _localeFuture;
@@ -778,14 +794,8 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
                     config.isDebug ? _scaffoldMessengerKey : null,
                 // Performance optimizations and responsive framework
                 builder: (context, child) {
-                  // Set navigator key for notification service
-                  final notificationService = DownloadNotificationService();
-                  if (notificationService.navigatorKey.currentContext == null) {
-                    // Navigator will be available after MaterialApp.router builds
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                      // Navigator key is now available
-                    });
-                  }
+                  // Set router for notification service
+                  DownloadNotificationService().setRouter(router);
                   // Track first frame render time
                   final appStartTime = _appStartTime;
                   if (!_firstFrameTracked && appStartTime != null) {
