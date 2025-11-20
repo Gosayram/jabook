@@ -72,7 +72,7 @@ class SessionInterceptor extends Interceptor {
           final activeBase = await endpointManager.getActiveEndpoint();
           final uri = Uri.parse(activeBase);
           final cookies = await cookieJar.loadForRequest(uri);
-          
+
           // If we have cookies, allow request to proceed
           // Server will validate cookies and return 401 if invalid
           // This is the legitimate way - don't block requests preemptively
@@ -94,14 +94,14 @@ class SessionInterceptor extends Interceptor {
               }));
               _lastCheck = DateTime.now();
             }
-            
+
             // Always allow request to proceed if we have cookies
             // This is legitimate behavior - let server validate
             handler.next(options);
             return;
           }
         }
-        
+
         // No cookies - check if we can refresh session
         // But don't block - let request proceed and server will handle it
         final shouldCheck = _lastCheck == null ||
@@ -110,8 +110,9 @@ class SessionInterceptor extends Interceptor {
         if (shouldCheck) {
           // Try to refresh session in background
           unawaited(sessionManager.refreshSessionIfNeeded().catchError(
-            (e) => false, // Ignore errors - return false to indicate refresh failed
-          ));
+                (e) =>
+                    false, // Ignore errors - return false to indicate refresh failed
+              ));
           _lastCheck = DateTime.now();
         }
       }
@@ -227,4 +228,3 @@ class SessionInterceptor extends Interceptor {
     handler.next(err);
   }
 }
-

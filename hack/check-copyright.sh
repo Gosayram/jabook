@@ -25,6 +25,7 @@ done < <(find . -name "*.dart" \
     -not -path "./.git/*" \
     -not -path "./hack/*" \
     -not -path "./build/*" \
+    -not -path "./lib/l10n/*" \
     -not -path "./.flutter-plugins*" \
     -not -path "./.packages" \
     -print0)

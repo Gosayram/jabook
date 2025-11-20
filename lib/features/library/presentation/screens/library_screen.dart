@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:async';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
@@ -21,10 +22,10 @@ import 'package:go_router/go_router.dart';
 import 'package:jabook/core/favorites/favorites_service.dart';
 import 'package:jabook/core/utils/file_picker_utils.dart' as file_picker_utils;
 import 'package:jabook/core/utils/responsive_utils.dart';
+import 'package:jabook/core/utils/storage_path_utils.dart';
 import 'package:jabook/data/db/app_database.dart';
 import 'package:jabook/l10n/app_localizations.dart';
 import 'package:path/path.dart' as path;
-import 'package:path_provider/path_provider.dart';
 
 /// Main screen for displaying the user's audiobook library.
 ///
@@ -44,6 +45,7 @@ class LibraryScreen extends ConsumerStatefulWidget {
 class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   int _favoritesCount = 0;
   FavoritesService? _favoritesService;
+  DateTime? _lastBackPressTime;
 
   @override
   void initState() {
@@ -63,11 +65,11 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
       // Use singleton AppDatabase instance - it should already be initialized
       // by app.dart, but handle the case where it's not ready yet
       final appDatabase = AppDatabase();
-      
+
       // Wait a bit for database to be initialized by app.dart
       // This is a workaround for race condition on new Android
       await Future.delayed(const Duration(milliseconds: 100));
-      
+
       // Check if database is already initialized
       if (!appDatabase.isInitialized) {
         // Database not ready yet - initialize it
@@ -79,7 +81,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
           return;
         }
       }
-      
+
       // Now safely access database
       try {
         final db = appDatabase.database;
@@ -93,6 +95,57 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
       // Ignore all errors - favorites service is optional
       // Don't block app startup if favorites can't be loaded
     }
+  }
+
+  void _showFilterDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(
+          AppLocalizations.of(context)?.filterLibraryTooltip ??
+              'Filter Library',
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              AppLocalizations.of(context)?.filterOptionsComingSoon ??
+                  'Filter options will be available soon. You will be able to filter by:',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 16),
+            ListTile(
+              leading: const Icon(Icons.category),
+              title: Text(
+                AppLocalizations.of(context)?.filterByCategory ?? 'Category',
+              ),
+              enabled: false,
+            ),
+            ListTile(
+              leading: const Icon(Icons.person),
+              title: Text(
+                AppLocalizations.of(context)?.filterByAuthor ?? 'Author',
+              ),
+              enabled: false,
+            ),
+            ListTile(
+              leading: const Icon(Icons.calendar_today),
+              title: Text(
+                AppLocalizations.of(context)?.filterByDate ?? 'Date Added',
+              ),
+              enabled: false,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: Text(AppLocalizations.of(context)?.close ?? 'Close'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _loadFavoritesCount() async {
@@ -110,80 +163,115 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(
-          title: Text(AppLocalizations.of(context)?.libraryTitle ?? 'Library'),
-          actions: [
-            Stack(
-              clipBehavior: Clip.none,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.favorite),
-                  onPressed: () {
-                    context.go('/favorites');
-                    // Count will be reloaded when screen becomes visible again
-                  },
-                  tooltip: AppLocalizations.of(context)?.favoritesTooltip ??
-                      'Favorites',
+  Widget build(BuildContext context) => PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, result) async {
+          if (didPop) return;
+
+          final now = DateTime.now();
+          final shouldExit = _lastBackPressTime == null ||
+              now.difference(_lastBackPressTime!) > const Duration(seconds: 2);
+
+          if (shouldExit) {
+            _lastBackPressTime = now;
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    AppLocalizations.of(context)?.pressBackAgainToExit ??
+                        'Press back again to exit',
+                  ),
+                  duration: const Duration(seconds: 2),
                 ),
-                if (_favoritesCount > 0)
-                  Positioned(
-                    right: 6,
-                    top: 6,
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: const BoxDecoration(
-                        color: Colors.red,
-                        shape: BoxShape.circle,
-                      ),
-                      constraints: const BoxConstraints(
-                        minWidth: 16,
-                        minHeight: 16,
-                      ),
-                      child: Text(
-                        _favoritesCount > 99 ? '99+' : '$_favoritesCount',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
+              );
+            }
+          } else {
+            // Exit app
+            exit(0);
+          }
+        },
+        child: Scaffold(
+          appBar: AppBar(
+            title:
+                Text(AppLocalizations.of(context)?.libraryTitle ?? 'Library'),
+            actions: [
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.favorite),
+                    onPressed: () {
+                      context.go('/favorites');
+                      // Count will be reloaded when screen becomes visible again
+                    },
+                    tooltip: AppLocalizations.of(context)?.favoritesTooltip ??
+                        'Favorites',
+                  ),
+                  if (_favoritesCount > 0)
+                    Positioned(
+                      right: 6,
+                      top: 6,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
                         ),
-                        textAlign: TextAlign.center,
+                        constraints: const BoxConstraints(
+                          minWidth: 16,
+                          minHeight: 16,
+                        ),
+                        child: Text(
+                          _favoritesCount > 99 ? '99+' : '$_favoritesCount',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
                       ),
                     ),
-                  ),
-              ],
-            ),
-            IconButton(
-              icon: const Icon(Icons.search),
-              onPressed: () {
-                // Navigate to search screen
-                context.go('/search');
-              },
-              tooltip: AppLocalizations.of(context)?.searchAudiobooks ?? 'Search',
-            ),
-            IconButton(
-              icon: const Icon(Icons.filter_list),
-              onPressed: () {
-                // Show filter options - navigate to settings for now
-                context.go('/settings');
-              },
-              tooltip: AppLocalizations.of(context)?.filterLibraryTooltip ??
-                  'Filter library',
-            ),
-          ],
-        ),
-        body: const _LibraryContent(),
-        floatingActionButton: ResponsiveUtils.isDesktop(context)
-            ? null // Hide FAB on desktop, use app bar actions instead
-            : FloatingActionButton(
+                ],
+              ),
+              IconButton(
+                icon: const Icon(Icons.search),
                 onPressed: () {
-                  // Navigate to search screen for now - FAB functionality
+                  // Navigate to search screen
                   context.go('/search');
                 },
-                tooltip: AppLocalizations.of(context)?.addAudiobookTooltip ??
-                    'Add audiobook',
-                child: const Icon(Icons.add),
+                tooltip:
+                    AppLocalizations.of(context)?.searchAudiobooks ?? 'Search',
               ),
+              IconButton(
+                icon: const Icon(Icons.download),
+                onPressed: () {
+                  context.go('/downloads');
+                },
+                tooltip:
+                    AppLocalizations.of(context)?.downloadsTitle ?? 'Downloads',
+              ),
+              IconButton(
+                icon: const Icon(Icons.filter_list),
+                onPressed: () => _showFilterDialog(context),
+                tooltip: AppLocalizations.of(context)?.filterLibraryTooltip ??
+                    'Filter library',
+              ),
+            ],
+          ),
+          body: const _LibraryContent(),
+          floatingActionButton: ResponsiveUtils.isDesktop(context)
+              ? null // Hide FAB on desktop, use app bar actions instead
+              : FloatingActionButton(
+                  onPressed: () {
+                    // Navigate to search screen for now - FAB functionality
+                    context.go('/search');
+                  },
+                  tooltip: AppLocalizations.of(context)?.addAudiobookTooltip ??
+                      'Add audiobook',
+                  child: const Icon(Icons.add),
+                ),
+        ),
       );
 }
 
@@ -200,7 +288,7 @@ class _LibraryContent extends ConsumerWidget {
     final padding = ResponsiveUtils.getResponsivePadding(context);
     final iconSize = ResponsiveUtils.getIconSize(context, baseSize: 64);
     final spacing = ResponsiveUtils.getSpacing(context, baseSpacing: 16);
-    
+
     return ResponsiveUtils.responsiveContainer(
       context,
       Center(
@@ -220,8 +308,10 @@ class _LibraryContent extends ConsumerWidget {
               AppLocalizations.of(context)?.libraryEmptyMessage ??
                   'Your library is empty',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontSize: (Theme.of(context).textTheme.titleMedium?.fontSize ?? 16) *
-                        ResponsiveUtils.getFontSizeMultiplier(context),
+                    fontSize:
+                        (Theme.of(context).textTheme.titleMedium?.fontSize ??
+                                16) *
+                            ResponsiveUtils.getFontSizeMultiplier(context),
                   ),
               textAlign: TextAlign.center,
             ),
@@ -264,9 +354,9 @@ class _LibraryContent extends ConsumerWidget {
                   child: _buildActionButton(
                     context,
                     icon: Icons.folder_open,
-                    label: AppLocalizations.of(context)
-                            ?.importFromFilesButton ??
-                        'Import from Files',
+                    label:
+                        AppLocalizations.of(context)?.importFromFilesButton ??
+                            'Import from Files',
                     onPressed: () => _showImportDialog(context),
                   ),
                 ),
@@ -301,7 +391,7 @@ class _LibraryContent extends ConsumerWidget {
     final buttonWidth = isDesktop ? 220.0 : (isTablet ? 200.0 : 180.0);
     final iconSize = ResponsiveUtils.getIconSize(context, baseSize: 20);
     final padding = ResponsiveUtils.getSpacing(context, baseSpacing: 12);
-    
+
     return SizedBox(
       width: buttonWidth,
       child: OutlinedButton.icon(
@@ -366,8 +456,9 @@ class _LibraryContent extends ConsumerWidget {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-                content: Text(AppLocalizations.of(context)?.importedSuccess(importedCount) ?? 
-                        'Imported $importedCount audiobook(s)'),
+              content: Text(AppLocalizations.of(context)
+                      ?.importedSuccess(importedCount) ??
+                  'Imported $importedCount audiobook(s)'),
             ),
           );
         }
@@ -387,19 +478,20 @@ class _LibraryContent extends ConsumerWidget {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-                content: Text(
-                    'File picker is already open. Please close it first.'),
+              content:
+                  Text('File picker is already open. Please close it first.'),
             ),
           );
         }
         return;
       }
-      
+
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content: Text(AppLocalizations.of(context)?.importFailedMessage(e.toString()) ?? 
-                      'Import failed: ${e.toString()}'),
+            content: Text(AppLocalizations.of(context)
+                    ?.importFailedMessage(e.toString()) ??
+                'Import failed: ${e.toString()}'),
           ),
         );
       }
@@ -459,8 +551,9 @@ class _LibraryContent extends ConsumerWidget {
           if (context.mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                  content: Text(AppLocalizations.of(context)?.scanSuccessMessage(importedCount) ?? 
-                          'Scanned and imported $importedCount audiobook(s)'),
+                content: Text(AppLocalizations.of(context)
+                        ?.scanSuccessMessage(importedCount) ??
+                    'Scanned and imported $importedCount audiobook(s)'),
               ),
             );
           }
@@ -479,10 +572,10 @@ class _LibraryContent extends ConsumerWidget {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-                content: Text(
-                    AppLocalizations.of(context)?.noFolderSelectedMessage ??
-                        'No folder selected. Please try again or check app permissions.'),
-                duration: const Duration(seconds: 3),
+              content: Text(AppLocalizations.of(context)
+                      ?.noFolderSelectedMessage ??
+                  'No folder selected. Please try again or check app permissions.'),
+              duration: const Duration(seconds: 3),
             ),
           );
         }
@@ -493,19 +586,20 @@ class _LibraryContent extends ConsumerWidget {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-                content: Text(
-                    'File picker is already open. Please close it first.'),
+              content:
+                  Text('File picker is already open. Please close it first.'),
             ),
           );
         }
         return;
       }
-      
+
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content: Text(AppLocalizations.of(context)?.scanFailedMessage(e.toString()) ?? 
-                      'Scan failed: ${e.toString()}'),
+            content: Text(
+                AppLocalizations.of(context)?.scanFailedMessage(e.toString()) ??
+                    'Scan failed: ${e.toString()}'),
           ),
         );
       }
@@ -519,8 +613,10 @@ class _LibraryContent extends ConsumerWidget {
 
   Future<int> _copyAudioFilesToLibrary(List<PlatformFile> files) async {
     var importedCount = 0;
-    final libraryDir = await getLibraryDirectory();
-    final audiobooksDir = Directory('${libraryDir.path}/audiobooks');
+    // Use default audiobook path from StoragePathUtils
+    final storageUtils = StoragePathUtils();
+    final libraryDir = await storageUtils.getDefaultAudiobookPath();
+    final audiobooksDir = Directory(libraryDir);
 
     if (!await audiobooksDir.exists()) {
       await audiobooksDir.create(recursive: true);

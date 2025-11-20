@@ -41,7 +41,7 @@ class DioInterceptors {
     bool firstRequestTracked = false,
   }) {
     var firstRequestTrackedLocal = firstRequestTracked;
-    
+
     return InterceptorsWrapper(
       onRequest: (request, handler) async {
         final operationId =
@@ -279,404 +279,408 @@ class DioInterceptors {
   /// The [dio] parameter is the Dio instance to use for retries.
   static Interceptor createAuthAndRetryInterceptor(Dio dio) =>
       InterceptorsWrapper(
-      onResponse: (response, handler) {
-        final requestUri = response.requestOptions.uri.toString();
-        final isLoginRequest = requestUri.contains('/forum/login.php');
-        
-        // Skip auth checks for login requests - 302 is success for login
-        // In Python parser: allow_redirects=False, 302 with cookies = success
-        if (isLoginRequest) {
+        onResponse: (response, handler) {
+          final requestUri = response.requestOptions.uri.toString();
+          final isLoginRequest = requestUri.contains('/forum/login.php');
+
+          // Skip auth checks for login requests - 302 is success for login
+          // In Python parser: allow_redirects=False, 302 with cookies = success
+          if (isLoginRequest) {
+            return handler.next(response);
+          }
+
+          // Check if we got redirected to login page instead of the requested resource
+          if (response.realUri.toString().contains('login.php') &&
+              response.requestOptions.uri.toString().contains('rutracker')) {
+            // This is an authentication redirect - reject with specific error
+            return handler.reject(DioException(
+              requestOptions: response.requestOptions,
+              error: 'Authentication required',
+              response: response,
+              type: DioExceptionType.badResponse,
+            ));
+          }
+          // Check for 401/403 status codes indicating authentication failure
+          if (response.statusCode == 401 || response.statusCode == 403) {
+            return handler.reject(DioException(
+              requestOptions: response.requestOptions,
+              error: 'Authentication required',
+              response: response,
+              type: DioExceptionType.badResponse,
+            ));
+          }
           return handler.next(response);
-        }
-        
-        // Check if we got redirected to login page instead of the requested resource
-        if (response.realUri.toString().contains('login.php') &&
-            response.requestOptions.uri.toString().contains('rutracker')) {
-          // This is an authentication redirect - reject with specific error
-          return handler.reject(DioException(
-            requestOptions: response.requestOptions,
-            error: 'Authentication required',
-            response: response,
-            type: DioExceptionType.badResponse,
-          ));
-        }
-        // Check for 401/403 status codes indicating authentication failure
-        if (response.statusCode == 401 || response.statusCode == 403) {
-          return handler.reject(DioException(
-            requestOptions: response.requestOptions,
-            error: 'Authentication required',
-            response: response,
-            type: DioExceptionType.badResponse,
-          ));
-        }
-        return handler.next(response);
-      },
-      onError: (error, handler) async {
-        // Auto-switch endpoint on connection errors
-        final isConnectionError =
-            error.type == DioExceptionType.connectionError ||
-                error.type == DioExceptionType.connectionTimeout ||
-                error.type == DioExceptionType.receiveTimeout;
+        },
+        onError: (error, handler) async {
+          // Auto-switch endpoint on connection errors
+          final isConnectionError =
+              error.type == DioExceptionType.connectionError ||
+                  error.type == DioExceptionType.connectionTimeout ||
+                  error.type == DioExceptionType.receiveTimeout;
 
-        if (isConnectionError) {
-          final message = error.message?.toLowerCase() ?? '';
-          final isDnsError = error.type == DioExceptionType.connectionError &&
-              (message.contains('host lookup') ||
-                  message.contains('no address associated with hostname') ||
-                  message.contains('name or service not known'));
+          if (isConnectionError) {
+            final message = error.message?.toLowerCase() ?? '';
+            final isDnsError = error.type == DioExceptionType.connectionError &&
+                (message.contains('host lookup') ||
+                    message.contains('no address associated with hostname') ||
+                    message.contains('name or service not known'));
 
-          // Try to switch to another endpoint for DNS/timeout errors
-          if (isDnsError || error.type == DioExceptionType.connectionTimeout) {
-            final operationId =
-                error.requestOptions.extra['operation_id'] as String?;
-            final logger = StructuredLogger();
-            final switchStartTime = DateTime.now();
+            // Try to switch to another endpoint for DNS/timeout errors
+            if (isDnsError ||
+                error.type == DioExceptionType.connectionTimeout) {
+              final operationId =
+                  error.requestOptions.extra['operation_id'] as String?;
+              final logger = StructuredLogger();
+              final switchStartTime = DateTime.now();
 
-            // Determine error type for logging
-            final switchErrorType = switch (error.type) {
-              DioExceptionType.connectionTimeout => 'Connection timeout',
-              DioExceptionType.sendTimeout => 'Send timeout',
-              DioExceptionType.receiveTimeout => 'Receive timeout',
-              DioExceptionType.badResponse => 'Bad response',
-              DioExceptionType.cancel => 'Request cancelled',
-              DioExceptionType.connectionError => 'Connection error',
-              DioExceptionType.badCertificate => 'Bad certificate',
-              DioExceptionType.unknown => 'Unknown error',
-            };
+              // Determine error type for logging
+              final switchErrorType = switch (error.type) {
+                DioExceptionType.connectionTimeout => 'Connection timeout',
+                DioExceptionType.sendTimeout => 'Send timeout',
+                DioExceptionType.receiveTimeout => 'Receive timeout',
+                DioExceptionType.badResponse => 'Bad response',
+                DioExceptionType.cancel => 'Request cancelled',
+                DioExceptionType.connectionError => 'Connection error',
+                DioExceptionType.badCertificate => 'Bad certificate',
+                DioExceptionType.unknown => 'Unknown error',
+              };
 
-            await logger.log(
-              level: 'info',
-              subsystem: 'state',
-              message: 'Attempting endpoint switch due to connection error',
-              operationId: operationId,
-              context: 'endpoint_switch_retry',
-              extra: {
-                'error_type': switchErrorType,
-                'is_dns_error': isDnsError,
-                'current_endpoint': error.requestOptions.baseUrl,
-                'url': error.requestOptions.uri.toString(),
-                'switch_reason':
-                    isDnsError ? 'DNS_lookup_failed' : 'Connection_timeout',
-                'original_subsystem': 'network',
-              },
-            );
-
-            try {
-              final db = AppDatabase().database;
-              final endpointManager = EndpointManager(db);
-              final currentEndpoint = error.requestOptions.baseUrl;
-
-              // Try to switch to another endpoint
-              final switchAttemptStartTime = DateTime.now();
-              final switched = await endpointManager.trySwitchEndpoint(
-                currentEndpoint,
+              await logger.log(
+                level: 'info',
+                subsystem: 'state',
+                message: 'Attempting endpoint switch due to connection error',
+                operationId: operationId,
+                context: 'endpoint_switch_retry',
+                extra: {
+                  'error_type': switchErrorType,
+                  'is_dns_error': isDnsError,
+                  'current_endpoint': error.requestOptions.baseUrl,
+                  'url': error.requestOptions.uri.toString(),
+                  'switch_reason':
+                      isDnsError ? 'DNS_lookup_failed' : 'Connection_timeout',
+                  'original_subsystem': 'network',
+                },
               );
-              final switchAttemptDuration = DateTime.now()
-                  .difference(switchAttemptStartTime)
-                  .inMilliseconds;
 
-              if (switched) {
-                final newEndpoint = await endpointManager.getActiveEndpoint();
+              try {
+                final db = AppDatabase().database;
+                final endpointManager = EndpointManager(db);
+                final currentEndpoint = error.requestOptions.baseUrl;
 
-                // Update Dio baseUrl
-                dio.options.baseUrl = newEndpoint;
-                dio.options.headers['Referer'] = '$newEndpoint/';
-
-                await logger.log(
-                  level: 'info',
-                  subsystem: 'state',
-                  message: 'Endpoint switched, updating Dio client',
-                  operationId: operationId,
-                  context: 'endpoint_switch_retry',
-                  durationMs: switchAttemptDuration,
-                  extra: {
-                    'old_endpoint': currentEndpoint,
-                    'new_endpoint': newEndpoint,
-                    'dio_base_url_updated': true,
-                    'original_subsystem': 'network',
-                  },
+                // Try to switch to another endpoint
+                final switchAttemptStartTime = DateTime.now();
+                final switched = await endpointManager.trySwitchEndpoint(
+                  currentEndpoint,
                 );
+                final switchAttemptDuration = DateTime.now()
+                    .difference(switchAttemptStartTime)
+                    .inMilliseconds;
 
-                // Retry request on new endpoint (only once to avoid loops)
-                final retryCount =
-                    (error.requestOptions.extra['endpoint_retry'] as int?) ?? 0;
-                if (retryCount < 1) {
-                  final retryStartTime = DateTime.now();
-                  final newOptions = error.requestOptions.copyWith(
-                    baseUrl: newEndpoint,
+                if (switched) {
+                  final newEndpoint = await endpointManager.getActiveEndpoint();
+
+                  // Update Dio baseUrl
+                  dio.options.baseUrl = newEndpoint;
+                  dio.options.headers['Referer'] = '$newEndpoint/';
+
+                  await logger.log(
+                    level: 'info',
+                    subsystem: 'state',
+                    message: 'Endpoint switched, updating Dio client',
+                    operationId: operationId,
+                    context: 'endpoint_switch_retry',
+                    durationMs: switchAttemptDuration,
                     extra: {
-                      ...error.requestOptions.extra,
-                      'endpoint_retry': retryCount + 1,
+                      'old_endpoint': currentEndpoint,
+                      'new_endpoint': newEndpoint,
+                      'dio_base_url_updated': true,
+                      'original_subsystem': 'network',
                     },
                   );
 
-                  try {
-                    final retried = await dio.fetch(newOptions);
-                    final retryDuration = DateTime.now()
-                        .difference(retryStartTime)
-                        .inMilliseconds;
-                    final totalDuration = DateTime.now()
-                        .difference(switchStartTime)
-                        .inMilliseconds;
-
-                    await logger.log(
-                      level: 'info',
-                      subsystem: 'retry',
-                      message:
-                          'Successfully switched endpoint and retried request',
-                      operationId: operationId,
-                      context: 'endpoint_switch_retry',
-                      durationMs: totalDuration,
+                  // Retry request on new endpoint (only once to avoid loops)
+                  final retryCount =
+                      (error.requestOptions.extra['endpoint_retry'] as int?) ??
+                          0;
+                  if (retryCount < 1) {
+                    final retryStartTime = DateTime.now();
+                    final newOptions = error.requestOptions.copyWith(
+                      baseUrl: newEndpoint,
                       extra: {
-                        'old_endpoint': currentEndpoint,
-                        'new_endpoint': newEndpoint,
-                        'url': error.requestOptions.uri.toString(),
-                        'status_code': retried.statusCode,
-                        'retry_attempt': retryCount + 1,
-                        'switch_duration_ms': switchAttemptDuration,
-                        'retry_duration_ms': retryDuration,
-                        'original_subsystem': 'network',
+                        ...error.requestOptions.extra,
+                        'endpoint_retry': retryCount + 1,
                       },
                     );
-                    return handler.resolve(retried);
-                  } on Exception catch (e) {
-                    final retryDuration = DateTime.now()
-                        .difference(retryStartTime)
-                        .inMilliseconds;
-                    final totalDuration = DateTime.now()
-                        .difference(switchStartTime)
-                        .inMilliseconds;
 
+                    try {
+                      final retried = await dio.fetch(newOptions);
+                      final retryDuration = DateTime.now()
+                          .difference(retryStartTime)
+                          .inMilliseconds;
+                      final totalDuration = DateTime.now()
+                          .difference(switchStartTime)
+                          .inMilliseconds;
+
+                      await logger.log(
+                        level: 'info',
+                        subsystem: 'retry',
+                        message:
+                            'Successfully switched endpoint and retried request',
+                        operationId: operationId,
+                        context: 'endpoint_switch_retry',
+                        durationMs: totalDuration,
+                        extra: {
+                          'old_endpoint': currentEndpoint,
+                          'new_endpoint': newEndpoint,
+                          'url': error.requestOptions.uri.toString(),
+                          'status_code': retried.statusCode,
+                          'retry_attempt': retryCount + 1,
+                          'switch_duration_ms': switchAttemptDuration,
+                          'retry_duration_ms': retryDuration,
+                          'original_subsystem': 'network',
+                        },
+                      );
+                      return handler.resolve(retried);
+                    } on Exception catch (e) {
+                      final retryDuration = DateTime.now()
+                          .difference(retryStartTime)
+                          .inMilliseconds;
+                      final totalDuration = DateTime.now()
+                          .difference(switchStartTime)
+                          .inMilliseconds;
+
+                      await logger.log(
+                        level: 'warning',
+                        subsystem: 'retry',
+                        message: 'Failed to retry on new endpoint',
+                        operationId: operationId,
+                        context: 'endpoint_switch_retry',
+                        durationMs: totalDuration,
+                        cause: e.toString(),
+                        extra: {
+                          'old_endpoint': currentEndpoint,
+                          'new_endpoint': newEndpoint,
+                          'url': error.requestOptions.uri.toString(),
+                          'retry_attempt': retryCount + 1,
+                          'switch_duration_ms': switchAttemptDuration,
+                          'retry_duration_ms': retryDuration,
+                          'stack_trace': (e is Error)
+                              ? (e as Error).stackTrace.toString()
+                              : null,
+                          'original_subsystem': 'network',
+                        },
+                      );
+                    }
+                  } else {
                     await logger.log(
                       level: 'warning',
                       subsystem: 'retry',
-                      message: 'Failed to retry on new endpoint',
+                      message:
+                          'Endpoint switch successful but retry limit reached',
                       operationId: operationId,
                       context: 'endpoint_switch_retry',
-                      durationMs: totalDuration,
-                      cause: e.toString(),
                       extra: {
                         'old_endpoint': currentEndpoint,
                         'new_endpoint': newEndpoint,
-                        'url': error.requestOptions.uri.toString(),
-                        'retry_attempt': retryCount + 1,
-                        'switch_duration_ms': switchAttemptDuration,
-                        'retry_duration_ms': retryDuration,
-                        'stack_trace': (e is Error)
-                            ? (e as Error).stackTrace.toString()
-                            : null,
+                        'retry_count': retryCount,
                         'original_subsystem': 'network',
                       },
                     );
                   }
                 } else {
+                  final totalDuration =
+                      DateTime.now().difference(switchStartTime).inMilliseconds;
                   await logger.log(
                     level: 'warning',
-                    subsystem: 'retry',
+                    subsystem: 'state',
                     message:
-                        'Endpoint switch successful but retry limit reached',
+                        'Endpoint switch attempt failed - no alternative available',
                     operationId: operationId,
                     context: 'endpoint_switch_retry',
+                    durationMs: totalDuration,
                     extra: {
-                      'old_endpoint': currentEndpoint,
-                      'new_endpoint': newEndpoint,
-                      'retry_count': retryCount,
+                      'current_endpoint': currentEndpoint,
+                      'switch_duration_ms': switchAttemptDuration,
+                      'switch_reason': 'no_alternative_endpoint',
                       'original_subsystem': 'network',
                     },
                   );
                 }
-              } else {
+              } on Exception catch (e) {
                 final totalDuration =
                     DateTime.now().difference(switchStartTime).inMilliseconds;
                 await logger.log(
-                  level: 'warning',
+                  level: 'error',
                   subsystem: 'state',
-                  message:
-                      'Endpoint switch attempt failed - no alternative available',
+                  message: 'Failed to switch endpoint - exception',
                   operationId: operationId,
                   context: 'endpoint_switch_retry',
                   durationMs: totalDuration,
+                  cause: e.toString(),
                   extra: {
-                    'current_endpoint': currentEndpoint,
-                    'switch_duration_ms': switchAttemptDuration,
-                    'switch_reason': 'no_alternative_endpoint',
+                    'current_endpoint': error.requestOptions.baseUrl,
+                    'switch_reason': 'exception_during_switch',
+                    'stack_trace': (e is Error)
+                        ? (e as Error).stackTrace.toString()
+                        : null,
                     'original_subsystem': 'network',
                   },
                 );
               }
-            } on Exception catch (e) {
-              final totalDuration =
-                  DateTime.now().difference(switchStartTime).inMilliseconds;
-              await logger.log(
-                level: 'error',
-                subsystem: 'state',
-                message: 'Failed to switch endpoint - exception',
-                operationId: operationId,
-                context: 'endpoint_switch_retry',
-                durationMs: totalDuration,
-                cause: e.toString(),
-                extra: {
-                  'current_endpoint': error.requestOptions.baseUrl,
-                  'switch_reason': 'exception_during_switch',
-                  'stack_trace':
-                      (e is Error) ? (e as Error).stackTrace.toString() : null,
-                  'original_subsystem': 'network',
-                },
-              );
             }
           }
-        }
 
-        // Handle authentication errors (401/403)
-        final status = error.response?.statusCode ?? 0;
-        if (status == 401 ||
-            status == 403 ||
-            (error.message?.contains('Authentication required') ?? false)) {
-          // Try to sync cookies one more time before rejecting
-          // Note: CookieJar will be obtained from DioClient if needed
-          try {
-            await DioCookieManager.syncCookiesFromWebView();
-          } on Exception {
-            // Continue to reject even if sync fails
-          }
-          // Reject with authentication error
-          return handler.reject(DioException(
-            requestOptions: error.requestOptions,
-            error: 'Authentication required',
-            response: error.response,
-            type: DioExceptionType.badResponse,
-          ));
-        }
-
-        // Retry logic for idempotent requests (GET, HEAD, OPTIONS) on temporary issues
-        final method = error.requestOptions.method.toUpperCase();
-        final isIdempotent =
-            method == 'GET' || method == 'HEAD' || method == 'OPTIONS';
-        final isTemporary = error.type == DioExceptionType.connectionTimeout ||
-            error.type == DioExceptionType.receiveTimeout ||
-            error.type == DioExceptionType.sendTimeout ||
-            status == 429 ||
-            (status >= 500 && status < 600);
-
-        if (isIdempotent && isTemporary) {
-          // Up to 3 retries with exponential backoff + jitter
-          final retryCount =
-              (error.requestOptions.extra['retryCount'] as int?) ?? 0;
-          final operationId =
-              error.requestOptions.extra['operation_id'] as String?;
-
-          if (retryCount < 3) {
-            int baseDelayMs;
-            int? retryAfterSeconds;
-            if (status == 429) {
-              // Honor Retry-After if provided
-              final retryAfter = error.response?.headers.value('retry-after');
-              retryAfterSeconds = int.tryParse(retryAfter ?? '') ?? 0;
-              baseDelayMs = (retryAfterSeconds > 0
-                  ? retryAfterSeconds * 1000
-                  : (500 * (1 << retryCount)));
-            } else {
-              baseDelayMs = 500 * (1 << retryCount);
-            }
-            // jitter 0..250ms
-            final jitterMs = DateTime.now().microsecondsSinceEpoch % 250;
-            final delayMs = baseDelayMs + jitterMs;
-
-            await StructuredLogger().log(
-              level: 'warning',
-              subsystem: 'retry',
-              message: 'Retrying HTTP request with exponential backoff',
-              operationId: operationId,
-              context: 'http_retry',
-              extra: {
-                'url': error.requestOptions.uri.toString(),
-                'method': error.requestOptions.method,
-                'status': status,
-                'retry_attempt': retryCount + 1,
-                'max_retries': 3,
-                'delay_breakdown': {
-                  'base_delay_ms': baseDelayMs,
-                  'jitter_ms': jitterMs,
-                  'total_delay_ms': delayMs,
-                },
-                'error_type': error.type.toString(),
-                'is_exponential_backoff': true,
-                'backoff_type': 'exponential_with_jitter',
-                'exponential_factor': retryCount + 1,
-                'base_delay_formula': '500 * (2^retry_count)',
-                'backoff_formula': 'base_delay + jitter (0-250ms)',
-                if (retryAfterSeconds != null && retryAfterSeconds > 0)
-                  'retry_after_header_seconds': retryAfterSeconds,
-                'original_subsystem': 'network',
-              },
-            );
-
-            await Future.delayed(Duration(milliseconds: delayMs));
-
-            final newOptions = error.requestOptions.copyWith(
-              extra: {
-                ...error.requestOptions.extra,
-                'retryCount': retryCount + 1
-              },
-            );
-
+          // Handle authentication errors (401/403)
+          final status = error.response?.statusCode ?? 0;
+          if (status == 401 ||
+              status == 403 ||
+              (error.message?.contains('Authentication required') ?? false)) {
+            // Try to sync cookies one more time before rejecting
+            // Note: CookieJar will be obtained from DioClient if needed
             try {
-              final retried = await dio.fetch(newOptions);
+              await DioCookieManager.syncCookiesFromWebView();
+            } on Exception {
+              // Continue to reject even if sync fails
+            }
+            // Reject with authentication error
+            return handler.reject(DioException(
+              requestOptions: error.requestOptions,
+              error: 'Authentication required',
+              response: error.response,
+              type: DioExceptionType.badResponse,
+            ));
+          }
 
-              // Log successful retry
-              await StructuredLogger().log(
-                level: 'info',
-                subsystem: 'retry',
-                message: 'HTTP request retry succeeded',
-                operationId: operationId,
-                context: 'http_retry',
-                extra: {
-                  'url': error.requestOptions.uri.toString(),
-                  'retry_attempt': retryCount + 1,
-                  'status_code': retried.statusCode,
-                  'original_subsystem': 'network',
-                },
-              );
+          // Retry logic for idempotent requests (GET, HEAD, OPTIONS) on temporary issues
+          final method = error.requestOptions.method.toUpperCase();
+          final isIdempotent =
+              method == 'GET' || method == 'HEAD' || method == 'OPTIONS';
+          final isTemporary =
+              error.type == DioExceptionType.connectionTimeout ||
+                  error.type == DioExceptionType.receiveTimeout ||
+                  error.type == DioExceptionType.sendTimeout ||
+                  status == 429 ||
+                  (status >= 500 && status < 600);
 
-              return handler.resolve(retried);
-            } on Exception catch (e) {
-              // Log failed retry
+          if (isIdempotent && isTemporary) {
+            // Up to 3 retries with exponential backoff + jitter
+            final retryCount =
+                (error.requestOptions.extra['retryCount'] as int?) ?? 0;
+            final operationId =
+                error.requestOptions.extra['operation_id'] as String?;
+
+            if (retryCount < 3) {
+              int baseDelayMs;
+              int? retryAfterSeconds;
+              if (status == 429) {
+                // Honor Retry-After if provided
+                final retryAfter = error.response?.headers.value('retry-after');
+                retryAfterSeconds = int.tryParse(retryAfter ?? '') ?? 0;
+                baseDelayMs = (retryAfterSeconds > 0
+                    ? retryAfterSeconds * 1000
+                    : (500 * (1 << retryCount)));
+              } else {
+                baseDelayMs = 500 * (1 << retryCount);
+              }
+              // jitter 0..250ms
+              final jitterMs = DateTime.now().microsecondsSinceEpoch % 250;
+              final delayMs = baseDelayMs + jitterMs;
+
               await StructuredLogger().log(
                 level: 'warning',
                 subsystem: 'retry',
-                message: 'HTTP request retry failed',
+                message: 'Retrying HTTP request with exponential backoff',
                 operationId: operationId,
                 context: 'http_retry',
-                cause: e.toString(),
                 extra: {
                   'url': error.requestOptions.uri.toString(),
+                  'method': error.requestOptions.method,
+                  'status': status,
                   'retry_attempt': retryCount + 1,
+                  'max_retries': 3,
+                  'delay_breakdown': {
+                    'base_delay_ms': baseDelayMs,
+                    'jitter_ms': jitterMs,
+                    'total_delay_ms': delayMs,
+                  },
+                  'error_type': error.type.toString(),
+                  'is_exponential_backoff': true,
+                  'backoff_type': 'exponential_with_jitter',
+                  'exponential_factor': retryCount + 1,
+                  'base_delay_formula': '500 * (2^retry_count)',
+                  'backoff_formula': 'base_delay + jitter (0-250ms)',
+                  if (retryAfterSeconds != null && retryAfterSeconds > 0)
+                    'retry_after_header_seconds': retryAfterSeconds,
                   'original_subsystem': 'network',
                 },
               );
-              // Fall-through to next
-            }
-          } else {
-            // Max retries reached
-            await StructuredLogger().log(
-              level: 'error',
-              subsystem: 'retry',
-              message: 'HTTP request max retries reached',
-              operationId: operationId,
-              context: 'http_retry',
-              extra: {
-                'url': error.requestOptions.uri.toString(),
-                'max_retries': 3,
-                'final_status': status,
-                'original_subsystem': 'network',
-              },
-            );
-          }
-        }
 
-        return handler.next(error);
-      },
-    );
+              await Future.delayed(Duration(milliseconds: delayMs));
+
+              final newOptions = error.requestOptions.copyWith(
+                extra: {
+                  ...error.requestOptions.extra,
+                  'retryCount': retryCount + 1
+                },
+              );
+
+              try {
+                final retried = await dio.fetch(newOptions);
+
+                // Log successful retry
+                await StructuredLogger().log(
+                  level: 'info',
+                  subsystem: 'retry',
+                  message: 'HTTP request retry succeeded',
+                  operationId: operationId,
+                  context: 'http_retry',
+                  extra: {
+                    'url': error.requestOptions.uri.toString(),
+                    'retry_attempt': retryCount + 1,
+                    'status_code': retried.statusCode,
+                    'original_subsystem': 'network',
+                  },
+                );
+
+                return handler.resolve(retried);
+              } on Exception catch (e) {
+                // Log failed retry
+                await StructuredLogger().log(
+                  level: 'warning',
+                  subsystem: 'retry',
+                  message: 'HTTP request retry failed',
+                  operationId: operationId,
+                  context: 'http_retry',
+                  cause: e.toString(),
+                  extra: {
+                    'url': error.requestOptions.uri.toString(),
+                    'retry_attempt': retryCount + 1,
+                    'original_subsystem': 'network',
+                  },
+                );
+                // Fall-through to next
+              }
+            } else {
+              // Max retries reached
+              await StructuredLogger().log(
+                level: 'error',
+                subsystem: 'retry',
+                message: 'HTTP request max retries reached',
+                operationId: operationId,
+                context: 'http_retry',
+                extra: {
+                  'url': error.requestOptions.uri.toString(),
+                  'max_retries': 3,
+                  'final_status': status,
+                  'original_subsystem': 'network',
+                },
+              );
+            }
+          }
+
+          return handler.next(error);
+        },
+      );
 
   /// Creates an Android CookieManager interceptor for automatic cookie synchronization.
   ///
@@ -692,22 +696,23 @@ class DioInterceptors {
             // Get base URL from request
             final uri = request.uri;
             final baseUrl = '${uri.scheme}://${uri.host}';
-            
+
             // Get cookies from Android CookieManager (used by WebView)
             final cookieHeader = await CookieService.getCookiesForUrl(baseUrl);
-            
+
             if (cookieHeader != null && cookieHeader.isNotEmpty) {
               // Merge with existing Cookie header (if any)
               final existingCookieHeader = request.headers['Cookie'];
-              
-              if (existingCookieHeader != null && existingCookieHeader.isNotEmpty) {
+
+              if (existingCookieHeader != null &&
+                  existingCookieHeader.isNotEmpty) {
                 // Merge cookies: combine existing and Android CookieManager cookies, avoiding duplicates
                 final existingCookieNames = existingCookieHeader
                     .split('; ')
                     .map((c) => c.split('=').first.trim())
                     .where((name) => name.isNotEmpty)
                     .toSet();
-                
+
                 final androidCookies = cookieHeader.split('; ');
                 final newCookies = androidCookies.where((c) {
                   final parts = c.split('=');
@@ -715,14 +720,16 @@ class DioInterceptors {
                   final name = parts.first.trim();
                   return name.isNotEmpty && !existingCookieNames.contains(name);
                 }).toList();
-                
+
                 if (newCookies.isNotEmpty) {
-                  request.headers['Cookie'] = '$existingCookieHeader; ${newCookies.join('; ')}';
-                  
+                  request.headers['Cookie'] =
+                      '$existingCookieHeader; ${newCookies.join('; ')}';
+
                   await StructuredLogger().log(
                     level: 'debug',
                     subsystem: 'cookies',
-                    message: 'Merged cookies from Android CookieManager with existing cookies',
+                    message:
+                        'Merged cookies from Android CookieManager with existing cookies',
                     context: 'android_cookie_manager_request',
                     extra: {
                       'uri': request.uri.toString(),
@@ -730,7 +737,8 @@ class DioInterceptors {
                       'existing_cookie_count': existingCookieNames.length,
                       'android_cookie_count': androidCookies.length,
                       'new_cookies_count': newCookies.length,
-                      'final_cookie_header_length': request.headers['Cookie']?.length ?? 0,
+                      'final_cookie_header_length':
+                          request.headers['Cookie']?.length ?? 0,
                     },
                   );
                 } else {
@@ -738,7 +746,8 @@ class DioInterceptors {
                   await StructuredLogger().log(
                     level: 'debug',
                     subsystem: 'cookies',
-                    message: 'All Android CookieManager cookies already in request',
+                    message:
+                        'All Android CookieManager cookies already in request',
                     context: 'android_cookie_manager_request',
                     extra: {
                       'uri': request.uri.toString(),
@@ -749,21 +758,26 @@ class DioInterceptors {
               } else {
                 // No existing cookies, just use Android CookieManager cookies
                 request.headers['Cookie'] = cookieHeader;
-                
+
                 await StructuredLogger().log(
                   level: 'info',
                   subsystem: 'cookies',
-                  message: 'Added cookies from Android CookieManager to request',
+                  message:
+                      'Added cookies from Android CookieManager to request',
                   context: 'android_cookie_manager_request',
                   extra: {
                     'uri': request.uri.toString(),
                     'base_url': baseUrl,
                     'cookie_header_length': cookieHeader.length,
                     'cookie_count': cookieHeader.split('; ').length,
-                    'cookie_names': cookieHeader.split('; ').map((c) {
-                      final parts = c.split('=');
-                      return parts.isNotEmpty ? parts.first.trim() : '';
-                    }).where((name) => name.isNotEmpty).toList(),
+                    'cookie_names': cookieHeader
+                        .split('; ')
+                        .map((c) {
+                          final parts = c.split('=');
+                          return parts.isNotEmpty ? parts.first.trim() : '';
+                        })
+                        .where((name) => name.isNotEmpty)
+                        .toList(),
                   },
                 );
               }
@@ -777,7 +791,8 @@ class DioInterceptors {
                 extra: {
                   'uri': request.uri.toString(),
                   'base_url': baseUrl,
-                  'note': 'Request will proceed without Android CookieManager cookies',
+                  'note':
+                      'Request will proceed without Android CookieManager cookies',
                 },
               );
             }
@@ -790,7 +805,8 @@ class DioInterceptors {
               cause: e.toString(),
               extra: {
                 'uri': request.uri.toString(),
-                'note': 'Request will proceed without Android CookieManager cookies',
+                'note':
+                    'Request will proceed without Android CookieManager cookies',
               },
             );
           }
@@ -808,116 +824,131 @@ class DioInterceptors {
     bridge_session.SessionManager bridgeSessionManager,
   ) =>
       InterceptorsWrapper(
-      onRequest: (request, handler) async {
-        try {
-          // Get cookies from FlutterCookieBridge SessionManager
-          final sessionCookies = await bridgeSessionManager.getSessionCookies();
-          if (sessionCookies.isNotEmpty) {
-            // Merge with existing Cookie header (if any) from CookieManager
-            final existingCookieHeader = request.headers['Cookie'];
-            final sessionCookieHeader = sessionCookies.join('; ');
-            
-            if (existingCookieHeader != null && existingCookieHeader.isNotEmpty) {
-              // Merge cookies: combine existing and session cookies, avoiding duplicates
-              final existingCookies = existingCookieHeader.split('; ').map((c) => c.split('=').first).toSet();
-              final newCookies = sessionCookies.where((c) {
-                final name = c.split('=').first;
-                return !existingCookies.contains(name);
-              }).toList();
-              
-              if (newCookies.isNotEmpty) {
-                request.headers['Cookie'] = '$existingCookieHeader; ${newCookies.join('; ')}';
+        onRequest: (request, handler) async {
+          try {
+            // Get cookies from FlutterCookieBridge SessionManager
+            final sessionCookies =
+                await bridgeSessionManager.getSessionCookies();
+            if (sessionCookies.isNotEmpty) {
+              // Merge with existing Cookie header (if any) from CookieManager
+              final existingCookieHeader = request.headers['Cookie'];
+              final sessionCookieHeader = sessionCookies.join('; ');
+
+              if (existingCookieHeader != null &&
+                  existingCookieHeader.isNotEmpty) {
+                // Merge cookies: combine existing and session cookies, avoiding duplicates
+                final existingCookies = existingCookieHeader
+                    .split('; ')
+                    .map((c) => c.split('=').first)
+                    .toSet();
+                final newCookies = sessionCookies.where((c) {
+                  final name = c.split('=').first;
+                  return !existingCookies.contains(name);
+                }).toList();
+
+                if (newCookies.isNotEmpty) {
+                  request.headers['Cookie'] =
+                      '$existingCookieHeader; ${newCookies.join('; ')}';
+                } else {
+                  request.headers['Cookie'] = existingCookieHeader;
+                }
               } else {
-                request.headers['Cookie'] = existingCookieHeader;
+                // No existing cookies, just use session cookies
+                request.headers['Cookie'] = sessionCookieHeader;
               }
+
+              await StructuredLogger().log(
+                level: 'info',
+                subsystem: 'cookies',
+                message:
+                    'Adding cookies from FlutterCookieBridge SessionManager to request',
+                context: 'cookie_bridge_request',
+                extra: {
+                  'uri': request.uri.toString(),
+                  'session_cookie_count': sessionCookies.length,
+                  'has_existing_cookies': existingCookieHeader != null &&
+                      existingCookieHeader.isNotEmpty,
+                  'cookie_names':
+                      sessionCookies.map((c) => c.split('=').first).toList(),
+                  'final_cookie_header_length':
+                      request.headers['Cookie']?.length ?? 0,
+                },
+              );
             } else {
-              // No existing cookies, just use session cookies
-              request.headers['Cookie'] = sessionCookieHeader;
-            }
-            
-            await StructuredLogger().log(
-              level: 'info',
-              subsystem: 'cookies',
-              message: 'Adding cookies from FlutterCookieBridge SessionManager to request',
-              context: 'cookie_bridge_request',
-              extra: {
-                'uri': request.uri.toString(),
-                'session_cookie_count': sessionCookies.length,
-                'has_existing_cookies': existingCookieHeader != null && existingCookieHeader.isNotEmpty,
-                'cookie_names': sessionCookies.map((c) => c.split('=').first).toList(),
-                'final_cookie_header_length': request.headers['Cookie']?.length ?? 0,
-              },
-            );
-          } else {
-            // No cookies in SessionManager - log for debugging
-            await StructuredLogger().log(
-              level: 'debug',
-              subsystem: 'cookies',
-              message: 'No cookies found in FlutterCookieBridge SessionManager',
-              context: 'cookie_bridge_request',
-              extra: {
-                'uri': request.uri.toString(),
-                'note': 'Request will proceed without SessionManager cookies (may use CookieJar cookies)',
-              },
-            );
-          }
-        } on Exception catch (e) {
-          await StructuredLogger().log(
-            level: 'warning',
-            subsystem: 'cookies',
-            message: 'Failed to get cookies from FlutterCookieBridge SessionManager',
-            context: 'cookie_bridge_request',
-            cause: e.toString(),
-            extra: {
-              'uri': request.uri.toString(),
-              'note': 'Request will proceed without SessionManager cookies',
-            },
-          );
-        }
-        handler.next(request);
-      },
-      onResponse: (response, handler) async {
-        try {
-          // Save cookies from response to FlutterCookieBridge SessionManager
-          // This is how NetworkManager._storeResponseCookies works
-          if (response.headers['set-cookie'] != null) {
-            final cookiesList = response.headers['set-cookie']!;
-            final filteredCookies = <String>[];
-            
-            for (final cookie in cookiesList) {
-              // Extract actual cookie (before first semicolon)
-              final actualCookie = cookie.split(';')[0];
-              if (actualCookie.isNotEmpty && !actualCookie.contains('redirect_url=')) {
-                filteredCookies.add(actualCookie);
-              }
-            }
-            
-            if (filteredCookies.isNotEmpty) {
-              await bridgeSessionManager.saveSessionCookies(filteredCookies);
-              
+              // No cookies in SessionManager - log for debugging
               await StructuredLogger().log(
                 level: 'debug',
                 subsystem: 'cookies',
-                message: 'Saved cookies from response to FlutterCookieBridge',
-                context: 'cookie_bridge_response',
+                message:
+                    'No cookies found in FlutterCookieBridge SessionManager',
+                context: 'cookie_bridge_request',
                 extra: {
-                  'uri': response.requestOptions.uri.toString(),
-                  'cookie_count': filteredCookies.length,
-                  'cookie_names': filteredCookies.map((c) => c.split('=').first).toList(),
+                  'uri': request.uri.toString(),
+                  'note':
+                      'Request will proceed without SessionManager cookies (may use CookieJar cookies)',
                 },
               );
             }
+          } on Exception catch (e) {
+            await StructuredLogger().log(
+              level: 'warning',
+              subsystem: 'cookies',
+              message:
+                  'Failed to get cookies from FlutterCookieBridge SessionManager',
+              context: 'cookie_bridge_request',
+              cause: e.toString(),
+              extra: {
+                'uri': request.uri.toString(),
+                'note': 'Request will proceed without SessionManager cookies',
+              },
+            );
           }
-        } on Exception catch (e) {
-          await StructuredLogger().log(
-            level: 'debug',
-            subsystem: 'cookies',
-            message: 'Failed to save cookies to FlutterCookieBridge',
-            context: 'cookie_bridge_response',
-            cause: e.toString(),
-          );
-        }
-        handler.next(response);
-      },
-    );
+          handler.next(request);
+        },
+        onResponse: (response, handler) async {
+          try {
+            // Save cookies from response to FlutterCookieBridge SessionManager
+            // This is how NetworkManager._storeResponseCookies works
+            if (response.headers['set-cookie'] != null) {
+              final cookiesList = response.headers['set-cookie']!;
+              final filteredCookies = <String>[];
+
+              for (final cookie in cookiesList) {
+                // Extract actual cookie (before first semicolon)
+                final actualCookie = cookie.split(';')[0];
+                if (actualCookie.isNotEmpty &&
+                    !actualCookie.contains('redirect_url=')) {
+                  filteredCookies.add(actualCookie);
+                }
+              }
+
+              if (filteredCookies.isNotEmpty) {
+                await bridgeSessionManager.saveSessionCookies(filteredCookies);
+
+                await StructuredLogger().log(
+                  level: 'debug',
+                  subsystem: 'cookies',
+                  message: 'Saved cookies from response to FlutterCookieBridge',
+                  context: 'cookie_bridge_response',
+                  extra: {
+                    'uri': response.requestOptions.uri.toString(),
+                    'cookie_count': filteredCookies.length,
+                    'cookie_names':
+                        filteredCookies.map((c) => c.split('=').first).toList(),
+                  },
+                );
+              }
+            }
+          } on Exception catch (e) {
+            await StructuredLogger().log(
+              level: 'debug',
+              subsystem: 'cookies',
+              message: 'Failed to save cookies to FlutterCookieBridge',
+              context: 'cookie_bridge_response',
+              cause: e.toString(),
+            );
+          }
+          handler.next(response);
+        },
+      );
 }

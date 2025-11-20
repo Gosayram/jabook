@@ -192,9 +192,9 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(AppLocalizations.of(context)
-                      ?.noActiveMirrorsMessage ??
-                  'No active mirrors to test'),
+              content: Text(
+                  AppLocalizations.of(context)?.noActiveMirrorsMessage ??
+                      'No active mirrors to test'),
               duration: const Duration(seconds: 2),
             ),
           );
@@ -303,8 +303,8 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(AppLocalizations.of(context)!
-                .activeMirrorSetMessage(url)),
+            content:
+                Text(AppLocalizations.of(context)!.activeMirrorSetMessage(url)),
             backgroundColor: Colors.green,
             duration: const Duration(seconds: 2),
           ),
@@ -331,8 +331,8 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
     final result = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(AppLocalizations.of(context)?.editPriorityTitle ??
-            'Edit Priority'),
+        title: Text(
+            AppLocalizations.of(context)?.editPriorityTitle ?? 'Edit Priority'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -405,7 +405,8 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content: Text(AppLocalizations.of(context)!.activeMirrorText(best))),
+              content:
+                  Text(AppLocalizations.of(context)!.activeMirrorText(best))),
         );
       }
       await _loadMirrors();
@@ -492,9 +493,9 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(AppLocalizations.of(context)
-                  ?.urlCopiedToClipboardMessage ??
-              'URL copied to clipboard'),
+          content: Text(
+              AppLocalizations.of(context)?.urlCopiedToClipboardMessage ??
+                  'URL copied to clipboard'),
           duration: const Duration(seconds: 2),
         ),
       );
@@ -537,8 +538,8 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: Text(AppLocalizations.of(context)?.deleteButtonText ??
-                'Delete'),
+            child: Text(
+                AppLocalizations.of(context)?.deleteButtonText ?? 'Delete'),
           ),
         ],
       ),
@@ -579,8 +580,8 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(AppLocalizations.of(context)!
-                  .mirrorDeletedMessage(url)),
+              content:
+                  Text(AppLocalizations.of(context)!.mirrorDeletedMessage(url)),
               backgroundColor: Colors.orange,
               duration: const Duration(seconds: 2),
             ),
@@ -654,9 +655,9 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text(AppLocalizations.of(context)
-                        ?.urlMustStartWithHttpMessage ??
-                    'URL must start with http:// or https://'),
+                content: Text(
+                    AppLocalizations.of(context)?.urlMustStartWithHttpMessage ??
+                        'URL must start with http:// or https://'),
                 backgroundColor: Colors.orange,
                 duration: const Duration(seconds: 3),
               ),
@@ -683,9 +684,9 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text(AppLocalizations.of(context)
-                        ?.invalidUrlFormatMessage ??
-                    'Invalid URL format'),
+                content: Text(
+                    AppLocalizations.of(context)?.invalidUrlFormatMessage ??
+                        'Invalid URL format'),
                 backgroundColor: Colors.orange,
                 duration: const Duration(seconds: 3),
               ),
@@ -704,9 +705,9 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text(AppLocalizations.of(context)
-                        ?.mirrorAlreadyExistsMessage ??
-                    'This mirror already exists in the list'),
+                content: Text(
+                    AppLocalizations.of(context)?.mirrorAlreadyExistsMessage ??
+                        'This mirror already exists in the list'),
                 backgroundColor: Colors.orange,
                 duration: const Duration(seconds: 3),
               ),
@@ -967,15 +968,15 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
       statusText = healthStatus;
       statusColor = Colors.green.shade600;
     } else if (healthScore >= 40) {
-      statusText = AppLocalizations.of(context)?.mirrorStatusDegraded ??
-          'Degraded';
+      statusText =
+          AppLocalizations.of(context)?.mirrorStatusDegraded ?? 'Degraded';
       statusColor = Colors.orange;
     } else if (healthScore >= 20) {
       statusText = 'Poor';
       statusColor = Colors.orange.shade800;
     } else {
-      statusText = AppLocalizations.of(context)?.mirrorStatusUnhealthy ??
-          'Unhealthy';
+      statusText =
+          AppLocalizations.of(context)?.mirrorStatusUnhealthy ?? 'Unhealthy';
       statusColor = Colors.red;
     }
 
@@ -1074,15 +1075,15 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                        Text(
-                          AppLocalizations.of(context)!
-                              .healthScoreText(healthScore),
-                          style: TextStyle(
-                            color: Theme.of(context).colorScheme.onSurface,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                          ),
+                      Text(
+                        AppLocalizations.of(context)!
+                            .healthScoreText(healthScore),
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurface,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
                         ),
+                      ),
                       if (rtt != null)
                         Text(
                           'RTT: $rtt ms',
@@ -1186,9 +1187,9 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
                       IconButton(
                         icon: const Icon(Icons.star, size: 20),
                         color: Colors.amber,
-                        tooltip: AppLocalizations.of(context)
-                                ?.setAsActiveTooltip ??
-                            'Set as active',
+                        tooltip:
+                            AppLocalizations.of(context)?.setAsActiveTooltip ??
+                                'Set as active',
                         onPressed: () => _setActiveMirror(url),
                       ),
                     ],
@@ -1203,9 +1204,9 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
                     IconButton(
                       icon: const Icon(Icons.delete_outline, size: 18),
                       color: Colors.red.shade400,
-                      tooltip: AppLocalizations.of(context)
-                              ?.deleteMirrorTooltip ??
-                          'Delete mirror',
+                      tooltip:
+                          AppLocalizations.of(context)?.deleteMirrorTooltip ??
+                              'Delete mirror',
                       onPressed: () => _deleteMirror(url),
                     ),
                   ],

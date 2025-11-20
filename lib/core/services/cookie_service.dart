@@ -44,7 +44,8 @@ class CookieService {
       await StructuredLogger().log(
         level: 'debug',
         subsystem: 'cookies',
-        message: 'CookieService.getCookiesForUrl called on web platform (not supported)',
+        message:
+            'CookieService.getCookiesForUrl called on web platform (not supported)',
         context: 'cookie_service',
         extra: {'url': url, 'platform': 'web'},
       );
@@ -88,10 +89,16 @@ class CookieService {
       return result;
     } on PlatformException catch (e) {
       final duration = DateTime.now().difference(startTime).inMilliseconds;
+      // Check if this is a MissingPluginException
+      final isMissingPlugin = e.code == 'not_implemented' ||
+          (e.message?.contains('No implementation found') ?? false);
+
       await StructuredLogger().log(
-        level: 'error',
+        level: isMissingPlugin ? 'warning' : 'error',
         subsystem: 'cookies',
-        message: 'Failed to get cookies from CookieManager',
+        message: isMissingPlugin
+            ? 'Cookie plugin not available (MissingPluginException) - MethodChannel may not be registered'
+            : 'Failed to get cookies from CookieManager',
         operationId: operationId,
         context: 'cookie_service',
         durationMs: duration,
@@ -100,6 +107,7 @@ class CookieService {
           'url': url,
           'error_code': e.code,
           'error_message': e.message,
+          'is_missing_plugin': isMissingPlugin,
         },
       );
       return null;
@@ -133,7 +141,8 @@ class CookieService {
       await StructuredLogger().log(
         level: 'debug',
         subsystem: 'cookies',
-        message: 'CookieService.setCookie called on web platform (not supported)',
+        message:
+            'CookieService.setCookie called on web platform (not supported)',
         context: 'cookie_service',
         extra: {'url': url, 'platform': 'web'},
       );
@@ -152,7 +161,8 @@ class CookieService {
         context: 'cookie_service',
         extra: {
           'url': url,
-          'cookie_preview': cookie.length > 100 ? '${cookie.substring(0, 100)}...' : cookie,
+          'cookie_preview':
+              cookie.length > 100 ? '${cookie.substring(0, 100)}...' : cookie,
         },
       );
 
@@ -180,10 +190,16 @@ class CookieService {
       return result ?? false;
     } on PlatformException catch (e) {
       final duration = DateTime.now().difference(startTime).inMilliseconds;
+      // Check if this is a MissingPluginException
+      final isMissingPlugin = e.code == 'not_implemented' ||
+          (e.message?.contains('No implementation found') ?? false);
+
       await StructuredLogger().log(
-        level: 'error',
+        level: isMissingPlugin ? 'warning' : 'error',
         subsystem: 'cookies',
-        message: 'Failed to set cookie in CookieManager',
+        message: isMissingPlugin
+            ? 'Cookie plugin not available (MissingPluginException) - MethodChannel may not be registered'
+            : 'Failed to set cookie in CookieManager',
         operationId: operationId,
         context: 'cookie_service',
         durationMs: duration,
@@ -192,6 +208,7 @@ class CookieService {
           'url': url,
           'error_code': e.code,
           'error_message': e.message,
+          'is_missing_plugin': isMissingPlugin,
         },
       );
       return false;
@@ -223,7 +240,8 @@ class CookieService {
       await StructuredLogger().log(
         level: 'debug',
         subsystem: 'cookies',
-        message: 'CookieService.flushCookies called on web platform (not supported)',
+        message:
+            'CookieService.flushCookies called on web platform (not supported)',
         context: 'cookie_service',
         extra: {'platform': 'web'},
       );
@@ -300,7 +318,8 @@ class CookieService {
       await StructuredLogger().log(
         level: 'debug',
         subsystem: 'cookies',
-        message: 'CookieService.clearAllCookies called on web platform (not supported)',
+        message:
+            'CookieService.clearAllCookies called on web platform (not supported)',
         context: 'cookie_service',
         extra: {'platform': 'web'},
       );
@@ -366,4 +385,3 @@ class CookieService {
     }
   }
 }
-

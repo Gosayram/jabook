@@ -605,10 +605,10 @@ abstract class AppLocalizations {
   /// **'Memory usage'**
   String get memoryUsage;
 
-  /// Clear all cache button text
+  /// Menu item for clearing all cache
   ///
   /// In en, this message translates to:
-  /// **'Clear All Cache'**
+  /// **'Clear all cache'**
   String get clearAllCache;
 
   /// Title for mirrors screen
@@ -737,7 +737,7 @@ abstract class AppLocalizations {
   /// **'Skip duration'**
   String get skipDuration;
 
-  /// Title for downloads settings
+  /// Title for downloads screen
   ///
   /// In en, this message translates to:
   /// **'Downloads'**
@@ -2422,6 +2422,234 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Could not connect to RuTracker mirrors'**
   String get mirrorConnectionFailed;
+
+  /// Text for refresh button
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh'**
+  String get refresh;
+
+  /// Menu item for refreshing current search
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh current search'**
+  String get refreshCurrentSearch;
+
+  /// Menu item for clearing search cache
+  ///
+  /// In en, this message translates to:
+  /// **'Clear search cache'**
+  String get clearSearchCache;
+
+  /// Message for successful cache clearing
+  ///
+  /// In en, this message translates to:
+  /// **'Cache cleared'**
+  String get cacheCleared;
+
+  /// Message for successful clearing of all cache
+  ///
+  /// In en, this message translates to:
+  /// **'All cache cleared'**
+  String get allCacheCleared;
+
+  /// Menu item for downloading via magnet link
+  ///
+  /// In en, this message translates to:
+  /// **'Download via Magnet'**
+  String get downloadViaMagnet;
+
+  /// Message for download start
+  ///
+  /// In en, this message translates to:
+  /// **'Download started'**
+  String get downloadStarted;
+
+  /// No description provided for @refreshChaptersFromTorrent.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh chapters from torrent'**
+  String get refreshChaptersFromTorrent;
+
+  /// No description provided for @chaptersRefreshed.
+  ///
+  /// In en, this message translates to:
+  /// **'Chapters refreshed from torrent'**
+  String get chaptersRefreshed;
+
+  /// No description provided for @failedToRefreshChapters.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to refresh chapters'**
+  String get failedToRefreshChapters;
+
+  /// No description provided for @noChaptersFound.
+  ///
+  /// In en, this message translates to:
+  /// **'No chapters found in torrent'**
+  String get noChaptersFound;
+
+  /// Error message for failed download start
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to start download'**
+  String get failedToStartDownload;
+
+  /// Message when there are no active downloads
+  ///
+  /// In en, this message translates to:
+  /// **'No active downloads'**
+  String get noActiveDownloads;
+
+  /// Text before cache expiration time
+  ///
+  /// In en, this message translates to:
+  /// **'Expires in'**
+  String get cacheExpires;
+
+  /// Text when cache has expired
+  ///
+  /// In en, this message translates to:
+  /// **'Expired'**
+  String get cacheExpired;
+
+  /// Text when cache expires soon
+  ///
+  /// In en, this message translates to:
+  /// **'Expires soon'**
+  String get cacheExpiresSoon;
+
+  /// Abbreviation for days
+  ///
+  /// In en, this message translates to:
+  /// **'days'**
+  String get days;
+
+  /// Abbreviation for hours
+  ///
+  /// In en, this message translates to:
+  /// **'hours'**
+  String get hours;
+
+  /// Abbreviation for minutes
+  ///
+  /// In en, this message translates to:
+  /// **'minutes'**
+  String get minutes;
+
+  /// Button to expand text
+  ///
+  /// In en, this message translates to:
+  /// **'Show more'**
+  String get showMore;
+
+  /// Button to collapse text
+  ///
+  /// In en, this message translates to:
+  /// **'Show less'**
+  String get showLess;
+
+  /// Title for folder selection dialog
+  ///
+  /// In en, this message translates to:
+  /// **'Select Download Folder'**
+  String get selectFolderDialogTitle;
+
+  /// Instructions for selecting folder on Android 13+
+  ///
+  /// In en, this message translates to:
+  /// **'Please select the folder where downloaded audiobooks will be saved. In the file manager, navigate to the desired folder and tap \"Use this folder\" to confirm.'**
+  String get selectFolderDialogMessage;
+
+  /// Message when folder is selected successfully
+  ///
+  /// In en, this message translates to:
+  /// **'Download folder selected successfully'**
+  String get folderSelectedSuccessMessage;
+
+  /// Message when folder selection is cancelled
+  ///
+  /// In en, this message translates to:
+  /// **'Folder selection cancelled'**
+  String get folderSelectionCancelledMessage;
+
+  /// Current download folder path
+  ///
+  /// In en, this message translates to:
+  /// **'Current folder: {path}'**
+  String currentDownloadFolder(String path);
+
+  /// No description provided for @defaultDownloadFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Default folder'**
+  String get defaultDownloadFolder;
+
+  /// Message shown when user presses back button, asking to press again to exit
+  ///
+  /// In en, this message translates to:
+  /// **'Press back again to exit'**
+  String get pressBackAgainToExit;
+
+  /// Message in filter dialog indicating filters are coming soon
+  ///
+  /// In en, this message translates to:
+  /// **'Filter options will be available soon. You will be able to filter by:'**
+  String get filterOptionsComingSoon;
+
+  /// Filter option by category
+  ///
+  /// In en, this message translates to:
+  /// **'Category'**
+  String get filterByCategory;
+
+  /// Filter option by author
+  ///
+  /// In en, this message translates to:
+  /// **'Author'**
+  String get filterByAuthor;
+
+  /// Filter option by date added
+  ///
+  /// In en, this message translates to:
+  /// **'Date Added'**
+  String get filterByDate;
+
+  /// Close button text
+  ///
+  /// In en, this message translates to:
+  /// **'Close'**
+  String get close;
+
+  /// Button to open torrent in external client
+  ///
+  /// In en, this message translates to:
+  /// **'Open in External Client'**
+  String get openInExternalClient;
+
+  /// Description for downloading torrent in app
+  ///
+  /// In en, this message translates to:
+  /// **'Download using built-in torrent client'**
+  String get downloadTorrentInApp;
+
+  /// Message when torrent is opened in external client
+  ///
+  /// In en, this message translates to:
+  /// **'Opened in external torrent client'**
+  String get openedInExternalClient;
+
+  /// Message when failed to open in external client
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to open in external client'**
+  String get failedToOpenExternalClient;
+
+  /// Message when magnet link is not available
+  ///
+  /// In en, this message translates to:
+  /// **'No magnet link available'**
+  String get noMagnetLinkAvailable;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

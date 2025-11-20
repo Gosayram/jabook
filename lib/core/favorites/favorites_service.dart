@@ -190,6 +190,8 @@ class FavoritesService {
         'leechers': audiobook.leechers,
         'magnet_url': audiobook.magnetUrl,
         'cover_url': audiobook.coverUrl,
+        'performer': audiobook.performer,
+        'genres': audiobook.genres,
         'added_date': audiobook.addedDate.toIso8601String(),
         'added_to_favorites': DateTime.now().toIso8601String(),
         'chapters': audiobook.chapters
@@ -226,6 +228,12 @@ class FavoritesService {
       leechers: map['leechers'] as int? ?? 0,
       magnetUrl: map['magnet_url'] as String? ?? '',
       coverUrl: map['cover_url'] as String?,
+      performer: map['performer'] as String?,
+      genres: (map['genres'] as List<dynamic>?)
+              ?.map((g) => g.toString())
+              .where((g) => g.isNotEmpty)
+              .toList() ??
+          const [],
       chapters: chapters,
       addedDate: map['added_date'] != null
           ? DateTime.parse(map['added_date'] as String)

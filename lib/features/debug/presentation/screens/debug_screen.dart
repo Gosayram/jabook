@@ -18,7 +18,6 @@ import 'package:jabook/core/cache/rutracker_cache_service.dart';
 import 'package:jabook/core/endpoints/endpoint_manager.dart';
 import 'package:jabook/core/logging/environment_logger.dart';
 import 'package:jabook/core/logging/structured_logger.dart';
-import 'package:jabook/core/torrent/audiobook_torrent_manager.dart';
 import 'package:jabook/data/db/app_database.dart';
 import 'package:jabook/l10n/app_localizations.dart';
 
@@ -41,19 +40,17 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
     with SingleTickerProviderStateMixin {
   late EnvironmentLogger _logger;
   late EndpointManager _endpointManager;
-  late AudiobookTorrentManager _torrentManager;
   late RuTrackerCacheService _cacheService;
 
   late TabController _tabController;
   List<String> _logEntries = [];
   List<Map<String, dynamic>> _mirrors = [];
-  List<Map<String, dynamic>> _downloads = [];
   Map<String, dynamic> _cacheStats = {};
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
     _initializeServices().then((_) => _loadDebugData());
   }
 
@@ -65,7 +62,6 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
 
   Future<void> _initializeServices() async {
     _logger = EnvironmentLogger();
-    _torrentManager = AudiobookTorrentManager();
     _cacheService = RuTrackerCacheService();
     // Initialize EndpointManager with database
     final appDatabase = AppDatabase();
@@ -76,7 +72,6 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
   Future<void> _loadDebugData() async {
     await _loadLogs();
     await _loadMirrors();
-    await _loadDownloads();
     await _loadCacheStats();
   }
 
@@ -105,7 +100,6 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
         _logEntries = [
           'INFO: JaBook started at ${DateTime.now()}',
           'DEBUG: Cache cleared successfully',
-          'WARNING: No active downloads found',
           'ERROR: Failed to connect to active RuTracker mirror',
           'ERROR: Failed to load logs: $e',
         ];
@@ -125,17 +119,6 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
       setState(() {
         _mirrors = [];
       });
-    }
-  }
-
-  Future<void> _loadDownloads() async {
-    try {
-      final downloads = await _torrentManager.getActiveDownloads();
-      setState(() {
-        _downloads = downloads;
-      });
-    } on Exception catch (e) {
-      _logger.e('Failed to load downloads: $e');
     }
   }
 
@@ -206,8 +189,9 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
       if (!mounted) return;
       scaffoldMessenger.showSnackBar(
         SnackBar(
-            content: Text(localizations?.failedToClearCacheMessage(e.toString()) ?? 
-                    'Failed to clear cache: ${e.toString()}'),
+          content: Text(
+              localizations?.failedToClearCacheMessage(e.toString()) ??
+                  'Failed to clear cache: ${e.toString()}'),
         ),
       );
     }
@@ -230,9 +214,9 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
       if (!mounted) return;
       scaffoldMessenger.showSnackBar(
         SnackBar(
-            content: Text(localizations
-                    ?.mirrorHealthCheckCompletedMessage(mirrors.length, mirrors.length) ??
-                'Mirror health check completed'),
+          content: Text(localizations?.mirrorHealthCheckCompletedMessage(
+                  mirrors.length, mirrors.length) ??
+              'Mirror health check completed'),
         ),
       );
     } on Exception catch (e) {
@@ -240,8 +224,9 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
       if (!mounted) return;
       scaffoldMessenger.showSnackBar(
         SnackBar(
-            content: Text(localizations?.failedToTestMirrorsMessage(e.toString()) ?? 
-                    'Failed to test mirrors: ${e.toString()}'),
+          content: Text(
+              localizations?.failedToTestMirrorsMessage(e.toString()) ??
+                  'Failed to test mirrors: ${e.toString()}'),
         ),
       );
     }
@@ -264,11 +249,6 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
                 icon: const Icon(Icons.dns),
               ),
               Tab(
-                text: AppLocalizations.of(context)?.downloadsTab ??
-                    'Downloads',
-                icon: const Icon(Icons.download),
-              ),
-              Tab(
                 text: AppLocalizations.of(context)?.cacheTab ?? 'Cache',
                 icon: const Icon(Icons.cached),
               ),
@@ -280,7 +260,6 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
           children: [
             _buildLogsTab(),
             _buildMirrorsTab(null),
-            _buildDownloadsTab(),
             _buildCacheTab(null),
           ],
         ),
@@ -359,15 +338,15 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
                   statusColor = Colors.green;
                 } else if (healthScore >= 30) {
                   isActuallyActive = true;
-                  statusText = AppLocalizations.of(context)
-                          ?.mirrorStatusDegraded ??
-                      'Degraded';
+                  statusText =
+                      AppLocalizations.of(context)?.mirrorStatusDegraded ??
+                          'Degraded';
                   statusColor = Colors.orange;
                 } else {
                   isActuallyActive = false;
-                  statusText = AppLocalizations.of(context)
-                          ?.mirrorStatusUnhealthy ??
-                      'Unhealthy';
+                  statusText =
+                      AppLocalizations.of(context)?.mirrorStatusUnhealthy ??
+                          'Unhealthy';
                   statusColor = Colors.red;
                 }
 
@@ -426,52 +405,6 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
             ),
           ),
         ],
-      );
-
-  Widget _buildDownloadsTab() => ListView.builder(
-        itemCount: _downloads.length,
-        itemBuilder: (context, index) {
-          final download = _downloads[index];
-          final progress = download['progress'] ?? 0.0;
-          final status = download['status'] ?? 'unknown';
-
-          return Semantics(
-            container: true,
-            label:
-                'Download ${download['id']}, Status: $status, Progress: ${progress.toStringAsFixed(1)}%',
-            child: Card(
-              margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              child: ListTile(
-                title: Text(AppLocalizations.of(context)?.downloadLabel ??
-                    'Download ${download['id']}'),
-                subtitle: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                        '${AppLocalizations.of(context)?.statusLabel ?? 'Status:'} $status'),
-                    Semantics(
-                      value: '${progress.toStringAsFixed(1)}%',
-                      child: LinearProgressIndicator(value: progress / 100),
-                    ),
-                    Text(
-                        '${AppLocalizations.of(context)?.downloadProgressLabel ?? 'Progress:'} ${progress.toStringAsFixed(1)}%'),
-                  ],
-                ),
-                trailing: Semantics(
-                  button: true,
-                  label: AppLocalizations.of(context)?.deleteDownloadButton ??
-                      'Delete download',
-                  child: IconButton(
-                    icon: const Icon(Icons.delete),
-                    onPressed: () {
-                      // TODO: Implement download removal
-                    },
-                  ),
-                ),
-              ),
-            ),
-          );
-        },
       );
 
   Widget _buildCacheTab(AppLocalizations? localizations) => Column(
@@ -588,8 +521,8 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
           const SizedBox(height: 8),
           Semantics(
             button: true,
-            label: AppLocalizations.of(context)?.exportLogsButton ??
-                'Export logs',
+            label:
+                AppLocalizations.of(context)?.exportLogsButton ?? 'Export logs',
             child: FloatingActionButton(
               heroTag: 'export',
               mini: true,

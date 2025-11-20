@@ -61,8 +61,9 @@ class DioCookieManager {
     CookieJar? cookieJar,
   ]) async {
     final logger = StructuredLogger();
-    final operationId = 'save_cookies_direct_${DateTime.now().millisecondsSinceEpoch}';
-    
+    final operationId =
+        'save_cookies_direct_${DateTime.now().millisecondsSinceEpoch}';
+
     await logger.log(
       level: 'debug',
       subsystem: 'cookies',
@@ -72,20 +73,22 @@ class DioCookieManager {
       extra: {
         'uri': uri.toString(),
         'cookie_count': cookies.length,
-        'cookies': cookies.map((c) => {
-          'name': c.name,
-          'domain': c.domain ?? '<null>',
-          'path': c.path ?? '/',
-          'has_value': c.value.isNotEmpty,
-          'value_length': c.value.length,
-          'secure': c.secure,
-          'http_only': c.httpOnly,
-        }).toList(),
+        'cookies': cookies
+            .map((c) => {
+                  'name': c.name,
+                  'domain': c.domain ?? '<null>',
+                  'path': c.path ?? '/',
+                  'has_value': c.value.isNotEmpty,
+                  'value_length': c.value.length,
+                  'secure': c.secure,
+                  'http_only': c.httpOnly,
+                })
+            .toList(),
       },
     );
-    
+
     final jar = cookieJar ?? CookieJar();
-    
+
     // Verify cookies before saving
     await logger.log(
       level: 'debug',
@@ -100,11 +103,11 @@ class DioCookieManager {
         'cookie_domains': cookies.map((c) => c.domain ?? '<null>').toList(),
       },
     );
-    
+
     // IMPORTANT: CookieJar is primarily for cookies from HTTP responses
     // For WebView cookies, SessionManager is the primary storage
     // We try to save to CookieJar for backward compatibility, but it's not critical
-    
+
     // CRITICAL: CookieJar behavior:
     // - If cookie has domain, it's saved in domainCookies (index 0) and can be used for subdomains
     // - If cookie has NO domain, it's saved in hostCookies (index 1) and used only for exact host match
@@ -113,22 +116,22 @@ class DioCookieManager {
     final uriHost = uri.host.toLowerCase();
     final cookiesToSave = cookies.map((cookie) {
       final cookieToSave = io.Cookie(cookie.name, cookie.value)
-        ..path = cookie.path ?? '/'  // Always use '/' for rutracker cookies
+        ..path = cookie.path ?? '/' // Always use '/' for rutracker cookies
         ..secure = cookie.secure
         ..httpOnly = cookie.httpOnly;
-      
+
       // Only set domain if the original cookie had one
       // This ensures cookies are saved in the correct CookieJar storage
       final cookieDomain = cookie.domain?.toLowerCase().trim() ?? '';
       if (cookieDomain.isNotEmpty) {
         // Normalize domain: remove leading dot if present (CookieJar does this automatically, but we do it for consistency)
-        final normalizedDomain = cookieDomain.startsWith('.') 
-            ? cookieDomain.substring(1) 
+        final normalizedDomain = cookieDomain.startsWith('.')
+            ? cookieDomain.substring(1)
             : cookieDomain;
-        
+
         // Only set domain if it matches the URI host or is a valid domain
         // This ensures cookies are saved in domainCookies for subdomain sharing
-        if (normalizedDomain == uriHost || 
+        if (normalizedDomain == uriHost ||
             uriHost.endsWith('.$normalizedDomain') ||
             normalizedDomain.contains('rutracker')) {
           cookieToSave.domain = normalizedDomain;
@@ -139,10 +142,10 @@ class DioCookieManager {
       }
       // If cookie had no domain, don't set it - CookieJar will use uri.host
       // This saves cookie in hostCookies for exact host matching
-      
+
       return cookieToSave;
     }).toList();
-    
+
     // Try simple batch save first (most reliable method)
     try {
       await logger.log(
@@ -158,11 +161,11 @@ class DioCookieManager {
           'cookie_names': cookiesToSave.map((c) => c.name).toList(),
         },
       );
-      
+
       // Use the exact URI provided - CookieJar will handle domain matching
       // Cookies without domain will use URI host automatically
       await jar.saveFromResponse(uri, cookiesToSave);
-      
+
       await logger.log(
         level: 'debug',
         subsystem: 'cookies',
@@ -179,7 +182,7 @@ class DioCookieManager {
         context: 'cookie_save_direct',
         cause: batchError.toString(),
       );
-      
+
       // Try individual saves as fallback (only if batch failed)
       var savedCount = 0;
       for (final cookie in cookiesToSave) {
@@ -198,7 +201,7 @@ class DioCookieManager {
           );
         }
       }
-      
+
       if (savedCount > 0) {
         await logger.log(
           level: 'info',
@@ -220,26 +223,27 @@ class DioCookieManager {
           context: 'cookie_save_direct',
           extra: {
             'total_count': cookiesToSave.length,
-            'note': 'Cookies are stored in SessionManager, which is the primary storage for WebView cookies',
+            'note':
+                'Cookies are stored in SessionManager, which is the primary storage for WebView cookies',
           },
         );
       }
     }
-    
+
     // CRITICAL: Verify cookies were saved by loading them back
     // Use a delay to ensure cookies are persisted to storage
     await Future.delayed(const Duration(milliseconds: 200));
-    
+
     // Try loading from multiple URI variations to ensure we find saved cookies
     // Use exact URI first, then base URI
     final savedCookies = await jar.loadForRequest(uri);
     final baseUri = Uri.parse('https://${uri.host}');
     final baseCookies = await jar.loadForRequest(baseUri);
-    
+
     // Also try with path-only URI
     final pathUri = Uri.parse('https://${uri.host}/');
     final pathCookies = await jar.loadForRequest(pathUri);
-    
+
     // Combine cookies from all URI variations (avoid duplicates)
     final allSavedCookies = <io.Cookie>[];
     for (final cookie in savedCookies) {
@@ -257,7 +261,7 @@ class DioCookieManager {
         allSavedCookies.add(cookie);
       }
     }
-    
+
     await logger.log(
       level: 'info',
       subsystem: 'cookies',
@@ -270,26 +274,27 @@ class DioCookieManager {
         'cookie_count': cookies.length,
         'saved_cookie_count': allSavedCookies.length,
         'saved_cookie_names': allSavedCookies.map((c) => c.name).toList(),
-        'saved_cookies': allSavedCookies.map((c) => {
-          'name': c.name,
-          'domain': c.domain ?? '<null>',
-          'path': c.path ?? '/',
-          'has_value': c.value.isNotEmpty,
-          'value_length': c.value.length,
-          'value_preview': c.value.isNotEmpty 
-              ? '${c.value.substring(0, c.value.length > 20 ? 20 : c.value.length)}...' 
-              : '<empty>',
-        }).toList(),
-        'verification': allSavedCookies.length == cookies.length 
-            ? 'success' 
-            : 'mismatch',
+        'saved_cookies': allSavedCookies
+            .map((c) => {
+                  'name': c.name,
+                  'domain': c.domain ?? '<null>',
+                  'path': c.path ?? '/',
+                  'has_value': c.value.isNotEmpty,
+                  'value_length': c.value.length,
+                  'value_preview': c.value.isNotEmpty
+                      ? '${c.value.substring(0, c.value.length > 20 ? 20 : c.value.length)}...'
+                      : '<empty>',
+                })
+            .toList(),
+        'verification':
+            allSavedCookies.length == cookies.length ? 'success' : 'mismatch',
         'uri_cookie_count': savedCookies.length,
         'base_cookie_count': baseCookies.length,
         'path_cookie_count': pathCookies.length,
         'input_cookie_names': cookies.map((c) => c.name).toList(),
       },
     );
-    
+
     // NOTE: If cookies were not saved to CookieJar, it's not critical
     // SessionManager is the primary storage for WebView cookies
     // CookieJar is primarily for cookies from HTTP responses
@@ -306,7 +311,8 @@ class DioCookieManager {
           'input_cookie_count': cookies.length,
           'saved_cookie_count': allSavedCookies.length,
           'input_cookie_names': cookies.map((c) => c.name).toList(),
-          'note': 'Cookies are stored in SessionManager, which is the primary storage. CookieJar is primarily for HTTP response cookies.',
+          'note':
+              'Cookies are stored in SessionManager, which is the primary storage. CookieJar is primarily for HTTP response cookies.',
         },
       );
     }
@@ -598,7 +604,8 @@ class DioCookieManager {
   ///
   /// Returns true if cookies exist and appear to be valid, false otherwise.
   static Future<bool> hasValidCookies() async {
-    final operationId = 'has_valid_cookies_${DateTime.now().millisecondsSinceEpoch}';
+    final operationId =
+        'has_valid_cookies_${DateTime.now().millisecondsSinceEpoch}';
     final logger = StructuredLogger();
     final startTime = DateTime.now();
 
@@ -609,7 +616,7 @@ class DioCookieManager {
         try {
           final url = 'https://$domain';
           final cookieHeader = await CookieService.getCookiesForUrl(url);
-          
+
           if (cookieHeader != null && cookieHeader.isNotEmpty) {
             // Check if cookie header contains actual cookies (not just whitespace)
             final trimmed = cookieHeader.trim();
@@ -645,15 +652,14 @@ class DioCookieManager {
           final activeBase = await endpointManager.getActiveEndpoint();
           final uri = Uri.parse(activeBase);
           final cookies = await jar.loadForRequest(uri);
-          
+
           if (cookies.isNotEmpty) {
             // Check if we have session cookies
-            final hasSessionCookie = cookies.any((c) => 
-              c.name.toLowerCase().contains('session') || 
-              c.name == 'bb_session' || 
-              c.name == 'bb_data'
-            );
-            
+            final hasSessionCookie = cookies.any((c) =>
+                c.name.toLowerCase().contains('session') ||
+                c.name == 'bb_session' ||
+                c.name == 'bb_data');
+
             if (hasSessionCookie) {
               await logger.log(
                 level: 'info',
@@ -673,15 +679,15 @@ class DioCookieManager {
           }
         }
       } on Exception catch (e) {
-      await logger.log(
-        level: 'debug',
-        subsystem: 'cookies',
-        message: 'Error checking CookieJar',
-        operationId: operationId,
-        context: 'has_valid_cookies',
-        cause: e.toString(),
-      );
-    }
+        await logger.log(
+          level: 'debug',
+          subsystem: 'cookies',
+          message: 'Error checking CookieJar',
+          operationId: operationId,
+          context: 'has_valid_cookies',
+          cause: e.toString(),
+        );
+      }
 
       // Step 3: Check SecureStorage (fallback) - cookies may be here after direct HTTP login
       try {
@@ -690,8 +696,10 @@ class DioCookieManager {
         final activeBase = await endpointManager.getActiveEndpoint();
         final simpleCookieManager = SimpleCookieManager();
         final cookieString = await simpleCookieManager.getCookie(activeBase);
-        
-        if (cookieString != null && cookieString.isNotEmpty && cookieString.contains('bb_session=')) {
+
+        if (cookieString != null &&
+            cookieString.isNotEmpty &&
+            cookieString.contains('bb_session=')) {
           await logger.log(
             level: 'info',
             subsystem: 'cookies',
@@ -743,7 +751,8 @@ class DioCookieManager {
                     message: 'Found valid cookies in SharedPreferences',
                     operationId: operationId,
                     context: 'has_valid_cookies',
-                    durationMs: DateTime.now().difference(startTime).inMilliseconds,
+                    durationMs:
+                        DateTime.now().difference(startTime).inMilliseconds,
                     extra: {
                       'source': 'SharedPreferences',
                     },
@@ -768,7 +777,12 @@ class DioCookieManager {
         context: 'has_valid_cookies',
         durationMs: DateTime.now().difference(startTime).inMilliseconds,
         extra: {
-          'checked_sources': ['CookieService', 'CookieJar', 'SecureStorage', 'SharedPreferences'],
+          'checked_sources': [
+            'CookieService',
+            'CookieJar',
+            'SecureStorage',
+            'SharedPreferences'
+          ],
         },
       );
       return false;
@@ -869,12 +883,13 @@ class DioCookieManager {
                       'path': c.path ?? '/',
                       'has_value': c.value.isNotEmpty,
                       'value_length': c.value.length,
-                      'value_preview': c.value.isNotEmpty 
-                          ? '${c.value.substring(0, c.value.length > 20 ? 20 : c.value.length)}...' 
+                      'value_preview': c.value.isNotEmpty
+                          ? '${c.value.substring(0, c.value.length > 20 ? 20 : c.value.length)}...'
                           : '<empty>',
-                      'is_session_cookie': c.name.toLowerCase().contains('session') ||
-                          c.name == 'bb_session' ||
-                          c.name == 'bb_data',
+                      'is_session_cookie':
+                          c.name.toLowerCase().contains('session') ||
+                              c.name == 'bb_session' ||
+                              c.name == 'bb_data',
                     })
                 .toList(),
             'endpoint': activeBase,
@@ -886,7 +901,8 @@ class DioCookieManager {
           await logger.log(
             level: 'debug',
             subsystem: 'cookies',
-            message: 'No cookies in Dio jar, syncing from WebView (expected during first validation)',
+            message:
+                'No cookies in Dio jar, syncing from WebView (expected during first validation)',
             operationId: operationId,
             context: 'cookie_validation',
             extra: {
@@ -895,17 +911,17 @@ class DioCookieManager {
             },
           );
           await syncCookiesFromWebView(jar);
-          
+
           // Wait a bit for cookies to be persisted
           await Future.delayed(const Duration(milliseconds: 200));
-          
+
           // Check again after sync - try multiple URI variations
           final dioCookiesAfterSync = await jar.loadForRequest(uri);
           final baseUri = Uri.parse('https://${uri.host}');
           final baseCookiesAfterSync = await jar.loadForRequest(baseUri);
           final pathUri = Uri.parse('https://${uri.host}/');
           final pathCookiesAfterSync = await jar.loadForRequest(pathUri);
-          
+
           // Combine all found cookies (avoid duplicates)
           final allCookiesAfterSync = <io.Cookie>[];
           for (final cookie in dioCookiesAfterSync) {
@@ -923,7 +939,7 @@ class DioCookieManager {
               allCookiesAfterSync.add(cookie);
             }
           }
-          
+
           await logger.log(
             level: 'info',
             subsystem: 'cookies',
@@ -935,36 +951,41 @@ class DioCookieManager {
               'uri_cookie_count': dioCookiesAfterSync.length,
               'base_cookie_count': baseCookiesAfterSync.length,
               'path_cookie_count': pathCookiesAfterSync.length,
-              'cookies': allCookiesAfterSync.map((c) => {
-                'name': c.name,
-                'domain': c.domain ?? '<null>',
-                'path': c.path ?? '/',
-                'has_value': c.value.isNotEmpty,
-                'value_length': c.value.length,
-                'value_preview': c.value.isNotEmpty 
-                    ? '${c.value.substring(0, c.value.length > 20 ? 20 : c.value.length)}...' 
-                    : '<empty>',
-                'is_session_cookie': c.name.toLowerCase().contains('session') ||
-                    c.name == 'bb_session' ||
-                    c.name == 'bb_data',
-              }).toList(),
+              'cookies': allCookiesAfterSync
+                  .map((c) => {
+                        'name': c.name,
+                        'domain': c.domain ?? '<null>',
+                        'path': c.path ?? '/',
+                        'has_value': c.value.isNotEmpty,
+                        'value_length': c.value.length,
+                        'value_preview': c.value.isNotEmpty
+                            ? '${c.value.substring(0, c.value.length > 20 ? 20 : c.value.length)}...'
+                            : '<empty>',
+                        'is_session_cookie':
+                            c.name.toLowerCase().contains('session') ||
+                                c.name == 'bb_session' ||
+                                c.name == 'bb_data',
+                      })
+                  .toList(),
             },
           );
-          
+
           if (allCookiesAfterSync.isEmpty) {
             await logger.log(
               level: 'debug',
               subsystem: 'cookies',
-              message: 'No cookies in Dio jar after sync from WebView (cookies may be in SessionManager, trying SessionManager sync)',
+              message:
+                  'No cookies in Dio jar after sync from WebView (cookies may be in SessionManager, trying SessionManager sync)',
               operationId: operationId,
               context: 'cookie_validation',
               extra: {
                 'endpoint': activeBase,
                 'uri_host': uri.host,
-                'note': 'Cookies may be in SessionManager but not in CookieJar. Trying to sync from SessionManager.',
+                'note':
+                    'Cookies may be in SessionManager but not in CookieJar. Trying to sync from SessionManager.',
               },
             );
-            
+
             // DEPRECATED: SessionManager sync removed - no longer using FlutterCookieBridge
             // Cookies are now managed directly through SimpleCookieManager
           }
@@ -1018,7 +1039,8 @@ class DioCookieManager {
               testUrl,
               options: Options(
                 validateStatus: (status) => status != null && status < 500,
-                followRedirects: true, // Allow redirects to see if we get redirected to login
+                followRedirects:
+                    true, // Allow redirects to see if we get redirected to login
                 headers: {
                   // Ensure cookies are sent by explicitly checking Cookie header
                   // CookieManager interceptor should add them automatically
@@ -1170,4 +1192,3 @@ class DioCookieManager {
     }
   }
 }
-

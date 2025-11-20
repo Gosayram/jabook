@@ -140,7 +140,8 @@ class ResponsiveUtils {
   }
 
   /// Gets responsive border radius.
-  static double getBorderRadius(BuildContext context, {double baseRadius = 12}) {
+  static double getBorderRadius(BuildContext context,
+      {double baseRadius = 12}) {
     if (isDesktop(context)) {
       return baseRadius * 1.2;
     } else if (isTablet(context)) {
@@ -200,4 +201,3 @@ class ResponsiveUtils {
     }
   }
 }
-

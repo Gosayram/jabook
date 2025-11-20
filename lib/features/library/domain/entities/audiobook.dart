@@ -25,6 +25,8 @@ class Audiobook {
     required this.leechers,
     required this.magnetUrl,
     this.coverUrl,
+    this.performer,
+    this.genres = const [],
     required this.chapters,
     required this.addedDate,
   });
@@ -56,6 +58,12 @@ class Audiobook {
   /// URL to the cover image
   final String? coverUrl;
 
+  /// Performer or narrator of the audiobook
+  final String? performer;
+
+  /// List of genres for the audiobook
+  final List<String> genres;
+
   /// List of chapters in the audiobook
   final List<Chapter> chapters;
 
@@ -73,6 +81,8 @@ class Audiobook {
     int? leechers,
     String? magnetUrl,
     String? coverUrl,
+    String? performer,
+    List<String>? genres,
     List<Chapter>? chapters,
     DateTime? addedDate,
   }) =>
@@ -86,6 +96,8 @@ class Audiobook {
         leechers: leechers ?? this.leechers,
         magnetUrl: magnetUrl ?? this.magnetUrl,
         coverUrl: coverUrl ?? this.coverUrl,
+        performer: performer ?? this.performer,
+        genres: genres ?? this.genres,
         chapters: chapters ?? this.chapters,
         addedDate: addedDate ?? this.addedDate,
       );

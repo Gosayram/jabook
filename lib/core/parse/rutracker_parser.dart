@@ -17,6 +17,7 @@ import 'dart:convert';
 import 'package:html/dom.dart';
 import 'package:html/parser.dart' as parser;
 import 'package:jabook/core/errors/failures.dart';
+import 'package:jabook/core/logging/environment_logger.dart';
 import 'package:jabook/core/logging/structured_logger.dart';
 import 'package:windows1251/windows1251.dart';
 
@@ -39,6 +40,8 @@ class Audiobook {
     required this.leechers,
     required this.magnetUrl,
     this.coverUrl,
+    this.performer,
+    this.genres = const [],
     required this.chapters,
     required this.addedDate,
   });
@@ -69,6 +72,12 @@ class Audiobook {
 
   /// URL of the cover image, if available.
   final String? coverUrl;
+
+  /// Performer or narrator of the audiobook.
+  final String? performer;
+
+  /// List of genres for the audiobook.
+  final List<String> genres;
 
   /// List of chapters in the audiobook.
   final List<Chapter> chapters;
@@ -116,7 +125,8 @@ class Chapter {
 class RuTrackerParser {
   // CSS selectors centralized for easier maintenance
   static const String _rowSelector = 'tr.hl-tr';
-  static const String _titleSelector = 'a.torTopic, a.torTopic.tt-text, a[href*="viewtopic.php?t="]';
+  static const String _titleSelector =
+      'a.torTopic, a.torTopic.tt-text, a[href*="viewtopic.php?t="]';
   static const String _authorSelector =
       'a.pmed, .topicAuthor a, a[href*="profile.php"]';
   static const String _sizeSelector = 'span.small, a.f-dl.dl-stub';
@@ -144,17 +154,18 @@ class RuTrackerParser {
   Future<List<Audiobook>> parseSearchResults(
     dynamic htmlData, {
     String? contentType,
+    String? baseUrl,
   }) async {
     final logger = StructuredLogger();
     try {
       String decodedHtml;
-      
+
       // Log initial data type and size for diagnostics
       final dataType = htmlData.runtimeType.toString();
-      final dataSize = htmlData is List<int> 
-          ? htmlData.length 
+      final dataSize = htmlData is List<int>
+          ? htmlData.length
           : (htmlData is String ? htmlData.length : 0);
-      
+
       await logger.log(
         level: 'debug',
         subsystem: 'parser',
@@ -166,7 +177,7 @@ class RuTrackerParser {
           'content_type': contentType ?? 'not_provided',
         },
       );
-      
+
       // Determine encoding from Content-Type header if available
       String? detectedEncoding;
       if (contentType != null) {
@@ -176,13 +187,13 @@ class RuTrackerParser {
           detectedEncoding = charsetMatch.group(1)?.toLowerCase();
         }
       }
-      
+
       if (htmlData is String) {
         // String data - check if it's already correctly decoded
         // If it contains typical Windows-1251 characters incorrectly decoded as UTF-8,
         // we might need to re-encode, but this is complex, so we'll use as-is for now
         decodedHtml = htmlData;
-        
+
         await logger.log(
           level: 'debug',
           subsystem: 'parser',
@@ -190,15 +201,15 @@ class RuTrackerParser {
           context: 'parse_search_results',
           extra: {
             'string_length': decodedHtml.length,
-            'preview': decodedHtml.length > 200 
-                ? decodedHtml.substring(0, 200) 
+            'preview': decodedHtml.length > 200
+                ? decodedHtml.substring(0, 200)
                 : decodedHtml,
           },
         );
-        
+
         // Check for signs of incorrect encoding (mojibake)
         // If string contains replacement characters or unusual sequences, it might be wrong
-        if (decodedHtml.contains('\uFFFD') || 
+        if (decodedHtml.contains('\uFFFD') ||
             (decodedHtml.contains('Р') && decodedHtml.contains('С'))) {
           // Possible encoding issue, but we can't fix it from String
           await logger.log(
@@ -217,31 +228,32 @@ class RuTrackerParser {
         // These bytes are already decompressed and ready for encoding conversion
         // They need to be decoded from Windows-1251 (RuTracker default)
         final bytes = htmlData;
-        
+
         // Validate bytes before decoding
         if (bytes.isEmpty) {
           throw const ParsingFailure(
             'Received empty bytes. This may indicate a network error.',
           );
         }
-        
+
         await logger.log(
           level: 'debug',
           subsystem: 'parser',
-          message: 'Decoding bytes (Brotli already decompressed by Dio transformer)',
+          message:
+              'Decoding bytes (Brotli already decompressed by Dio transformer)',
           context: 'parse_search_results',
           extra: {
             'bytes_length': bytes.length,
             'detected_encoding': detectedEncoding ?? 'auto-detect',
-            'first_bytes_preview': bytes.length > 50 
-                ? bytes.sublist(0, 50).toString() 
+            'first_bytes_preview': bytes.length > 50
+                ? bytes.sublist(0, 50).toString()
                 : bytes.toString(),
           },
         );
-        
+
         if (detectedEncoding != null) {
           // Use detected encoding from Content-Type header
-          if (detectedEncoding.contains('windows-1251') || 
+          if (detectedEncoding.contains('windows-1251') ||
               detectedEncoding.contains('cp1251') ||
               detectedEncoding.contains('1251')) {
             try {
@@ -253,8 +265,8 @@ class RuTrackerParser {
                 context: 'parse_search_results',
                 extra: {
                   'decoded_length': decodedHtml.length,
-                  'preview': decodedHtml.length > 200 
-                      ? decodedHtml.substring(0, 200) 
+                  'preview': decodedHtml.length > 200
+                      ? decodedHtml.substring(0, 200)
                       : decodedHtml,
                 },
               );
@@ -283,8 +295,8 @@ class RuTrackerParser {
                 );
               }
             }
-          } else if (detectedEncoding.contains('utf-8') || 
-                     detectedEncoding.contains('utf8')) {
+          } else if (detectedEncoding.contains('utf-8') ||
+              detectedEncoding.contains('utf8')) {
             try {
               decodedHtml = utf8.decode(bytes);
               await logger.log(
@@ -364,7 +376,8 @@ class RuTrackerParser {
               await logger.log(
                 level: 'warning',
                 subsystem: 'parser',
-                message: 'UTF-8 decoding also failed, trying Latin-1 as last resort',
+                message:
+                    'UTF-8 decoding also failed, trying Latin-1 as last resort',
                 context: 'parse_search_results',
                 cause: e2.toString(),
               );
@@ -393,13 +406,13 @@ class RuTrackerParser {
           'Decoded HTML is empty. This may indicate a network error or encoding issue.',
         );
       }
-      
+
       // Check for valid HTML structure
-      final hasHtmlStructure = decodedHtml.contains('<html') || 
+      final hasHtmlStructure = decodedHtml.contains('<html') ||
           decodedHtml.contains('<HTML') ||
           decodedHtml.contains('<body') ||
           decodedHtml.contains('<BODY');
-      
+
       if (!hasHtmlStructure) {
         await logger.log(
           level: 'error',
@@ -408,8 +421,8 @@ class RuTrackerParser {
           context: 'parse_search_results',
           extra: {
             'decoded_length': decodedHtml.length,
-            'preview': decodedHtml.length > 500 
-                ? decodedHtml.substring(0, 500) 
+            'preview': decodedHtml.length > 500
+                ? decodedHtml.substring(0, 500)
                 : decodedHtml,
             'has_html_tag': decodedHtml.contains('<html'),
             'has_body_tag': decodedHtml.contains('<body'),
@@ -420,12 +433,14 @@ class RuTrackerParser {
           'Decoded text length: ${decodedHtml.length} bytes.',
         );
       }
-      
+
       // Check for encoding issues (mojibake) - signs of incorrect decoding
       // If decoded HTML contains replacement characters or unusual sequences, it might be wrong
-      final hasEncodingIssues = decodedHtml.contains('\uFFFD') || 
-          (decodedHtml.contains('Р') && decodedHtml.contains('С') && decodedHtml.length < 1000);
-      
+      final hasEncodingIssues = decodedHtml.contains('\uFFFD') ||
+          (decodedHtml.contains('Р') &&
+              decodedHtml.contains('С') &&
+              decodedHtml.length < 1000);
+
       if (hasEncodingIssues) {
         await logger.log(
           level: 'warning',
@@ -434,16 +449,17 @@ class RuTrackerParser {
           context: 'parse_search_results',
           extra: {
             'has_replacement_char': decodedHtml.contains('\uFFFD'),
-            'has_suspicious_chars': decodedHtml.contains('Р') && decodedHtml.contains('С'),
+            'has_suspicious_chars':
+                decodedHtml.contains('Р') && decodedHtml.contains('С'),
           },
         );
       }
-      
+
       // Try to parse the document
       Document? document;
       try {
         document = parser.parse(decodedHtml);
-        
+
         // Validate that parsing produced a valid document
         // Note: parser.parse() never returns null, but we check body for validity
         if (document.body == null) {
@@ -451,7 +467,7 @@ class RuTrackerParser {
             'HTML parser returned document without body. This may indicate invalid HTML structure.',
           );
         }
-        
+
         await logger.log(
           level: 'debug',
           subsystem: 'parser',
@@ -473,12 +489,12 @@ class RuTrackerParser {
             'has_encoding_issues': hasEncodingIssues,
             'html_data_type': htmlData.runtimeType.toString(),
             'decoded_length': decodedHtml.length,
-            'html_preview': decodedHtml.length > 1000 
-                ? decodedHtml.substring(0, 1000) 
+            'html_preview': decodedHtml.length > 1000
+                ? decodedHtml.substring(0, 1000)
                 : decodedHtml,
           },
         );
-        
+
         // If parsing fails and we have encoding issues, try to re-encode
         if (hasEncodingIssues && htmlData is List<int>) {
           final bytes = htmlData;
@@ -493,37 +509,39 @@ class RuTrackerParser {
                 'will_try_alternative': true,
               },
             );
-            
+
             // Try alternative encoding
-            final alternativeDecoded = (detectedEncoding?.contains('utf') ?? false)
-                ? windows1251.decode(bytes)
-                : utf8.decode(bytes);
-            
+            final alternativeDecoded =
+                (detectedEncoding?.contains('utf') ?? false)
+                    ? windows1251.decode(bytes)
+                    : utf8.decode(bytes);
+
             // Validate alternative decoded HTML
-            if (alternativeDecoded.isEmpty || 
-                (!alternativeDecoded.contains('<html') && 
-                 !alternativeDecoded.contains('<HTML') &&
-                 !alternativeDecoded.contains('<body') &&
-                 !alternativeDecoded.contains('<BODY'))) {
+            if (alternativeDecoded.isEmpty ||
+                (!alternativeDecoded.contains('<html') &&
+                    !alternativeDecoded.contains('<HTML') &&
+                    !alternativeDecoded.contains('<body') &&
+                    !alternativeDecoded.contains('<BODY'))) {
               throw ParsingFailure(
                 'Alternative encoding also produced invalid HTML. '
                 'Original encoding: ${detectedEncoding ?? 'auto-detect'}.',
                 e,
               );
             }
-            
+
             document = parser.parse(alternativeDecoded);
             decodedHtml = alternativeDecoded; // Update for later use
-            
+
             await logger.log(
               level: 'info',
               subsystem: 'parser',
               message: 'Recovery with alternative encoding succeeded',
               context: 'parse_search_results',
               extra: {
-                'alternative_encoding': (detectedEncoding?.contains('utf') ?? false) 
-                    ? 'windows-1251' 
-                    : 'utf-8',
+                'alternative_encoding':
+                    (detectedEncoding?.contains('utf') ?? false)
+                        ? 'windows-1251'
+                        : 'utf-8',
               },
             );
           } on Exception catch (recoveryError) {
@@ -549,7 +567,7 @@ class RuTrackerParser {
           );
         }
       }
-      
+
       final results = <Audiobook>[];
 
       // Check if page requires authentication or has errors
@@ -561,76 +579,83 @@ class RuTrackerParser {
           pageText.contains('недостаточно прав') ||
           pageText.contains('требуется авторизация') ||
           pageText.contains('авторизуйтесь');
-      
+
       // If page has access denied message, it's an auth issue
       if (hasAccessDenied) {
         throw const ParsingFailure(
           'Page appears to require authentication. Please log in first.',
         );
       }
-      
+
       // If no guest search form and no results, might be wrong page type
       // But don't throw error yet - let's check if there are actual results
 
       // Parse actual RuTracker topic rows structure
       final topicRows = document.querySelectorAll(_rowSelector);
-      
+
       // If no rows found, check if page structure is unexpected
       if (topicRows.isEmpty) {
         // Improved check for search form (more reliable)
-        final hasSearchForm = document.querySelector('form[action*="tracker"]') != null ||
-            document.querySelector('form[action*="search"]') != null ||
-            document.querySelector('input[name="nm"]') != null ||
-            document.querySelector('form#quick-search-guest') != null ||
-            document.querySelector('form#quick-search') != null;
-        
+        final hasSearchForm =
+            document.querySelector('form[action*="tracker"]') != null ||
+                document.querySelector('form[action*="search"]') != null ||
+                document.querySelector('input[name="nm"]') != null ||
+                document.querySelector('form#quick-search-guest') != null ||
+                document.querySelector('form#quick-search') != null;
+
         // Check for search page elements (even if results are empty)
-        final hasSearchPageElements = document.querySelector('div.tCenter') != null ||
-            document.querySelector('table.forumline') != null ||
-            document.querySelector('div.nav') != null;
-        
+        final hasSearchPageElements =
+            document.querySelector('div.tCenter') != null ||
+                document.querySelector('table.forumline') != null ||
+                document.querySelector('div.nav') != null;
+
         // Check if this is the main index page (not search results)
-        final isIndexPage = document.querySelector('div#forums_list_wrap') != null ||
-            document.querySelector('div#latest_news') != null;
-        
+        final isIndexPage =
+            document.querySelector('div#forums_list_wrap') != null ||
+                document.querySelector('div#latest_news') != null;
+
         // Improved check for access denied messages (more specific)
         final hasAccessDenied = pageText.contains('доступ запрещен') ||
             pageText.contains('access denied') ||
             pageText.contains('недостаточно прав') ||
             pageText.contains('требуется авторизация') ||
             pageText.contains('авторизуйтесь');
-        
+
         // If page has access denied message, it's an auth issue
         if (hasAccessDenied) {
           throw const ParsingFailure(
             'Page appears to require authentication. Please log in first.',
           );
         }
-        
+
         // If there's a search form OR search page elements, it's likely empty results (not an error)
         // If it's index page, it's also valid (just no search was performed)
         if (hasSearchForm || hasSearchPageElements || isIndexPage) {
           // Empty results are valid - return empty list
           return results;
         }
-        
+
         // If no search form, no search page elements, and not index page - possibly error
         // Provide more detailed error message
         final pageLength = decodedHtml.length;
-        final hasHtmlStructure = decodedHtml.contains('<html') || decodedHtml.contains('<body');
-        final hasRuTrackerElements = decodedHtml.contains('rutracker') || 
+        final hasHtmlStructure =
+            decodedHtml.contains('<html') || decodedHtml.contains('<body');
+        final hasRuTrackerElements = decodedHtml.contains('rutracker') ||
             decodedHtml.contains('RuTracker') ||
             decodedHtml.contains('форум');
-        
+
         String errorMessage;
         if (!hasHtmlStructure) {
-          errorMessage = 'Response does not appear to be valid HTML. This may indicate a network error or encoding issue.';
+          errorMessage =
+              'Response does not appear to be valid HTML. This may indicate a network error or encoding issue.';
         } else if (!hasRuTrackerElements) {
-          errorMessage = 'Response does not appear to be from RuTracker. Page structure may have changed or wrong endpoint was used.';
+          errorMessage =
+              'Response does not appear to be from RuTracker. Page structure may have changed or wrong endpoint was used.';
         } else {
-          errorMessage = 'Page structure may have changed. Unable to find search results or search form. Response size: $pageLength bytes.';
+          errorMessage =
+              'Page structure may have changed. Unable to find search results or search form. Response size: $pageLength bytes.';
         }
-        
+
         throw ParsingFailure(errorMessage);
       }
 
@@ -639,12 +664,12 @@ class RuTrackerParser {
         if (row.classes.any((c) => c.contains('banner') || c.contains('ads'))) {
           continue;
         }
-        
+
         final titleElement = row.querySelector(_titleSelector);
         if (titleElement == null) {
           continue;
         }
-        
+
         // Extract topic ID with priority: data-topic_id attribute (most reliable)
         var topicId = row.attributes['data-topic_id'] ?? '';
         if (topicId.isEmpty) {
@@ -657,7 +682,7 @@ class RuTrackerParser {
         if (topicId.isEmpty) {
           topicId = _extractTopicIdFromAny(row);
         }
-        
+
         // If still no topic ID, try to extract from download link
         if (topicId.isEmpty) {
           final magnetElement = row.querySelector(_downloadHrefSelector);
@@ -668,12 +693,12 @@ class RuTrackerParser {
             }
           }
         }
-        
+
         // Use title as fallback ID if no topic ID found (shouldn't happen, but be safe)
         if (topicId.isEmpty) {
           topicId = titleElement.text.trim().hashCode.toString();
         }
-        
+
         final authorElement = row.querySelector(_authorSelector);
         final sizeElement = row.querySelector(_sizeSelector);
         final seedersElement = row.querySelector(_seedersSelector);
@@ -686,8 +711,9 @@ class RuTrackerParser {
           sizeText = sizeElement.text.trim();
         } else {
           // Try to extract from row text using regex
-          final sizeMatch = RegExp(r'([\d.,]+\s*[KMGT]?B)', caseSensitive: false)
-              .firstMatch(row.text);
+          final sizeMatch =
+              RegExp(r'([\d.,]+\s*[KMGT]?B)', caseSensitive: false)
+                  .firstMatch(row.text);
           if (sizeMatch != null) {
             sizeText = sizeMatch.group(1)?.trim() ?? '0 MB';
           }
@@ -702,6 +728,7 @@ class RuTrackerParser {
           }
         }
 
+        final coverUrl = _extractCoverUrl(row, baseUrl: baseUrl);
         final audiobook = Audiobook(
           id: topicId,
           title: titleElement.text.trim(),
@@ -711,12 +738,29 @@ class RuTrackerParser {
           seeders: int.tryParse(seedersElement?.text.trim() ?? '0') ?? 0,
           leechers: int.tryParse(leechersElement?.text.trim() ?? '0') ?? 0,
           magnetUrl: magnetUrl,
-          coverUrl: _extractCoverUrl(row),
+          coverUrl: coverUrl,
           chapters: [],
           addedDate: _extractDateFromRow(row),
         );
         results.add(audiobook);
       }
+
+      // Log statistics about cover URLs
+      final envLogger = EnvironmentLogger();
+      var coverUrlCount = 0;
+      var emptyCoverUrlCount = 0;
+
+      for (final audiobook in results) {
+        if (audiobook.coverUrl != null && audiobook.coverUrl!.isNotEmpty) {
+          coverUrlCount++;
+        } else {
+          emptyCoverUrlCount++;
+        }
+      }
+
+      envLogger
+        ..i('Parsed ${results.length} search results')
+        ..i('Cover URLs found: $coverUrlCount, empty: $emptyCoverUrlCount');
 
       return results;
     } on ParsingFailure {
@@ -755,13 +799,13 @@ class RuTrackerParser {
     final logger = StructuredLogger();
     try {
       String decodedHtml;
-      
+
       // Log initial data type and size for diagnostics
       final dataType = htmlData.runtimeType.toString();
-      final dataSize = htmlData is List<int> 
-          ? htmlData.length 
+      final dataSize = htmlData is List<int>
+          ? htmlData.length
           : (htmlData is String ? htmlData.length : 0);
-      
+
       await logger.log(
         level: 'debug',
         subsystem: 'parser',
@@ -773,7 +817,7 @@ class RuTrackerParser {
           'content_type': contentType ?? 'not_provided',
         },
       );
-      
+
       // Determine encoding from Content-Type header if available
       String? detectedEncoding;
       if (contentType != null) {
@@ -783,11 +827,11 @@ class RuTrackerParser {
           detectedEncoding = charsetMatch.group(1)?.toLowerCase();
         }
       }
-      
+
       if (htmlData is String) {
         // String data - use as-is (may have encoding issues, but we can't fix from String)
         decodedHtml = htmlData;
-        
+
         await logger.log(
           level: 'debug',
           subsystem: 'parser',
@@ -802,28 +846,29 @@ class RuTrackerParser {
         // Note: Brotli decompression is handled automatically by DioBrotliTransformer in DioClient
         // These bytes are already decompressed and ready for encoding conversion
         final bytes = htmlData;
-        
+
         // Validate bytes before decoding
         if (bytes.isEmpty) {
           throw const ParsingFailure(
             'Received empty bytes. This may indicate a network error.',
           );
         }
-        
+
         await logger.log(
           level: 'debug',
           subsystem: 'parser',
-          message: 'Decoding bytes (Brotli already decompressed by Dio transformer)',
+          message:
+              'Decoding bytes (Brotli already decompressed by Dio transformer)',
           context: 'parse_topic_details',
           extra: {
             'bytes_length': bytes.length,
             'detected_encoding': detectedEncoding ?? 'auto-detect',
           },
         );
-        
+
         if (detectedEncoding != null) {
           // Use detected encoding from Content-Type header
-          if (detectedEncoding.contains('windows-1251') || 
+          if (detectedEncoding.contains('windows-1251') ||
               detectedEncoding.contains('cp1251') ||
               detectedEncoding.contains('1251')) {
             try {
@@ -859,8 +904,8 @@ class RuTrackerParser {
                 );
               }
             }
-          } else if (detectedEncoding.contains('utf-8') || 
-                     detectedEncoding.contains('utf8')) {
+          } else if (detectedEncoding.contains('utf-8') ||
+              detectedEncoding.contains('utf8')) {
             try {
               decodedHtml = utf8.decode(bytes);
               await logger.log(
@@ -934,7 +979,8 @@ class RuTrackerParser {
               await logger.log(
                 level: 'warning',
                 subsystem: 'parser',
-                message: 'UTF-8 decoding also failed, trying Latin-1 as last resort',
+                message:
+                    'UTF-8 decoding also failed, trying Latin-1 as last resort',
                 context: 'parse_topic_details',
                 cause: e2.toString(),
               );
@@ -963,13 +1009,13 @@ class RuTrackerParser {
           'Decoded HTML is empty. This may indicate a network error or encoding issue.',
         );
       }
-      
+
       // Check for valid HTML structure
-      final hasHtmlStructure = decodedHtml.contains('<html') || 
+      final hasHtmlStructure = decodedHtml.contains('<html') ||
           decodedHtml.contains('<HTML') ||
           decodedHtml.contains('<body') ||
           decodedHtml.contains('<BODY');
-      
+
       if (!hasHtmlStructure) {
         await logger.log(
           level: 'error',
@@ -991,14 +1037,14 @@ class RuTrackerParser {
       Document? document;
       try {
         document = parser.parse(decodedHtml);
-        
+
         // Validate that parsing produced a valid document
         if (document.body == null) {
           throw const ParsingFailure(
             'HTML parser returned document without body. This may indicate invalid HTML structure.',
           );
         }
-        
+
         await logger.log(
           level: 'debug',
           subsystem: 'parser',
@@ -1038,7 +1084,7 @@ class RuTrackerParser {
 
       // Extract all structured metadata from span.post-b
       final metadata = _extractAllMetadata(postBody);
-      
+
       // Extract author from structured metadata with priority:
       // 1. "Автор" field (if present)
       // 2. "Фамилия автора" + "Имя автора" (if both present)
@@ -1055,14 +1101,91 @@ class RuTrackerParser {
           authorName = '$surnameText $nameText'.trim();
         }
       }
-      
+
       // Fallback to profile link if structured metadata not found
       if (authorName == null || authorName.isEmpty) {
         final authorElement =
             postBody.querySelector('a[href*="profile.php"], .topicAuthor a');
         authorName = authorElement?.text.trim();
       }
-      
+
+      // Extract performer from structured metadata
+      String? performerName;
+      final performerKeys = [
+        'Исполнитель',
+        'Чтец',
+        'Читает',
+        'Исполнитель:',
+        'Читает:'
+      ];
+      for (final key in performerKeys) {
+        final performerText = metadata[key];
+        if (performerText != null && performerText.isNotEmpty) {
+          performerName = performerText.trim();
+          break;
+        }
+      }
+
+      // Fallback: search in post body text using regex patterns
+      if (performerName == null || performerName.isEmpty) {
+        final performerPatterns = [
+          RegExp(r'Читает[:\s]+([^\n<]+)', caseSensitive: false),
+          RegExp(r'Исполнитель[:\s]+([^\n<]+)', caseSensitive: false),
+          RegExp(r'Чтец[:\s]+([^\n<]+)', caseSensitive: false),
+        ];
+        for (final pattern in performerPatterns) {
+          final match = pattern.firstMatch(postBody.text);
+          if (match != null) {
+            performerName = match.group(1)?.trim();
+            if (performerName != null && performerName.isNotEmpty) {
+              break;
+            }
+          }
+        }
+      }
+
+      // Extract genres from structured metadata
+      var genres = <String>[];
+      final genreKeys = ['Жанр', 'Жанры', 'Genre', 'Genres', 'Жанр:', 'Жанры:'];
+      for (final key in genreKeys) {
+        final genreText = metadata[key];
+        if (genreText != null && genreText.isNotEmpty) {
+          // Split by comma or semicolon
+          genres = genreText
+              .split(RegExp(r'[,;]'))
+              .map((g) => g.trim())
+              .where((g) => g.isNotEmpty)
+              .toList();
+          if (genres.isNotEmpty) {
+            break;
+          }
+        }
+      }
+
+      // Fallback: search in post body text using regex patterns
+      if (genres.isEmpty) {
+        final genrePatterns = [
+          RegExp(r'Жанр[ы]?[:\s]+([^\n<]+)', caseSensitive: false),
+          RegExp(r'Genre[s]?[:\s]+([^\n<]+)', caseSensitive: false),
+        ];
+        for (final pattern in genrePatterns) {
+          final match = pattern.firstMatch(postBody.text);
+          if (match != null) {
+            final genreText = match.group(1)?.trim();
+            if (genreText != null && genreText.isNotEmpty) {
+              genres = genreText
+                  .split(RegExp(r'[,;]'))
+                  .map((g) => g.trim())
+                  .where((g) => g.isNotEmpty)
+                  .toList();
+              if (genres.isNotEmpty) {
+                break;
+              }
+            }
+          }
+        }
+      }
+
       // Extract statistics from attach table first (most reliable source)
       // Cache frequently used selectors to avoid multiple DOM queries
       final attachTable = document.querySelector('table.attach');
@@ -1070,14 +1193,14 @@ class RuTrackerParser {
       String? sizeText;
       int? seeders, leechers;
       DateTime? registeredDate;
-      
+
       if (attachTable != null) {
         // Extract size from span#tor-size-humn (most accurate)
         final sizeSpan = attachTable.querySelector('span#tor-size-humn');
         if (sizeSpan != null) {
           sizeText = sizeSpan.text.trim();
         }
-        
+
         // Extract registered date from attach table (format: "ДД-МММ-ГГ ЧЧ:ММ")
         // Iterate through table rows to find the one containing "Зарегистрирован"
         final rows = attachTable.querySelectorAll('tr');
@@ -1085,8 +1208,9 @@ class RuTrackerParser {
           final rowText = row.text;
           if (rowText.contains('Зарегистрирован')) {
             // Look for date pattern "ДД-МММ-ГГ ЧЧ:ММ" or "ДД-МММ-ГГ"
-            final dateMatch = RegExp(r'(\d{2})-(\w{3})-(\d{2})(?:\s+(\d{2}):(\d{2}))?')
-                .firstMatch(rowText);
+            final dateMatch =
+                RegExp(r'(\d{2})-(\w{3})-(\d{2})(?:\s+(\d{2}):(\d{2}))?')
+                    .firstMatch(rowText);
             if (dateMatch != null) {
               registeredDate = _parseAttachTableDate(
                 dateMatch.group(1)!,
@@ -1100,7 +1224,7 @@ class RuTrackerParser {
           }
         }
       }
-      
+
       // Extract size from multiple possible locations (fallback)
       if (sizeText == null || sizeText.isEmpty) {
         // Try from tor-size-humn span (if not in attach table)
@@ -1117,26 +1241,30 @@ class RuTrackerParser {
       }
       // Fallback to post body text
       if (sizeText == null || sizeText.isEmpty) {
-        final sizeMatch =
-            RegExp(r'Размер[:\s]*([\d.,]+\s*[KMGT]?B)').firstMatch(postBody.text);
+        final sizeMatch = RegExp(r'Размер[:\s]*([\d.,]+\s*[KMGT]?B)')
+            .firstMatch(postBody.text);
         sizeText = sizeMatch?.group(1)?.trim();
       }
-      
+
       // Extract seeders and leechers from tor-stats table (reuse cached selector)
       if (torStats != null) {
         // Extract seeders and leechers with improved selectors
-        final seedersElement = torStats.querySelector('span.seed b, span.seedmed b');
-        final leechersElement = torStats.querySelector('span.leech b, span.leechmed b');
+        final seedersElement =
+            torStats.querySelector('span.seed b, span.seedmed b');
+        final leechersElement =
+            torStats.querySelector('span.leech b, span.leechmed b');
         seeders = int.tryParse(seedersElement?.text.trim() ?? '0');
         leechers = int.tryParse(leechersElement?.text.trim() ?? '0');
       }
       // Fallback to post body text
       if (seeders == null) {
-        final seedersMatch = RegExp(r'Сиды[:\s]*(\d+)').firstMatch(postBody.text);
+        final seedersMatch =
+            RegExp(r'Сиды[:\s]*(\d+)').firstMatch(postBody.text);
         seeders = int.tryParse(seedersMatch?.group(1) ?? '0') ?? 0;
       }
       if (leechers == null) {
-        final leechersMatch = RegExp(r'Личи[:\s]*(\d+)').firstMatch(postBody.text);
+        final leechersMatch =
+            RegExp(r'Личи[:\s]*(\d+)').firstMatch(postBody.text);
         leechers = int.tryParse(leechersMatch?.group(1) ?? '0') ?? 0;
       }
 
@@ -1166,32 +1294,35 @@ class RuTrackerParser {
           }
         }
       }
-      
+
       // Extract cover image with improved logic
-      final coverUrl = _extractCoverUrlImproved(postBody, document.documentElement!);
+      final coverUrl =
+          _extractCoverUrlImproved(postBody, document.documentElement!);
 
       final chapters = <Chapter>[];
       // Try to parse chapters from description with improved flexible patterns
       final chapterText = postBody.text;
-      
+
       // Pattern 1: "1. Название (1:23:45)" or "01. Название (1:23:45)"
-      final pattern1 = RegExp(r'(\d+)[.:]\s*([^\n(]+?)\s*\((\d+:\d+(?::\d+)?)\)');
+      final pattern1 =
+          RegExp(r'(\d+)[.:]\s*([^\n(]+?)\s*\((\d+:\d+(?::\d+)?)\)');
       for (final match in pattern1.allMatches(chapterText)) {
         final title = match.group(2)?.trim() ?? '';
         final duration = match.group(3)?.trim() ?? '0:00';
         chapters.add(_createChapterFromDuration(title, duration));
       }
-      
+
       // Pattern 2: "01 - Название [1:23:45]"
       if (chapters.isEmpty) {
-        final pattern2 = RegExp(r'(\d+)\s*[-–]\s*([^\n[\]]+?)\s*\[(\d+:\d+(?::\d+)?)\]');
+        final pattern2 =
+            RegExp(r'(\d+)\s*[-–]\s*([^\n[\]]+?)\s*\[(\d+:\d+(?::\d+)?)\]');
         for (final match in pattern2.allMatches(chapterText)) {
           final title = match.group(2)?.trim() ?? '';
           final duration = match.group(3)?.trim() ?? '0:00';
           chapters.add(_createChapterFromDuration(title, duration));
         }
       }
-      
+
       // Pattern 3: "Глава 1: Название (01:23:45)" or "Часть 1: Название (01:23:45)"
       if (chapters.isEmpty) {
         final pattern3 = RegExp(
@@ -1204,10 +1335,11 @@ class RuTrackerParser {
           chapters.add(_createChapterFromDuration(title, duration));
         }
       }
-      
+
       // Pattern 4: Fallback to original pattern
       if (chapters.isEmpty) {
-        final pattern4 = RegExp(r'(\d+[.:]\s*[^\n]+?)\s*\(?(\d+:\d+(?::\d+)?)\)?');
+        final pattern4 =
+            RegExp(r'(\d+[.:]\s*[^\n]+?)\s*\(?(\d+:\d+(?::\d+)?)\)?');
         for (final match in pattern4.allMatches(chapterText)) {
           final title = match.group(1)?.trim() ?? '';
           final duration = match.group(2)?.trim() ?? '0:00';
@@ -1225,7 +1357,8 @@ class RuTrackerParser {
       }
       // Try from URL in title link
       if (topicId.isEmpty) {
-        final titleLink = titleElement.querySelector('a[href*="viewtopic.php?t="]');
+        final titleLink =
+            titleElement.querySelector('a[href*="viewtopic.php?t="]');
         if (titleLink != null) {
           topicId = _extractTopicIdFromUrl(titleLink.attributes['href'] ?? '');
         }
@@ -1242,7 +1375,8 @@ class RuTrackerParser {
       }
       // Fallback to extracting from document
       if (topicId.isEmpty) {
-        topicId = _extractTopicIdFromUrl(document.documentElement?.outerHtml ?? '');
+        topicId =
+            _extractTopicIdFromUrl(document.documentElement?.outerHtml ?? '');
       }
 
       // Extract category from breadcrumb navigation (preferred) or post body metadata or title
@@ -1264,6 +1398,8 @@ class RuTrackerParser {
         leechers: leechers,
         magnetUrl: magnetUrl ?? '',
         coverUrl: coverUrl,
+        performer: performerName,
+        genres: genres,
         chapters: chapters,
         addedDate: registeredDate ?? _extractDateFromPost(postBody),
       );
@@ -1289,8 +1425,8 @@ String _extractInfoHashFromUrl(String? url) {
   if (url == null) return '';
   // Try to extract info hash from magnet link
   if (url.startsWith('magnet:')) {
-    final hashMatch = RegExp(r'btih:([A-F0-9]+)', caseSensitive: false)
-        .firstMatch(url);
+    final hashMatch =
+        RegExp(r'btih:([A-F0-9]+)', caseSensitive: false).firstMatch(url);
     return hashMatch?.group(1) ?? '';
   }
   // Extract topic ID from dl.php?t=XXX
@@ -1307,8 +1443,8 @@ String _extractCategoryFromPostBody(Element postBody) {
     if (text.contains('категория')) {
       // Get the parent element text to find the value after "Категория:"
       final parentText = element.parent?.text ?? '';
-      final categoryMatch = RegExp(r'Категория[:\s]*([^\n<]+)')
-          .firstMatch(parentText);
+      final categoryMatch =
+          RegExp(r'Категория[:\s]*([^\n<]+)').firstMatch(parentText);
       if (categoryMatch != null) {
         final category = categoryMatch.group(1)?.trim() ?? '';
         if (category.isNotEmpty) {
@@ -1329,9 +1465,151 @@ String _extractCategoryFromTitle(String title) {
   return 'Другое';
 }
 
-String? _extractCoverUrl(Element row) {
-  final imgElement = row.querySelector('img[src*="static.rutracker"]');
-  return imgElement?.attributes['src'];
+/// Extracts cover URL from search result row.
+///
+/// Tries multiple selectors in priority order to find cover image.
+/// Returns normalized absolute URL or null if not found.
+String? _extractCoverUrl(Element row, {String? baseUrl}) {
+  final logger = EnvironmentLogger()
+    ..d('Extracting cover URL from search result row');
+
+  // Priority 1: var.postImg with title attribute (contains full URL)
+  final postImgVar =
+      row.querySelector('var.postImg[title], var.postImgAligned[title]');
+  if (postImgVar != null) {
+    final title = postImgVar.attributes['title'];
+    if (title != null && title.isNotEmpty) {
+      final normalizedUrl = _normalizeCoverUrl(title, baseUrl: baseUrl);
+      if (normalizedUrl != null) {
+        logger.d('Cover URL extracted (Priority 1): $normalizedUrl');
+        return normalizedUrl;
+      }
+    }
+  }
+
+  // Priority 2: var.postImg with title containing fastpic or rutracker
+  final postImgFastpic = row.querySelector(
+      'var.postImg[title*="fastpic"], var.postImg[title*="rutracker"], '
+      'var.postImgAligned[title*="fastpic"], var.postImgAligned[title*="rutracker"]');
+  if (postImgFastpic != null) {
+    final title = postImgFastpic.attributes['title'];
+    if (title != null && title.isNotEmpty) {
+      final normalizedUrl = _normalizeCoverUrl(title);
+      if (normalizedUrl != null) {
+        logger.d('Cover URL extracted (Priority 2): $normalizedUrl');
+        return normalizedUrl;
+      }
+    }
+  }
+
+  // Priority 3: img with src containing static.rutracker or fastpic
+  final imgElement = row.querySelector(
+      'img[src*="static.rutracker"], img[src*="fastpic"], img.postimg');
+  if (imgElement != null) {
+    final src = imgElement.attributes['src'];
+    if (src != null && src.isNotEmpty) {
+      final normalizedUrl = _normalizeCoverUrl(src, baseUrl: baseUrl);
+      if (normalizedUrl != null) {
+        logger.d('Cover URL extracted (Priority 3): $normalizedUrl');
+        return normalizedUrl;
+      }
+    }
+  }
+
+  // Priority 4: img with data-src (lazy loading)
+  final imgLazy = row.querySelector('img[data-src]');
+  if (imgLazy != null) {
+    final dataSrc = imgLazy.attributes['data-src'];
+    if (dataSrc != null && dataSrc.isNotEmpty) {
+      final normalizedUrl = _normalizeCoverUrl(dataSrc, baseUrl: baseUrl);
+      if (normalizedUrl != null) {
+        logger.d('Cover URL extracted (Priority 4): $normalizedUrl');
+        return normalizedUrl;
+      }
+    }
+  }
+
+  // Priority 5: img with srcset
+  final imgSrcset = row.querySelector('img[srcset]');
+  if (imgSrcset != null) {
+    final srcset = imgSrcset.attributes['srcset'];
+    if (srcset != null && srcset.isNotEmpty) {
+      // Extract first URL from srcset
+      final firstUrl = srcset.split(',').first.trim().split(' ').first;
+      if (firstUrl.isNotEmpty) {
+        final normalizedUrl = _normalizeCoverUrl(firstUrl, baseUrl: baseUrl);
+        if (normalizedUrl != null) {
+          logger.d('Cover URL extracted (Priority 5): $normalizedUrl');
+          return normalizedUrl;
+        }
+      }
+    }
+  }
+
+  logger.d('Cover URL not found in search result row');
+  return null;
+}
+
+/// Normalizes cover URL to absolute URL.
+///
+/// Converts relative URLs to absolute URLs using provided baseUrl or rutracker.org as fallback.
+String? _normalizeCoverUrl(String? url, {String? baseUrl}) {
+  if (url == null || url.isEmpty) {
+    EnvironmentLogger().d('_normalizeCoverUrl: URL is null or empty');
+    return null;
+  }
+
+  final logger = EnvironmentLogger()
+    ..d('_normalizeCoverUrl: Normalizing URL: $url (baseUrl: $baseUrl)');
+
+  // If URL already absolute, return as is
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    logger.d('_normalizeCoverUrl: URL is already absolute: $url');
+    return url;
+  }
+
+  // Determine base URL to use
+  String effectiveBaseUrl;
+  if (baseUrl != null && baseUrl.isNotEmpty) {
+    // Remove trailing slash from baseUrl
+    effectiveBaseUrl = baseUrl.endsWith('/')
+        ? baseUrl.substring(0, baseUrl.length - 1)
+        : baseUrl;
+    // Ensure baseUrl has protocol
+    if (!effectiveBaseUrl.startsWith('http://') &&
+        !effectiveBaseUrl.startsWith('https://')) {
+      effectiveBaseUrl = 'https://$effectiveBaseUrl';
+    }
+  } else {
+    // Fallback to rutracker.org
+    effectiveBaseUrl = 'https://rutracker.org';
+  }
+
+  // If URL relative (starts with /), convert to absolute
+  if (url.startsWith('/')) {
+    final normalized = '$effectiveBaseUrl$url';
+    logger.d('_normalizeCoverUrl: Normalized relative URL: $normalized');
+    return normalized;
+  }
+
+  // If URL starts with //, add https:
+  if (url.startsWith('//')) {
+    final normalized = 'https:$url';
+    logger
+        .d('_normalizeCoverUrl: Normalized protocol-relative URL: $normalized');
+    return normalized;
+  }
+
+  // If URL doesn't start with /, possibly already full path
+  // Try to add base URL
+  if (!url.contains('://')) {
+    final normalized = '$effectiveBaseUrl/$url';
+    logger.d('_normalizeCoverUrl: Normalized path URL: $normalized');
+    return normalized;
+  }
+
+  logger.w('_normalizeCoverUrl: Could not normalize URL: $url');
+  return url;
 }
 
 DateTime _extractDateFromRow(Element row) {
@@ -1339,11 +1617,11 @@ DateTime _extractDateFromRow(Element row) {
   final dateElement = row.querySelector('.small') ??
       row.querySelector('td.small') ??
       row.querySelector('span.small');
-  
+
   if (dateElement != null) {
     try {
       final dateText = dateElement.text.trim();
-      
+
       // Pattern 1: "ДД-МММ-ГГ" format (e.g., "08-Июн-07")
       var dateMatch = RegExp(r'(\d{2})-(\w{3})-(\d{2})').firstMatch(dateText);
       if (dateMatch != null) {
@@ -1351,12 +1629,11 @@ DateTime _extractDateFromRow(Element row) {
         final month = _monthToNumber(dateMatch.group(2)!);
         final yearTwoDigits = int.parse(dateMatch.group(3)!);
         // If year >= 50, assume 1900s (1950-1999), otherwise 2000s (2000-2049)
-        final year = yearTwoDigits >= 50 
-            ? 1900 + yearTwoDigits 
-            : 2000 + yearTwoDigits;
+        final year =
+            yearTwoDigits >= 50 ? 1900 + yearTwoDigits : 2000 + yearTwoDigits;
         return DateTime(year, month, day);
       }
-      
+
       // Pattern 2: "ДД.ММ.ГГГГ" format (e.g., "08.06.2007")
       dateMatch = RegExp(r'(\d{2})\.(\d{2})\.(\d{4})').firstMatch(dateText);
       if (dateMatch != null) {
@@ -1365,23 +1642,22 @@ DateTime _extractDateFromRow(Element row) {
         final year = int.parse(dateMatch.group(3)!);
         return DateTime(year, month, day);
       }
-      
+
       // Pattern 3: "ДД.ММ.ГГ" format (e.g., "08.06.07")
       dateMatch = RegExp(r'(\d{2})\.(\d{2})\.(\d{2})').firstMatch(dateText);
       if (dateMatch != null) {
         final day = int.parse(dateMatch.group(1)!);
         final month = int.parse(dateMatch.group(2)!);
         final yearTwoDigits = int.parse(dateMatch.group(3)!);
-        final year = yearTwoDigits >= 50 
-            ? 1900 + yearTwoDigits 
-            : 2000 + yearTwoDigits;
+        final year =
+            yearTwoDigits >= 50 ? 1900 + yearTwoDigits : 2000 + yearTwoDigits;
         return DateTime(year, month, day);
       }
     } on Exception {
       // Fallback to current date
     }
   }
-  
+
   // Try to extract from row text as fallback
   final rowText = row.text;
   final dateMatch = RegExp(r'(\d{2})-(\w{3})-(\d{2})').firstMatch(rowText);
@@ -1390,15 +1666,14 @@ DateTime _extractDateFromRow(Element row) {
       final day = int.parse(dateMatch.group(1)!);
       final month = _monthToNumber(dateMatch.group(2)!);
       final yearTwoDigits = int.parse(dateMatch.group(3)!);
-      final year = yearTwoDigits >= 50 
-          ? 1900 + yearTwoDigits 
-          : 2000 + yearTwoDigits;
+      final year =
+          yearTwoDigits >= 50 ? 1900 + yearTwoDigits : 2000 + yearTwoDigits;
       return DateTime(year, month, day);
     } on Exception {
       // Fallback
     }
   }
-  
+
   return DateTime.now();
 }
 
@@ -1414,10 +1689,11 @@ DateTime _extractDateFromPost(Element postBody) {
       // Fallback
     }
   }
-  
+
   // Try to extract from attach table format in post body text
-  final attachDateMatch = RegExp(r'(\d{2})-(\w{3})-(\d{2})(?:\s+(\d{2}):(\d{2}))?')
-      .firstMatch(postBody.text);
+  final attachDateMatch =
+      RegExp(r'(\d{2})-(\w{3})-(\d{2})(?:\s+(\d{2}):(\d{2}))?')
+          .firstMatch(postBody.text);
   if (attachDateMatch != null) {
     final parsedDate = _parseAttachTableDate(
       attachDateMatch.group(1)!,
@@ -1430,7 +1706,7 @@ DateTime _extractDateFromPost(Element postBody) {
       return parsedDate;
     }
   }
-  
+
   return DateTime.now();
 }
 
@@ -1449,10 +1725,9 @@ DateTime? _parseAttachTableDate(
     final month = _monthToNumber(monthStr);
     final yearTwoDigits = int.parse(yearStr);
     // If year >= 50, assume 1900s (1950-1999), otherwise 2000s (2000-2049)
-    final year = yearTwoDigits >= 50 
-        ? 1900 + yearTwoDigits 
-        : 2000 + yearTwoDigits;
-    
+    final year =
+        yearTwoDigits >= 50 ? 1900 + yearTwoDigits : 2000 + yearTwoDigits;
+
     if (hourStr != null && minuteStr != null) {
       final hour = int.parse(hourStr);
       final minute = int.parse(minuteStr);
@@ -1471,8 +1746,7 @@ Chapter _createChapterFromDuration(String title, String duration) {
   var durationMs = 0;
   if (durationParts.length == 2) {
     durationMs =
-        (int.parse(durationParts[0]) * 60 + int.parse(durationParts[1])) *
-            1000;
+        (int.parse(durationParts[0]) * 60 + int.parse(durationParts[1])) * 1000;
   } else if (durationParts.length == 3) {
     durationMs = (int.parse(durationParts[0]) * 3600 +
             int.parse(durationParts[1]) * 60 +
@@ -1534,22 +1808,22 @@ int _monthToNumber(String month) {
 Map<String, String> _extractAllMetadata(Element postBody) {
   final metadata = <String, String>{};
   final allPostB = postBody.querySelectorAll('span.post-b');
-  
+
   for (final element in allPostB) {
     final key = element.text.trim();
     if (key.isEmpty) continue;
-    
+
     // Get parent element to find the value after the key
     final parent = element.parent;
     if (parent == null) continue;
-    
+
     // Try to find value in the same line or next line
     // Look in parent's text first
     final parentText = parent.text;
-    
+
     // Pattern 1: "Ключ: Значение" or "Ключ Значение" on the same line
-    final match1 = RegExp('${RegExp.escape(key)}[:\\s]+([^\\n<]+)')
-        .firstMatch(parentText);
+    final match1 =
+        RegExp('${RegExp.escape(key)}[:\\s]+([^\\n<]+)').firstMatch(parentText);
     if (match1 != null) {
       final value = match1.group(1)?.trim() ?? '';
       if (value.isNotEmpty && !value.contains(key)) {
@@ -1557,7 +1831,7 @@ Map<String, String> _extractAllMetadata(Element postBody) {
         continue;
       }
     }
-    
+
     // Pattern 2: Look for value in the next sibling element
     final nextSibling = element.nextElementSibling;
     if (nextSibling != null) {
@@ -1567,11 +1841,11 @@ Map<String, String> _extractAllMetadata(Element postBody) {
         continue;
       }
     }
-    
+
     // Pattern 3: Look for value after the key in parent's innerHTML
     final parentHtml = parent.innerHtml;
-    final match2 = RegExp('${RegExp.escape(key)}[:\\s]*([^<\\n]+)')
-        .firstMatch(parentHtml);
+    final match2 =
+        RegExp('${RegExp.escape(key)}[:\\s]*([^<\\n]+)').firstMatch(parentHtml);
     if (match2 != null) {
       final value = match2.group(1)?.trim() ?? '';
       // Remove HTML tags from value
@@ -1581,7 +1855,7 @@ Map<String, String> _extractAllMetadata(Element postBody) {
       }
     }
   }
-  
+
   return metadata;
 }
 
@@ -1593,32 +1867,29 @@ Map<String, String> _extractAllMetadata(Element postBody) {
 /// 3. img elements with src containing static.rutracker or fastpic
 String? _extractCoverUrlImproved(Element postBody, Element document) {
   // Priority 1: var.postImg with title attribute (contains full URL)
-  final postImgVar = postBody.querySelector(
-    'var.postImg[title], var.postImgAligned[title]'
-  );
+  final postImgVar =
+      postBody.querySelector('var.postImg[title], var.postImgAligned[title]');
   if (postImgVar != null) {
     final title = postImgVar.attributes['title'];
     if (title != null && title.isNotEmpty) {
       return title;
     }
   }
-  
+
   // Priority 2: var.postImg with title containing fastpic or rutracker
   final postImgFastpic = postBody.querySelector(
-    'var.postImg[title*="fastpic"], var.postImg[title*="rutracker"], '
-    'var.postImgAligned[title*="fastpic"], var.postImgAligned[title*="rutracker"]'
-  );
+      'var.postImg[title*="fastpic"], var.postImg[title*="rutracker"], '
+      'var.postImgAligned[title*="fastpic"], var.postImgAligned[title*="rutracker"]');
   if (postImgFastpic != null) {
     final title = postImgFastpic.attributes['title'];
     if (title != null && title.isNotEmpty) {
       return title;
     }
   }
-  
+
   // Priority 3: img with src containing static.rutracker or fastpic
   final imgElement = document.querySelector(
-    'img[src*="static.rutracker"], img[src*="fastpic"], img.postimg'
-  );
+      'img[src*="static.rutracker"], img[src*="fastpic"], img.postimg');
   return imgElement?.attributes['src'];
 }
 
@@ -1649,19 +1920,18 @@ String _extractCategoryFromBreadcrumb(Element document) {
 // ignore: unused_element
 DateTime? _parseRelativeDate(String dateText) {
   if (dateText.isEmpty) return null;
-  
+
   // Try to parse absolute date format: "27-Окт-21 11:06" or "27-Окт-99 11:06"
-  final absoluteMatch = RegExp(r'(\d{2})-(\w{3})-(\d{2})\s+(\d{2}):(\d{2})')
-      .firstMatch(dateText);
+  final absoluteMatch =
+      RegExp(r'(\d{2})-(\w{3})-(\d{2})\s+(\d{2}):(\d{2})').firstMatch(dateText);
   if (absoluteMatch != null) {
     try {
       final day = int.parse(absoluteMatch.group(1)!);
       final month = _monthToNumber(absoluteMatch.group(2)!);
       final yearTwoDigits = int.parse(absoluteMatch.group(3)!);
       // If year >= 50, assume 1900s (1950-1999), otherwise 2000s (2000-2049)
-      final year = yearTwoDigits >= 50 
-          ? 1900 + yearTwoDigits 
-          : 2000 + yearTwoDigits;
+      final year =
+          yearTwoDigits >= 50 ? 1900 + yearTwoDigits : 2000 + yearTwoDigits;
       final hour = int.parse(absoluteMatch.group(4)!);
       final minute = int.parse(absoluteMatch.group(5)!);
       return DateTime(year, month, day, hour, minute);
@@ -1672,16 +1942,15 @@ DateTime? _parseRelativeDate(String dateText) {
         final month = _monthToNumber(absoluteMatch.group(2)!);
         final yearTwoDigits = int.parse(absoluteMatch.group(3)!);
         // If year >= 50, assume 1900s (1950-1999), otherwise 2000s (2000-2049)
-        final year = yearTwoDigits >= 50 
-            ? 1900 + yearTwoDigits 
-            : 2000 + yearTwoDigits;
+        final year =
+            yearTwoDigits >= 50 ? 1900 + yearTwoDigits : 2000 + yearTwoDigits;
         return DateTime(year, month, day);
       } on Exception {
         return null;
       }
     }
   }
-  
+
   // Try to parse relative dates
   final now = DateTime.now();
   final yearMatch = RegExp(r'(\d+)\s*год').firstMatch(dateText);
@@ -1689,18 +1958,18 @@ DateTime? _parseRelativeDate(String dateText) {
     final years = int.tryParse(yearMatch.group(1) ?? '0') ?? 0;
     return now.subtract(Duration(days: years * 365));
   }
-  
+
   final monthMatch = RegExp(r'(\d+)\s*месяц').firstMatch(dateText);
   if (monthMatch != null) {
     final months = int.tryParse(monthMatch.group(1) ?? '0') ?? 0;
     return now.subtract(Duration(days: months * 30));
   }
-  
+
   final dayMatch = RegExp(r'(\d+)\s*дн').firstMatch(dateText);
   if (dayMatch != null) {
     final days = int.tryParse(dayMatch.group(1) ?? '0') ?? 0;
     return now.subtract(Duration(days: days));
   }
-  
+
   return null;
 }

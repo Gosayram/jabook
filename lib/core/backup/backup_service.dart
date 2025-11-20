@@ -285,6 +285,8 @@ class BackupService {
                 'leechers': a.leechers,
                 'magnetUrl': a.magnetUrl,
                 'coverUrl': a.coverUrl,
+                'performer': a.performer,
+                'genres': a.genres,
                 'addedDate': a.addedDate.toIso8601String(),
                 'chapters': a.chapters
                     .map((c) => {
@@ -319,6 +321,8 @@ class BackupService {
                 'leechers': a.leechers,
                 'magnetUrl': a.magnetUrl,
                 'coverUrl': a.coverUrl,
+                'performer': a.performer,
+                'genres': a.genres,
                 'addedDate': a.addedDate.toIso8601String(),
                 'chapters': a.chapters
                     .map((c) => {
@@ -473,6 +477,12 @@ class BackupService {
       leechers: map['leechers'] as int? ?? 0,
       magnetUrl: map['magnetUrl'] as String? ?? '',
       coverUrl: map['coverUrl'] as String?,
+      performer: map['performer'] as String?,
+      genres: (map['genres'] as List<dynamic>?)
+              ?.map((g) => g.toString())
+              .where((g) => g.isNotEmpty)
+              .toList() ??
+          const [],
       chapters: chapters,
       addedDate: map['addedDate'] != null
           ? DateTime.parse(map['addedDate'] as String)

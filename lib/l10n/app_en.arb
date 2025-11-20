@@ -1782,5 +1782,159 @@
   "mirrorConnectionFailed": "Could not connect to RuTracker mirrors",
   "@mirrorConnectionFailed": {
     "description": "Short error message when cannot connect to RuTracker mirrors"
+  },
+  "refresh": "Refresh",
+  "@refresh": {
+    "description": "Text for refresh button"
+  },
+  "refreshCurrentSearch": "Refresh current search",
+  "@refreshCurrentSearch": {
+    "description": "Menu item for refreshing current search"
+  },
+  "clearSearchCache": "Clear search cache",
+  "@clearSearchCache": {
+    "description": "Menu item for clearing search cache"
+  },
+  "clearAllCache": "Clear all cache",
+  "@clearAllCache": {
+    "description": "Menu item for clearing all cache"
+  },
+  "cacheCleared": "Cache cleared",
+  "@cacheCleared": {
+    "description": "Message for successful cache clearing"
+  },
+  "allCacheCleared": "All cache cleared",
+  "@allCacheCleared": {
+    "description": "Message for successful clearing of all cache"
+  },
+  "downloadViaMagnet": "Download via Magnet",
+  "@downloadViaMagnet": {
+    "description": "Menu item for downloading via magnet link"
+  },
+  "downloadStarted": "Download started",
+  "@refreshChaptersFromTorrent": {},
+  "refreshChaptersFromTorrent": "Refresh chapters from torrent",
+  "@chaptersRefreshed": {},
+  "chaptersRefreshed": "Chapters refreshed from torrent",
+  "@failedToRefreshChapters": {},
+  "failedToRefreshChapters": "Failed to refresh chapters",
+  "@noChaptersFound": {},
+  "noChaptersFound": "No chapters found in torrent",
+  "@downloadStarted": {
+    "description": "Message for download start"
+  },
+  "failedToStartDownload": "Failed to start download",
+  "@failedToStartDownload": {
+    "description": "Error message for failed download start"
+  },
+  "downloadsTitle": "Downloads",
+  "@downloadsTitle": {
+    "description": "Title for downloads screen"
+  },
+  "noActiveDownloads": "No active downloads",
+  "@noActiveDownloads": {
+    "description": "Message when there are no active downloads"
+  },
+  "cacheExpires": "Expires in",
+  "@cacheExpires": {
+    "description": "Text before cache expiration time"
+  },
+  "cacheExpired": "Expired",
+  "@cacheExpired": {
+    "description": "Text when cache has expired"
+  },
+  "cacheExpiresSoon": "Expires soon",
+  "@cacheExpiresSoon": {
+    "description": "Text when cache expires soon"
+  },
+  "days": "days",
+  "@days": {
+    "description": "Abbreviation for days"
+  },
+  "hours": "hours",
+  "@hours": {
+    "description": "Abbreviation for hours"
+  },
+  "minutes": "minutes",
+  "@minutes": {
+    "description": "Abbreviation for minutes"
+  },
+  "showMore": "Show more",
+  "@showMore": {
+    "description": "Button to expand text"
+  },
+  "showLess": "Show less",
+  "@showLess": {
+    "description": "Button to collapse text"
+  },
+  "selectFolderDialogTitle": "Select Download Folder",
+  "@selectFolderDialogTitle": {
+    "description": "Title for folder selection dialog"
+  },
+  "selectFolderDialogMessage": "Please select the folder where downloaded audiobooks will be saved. In the file manager, navigate to the desired folder and tap \"Use this folder\" to confirm.",
+  "@selectFolderDialogMessage": {
+    "description": "Instructions for selecting folder on Android 13+"
+  },
+  "folderSelectedSuccessMessage": "Download folder selected successfully",
+  "@folderSelectedSuccessMessage": {
+    "description": "Message when folder is selected successfully"
+  },
+  "folderSelectionCancelledMessage": "Folder selection cancelled",
+  "@folderSelectionCancelledMessage": {
+    "description": "Message when folder selection is cancelled"
+  },
+  "currentDownloadFolder": "Current folder: {path}",
+  "@currentDownloadFolder": {
+    "description": "Current download folder path",
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
+  "defaultDownloadFolder": "Default folder",
+  "pressBackAgainToExit": "Press back again to exit",
+  "@pressBackAgainToExit": {
+    "description": "Message shown when user presses back button, asking to press again to exit"
+  },
+  "filterOptionsComingSoon": "Filter options will be available soon. You will be able to filter by:",
+  "@filterOptionsComingSoon": {
+    "description": "Message in filter dialog indicating filters are coming soon"
+  },
+  "filterByCategory": "Category",
+  "@filterByCategory": {
+    "description": "Filter option by category"
+  },
+  "filterByAuthor": "Author",
+  "@filterByAuthor": {
+    "description": "Filter option by author"
+  },
+  "filterByDate": "Date Added",
+  "@filterByDate": {
+    "description": "Filter option by date added"
+  },
+  "close": "Close",
+  "@close": {
+    "description": "Close button text"
+  },
+  "openInExternalClient": "Open in External Client",
+  "@openInExternalClient": {
+    "description": "Button to open torrent in external client"
+  },
+  "downloadTorrentInApp": "Download using built-in torrent client",
+  "@downloadTorrentInApp": {
+    "description": "Description for downloading torrent in app"
+  },
+  "openedInExternalClient": "Opened in external torrent client",
+  "@openedInExternalClient": {
+    "description": "Message when torrent is opened in external client"
+  },
+  "failedToOpenExternalClient": "Failed to open in external client",
+  "@failedToOpenExternalClient": {
+    "description": "Message when failed to open in external client"
+  },
+  "noMagnetLinkAvailable": "No magnet link available",
+  "@noMagnetLinkAvailable": {
+    "description": "Message when magnet link is not available"
   }
 }

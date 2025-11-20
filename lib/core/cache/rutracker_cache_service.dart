@@ -42,6 +42,10 @@ class RuTrackerCacheService {
   /// TTL for topic details in seconds (24 hours).
   static const int topicDetailsTTL = 86400;
 
+  /// TTL for torrent chapters cache in seconds (7 days).
+  /// Torrent structure doesn't change, so we can cache for longer.
+  static const int torrentChaptersTTL = 604800;
+
   /// Initializes the cache service with database connection.
   Future<void> initialize(Database db) async {
     await _cacheManager.initialize(db);
@@ -103,11 +107,27 @@ class RuTrackerCacheService {
     return null;
   }
 
+  /// Clears cached search results for a specific query.
+  ///
+  /// The [query] parameter is the search query to clear from cache.
+  Future<void> clearSearchResultsCacheForQuery(String query) async {
+    final sessionId = await _sessionStorage.getSessionId();
+    final key = _getSearchResultsKey(query, sessionId);
+    await _cacheManager.remove(key);
+  }
+
   /// Clears all cached search results.
+  ///
+  /// This method clears search results cache for the current session
+  /// and also clears cache for all sessions as a fallback.
   Future<void> clearSearchResultsCache() async {
-    // This would need a more sophisticated approach to clear only search results
-    // For now, we'll clear the entire cache
-    await _cacheManager.clearAll();
+    final sessionId = await _sessionStorage.getSessionId();
+    if (sessionId != null) {
+      // Clear cache for current session
+      await _cacheManager.clearByPrefix('search:$sessionId:');
+    }
+    // Also clear cache for all sessions (fallback)
+    await _cacheManager.clearByPrefix('search:');
   }
 
   /// Clears cached topic details for a specific topic.
@@ -174,6 +194,51 @@ class RuTrackerCacheService {
   /// Clears all expired cache entries.
   Future<void> clearExpired() async {
     await _cacheManager.clearExpired();
+  }
+
+  /// Caches chapters extracted from a torrent file.
+  ///
+  /// The [infoHash] parameter is the info hash of the torrent (used as cache key).
+  /// The [chapters] parameter is the list of chapters to cache.
+  Future<void> cacheTorrentChapters(
+      String infoHash, List<Map<String, dynamic>> chapters) async {
+    final key = _getTorrentChaptersKey(infoHash);
+    await _cacheManager.storeWithTTL(key, chapters, torrentChaptersTTL);
+  }
+
+  /// Retrieves cached chapters for a torrent if available and not expired.
+  ///
+  /// The [infoHash] parameter is the info hash of the torrent.
+  /// Returns the cached chapters or `null` if expired or not found.
+  Future<List<Map<String, dynamic>>?> getCachedTorrentChapters(
+      String infoHash) async {
+    final key = _getTorrentChaptersKey(infoHash);
+    final cachedData = await _cacheManager.getIfNotExpired(key);
+
+    if (cachedData is List) {
+      return cachedData.cast<Map<String, dynamic>>();
+    }
+
+    return null;
+  }
+
+  /// Generates cache key for torrent chapters.
+  String _getTorrentChaptersKey(String infoHash) =>
+      'torrent_chapters:$infoHash';
+
+  /// Clears cached chapters for a specific torrent.
+  ///
+  /// The [infoHash] parameter is the info hash of the torrent to clear from cache.
+  Future<void> clearTorrentChaptersCache(String infoHash) async {
+    final key = _getTorrentChaptersKey(infoHash);
+    await _cacheManager.remove(key);
+  }
+
+  /// Clears all cached torrent chapters.
+  ///
+  /// This removes all cached chapter data from torrent files.
+  Future<void> clearAllTorrentChaptersCache() async {
+    await _cacheManager.clearByPrefix('torrent_chapters:');
   }
 
   /// Gets cache statistics including total entries and memory usage.

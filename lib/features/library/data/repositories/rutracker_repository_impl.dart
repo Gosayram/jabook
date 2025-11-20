@@ -69,8 +69,7 @@ class RuTrackerRepositoryImpl implements RuTrackerRepository {
         ),
       );
 
-      final results =
-          await _parser.parseSearchResults(response.data);
+      final results = await _parser.parseSearchResults(response.data);
       return results
           .map((audiobook) => Audiobook(
                 id: audiobook.id,
@@ -108,7 +107,8 @@ class RuTrackerRepositoryImpl implements RuTrackerRepository {
 
       // CRITICAL: Load index.php?c=33 to get ONLY audiobooks category structure
       // This is the static page that contains all forums and subforums for audiobooks
-      const indexPath = '/forum/index.php?c=${CategoryConstants.audiobooksCategoryId}';
+      const indexPath =
+          '/forum/index.php?c=${CategoryConstants.audiobooksCategoryId}';
       final indexUrl = await _endpointManager.buildUrl(indexPath);
       final response = await dio.get(
         indexUrl,
@@ -437,8 +437,7 @@ class RuTrackerRepositoryImpl implements RuTrackerRepository {
         ),
       );
 
-      final results =
-          await _parser.parseSearchResults(response.data);
+      final results = await _parser.parseSearchResults(response.data);
       return results
           .map((audiobook) => Audiobook(
                 id: audiobook.id,

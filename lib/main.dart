@@ -26,13 +26,13 @@ import 'package:jabook/core/net/dio_client.dart';
 void main() {
   // Initialize Flutter bindings first - required before accessing PaintingBinding
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // Wrap everything in try-catch to prevent crashes during initialization
   try {
     // Record app start time for performance metrics
     final appStartTime = DateTime.now();
     DioClient.appStartTime = appStartTime;
-    
+
     // Enable performance optimizations before runApp
     _enablePerformanceOptimizations();
   } on Exception catch (e) {
@@ -115,7 +115,7 @@ void main() {
       const app = ProviderScope(
         child: JaBookApp(),
       );
-      
+
       runApp(
         kDebugMode
             ? DevicePreview(
@@ -171,7 +171,7 @@ void _enablePerformanceOptimizations() {
   // Ensure bindings are initialized (idempotent, safe to call multiple times)
   // After ensureInitialized(), PaintingBinding.instance is guaranteed to be non-null
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // Get PaintingBinding instance - safe after ensureInitialized()
   final paintingBinding = PaintingBinding.instance;
 

@@ -116,9 +116,9 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(AppLocalizations.of(context)
-                    ?.failedToRemoveFromFavorites ??
-                'Failed to remove from favorites'),
+            content: Text(
+                AppLocalizations.of(context)?.failedToRemoveFromFavorites ??
+                    'Failed to remove from favorites'),
           ),
         );
       }
@@ -135,6 +135,8 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
         'leechers': audiobook.leechers,
         'magnetUrl': audiobook.magnetUrl,
         'coverUrl': audiobook.coverUrl,
+        'performer': audiobook.performer,
+        'genres': audiobook.genres,
         'addedDate': audiobook.addedDate.toIso8601String(),
         'chapters': audiobook.chapters
             .map((c) => {
@@ -150,14 +152,14 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   @override
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(
-          title: Text(AppLocalizations.of(context)?.favoritesTitle ??
-              'Favorites'),
+          title:
+              Text(AppLocalizations.of(context)?.favoritesTitle ?? 'Favorites'),
           actions: [
             if (_favorites.isNotEmpty)
               IconButton(
                 icon: const Icon(Icons.refresh),
-                tooltip: AppLocalizations.of(context)?.refreshTooltip ??
-                    'Refresh',
+                tooltip:
+                    AppLocalizations.of(context)?.refreshTooltip ?? 'Refresh',
                 onPressed: _loadFavorites,
               ),
           ],

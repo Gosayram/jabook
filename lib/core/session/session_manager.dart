@@ -27,7 +27,8 @@ import 'package:jabook/core/net/dio_client.dart';
 import 'package:jabook/core/session/cookie_sync_service.dart';
 import 'package:jabook/core/session/session_storage.dart';
 import 'package:jabook/core/session/session_validator.dart';
-import 'package:jabook/core/utils/notification_utils.dart' as notification_utils;
+import 'package:jabook/core/utils/notification_utils.dart'
+    as notification_utils;
 import 'package:jabook/data/db/app_database.dart';
 
 /// Centralized manager for session and cookie management.
@@ -90,7 +91,7 @@ class SessionManager {
   /// Cache for session validation results to avoid excessive network requests.
   DateTime? _lastValidationTime;
   bool? _cachedValidationResult;
-  
+
   /// TTL for validation cache (5 minutes).
   static const Duration _validationCacheTTL = Duration(minutes: 5);
 
@@ -157,7 +158,8 @@ class SessionManager {
         context: 'session_validation',
         extra: {
           'cached_result': _cachedValidationResult,
-          'cache_age_seconds': DateTime.now().difference(_lastValidationTime!).inSeconds,
+          'cache_age_seconds':
+              DateTime.now().difference(_lastValidationTime!).inSeconds,
         },
       );
       return _cachedValidationResult!;
@@ -242,8 +244,7 @@ class SessionManager {
     List<Cookie> cookies,
     String endpoint,
   ) async {
-    final operationId =
-        'save_session_${DateTime.now().millisecondsSinceEpoch}';
+    final operationId = 'save_session_${DateTime.now().millisecondsSinceEpoch}';
     final logger = StructuredLogger();
     final startTime = DateTime.now();
 
@@ -374,7 +375,8 @@ class SessionManager {
         await logger.log(
           level: 'warning',
           subsystem: 'session_manager',
-          message: 'Failed to restore cookies to Dio, continuing with WebView sync',
+          message:
+              'Failed to restore cookies to Dio, continuing with WebView sync',
           operationId: operationId,
           context: 'session_restore',
           cause: e.toString(),
@@ -391,7 +393,8 @@ class SessionManager {
         await logger.log(
           level: 'warning',
           subsystem: 'session_manager',
-          message: 'Failed to sync cookies to WebView, but session may still be valid',
+          message:
+              'Failed to sync cookies to WebView, but session may still be valid',
           operationId: operationId,
           context: 'session_restore',
           cause: e.toString(),
@@ -471,10 +474,12 @@ class SessionManager {
       // Try to get stored credentials
       final credentials = await _credentialManager.getCredentials();
       if (credentials == null) {
+        // This is expected if user is not logged in - log as debug, not warning
         await logger.log(
-          level: 'warning',
+          level: 'debug',
           subsystem: 'session_manager',
-          message: 'No stored credentials available for session refresh',
+          message:
+              'No stored credentials available for session refresh (user not logged in)',
           operationId: operationId,
           context: 'session_refresh',
           durationMs: DateTime.now().difference(startTime).inMilliseconds,
@@ -484,10 +489,12 @@ class SessionManager {
 
       // Re-authenticate using stored credentials
       if (_rutrackerAuth == null) {
+        // This may be expected if auth is not initialized yet - log as debug
         await logger.log(
-          level: 'warning',
+          level: 'debug',
           subsystem: 'session_manager',
-          message: 'RuTrackerAuth not available for session refresh',
+          message:
+              'RuTrackerAuth not available for session refresh (not initialized)',
           operationId: operationId,
           context: 'session_refresh',
           durationMs: DateTime.now().difference(startTime).inMilliseconds,
@@ -871,9 +878,8 @@ class SessionManager {
   /// Gets the cookie jar from Dio instance.
   Future<CookieJar> _getCookieJar(Dio dio) async {
     // Find CookieManager interceptor
-    final cookieInterceptors = dio.interceptors
-        .whereType<CookieManager>()
-        .toList();
+    final cookieInterceptors =
+        dio.interceptors.whereType<CookieManager>().toList();
     if (cookieInterceptors.isNotEmpty) {
       return cookieInterceptors.first.cookieJar;
     }
@@ -987,4 +993,3 @@ class SessionManager {
     stopSessionMonitoring();
   }
 }
-

@@ -31,7 +31,8 @@ class Cp1251Encoder {
   ///
   /// Throws [Exception] if encoding fails.
   static List<int> encodeToCp1251(String text) {
-    final operationId = 'cp1251_encode_${DateTime.now().millisecondsSinceEpoch}';
+    final operationId =
+        'cp1251_encode_${DateTime.now().millisecondsSinceEpoch}';
     final logger = StructuredLogger();
     final startTime = DateTime.now();
 
@@ -68,7 +69,8 @@ class Cp1251Encoder {
         cause: e.toString(),
         extra: {
           'text_length': text.length,
-          'text_preview': text.length > 50 ? '${text.substring(0, 50)}...' : text,
+          'text_preview':
+              text.length > 50 ? '${text.substring(0, 50)}...' : text,
         },
       );
       rethrow;
@@ -92,4 +94,3 @@ class Cp1251Encoder {
   /// In Python parser: b'\xe2\xf5\xee\xe4'
   static List<int> get loginButtonBytes => [0xe2, 0xf5, 0xee, 0xe4];
 }
-

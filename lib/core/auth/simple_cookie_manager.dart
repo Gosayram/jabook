@@ -46,8 +46,7 @@ class SimpleCookieManager {
     String baseUrl,
     CookieJar cookieJar,
   ) async {
-    final operationId =
-        'cookie_save_${DateTime.now().millisecondsSinceEpoch}';
+    final operationId = 'cookie_save_${DateTime.now().millisecondsSinceEpoch}';
     final logger = StructuredLogger();
     final startTime = DateTime.now();
 
@@ -132,8 +131,7 @@ class SimpleCookieManager {
   ///
   /// Returns the cookie string if found, null otherwise.
   Future<String?> getCookie(String baseUrl) async {
-    final operationId =
-        'cookie_get_${DateTime.now().millisecondsSinceEpoch}';
+    final operationId = 'cookie_get_${DateTime.now().millisecondsSinceEpoch}';
     final logger = StructuredLogger();
     final startTime = DateTime.now();
 
@@ -181,8 +179,7 @@ class SimpleCookieManager {
   ///
   /// Removes cookie from secure storage and CookieJar.
   Future<void> clearCookie(String baseUrl, CookieJar cookieJar) async {
-    final operationId =
-        'cookie_clear_${DateTime.now().millisecondsSinceEpoch}';
+    final operationId = 'cookie_clear_${DateTime.now().millisecondsSinceEpoch}';
     final logger = StructuredLogger();
     final startTime = DateTime.now();
 
@@ -238,15 +235,14 @@ class SimpleCookieManager {
 
     try {
       final cookieString = await getCookie(baseUrl);
-      final isValid = cookieString != null && cookieString.contains('bb_session=');
+      final isValid =
+          cookieString != null && cookieString.contains('bb_session=');
 
       final duration = DateTime.now().difference(startTime).inMilliseconds;
       await logger.log(
         level: 'debug',
         subsystem: 'auth',
-        message: isValid
-            ? 'Valid cookie found'
-            : 'No valid cookie found',
+        message: isValid ? 'Valid cookie found' : 'No valid cookie found',
         operationId: operationId,
         context: 'simple_cookie_manager',
         durationMs: duration,
@@ -279,8 +275,7 @@ class SimpleCookieManager {
   ///
   /// This should be called during app initialization to restore cookies.
   Future<void> loadCookieToJar(String baseUrl, CookieJar cookieJar) async {
-    final operationId =
-        'cookie_load_${DateTime.now().millisecondsSinceEpoch}';
+    final operationId = 'cookie_load_${DateTime.now().millisecondsSinceEpoch}';
     final logger = StructuredLogger();
     final startTime = DateTime.now();
 
@@ -361,14 +356,19 @@ class SimpleCookieManager {
     final cookies = <io.Cookie>[];
 
     // Split by semicolon to get individual cookies
-    final cookieParts = cookieString.split(';').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+    final cookieParts = cookieString
+        .split(';')
+        .map((s) => s.trim())
+        .where((s) => s.isNotEmpty)
+        .toList();
 
     for (final cookiePart in cookieParts) {
       // Split by '=' to get name and value
       final parts = cookiePart.split('=');
       if (parts.length >= 2) {
         final name = parts[0].trim();
-        final value = parts.sublist(1).join('=').trim(); // Handle values with '='
+        final value =
+            parts.sublist(1).join('=').trim(); // Handle values with '='
 
         if (name.isNotEmpty && value.isNotEmpty) {
           final cookie = io.Cookie(name, value)
@@ -384,4 +384,3 @@ class SimpleCookieManager {
     return cookies;
   }
 }
-

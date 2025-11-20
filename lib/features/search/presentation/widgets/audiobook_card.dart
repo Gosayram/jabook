@@ -14,6 +14,7 @@
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:jabook/core/logging/environment_logger.dart';
 import 'package:jabook/l10n/app_localizations.dart';
 
 /// Reusable card widget for displaying audiobook information.
@@ -53,11 +54,14 @@ class AudiobookCard extends StatelessWidget {
     // Use safe access with fallback values
     final localizations = AppLocalizations.of(context);
     final title = audiobook['title'] as String? ??
-        localizations?.unknownTitle ?? 'Unknown Title';
+        localizations?.unknownTitle ??
+        'Unknown Title';
     final author = audiobook['author'] as String? ??
-        localizations?.unknownAuthor ?? 'Unknown Author';
+        localizations?.unknownAuthor ??
+        'Unknown Author';
     final size = audiobook['size'] as String? ??
-        localizations?.unknownSize ?? 'Unknown Size';
+        localizations?.unknownSize ??
+        'Unknown Size';
     final seeders = audiobook['seeders'] as int? ?? 0;
     final leechers = audiobook['leechers'] as int? ?? 0;
     final category = audiobook['category'] as String? ??
@@ -155,7 +159,7 @@ class AudiobookCard extends StatelessWidget {
                           _StatIndicator(
                             icon: Icons.arrow_downward,
                             value: leechers,
-                            color: Colors.orange,
+                            color: Colors.red,
                           ),
                         ],
                       ),
@@ -204,35 +208,50 @@ class AudiobookCard extends StatelessWidget {
   }
 
   /// Builds cover image widget or placeholder.
-  Widget _buildCover(String? coverUrl, BuildContext context) =>
-      coverUrl != null && coverUrl.isNotEmpty
-          ? RepaintBoundary(
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: CachedNetworkImage(
-                  imageUrl: coverUrl,
-                  width: 60,
-                  height: 60,
-                  fit: BoxFit.cover,
-                  placeholder: (context, url) => Container(
-                    width: 60,
-                    height: 60,
-                    color:
-                        Theme.of(context).colorScheme.surfaceContainerHighest,
-                    child: const Center(
-                      child: SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                    ),
-                  ),
-                  errorWidget: (context, url, error) =>
-                      _buildPlaceholder(context),
-                ),
+  Widget _buildCover(String? coverUrl, BuildContext context) {
+    // Validate URL
+    if (coverUrl == null || coverUrl.isEmpty) {
+      return _buildPlaceholder(context);
+    }
+
+    // Check if URL is valid
+    final uri = Uri.tryParse(coverUrl);
+    if (uri == null || !uri.hasScheme || !uri.hasAuthority) {
+      // URL is invalid, show placeholder
+      EnvironmentLogger().w('Invalid cover URL: $coverUrl');
+      return _buildPlaceholder(context);
+    }
+
+    return RepaintBoundary(
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: CachedNetworkImage(
+          imageUrl: coverUrl,
+          width: 60,
+          height: 60,
+          fit: BoxFit.cover,
+          placeholder: (context, url) => Container(
+            width: 60,
+            height: 60,
+            color: Theme.of(context).colorScheme.surfaceContainerHighest,
+            child: const Center(
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
               ),
-            )
-          : _buildPlaceholder(context);
+            ),
+          ),
+          errorWidget: (context, url, error) {
+            // Log error loading image
+            EnvironmentLogger()
+                .w('Failed to load cover image: $url, error: $error');
+            return _buildPlaceholder(context);
+          },
+        ),
+      ),
+    );
+  }
 
   /// Builds placeholder when no cover is available.
   Widget _buildPlaceholder(BuildContext context) => Container(
@@ -242,10 +261,19 @@ class AudiobookCard extends StatelessWidget {
           color: Theme.of(context).colorScheme.primaryContainer,
           borderRadius: BorderRadius.circular(8),
         ),
-        child: Icon(
-          Icons.audiotrack,
-          color: Theme.of(context).colorScheme.onPrimaryContainer,
-          size: 28,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Image.asset(
+            'assets/icons/app_icon.png',
+            width: 60,
+            height: 60,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) => Icon(
+              Icons.audiotrack,
+              color: Theme.of(context).colorScheme.onPrimaryContainer,
+              size: 28,
+            ),
+          ),
         ),
       );
 }

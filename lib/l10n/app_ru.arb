@@ -1767,5 +1767,159 @@
   "mirrorConnectionFailed": "Не удалось подключиться к зеркалам RuTracker",
   "@mirrorConnectionFailed": {
     "description": "Краткое сообщение об ошибке когда не удается подключиться к зеркалам RuTracker"
+  },
+  "refresh": "Обновить",
+  "@refresh": {
+    "description": "Текст кнопки обновления"
+  },
+  "refreshCurrentSearch": "Обновить текущий поиск",
+  "@refreshCurrentSearch": {
+    "description": "Пункт меню для обновления текущего поиска"
+  },
+  "clearSearchCache": "Очистить кэш поиска",
+  "@clearSearchCache": {
+    "description": "Пункт меню для очистки кэша поиска"
+  },
+  "clearAllCache": "Очистить весь кэш",
+  "@clearAllCache": {
+    "description": "Пункт меню для очистки всего кэша"
+  },
+  "cacheCleared": "Кэш очищен",
+  "@cacheCleared": {
+    "description": "Сообщение об успешной очистке кэша"
+  },
+  "allCacheCleared": "Весь кэш очищен",
+  "@allCacheCleared": {
+    "description": "Сообщение об успешной очистке всего кэша"
+  },
+  "downloadViaMagnet": "Скачать через Magnet",
+  "@downloadViaMagnet": {
+    "description": "Пункт меню для скачивания через magnet-ссылку"
+  },
+  "downloadStarted": "Загрузка начата",
+  "@refreshChaptersFromTorrent": {},
+  "refreshChaptersFromTorrent": "Обновить главы из торрента",
+  "@chaptersRefreshed": {},
+  "chaptersRefreshed": "Главы обновлены из торрента",
+  "@failedToRefreshChapters": {},
+  "failedToRefreshChapters": "Не удалось обновить главы",
+  "@noChaptersFound": {},
+  "noChaptersFound": "Главы в торренте не найдены",
+  "@downloadStarted": {
+    "description": "Сообщение о начале загрузки"
+  },
+  "failedToStartDownload": "Не удалось начать загрузку",
+  "@failedToStartDownload": {
+    "description": "Сообщение об ошибке при начале загрузки"
+  },
+  "downloadsTitle": "Загрузки",
+  "@downloadsTitle": {
+    "description": "Заголовок экрана загрузок"
+  },
+  "noActiveDownloads": "Нет активных загрузок",
+  "@noActiveDownloads": {
+    "description": "Сообщение когда нет активных загрузок"
+  },
+  "cacheExpires": "Истекает через",
+  "@cacheExpires": {
+    "description": "Текст перед временем истечения кэша"
+  },
+  "cacheExpired": "Истек",
+  "@cacheExpired": {
+    "description": "Текст когда кэш истек"
+  },
+  "cacheExpiresSoon": "Скоро истечет",
+  "@cacheExpiresSoon": {
+    "description": "Текст когда кэш скоро истечет"
+  },
+  "days": "дн.",
+  "@days": {
+    "description": "Сокращение для дней"
+  },
+  "hours": "ч.",
+  "@hours": {
+    "description": "Сокращение для часов"
+  },
+  "minutes": "мин.",
+  "@minutes": {
+    "description": "Сокращение для минут"
+  },
+  "showMore": "Показать больше",
+  "@showMore": {
+    "description": "Кнопка для разворачивания текста"
+  },
+  "showLess": "Показать меньше",
+  "@showLess": {
+    "description": "Кнопка для сворачивания текста"
+  },
+  "selectFolderDialogTitle": "Выбор папки для загрузок",
+  "@selectFolderDialogTitle": {
+    "description": "Заголовок диалога выбора папки"
+  },
+  "selectFolderDialogMessage": "Пожалуйста, выберите папку, в которую будут сохраняться загруженные аудиокниги. В файловом менеджере перейдите к нужной папке и нажмите \"Использовать эту папку\" для подтверждения.",
+  "@selectFolderDialogMessage": {
+    "description": "Инструкции по выбору папки на Android 13+"
+  },
+  "folderSelectedSuccessMessage": "Папка для загрузок выбрана успешно",
+  "@folderSelectedSuccessMessage": {
+    "description": "Сообщение при успешном выборе папки"
+  },
+  "folderSelectionCancelledMessage": "Выбор папки отменен",
+  "@folderSelectionCancelledMessage": {
+    "description": "Сообщение при отмене выбора папки"
+  },
+  "currentDownloadFolder": "Текущая папка: {path}",
+  "@currentDownloadFolder": {
+    "description": "Путь к текущей папке загрузок",
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
+  "defaultDownloadFolder": "Папка по умолчанию",
+  "pressBackAgainToExit": "Нажмите еще раз для выхода",
+  "@pressBackAgainToExit": {
+    "description": "Сообщение при нажатии кнопки назад, просьба нажать еще раз для выхода"
+  },
+  "filterOptionsComingSoon": "Фильтры будут доступны в ближайшее время. Вы сможете фильтровать по:",
+  "@filterOptionsComingSoon": {
+    "description": "Сообщение в диалоге фильтров о том, что фильтры скоро появятся"
+  },
+  "filterByCategory": "Категория",
+  "@filterByCategory": {
+    "description": "Опция фильтрации по категории"
+  },
+  "filterByAuthor": "Автор",
+  "@filterByAuthor": {
+    "description": "Опция фильтрации по автору"
+  },
+  "filterByDate": "Дата добавления",
+  "@filterByDate": {
+    "description": "Опция фильтрации по дате добавления"
+  },
+  "close": "Закрыть",
+  "@close": {
+    "description": "Текст кнопки закрытия"
+  },
+  "openInExternalClient": "Открыть во внешнем клиенте",
+  "@openInExternalClient": {
+    "description": "Кнопка для открытия торрента во внешнем клиенте"
+  },
+  "downloadTorrentInApp": "Скачать через встроенный клиент",
+  "@downloadTorrentInApp": {
+    "description": "Описание для скачивания торрента в приложении"
+  },
+  "openedInExternalClient": "Открыто во внешнем торрент-клиенте",
+  "@openedInExternalClient": {
+    "description": "Сообщение при открытии торрента во внешнем клиенте"
+  },
+  "failedToOpenExternalClient": "Не удалось открыть во внешнем клиенте",
+  "@failedToOpenExternalClient": {
+    "description": "Сообщение при ошибке открытия во внешнем клиенте"
+  },
+  "noMagnetLinkAvailable": "Magnet-ссылка недоступна",
+  "@noMagnetLinkAvailable": {
+    "description": "Сообщение когда magnet-ссылка недоступна"
   }
 }

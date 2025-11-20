@@ -1259,4 +1259,120 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get mirrorConnectionFailed => 'Не удалось подключиться к зеркалам RuTracker';
+
+  @override
+  String get refresh => 'Обновить';
+
+  @override
+  String get refreshCurrentSearch => 'Обновить текущий поиск';
+
+  @override
+  String get clearSearchCache => 'Очистить кэш поиска';
+
+  @override
+  String get cacheCleared => 'Кэш очищен';
+
+  @override
+  String get allCacheCleared => 'Весь кэш очищен';
+
+  @override
+  String get downloadViaMagnet => 'Скачать через Magnet';
+
+  @override
+  String get downloadStarted => 'Загрузка начата';
+
+  @override
+  String get refreshChaptersFromTorrent => 'Обновить главы из торрента';
+
+  @override
+  String get chaptersRefreshed => 'Главы обновлены из торрента';
+
+  @override
+  String get failedToRefreshChapters => 'Не удалось обновить главы';
+
+  @override
+  String get noChaptersFound => 'Главы в торренте не найдены';
+
+  @override
+  String get failedToStartDownload => 'Не удалось начать загрузку';
+
+  @override
+  String get noActiveDownloads => 'Нет активных загрузок';
+
+  @override
+  String get cacheExpires => 'Истекает через';
+
+  @override
+  String get cacheExpired => 'Истек';
+
+  @override
+  String get cacheExpiresSoon => 'Скоро истечет';
+
+  @override
+  String get days => 'дн.';
+
+  @override
+  String get hours => 'ч.';
+
+  @override
+  String get minutes => 'мин.';
+
+  @override
+  String get showMore => 'Показать больше';
+
+  @override
+  String get showLess => 'Показать меньше';
+
+  @override
+  String get selectFolderDialogTitle => 'Выбор папки для загрузок';
+
+  @override
+  String get selectFolderDialogMessage => 'Пожалуйста, выберите папку, в которую будут сохраняться загруженные аудиокниги. В файловом менеджере перейдите к нужной папке и нажмите \"Использовать эту папку\" для подтверждения.';
+
+  @override
+  String get folderSelectedSuccessMessage => 'Папка для загрузок выбрана успешно';
+
+  @override
+  String get folderSelectionCancelledMessage => 'Выбор папки отменен';
+
+  @override
+  String currentDownloadFolder(String path) {
+    return 'Текущая папка: $path';
+  }
+
+  @override
+  String get defaultDownloadFolder => 'Папка по умолчанию';
+
+  @override
+  String get pressBackAgainToExit => 'Нажмите еще раз для выхода';
+
+  @override
+  String get filterOptionsComingSoon => 'Фильтры будут доступны в ближайшее время. Вы сможете фильтровать по:';
+
+  @override
+  String get filterByCategory => 'Категория';
+
+  @override
+  String get filterByAuthor => 'Автор';
+
+  @override
+  String get filterByDate => 'Дата добавления';
+
+  @override
+  String get close => 'Закрыть';
+
+  @override
+  String get openInExternalClient => 'Открыть во внешнем клиенте';
+
+  @override
+  String get downloadTorrentInApp => 'Скачать через встроенный клиент';
+
+  @override
+  String get openedInExternalClient => 'Открыто во внешнем торрент-клиенте';
+
+  @override
+  String get failedToOpenExternalClient => 'Не удалось открыть во внешнем клиенте';
+
+  @override
+  String get noMagnetLinkAvailable => 'Magnet-ссылка недоступна';
 }

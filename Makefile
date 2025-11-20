@@ -71,7 +71,6 @@ install:
 .PHONY: clean
 clean:
 	rm -rf build/
-	rm -rf android/
 	rm -rf debug-info/
 	@echo "Cleaned build artifacts"
 
@@ -246,7 +245,14 @@ l10n:
 
 .PHONY: fmt
 fmt:
-	dart format .
+	@find . -name "*.dart" \
+		-not -path "./lib/l10n/*" \
+		-not -path "./build/*" \
+		-not -path "./.dart_tool/*" \
+		-not -path "./.git/*" \
+		-not -path "./android/*" \
+		-not -path "./ios/*" \
+		-not -path "./web/*" | xargs dart format || true
 
 .PHONY: lint
 lint:

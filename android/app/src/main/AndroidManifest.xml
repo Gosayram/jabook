@@ -48,6 +48,10 @@
     <!-- This is a more specific permission for media playback foreground services -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
 
+    <!-- Required for Android 14+ (API 34+) when using data sync foreground services -->
+    <!-- This is for download/upload tasks in foreground service -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+
     <!-- Optional: requesting battery optimization exemption requires strict justification -->
     <!-- This permission is rarely approved by Google Play and should be avoided -->
     <!-- <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" /> -->
@@ -72,7 +76,8 @@
             android:theme="@style/LaunchTheme"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
             android:hardwareAccelerated="true"
-            android:windowSoftInputMode="adjustResize">
+            android:windowSoftInputMode="adjustResize"
+            android:autofillHints="username,password">
 
             <!-- Theme applied before Flutter UI becomes visible -->
             <meta-data

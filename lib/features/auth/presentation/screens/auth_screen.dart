@@ -101,9 +101,12 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
         });
 
         if (success) {
+          // Autofill service will automatically save credentials if configured
+          // The autofillHints in TextFields enable this functionality
+
           // Test connection after successful login
           await _testConnection();
-          
+
           // Return true to indicate successful login
           if (mounted) {
             Navigator.of(context).pop(true);
@@ -121,7 +124,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
             _statusMessage = AppLocalizations.of(context)?.loginFailedMessage ??
                 'Invalid username or password. Please check your credentials.';
           } else if (e.message.contains('captcha')) {
-            _statusMessage = 'Captcha verification required. Please try again later.';
+            _statusMessage =
+                'Captcha verification required. Please try again later.';
           } else {
             _statusMessage = e.message;
           }
@@ -135,7 +139,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
           // Provide user-friendly error messages
           final errorMsg = e.toString().toLowerCase();
           if (errorMsg.contains('timeout') || errorMsg.contains('connection')) {
-            _statusMessage = 'Network error. Please check your connection and try again.';
+            _statusMessage =
+                'Network error. Please check your connection and try again.';
           } else if (errorMsg.contains('authentication required') ||
               errorMsg.contains('network null') ||
               errorMsg.contains('null')) {
@@ -172,8 +177,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       });
     } on Exception catch (e) {
       setState(() {
-        _statusMessage = AppLocalizations.of(context)!
-            .connectionFailedMessage(e.toString());
+        _statusMessage =
+            AppLocalizations.of(context)!.connectionFailedMessage(e.toString());
         _statusColor = Colors.red;
       });
     }
@@ -200,8 +205,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       });
     } on Exception catch (e) {
       setState(() {
-        _statusMessage = AppLocalizations.of(context)!
-            .logoutErrorMessage(e.toString());
+        _statusMessage =
+            AppLocalizations.of(context)!.logoutErrorMessage(e.toString());
         _statusColor = Colors.red;
       });
     }
@@ -217,128 +222,154 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
         title: Text(AppLocalizations.of(context)?.authScreenTitle ??
             'RuTracker Connection'),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Status indicator
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        Icon(
-                          isLoggedIn.value ?? false
-                              ? Icons.check_circle
-                              : Icons.error,
-                          color: _statusColor,
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            _statusMessage,
-                            style: TextStyle(color: _statusColor),
-                          ),
-                        ),
-                      ],
-                    ),
-                    if (authStatus.isLoading || isLoggedIn.isLoading)
-                      const LinearProgressIndicator(),
-                  ],
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 20),
-
-            // Login form (only show when not logged in)
-            if (!(isLoggedIn.value ?? false)) ...[
-              TextField(
-                controller: _usernameController,
-                decoration: InputDecoration(
-                  labelText: AppLocalizations.of(context)?.usernameLabelText ??
-                      'Username',
-                  border: const OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _passwordController,
-                decoration: InputDecoration(
-                  labelText: AppLocalizations.of(context)?.passwordLabelText ??
-                      'Password',
-                  border: const OutlineInputBorder(),
-                ),
-                obscureText: true,
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Checkbox(
-                    value: _rememberMe,
-                    onChanged: (value) => setState(() {
-                      _rememberMe = value ?? true;
-                    }),
-                  ),
-                  Text(AppLocalizations.of(context)?.rememberMeLabelText ??
-                      'Remember me'),
-                ],
-              ),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: _isLoggingIn ? null : _login,
-                child: _isLoggingIn
-                    ? Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Status indicator
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    children: [
+                      Row(
                         children: [
-                          const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                            ),
+                          Icon(
+                            isLoggedIn.value ?? false
+                                ? Icons.check_circle
+                                : Icons.error,
+                            color: _statusColor,
                           ),
                           const SizedBox(width: 8),
-                          Text(
-                            AppLocalizations.of(context)?.loggingInText ??
-                                'Logging in...',
+                          Expanded(
+                            child: Text(
+                              _statusMessage,
+                              style: TextStyle(color: _statusColor),
+                            ),
                           ),
                         ],
-                      )
-                    : Text(
-                        AppLocalizations.of(context)?.loginButtonText ?? 'Login'),
+                      ),
+                      if (authStatus.isLoading || isLoggedIn.isLoading)
+                        const LinearProgressIndicator(),
+                    ],
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 20),
+
+              // Login form (only show when not logged in)
+              if (!(isLoggedIn.value ?? false)) ...[
+                AutofillGroup(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      TextField(
+                        controller: _usernameController,
+                        autofillHints: const [
+                          AutofillHints.username,
+                          AutofillHints.email,
+                        ],
+                        textInputAction: TextInputAction.next,
+                        keyboardType: TextInputType.text,
+                        enableSuggestions: false,
+                        autocorrect: false,
+                        decoration: InputDecoration(
+                          labelText:
+                              AppLocalizations.of(context)?.usernameLabelText ??
+                                  'Username',
+                          border: const OutlineInputBorder(),
+                          hintText: 'Enter your RuTracker username',
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: _passwordController,
+                        autofillHints: const [AutofillHints.password],
+                        textInputAction: TextInputAction.done,
+                        obscureText: true,
+                        enableSuggestions: false,
+                        autocorrect: false,
+                        onSubmitted: (_) => _login(),
+                        decoration: InputDecoration(
+                          labelText:
+                              AppLocalizations.of(context)?.passwordLabelText ??
+                                  'Password',
+                          border: const OutlineInputBorder(),
+                          hintText: 'Enter your password',
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Checkbox(
+                      value: _rememberMe,
+                      onChanged: (value) => setState(() {
+                        _rememberMe = value ?? true;
+                      }),
+                    ),
+                    Text(AppLocalizations.of(context)?.rememberMeLabelText ??
+                        'Remember me'),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: _isLoggingIn ? null : _login,
+                  child: _isLoggingIn
+                      ? Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              AppLocalizations.of(context)?.loggingInText ??
+                                  'Logging in...',
+                            ),
+                          ],
+                        )
+                      : Text(AppLocalizations.of(context)?.loginButtonText ??
+                          'Login'),
+                ),
+              ],
+
+              // Logout and test buttons (when logged in)
+              if (isLoggedIn.value ?? false) ...[
+                ElevatedButton(
+                  onPressed: _testConnection,
+                  child: Text(
+                      AppLocalizations.of(context)?.testConnectionButtonText ??
+                          'Test Connection'),
+                ),
+                const SizedBox(height: 16),
+                OutlinedButton(
+                  onPressed: _logout,
+                  child: Text(AppLocalizations.of(context)?.logoutButtonText ??
+                      'Logout'),
+                ),
+              ],
+
+              const SizedBox(height: 20),
+
+              // Help text
+              Text(
+                AppLocalizations.of(context)?.authHelpText ??
+                    'Login to RuTracker to access audiobook search and downloads. Your credentials are stored securely.',
+                style: Theme.of(context).textTheme.bodySmall,
+                textAlign: TextAlign.center,
               ),
             ],
-
-            // Logout and test buttons (when logged in)
-            if (isLoggedIn.value ?? false) ...[
-              ElevatedButton(
-                onPressed: _testConnection,
-                child: Text(
-                    AppLocalizations.of(context)?.testConnectionButtonText ??
-                        'Test Connection'),
-              ),
-              const SizedBox(height: 16),
-              OutlinedButton(
-                onPressed: _logout,
-                child: Text(
-                    AppLocalizations.of(context)?.logoutButtonText ?? 'Logout'),
-              ),
-            ],
-
-            const Spacer(),
-
-            // Help text
-            Text(
-              AppLocalizations.of(context)?.authHelpText ??
-                  'Login to RuTracker to access audiobook search and downloads. Your credentials are stored securely.',
-              style: Theme.of(context).textTheme.bodySmall,
-              textAlign: TextAlign.center,
-            ),
-          ],
+          ),
         ),
       ),
     );

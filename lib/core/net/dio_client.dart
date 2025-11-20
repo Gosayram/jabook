@@ -73,7 +73,7 @@ class DioClient {
 
     // Get User-Agent from WebView to ensure consistency (important for Cloudflare)
     final userAgent = await userAgentManager.getUserAgent();
-    
+
     // Configure Dio options and Brotli transformer
     dio
       ..options = BaseOptions(
@@ -109,7 +109,7 @@ class DioClient {
     // 2. AuthAndRetryInterceptor (second - handles auth errors and retries)
     // 3. CookieManager (third - manages cookies)
     // 4. SessionInterceptor (fourth - validates session)
-    
+
     // Add structured logging interceptor
     dio.interceptors.add(DioInterceptors.createLoggingInterceptor(
       appStartTime: _appStartTime,
@@ -204,7 +204,8 @@ class DioClient {
   ///
   /// This is a helper method for direct cookie synchronization from WebView.
   /// It bypasses SharedPreferences and saves cookies directly to the cookie jar.
-  static Future<void> saveCookiesDirectly(Uri uri, List<io.Cookie> cookies) async {
+  static Future<void> saveCookiesDirectly(
+      Uri uri, List<io.Cookie> cookies) async {
     await DioCookieManager.saveCookiesDirectly(uri, cookies, _cookieJar);
   }
 
@@ -343,7 +344,7 @@ class DioClient {
       // CRITICAL: Split by "; " (semicolon + space) to avoid splitting values that contain semicolons
       final cookies = <io.Cookie>[];
       final validName = RegExp(r"^[!#\$%&'*+.^_`|~0-9A-Za-z-]+$");
-      
+
       // Split by "; " pattern, but handle cases where there's no space after semicolon
       // First try splitting by "; " (most common format)
       final cookieParts = cookieHeader.split(RegExp(r';\s*'));
@@ -357,9 +358,12 @@ class DioClient {
         }
 
         // Skip attributes like "path=/", "domain=example.com", "secure", "HttpOnly"
-        if (!trimmed.contains('=') || trimmed.startsWith('path=') || 
-            trimmed.startsWith('domain=') || trimmed.startsWith('expires=') ||
-            trimmed.startsWith('max-age=') || trimmed.toLowerCase() == 'secure' ||
+        if (!trimmed.contains('=') ||
+            trimmed.startsWith('path=') ||
+            trimmed.startsWith('domain=') ||
+            trimmed.startsWith('expires=') ||
+            trimmed.startsWith('max-age=') ||
+            trimmed.toLowerCase() == 'secure' ||
             trimmed.toLowerCase() == 'httponly') {
           continue;
         }
@@ -407,14 +411,14 @@ class DioClient {
         final cookie = io.Cookie(name, value)
           // Don't set domain - CookieJar will use uri.host automatically
           // This ensures cookie is saved in hostCookies for exact host matching
-          ..path = '/'  // Always use '/' for rutracker cookies
+          ..path = '/' // Always use '/' for rutracker cookies
           ..secure = uri.scheme == 'https'
           ..httpOnly = false; // We don't know if it's HttpOnly from the header
 
         cookies.add(cookie);
         parsedCount++;
       }
-      
+
       await logger.log(
         level: 'debug',
         subsystem: 'cookies',
@@ -449,7 +453,7 @@ class DioClient {
       // CRITICAL: Save cookies to CookieJar for the exact URI first
       // Use the exact URI to ensure cookies are saved with correct domain
       await jar.saveFromResponse(uri, cookies);
-      
+
       // Also save to base URI (without path) to ensure cookies are available for all paths
       final baseUri = Uri.parse('${uri.scheme}://${uri.host}');
       if (baseUri != uri) {
@@ -465,8 +469,10 @@ class DioClient {
           final domainUrl = 'https://$domain';
           for (final cookie in cookies) {
             // Format for Android CookieManager: "name=value; path=/; domain=example.com"
-            final cookieString = '${cookie.name}=${cookie.value}; path=${cookie.path ?? '/'}; domain=$domain';
-            final success = await CookieService.setCookie(domainUrl, cookieString);
+            final cookieString =
+                '${cookie.name}=${cookie.value}; path=${cookie.path ?? '/'}; domain=$domain';
+            final success =
+                await CookieService.setCookie(domainUrl, cookieString);
             if (success) {
               savedToCookieServiceCount++;
             }
@@ -483,7 +489,7 @@ class DioClient {
           );
         }
       }
-      
+
       // Also save to all RuTracker domains in CookieJar for compatibility
       // This ensures cookies work when switching between mirrors
       for (final domain in rutrackerDomains) {
@@ -496,7 +502,8 @@ class DioClient {
               final domainCookie = io.Cookie(cookie.name, cookie.value)
                 // Don't set domain - CookieJar will use domainUri.host automatically
                 // This saves cookie in hostCookies for exact host matching per domain
-                ..path = cookie.path ?? '/'  // Always use '/' for rutracker cookies
+                ..path =
+                    cookie.path ?? '/' // Always use '/' for rutracker cookies
                 ..secure = cookie.secure
                 ..httpOnly = cookie.httpOnly;
               return domainCookie;
@@ -515,12 +522,12 @@ class DioClient {
           }
         }
       }
-      
+
       // Log successful save to CookieService
       if (savedToCookieServiceCount > 0) {
         // CRITICAL: Flush cookies to ensure they are persisted to disk
         await CookieService.flushCookies();
-        
+
         await logger.log(
           level: 'info',
           subsystem: 'cookies',
@@ -534,12 +541,12 @@ class DioClient {
           },
         );
       }
-      
+
       // CRITICAL: Verify cookies were saved by loading them back
       await Future.delayed(const Duration(milliseconds: 100));
       final savedCookies = await jar.loadForRequest(uri);
       final baseSavedCookies = await jar.loadForRequest(baseUri);
-      
+
       await logger.log(
         level: 'debug',
         subsystem: 'cookies',

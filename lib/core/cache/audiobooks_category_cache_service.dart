@@ -79,20 +79,25 @@ class AudiobooksCategoryCacheService {
     );
 
     final parser = category_parser.CategoryParser();
-    final parsedCategories = await parser.parseCategories(response.data.toString());
-    
+    final parsedCategories =
+        await parser.parseCategories(response.data.toString());
+
     // Convert parsed categories to domain entities
-    final categories = parsedCategories.map((cat) => AudiobookCategory(
-      id: cat.id,
-      name: cat.name,
-      url: cat.url,
-      subcategories: cat.subcategories.map((sub) => AudiobookCategory(
-        id: sub.id,
-        name: sub.name,
-        url: sub.url,
-      )).toList(),
-    )).toList();
-    
+    final categories = parsedCategories
+        .map((cat) => AudiobookCategory(
+              id: cat.id,
+              name: cat.name,
+              url: cat.url,
+              subcategories: cat.subcategories
+                  .map((sub) => AudiobookCategory(
+                        id: sub.id,
+                        name: sub.name,
+                        url: sub.url,
+                      ))
+                  .toList(),
+            ))
+        .toList();
+
     _cachedCategories = categories;
     return categories;
   }
@@ -130,18 +135,20 @@ class AudiobooksCategoryCacheService {
     );
 
     // Convert topics to audiobooks
-    final audiobooks = topics.map((topic) => Audiobook(
-          id: topic['id']?.toString() ?? '',
-          title: topic['title']?.toString() ?? '',
-          author: topic['author']?.toString() ?? 'Unknown',
-          category: _extractCategoryFromForumId(forumId),
-          size: topic['size']?.toString() ?? '0 MB',
-          seeders: topic['seeders'] as int? ?? 0,
-          leechers: topic['leechers'] as int? ?? 0,
-          magnetUrl: _buildMagnetUrl(topic['id']?.toString() ?? ''),
-          chapters: [],
-          addedDate: topic['added_date'] as DateTime? ?? DateTime.now(),
-        )).toList();
+    final audiobooks = topics
+        .map((topic) => Audiobook(
+              id: topic['id']?.toString() ?? '',
+              title: topic['title']?.toString() ?? '',
+              author: topic['author']?.toString() ?? 'Unknown',
+              category: _extractCategoryFromForumId(forumId),
+              size: topic['size']?.toString() ?? '0 MB',
+              seeders: topic['seeders'] as int? ?? 0,
+              leechers: topic['leechers'] as int? ?? 0,
+              magnetUrl: _buildMagnetUrl(topic['id']?.toString() ?? ''),
+              chapters: [],
+              addedDate: topic['added_date'] as DateTime? ?? DateTime.now(),
+            ))
+        .toList();
 
     _cachedAudiobooksByForum[forumId] = audiobooks;
     return audiobooks;
@@ -239,9 +246,7 @@ class AudiobooksCategoryCacheService {
       CategoryConstants.defaultCategoryName;
 
   /// Helper method to build magnet URL from topic ID.
-  String _buildMagnetUrl(String topicId) =>
-      topicId.isEmpty
-          ? ''
-          : CategoryConstants.magnetUrlTemplate.replaceAll('\$topicId', topicId);
+  String _buildMagnetUrl(String topicId) => topicId.isEmpty
+      ? ''
+      : CategoryConstants.magnetUrlTemplate.replaceAll('\$topicId', topicId);
 }
-

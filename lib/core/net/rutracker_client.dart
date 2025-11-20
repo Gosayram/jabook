@@ -69,11 +69,17 @@ class RutrackerClient {
   }) async {
     final dio = await _dio;
     final baseUrl = await _getActiveEndpoint();
-    
+
     // Ensure path starts with / if it's not absolute
-    final normalizedPath = path.startsWith('http') ? path : path.startsWith('/') ? path : '/$path';
-    final url = normalizedPath.startsWith('http') ? normalizedPath : '$baseUrl$normalizedPath';
-    
+    final normalizedPath = path.startsWith('http')
+        ? path
+        : path.startsWith('/')
+            ? path
+            : '/$path';
+    final url = normalizedPath.startsWith('http')
+        ? normalizedPath
+        : '$baseUrl$normalizedPath';
+
     return dio.get(
       url,
       queryParameters: query,
@@ -97,11 +103,17 @@ class RutrackerClient {
   }) async {
     final dio = await _dio;
     final baseUrl = await _getActiveEndpoint();
-    
+
     // Ensure path starts with / if it's not absolute
-    final normalizedPath = path.startsWith('http') ? path : path.startsWith('/') ? path : '/$path';
-    final url = normalizedPath.startsWith('http') ? normalizedPath : '$baseUrl$normalizedPath';
-    
+    final normalizedPath = path.startsWith('http')
+        ? path
+        : path.startsWith('/')
+            ? path
+            : '/$path';
+    final url = normalizedPath.startsWith('http')
+        ? normalizedPath
+        : '$baseUrl$normalizedPath';
+
     return dio.post(
       url,
       data: data,
@@ -126,11 +138,17 @@ class RutrackerClient {
   }) async {
     final dio = await _dio;
     final baseUrl = await _getActiveEndpoint();
-    
+
     // Ensure path starts with / if it's not absolute
-    final normalizedPath = path.startsWith('http') ? path : path.startsWith('/') ? path : '/$path';
-    final url = normalizedPath.startsWith('http') ? normalizedPath : '$baseUrl$normalizedPath';
-    
+    final normalizedPath = path.startsWith('http')
+        ? path
+        : path.startsWith('/')
+            ? path
+            : '/$path';
+    final url = normalizedPath.startsWith('http')
+        ? normalizedPath
+        : '$baseUrl$normalizedPath';
+
     return dio.put(
       url,
       data: data,
@@ -153,11 +171,17 @@ class RutrackerClient {
   }) async {
     final dio = await _dio;
     final baseUrl = await _getActiveEndpoint();
-    
+
     // Ensure path starts with / if it's not absolute
-    final normalizedPath = path.startsWith('http') ? path : path.startsWith('/') ? path : '/$path';
-    final url = normalizedPath.startsWith('http') ? normalizedPath : '$baseUrl$normalizedPath';
-    
+    final normalizedPath = path.startsWith('http')
+        ? path
+        : path.startsWith('/')
+            ? path
+            : '/$path';
+    final url = normalizedPath.startsWith('http')
+        ? normalizedPath
+        : '$baseUrl$normalizedPath';
+
     return dio.delete(
       url,
       queryParameters: query,
@@ -179,11 +203,17 @@ class RutrackerClient {
   }) async {
     final dio = await _dio;
     final baseUrl = await _getActiveEndpoint();
-    
+
     // Ensure path starts with / if it's not absolute
-    final normalizedPath = path.startsWith('http') ? path : path.startsWith('/') ? path : '/$path';
-    final url = normalizedPath.startsWith('http') ? normalizedPath : '$baseUrl$normalizedPath';
-    
+    final normalizedPath = path.startsWith('http')
+        ? path
+        : path.startsWith('/')
+            ? path
+            : '/$path';
+    final url = normalizedPath.startsWith('http')
+        ? normalizedPath
+        : '$baseUrl$normalizedPath';
+
     return dio.head(
       url,
       queryParameters: query,
@@ -207,11 +237,17 @@ class RutrackerClient {
   }) async {
     final dio = await _dio;
     final baseUrl = await _getActiveEndpoint();
-    
+
     // Ensure path starts with / if it's not absolute
-    final normalizedPath = path.startsWith('http') ? path : path.startsWith('/') ? path : '/$path';
-    final url = normalizedPath.startsWith('http') ? normalizedPath : '$baseUrl$normalizedPath';
-    
+    final normalizedPath = path.startsWith('http')
+        ? path
+        : path.startsWith('/')
+            ? path
+            : '/$path';
+    final url = normalizedPath.startsWith('http')
+        ? normalizedPath
+        : '$baseUrl$normalizedPath';
+
     return dio.patch(
       url,
       data: data,
@@ -238,11 +274,17 @@ class RutrackerClient {
   }) async {
     final dio = await _dio;
     final baseUrl = await _getActiveEndpoint();
-    
+
     // Ensure path starts with / if it's not absolute
-    final normalizedPath = path.startsWith('http') ? path : path.startsWith('/') ? path : '/$path';
-    final url = normalizedPath.startsWith('http') ? normalizedPath : '$baseUrl$normalizedPath';
-    
+    final normalizedPath = path.startsWith('http')
+        ? path
+        : path.startsWith('/')
+            ? path
+            : '/$path';
+    final url = normalizedPath.startsWith('http')
+        ? normalizedPath
+        : '$baseUrl$normalizedPath';
+
     return dio.request(
       url,
       data: data,
@@ -269,11 +311,17 @@ class RutrackerClient {
   }) async {
     final dio = await _dio;
     final baseUrl = await _getActiveEndpoint();
-    
+
     // Ensure path starts with / if it's not absolute
-    final normalizedPath = path.startsWith('http') ? path : path.startsWith('/') ? path : '/$path';
-    final url = normalizedPath.startsWith('http') ? normalizedPath : '$baseUrl$normalizedPath';
-    
+    final normalizedPath = path.startsWith('http')
+        ? path
+        : path.startsWith('/')
+            ? path
+            : '/$path';
+    final url = normalizedPath.startsWith('http')
+        ? normalizedPath
+        : '$baseUrl$normalizedPath';
+
     return dio.download(
       url,
       savePath,
@@ -283,4 +331,3 @@ class RutrackerClient {
     );
   }
 }
-

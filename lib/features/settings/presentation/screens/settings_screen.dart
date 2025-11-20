@@ -14,6 +14,7 @@
 
 import 'dart:io';
 
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -26,6 +27,8 @@ import 'package:jabook/core/metadata/audiobook_metadata_service.dart';
 import 'package:jabook/core/metadata/metadata_sync_scheduler.dart';
 import 'package:jabook/core/net/dio_client.dart';
 import 'package:jabook/core/permissions/permission_service_v2.dart';
+import 'package:jabook/core/utils/file_picker_utils.dart' as file_picker_utils;
+import 'package:jabook/core/utils/storage_path_utils.dart';
 import 'package:jabook/data/db/app_database.dart';
 import 'package:jabook/features/settings/presentation/screens/mirror_settings_screen.dart';
 import 'package:jabook/l10n/app_localizations.dart';
@@ -51,11 +54,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   final LanguageManager _languageManager = LanguageManager();
   final PermissionServiceV2 _permissionService = PermissionServiceV2();
   String _selectedLanguage = 'system';
+  String? _downloadFolderPath;
+  bool _wifiOnlyDownloads = false;
 
   @override
   void initState() {
     super.initState();
     _loadLanguagePreference();
+    _loadDownloadFolder();
+    _loadWifiOnlySetting();
   }
 
   Future<void> _loadLanguagePreference() async {
@@ -63,6 +70,37 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     setState(() {
       _selectedLanguage = languageCode;
     });
+  }
+
+  Future<void> _loadDownloadFolder() async {
+    // Use StoragePathUtils to get default path if not set
+    final storageUtils = StoragePathUtils();
+    final path = await storageUtils.getDefaultAudiobookPath();
+    if (mounted) {
+      setState(() {
+        _downloadFolderPath = path;
+      });
+    }
+  }
+
+  Future<void> _loadWifiOnlySetting() async {
+    final prefs = await SharedPreferences.getInstance();
+    final wifiOnly = prefs.getBool('wifi_only_downloads') ?? false;
+    if (mounted) {
+      setState(() {
+        _wifiOnlyDownloads = wifiOnly;
+      });
+    }
+  }
+
+  Future<void> _saveWifiOnlySetting(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('wifi_only_downloads', value);
+    if (mounted) {
+      setState(() {
+        _wifiOnlyDownloads = value;
+      });
+    }
   }
 
   Future<void> _changeLanguage(String languageCode, WidgetRef ref) async {
@@ -280,9 +318,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             leading: const Icon(Icons.login),
             title: Text(AppLocalizations.of(context)?.loginButton ??
                 'Login to RuTracker'),
-            subtitle: Text(AppLocalizations.of(context)
-                    ?.loginRequiredForSearch ??
-                'Enter your credentials to authenticate'),
+            subtitle: Text(
+                AppLocalizations.of(context)?.loginRequiredForSearch ??
+                    'Enter your credentials to authenticate'),
             onTap: () async {
               final messenger = ScaffoldMessenger.of(context);
               final localizations = AppLocalizations.of(context);
@@ -315,8 +353,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             leading: const Icon(Icons.logout),
             title: Text(AppLocalizations.of(context)?.clearSessionButton ??
                 'Clear RuTracker session (cookie)'),
-            subtitle: Text(AppLocalizations.of(context)
-                    ?.clearSessionSubtitle ??
+            subtitle: Text(AppLocalizations.of(context)?.clearSessionSubtitle ??
                 'Delete saved cookies and logout from account'),
             onTap: () async {
               // Clear cookies in Dio and secure storage
@@ -329,8 +366,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               if (mounted) {
                 messenger.showSnackBar(
                   SnackBar(
-                      content: Text(localizations
-                              ?.sessionClearedMessage ??
+                      content: Text(localizations?.sessionClearedMessage ??
                           'RuTracker session cleared')),
                 );
               }
@@ -448,8 +484,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
       messenger.showSnackBar(
         SnackBar(
-          content: Text(localizations
-                  ?.metadataUpdateStartedMessage ??
+          content: Text(localizations?.metadataUpdateStartedMessage ??
               'Metadata update started...'),
           duration: const Duration(seconds: 2),
         ),
@@ -463,8 +498,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       if (mounted) {
         messenger.showSnackBar(
           SnackBar(
-            content: Text(localizations?.metadataUpdateCompletedMessage(total) ??
-                'Update completed: collected $total records'),
+            content: Text(
+                localizations?.metadataUpdateCompletedMessage(total) ??
+                    'Update completed: collected $total records'),
             duration: const Duration(seconds: 3),
           ),
         );
@@ -582,8 +618,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             title: Text(localizations?.playbackSpeedTitle ??
                 localizations?.playbackSpeed ??
                 'Playback Speed'),
-            subtitle: Text(AppLocalizations.of(context)?.playbackSpeedDefault ??
-                '1.0x'),
+            subtitle: Text(
+                AppLocalizations.of(context)?.playbackSpeedDefault ?? '1.0x'),
             onTap: () {
               // TODO: Implement playback speed selection
             },
@@ -629,14 +665,73 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           button: true,
           label: 'Set download location',
           child: ListTile(
-            leading: const Icon(Icons.storage),
+            leading: const Icon(Icons.folder),
             title: Text(localizations?.downloadLocationTitle ??
                 localizations?.downloadLocation ??
                 'Download Location'),
-            subtitle: const Text('/storage/emulated/0/Download'),
-            onTap: () {
-              // TODO: Implement download location selection
-            },
+            subtitle: _downloadFolderPath != null
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.folder_outlined,
+                            size: 16,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurface
+                                .withValues(alpha: 0.6),
+                          ),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              _downloadFolderPath!,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurface
+                                        .withValues(alpha: 0.6),
+                                  ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  )
+                : Text(
+                    localizations?.defaultDownloadFolder ?? 'Default folder',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .onSurface
+                              .withValues(alpha: 0.6),
+                        ),
+                  ),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (Platform.isAndroid)
+                  IconButton(
+                    icon: const Icon(Icons.help_outline),
+                    onPressed: () => _showFolderSelectionInstructions(context),
+                    tooltip: 'Show instructions',
+                  ),
+                if (_downloadFolderPath != null)
+                  IconButton(
+                    icon: const Icon(Icons.edit),
+                    onPressed: () => _selectDownloadFolder(context),
+                    tooltip: 'Change folder',
+                  ),
+              ],
+            ),
+            onTap: () => _selectDownloadFolder(context),
           ),
         ),
         ListTile(
@@ -644,13 +739,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           title: Text(localizations?.wifiOnlyDownloadsTitle ??
               localizations?.wifiOnlyDownloads ??
               'Wi-Fi Only Downloads'),
+          subtitle: Text(
+            _wifiOnlyDownloads
+                ? 'Downloads will only start when connected to Wi-Fi'
+                : 'Downloads can start on any network connection',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context)
+                      .colorScheme
+                      .onSurface
+                      .withValues(alpha: 0.6),
+                ),
+          ),
           trailing: Semantics(
             label: 'Wi-Fi only downloads toggle',
             child: Switch(
-              value: true,
-              onChanged: (value) {
-                // TODO: Implement Wi-Fi only setting
-              },
+              value: _wifiOnlyDownloads,
+              onChanged: _saveWifiOnlySetting,
             ),
           ),
         ),
@@ -705,9 +809,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   }
                 },
                 icon: const Icon(Icons.auto_delete),
-                label: Text(AppLocalizations.of(context)
-                        ?.clearExpiredCacheButton ??
-                    'Clear Expired Cache'),
+                label: Text(
+                    AppLocalizations.of(context)?.clearExpiredCacheButton ??
+                        'Clear Expired Cache'),
               ),
               OutlinedButton.icon(
                 onPressed: () async {
@@ -805,8 +909,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               const SizedBox(height: 8),
               _buildPermissionRow(
                 icon: Icons.notifications,
-                title: AppLocalizations.of(context)?.notificationsPermissionName ??
-                    'Notifications',
+                title:
+                    AppLocalizations.of(context)?.notificationsPermissionName ??
+                        'Notifications',
                 description: AppLocalizations.of(context)
                         ?.notificationsPermissionDescription ??
                     'Show playback controls and updates',
@@ -890,12 +995,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       setState(() {});
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-              granted
-                  ? (AppLocalizations.of(context)?.fileAccessAvailable ??
-                      'File access available')
-                  : (AppLocalizations.of(context)?.fileAccessUnavailable ??
-                      'File access unavailable')),
+          content: Text(granted
+              ? (AppLocalizations.of(context)?.fileAccessAvailable ??
+                  'File access available')
+              : (AppLocalizations.of(context)?.fileAccessUnavailable ??
+                  'File access unavailable')),
         ),
       );
     }
@@ -951,8 +1055,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             leading: const Icon(Icons.file_download),
             title: Text(AppLocalizations.of(context)?.exportDataButton ??
                 'Export Data'),
-            subtitle: Text(AppLocalizations.of(context)
-                    ?.exportDataSubtitle ??
+            subtitle: Text(AppLocalizations.of(context)?.exportDataSubtitle ??
                 'Save all your data to a backup file'),
             trailing: const Icon(Icons.arrow_forward_ios),
             onTap: () => _exportData(context),
@@ -975,7 +1078,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final messenger = ScaffoldMessenger.of(context)
       ..showSnackBar(
         SnackBar(
-          content: Text(localizations?.exportingDataMessage ?? 'Exporting data...'),
+          content:
+              Text(localizations?.exportingDataMessage ?? 'Exporting data...'),
           duration: const Duration(seconds: 1),
         ),
       );
@@ -1060,7 +1164,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         if (!mounted) return;
         messenger.showSnackBar(
           SnackBar(
-            content: Text(localizations?.importingDataMessage ?? 'Importing data...'),
+            content: Text(
+                localizations?.importingDataMessage ?? 'Importing data...'),
             duration: const Duration(seconds: 2),
           ),
         );
@@ -1098,6 +1203,226 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           backgroundColor: Colors.red,
         ),
       );
+    }
+  }
+
+  /// Shows the folder selection instructions dialog.
+  Future<void> _showFolderSelectionInstructions(BuildContext context) async {
+    if (!mounted) return;
+
+    final localizations = AppLocalizations.of(context);
+    final dialogTitle =
+        localizations?.selectFolderDialogTitle ?? 'Select Download Folder';
+    final dialogMessage = localizations?.selectFolderDialogMessage ??
+        'To select a download folder:\n\n'
+            '1. Navigate to the desired folder in the file manager\n'
+            '2. Tap "Use this folder" button in the top right corner\n\n'
+            'The selected folder will be used to save downloaded audiobooks.';
+    final cancelText = localizations?.cancel ?? 'Cancel';
+
+    if (!context.mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(
+              Icons.info_outline,
+              color: Theme.of(dialogContext).colorScheme.primary,
+            ),
+            const SizedBox(width: 8),
+            Expanded(child: Text(dialogTitle)),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Text(
+            dialogMessage,
+            style: Theme.of(dialogContext).textTheme.bodyMedium,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: Text(cancelText),
+          ),
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.of(dialogContext).pop();
+              _selectDownloadFolder(context);
+            },
+            icon: const Icon(Icons.folder_open),
+            label: const Text('Select Folder'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _selectDownloadFolder(BuildContext context) async {
+    if (!mounted) return;
+
+    // Save context and localizations before any async operations
+    final savedContext = context;
+    final localizations = AppLocalizations.of(savedContext);
+    final messenger = ScaffoldMessenger.of(savedContext);
+
+    // Check Android version to show instruction dialog for Android 13+
+    if (Platform.isAndroid) {
+      final androidInfo = await DeviceInfoPlugin().androidInfo;
+      final sdkInt = androidInfo.version.sdkInt;
+
+      if (sdkInt >= 33) {
+        if (!mounted) return;
+        // Show instruction dialog for Android 13+
+        // Use savedContext which was captured before async operations
+        final dialogTitle =
+            localizations?.selectFolderDialogTitle ?? 'Select Download Folder';
+        final dialogMessage = localizations?.selectFolderDialogMessage ??
+            'To select a download folder:\n\n'
+                '1. Navigate to the desired folder in the file manager\n'
+                '2. Tap "Use this folder" button in the top right corner\n\n'
+                'The selected folder will be used to save downloaded audiobooks.';
+        final cancelText = localizations?.cancel ?? 'Cancel';
+
+        // Check if context is still mounted before using it
+        if (!savedContext.mounted) return;
+        final shouldProceed = await showDialog<bool>(
+          context: savedContext,
+          builder: (dialogContext) => AlertDialog(
+            title: Row(
+              children: [
+                Icon(
+                  Icons.info_outline,
+                  color: Theme.of(dialogContext).colorScheme.primary,
+                ),
+                const SizedBox(width: 8),
+                Expanded(child: Text(dialogTitle)),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: Text(
+                dialogMessage,
+                style: Theme.of(dialogContext).textTheme.bodyMedium,
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(false),
+                child: Text(cancelText),
+              ),
+              ElevatedButton.icon(
+                onPressed: () => Navigator.of(dialogContext).pop(true),
+                icon: const Icon(Icons.folder_open),
+                label: const Text('Continue'),
+              ),
+            ],
+          ),
+        );
+
+        if (shouldProceed != true) {
+          return; // User cancelled
+        }
+      }
+    }
+
+    // Open folder picker
+    try {
+      final selectedPath = await file_picker_utils.pickDirectory();
+
+      if (selectedPath != null) {
+        // Validate folder accessibility
+        try {
+          final dir = Directory(selectedPath);
+          if (!await dir.exists()) {
+            if (mounted) {
+              messenger.showSnackBar(
+                const SnackBar(
+                  content: Text(
+                    'Selected folder is not accessible. Please try again.',
+                  ),
+                  backgroundColor: Colors.orange,
+                  duration: Duration(seconds: 3),
+                ),
+              );
+            }
+            return;
+          }
+        } on Exception {
+          // If we can't check, still try to save - might be SAF URI
+        }
+
+        // Save selected path using StoragePathUtils
+        final storageUtils = StoragePathUtils();
+        await storageUtils.setDownloadFolderPath(selectedPath);
+
+        if (mounted) {
+          setState(() {
+            _downloadFolderPath = selectedPath;
+          });
+          messenger.showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.check_circle, color: Colors.white),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          localizations?.folderSelectedSuccessMessage ??
+                              'Download folder selected successfully',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          selectedPath,
+                          style: const TextStyle(fontSize: 12),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } else {
+        // User cancelled folder selection
+        if (mounted) {
+          messenger.showSnackBar(
+            SnackBar(
+              content: Text(localizations?.folderSelectionCancelledMessage ??
+                  'Folder selection cancelled'),
+              duration: const Duration(seconds: 1),
+            ),
+          );
+        }
+      }
+    } on Exception catch (e) {
+      if (mounted) {
+        messenger.showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.error, color: Colors.white),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Error selecting folder: ${e.toString()}',
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
     }
   }
 }
