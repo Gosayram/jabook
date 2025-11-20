@@ -14,6 +14,7 @@
 
 import 'dart:io';
 
+import 'package:jabook/core/logging/environment_logger.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -51,24 +52,53 @@ class StoragePathUtils {
         // Validate that the saved path exists
         final dir = Directory(savedPath);
         if (await dir.exists()) {
+          EnvironmentLogger().d(
+            'StoragePathUtils: Using saved path: $savedPath',
+          );
           return savedPath;
+        } else {
+          EnvironmentLogger().w(
+            'StoragePathUtils: Saved path does not exist: $savedPath, falling back to default',
+          );
         }
       }
 
       // Use default path
       final defaultPath = await _getDefaultPath();
+      EnvironmentLogger().d(
+        'StoragePathUtils: Using default path: $defaultPath',
+      );
       final dir = Directory(defaultPath);
       if (!await dir.exists()) {
-        await dir.create(recursive: true);
+        try {
+          await dir.create(recursive: true);
+          EnvironmentLogger().d(
+            'StoragePathUtils: Created directory: $defaultPath',
+          );
+        } on Exception catch (e) {
+          EnvironmentLogger().e(
+            'StoragePathUtils: Failed to create directory: $defaultPath',
+            error: e,
+          );
+          // Re-throw to be handled by outer catch
+          rethrow;
+        }
       }
 
       // Save default path to preferences if not already set
       if (savedPath == null || savedPath.isEmpty) {
         await prefs.setString(downloadFolderPathKey, defaultPath);
+        EnvironmentLogger().d(
+          'StoragePathUtils: Saved default path to preferences: $defaultPath',
+        );
       }
 
       return defaultPath;
-    } on Exception {
+    } on Exception catch (e) {
+      EnvironmentLogger().e(
+        'StoragePathUtils: Error getting default path, using fallback',
+        error: e,
+      );
       // Fallback to default path if anything fails
       return defaultAudiobookPath;
     }
@@ -132,13 +162,33 @@ class StoragePathUtils {
   /// the default path is set and the directory exists.
   Future<void> initializeDefaultPath() async {
     try {
+      EnvironmentLogger().d('StoragePathUtils: Initializing default path');
       final path = await getDefaultAudiobookPath();
       final dir = Directory(path);
       if (!await dir.exists()) {
-        await dir.create(recursive: true);
+        try {
+          await dir.create(recursive: true);
+          EnvironmentLogger().d(
+            'StoragePathUtils: Created directory during initialization: $path',
+          );
+        } on Exception catch (e) {
+          EnvironmentLogger().e(
+            'StoragePathUtils: Failed to create directory during initialization: $path',
+            error: e,
+          );
+          // Don't rethrow - initialization should be non-blocking
+        }
+      } else {
+        EnvironmentLogger().d(
+          'StoragePathUtils: Directory already exists: $path',
+        );
       }
-    } on Exception {
-      // Ignore errors during initialization
+    } on Exception catch (e) {
+      EnvironmentLogger().e(
+        'StoragePathUtils: Error during initialization',
+        error: e,
+      );
+      // Ignore errors during initialization to avoid blocking app startup
     }
   }
 }

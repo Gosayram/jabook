@@ -171,7 +171,21 @@ class AudiobookTorrentManager {
       // Create download directory if it doesn't exist
       final downloadDir = Directory(savePath);
       if (!await downloadDir.exists()) {
-        await downloadDir.create(recursive: true);
+        try {
+          logger.d('Creating download directory: $savePath');
+          await downloadDir.create(recursive: true);
+          logger.d('Successfully created download directory: $savePath');
+        } on Exception catch (e) {
+          logger.e(
+            'Failed to create download directory: $savePath',
+            error: e,
+          );
+          throw TorrentFailure(
+            'Failed to create download directory: ${e.toString()}',
+          );
+        }
+      } else {
+        logger.d('Download directory already exists: $savePath');
       }
 
       // Check metadata cache first
@@ -253,7 +267,7 @@ class AudiobookTorrentManager {
       _activeTasks[downloadId] = task;
 
       // Log task creation
-      final logger = EnvironmentLogger()
+      EnvironmentLogger()
         ..i('Created TorrentTask for download $downloadId')
         ..i('Torrent name: ${torrentModel.name}')
         ..i('Torrent size: ${torrentModel.length} bytes')
@@ -453,7 +467,21 @@ class AudiobookTorrentManager {
       // Create download directory if it doesn't exist
       final downloadDir = Directory(savePath);
       if (!await downloadDir.exists()) {
-        await downloadDir.create(recursive: true);
+        try {
+          logger.d('Creating download directory: $savePath');
+          await downloadDir.create(recursive: true);
+          logger.d('Successfully created download directory: $savePath');
+        } on Exception catch (e) {
+          logger.e(
+            'Failed to create download directory: $savePath',
+            error: e,
+          );
+          throw TorrentFailure(
+            'Failed to create download directory: ${e.toString()}',
+          );
+        }
+      } else {
+        logger.d('Download directory already exists: $savePath');
       }
 
       // Create torrent task with sequential download
@@ -465,7 +493,7 @@ class AudiobookTorrentManager {
       _activeTasks[downloadId] = task;
 
       // Log task creation
-      final logger = EnvironmentLogger()
+      EnvironmentLogger()
         ..i('Created TorrentTask for download $downloadId')
         ..i('Torrent name: ${torrentModel.name}')
         ..i('Torrent size: ${torrentModel.length} bytes')
@@ -848,6 +876,10 @@ class AudiobookTorrentManager {
     try {
       final downloads = <Map<String, dynamic>>[];
 
+      logger.d(
+        'getActiveDownloads: Starting - active tasks: ${_activeTasks.length}, metadata entries: ${_downloadMetadata.length}',
+      );
+
       // Add active tasks
       for (final entry in _activeTasks.entries) {
         final downloadId = entry.key;
@@ -856,6 +888,10 @@ class AudiobookTorrentManager {
 
         // Use title from metadata if available, otherwise use torrent name
         final displayName = metadata['title'] as String? ?? task.metaInfo.name;
+
+        logger.d(
+          'getActiveDownloads: Adding active task - id: $downloadId, name: $displayName, progress: ${(task.progress * 100).toStringAsFixed(1)}%',
+        );
 
         downloads.add({
           'id': downloadId,
@@ -877,6 +913,8 @@ class AudiobookTorrentManager {
       }
 
       // Add restored downloads (from database but not active)
+      var restoredCount = 0;
+      var removedCount = 0;
       for (final entry in _downloadMetadata.entries) {
         final downloadId = entry.key;
         // Skip if already in active tasks
@@ -884,14 +922,28 @@ class AudiobookTorrentManager {
 
         final metadata = entry.value;
         final savePath = metadata['savePath'] as String?;
-        if (savePath == null) continue;
+        if (savePath == null) {
+          logger.d(
+            'getActiveDownloads: Skipping metadata entry - id: $downloadId, reason: no savePath',
+          );
+          continue;
+        }
 
         // Check if download directory still exists
         final saveDir = Directory(savePath);
         if (!await saveDir.exists()) {
+          logger.w(
+            'getActiveDownloads: Removing metadata - id: $downloadId, reason: directory does not exist: $savePath',
+          );
           await _removeDownloadMetadata(downloadId);
+          removedCount++;
           continue;
         }
+
+        logger.d(
+          'getActiveDownloads: Adding restored download - id: $downloadId, name: ${metadata['title'] as String? ?? 'Unknown'}',
+        );
+        restoredCount++;
 
         downloads.add({
           'id': downloadId,
@@ -912,8 +964,13 @@ class AudiobookTorrentManager {
         });
       }
 
+      logger.d(
+        'getActiveDownloads: Completed - total: ${downloads.length} (active: ${_activeTasks.length}, restored: $restoredCount, removed: $removedCount)',
+      );
+
       return downloads;
     } on Exception catch (e) {
+      logger.e('getActiveDownloads: Failed to get active downloads', error: e);
       throw TorrentFailure('Failed to get active downloads: ${e.toString()}');
     }
   }
@@ -1025,12 +1082,27 @@ class AudiobookTorrentManager {
   ///
   /// Returns the path to the download directory as a string.
   static Future<String> getDownloadDirectory() async {
+    final logger = EnvironmentLogger();
     // Use default audiobook path from StoragePathUtils
     final storageUtils = StoragePathUtils();
     final audiobookPath = await storageUtils.getDefaultAudiobookPath();
     final downloadDir = Directory(audiobookPath);
     if (!await downloadDir.exists()) {
-      await downloadDir.create(recursive: true);
+      try {
+        logger.d('Creating default download directory: $audiobookPath');
+        await downloadDir.create(recursive: true);
+        logger.d(
+            'Successfully created default download directory: $audiobookPath');
+      } on Exception catch (e) {
+        logger.e(
+          'Failed to create default download directory: $audiobookPath',
+          error: e,
+        );
+        // Don't throw here - let StoragePathUtils handle the error
+        // This is a fallback method, so we should be lenient
+      }
+    } else {
+      logger.d('Default download directory already exists: $audiobookPath');
     }
     return downloadDir.path;
   }
