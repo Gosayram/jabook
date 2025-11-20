@@ -155,7 +155,7 @@ class AudiobookCard extends StatelessWidget {
                           _StatIndicator(
                             icon: Icons.arrow_downward,
                             value: leechers,
-                            color: Colors.orange,
+                            color: Colors.red,
                           ),
                         ],
                       ),
@@ -242,10 +242,19 @@ class AudiobookCard extends StatelessWidget {
           color: Theme.of(context).colorScheme.primaryContainer,
           borderRadius: BorderRadius.circular(8),
         ),
-        child: Icon(
-          Icons.audiotrack,
-          color: Theme.of(context).colorScheme.onPrimaryContainer,
-          size: 28,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Image.asset(
+            'assets/icons/app_icon.png',
+            width: 60,
+            height: 60,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) => Icon(
+              Icons.audiotrack,
+              color: Theme.of(context).colorScheme.onPrimaryContainer,
+              size: 28,
+            ),
+          ),
         ),
       );
 }

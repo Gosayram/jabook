@@ -605,10 +605,10 @@ abstract class AppLocalizations {
   /// **'Memory usage'**
   String get memoryUsage;
 
-  /// Clear all cache button text
+  /// Menu item for clearing all cache
   ///
   /// In en, this message translates to:
-  /// **'Clear All Cache'**
+  /// **'Clear all cache'**
   String get clearAllCache;
 
   /// Title for mirrors screen
@@ -737,7 +737,7 @@ abstract class AppLocalizations {
   /// **'Skip duration'**
   String get skipDuration;
 
-  /// Title for downloads settings
+  /// Title for downloads screen
   ///
   /// In en, this message translates to:
   /// **'Downloads'**
@@ -2422,6 +2422,120 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Could not connect to RuTracker mirrors'**
   String get mirrorConnectionFailed;
+
+  /// Text for refresh button
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh'**
+  String get refresh;
+
+  /// Menu item for refreshing current search
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh current search'**
+  String get refreshCurrentSearch;
+
+  /// Menu item for clearing search cache
+  ///
+  /// In en, this message translates to:
+  /// **'Clear search cache'**
+  String get clearSearchCache;
+
+  /// Message for successful cache clearing
+  ///
+  /// In en, this message translates to:
+  /// **'Cache cleared'**
+  String get cacheCleared;
+
+  /// Message for successful clearing of all cache
+  ///
+  /// In en, this message translates to:
+  /// **'All cache cleared'**
+  String get allCacheCleared;
+
+  /// Menu item for downloading via magnet link
+  ///
+  /// In en, this message translates to:
+  /// **'Download via Magnet'**
+  String get downloadViaMagnet;
+
+  /// Message for download start
+  ///
+  /// In en, this message translates to:
+  /// **'Download started'**
+  String get downloadStarted;
+
+  /// No description provided for @refreshChaptersFromTorrent.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh chapters from torrent'**
+  String get refreshChaptersFromTorrent;
+
+  /// No description provided for @chaptersRefreshed.
+  ///
+  /// In en, this message translates to:
+  /// **'Chapters refreshed from torrent'**
+  String get chaptersRefreshed;
+
+  /// No description provided for @failedToRefreshChapters.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to refresh chapters'**
+  String get failedToRefreshChapters;
+
+  /// No description provided for @noChaptersFound.
+  ///
+  /// In en, this message translates to:
+  /// **'No chapters found in torrent'**
+  String get noChaptersFound;
+
+  /// Error message for failed download start
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to start download'**
+  String get failedToStartDownload;
+
+  /// Message when there are no active downloads
+  ///
+  /// In en, this message translates to:
+  /// **'No active downloads'**
+  String get noActiveDownloads;
+
+  /// Text before cache expiration time
+  ///
+  /// In en, this message translates to:
+  /// **'Expires in'**
+  String get cacheExpires;
+
+  /// Text when cache has expired
+  ///
+  /// In en, this message translates to:
+  /// **'Expired'**
+  String get cacheExpired;
+
+  /// Text when cache expires soon
+  ///
+  /// In en, this message translates to:
+  /// **'Expires soon'**
+  String get cacheExpiresSoon;
+
+  /// Abbreviation for days
+  ///
+  /// In en, this message translates to:
+  /// **'days'**
+  String get days;
+
+  /// Abbreviation for hours
+  ///
+  /// In en, this message translates to:
+  /// **'hours'**
+  String get hours;
+
+  /// Abbreviation for minutes
+  ///
+  /// In en, this message translates to:
+  /// **'minutes'**
+  String get minutes;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

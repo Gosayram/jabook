@@ -264,7 +264,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get memoryUsage => 'Memory usage';
 
   @override
-  String get clearAllCache => 'Clear All Cache';
+  String get clearAllCache => 'Clear all cache';
 
   @override
   String get mirrorsScreenTitle => 'Mirrors';
@@ -1259,4 +1259,61 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get mirrorConnectionFailed => 'Could not connect to RuTracker mirrors';
+
+  @override
+  String get refresh => 'Refresh';
+
+  @override
+  String get refreshCurrentSearch => 'Refresh current search';
+
+  @override
+  String get clearSearchCache => 'Clear search cache';
+
+  @override
+  String get cacheCleared => 'Cache cleared';
+
+  @override
+  String get allCacheCleared => 'All cache cleared';
+
+  @override
+  String get downloadViaMagnet => 'Download via Magnet';
+
+  @override
+  String get downloadStarted => 'Download started';
+
+  @override
+  String get refreshChaptersFromTorrent => 'Refresh chapters from torrent';
+
+  @override
+  String get chaptersRefreshed => 'Chapters refreshed from torrent';
+
+  @override
+  String get failedToRefreshChapters => 'Failed to refresh chapters';
+
+  @override
+  String get noChaptersFound => 'No chapters found in torrent';
+
+  @override
+  String get failedToStartDownload => 'Failed to start download';
+
+  @override
+  String get noActiveDownloads => 'No active downloads';
+
+  @override
+  String get cacheExpires => 'Expires in';
+
+  @override
+  String get cacheExpired => 'Expired';
+
+  @override
+  String get cacheExpiresSoon => 'Expires soon';
+
+  @override
+  String get days => 'days';
+
+  @override
+  String get hours => 'hours';
+
+  @override
+  String get minutes => 'minutes';
 }

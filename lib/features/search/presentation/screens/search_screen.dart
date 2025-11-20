@@ -70,6 +70,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   bool _isLoading = false;
   bool _hasSearched = false;
   bool _isFromCache = false;
+  DateTime? _cacheExpirationTime;
   bool _isFromLocalDb = false;
   bool _showHistory = false;
   String? _errorKind; // 'network' | 'auth' | 'mirror' | 'timeout' | null
@@ -355,15 +356,48 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     // Second try to get from cache
     final cachedResults = await _cacheService.getCachedSearchResults(query);
     if (cachedResults != null) {
-      setState(() {
-        _searchResults = cachedResults;
-        _isLoading = false;
-        _isFromCache = true;
-      });
-      return;
+        // Get expiration time
+        final expiration = await _cacheService.getSearchResultsExpiration(query);
+        
+        setState(() {
+          _searchResults = cachedResults;
+          _isLoading = false;
+          _isFromCache = true;
+          _cacheExpirationTime = expiration;
+        });
+        return;
     }
 
     // Finally, try network search
+    await _performNetworkSearch(query);
+  }
+
+  /// Forces a refresh of the current search by clearing cache and performing network search.
+  ///
+  /// This method clears the cache for the current query and performs a fresh network search,
+  /// bypassing cache and local database.
+  Future<void> _forceRefreshSearch() async {
+    final query = _searchController.text.trim();
+    if (query.isEmpty) return;
+
+    // Clear cache for this query
+    await _cacheService.clearSearchResultsCacheForQuery(query);
+
+    // Cancel any in-flight search
+    _cancelToken?.cancel('superseded');
+    _cancelToken = CancelToken();
+
+    setState(() {
+      _isFromCache = false;
+      _isFromLocalDb = false;
+      _isLoading = true;
+      _errorKind = null;
+      _errorMessage = null;
+      _startOffset = 0;
+      _hasMore = true;
+    });
+
+    // Perform network search directly, bypassing cache
     await _performNetworkSearch(query);
   }
 
@@ -1709,6 +1743,72 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 ).then((_) => _loadActiveHost()));
               },
             ),
+            PopupMenuButton<String>(
+                onSelected: (value) async {
+                  final messenger = ScaffoldMessenger.of(context);
+                  final localizations = AppLocalizations.of(context);
+                  switch (value) {
+                    case 'refresh':
+                      await _forceRefreshSearch();
+                      break;
+                    case 'clear_search_cache':
+                      await _cacheService.clearSearchResultsCache();
+                      if (!mounted) break;
+                      messenger.showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            localizations?.cacheCleared ?? 'Cache cleared',
+                          ),
+                        ),
+                      );
+                      break;
+                    case 'clear_all_cache':
+                      await _cacheService.clearAllTopicDetailsCache();
+                      await _cacheService.clearSearchResultsCache();
+                      if (!mounted) break;
+                      messenger.showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            localizations?.allCacheCleared ?? 'All cache cleared',
+                          ),
+                        ),
+                      );
+                      break;
+                  }
+                },
+              itemBuilder: (context) => [
+                PopupMenuItem(
+                  value: 'refresh',
+                  child: ListTile(
+                    leading: const Icon(Icons.refresh),
+                    title: Text(
+                      AppLocalizations.of(context)?.refreshCurrentSearch ?? 'Refresh current search',
+                    ),
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                ),
+                PopupMenuItem(
+                  value: 'clear_search_cache',
+                  child: ListTile(
+                    leading: const Icon(Icons.clear_all),
+                    title: Text(
+                      AppLocalizations.of(context)?.clearSearchCache ?? 'Clear search cache',
+                    ),
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                ),
+                PopupMenuItem(
+                  value: 'clear_all_cache',
+                  child: ListTile(
+                    leading: const Icon(Icons.delete_sweep),
+                    title: Text(
+                      AppLocalizations.of(context)?.clearAllCache ?? 'Clear all cache',
+                    ),
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                ),
+              ],
+            ),
             IconButton(
               icon: const Icon(Icons.search),
               onPressed: _performSearch,
@@ -1842,11 +1942,36 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                               Icon(Icons.cached,
                                   size: 16, color: Colors.blue[700]),
                               const SizedBox(width: 8),
-                              Text(
-                                AppLocalizations.of(context)?.resultsFromCache ?? 'Results from cache',
-                                style: TextStyle(
-                                  color: Colors.blue[700],
-                                  fontSize: 12,
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      AppLocalizations.of(context)?.resultsFromCache ?? 'Results from cache',
+                                      style: TextStyle(
+                                        color: Colors.blue[700],
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                    if (_cacheExpirationTime != null)
+                                      Text(
+                                        '${AppLocalizations.of(context)?.cacheExpires ?? 'Expires'}: ${_formatCacheExpiration(_cacheExpirationTime!)}',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          color: Colors.blue[600],
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                              TextButton.icon(
+                                icon: const Icon(Icons.refresh, size: 16),
+                                label: Text(AppLocalizations.of(context)?.refresh ?? 'Refresh'),
+                                onPressed: _forceRefreshSearch,
+                                style: TextButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  minimumSize: Size.zero,
+                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                                 ),
                               ),
                             ],
@@ -1880,7 +2005,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                       Expanded(
                         child: RefreshIndicator(
                           onRefresh: () async {
-                            await _performSearch();
+                            await _forceRefreshSearch();
                           },
                           child: _buildBodyState(),
                         ),
@@ -2435,10 +2560,28 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       ),
     );
   }
-}
 
-/// Converts an Audiobook object to a Map for caching.
-Map<String, dynamic> _audiobookToMap(Audiobook audiobook) => {
+  /// Formats cache expiration time for display.
+  String _formatCacheExpiration(DateTime expirationTime) {
+    final now = DateTime.now();
+    final difference = expirationTime.difference(now);
+    
+    if (difference.isNegative) {
+      return AppLocalizations.of(context)?.cacheExpired ?? 'Expired';
+    }
+    
+    if (difference.inDays > 0) {
+      return '${difference.inDays} ${AppLocalizations.of(context)?.days ?? 'days'}';
+    } else if (difference.inHours > 0) {
+      return '${difference.inHours} ${AppLocalizations.of(context)?.hours ?? 'hours'}';
+    } else if (difference.inMinutes > 0) {
+      return '${difference.inMinutes} ${AppLocalizations.of(context)?.minutes ?? 'minutes'}';
+    } else {
+      return AppLocalizations.of(context)?.cacheExpiresSoon ?? 'Expires soon';
+    }
+  }
+
+  Map<String, dynamic> _audiobookToMap(Audiobook audiobook) => {
       'id': audiobook.id,
       'title': audiobook.title,
       'author': audiobook.author,
@@ -2448,9 +2591,12 @@ Map<String, dynamic> _audiobookToMap(Audiobook audiobook) => {
       'leechers': audiobook.leechers,
       'magnetUrl': audiobook.magnetUrl,
       'coverUrl': audiobook.coverUrl,
+      'performer': audiobook.performer,
+      'genres': audiobook.genres,
       'chapters': audiobook.chapters.map(_chapterToMap).toList(),
       'addedDate': audiobook.addedDate.toIso8601String(),
     };
+}
 
   /// Filters search results to only include audiobooks.
   ///

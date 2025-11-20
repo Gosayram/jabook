@@ -99,6 +99,14 @@ class AppDatabase {
   StoreRef<String, Map<String, dynamic>> get favoritesStore =>
       StoreRef('favorites');
 
+  /// Gets the downloads store.
+  ///
+  /// This store contains metadata for active torrent downloads,
+  /// allowing downloads to be restored after app restart.
+  /// Primary key is download_id (String).
+  StoreRef<String, Map<String, dynamic>> get downloadsStore =>
+      StoreRef('downloads');
+
   /// Closes the database connection.
   Future<void> close() async {
     if (_isInitialized && _db != null) {

@@ -13,6 +13,7 @@
 // limitations under the License.
 
 import 'dart:async';
+import 'dart:io';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:dio/dio.dart';
@@ -26,8 +27,11 @@ import 'package:jabook/core/errors/failures.dart';
 import 'package:jabook/core/net/dio_client.dart';
 import 'package:jabook/core/parse/rutracker_parser.dart';
 import 'package:jabook/core/session/auth_error_handler.dart';
+import 'package:jabook/core/torrent/audiobook_torrent_manager.dart';
+import 'package:jabook/core/torrent/torrent_parser_service.dart';
+import 'package:jabook/features/downloads/presentation/widgets/download_status_bar.dart';
 import 'package:jabook/l10n/app_localizations.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:path_provider/path_provider.dart';
 
 /// Screen for displaying a specific RuTracker topic.
 ///
@@ -55,12 +59,21 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
   bool _isLoading = true;
   bool _hasError = false;
   bool _isFromCache = false;
+  String? _activeDownloadId;
+  StreamSubscription<TorrentProgress>? _downloadProgressSubscription;
+  TorrentProgress? _currentProgress;
 
   @override
   void initState() {
     super.initState();
     _initializeCache();
     _loadTopicDetails();
+  }
+
+  @override
+  void dispose() {
+    _downloadProgressSubscription?.cancel();
+    super.dispose();
   }
 
   Future<void> _initializeCache() async {
@@ -100,10 +113,47 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
       if (response.statusCode == 200) {
         // Pass response data and headers to parser for proper encoding detection
         // Note: Brotli decompression is handled automatically by DioBrotliTransformer
-        final audiobook = await _parser.parseTopicDetails(
+        var audiobook = await _parser.parseTopicDetails(
           response.data,
           contentType: response.headers.value('content-type'),
         );
+
+        // If chapters are empty, try to extract from torrent file
+        if (audiobook != null && audiobook.chapters.isEmpty) {
+          try {
+            final chaptersFromTorrent = await _extractChaptersFromTorrent(
+              widget.topicId,
+              activeEndpoint,
+            );
+            if (chaptersFromTorrent.isNotEmpty) {
+              // Create new Audiobook with chapters from torrent
+              audiobook = Audiobook(
+                id: audiobook.id,
+                title: audiobook.title,
+                author: audiobook.author,
+                category: audiobook.category,
+                size: audiobook.size,
+                seeders: audiobook.seeders,
+                leechers: audiobook.leechers,
+                magnetUrl: audiobook.magnetUrl,
+                coverUrl: audiobook.coverUrl,
+                performer: audiobook.performer,
+                genres: audiobook.genres,
+                chapters: chaptersFromTorrent,
+                addedDate: audiobook.addedDate,
+              );
+            }
+          } on AuthFailure catch (e) {
+            // Handle authentication errors - show user-friendly message
+            if (mounted) {
+              AuthErrorHandler.showAuthErrorSnackBar(context, e);
+            }
+            // Continue with HTML-parsed chapters (empty list)
+          } on Exception {
+            // Ignore other errors when extracting from torrent
+            // Fallback to HTML-parsed chapters (empty list)
+          }
+        }
 
         if (audiobook != null) {
           // Cache the topic details
@@ -206,35 +256,108 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
                   );
                 },
               ),
-            if (_audiobook != null &&
-                (_audiobook!['magnetUrl'] as String).isNotEmpty)
+            if (_audiobook != null)
               PopupMenuButton<String>(
-                icon: const Icon(Icons.download),
-                onSelected: _handleDownloadAction,
+                icon: const Icon(Icons.more_vert),
+                onSelected: (value) async {
+                  if (value == 'refresh_chapters') {
+                    await _refreshChaptersFromTorrent();
+                  } else if (value == 'magnet' || value == 'torrent' || value == 'download_magnet') {
+                    _handleDownloadAction(value);
+                  }
+                },
                 itemBuilder: (context) => [
                   PopupMenuItem(
-                    value: 'magnet',
+                    value: 'refresh_chapters',
                     child: ListTile(
-                      leading: const Icon(Icons.link),
-                      title: Text(AppLocalizations.of(context)?.copyMagnetLink ??
-                          'Copy Magnet Link'),
+                      leading: const Icon(Icons.refresh),
+                      title: Text(AppLocalizations.of(context)
+                              ?.refreshChaptersFromTorrent ??
+                          'Refresh chapters from torrent'),
                       contentPadding: EdgeInsets.zero,
                     ),
                   ),
-                  PopupMenuItem(
-                    value: 'torrent',
-                    child: ListTile(
-                      leading: const Icon(Icons.file_download),
-                      title: Text(AppLocalizations.of(context)?.downloadTorrentMenu ??
-                          'Download Torrent'),
-                      contentPadding: EdgeInsets.zero,
+                  if ((_audiobook!['magnetUrl'] as String).isNotEmpty) ...[
+                    const PopupMenuDivider(),
+                    PopupMenuItem(
+                      value: 'magnet',
+                      child: ListTile(
+                        leading: const Icon(Icons.link),
+                        title: Text(AppLocalizations.of(context)?.copyMagnetLink ??
+                            'Copy Magnet Link'),
+                        contentPadding: EdgeInsets.zero,
+                      ),
                     ),
-                  ),
+                    PopupMenuItem(
+                      value: 'torrent',
+                      child: ListTile(
+                        leading: const Icon(Icons.file_download),
+                        title: Text(AppLocalizations.of(context)?.downloadTorrentMenu ??
+                            'Download Torrent'),
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: 'download_magnet',
+                      child: ListTile(
+                        leading: const Icon(Icons.download),
+                        title: Text(AppLocalizations.of(context)?.downloadViaMagnet ??
+                            'Download via Magnet'),
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                    ),
+                  ],
                 ],
               ),
           ],
         ),
-        body: _buildBody(),
+        body: Stack(
+          children: [
+            _buildBody(),
+            if (_activeDownloadId != null && _currentProgress != null)
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: DownloadStatusBar(
+                  downloadId: _activeDownloadId!,
+                  progress: _currentProgress!,
+                  onPause: () async {
+                    final torrentManager = AudiobookTorrentManager();
+                    await torrentManager.pauseDownload(_activeDownloadId!);
+                    if (mounted) {
+                      setState(() {
+                        _currentProgress = TorrentProgress(
+                          progress: _currentProgress!.progress,
+                          downloadSpeed: 0.0,
+                          uploadSpeed: 0.0,
+                          downloadedBytes: _currentProgress!.downloadedBytes,
+                          totalBytes: _currentProgress!.totalBytes,
+                          seeders: _currentProgress!.seeders,
+                          leechers: _currentProgress!.leechers,
+                          status: 'paused',
+                        );
+                      });
+                    }
+                  },
+                  onResume: () async {
+                    final torrentManager = AudiobookTorrentManager();
+                    await torrentManager.resumeDownload(_activeDownloadId!);
+                  },
+                  onCancel: () async {
+                    final torrentManager = AudiobookTorrentManager();
+                    await torrentManager.removeDownload(_activeDownloadId!);
+                    if (mounted) {
+                      setState(() {
+                        _activeDownloadId = null;
+                        _currentProgress = null;
+                      });
+                    }
+                  },
+                ),
+              ),
+          ],
+        ),
       );
 
   Widget _buildBody() {
@@ -278,12 +401,18 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
     final audiobook = _audiobook!;
     final title = audiobook['title'] as String? ?? 'Unknown Title';
     final author = audiobook['author'] as String? ?? 'Unknown Author';
+    final performer = audiobook['performer'] as String?;
     final category = audiobook['category'] as String? ?? 'Unknown Category';
     final size = audiobook['size'] as String? ?? 'Unknown Size';
     final seeders = audiobook['seeders'] as int? ?? 0;
     final leechers = audiobook['leechers'] as int? ?? 0;
     final coverUrl = audiobook['coverUrl'] as String?;
     final magnetUrl = audiobook['magnetUrl'] as String? ?? '';
+    final genres = (audiobook['genres'] as List<dynamic>?)
+            ?.map((g) => g.toString())
+            .where((g) => g.isNotEmpty)
+            .toList() ??
+        <String>[];
     // Chapters variable is not used, removed to fix lint warning
 
     return Padding(
@@ -302,6 +431,13 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
             'by $author',
             style: Theme.of(context).textTheme.titleMedium,
           ),
+          if (performer != null && performer.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              'Performed by $performer',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+          ],
           const SizedBox(height: 16),
           Row(
             children: [
@@ -319,15 +455,29 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
                 label: Text(
                     '$seeders${AppLocalizations.of(context)?.seedersLabel ?? ' seeders'}'),
                 backgroundColor: Colors.green.shade100,
+                labelStyle: TextStyle(color: Colors.green.shade900),
               ),
               const SizedBox(width: 8),
               Chip(
                 label: Text(
                     '$leechers${AppLocalizations.of(context)?.leechersLabel ?? ' leechers'}'),
-                backgroundColor: Colors.orange.shade100,
+                backgroundColor: Colors.red.shade100,
+                labelStyle: TextStyle(color: Colors.red.shade900),
               ),
             ],
           ),
+          if (genres.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 4,
+              children: genres.map((genre) => Chip(
+                label: Text(genre),
+                backgroundColor: Colors.purple.shade100,
+                labelStyle: TextStyle(color: Colors.purple.shade900),
+              )).toList(),
+            ),
+          ],
           const SizedBox(height: 16),
           if (coverUrl != null)
             RepaintBoundary(
@@ -458,6 +608,9 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
       case 'torrent':
         _downloadTorrent();
         break;
+      case 'download_magnet':
+        _startMagnetDownload();
+        break;
     }
   }
 
@@ -478,20 +631,377 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
       final activeEndpoint = await endpointManager.getActiveEndpoint();
       final torrentUrl = '$activeEndpoint/forum/dl.php?t=${widget.topicId}';
 
-      final uri = Uri.parse(torrentUrl);
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-      } else {
-        throw Exception('Cannot launch torrent URL');
+      // Get temporary directory for torrent file
+      final tempDir = await getTemporaryDirectory();
+      final torrentFile = File('${tempDir.path}/torrent_${widget.topicId}.torrent');
+
+      // Download torrent file
+      final dio = await DioClient.instance;
+      try {
+        await dio.download(torrentUrl, torrentFile.path);
+      } on DioException catch (e) {
+        // Check if error is authentication-related
+        if (e.response?.statusCode == 401 || 
+            e.response?.statusCode == 403 ||
+            (e.message?.toLowerCase().contains('authentication') ?? false) ||
+            (e.response?.realUri.toString().contains('login.php') ?? false)) {
+          // Delete temporary file if it exists
+          try {
+            if (await torrentFile.exists()) {
+              await torrentFile.delete();
+            }
+          } on Exception {
+            // Ignore deletion errors
+          }
+          if (mounted) {
+            AuthErrorHandler.showAuthErrorSnackBar(
+              context,
+              const AuthFailure.loginRequired(),
+            );
+          }
+          return;
+        }
+        // Re-throw other DioExceptions
+        rethrow;
+      }
+      
+      // Check if downloaded file is actually a torrent file
+      // Sometimes RuTracker returns HTML login page instead of torrent file
+      final torrentBytes = await torrentFile.readAsBytes();
+      
+      // Check if file is too small (likely not a torrent) or starts with HTML
+      if (torrentBytes.length < 100) {
+        // Too small to be a valid torrent file
+        try {
+          await torrentFile.delete();
+        } on Exception {
+          // Ignore deletion errors
+        }
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                AppLocalizations.of(context)?.failedToStartDownload ??
+                    'Failed to start download: Invalid torrent file',
+              ),
+            ),
+          );
+        }
+        return;
+      }
+      
+      // Check if file starts with HTML (likely login page)
+      final fileStart = String.fromCharCodes(
+        torrentBytes.take(100),
+      ).toLowerCase();
+      if (fileStart.contains('<!doctype') || 
+          fileStart.contains('<html') ||
+          fileStart.contains('login.php') ||
+          fileStart.contains('авторизация')) {
+        // This is HTML, not a torrent file - likely requires authentication
+        try {
+          await torrentFile.delete();
+        } on Exception {
+          // Ignore deletion errors
+        }
+        if (mounted) {
+          AuthErrorHandler.showAuthErrorSnackBar(
+            context,
+            const AuthFailure.loginRequired(),
+          );
+        }
+        return;
+      }
+
+      // Start download through AudiobookTorrentManager
+      final torrentManager = AudiobookTorrentManager();
+      final downloadDir = await AudiobookTorrentManager.getDownloadDirectory();
+      
+      // Get audiobook title for better display in downloads list
+      final audiobookTitle = _audiobook?['title'] as String? ?? '';
+      
+      final downloadId = await torrentManager.downloadFromTorrentFile(
+        torrentFile.path,
+        '$downloadDir/${widget.topicId}',
+        title: audiobookTitle.isNotEmpty ? audiobookTitle : null,
+      );
+
+      // Set up progress tracking
+      _activeDownloadId = downloadId;
+      await _downloadProgressSubscription?.cancel();
+      _downloadProgressSubscription = torrentManager
+          .getProgressStream(downloadId)
+          .listen((progress) {
+        if (mounted) {
+          setState(() {
+            _currentProgress = progress;
+          });
+        }
+      });
+
+      // Delete temporary torrent file after starting download
+      try {
+        await torrentFile.delete();
+      } on Exception {
+        // Ignore deletion errors
+      }
+
+      // Show notification
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              AppLocalizations.of(context)?.downloadStarted ?? 'Download started',
+            ),
+          ),
+        );
       }
     } on Exception catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content: Text(AppLocalizations.of(context)!
-                  .failedToOpenTorrent(e.toString()))),
+            content: Text(
+              '${AppLocalizations.of(context)?.failedToStartDownload ?? 'Failed to start download'}: ${e.toString()}',
+            ),
+          ),
         );
       }
+    }
+  }
+
+  Future<void> _startMagnetDownload() async {
+    if (_audiobook == null) return;
+    final magnetUrl = _audiobook!['magnetUrl'] as String? ?? '';
+    if (magnetUrl.isEmpty) return;
+
+    try {
+      final torrentManager = AudiobookTorrentManager();
+      final downloadDir = await AudiobookTorrentManager.getDownloadDirectory();
+      
+      // Get audiobook title for better display in downloads list
+      final audiobookTitle = _audiobook?['title'] as String? ?? '';
+      
+      final downloadId = await torrentManager.downloadSequential(
+        magnetUrl,
+        '$downloadDir/${widget.topicId}',
+        title: audiobookTitle.isNotEmpty ? audiobookTitle : null,
+      );
+
+      // Set up progress tracking
+      _activeDownloadId = downloadId;
+      await _downloadProgressSubscription?.cancel();
+      _downloadProgressSubscription = torrentManager
+          .getProgressStream(downloadId)
+          .listen((progress) {
+        if (mounted) {
+          setState(() {
+            _currentProgress = progress;
+          });
+        }
+      });
+
+      // Show notification
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              AppLocalizations.of(context)?.downloadStarted ?? 'Download started',
+            ),
+          ),
+        );
+      }
+    } on Exception catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '${AppLocalizations.of(context)?.failedToStartDownload ?? 'Failed to start download'}: ${e.toString()}',
+            ),
+          ),
+        );
+      }
+    }
+  }
+
+  /// Refreshes chapters from torrent file, bypassing cache.
+  ///
+  /// This method forces re-parsing of the torrent file to get updated chapter information.
+  Future<void> _refreshChaptersFromTorrent() async {
+    if (_audiobook == null) return;
+
+    try {
+      setState(() {
+        _isLoading = true;
+      });
+
+      final endpointManager = ref.read(endpointManagerProvider);
+      final activeEndpoint = await endpointManager.getActiveEndpoint();
+
+      // Extract chapters from torrent with force refresh
+      final chaptersFromTorrent = await _extractChaptersFromTorrent(
+        widget.topicId,
+        activeEndpoint,
+        forceRefresh: true,
+      );
+
+      if (chaptersFromTorrent.isNotEmpty && mounted) {
+        // Update audiobook with new chapters
+        final updatedAudiobook = Map<String, dynamic>.from(_audiobook!);
+        updatedAudiobook['chapters'] = chaptersFromTorrent.map((c) => {
+          'title': c.title,
+          'duration_ms': c.durationMs,
+          'file_index': c.fileIndex,
+          'start_byte': c.startByte,
+          'end_byte': c.endByte,
+        }).toList();
+
+        // Update cache with new chapters
+        await _cacheService.cacheTopicDetails(widget.topicId, updatedAudiobook);
+
+        setState(() {
+          _audiobook = updatedAudiobook;
+          _isLoading = false;
+        });
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                AppLocalizations.of(context)?.chaptersRefreshed ??
+                    'Chapters refreshed from torrent',
+              ),
+            ),
+          );
+        }
+      } else if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              AppLocalizations.of(context)?.noChaptersFound ??
+                  'No chapters found in torrent',
+            ),
+          ),
+        );
+      }
+    } on AuthFailure catch (e) {
+      // Handle authentication errors
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+        AuthErrorHandler.showAuthErrorSnackBar(context, e);
+      }
+    } on Exception catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '${AppLocalizations.of(context)?.failedToRefreshChapters ?? 'Failed to refresh chapters'}: ${e.toString()}',
+            ),
+          ),
+        );
+      }
+    }
+  }
+
+  /// Extracts chapters from torrent file as fallback when HTML parsing fails.
+  ///
+  /// Downloads the torrent file and extracts audio file names as chapters.
+  /// The [forceRefresh] parameter, if true, bypasses cache and forces re-parsing.
+  /// 
+  /// Throws [AuthFailure] if authentication is required to download the torrent file.
+  Future<List<Chapter>> _extractChaptersFromTorrent(
+      String topicId, String endpoint, {bool forceRefresh = false}) async {
+    try {
+      // Download torrent file
+      final tempDir = await getTemporaryDirectory();
+      final torrentFile = File('${tempDir.path}/torrent_$topicId.torrent');
+
+      final dio = await DioClient.instance;
+      try {
+        await dio.download(
+          '$endpoint/forum/dl.php?t=$topicId',
+          torrentFile.path,
+        );
+      } on DioException catch (e) {
+        // Check if error is authentication-related
+        if (e.response?.statusCode == 401 || 
+            e.response?.statusCode == 403 ||
+            (e.message?.toLowerCase().contains('authentication') ?? false) ||
+            (e.response?.realUri.toString().contains('login.php') ?? false)) {
+          // Delete temporary file if it exists
+          try {
+            if (await torrentFile.exists()) {
+              await torrentFile.delete();
+            }
+          } on Exception {
+            // Ignore deletion errors
+          }
+          throw const AuthFailure.loginRequired();
+        }
+        // Re-throw other DioExceptions
+        rethrow;
+      }
+
+      // Check if downloaded file is actually a torrent file
+      // Sometimes RuTracker returns HTML login page instead of torrent file
+      final torrentBytes = await torrentFile.readAsBytes();
+      
+      // Check if file is too small (likely not a torrent) or starts with HTML
+      if (torrentBytes.length < 100) {
+        // Too small to be a valid torrent file
+        try {
+          await torrentFile.delete();
+        } on Exception {
+          // Ignore deletion errors
+        }
+        throw const AuthFailure('Downloaded file is too small, may require authentication');
+      }
+      
+      // Check if file starts with HTML (likely login page)
+      final fileStart = String.fromCharCodes(
+        torrentBytes.take(100),
+      ).toLowerCase();
+      if (fileStart.contains('<!doctype') || 
+          fileStart.contains('<html') ||
+          fileStart.contains('login.php') ||
+          fileStart.contains('авторизация')) {
+        // This is HTML, not a torrent file - likely requires authentication
+        try {
+          await torrentFile.delete();
+        } on Exception {
+          // Ignore deletion errors
+        }
+        throw const AuthFailure.loginRequired();
+      }
+
+      // Parse chapters from torrent
+      final parserService = TorrentParserService();
+      final chapters = await parserService.extractChaptersFromTorrent(
+        torrentBytes,
+        forceRefresh: forceRefresh,
+      );
+
+      // Delete temporary torrent file
+      try {
+        await torrentFile.delete();
+      } on Exception {
+        // Ignore deletion errors
+      }
+
+      return chapters;
+    } on AuthFailure {
+      // Re-throw authentication failures
+      rethrow;
+    } on Exception {
+      // Return empty list for other errors (non-critical)
+      return [];
     }
   }
 
@@ -528,6 +1038,8 @@ Map<String, dynamic> _audiobookToMap(Audiobook audiobook) => {
       'leechers': audiobook.leechers,
       'magnetUrl': audiobook.magnetUrl,
       'coverUrl': audiobook.coverUrl,
+      'performer': audiobook.performer,
+      'genres': audiobook.genres,
       'chapters': audiobook.chapters.map(_chapterToMap).toList(),
       'addedDate': audiobook.addedDate.toIso8601String(),
     };

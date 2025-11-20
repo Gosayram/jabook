@@ -135,6 +135,8 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
         'leechers': audiobook.leechers,
         'magnetUrl': audiobook.magnetUrl,
         'coverUrl': audiobook.coverUrl,
+        'performer': audiobook.performer,
+        'genres': audiobook.genres,
         'addedDate': audiobook.addedDate.toIso8601String(),
         'chapters': audiobook.chapters
             .map((c) => {

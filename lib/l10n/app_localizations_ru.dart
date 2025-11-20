@@ -1259,4 +1259,61 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get mirrorConnectionFailed => 'Не удалось подключиться к зеркалам RuTracker';
+
+  @override
+  String get refresh => 'Обновить';
+
+  @override
+  String get refreshCurrentSearch => 'Обновить текущий поиск';
+
+  @override
+  String get clearSearchCache => 'Очистить кэш поиска';
+
+  @override
+  String get cacheCleared => 'Кэш очищен';
+
+  @override
+  String get allCacheCleared => 'Весь кэш очищен';
+
+  @override
+  String get downloadViaMagnet => 'Скачать через Magnet';
+
+  @override
+  String get downloadStarted => 'Загрузка начата';
+
+  @override
+  String get refreshChaptersFromTorrent => 'Обновить главы из торрента';
+
+  @override
+  String get chaptersRefreshed => 'Главы обновлены из торрента';
+
+  @override
+  String get failedToRefreshChapters => 'Не удалось обновить главы';
+
+  @override
+  String get noChaptersFound => 'Главы в торренте не найдены';
+
+  @override
+  String get failedToStartDownload => 'Не удалось начать загрузку';
+
+  @override
+  String get noActiveDownloads => 'Нет активных загрузок';
+
+  @override
+  String get cacheExpires => 'Истекает через';
+
+  @override
+  String get cacheExpired => 'Истек';
+
+  @override
+  String get cacheExpiresSoon => 'Скоро истечет';
+
+  @override
+  String get days => 'дн.';
+
+  @override
+  String get hours => 'ч.';
+
+  @override
+  String get minutes => 'мин.';
 }

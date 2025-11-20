@@ -39,6 +39,8 @@ class Audiobook {
     required this.leechers,
     required this.magnetUrl,
     this.coverUrl,
+    this.performer,
+    this.genres = const [],
     required this.chapters,
     required this.addedDate,
   });
@@ -69,6 +71,12 @@ class Audiobook {
 
   /// URL of the cover image, if available.
   final String? coverUrl;
+
+  /// Performer or narrator of the audiobook.
+  final String? performer;
+
+  /// List of genres for the audiobook.
+  final List<String> genres;
 
   /// List of chapters in the audiobook.
   final List<Chapter> chapters;
@@ -1063,6 +1071,77 @@ class RuTrackerParser {
         authorName = authorElement?.text.trim();
       }
       
+      // Extract performer from structured metadata
+      String? performerName;
+      final performerKeys = ['Исполнитель', 'Чтец', 'Читает', 'Исполнитель:', 'Читает:'];
+      for (final key in performerKeys) {
+        final performerText = metadata[key];
+        if (performerText != null && performerText.isNotEmpty) {
+          performerName = performerText.trim();
+          break;
+        }
+      }
+      
+      // Fallback: search in post body text using regex patterns
+      if (performerName == null || performerName.isEmpty) {
+        final performerPatterns = [
+          RegExp(r'Читает[:\s]+([^\n<]+)', caseSensitive: false),
+          RegExp(r'Исполнитель[:\s]+([^\n<]+)', caseSensitive: false),
+          RegExp(r'Чтец[:\s]+([^\n<]+)', caseSensitive: false),
+        ];
+        for (final pattern in performerPatterns) {
+          final match = pattern.firstMatch(postBody.text);
+          if (match != null) {
+            performerName = match.group(1)?.trim();
+            if (performerName != null && performerName.isNotEmpty) {
+              break;
+            }
+          }
+        }
+      }
+      
+      // Extract genres from structured metadata
+      var genres = <String>[];
+      final genreKeys = ['Жанр', 'Жанры', 'Genre', 'Genres', 'Жанр:', 'Жанры:'];
+      for (final key in genreKeys) {
+        final genreText = metadata[key];
+        if (genreText != null && genreText.isNotEmpty) {
+          // Split by comma or semicolon
+          genres = genreText
+              .split(RegExp(r'[,;]'))
+              .map((g) => g.trim())
+              .where((g) => g.isNotEmpty)
+              .toList();
+          if (genres.isNotEmpty) {
+            break;
+          }
+        }
+      }
+      
+      // Fallback: search in post body text using regex patterns
+      if (genres.isEmpty) {
+        final genrePatterns = [
+          RegExp(r'Жанр[ы]?[:\s]+([^\n<]+)', caseSensitive: false),
+          RegExp(r'Genre[s]?[:\s]+([^\n<]+)', caseSensitive: false),
+        ];
+        for (final pattern in genrePatterns) {
+          final match = pattern.firstMatch(postBody.text);
+          if (match != null) {
+            final genreText = match.group(1)?.trim();
+            if (genreText != null && genreText.isNotEmpty) {
+              genres = genreText
+                  .split(RegExp(r'[,;]'))
+                  .map((g) => g.trim())
+                  .where((g) => g.isNotEmpty)
+                  .toList();
+              if (genres.isNotEmpty) {
+                break;
+              }
+            }
+          }
+        }
+      }
+      
       // Extract statistics from attach table first (most reliable source)
       // Cache frequently used selectors to avoid multiple DOM queries
       final attachTable = document.querySelector('table.attach');
@@ -1264,6 +1343,8 @@ class RuTrackerParser {
         leechers: leechers,
         magnetUrl: magnetUrl ?? '',
         coverUrl: coverUrl,
+        performer: performerName,
+        genres: genres,
         chapters: chapters,
         addedDate: registeredDate ?? _extractDateFromPost(postBody),
       );
@@ -1330,7 +1411,33 @@ String _extractCategoryFromTitle(String title) {
 }
 
 String? _extractCoverUrl(Element row) {
-  final imgElement = row.querySelector('img[src*="static.rutracker"]');
+  // Priority 1: var.postImg with title attribute (contains full URL)
+  final postImgVar = row.querySelector(
+    'var.postImg[title], var.postImgAligned[title]'
+  );
+  if (postImgVar != null) {
+    final title = postImgVar.attributes['title'];
+    if (title != null && title.isNotEmpty) {
+      return title;
+    }
+  }
+  
+  // Priority 2: var.postImg with title containing fastpic or rutracker
+  final postImgFastpic = row.querySelector(
+    'var.postImg[title*="fastpic"], var.postImg[title*="rutracker"], '
+    'var.postImgAligned[title*="fastpic"], var.postImgAligned[title*="rutracker"]'
+  );
+  if (postImgFastpic != null) {
+    final title = postImgFastpic.attributes['title'];
+    if (title != null && title.isNotEmpty) {
+      return title;
+    }
+  }
+  
+  // Priority 3: img with src containing static.rutracker or fastpic
+  final imgElement = row.querySelector(
+    'img[src*="static.rutracker"], img[src*="fastpic"]'
+  );
   return imgElement?.attributes['src'];
 }
 

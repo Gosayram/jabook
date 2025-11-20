@@ -1767,5 +1767,81 @@
   "mirrorConnectionFailed": "Не удалось подключиться к зеркалам RuTracker",
   "@mirrorConnectionFailed": {
     "description": "Краткое сообщение об ошибке когда не удается подключиться к зеркалам RuTracker"
+  },
+  "refresh": "Обновить",
+  "@refresh": {
+    "description": "Текст кнопки обновления"
+  },
+  "refreshCurrentSearch": "Обновить текущий поиск",
+  "@refreshCurrentSearch": {
+    "description": "Пункт меню для обновления текущего поиска"
+  },
+  "clearSearchCache": "Очистить кэш поиска",
+  "@clearSearchCache": {
+    "description": "Пункт меню для очистки кэша поиска"
+  },
+  "clearAllCache": "Очистить весь кэш",
+  "@clearAllCache": {
+    "description": "Пункт меню для очистки всего кэша"
+  },
+  "cacheCleared": "Кэш очищен",
+  "@cacheCleared": {
+    "description": "Сообщение об успешной очистке кэша"
+  },
+  "allCacheCleared": "Весь кэш очищен",
+  "@allCacheCleared": {
+    "description": "Сообщение об успешной очистке всего кэша"
+  },
+  "downloadViaMagnet": "Скачать через Magnet",
+  "@downloadViaMagnet": {
+    "description": "Пункт меню для скачивания через magnet-ссылку"
+  },
+  "downloadStarted": "Загрузка начата",
+  "@refreshChaptersFromTorrent": {},
+  "refreshChaptersFromTorrent": "Обновить главы из торрента",
+  "@chaptersRefreshed": {},
+  "chaptersRefreshed": "Главы обновлены из торрента",
+  "@failedToRefreshChapters": {},
+  "failedToRefreshChapters": "Не удалось обновить главы",
+  "@noChaptersFound": {},
+  "noChaptersFound": "Главы в торренте не найдены",
+  "@downloadStarted": {
+    "description": "Сообщение о начале загрузки"
+  },
+  "failedToStartDownload": "Не удалось начать загрузку",
+  "@failedToStartDownload": {
+    "description": "Сообщение об ошибке при начале загрузки"
+  },
+  "downloadsTitle": "Загрузки",
+  "@downloadsTitle": {
+    "description": "Заголовок экрана загрузок"
+  },
+  "noActiveDownloads": "Нет активных загрузок",
+  "@noActiveDownloads": {
+    "description": "Сообщение когда нет активных загрузок"
+  },
+  "cacheExpires": "Истекает через",
+  "@cacheExpires": {
+    "description": "Текст перед временем истечения кэша"
+  },
+  "cacheExpired": "Истек",
+  "@cacheExpired": {
+    "description": "Текст когда кэш истек"
+  },
+  "cacheExpiresSoon": "Скоро истечет",
+  "@cacheExpiresSoon": {
+    "description": "Текст когда кэш скоро истечет"
+  },
+  "days": "дн.",
+  "@days": {
+    "description": "Сокращение для дней"
+  },
+  "hours": "ч.",
+  "@hours": {
+    "description": "Сокращение для часов"
+  },
+  "minutes": "мин.",
+  "@minutes": {
+    "description": "Сокращение для минут"
   }
 }

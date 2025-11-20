@@ -162,6 +162,13 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
               tooltip: AppLocalizations.of(context)?.searchAudiobooks ?? 'Search',
             ),
             IconButton(
+              icon: const Icon(Icons.download),
+              onPressed: () {
+                context.go('/downloads');
+              },
+              tooltip: AppLocalizations.of(context)?.downloadsTitle ?? 'Downloads',
+            ),
+            IconButton(
               icon: const Icon(Icons.filter_list),
               onPressed: () {
                 // Show filter options - navigate to settings for now

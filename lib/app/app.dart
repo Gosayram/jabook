@@ -31,6 +31,7 @@ import 'package:jabook/core/logging/structured_logger.dart';
 import 'package:jabook/core/net/dio_client.dart';
 import 'package:jabook/core/permissions/permission_service.dart';
 import 'package:jabook/core/session/session_manager.dart';
+import 'package:jabook/core/torrent/audiobook_torrent_manager.dart';
 import 'package:jabook/core/utils/first_launch.dart';
 import 'package:jabook/core/utils/safe_async.dart';
 import 'package:jabook/data/db/app_database.dart';
@@ -261,6 +262,10 @@ class _JaBookAppState extends ConsumerState<JaBookApp> {
     final cacheStartTime = DateTime.now();
     await cacheService.initialize(db);
     final cacheInitDuration = DateTime.now().difference(cacheStartTime).inMilliseconds;
+    
+    // Initialize torrent manager with database for persistence
+    final torrentManager = AudiobookTorrentManager();
+    await torrentManager.initialize(db);
 
     // AuthRepository will be initialized in build method when context is available
 
