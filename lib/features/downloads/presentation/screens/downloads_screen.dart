@@ -79,14 +79,12 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
 
   Future<void> _loadDownloads() async {
     try {
+      EnvironmentLogger().d('DownloadsScreen: Starting to load downloads');
       final downloads = await _torrentManager.getActiveDownloads();
 
-      // Log for debugging
-      if (downloads.isNotEmpty) {
-        EnvironmentLogger().d(
-          'DownloadsScreen: Loaded ${downloads.length} downloads',
-        );
-      }
+      EnvironmentLogger().d(
+        'DownloadsScreen: Loaded ${downloads.length} downloads (active: ${downloads.where((d) => d['isActive'] as bool? ?? false).length}, restored: ${downloads.where((d) => d['status'] == 'restored').length})',
+      );
 
       // Update progress for each download using StreamBuilder approach
       // We'll use a different strategy - update progress in build method
@@ -101,10 +99,19 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
             downloads.isNotEmpty) {
           _scrollToDownload(widget.highlightDownloadId!);
         }
+      } else {
+        EnvironmentLogger()
+            .w('DownloadsScreen: Widget not mounted, skipping state update');
       }
     } on Exception catch (e) {
       // Log error for debugging
-      EnvironmentLogger().e('Failed to load downloads: $e');
+      EnvironmentLogger()
+          .e('DownloadsScreen: Failed to load downloads', error: e);
+      if (mounted) {
+        setState(() {
+          _downloads = [];
+        });
+      }
     }
   }
 
