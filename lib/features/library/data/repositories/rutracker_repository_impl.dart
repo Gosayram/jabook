@@ -200,7 +200,9 @@ class RuTrackerRepositoryImpl implements RuTrackerRepository {
       final response = await dio.get(
         topicUrl,
         options: Options(
-          responseType: ResponseType.plain,
+          // Get raw bytes (Brotli decompression handled automatically by DioBrotliTransformer)
+          // Bytes are ready for Windows-1251 decoding
+          responseType: ResponseType.bytes,
           headers: {
             'Accept': 'text/html,application/xhtml+xml,application/xml',
             'Accept-Charset': 'windows-1251,utf-8',
@@ -208,7 +210,12 @@ class RuTrackerRepositoryImpl implements RuTrackerRepository {
         ),
       );
 
-      final details = await _parser.parseTopicDetails(response.data);
+      // Pass response data and headers to parser for proper encoding detection
+      // Note: Brotli decompression is handled automatically by DioBrotliTransformer
+      final details = await _parser.parseTopicDetails(
+        response.data,
+        contentType: response.headers.value('content-type'),
+      );
       if (details == null) return null;
 
       return Audiobook(

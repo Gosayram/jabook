@@ -17,6 +17,7 @@ import 'dart:io' as io;
 
 import 'package:cookie_jar/cookie_jar.dart';
 import 'package:dio/dio.dart';
+import 'package:dio_brotli_transformer/dio_brotli_transformer.dart';
 import 'package:dio_cookie_manager/dio_cookie_manager.dart' as dio_cookie;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -73,22 +74,34 @@ class DioClient {
     // Get User-Agent from WebView to ensure consistency (important for Cloudflare)
     final userAgent = await userAgentManager.getUserAgent();
     
-    dio.options = BaseOptions(
-      baseUrl: activeBase,
-      connectTimeout: const Duration(seconds: 30),
-      receiveTimeout: const Duration(seconds: 30),
-      sendTimeout: const Duration(seconds: 30),
-      headers: {
-        'User-Agent': userAgent, // Same as WebView - critical for Cloudflare
-        'Accept':
-            'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        'Accept-Language': 'ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7',
-        'Accept-Encoding': 'gzip, deflate, br',
-        'Connection': 'keep-alive',
-        'Referer': '$activeBase/',
-        // Don't set Cookie header manually - let CookieJar handle it
-        // This ensures cookies are sent automatically with requests
-      },
+    // Configure Dio options and Brotli transformer
+    dio
+      ..options = BaseOptions(
+        baseUrl: activeBase,
+        connectTimeout: const Duration(seconds: 30),
+        receiveTimeout: const Duration(seconds: 30),
+        sendTimeout: const Duration(seconds: 30),
+        headers: {
+          'User-Agent': userAgent, // Same as WebView - critical for Cloudflare
+          'Accept':
+              'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          'Accept-Language': 'ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7',
+          'Accept-Encoding': 'gzip, deflate, br',
+          'Connection': 'keep-alive',
+          'Referer': '$activeBase/',
+          // Don't set Cookie header manually - let CookieJar handle it
+          // This ensures cookies are sent automatically with requests
+        },
+      )
+      // Configure Brotli transformer for automatic decompression
+      // This ensures Brotli-compressed responses (content-encoding: br) are automatically decompressed
+      // before being passed to interceptors and response handlers
+      ..transformer = DioBrotliTransformer();
+    await StructuredLogger().log(
+      level: 'info',
+      subsystem: 'network',
+      message: 'Brotli transformer configured for automatic decompression',
+      context: 'dio_init',
     );
 
     // Interceptors are added in a specific order (executed in reverse order):

@@ -90,13 +90,20 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
           .get(
             '$activeEndpoint/forum/viewtopic.php?t=${widget.topicId}',
             options: Options(
-              responseType: ResponseType.plain, // Ensure gzip is automatically decompressed
+              // Get raw bytes (Brotli decompression handled automatically by DioBrotliTransformer)
+              // Bytes are ready for Windows-1251 decoding
+              responseType: ResponseType.bytes,
             ),
           )
           .timeout(const Duration(seconds: 30));
 
       if (response.statusCode == 200) {
-        final audiobook = await _parser.parseTopicDetails(response.data);
+        // Pass response data and headers to parser for proper encoding detection
+        // Note: Brotli decompression is handled automatically by DioBrotliTransformer
+        final audiobook = await _parser.parseTopicDetails(
+          response.data,
+          contentType: response.headers.value('content-type'),
+        );
 
         if (audiobook != null) {
           // Cache the topic details

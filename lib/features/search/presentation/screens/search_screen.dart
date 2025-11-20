@@ -13,13 +13,13 @@
 // limitations under the License.
 
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io' as io;
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-
 import 'package:jabook/core/auth/simple_cookie_manager.dart';
 import 'package:jabook/core/cache/rutracker_cache_service.dart';
 import 'package:jabook/core/constants/category_constants.dart';
@@ -39,6 +39,7 @@ import 'package:jabook/features/auth/data/providers/auth_provider.dart';
 import 'package:jabook/features/search/presentation/widgets/grouped_audiobook_list.dart';
 import 'package:jabook/features/settings/presentation/screens/mirror_settings_screen.dart';
 import 'package:jabook/l10n/app_localizations.dart';
+import 'package:windows1251/windows1251.dart';
 
 /// Screen for searching audiobooks on RuTracker.
 ///
@@ -390,12 +391,14 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       },
     );
     
-    // CRITICAL: Sync cookies from CookieService (Android CookieManager) before search
-    // CookieService is the single source of truth for cookies on Android
+    // CRITICAL: Comprehensive cookie synchronization before search
+    // Sync cookies from all sources (CookieService, SecureStorage, CookieJar) to ensure availability
+    final syncStartTime = DateTime.now();
+    var syncSuccessCount = 0;
+    final syncSourceDetails = <String, dynamic>{};
+    
+    // Step 1: Sync from CookieService (Android CookieManager) - primary source
     try {
-      // Try to get cookies from CookieService for active endpoint
-      final endpointManager = ref.read(endpointManagerProvider);
-      final activeEndpoint = await endpointManager.getActiveEndpoint();
       final activeHost = Uri.parse(activeEndpoint).host;
       final url = 'https://$activeHost';
       
@@ -406,8 +409,14 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       final cookieHeader = await CookieService.getCookiesForUrl(url);
       
       if (cookieHeader != null && cookieHeader.isNotEmpty && cookieHeader.trim().contains('=')) {
+        // Check for required session cookies
+        final hasBbSession = cookieHeader.contains('bb_session=');
+        final hasBbData = cookieHeader.contains('bb_data=');
+        
         // Sync cookies to Dio CookieJar
         await DioClient.syncCookiesFromCookieService(cookieHeader, url);
+        syncSuccessCount++;
+        
         await structuredLogger.log(
           level: 'info',
           subsystem: 'search',
@@ -416,63 +425,89 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           extra: {
             'url': url,
             'cookie_header_length': cookieHeader.length,
+            'has_bb_session': hasBbSession,
+            'has_bb_data': hasBbData,
+            'has_required_cookies': hasBbSession || hasBbData,
           },
         );
+        
+        syncSourceDetails['CookieService'] = {
+          'success': true,
+          'cookie_count': cookieHeader.split(';').length,
+          'has_bb_session': hasBbSession,
+          'has_bb_data': hasBbData,
+        };
       } else {
-        // Fallback: Try syncing from WebView storage
-        await DioClient.syncCookiesFromWebView();
-        await structuredLogger.log(
-          level: 'debug',
-          subsystem: 'search',
-          message: 'Cookies synced from WebView (fallback)',
-          context: 'search_request',
-        );
+        syncSourceDetails['CookieService'] = {
+          'success': false,
+          'reason': 'no_cookies_found',
+        };
       }
     } on Exception catch (e) {
       await structuredLogger.log(
         level: 'warning',
         subsystem: 'search',
-        message: 'Failed to sync cookies before search, trying WebView fallback',
+        message: 'Failed to sync cookies from CookieService',
         context: 'search_request',
         cause: e.toString(),
       );
-      // Try WebView sync as fallback
-      try {
-        await DioClient.syncCookiesFromWebView();
-      } on Exception {
-        // Ignore fallback errors
-      }
+      syncSourceDetails['CookieService'] = {
+        'success': false,
+        'error': e.toString(),
+      };
     }
 
-    // Before checking hasValidCookies, try to sync cookies from SecureStorage/CookieJar
+    // Step 2: Sync from SecureStorage/CookieJar - fallback source
     try {
       final simpleCookieManager = SimpleCookieManager();
       final cookieString = await simpleCookieManager.getCookie(activeEndpoint);
       
       if (cookieString != null && cookieString.isNotEmpty) {
-        // Cookies exist in SecureStorage, sync to CookieService
+        // Check for required session cookies
+        final hasBbSession = cookieString.contains('bb_session=');
+        final hasBbData = cookieString.contains('bb_data=');
+        
+        // Load cookies from SecureStorage to CookieJar
         final uri = Uri.parse(activeEndpoint);
         final jar = await DioClient.getCookieJar();
         if (jar != null) {
-          // Load cookies from CookieJar
+          await simpleCookieManager.loadCookieToJar(activeEndpoint, jar);
+          
+          // Also sync to CookieService if not already synced
           final cookies = await jar.loadForRequest(uri);
           if (cookies.isNotEmpty) {
-            // Convert to cookie header and sync to CookieService
             final cookieHeader = cookies.map((c) => '${c.name}=${c.value}').join('; ');
             await DioClient.syncCookiesFromCookieService(cookieHeader, activeEndpoint);
+            syncSuccessCount++;
             
             await structuredLogger.log(
               level: 'info',
               subsystem: 'search',
-              message: 'Synced cookies from SecureStorage/CookieJar to CookieService',
+              message: 'Cookies synced from SecureStorage/CookieJar to CookieService',
               context: 'search_request',
               extra: {
                 'cookie_count': cookies.length,
                 'cookie_names': cookies.map((c) => c.name).toList(),
+                'has_bb_session': hasBbSession,
+                'has_bb_data': hasBbData,
+                'has_required_cookies': hasBbSession || hasBbData,
               },
             );
+            
+            syncSourceDetails['SecureStorage'] = {
+              'success': true,
+              'cookie_count': cookies.length,
+              'cookie_names': cookies.map((c) => c.name).toList(),
+              'has_bb_session': hasBbSession,
+              'has_bb_data': hasBbData,
+            };
           }
         }
+      } else {
+        syncSourceDetails['SecureStorage'] = {
+          'success': false,
+          'reason': 'no_cookies_found',
+        };
       }
     } on Exception catch (e) {
       await structuredLogger.log(
@@ -482,12 +517,66 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         context: 'search_request',
         cause: e.toString(),
       );
+      syncSourceDetails['SecureStorage'] = {
+        'success': false,
+        'error': e.toString(),
+      };
     }
+    
+    // Log comprehensive sync summary
+    final syncDuration = DateTime.now().difference(syncStartTime).inMilliseconds;
+    await structuredLogger.log(
+      level: syncSuccessCount > 0 ? 'info' : 'warning',
+      subsystem: 'search',
+      message: 'Cookie synchronization completed before search',
+      context: 'search_request',
+      durationMs: syncDuration,
+      extra: {
+        'sync_success_count': syncSuccessCount,
+        'sync_sources': syncSourceDetails,
+        'total_sync_duration_ms': syncDuration,
+      },
+    );
 
-    // Check if we have cookies before performing search
+    // Check if we have cookies and required session cookies before performing search
     // Use hasValidCookies which now checks CookieService first
     try {
       final hasCookies = await DioClient.hasValidCookies();
+      
+      // Additional check: verify we have required session cookies (bb_session or bb_data)
+      var hasRequiredCookies = false;
+      var foundCookieNames = <String>[];
+      
+      if (hasCookies) {
+        // Check CookieJar for required cookies
+        final uri = Uri.parse(activeEndpoint);
+        final jar = await DioClient.getCookieJar();
+        if (jar != null) {
+          final cookies = await jar.loadForRequest(uri);
+          foundCookieNames = cookies.map((c) => c.name).toList();
+          hasRequiredCookies = cookies.any((c) => 
+            c.name.toLowerCase() == 'bb_session' || 
+            c.name.toLowerCase() == 'bb_data' ||
+            c.name.toLowerCase().contains('session')
+          );
+        }
+        
+        // Also check CookieService if CookieJar doesn't have required cookies
+        if (!hasRequiredCookies) {
+          try {
+            final activeHost = Uri.parse(activeEndpoint).host;
+            final url = 'https://$activeHost';
+            final cookieHeader = await CookieService.getCookiesForUrl(url);
+            if (cookieHeader != null && cookieHeader.isNotEmpty) {
+              hasRequiredCookies = cookieHeader.contains('bb_session=') || 
+                                  cookieHeader.contains('bb_data=');
+            }
+          } on Exception {
+            // Ignore CookieService check errors
+          }
+        }
+      }
+      
       await structuredLogger.log(
         level: 'info',
         subsystem: 'search',
@@ -495,18 +584,25 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         context: 'search_request',
         extra: {
           'has_cookies': hasCookies,
+          'has_required_cookies': hasRequiredCookies,
+          'found_cookie_names': foundCookieNames,
           'checked_sources': ['CookieService', 'CookieJar', 'SecureStorage'],
           'active_endpoint': activeEndpoint,
         },
       );
       
-      if (!hasCookies) {
-        // No cookies at all - definitely need login
+      if (!hasCookies || !hasRequiredCookies) {
+        // No cookies or no required session cookies - need login
         await structuredLogger.log(
           level: 'warning',
           subsystem: 'search',
-          message: 'No valid cookies found, requiring login',
+          message: 'No valid cookies or required session cookies found, requiring login',
           context: 'search_request',
+          extra: {
+            'has_cookies': hasCookies,
+            'has_required_cookies': hasRequiredCookies,
+            'found_cookie_names': foundCookieNames,
+          },
         );
         
         if (mounted) {
@@ -785,7 +881,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             requestUri,
             queryParameters: requestQueryParams,
             options: Options(
-              responseType: ResponseType.plain, // Ensure gzip is automatically decompressed
+              responseType: ResponseType.bytes, // Get raw bytes to decode Windows-1251 correctly
             ),
             cancelToken: _cancelToken,
           )
@@ -817,8 +913,164 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       );
 
       if (response.statusCode == 200) {
+        // CRITICAL: Validate response data before processing
+        // Task 3.2: Check data type, size, and validity at each stage
+        final responseDataType = response.data.runtimeType.toString();
+        final responseDataSize = response.data is List<int>
+            ? (response.data as List<int>).length
+            : (response.data is String
+                ? (response.data as String).length
+                : 0);
+        
+        await structuredLogger.log(
+          level: 'debug',
+          subsystem: 'search',
+          message: 'Validating response data',
+          context: 'search_request',
+          extra: {
+            'response_data_type': responseDataType,
+            'response_data_size': responseDataSize,
+            'content_type': response.headers.value('content-type') ?? 'not_provided',
+            'content_encoding': response.headers.value('content-encoding') ?? 'not_provided',
+          },
+        );
+        
+        // Validate that we have data
+        if (response.data == null) {
+          await structuredLogger.log(
+            level: 'error',
+            subsystem: 'search',
+            message: 'Response data is null',
+            context: 'search_request',
+          );
+          
+          if (mounted) {
+            setState(() {
+              _isLoading = false;
+              _errorKind = 'network';
+              _errorMessage = 'Received empty response from server. Please try again.';
+            });
+          }
+          return;
+        }
+        
+        // Validate data size
+        if (responseDataSize == 0) {
+          await structuredLogger.log(
+            level: 'error',
+            subsystem: 'search',
+            message: 'Response data is empty',
+            context: 'search_request',
+          );
+          
+          if (mounted) {
+            setState(() {
+              _isLoading = false;
+              _errorKind = 'network';
+              _errorMessage = 'Received empty response from server. Please try again.';
+            });
+          }
+          return;
+        }
+        
+        // Decode response for login page check (response.data is now List<int>)
+        String? decodedTextForCheck;
+        final contentType = response.headers.value('content-type') ?? '';
+        
+        if (response.data is List<int>) {
+          final bytes = response.data as List<int>;
+          
+          // Validate bytes before decoding
+          // Note: Brotli decompression is handled automatically by DioBrotliTransformer
+          if (bytes.isEmpty) {
+            await structuredLogger.log(
+              level: 'error',
+              subsystem: 'search',
+              message: 'Bytes array is empty',
+              context: 'search_request',
+            );
+            
+            if (mounted) {
+              setState(() {
+                _isLoading = false;
+                _errorKind = 'network';
+                _errorMessage = 'Received empty data after decompression. Please try again.';
+              });
+            }
+            return;
+          }
+          
+          // Validate bytes are valid (not all zeros or corrupted)
+          final nonZeroBytes = bytes.where((b) => b != 0).length;
+          if (nonZeroBytes < bytes.length * 0.1) {
+            // Less than 10% non-zero bytes might indicate corruption
+            await structuredLogger.log(
+              level: 'warning',
+              subsystem: 'search',
+              message: 'Response data may be corrupted (too many zero bytes)',
+              context: 'search_request',
+              extra: {
+                'total_bytes': bytes.length,
+                'non_zero_bytes': nonZeroBytes,
+                'zero_byte_percentage': ((bytes.length - nonZeroBytes) / bytes.length * 100).toStringAsFixed(2),
+              },
+            );
+          }
+          
+          await structuredLogger.log(
+            level: 'debug',
+            subsystem: 'search',
+            message: 'Validating bytes before decoding',
+            context: 'search_request',
+            extra: {
+              'bytes_length': bytes.length,
+              'non_zero_bytes': nonZeroBytes,
+              'first_bytes_preview': bytes.length > 50
+                  ? bytes.sublist(0, 50).toString()
+                  : bytes.toString(),
+            },
+          );
+          // Try to decode for login page check
+          // Determine encoding from Content-Type header if available
+          String? detectedEncoding;
+          if (contentType.isNotEmpty) {
+            final charsetMatch = RegExp(r'charset=([^;\s]+)', caseSensitive: false)
+                .firstMatch(contentType);
+            if (charsetMatch != null) {
+              detectedEncoding = charsetMatch.group(1)?.toLowerCase();
+            }
+          }
+          
+          try {
+            if (detectedEncoding != null && 
+                (detectedEncoding.contains('windows-1251') || 
+                 detectedEncoding.contains('cp1251') ||
+                 detectedEncoding.contains('1251'))) {
+              // Use Windows-1251 if specified
+              decodedTextForCheck = windows1251.decode(bytes);
+            } else {
+              // Try Windows-1251 first (RuTracker default), then UTF-8
+              try {
+                decodedTextForCheck = windows1251.decode(bytes);
+              } on Exception {
+                decodedTextForCheck = utf8.decode(bytes);
+              }
+            }
+          } on Exception {
+            try {
+              // Fallback to UTF-8
+              decodedTextForCheck = utf8.decode(bytes);
+            } on FormatException {
+              // If both fail, use toString as last resort
+              decodedTextForCheck = String.fromCharCodes(bytes);
+            }
+          }
+        } else {
+          decodedTextForCheck = response.data?.toString() ?? '';
+        }
+        
         // Check response content for login page indicators before parsing
-        final responseText = response.data?.toString().toLowerCase() ?? '';
+        final responseText = decodedTextForCheck.toLowerCase();
         final isLoginPage = responseText.contains('action="https://rutracker') &&
             responseText.contains('login.php') &&
             responseText.contains('password');
@@ -851,9 +1103,13 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           return;
         }
         
-        List<Map<String, dynamic>> results;
+        var results = <Map<String, dynamic>>[];
         try {
-          final parsedResults = await _parser.parseSearchResults(response.data);
+          // Pass response data and headers to parser for proper encoding detection
+          final parsedResults = await _parser.parseSearchResults(
+            response.data,
+            contentType: response.headers.value('content-type'),
+          );
           
           // CRITICAL: Filter results to only include audiobooks
           // tracker.php returns ALL torrents, so we need to filter by category
@@ -876,8 +1132,24 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           
           results = audiobookResults.map(_audiobookToMap).toList();
         } on ParsingFailure catch (e) {
-          // Enhanced logging for parsing failures
-          final responseText = response.data?.toString() ?? '';
+          // Enhanced logging and recovery for parsing failures
+          String? responseText;
+          if (response.data is List<int>) {
+            final bytes = response.data as List<int>;
+            // Try to decode for analysis
+            try {
+              responseText = windows1251.decode(bytes);
+            } on Exception {
+              try {
+                responseText = utf8.decode(bytes);
+              } on FormatException {
+                responseText = String.fromCharCodes(bytes);
+              }
+            }
+          } else {
+            responseText = response.data?.toString() ?? '';
+          }
+          
           final responseTextLower = responseText.toLowerCase();
           final hasSearchForm = responseTextLower.contains('form[action*="tracker"]') ||
               responseTextLower.contains('input[name="nm"]') ||
@@ -891,6 +1163,11 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           final isLoginPage = responseTextLower.contains('action="https://rutracker') &&
               responseTextLower.contains('login.php') &&
               responseTextLower.contains('password');
+          
+          // Check if error is encoding-related
+          final isEncodingError = e.message.toLowerCase().contains('encoding') ||
+              e.message.toLowerCase().contains('decode') ||
+              responseText.contains('\uFFFD'); // Replacement character indicates encoding issue
           
           await structuredLogger.log(
             level: 'error',
@@ -906,6 +1183,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                   ? responseText.substring(0, 1000)
                   : responseText,
               'error_type': 'ParsingFailure',
+              'is_encoding_error': isEncodingError,
               'page_analysis': {
                 'has_search_form': hasSearchForm,
                 'has_search_page_elements': hasSearchPageElements,
@@ -915,33 +1193,210 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             },
           );
           
-          // Improved check for authentication error (more specific)
-          // Check for specific authentication-related phrases
-          final errorMessageLower = e.message.toLowerCase();
-          final isAuthError = errorMessageLower.contains('page appears to require authentication') ||
-              errorMessageLower.contains('please log in first') ||
-              (errorMessageLower.contains('authentication') && 
-               errorMessageLower.contains('log in')) ||
-              // Check response content for login page indicators
-              isLoginPage ||
-              (hasAccessDenied && !hasSearchForm);
-          
-          if (mounted) {
-            setState(() {
-              _isLoading = false;
-              if (isAuthError) {
-                _errorKind = 'auth';
-                _errorMessage = AppLocalizations.of(context)
-                        ?.authorizationFailedMessage ??
-                    'Authentication required. Please log in.';
-                safeUnawaited(_handleLogin());
-              } else {
-                _errorKind = 'network';
-                _errorMessage = 'Failed to parse search results. The page structure may have changed.';
+          // Try automatic recovery for encoding errors
+          if (isEncodingError && response.data is List<int> && !isLoginPage && !hasAccessDenied) {
+            await structuredLogger.log(
+              level: 'info',
+              subsystem: 'search',
+              message: 'Attempting automatic recovery from encoding error',
+              context: 'search_request',
+              extra: {
+                'original_encoding_attempt': contentType,
+                'will_try_alternative_encoding': true,
+                'response_data_type': response.data.runtimeType.toString(),
+                'response_data_size': (response.data as List<int>).length,
+              },
+            );
+            
+            try {
+              // CRITICAL: Use original bytes from response.data (not re-encoded)
+              // Note: Brotli decompression is handled automatically by DioBrotliTransformer
+              // These bytes are already decompressed and ready for encoding conversion
+              final bytes = response.data as List<int>;
+              
+              // Validate bytes before recovery attempt
+              if (bytes.isEmpty) {
+                throw Exception('Cannot recover: bytes are empty');
               }
-            });
+              
+              // Determine which encoding was likely used based on Content-Type
+              final detectedEncoding = contentType.toLowerCase().contains('windows-1251') ||
+                  contentType.toLowerCase().contains('cp1251') ||
+                  contentType.toLowerCase().contains('1251');
+              
+              // Try alternative encoding
+              // If Content-Type says Windows-1251, try UTF-8, and vice versa
+              final alternativeContentType = detectedEncoding 
+                  ? 'text/html; charset=utf-8'
+                  : 'text/html; charset=windows-1251';
+              
+              await structuredLogger.log(
+                level: 'debug',
+                subsystem: 'search',
+                message: 'Trying recovery with alternative encoding',
+                context: 'search_request',
+                extra: {
+                  'original_content_type': contentType,
+                  'alternative_content_type': alternativeContentType,
+                  'bytes_length': bytes.length,
+                },
+              );
+              
+              // Try parsing with alternative encoding
+              // Pass original bytes (not re-encoded) to parser
+              // Note: Brotli decompression is handled automatically by DioBrotliTransformer
+              final recoveredResults = await _parser.parseSearchResults(
+                bytes, // Original bytes (Brotli already decompressed by Dio transformer)
+                contentType: alternativeContentType,
+              );
+              
+              // Validate recovery results
+              if (recoveredResults.isEmpty) {
+                await structuredLogger.log(
+                  level: 'warning',
+                  subsystem: 'search',
+                  message: 'Recovery succeeded but returned empty results',
+                  context: 'search_request',
+                  extra: {
+                    'alternative_encoding_used': detectedEncoding ? 'utf-8' : 'windows-1251',
+                  },
+                );
+                // Empty results might be valid (no search results), so continue
+              }
+              
+              final audiobookResults = _filterAudiobookResults(recoveredResults);
+              results = audiobookResults.map(_audiobookToMap).toList();
+              
+              await structuredLogger.log(
+                level: 'info',
+                subsystem: 'search',
+                message: 'Automatic recovery from encoding error succeeded',
+                context: 'search_request',
+                extra: {
+                  'alternative_encoding_used': detectedEncoding ? 'utf-8' : 'windows-1251',
+                  'recovered_results_count': recoveredResults.length,
+                  'filtered_audiobook_count': audiobookResults.length,
+                },
+              );
+              
+              // Continue with successful results (skip error handling)
+            } on ParsingFailure catch (recoveryError) {
+              await structuredLogger.log(
+                level: 'warning',
+                subsystem: 'search',
+                message: 'Automatic recovery from encoding error failed with ParsingFailure',
+                context: 'search_request',
+                cause: recoveryError.message,
+                extra: {
+                  'error_type': 'ParsingFailure',
+                  'recovery_attempted': true,
+                },
+              );
+              // Fall through to error handling
+            } on Exception catch (recoveryError) {
+              await structuredLogger.log(
+                level: 'warning',
+                subsystem: 'search',
+                message: 'Automatic recovery from encoding error failed',
+                context: 'search_request',
+                cause: recoveryError.toString(),
+                extra: {
+                  'error_type': recoveryError.runtimeType.toString(),
+                  'recovery_attempted': true,
+                },
+              );
+              
+              // Try Latin-1 as last resort (never fails, but may produce mojibake)
+              if (response.data is List<int>) {
+                try {
+                  await structuredLogger.log(
+                    level: 'info',
+                    subsystem: 'search',
+                    message: 'Trying Latin-1 decoding as last resort',
+                    context: 'search_request',
+                  );
+                  
+                  final bytes = response.data as List<int>;
+                  final latin1Results = await _parser.parseSearchResults(
+                    bytes,
+                    contentType: 'text/html; charset=iso-8859-1',
+                  );
+                  
+                  final audiobookResults = _filterAudiobookResults(latin1Results);
+                  if (audiobookResults.isNotEmpty) {
+                    results = audiobookResults.map(_audiobookToMap).toList();
+                    
+                    await structuredLogger.log(
+                      level: 'info',
+                      subsystem: 'search',
+                      message: 'Latin-1 recovery succeeded',
+                      context: 'search_request',
+                      extra: {
+                        'recovered_results_count': results.length,
+                      },
+                    );
+                    // Continue with successful results
+                  } else {
+                    await structuredLogger.log(
+                      level: 'warning',
+                      subsystem: 'search',
+                      message: 'Latin-1 recovery returned empty results',
+                      context: 'search_request',
+                    );
+                    // Fall through to error handling
+                  }
+                } on Exception catch (latin1Error) {
+                  await structuredLogger.log(
+                    level: 'error',
+                    subsystem: 'search',
+                    message: 'Latin-1 recovery also failed',
+                    context: 'search_request',
+                    cause: latin1Error.toString(),
+                  );
+                  // Fall through to error handling
+                }
+              } else {
+                // Fall through to error handling
+              }
+            }
           }
-          return;
+          
+          // If recovery didn't work or wasn't attempted, handle the error
+          if (results.isEmpty) {
+            // Improved check for authentication error (more specific)
+            final errorMessageLower = e.message.toLowerCase();
+            final isAuthError = errorMessageLower.contains('page appears to require authentication') ||
+                errorMessageLower.contains('please log in first') ||
+                (errorMessageLower.contains('authentication') && 
+                 errorMessageLower.contains('log in')) ||
+                // Check response content for login page indicators
+                isLoginPage ||
+                (hasAccessDenied && !hasSearchForm);
+            
+            if (mounted) {
+              setState(() {
+                _isLoading = false;
+                if (isAuthError) {
+                  _errorKind = 'auth';
+                  _errorMessage = AppLocalizations.of(context)
+                          ?.authorizationFailedMessage ??
+                      'Authentication required. Please log in.';
+                  safeUnawaited(_handleLogin());
+                } else if (isEncodingError) {
+                  // Task 3.3: Distinguish encoding errors and suggest specific actions
+                  _errorKind = 'network';
+                  _errorMessage = 'Failed to parse search results due to encoding issue. '
+                      'This may be a temporary server problem. Please try again. '
+                      'If the problem persists, try changing the mirror in Settings → Sources.';
+                } else {
+                  _errorKind = 'network';
+                  _errorMessage = 'Failed to parse search results. The page structure may have changed. '
+                      'Please try again. If the problem persists, try changing the mirror in Settings → Sources.';
+                }
+              });
+            }
+            return;
+          }
         }
 
         // Cache the results
@@ -1750,12 +2205,16 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           'start': _searchResults.length,
         },
         options: Options(
-          responseType: ResponseType.plain, // Ensure gzip is automatically decompressed
+          responseType: ResponseType.bytes, // Get raw bytes to decode Windows-1251 correctly
         ),
       );
       if (res.statusCode == 200) {
         try {
-          final more = await _parser.parseSearchResults(res.data);
+          // Pass response data and headers to parser for proper encoding detection
+          final more = await _parser.parseSearchResults(
+            res.data,
+            contentType: res.headers.value('content-type'),
+          );
           
           // CRITICAL: Filter results to only include audiobooks
           final audiobookMore = _filterAudiobookResults(more);
@@ -1886,7 +2345,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         iconColor = Colors.red.shade400;
         actions = [
           ElevatedButton.icon(
-            onPressed: _performSearch,
+            onPressed: _performSearch, // Task 3.3: Retry search on encoding/parsing errors
             icon: const Icon(Icons.refresh),
             label: Text(localizations?.retry ?? 'Retry'),
           ),
@@ -1899,8 +2358,11 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             label: Text(localizations?.changeMirror ?? 'Change Mirror'),
           ),
         ];
-        message = localizations?.networkConnectionError ??
-            'Could not connect. Check your internet or choose another mirror in Settings → Sources.';
+        // Task 3.3: Use specific error message if available, otherwise use default
+        message = (_errorMessage?.isNotEmpty ?? false)
+            ? _errorMessage!
+            : (localizations?.networkConnectionError ??
+                'Could not connect. Check your internet or choose another mirror in Settings → Sources.');
         break;
     }
 

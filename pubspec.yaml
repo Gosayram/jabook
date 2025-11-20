@@ -17,6 +17,7 @@ dependencies:
   just_audio_background: ^0.0.1-beta.17
   audio_session: ^0.2.2
   dio: ^5.9.0
+  dio_brotli_transformer: ^2.0.0
   dio_cookie_manager: ^3.3.0
   cookie_jar: ^4.0.6
   crypto: ^3.0.7

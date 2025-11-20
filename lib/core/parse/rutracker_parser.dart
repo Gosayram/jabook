@@ -17,6 +17,7 @@ import 'dart:convert';
 import 'package:html/dom.dart';
 import 'package:html/parser.dart' as parser;
 import 'package:jabook/core/errors/failures.dart';
+import 'package:jabook/core/logging/structured_logger.dart';
 import 'package:windows1251/windows1251.dart';
 
 /// Represents an audiobook with metadata from RuTracker.
@@ -134,32 +135,421 @@ class RuTrackerParser {
   /// audiobook information including titles, authors, magnet links, etc.
   /// It automatically handles character encoding (UTF-8 or Windows-1251).
   ///
-  /// The [html] parameter contains the HTML content of the search results page.
+  /// The [htmlData] parameter contains the HTML content of the search results page.
+  /// The [contentType] parameter is the Content-Type header value for encoding detection.
   ///
   /// Returns a list of [Audiobook] objects found in the search results.
   ///
   /// Throws [ParsingFailure] if the HTML cannot be parsed.
-  Future<List<Audiobook>> parseSearchResults(dynamic htmlData) async {
+  Future<List<Audiobook>> parseSearchResults(
+    dynamic htmlData, {
+    String? contentType,
+  }) async {
+    final logger = StructuredLogger();
     try {
-      // Handle both String (from ResponseType.plain) and List<int> (for backward compatibility)
       String decodedHtml;
+      
+      // Log initial data type and size for diagnostics
+      final dataType = htmlData.runtimeType.toString();
+      final dataSize = htmlData is List<int> 
+          ? htmlData.length 
+          : (htmlData is String ? htmlData.length : 0);
+      
+      await logger.log(
+        level: 'debug',
+        subsystem: 'parser',
+        message: 'Starting HTML decoding',
+        context: 'parse_search_results',
+        extra: {
+          'data_type': dataType,
+          'data_size_bytes': dataSize,
+          'content_type': contentType ?? 'not_provided',
+        },
+      );
+      
+      // Determine encoding from Content-Type header if available
+      String? detectedEncoding;
+      if (contentType != null) {
+        final charsetMatch = RegExp(r'charset=([^;\s]+)', caseSensitive: false)
+            .firstMatch(contentType);
+        if (charsetMatch != null) {
+          detectedEncoding = charsetMatch.group(1)?.toLowerCase();
+        }
+      }
+      
       if (htmlData is String) {
-        // Dio with ResponseType.plain already decoded the response
-        // Use the string directly
+        // String data - check if it's already correctly decoded
+        // If it contains typical Windows-1251 characters incorrectly decoded as UTF-8,
+        // we might need to re-encode, but this is complex, so we'll use as-is for now
         decodedHtml = htmlData;
+        
+        await logger.log(
+          level: 'debug',
+          subsystem: 'parser',
+          message: 'HTML data is already a String, using as-is',
+          context: 'parse_search_results',
+          extra: {
+            'string_length': decodedHtml.length,
+            'preview': decodedHtml.length > 200 
+                ? decodedHtml.substring(0, 200) 
+                : decodedHtml,
+          },
+        );
+        
+        // Check for signs of incorrect encoding (mojibake)
+        // If string contains replacement characters or unusual sequences, it might be wrong
+        if (decodedHtml.contains('\uFFFD') || 
+            (decodedHtml.contains('Р') && decodedHtml.contains('С'))) {
+          // Possible encoding issue, but we can't fix it from String
+          await logger.log(
+            level: 'warning',
+            subsystem: 'parser',
+            message: 'Possible encoding issue detected in String data',
+            context: 'parse_search_results',
+            extra: {
+              'has_replacement_char': decodedHtml.contains('\uFFFD'),
+            },
+          );
+        }
       } else if (htmlData is List<int>) {
-        // Handle binary data (bytes) - decode from UTF-8 or Windows-1251
-        try {
-          decodedHtml = utf8.decode(htmlData);
-        } on FormatException {
-          decodedHtml = windows1251.decode(htmlData);
+        // Binary data (bytes) - decode based on detected encoding or try both
+        // Note: Brotli decompression is handled automatically by DioBrotliTransformer in DioClient
+        // These bytes are already decompressed and ready for encoding conversion
+        // They need to be decoded from Windows-1251 (RuTracker default)
+        final bytes = htmlData;
+        
+        // Validate bytes before decoding
+        if (bytes.isEmpty) {
+          throw const ParsingFailure(
+            'Received empty bytes. This may indicate a network error.',
+          );
+        }
+        
+        await logger.log(
+          level: 'debug',
+          subsystem: 'parser',
+          message: 'Decoding bytes (Brotli already decompressed by Dio transformer)',
+          context: 'parse_search_results',
+          extra: {
+            'bytes_length': bytes.length,
+            'detected_encoding': detectedEncoding ?? 'auto-detect',
+            'first_bytes_preview': bytes.length > 50 
+                ? bytes.sublist(0, 50).toString() 
+                : bytes.toString(),
+          },
+        );
+        
+        if (detectedEncoding != null) {
+          // Use detected encoding from Content-Type header
+          if (detectedEncoding.contains('windows-1251') || 
+              detectedEncoding.contains('cp1251') ||
+              detectedEncoding.contains('1251')) {
+            try {
+              decodedHtml = windows1251.decode(bytes);
+              await logger.log(
+                level: 'debug',
+                subsystem: 'parser',
+                message: 'Successfully decoded with Windows-1251',
+                context: 'parse_search_results',
+                extra: {
+                  'decoded_length': decodedHtml.length,
+                  'preview': decodedHtml.length > 200 
+                      ? decodedHtml.substring(0, 200) 
+                      : decodedHtml,
+                },
+              );
+            } on Exception catch (e) {
+              await logger.log(
+                level: 'warning',
+                subsystem: 'parser',
+                message: 'Windows-1251 decoding failed, trying UTF-8',
+                context: 'parse_search_results',
+                cause: e.toString(),
+              );
+              // Fallback to UTF-8 if Windows-1251 fails
+              try {
+                decodedHtml = utf8.decode(bytes);
+              } on FormatException catch (e2) {
+                await logger.log(
+                  level: 'error',
+                  subsystem: 'parser',
+                  message: 'Both Windows-1251 and UTF-8 decoding failed',
+                  context: 'parse_search_results',
+                  cause: e2.toString(),
+                );
+                throw ParsingFailure(
+                  'Failed to decode bytes: Windows-1251 failed (${e.toString()}), UTF-8 failed (${e2.toString()})',
+                  e2,
+                );
+              }
+            }
+          } else if (detectedEncoding.contains('utf-8') || 
+                     detectedEncoding.contains('utf8')) {
+            try {
+              decodedHtml = utf8.decode(bytes);
+              await logger.log(
+                level: 'debug',
+                subsystem: 'parser',
+                message: 'Successfully decoded with UTF-8',
+                context: 'parse_search_results',
+                extra: {
+                  'decoded_length': decodedHtml.length,
+                },
+              );
+            } on FormatException catch (e) {
+              await logger.log(
+                level: 'warning',
+                subsystem: 'parser',
+                message: 'UTF-8 decoding failed, trying Windows-1251',
+                context: 'parse_search_results',
+                cause: e.toString(),
+              );
+              // Fallback to Windows-1251 if UTF-8 fails (RuTracker sometimes lies)
+              try {
+                decodedHtml = windows1251.decode(bytes);
+              } on Exception catch (e2) {
+                await logger.log(
+                  level: 'error',
+                  subsystem: 'parser',
+                  message: 'Both UTF-8 and Windows-1251 decoding failed',
+                  context: 'parse_search_results',
+                  cause: e2.toString(),
+                );
+                throw ParsingFailure(
+                  'Failed to decode bytes: UTF-8 failed (${e.toString()}), Windows-1251 failed (${e2.toString()})',
+                  e2,
+                );
+              }
+            }
+          } else {
+            // Unknown encoding, try both
+            try {
+              decodedHtml = utf8.decode(bytes);
+            } on FormatException {
+              try {
+                decodedHtml = windows1251.decode(bytes);
+              } on Exception catch (e) {
+                throw ParsingFailure(
+                  'Failed to decode bytes with unknown encoding: ${e.toString()}',
+                  e,
+                );
+              }
+            }
+          }
+        } else {
+          // No encoding specified - try Windows-1251 first (RuTracker default)
+          // then fallback to UTF-8
+          try {
+            decodedHtml = windows1251.decode(bytes);
+            await logger.log(
+              level: 'debug',
+              subsystem: 'parser',
+              message: 'Successfully decoded with Windows-1251 (default)',
+              context: 'parse_search_results',
+              extra: {
+                'decoded_length': decodedHtml.length,
+              },
+            );
+          } on Exception catch (e) {
+            await logger.log(
+              level: 'warning',
+              subsystem: 'parser',
+              message: 'Windows-1251 decoding failed, trying UTF-8',
+              context: 'parse_search_results',
+              cause: e.toString(),
+            );
+            try {
+              decodedHtml = utf8.decode(bytes);
+            } on FormatException catch (e2) {
+              await logger.log(
+                level: 'warning',
+                subsystem: 'parser',
+                message: 'UTF-8 decoding also failed, trying Latin-1 as last resort',
+                context: 'parse_search_results',
+                cause: e2.toString(),
+              );
+              // Last resort: try to decode as Latin-1 (never fails)
+              decodedHtml = latin1.decode(bytes);
+            }
+          }
         }
       } else {
         // Fallback: try to convert to string
+        await logger.log(
+          level: 'warning',
+          subsystem: 'parser',
+          message: 'Unexpected data type, converting to string',
+          context: 'parse_search_results',
+          extra: {
+            'data_type': dataType,
+          },
+        );
         decodedHtml = htmlData.toString();
       }
 
-      final document = parser.parse(decodedHtml);
+      // Validate decoded HTML before parsing
+      if (decodedHtml.isEmpty) {
+        throw const ParsingFailure(
+          'Decoded HTML is empty. This may indicate a network error or encoding issue.',
+        );
+      }
+      
+      // Check for valid HTML structure
+      final hasHtmlStructure = decodedHtml.contains('<html') || 
+          decodedHtml.contains('<HTML') ||
+          decodedHtml.contains('<body') ||
+          decodedHtml.contains('<BODY');
+      
+      if (!hasHtmlStructure) {
+        await logger.log(
+          level: 'error',
+          subsystem: 'parser',
+          message: 'Decoded text does not appear to be valid HTML',
+          context: 'parse_search_results',
+          extra: {
+            'decoded_length': decodedHtml.length,
+            'preview': decodedHtml.length > 500 
+                ? decodedHtml.substring(0, 500) 
+                : decodedHtml,
+            'has_html_tag': decodedHtml.contains('<html'),
+            'has_body_tag': decodedHtml.contains('<body'),
+          },
+        );
+        throw ParsingFailure(
+          'Response does not appear to be valid HTML. This may indicate a network error or encoding issue. '
+          'Decoded text length: ${decodedHtml.length} bytes.',
+        );
+      }
+      
+      // Check for encoding issues (mojibake) - signs of incorrect decoding
+      // If decoded HTML contains replacement characters or unusual sequences, it might be wrong
+      final hasEncodingIssues = decodedHtml.contains('\uFFFD') || 
+          (decodedHtml.contains('Р') && decodedHtml.contains('С') && decodedHtml.length < 1000);
+      
+      if (hasEncodingIssues) {
+        await logger.log(
+          level: 'warning',
+          subsystem: 'parser',
+          message: 'Possible encoding issues detected in decoded HTML',
+          context: 'parse_search_results',
+          extra: {
+            'has_replacement_char': decodedHtml.contains('\uFFFD'),
+            'has_suspicious_chars': decodedHtml.contains('Р') && decodedHtml.contains('С'),
+          },
+        );
+      }
+      
+      // Try to parse the document
+      Document? document;
+      try {
+        document = parser.parse(decodedHtml);
+        
+        // Validate that parsing produced a valid document
+        // Note: parser.parse() never returns null, but we check body for validity
+        if (document.body == null) {
+          throw const ParsingFailure(
+            'HTML parser returned document without body. This may indicate invalid HTML structure.',
+          );
+        }
+        
+        await logger.log(
+          level: 'debug',
+          subsystem: 'parser',
+          message: 'Successfully parsed HTML document',
+          context: 'parse_search_results',
+          extra: {
+            'has_body': document.body != null,
+            'has_head': document.head != null,
+          },
+        );
+      } on Exception catch (e) {
+        await logger.log(
+          level: 'error',
+          subsystem: 'parser',
+          message: 'Failed to parse HTML document',
+          context: 'parse_search_results',
+          cause: e.toString(),
+          extra: {
+            'has_encoding_issues': hasEncodingIssues,
+            'html_data_type': htmlData.runtimeType.toString(),
+            'decoded_length': decodedHtml.length,
+            'html_preview': decodedHtml.length > 1000 
+                ? decodedHtml.substring(0, 1000) 
+                : decodedHtml,
+          },
+        );
+        
+        // If parsing fails and we have encoding issues, try to re-encode
+        if (hasEncodingIssues && htmlData is List<int>) {
+          final bytes = htmlData;
+          try {
+            await logger.log(
+              level: 'info',
+              subsystem: 'parser',
+              message: 'Attempting recovery with alternative encoding',
+              context: 'parse_search_results',
+              extra: {
+                'original_encoding': detectedEncoding ?? 'auto-detect',
+                'will_try_alternative': true,
+              },
+            );
+            
+            // Try alternative encoding
+            final alternativeDecoded = (detectedEncoding?.contains('utf') ?? false)
+                ? windows1251.decode(bytes)
+                : utf8.decode(bytes);
+            
+            // Validate alternative decoded HTML
+            if (alternativeDecoded.isEmpty || 
+                (!alternativeDecoded.contains('<html') && 
+                 !alternativeDecoded.contains('<HTML') &&
+                 !alternativeDecoded.contains('<body') &&
+                 !alternativeDecoded.contains('<BODY'))) {
+              throw ParsingFailure(
+                'Alternative encoding also produced invalid HTML. '
+                'Original encoding: ${detectedEncoding ?? 'auto-detect'}.',
+                e,
+              );
+            }
+            
+            document = parser.parse(alternativeDecoded);
+            decodedHtml = alternativeDecoded; // Update for later use
+            
+            await logger.log(
+              level: 'info',
+              subsystem: 'parser',
+              message: 'Recovery with alternative encoding succeeded',
+              context: 'parse_search_results',
+              extra: {
+                'alternative_encoding': (detectedEncoding?.contains('utf') ?? false) 
+                    ? 'windows-1251' 
+                    : 'utf-8',
+              },
+            );
+          } on Exception catch (recoveryError) {
+            await logger.log(
+              level: 'error',
+              subsystem: 'parser',
+              message: 'Recovery with alternative encoding also failed',
+              context: 'parse_search_results',
+              cause: recoveryError.toString(),
+            );
+            // If re-encoding also fails, throw detailed error
+            throw ParsingFailure(
+              'Failed to parse HTML: encoding issue detected. Tried ${detectedEncoding ?? 'auto-detect'}, but parsing still failed. '
+              'Original error: ${e.toString()}, Recovery error: ${recoveryError.toString()}',
+              e,
+            );
+          }
+        } else {
+          throw ParsingFailure(
+            'Failed to parse HTML document structure. This may indicate a change in page structure or encoding issues. '
+            'Error: ${e.toString()}',
+            e,
+          );
+        }
+      }
+      
       final results = <Audiobook>[];
 
       // Check if page requires authentication or has errors
@@ -225,9 +615,23 @@ class RuTrackerParser {
         }
         
         // If no search form, no search page elements, and not index page - possibly error
-        throw const ParsingFailure(
-          'Page structure may have changed. Unable to parse search results.',
-        );
+        // Provide more detailed error message
+        final pageLength = decodedHtml.length;
+        final hasHtmlStructure = decodedHtml.contains('<html') || decodedHtml.contains('<body');
+        final hasRuTrackerElements = decodedHtml.contains('rutracker') || 
+            decodedHtml.contains('RuTracker') ||
+            decodedHtml.contains('форум');
+        
+        String errorMessage;
+        if (!hasHtmlStructure) {
+          errorMessage = 'Response does not appear to be valid HTML. This may indicate a network error or encoding issue.';
+        } else if (!hasRuTrackerElements) {
+          errorMessage = 'Response does not appear to be from RuTracker. Page structure may have changed or wrong endpoint was used.';
+        } else {
+          errorMessage = 'Page structure may have changed. Unable to find search results or search form. Response size: $pageLength bytes.';
+        }
+        
+        throw ParsingFailure(errorMessage);
       }
 
       for (final row in topicRows) {
@@ -337,33 +741,292 @@ class RuTrackerParser {
   /// comprehensive audiobook information including chapters, cover art,
   /// and detailed metadata. It automatically handles character encoding.
   ///
-  /// The [html] parameter contains the HTML content of the topic page.
+  /// The [htmlData] parameter contains the HTML content of the topic page.
+  /// The [contentType] parameter is the Content-Type header value for encoding detection.
   ///
   /// Returns an [Audiobook] object with detailed information, or `null`
   /// if the page cannot be parsed or doesn't contain valid audiobook data.
   ///
   /// Throws [ParsingFailure] if the HTML cannot be parsed.
-  Future<Audiobook?> parseTopicDetails(dynamic htmlData) async {
+  Future<Audiobook?> parseTopicDetails(
+    dynamic htmlData, {
+    String? contentType,
+  }) async {
+    final logger = StructuredLogger();
     try {
-      // Handle both String (from ResponseType.plain) and List<int> (for backward compatibility)
       String decodedHtml;
+      
+      // Log initial data type and size for diagnostics
+      final dataType = htmlData.runtimeType.toString();
+      final dataSize = htmlData is List<int> 
+          ? htmlData.length 
+          : (htmlData is String ? htmlData.length : 0);
+      
+      await logger.log(
+        level: 'debug',
+        subsystem: 'parser',
+        message: 'Starting HTML decoding for topic details',
+        context: 'parse_topic_details',
+        extra: {
+          'data_type': dataType,
+          'data_size_bytes': dataSize,
+          'content_type': contentType ?? 'not_provided',
+        },
+      );
+      
+      // Determine encoding from Content-Type header if available
+      String? detectedEncoding;
+      if (contentType != null) {
+        final charsetMatch = RegExp(r'charset=([^;\s]+)', caseSensitive: false)
+            .firstMatch(contentType);
+        if (charsetMatch != null) {
+          detectedEncoding = charsetMatch.group(1)?.toLowerCase();
+        }
+      }
+      
       if (htmlData is String) {
-        // Dio with ResponseType.plain already decoded the response
-        // Use the string directly
+        // String data - use as-is (may have encoding issues, but we can't fix from String)
         decodedHtml = htmlData;
+        
+        await logger.log(
+          level: 'debug',
+          subsystem: 'parser',
+          message: 'HTML data is already a String, using as-is',
+          context: 'parse_topic_details',
+          extra: {
+            'string_length': decodedHtml.length,
+          },
+        );
       } else if (htmlData is List<int>) {
-        // Handle binary data (bytes) - decode from UTF-8 or Windows-1251
-        try {
-          decodedHtml = utf8.decode(htmlData);
-        } on FormatException {
-          decodedHtml = windows1251.decode(htmlData);
+        // Binary data (bytes) - decode based on detected encoding or try both
+        // Note: Brotli decompression is handled automatically by DioBrotliTransformer in DioClient
+        // These bytes are already decompressed and ready for encoding conversion
+        final bytes = htmlData;
+        
+        // Validate bytes before decoding
+        if (bytes.isEmpty) {
+          throw const ParsingFailure(
+            'Received empty bytes. This may indicate a network error.',
+          );
+        }
+        
+        await logger.log(
+          level: 'debug',
+          subsystem: 'parser',
+          message: 'Decoding bytes (Brotli already decompressed by Dio transformer)',
+          context: 'parse_topic_details',
+          extra: {
+            'bytes_length': bytes.length,
+            'detected_encoding': detectedEncoding ?? 'auto-detect',
+          },
+        );
+        
+        if (detectedEncoding != null) {
+          // Use detected encoding from Content-Type header
+          if (detectedEncoding.contains('windows-1251') || 
+              detectedEncoding.contains('cp1251') ||
+              detectedEncoding.contains('1251')) {
+            try {
+              decodedHtml = windows1251.decode(bytes);
+              await logger.log(
+                level: 'debug',
+                subsystem: 'parser',
+                message: 'Successfully decoded with Windows-1251',
+                context: 'parse_topic_details',
+              );
+            } on Exception catch (e) {
+              await logger.log(
+                level: 'warning',
+                subsystem: 'parser',
+                message: 'Windows-1251 decoding failed, trying UTF-8',
+                context: 'parse_topic_details',
+                cause: e.toString(),
+              );
+              // Fallback to UTF-8 if Windows-1251 fails
+              try {
+                decodedHtml = utf8.decode(bytes);
+              } on FormatException catch (e2) {
+                await logger.log(
+                  level: 'error',
+                  subsystem: 'parser',
+                  message: 'Both Windows-1251 and UTF-8 decoding failed',
+                  context: 'parse_topic_details',
+                  cause: e2.toString(),
+                );
+                throw ParsingFailure(
+                  'Failed to decode bytes: Windows-1251 failed (${e.toString()}), UTF-8 failed (${e2.toString()})',
+                  e2,
+                );
+              }
+            }
+          } else if (detectedEncoding.contains('utf-8') || 
+                     detectedEncoding.contains('utf8')) {
+            try {
+              decodedHtml = utf8.decode(bytes);
+              await logger.log(
+                level: 'debug',
+                subsystem: 'parser',
+                message: 'Successfully decoded with UTF-8',
+                context: 'parse_topic_details',
+              );
+            } on FormatException catch (e) {
+              await logger.log(
+                level: 'warning',
+                subsystem: 'parser',
+                message: 'UTF-8 decoding failed, trying Windows-1251',
+                context: 'parse_topic_details',
+                cause: e.toString(),
+              );
+              // Fallback to Windows-1251 if UTF-8 fails (RuTracker sometimes lies)
+              try {
+                decodedHtml = windows1251.decode(bytes);
+              } on Exception catch (e2) {
+                await logger.log(
+                  level: 'error',
+                  subsystem: 'parser',
+                  message: 'Both UTF-8 and Windows-1251 decoding failed',
+                  context: 'parse_topic_details',
+                  cause: e2.toString(),
+                );
+                throw ParsingFailure(
+                  'Failed to decode bytes: UTF-8 failed (${e.toString()}), Windows-1251 failed (${e2.toString()})',
+                  e2,
+                );
+              }
+            }
+          } else {
+            // Unknown encoding, try both
+            try {
+              decodedHtml = utf8.decode(bytes);
+            } on FormatException {
+              try {
+                decodedHtml = windows1251.decode(bytes);
+              } on Exception catch (e) {
+                throw ParsingFailure(
+                  'Failed to decode bytes with unknown encoding: ${e.toString()}',
+                  e,
+                );
+              }
+            }
+          }
+        } else {
+          // No encoding specified - try Windows-1251 first (RuTracker default)
+          // then fallback to UTF-8
+          try {
+            decodedHtml = windows1251.decode(bytes);
+            await logger.log(
+              level: 'debug',
+              subsystem: 'parser',
+              message: 'Successfully decoded with Windows-1251 (default)',
+              context: 'parse_topic_details',
+            );
+          } on Exception catch (e) {
+            await logger.log(
+              level: 'warning',
+              subsystem: 'parser',
+              message: 'Windows-1251 decoding failed, trying UTF-8',
+              context: 'parse_topic_details',
+              cause: e.toString(),
+            );
+            try {
+              decodedHtml = utf8.decode(bytes);
+            } on FormatException catch (e2) {
+              await logger.log(
+                level: 'warning',
+                subsystem: 'parser',
+                message: 'UTF-8 decoding also failed, trying Latin-1 as last resort',
+                context: 'parse_topic_details',
+                cause: e2.toString(),
+              );
+              // Last resort: try to decode as Latin-1 (never fails)
+              decodedHtml = latin1.decode(bytes);
+            }
+          }
         }
       } else {
         // Fallback: try to convert to string
+        await logger.log(
+          level: 'warning',
+          subsystem: 'parser',
+          message: 'Unexpected data type, converting to string',
+          context: 'parse_topic_details',
+          extra: {
+            'data_type': dataType,
+          },
+        );
         decodedHtml = htmlData.toString();
       }
 
-      final document = parser.parse(decodedHtml);
+      // Validate decoded HTML before parsing
+      if (decodedHtml.isEmpty) {
+        throw const ParsingFailure(
+          'Decoded HTML is empty. This may indicate a network error or encoding issue.',
+        );
+      }
+      
+      // Check for valid HTML structure
+      final hasHtmlStructure = decodedHtml.contains('<html') || 
+          decodedHtml.contains('<HTML') ||
+          decodedHtml.contains('<body') ||
+          decodedHtml.contains('<BODY');
+      
+      if (!hasHtmlStructure) {
+        await logger.log(
+          level: 'error',
+          subsystem: 'parser',
+          message: 'Decoded text does not appear to be valid HTML',
+          context: 'parse_topic_details',
+          extra: {
+            'decoded_length': decodedHtml.length,
+            'has_html_tag': decodedHtml.contains('<html'),
+            'has_body_tag': decodedHtml.contains('<body'),
+          },
+        );
+        throw ParsingFailure(
+          'Response does not appear to be valid HTML. This may indicate a network error or encoding issue. '
+          'Decoded text length: ${decodedHtml.length} bytes.',
+        );
+      }
+
+      Document? document;
+      try {
+        document = parser.parse(decodedHtml);
+        
+        // Validate that parsing produced a valid document
+        if (document.body == null) {
+          throw const ParsingFailure(
+            'HTML parser returned document without body. This may indicate invalid HTML structure.',
+          );
+        }
+        
+        await logger.log(
+          level: 'debug',
+          subsystem: 'parser',
+          message: 'Successfully parsed HTML document',
+          context: 'parse_topic_details',
+          extra: {
+            'has_body': document.body != null,
+            'has_head': document.head != null,
+          },
+        );
+      } on Exception catch (e) {
+        await logger.log(
+          level: 'error',
+          subsystem: 'parser',
+          message: 'Failed to parse HTML document',
+          context: 'parse_topic_details',
+          cause: e.toString(),
+          extra: {
+            'html_data_type': htmlData.runtimeType.toString(),
+            'decoded_length': decodedHtml.length,
+          },
+        );
+        throw ParsingFailure(
+          'Failed to parse HTML document structure. This may indicate a change in page structure or encoding issues. '
+          'Error: ${e.toString()}',
+          e,
+        );
+      }
 
       // Parse actual RuTracker topic page structure
       final titleElement = document.querySelector(_maintitleSelector);
