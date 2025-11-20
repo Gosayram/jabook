@@ -39,7 +39,8 @@ class WebViewNavigationHandler {
       var endpoint = await endpointManager.getActiveEndpoint();
 
       // Pre-check endpoint availability before using it
-      final isAvailable = await endpointManager.quickAvailabilityCheck(endpoint);
+      final isAvailable =
+          await endpointManager.quickAvailabilityCheck(endpoint);
 
       if (!isAvailable) {
         // Current endpoint not available, try to switch
@@ -55,7 +56,8 @@ class WebViewNavigationHandler {
         if (switched) {
           endpoint = await endpointManager.getActiveEndpoint();
           // Re-check availability of new endpoint
-          final newIsAvailable = await endpointManager.quickAvailabilityCheck(endpoint);
+          final newIsAvailable =
+              await endpointManager.quickAvailabilityCheck(endpoint);
           if (!newIsAvailable) {
             // New endpoint also not available, try fallbacks
             endpoint = await tryFallbackEndpoints(fallbackEndpoints);
@@ -68,7 +70,8 @@ class WebViewNavigationHandler {
         // Endpoint is available, but do a quick DNS check to ensure it resolves
         try {
           final uri = Uri.parse(endpoint);
-          await io.InternetAddress.lookup(uri.host).timeout(const Duration(seconds: 3));
+          await io.InternetAddress.lookup(uri.host)
+              .timeout(const Duration(seconds: 3));
         } on Exception catch (e) {
           // DNS lookup failed, try fallbacks
           await StructuredLogger().log(
@@ -123,12 +126,14 @@ class WebViewNavigationHandler {
       try {
         // Quick DNS check
         final uri = Uri.parse(fallback);
-        await io.InternetAddress.lookup(uri.host).timeout(const Duration(seconds: 2));
+        await io.InternetAddress.lookup(uri.host)
+            .timeout(const Duration(seconds: 2));
 
         // Quick availability check
         final db = AppDatabase().database;
         final endpointManager = EndpointManager(db);
-        final isAvailable = await endpointManager.quickAvailabilityCheck(fallback);
+        final isAvailable =
+            await endpointManager.quickAvailabilityCheck(fallback);
 
         if (isAvailable) {
           await StructuredLogger().log(
@@ -155,4 +160,3 @@ class WebViewNavigationHandler {
     return endpoints.first;
   }
 }
-

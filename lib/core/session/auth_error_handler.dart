@@ -66,8 +66,7 @@ class AuthErrorHandler {
         if (error.message.contains('Session expired') ||
             error.message.contains('expired')) {
           title = 'Сессия истекла';
-          message =
-              'Ваша сессия истекла. Пожалуйста, войдите в систему снова.';
+          message = 'Ваша сессия истекла. Пожалуйста, войдите в систему снова.';
           actionLabel = 'Войти';
           showRetryButton = onRetry != null;
         } else if (error.message.contains('Invalid') ||
@@ -98,7 +97,8 @@ class AuthErrorHandler {
           showRetryButton = onRetry != null;
         } else {
           title = 'Ошибка сети';
-          message = 'Не удалось выполнить запрос. Проверьте подключение к интернету.';
+          message =
+              'Не удалось выполнить запрос. Проверьте подключение к интернету.';
           actionLabel = 'Повторить';
           showRetryButton = onRetry != null;
         }
@@ -138,16 +138,16 @@ class AuthErrorHandler {
                 onPressed: () => Navigator.of(ctx).pop(false),
                 child: Text(cancelText),
               ),
-            if (showRetryButton)
-              ElevatedButton(
-                onPressed: () async {
-                  Navigator.of(ctx).pop(true);
-                  if (onRetry != null) {
-                    await onRetry();
-                  }
-                },
-                child: Text(actionLabel),
-              ),
+              if (showRetryButton)
+                ElevatedButton(
+                  onPressed: () async {
+                    Navigator.of(ctx).pop(true);
+                    if (onRetry != null) {
+                      await onRetry();
+                    }
+                  },
+                  child: Text(actionLabel),
+                ),
             ],
           );
         },
@@ -271,4 +271,3 @@ enum AuthErrorType {
   /// Unknown error type.
   unknown,
 }
-

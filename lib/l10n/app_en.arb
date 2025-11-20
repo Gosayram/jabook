@@ -1858,5 +1858,13 @@
   "minutes": "minutes",
   "@minutes": {
     "description": "Abbreviation for minutes"
+  },
+  "showMore": "Show more",
+  "@showMore": {
+    "description": "Button to expand text"
+  },
+  "showLess": "Show less",
+  "@showLess": {
+    "description": "Button to collapse text"
   }
 }

@@ -31,7 +31,6 @@ import 'package:jabook/core/logging/structured_logger.dart';
 import 'package:jabook/core/net/dio_client.dart';
 import 'package:jabook/core/permissions/permission_service.dart';
 import 'package:jabook/core/session/session_manager.dart';
-import 'package:jabook/core/torrent/audiobook_torrent_manager.dart';
 import 'package:jabook/core/utils/first_launch.dart';
 import 'package:jabook/core/utils/safe_async.dart';
 import 'package:jabook/data/db/app_database.dart';
@@ -102,7 +101,8 @@ class _JaBookAppState extends ConsumerState<JaBookApp> {
             },
           );
         } on Exception catch (e, stackTrace) {
-          logger.e('Error in initialization timeout handler: $e', stackTrace: stackTrace);
+          logger.e('Error in initialization timeout handler: $e',
+              stackTrace: stackTrace);
           // Ensure app continues even if timeout handler fails
           if (mounted) {
             setState(() {
@@ -126,14 +126,15 @@ class _JaBookAppState extends ConsumerState<JaBookApp> {
     // Add small delay to ensure Flutter is fully ready on new Android
     // This helps avoid race conditions during initialization
     await Future.delayed(const Duration(milliseconds: 50));
-    
+
     final appStartTime = DateTime.now();
     final structuredLogger = StructuredLogger();
     try {
       // Initialize logger (critical, must be first)
       final loggerInitStart = DateTime.now();
       logger.initialize();
-      final loggerInitDuration = DateTime.now().difference(loggerInitStart).inMilliseconds;
+      final loggerInitDuration =
+          DateTime.now().difference(loggerInitStart).inMilliseconds;
 
       // Log startup details (single receiver via cascade inside helper)
       _logStartupDetails();
@@ -141,7 +142,8 @@ class _JaBookAppState extends ConsumerState<JaBookApp> {
       // Initialize database and cache (critical for app functionality)
       final dbInitStart = DateTime.now();
       await _initializeDatabase();
-      final dbInitDuration = DateTime.now().difference(dbInitStart).inMilliseconds;
+      final dbInitDuration =
+          DateTime.now().difference(dbInitStart).inMilliseconds;
 
       // Initialize configuration based on flavor (lightweight, can run in parallel)
       // Request essential permissions (can be deferred, but better to do early)
@@ -151,9 +153,11 @@ class _JaBookAppState extends ConsumerState<JaBookApp> {
         _initializeEnvironment(),
         _requestEssentialPermissions(),
       ]);
-      final envInitDuration = DateTime.now().difference(envInitStart).inMilliseconds;
+      final envInitDuration =
+          DateTime.now().difference(envInitStart).inMilliseconds;
 
-      final totalInitDuration = DateTime.now().difference(appStartTime).inMilliseconds;
+      final totalInitDuration =
+          DateTime.now().difference(appStartTime).inMilliseconds;
 
       // Log initialization metrics using StructuredLogger
       await structuredLogger.log(
@@ -181,7 +185,7 @@ class _JaBookAppState extends ConsumerState<JaBookApp> {
         'App initialization complete. Metrics: total=${totalInitDuration}ms, '
         'logger=${loggerInitDuration}ms, db=${dbInitDuration}ms, env=${envInitDuration}ms',
       );
-      
+
       // Mark initialization as complete
       if (mounted) {
         setState(() {
@@ -251,21 +255,22 @@ class _JaBookAppState extends ConsumerState<JaBookApp> {
     final structuredLogger = StructuredLogger();
     logger.i('Initializing database...');
     await database.initialize();
-    final dbInitDuration = DateTime.now().difference(dbStartTime).inMilliseconds;
+    final dbInitDuration =
+        DateTime.now().difference(dbStartTime).inMilliseconds;
 
     // Verify database is initialized before using it
     if (!database.isInitialized) {
       throw StateError('Database initialization failed');
     }
     final db = database.database;
-    
+
     final cacheStartTime = DateTime.now();
     await cacheService.initialize(db);
-    final cacheInitDuration = DateTime.now().difference(cacheStartTime).inMilliseconds;
-    
-    // Initialize torrent manager with database for persistence
-    final torrentManager = AudiobookTorrentManager();
-    await torrentManager.initialize(db);
+    final cacheInitDuration =
+        DateTime.now().difference(cacheStartTime).inMilliseconds;
+
+    // AudiobookTorrentManager will be initialized via audiobookTorrentManagerProvider
+    // when first accessed, ensuring singleton pattern
 
     // AuthRepository will be initialized in build method when context is available
 
@@ -274,7 +279,8 @@ class _JaBookAppState extends ConsumerState<JaBookApp> {
     final endpointManager = EndpointManager(db);
     await endpointManager
         .initialize(); // This includes initializeDefaultEndpoints() and health checks
-    final endpointInitDuration = DateTime.now().difference(endpointStartTime).inMilliseconds;
+    final endpointInitDuration =
+        DateTime.now().difference(endpointStartTime).inMilliseconds;
 
     // Log database initialization metrics using StructuredLogger
     await structuredLogger.log(
@@ -287,7 +293,8 @@ class _JaBookAppState extends ConsumerState<JaBookApp> {
         'db_init_duration_ms': dbInitDuration,
         'cache_init_duration_ms': cacheInitDuration,
         'endpoint_init_duration_ms': endpointInitDuration,
-        'total_db_init_duration_ms': dbInitDuration + cacheInitDuration + endpointInitDuration,
+        'total_db_init_duration_ms':
+            dbInitDuration + cacheInitDuration + endpointInitDuration,
         'metric_type': 'database_initialization',
         'breakdown': {
           'database': dbInitDuration,
@@ -327,7 +334,8 @@ class _JaBookAppState extends ConsumerState<JaBookApp> {
           final sessionRestoreStart = DateTime.now();
           final sessionManager = SessionManager();
           final restored = await sessionManager.restoreSession();
-          final sessionRestoreDuration = DateTime.now().difference(sessionRestoreStart).inMilliseconds;
+          final sessionRestoreDuration =
+              DateTime.now().difference(sessionRestoreStart).inMilliseconds;
 
           if (restored) {
             logger.i(
@@ -398,7 +406,8 @@ class _JaBookAppState extends ConsumerState<JaBookApp> {
             final dialogContext = _scaffoldMessengerKey.currentContext;
             if (dialogContext != null && dialogContext.mounted) {
               try {
-                final proceed = await PermissionsOnboardingDialog.show(dialogContext);
+                final proceed =
+                    await PermissionsOnboardingDialog.show(dialogContext);
                 _hasShownOnboarding = true;
                 if (!proceed) {
                   logger.i('User cancelled permission onboarding');
@@ -409,12 +418,14 @@ class _JaBookAppState extends ConsumerState<JaBookApp> {
                 // Mark as launched after showing dialog
                 await FirstLaunchHelper.markAsLaunched();
               } on Exception catch (dialogError) {
-                logger.w('Failed to show permissions onboarding dialog: $dialogError');
+                logger.w(
+                    'Failed to show permissions onboarding dialog: $dialogError');
                 // Continue without dialog if it fails
                 await FirstLaunchHelper.markAsLaunched();
               }
             } else {
-              logger.w('Context not available for permissions onboarding dialog');
+              logger
+                  .w('Context not available for permissions onboarding dialog');
               // Continue without dialog if context is not available
               await FirstLaunchHelper.markAsLaunched();
             }
@@ -539,180 +550,188 @@ class _JaBookAppState extends ConsumerState<JaBookApp> {
           );
         }
       }
-    
-    // Watch for language changes to trigger rebuild
-    try {
-      ref.watch(languageProvider);
-    } on Exception catch (e, stackTrace) {
-      logger.e('Error watching languageProvider: $e', stackTrace: stackTrace);
-    }
-    
-    // Create router lazily - only when actually needed after initialization
-    // This prevents immediate screen building before everything is ready
-    // Delay router creation by one frame to ensure all initialization is complete
-    final router = ref.watch(appRouterProvider);
 
-    // Initialize locale future only once
-    _localeFuture ??= languageManager.getLocale().then((locale) {
-      _cachedLocale = locale;
-      return locale;
-    });
+      // Watch for language changes to trigger rebuild
+      try {
+        ref.watch(languageProvider);
+      } on Exception catch (e, stackTrace) {
+        logger.e('Error watching languageProvider: $e', stackTrace: stackTrace);
+      }
 
-    return ProviderScope(
-      overrides: [
-        // Override AuthRepositoryProvider with actual implementation
-        // Use lazy initialization to avoid issues during app startup
-        authRepositoryProvider.overrideWith((ref) {
-          // Lazy initialization - only create when actually needed
-          // Use a try-catch to handle any initialization errors gracefully
-          try {
-            // Double-check that widget is still mounted
-            if (!mounted) {
-              logger.w('Widget not mounted when creating auth repository');
-              throw StateError('Widget is not mounted, cannot create RuTrackerAuth');
-            }
-            
-            // On Android 16, context may not be fully ready during early initialization
-            // Additional check: verify that context is still mounted
-            // This is especially important on Android 16 where lifecycle is stricter
-            final buildContext = context;
-            if (!buildContext.mounted) {
-              throw StateError('BuildContext is not mounted, cannot create RuTrackerAuth');
-            }
-            
-            if (_rutrackerAuth == null) {
-              // Create RuTrackerAuth with context
-              // On Android 16, wrap in try-catch to handle any initialization issues
-              try {
-                _rutrackerAuth = RuTrackerAuth(buildContext);
-                if (_rutrackerAuth == null) {
-                  throw StateError('RuTrackerAuth creation returned null');
-                }
-              } on Exception catch (authError) {
-                logger.e('Failed to create RuTrackerAuth: $authError');
-                rethrow;
-              }
-            }
-            
-            if (_authRepository == null) {
-              final auth = _rutrackerAuth;
-              if (auth == null) {
-                throw StateError('RuTrackerAuth is null');
-              }
-              _authRepository = AuthRepositoryImpl(auth);
-              if (_authRepository == null) {
-                throw StateError('AuthRepositoryImpl creation returned null');
-              }
-            }
-            
-            final repository = _authRepository;
-            if (repository == null) {
-              throw StateError('AuthRepository is null after initialization');
-            }
-            return repository;
-          } catch (e, stackTrace) {
-            logger.e('Failed to initialize auth repository: $e', stackTrace: stackTrace);
-            // On new Android, try to continue with a fallback instead of crashing
-            // This allows the app to start even if auth initialization fails
-            rethrow;
-          }
-        }),
-      ],
-      child: FutureBuilder<Locale>(
-        future: _localeFuture,
-        initialData: _cachedLocale ?? const Locale('en', 'US'),
-        builder: (context, snapshot) {
-          try {
-            final locale = snapshot.data ?? const Locale('en', 'US');
+      // Create router lazily - only when actually needed after initialization
+      // This prevents immediate screen building before everything is ready
+      // Delay router creation by one frame to ensure all initialization is complete
+      final router = ref.watch(appRouterProvider);
 
-            return MaterialApp.router(
-            title: config.appName,
-            theme: AppTheme.lightTheme,
-            darkTheme: AppTheme.darkTheme,
-            routerConfig: router,
-            debugShowCheckedModeBanner: config.isDebug,
-            scaffoldMessengerKey: config.isDebug ? _scaffoldMessengerKey : null,
-            // Performance optimizations and responsive framework
-            builder: (context, child) {
-              // Track first frame render time
-              final appStartTime = _appStartTime;
-              if (!_firstFrameTracked && appStartTime != null) {
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  if (!_firstFrameTracked) {
-                    _firstFrameTracked = true;
-                    final timeToFirstFrame =
-                        DateTime.now().difference(appStartTime).inMilliseconds;
-                    final structuredLogger = StructuredLogger();
-                    safeUnawaited(
-                      structuredLogger.log(
-                        level: 'info',
-                        subsystem: 'performance',
-                        message: 'First UI frame rendered',
-                        context: 'app_startup',
-                        durationMs: timeToFirstFrame,
-                        extra: {
-                          'time_to_first_frame_ms': timeToFirstFrame,
-                          'metric_type': 'ui_render_time',
-                        },
-                      ),
-                    );
-                    logger.i('First UI frame rendered in ${timeToFirstFrame}ms');
+      // Initialize locale future only once
+      _localeFuture ??= languageManager.getLocale().then((locale) {
+        _cachedLocale = locale;
+        return locale;
+      });
+
+      return ProviderScope(
+        overrides: [
+          // Override AuthRepositoryProvider with actual implementation
+          // Use lazy initialization to avoid issues during app startup
+          authRepositoryProvider.overrideWith((ref) {
+            // Lazy initialization - only create when actually needed
+            // Use a try-catch to handle any initialization errors gracefully
+            try {
+              // Double-check that widget is still mounted
+              if (!mounted) {
+                logger.w('Widget not mounted when creating auth repository');
+                throw StateError(
+                    'Widget is not mounted, cannot create RuTrackerAuth');
+              }
+
+              // On Android 16, context may not be fully ready during early initialization
+              // Additional check: verify that context is still mounted
+              // This is especially important on Android 16 where lifecycle is stricter
+              final buildContext = context;
+              if (!buildContext.mounted) {
+                throw StateError(
+                    'BuildContext is not mounted, cannot create RuTrackerAuth');
+              }
+
+              if (_rutrackerAuth == null) {
+                // Create RuTrackerAuth with context
+                // On Android 16, wrap in try-catch to handle any initialization issues
+                try {
+                  _rutrackerAuth = RuTrackerAuth(buildContext);
+                  if (_rutrackerAuth == null) {
+                    throw StateError('RuTrackerAuth creation returned null');
                   }
-                });
+                } on Exception catch (authError) {
+                  logger.e('Failed to create RuTrackerAuth: $authError');
+                  rethrow;
+                }
               }
-              // Safely get MediaQuery - may be null during initialization on new Android
-              final mediaQuery = MediaQuery.maybeOf(context);
-              if (mediaQuery == null) {
-                return child ?? const SizedBox.shrink();
+
+              if (_authRepository == null) {
+                final auth = _rutrackerAuth;
+                if (auth == null) {
+                  throw StateError('RuTrackerAuth is null');
+                }
+                _authRepository = AuthRepositoryImpl(auth);
+                if (_authRepository == null) {
+                  throw StateError('AuthRepositoryImpl creation returned null');
+                }
               }
-              
-              // Wrap with ResponsiveFramework for adaptive UI
-              return ResponsiveBreakpoints.builder(
-                child: MediaQuery(
-                  // Use text scaler from device but clamp it for consistency
-                  data: mediaQuery.copyWith(
-                    textScaler: mediaQuery.textScaler.clamp(
+
+              final repository = _authRepository;
+              if (repository == null) {
+                throw StateError('AuthRepository is null after initialization');
+              }
+              return repository;
+            } catch (e, stackTrace) {
+              logger.e('Failed to initialize auth repository: $e',
+                  stackTrace: stackTrace);
+              // On new Android, try to continue with a fallback instead of crashing
+              // This allows the app to start even if auth initialization fails
+              rethrow;
+            }
+          }),
+        ],
+        child: FutureBuilder<Locale>(
+          future: _localeFuture,
+          initialData: _cachedLocale ?? const Locale('en', 'US'),
+          builder: (context, snapshot) {
+            try {
+              final locale = snapshot.data ?? const Locale('en', 'US');
+
+              return MaterialApp.router(
+                title: config.appName,
+                theme: AppTheme.lightTheme,
+                darkTheme: AppTheme.darkTheme,
+                routerConfig: router,
+                debugShowCheckedModeBanner: config.isDebug,
+                scaffoldMessengerKey:
+                    config.isDebug ? _scaffoldMessengerKey : null,
+                // Performance optimizations and responsive framework
+                builder: (context, child) {
+                  // Track first frame render time
+                  final appStartTime = _appStartTime;
+                  if (!_firstFrameTracked && appStartTime != null) {
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (!_firstFrameTracked) {
+                        _firstFrameTracked = true;
+                        final timeToFirstFrame = DateTime.now()
+                            .difference(appStartTime)
+                            .inMilliseconds;
+                        final structuredLogger = StructuredLogger();
+                        safeUnawaited(
+                          structuredLogger.log(
+                            level: 'info',
+                            subsystem: 'performance',
+                            message: 'First UI frame rendered',
+                            context: 'app_startup',
+                            durationMs: timeToFirstFrame,
+                            extra: {
+                              'time_to_first_frame_ms': timeToFirstFrame,
+                              'metric_type': 'ui_render_time',
+                            },
+                          ),
+                        );
+                        logger.i(
+                            'First UI frame rendered in ${timeToFirstFrame}ms');
+                      }
+                    });
+                  }
+                  // Safely get MediaQuery - may be null during initialization on new Android
+                  final mediaQuery = MediaQuery.maybeOf(context);
+                  if (mediaQuery == null) {
+                    return child ?? const SizedBox.shrink();
+                  }
+
+                  // Wrap with ResponsiveFramework for adaptive UI
+                  return ResponsiveBreakpoints.builder(
+                    child: MediaQuery(
+                      // Use text scaler from device but clamp it for consistency
+                      data: mediaQuery.copyWith(
+                        textScaler: mediaQuery.textScaler.clamp(
                           minScaleFactor: 0.8,
                           maxScaleFactor: 1.2,
                         ),
-                  ),
-                  child: child ?? const SizedBox.shrink(),
-                ),
-                breakpoints: [
-                  const Breakpoint(start: 0, end: 450, name: MOBILE),
-                  const Breakpoint(start: 451, end: 800, name: TABLET),
-                  const Breakpoint(start: 801, end: 1920, name: DESKTOP),
-                  const Breakpoint(start: 1921, end: double.infinity, name: '4K'),
+                      ),
+                      child: child ?? const SizedBox.shrink(),
+                    ),
+                    breakpoints: [
+                      const Breakpoint(start: 0, end: 450, name: MOBILE),
+                      const Breakpoint(start: 451, end: 800, name: TABLET),
+                      const Breakpoint(start: 801, end: 1920, name: DESKTOP),
+                      const Breakpoint(
+                          start: 1921, end: double.infinity, name: '4K'),
+                    ],
+                  );
+                },
+                localizationsDelegates: const [
+                  AppLocalizations.delegate,
+                  GlobalMaterialLocalizations.delegate,
+                  GlobalWidgetsLocalizations.delegate,
+                  GlobalCupertinoLocalizations.delegate,
                 ],
+                supportedLocales: const [
+                  Locale('en', 'US'), // English
+                  Locale('ru', 'RU'), // Russian
+                ],
+                locale: locale,
               );
-            },
-            localizationsDelegates: const [
-              AppLocalizations.delegate,
-              GlobalMaterialLocalizations.delegate,
-              GlobalWidgetsLocalizations.delegate,
-              GlobalCupertinoLocalizations.delegate,
-            ],
-            supportedLocales: const [
-              Locale('en', 'US'), // English
-              Locale('ru', 'RU'), // Russian
-            ],
-            locale: locale,
-          );
-          } on Exception catch (e, stackTrace) {
-            logger.e('Error in FutureBuilder builder: $e', stackTrace: stackTrace);
-            // Fallback to minimal MaterialApp
-            return MaterialApp(
-              title: config.appName,
-              home: Scaffold(
-                body: Center(
-                  child: Text('Error: ${e.toString()}'),
+            } on Exception catch (e, stackTrace) {
+              logger.e('Error in FutureBuilder builder: $e',
+                  stackTrace: stackTrace);
+              // Fallback to minimal MaterialApp
+              return MaterialApp(
+                title: config.appName,
+                home: Scaffold(
+                  body: Center(
+                    child: Text('Error: ${e.toString()}'),
+                  ),
                 ),
-              ),
-            );
-          }
-        },
-      ),
-    );
+              );
+            }
+          },
+        ),
+      );
     } on Exception catch (e, stackTrace) {
       logger.e('Error in build method: $e', stackTrace: stackTrace);
       // Ultimate fallback

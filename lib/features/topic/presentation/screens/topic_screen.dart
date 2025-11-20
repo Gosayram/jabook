@@ -24,10 +24,12 @@ import 'package:go_router/go_router.dart';
 import 'package:jabook/core/cache/rutracker_cache_service.dart';
 import 'package:jabook/core/endpoints/endpoint_provider.dart';
 import 'package:jabook/core/errors/failures.dart';
+import 'package:jabook/core/logging/environment_logger.dart';
 import 'package:jabook/core/net/dio_client.dart';
 import 'package:jabook/core/parse/rutracker_parser.dart';
 import 'package:jabook/core/session/auth_error_handler.dart';
 import 'package:jabook/core/torrent/audiobook_torrent_manager.dart';
+import 'package:jabook/core/torrent/audiobook_torrent_manager_provider.dart';
 import 'package:jabook/core/torrent/torrent_parser_service.dart';
 import 'package:jabook/features/downloads/presentation/widgets/download_status_bar.dart';
 import 'package:jabook/l10n/app_localizations.dart';
@@ -208,9 +210,10 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
           final authError = e.error as AuthFailure;
           AuthErrorHandler.showAuthErrorSnackBar(context, authError);
           _showAuthenticationPrompt(context);
-        } else if (e.message?.contains('Authentication required') ?? false ||
-            e.response?.statusCode == 401 ||
-            e.response?.statusCode == 403) {
+        } else if (e.message?.contains('Authentication required') ??
+            false ||
+                e.response?.statusCode == 401 ||
+                e.response?.statusCode == 403) {
           AuthErrorHandler.showAuthErrorSnackBar(context, e);
           _showAuthenticationPrompt(context);
         } else {
@@ -228,8 +231,9 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
           _hasError = true;
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppLocalizations.of(context)!
-              .errorLoadingTopicMessage(e.toString()))),
+          SnackBar(
+              content: Text(AppLocalizations.of(context)!
+                  .errorLoadingTopicMessage(e.toString()))),
         );
       }
     }
@@ -262,7 +266,9 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
                 onSelected: (value) async {
                   if (value == 'refresh_chapters') {
                     await _refreshChaptersFromTorrent();
-                  } else if (value == 'magnet' || value == 'torrent' || value == 'download_magnet') {
+                  } else if (value == 'magnet' ||
+                      value == 'torrent' ||
+                      value == 'download_magnet') {
                     _handleDownloadAction(value);
                   }
                 },
@@ -283,8 +289,9 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
                       value: 'magnet',
                       child: ListTile(
                         leading: const Icon(Icons.link),
-                        title: Text(AppLocalizations.of(context)?.copyMagnetLink ??
-                            'Copy Magnet Link'),
+                        title: Text(
+                            AppLocalizations.of(context)?.copyMagnetLink ??
+                                'Copy Magnet Link'),
                         contentPadding: EdgeInsets.zero,
                       ),
                     ),
@@ -292,8 +299,9 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
                       value: 'torrent',
                       child: ListTile(
                         leading: const Icon(Icons.file_download),
-                        title: Text(AppLocalizations.of(context)?.downloadTorrentMenu ??
-                            'Download Torrent'),
+                        title: Text(
+                            AppLocalizations.of(context)?.downloadTorrentMenu ??
+                                'Download Torrent'),
                         contentPadding: EdgeInsets.zero,
                       ),
                     ),
@@ -301,8 +309,9 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
                       value: 'download_magnet',
                       child: ListTile(
                         leading: const Icon(Icons.download),
-                        title: Text(AppLocalizations.of(context)?.downloadViaMagnet ??
-                            'Download via Magnet'),
+                        title: Text(
+                            AppLocalizations.of(context)?.downloadViaMagnet ??
+                                'Download via Magnet'),
                         contentPadding: EdgeInsets.zero,
                       ),
                     ),
@@ -323,7 +332,8 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
                   downloadId: _activeDownloadId!,
                   progress: _currentProgress!,
                   onPause: () async {
-                    final torrentManager = AudiobookTorrentManager();
+                    final torrentManager =
+                        await ref.read(audiobookTorrentManagerProvider.future);
                     await torrentManager.pauseDownload(_activeDownloadId!);
                     if (mounted) {
                       setState(() {
@@ -341,11 +351,13 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
                     }
                   },
                   onResume: () async {
-                    final torrentManager = AudiobookTorrentManager();
+                    final torrentManager =
+                        await ref.read(audiobookTorrentManagerProvider.future);
                     await torrentManager.resumeDownload(_activeDownloadId!);
                   },
                   onCancel: () async {
-                    final torrentManager = AudiobookTorrentManager();
+                    final torrentManager =
+                        await ref.read(audiobookTorrentManagerProvider.future);
                     await torrentManager.removeDownload(_activeDownloadId!);
                     if (mounted) {
                       setState(() {
@@ -415,54 +427,59 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
         <String>[];
     // Chapters variable is not used, removed to fix lint warning
 
+    // Determine font size based on screen size
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isSmallScreen = screenWidth < 360;
+    final titleStyle = isSmallScreen
+        ? Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 20)
+        : Theme.of(context).textTheme.headlineSmall;
+    final authorStyle = isSmallScreen
+        ? Theme.of(context).textTheme.titleSmall
+        : Theme.of(context).textTheme.titleMedium;
+
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: Theme.of(context).textTheme.headlineSmall,
-            maxLines: 3,
-            overflow: TextOverflow.ellipsis,
+          _ExpandableTitle(
+            title: title,
+            style: titleStyle,
           ),
-          const SizedBox(height: 8),
-          Text(
+          const SizedBox(height: 12),
+          SelectableText(
             'by $author',
-            style: Theme.of(context).textTheme.titleMedium,
+            style: authorStyle,
           ),
           if (performer != null && performer.isNotEmpty) ...[
-            const SizedBox(height: 4),
-            Text(
+            const SizedBox(height: 8),
+            SelectableText(
               'Performed by $performer',
               style: Theme.of(context).textTheme.bodyMedium,
             ),
           ],
           const SizedBox(height: 16),
-          Row(
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
             children: [
-              Chip(
-                label: Text(category),
-                backgroundColor: Colors.blue.shade100,
+              _buildChip(
+                category,
+                Colors.blue.shade100,
               ),
-              const SizedBox(width: 8),
-              Chip(
-                label: Text(size),
-                backgroundColor: Colors.green.shade100,
+              _buildChip(
+                size,
+                Colors.green.shade100,
               ),
-              const SizedBox(width: 8),
-              Chip(
-                label: Text(
-                    '$seeders${AppLocalizations.of(context)?.seedersLabel ?? ' seeders'}'),
-                backgroundColor: Colors.green.shade100,
-                labelStyle: TextStyle(color: Colors.green.shade900),
+              _buildChip(
+                '$seeders${AppLocalizations.of(context)?.seedersLabel ?? ' seeders'}',
+                Colors.green.shade100,
+                labelColor: Colors.green.shade900,
               ),
-              const SizedBox(width: 8),
-              Chip(
-                label: Text(
-                    '$leechers${AppLocalizations.of(context)?.leechersLabel ?? ' leechers'}'),
-                backgroundColor: Colors.red.shade100,
-                labelStyle: TextStyle(color: Colors.red.shade900),
+              _buildChip(
+                '$leechers${AppLocalizations.of(context)?.leechersLabel ?? ' leechers'}',
+                Colors.red.shade100,
+                labelColor: Colors.red.shade900,
               ),
             ],
           ),
@@ -471,11 +488,13 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
             Wrap(
               spacing: 8,
               runSpacing: 4,
-              children: genres.map((genre) => Chip(
-                label: Text(genre),
-                backgroundColor: Colors.purple.shade100,
-                labelStyle: TextStyle(color: Colors.purple.shade900),
-              )).toList(),
+              children: genres
+                  .map((genre) => Chip(
+                        label: Text(genre),
+                        backgroundColor: Colors.purple.shade100,
+                        labelStyle: TextStyle(color: Colors.purple.shade900),
+                      ))
+                  .toList(),
             ),
           ],
           const SizedBox(height: 16),
@@ -523,8 +542,9 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
                   const Divider(height: 1),
                   ListTile(
                     leading: const Icon(Icons.file_download),
-                    title: Text(AppLocalizations.of(context)?.downloadTorrentMenu ??
-                        'Download Torrent'),
+                    title: Text(
+                        AppLocalizations.of(context)?.downloadTorrentMenu ??
+                            'Download Torrent'),
                     subtitle: Text(AppLocalizations.of(context)
                             ?.openTorrentInExternalApp ??
                         'Open torrent file in external app'),
@@ -616,9 +636,8 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
 
   void _copyMagnetLink() {
     if (_audiobook != null && (_audiobook!['magnetUrl'] as String).isNotEmpty) {
-      final magnetLinkLabel = AppLocalizations.of(context)
-              ?.magnetLinkLabelText ??
-          'Magnet link';
+      final magnetLinkLabel =
+          AppLocalizations.of(context)?.magnetLinkLabelText ?? 'Magnet link';
       _copyToClipboard(_audiobook!['magnetUrl'] as String, magnetLinkLabel);
     }
   }
@@ -633,7 +652,8 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
 
       // Get temporary directory for torrent file
       final tempDir = await getTemporaryDirectory();
-      final torrentFile = File('${tempDir.path}/torrent_${widget.topicId}.torrent');
+      final torrentFile =
+          File('${tempDir.path}/torrent_${widget.topicId}.torrent');
 
       // Download torrent file
       final dio = await DioClient.instance;
@@ -641,7 +661,7 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
         await dio.download(torrentUrl, torrentFile.path);
       } on DioException catch (e) {
         // Check if error is authentication-related
-        if (e.response?.statusCode == 401 || 
+        if (e.response?.statusCode == 401 ||
             e.response?.statusCode == 403 ||
             (e.message?.toLowerCase().contains('authentication') ?? false) ||
             (e.response?.realUri.toString().contains('login.php') ?? false)) {
@@ -664,11 +684,11 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
         // Re-throw other DioExceptions
         rethrow;
       }
-      
+
       // Check if downloaded file is actually a torrent file
       // Sometimes RuTracker returns HTML login page instead of torrent file
       final torrentBytes = await torrentFile.readAsBytes();
-      
+
       // Check if file is too small (likely not a torrent) or starts with HTML
       if (torrentBytes.length < 100) {
         // Too small to be a valid torrent file
@@ -689,12 +709,12 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
         }
         return;
       }
-      
+
       // Check if file starts with HTML (likely login page)
       final fileStart = String.fromCharCodes(
         torrentBytes.take(100),
       ).toLowerCase();
-      if (fileStart.contains('<!doctype') || 
+      if (fileStart.contains('<!doctype') ||
           fileStart.contains('<html') ||
           fileStart.contains('login.php') ||
           fileStart.contains('авторизация')) {
@@ -714,30 +734,88 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
       }
 
       // Start download through AudiobookTorrentManager
-      final torrentManager = AudiobookTorrentManager();
       final downloadDir = await AudiobookTorrentManager.getDownloadDirectory();
-      
+
       // Get audiobook title for better display in downloads list
       final audiobookTitle = _audiobook?['title'] as String? ?? '';
-      
+
+      // Logging start of download
+      final logger = EnvironmentLogger()
+        ..i('Starting torrent download for topic ${widget.topicId}')
+        ..i('Torrent URL: $torrentUrl')
+        ..i('Starting download from torrent file: ${torrentFile.path}');
+
+      final torrentManager =
+          await ref.read(audiobookTorrentManagerProvider.future);
       final downloadId = await torrentManager.downloadFromTorrentFile(
         torrentFile.path,
         '$downloadDir/${widget.topicId}',
         title: audiobookTitle.isNotEmpty ? audiobookTitle : null,
       );
 
+      logger.i('Download started successfully with ID: $downloadId');
+
       // Set up progress tracking
       _activeDownloadId = downloadId;
       await _downloadProgressSubscription?.cancel();
-      _downloadProgressSubscription = torrentManager
-          .getProgressStream(downloadId)
-          .listen((progress) {
+
+      // Set initial progress state
+      if (mounted) {
+        setState(() {
+          _currentProgress = TorrentProgress(
+            progress: 0.0,
+            downloadSpeed: 0.0,
+            uploadSpeed: 0.0,
+            downloadedBytes: 0,
+            totalBytes: 0,
+            seeders: 0,
+            leechers: 0,
+            status: 'downloading_metadata',
+          );
+        });
+      }
+
+      // Subscribe to progress with error handling
+      try {
+        _downloadProgressSubscription =
+            torrentManager.getProgressStream(downloadId).listen(
+          (progress) {
+            if (mounted) {
+              setState(() {
+                _currentProgress = progress;
+              });
+            }
+          },
+          onError: (error) {
+            logger.e('Error in download progress stream: $error');
+            if (mounted) {
+              setState(() {
+                _currentProgress = TorrentProgress(
+                  progress: _currentProgress?.progress ?? 0.0,
+                  downloadSpeed: 0.0,
+                  uploadSpeed: 0.0,
+                  downloadedBytes: _currentProgress?.downloadedBytes ?? 0,
+                  totalBytes: _currentProgress?.totalBytes ?? 0,
+                  seeders: 0,
+                  leechers: 0,
+                  status: 'error: $error',
+                );
+              });
+            }
+          },
+        );
+      } on Exception catch (e) {
+        logger.e('Failed to subscribe to download progress: $e');
         if (mounted) {
-          setState(() {
-            _currentProgress = progress;
-          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                '${AppLocalizations.of(context)?.failedToStartDownload ?? 'Failed to start download'}: Failed to track download progress: ${e.toString()}',
+              ),
+            ),
+          );
         }
-      });
+      }
 
       // Delete temporary torrent file after starting download
       try {
@@ -751,12 +829,14 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              AppLocalizations.of(context)?.downloadStarted ?? 'Download started',
+              AppLocalizations.of(context)?.downloadStarted ??
+                  'Download started',
             ),
           ),
         );
       }
     } on Exception catch (e) {
+      EnvironmentLogger().e('Failed to start download: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -775,42 +855,101 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
     if (magnetUrl.isEmpty) return;
 
     try {
-      final torrentManager = AudiobookTorrentManager();
       final downloadDir = await AudiobookTorrentManager.getDownloadDirectory();
-      
+
       // Get audiobook title for better display in downloads list
       final audiobookTitle = _audiobook?['title'] as String? ?? '';
-      
+
+      // Logging start of download
+      final logger = EnvironmentLogger()
+        ..i('Starting magnet download for topic ${widget.topicId}')
+        ..i('Magnet URL: $magnetUrl');
+
+      final torrentManager =
+          await ref.read(audiobookTorrentManagerProvider.future);
       final downloadId = await torrentManager.downloadSequential(
         magnetUrl,
         '$downloadDir/${widget.topicId}',
         title: audiobookTitle.isNotEmpty ? audiobookTitle : null,
       );
 
+      logger.i('Download started successfully with ID: $downloadId');
+
       // Set up progress tracking
       _activeDownloadId = downloadId;
       await _downloadProgressSubscription?.cancel();
-      _downloadProgressSubscription = torrentManager
-          .getProgressStream(downloadId)
-          .listen((progress) {
+
+      // Set initial progress state
+      if (mounted) {
+        setState(() {
+          _currentProgress = TorrentProgress(
+            progress: 0.0,
+            downloadSpeed: 0.0,
+            uploadSpeed: 0.0,
+            downloadedBytes: 0,
+            totalBytes: 0,
+            seeders: 0,
+            leechers: 0,
+            status: 'downloading_metadata',
+          );
+        });
+      }
+
+      // Subscribe to progress with error handling
+      try {
+        _downloadProgressSubscription =
+            torrentManager.getProgressStream(downloadId).listen(
+          (progress) {
+            if (mounted) {
+              setState(() {
+                _currentProgress = progress;
+              });
+            }
+          },
+          onError: (error) {
+            logger.e('Error in download progress stream: $error');
+            if (mounted) {
+              setState(() {
+                _currentProgress = TorrentProgress(
+                  progress: _currentProgress?.progress ?? 0.0,
+                  downloadSpeed: 0.0,
+                  uploadSpeed: 0.0,
+                  downloadedBytes: _currentProgress?.downloadedBytes ?? 0,
+                  totalBytes: _currentProgress?.totalBytes ?? 0,
+                  seeders: 0,
+                  leechers: 0,
+                  status: 'error: $error',
+                );
+              });
+            }
+          },
+        );
+      } on Exception catch (e) {
+        logger.e('Failed to subscribe to download progress: $e');
         if (mounted) {
-          setState(() {
-            _currentProgress = progress;
-          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                '${AppLocalizations.of(context)?.failedToStartDownload ?? 'Failed to start download'}: Failed to track download progress: ${e.toString()}',
+              ),
+            ),
+          );
         }
-      });
+      }
 
       // Show notification
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              AppLocalizations.of(context)?.downloadStarted ?? 'Download started',
+              AppLocalizations.of(context)?.downloadStarted ??
+                  'Download started',
             ),
           ),
         );
       }
     } on Exception catch (e) {
+      EnvironmentLogger().e('Failed to start magnet download: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -847,13 +986,15 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
       if (chaptersFromTorrent.isNotEmpty && mounted) {
         // Update audiobook with new chapters
         final updatedAudiobook = Map<String, dynamic>.from(_audiobook!);
-        updatedAudiobook['chapters'] = chaptersFromTorrent.map((c) => {
-          'title': c.title,
-          'duration_ms': c.durationMs,
-          'file_index': c.fileIndex,
-          'start_byte': c.startByte,
-          'end_byte': c.endByte,
-        }).toList();
+        updatedAudiobook['chapters'] = chaptersFromTorrent
+            .map((c) => {
+                  'title': c.title,
+                  'duration_ms': c.durationMs,
+                  'file_index': c.fileIndex,
+                  'start_byte': c.startByte,
+                  'end_byte': c.endByte,
+                })
+            .toList();
 
         // Update cache with new chapters
         await _cacheService.cacheTopicDetails(widget.topicId, updatedAudiobook);
@@ -914,10 +1055,11 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
   ///
   /// Downloads the torrent file and extracts audio file names as chapters.
   /// The [forceRefresh] parameter, if true, bypasses cache and forces re-parsing.
-  /// 
+  ///
   /// Throws [AuthFailure] if authentication is required to download the torrent file.
   Future<List<Chapter>> _extractChaptersFromTorrent(
-      String topicId, String endpoint, {bool forceRefresh = false}) async {
+      String topicId, String endpoint,
+      {bool forceRefresh = false}) async {
     try {
       // Download torrent file
       final tempDir = await getTemporaryDirectory();
@@ -931,7 +1073,7 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
         );
       } on DioException catch (e) {
         // Check if error is authentication-related
-        if (e.response?.statusCode == 401 || 
+        if (e.response?.statusCode == 401 ||
             e.response?.statusCode == 403 ||
             (e.message?.toLowerCase().contains('authentication') ?? false) ||
             (e.response?.realUri.toString().contains('login.php') ?? false)) {
@@ -952,7 +1094,7 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
       // Check if downloaded file is actually a torrent file
       // Sometimes RuTracker returns HTML login page instead of torrent file
       final torrentBytes = await torrentFile.readAsBytes();
-      
+
       // Check if file is too small (likely not a torrent) or starts with HTML
       if (torrentBytes.length < 100) {
         // Too small to be a valid torrent file
@@ -961,14 +1103,15 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
         } on Exception {
           // Ignore deletion errors
         }
-        throw const AuthFailure('Downloaded file is too small, may require authentication');
+        throw const AuthFailure(
+            'Downloaded file is too small, may require authentication');
       }
-      
+
       // Check if file starts with HTML (likely login page)
       final fileStart = String.fromCharCodes(
         torrentBytes.take(100),
       ).toLowerCase();
-      if (fileStart.contains('<!doctype') || 
+      if (fileStart.contains('<!doctype') ||
           fileStart.contains('<html') ||
           fileStart.contains('login.php') ||
           fileStart.contains('авторизация')) {
@@ -1021,8 +1164,97 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
     Clipboard.setData(ClipboardData(text: text));
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-          content: Text(AppLocalizations.of(context)!
-              .copyToClipboardMessage(label))),
+          content: Text(
+              AppLocalizations.of(context)!.copyToClipboardMessage(label))),
+    );
+  }
+
+  /// Builds a chip with constrained width and tooltip.
+  Widget _buildChip(String label, Color backgroundColor, {Color? labelColor}) {
+    final maxWidth = MediaQuery.of(context).size.width * 0.4;
+
+    return Tooltip(
+      message: label,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: maxWidth),
+        child: Chip(
+          label: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: labelColor != null ? TextStyle(color: labelColor) : null,
+          ),
+          backgroundColor: backgroundColor,
+        ),
+      ),
+    );
+  }
+}
+
+/// Widget for displaying expandable title with show more/less functionality.
+class _ExpandableTitle extends StatefulWidget {
+  const _ExpandableTitle({
+    required this.title,
+    this.style,
+    // ignore: unused_element_parameter
+    this.maxLinesCollapsed = 2,
+  });
+
+  final String title;
+  final TextStyle? style;
+  final int maxLinesCollapsed;
+
+  @override
+  State<_ExpandableTitle> createState() => _ExpandableTitleState();
+}
+
+class _ExpandableTitleState extends State<_ExpandableTitle> {
+  bool _isExpanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final textStyle = widget.style ?? Theme.of(context).textTheme.headlineSmall;
+    final shouldShowButton = widget.title.length > 100;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        AnimatedCrossFade(
+          firstChild: Text(
+            widget.title,
+            style: textStyle,
+            maxLines: widget.maxLinesCollapsed,
+            overflow: TextOverflow.ellipsis,
+          ),
+          secondChild: SelectableText(
+            widget.title,
+            style: textStyle,
+          ),
+          crossFadeState: _isExpanded
+              ? CrossFadeState.showSecond
+              : CrossFadeState.showFirst,
+          duration: const Duration(milliseconds: 200),
+        ),
+        if (shouldShowButton)
+          TextButton.icon(
+            onPressed: () {
+              setState(() {
+                _isExpanded = !_isExpanded;
+              });
+            },
+            icon: Icon(_isExpanded ? Icons.expand_less : Icons.expand_more),
+            label: Text(
+              _isExpanded
+                  ? AppLocalizations.of(context)?.showLess ?? 'Show less'
+                  : AppLocalizations.of(context)?.showMore ?? 'Show more',
+            ),
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.only(top: 4),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+          ),
+      ],
     );
   }
 }

@@ -25,7 +25,8 @@ void main() {
       expect(errorType, AuthErrorType.sessionExpired);
     });
 
-    test('getErrorType should return invalidCredentials for invalid credentials',
+    test(
+        'getErrorType should return invalidCredentials for invalid credentials',
         () {
       const error = AuthFailure.invalidCredentials();
       final errorType = AuthErrorHandler.getErrorType(error);
@@ -114,4 +115,3 @@ void main() {
     });
   });
 }
-

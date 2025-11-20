@@ -22,6 +22,7 @@ import 'package:dtorrent_common/dtorrent_common.dart'; // PeerSource is used in 
 import 'package:dtorrent_parser/dtorrent_parser.dart';
 import 'package:dtorrent_task_v2/dtorrent_task_v2.dart';
 import 'package:jabook/core/errors/failures.dart';
+import 'package:jabook/core/logging/environment_logger.dart';
 import 'package:jabook/core/utils/safe_async.dart';
 import 'package:jabook/data/db/app_database.dart';
 import 'package:path_provider/path_provider.dart';
@@ -124,7 +125,15 @@ class AudiobookTorrentManager {
   /// Returns the download ID for tracking progress.
   ///
   /// Throws [TorrentFailure] if the download cannot be started.
-  Future<String> downloadSequential(String magnetUrl, String savePath, {String? title}) async {
+  Future<String> downloadSequential(String magnetUrl, String savePath,
+      {String? title}) async {
+    // Check initialization
+    final logger = EnvironmentLogger();
+    if (_db == null) {
+      logger.w('AudiobookTorrentManager not initialized with database');
+      // Continue without persistence, but log warning
+    }
+
     String? downloadId;
     try {
       // Generate a unique download ID
@@ -224,6 +233,13 @@ class AudiobookTorrentManager {
       );
       _activeTasks[downloadId] = task;
 
+      // Log task creation
+      final logger = EnvironmentLogger()
+        ..i('Created TorrentTask for download $downloadId')
+        ..i('Torrent name: ${torrentModel.name}')
+        ..i('Torrent size: ${torrentModel.length} bytes')
+        ..i('Save path: $savePath');
+
       // Apply selected files from magnet link (BEP 0053) if specified
       if (magnet.selectedFileIndices != null &&
           magnet.selectedFileIndices!.isNotEmpty) {
@@ -239,7 +255,7 @@ class AudiobookTorrentManager {
         if (title != null && title.isNotEmpty) 'title': title,
       };
       _downloadMetadata[downloadId] = metadata;
-      
+
       // Persist to database
       await _saveDownloadMetadata(downloadId, metadata);
 
@@ -247,10 +263,12 @@ class AudiobookTorrentManager {
       // downloadId is guaranteed to be non-null at this point
       final finalDownloadId = downloadId;
       task.events.on<TaskStarted>((event) {
+        logger.i('Task started for download $finalDownloadId');
         _updateProgress(finalDownloadId, task, progressController);
       });
 
       task.events.on<AllComplete>((event) {
+        logger.i('Download completed for download $finalDownloadId');
         final progress = TorrentProgress(
           progress: 100.0,
           downloadSpeed: 0.0,
@@ -267,7 +285,7 @@ class AudiobookTorrentManager {
         _progressControllers.remove(downloadId);
         _activeTasks.remove(downloadId);
         _downloadMetadata.remove(downloadId);
-        
+
         // Remove from database when completed
         safeUnawaited(_removeDownloadMetadata(finalDownloadId));
       });
@@ -347,7 +365,8 @@ class AudiobookTorrentManager {
   ///
   /// Throws [TorrentFailure] if the download cannot be started.
   Future<String> downloadFromTorrentFile(
-      String torrentFilePath, String savePath, {String? title}) async {
+      String torrentFilePath, String savePath,
+      {String? title}) async {
     final torrentFile = File(torrentFilePath);
     if (!await torrentFile.exists()) {
       throw const TorrentFailure('Torrent file not found');
@@ -371,7 +390,15 @@ class AudiobookTorrentManager {
   ///
   /// Throws [TorrentFailure] if the download cannot be started.
   Future<String> downloadFromTorrentBytes(
-      List<int> torrentBytes, String savePath, {String? title}) async {
+      List<int> torrentBytes, String savePath,
+      {String? title}) async {
+    // Check initialization
+    final logger = EnvironmentLogger();
+    if (_db == null) {
+      logger.w('AudiobookTorrentManager not initialized with database');
+      // Continue without persistence, but log warning
+    }
+
     String? downloadId;
     try {
       // Generate a unique download ID
@@ -403,6 +430,13 @@ class AudiobookTorrentManager {
       );
       _activeTasks[downloadId] = task;
 
+      // Log task creation
+      final logger = EnvironmentLogger()
+        ..i('Created TorrentTask for download $downloadId')
+        ..i('Torrent name: ${torrentModel.name}')
+        ..i('Torrent size: ${torrentModel.length} bytes')
+        ..i('Save path: $savePath');
+
       // Store metadata
       final metadata = <String, dynamic>{
         'savePath': savePath,
@@ -412,17 +446,19 @@ class AudiobookTorrentManager {
         metadata['title'] = title;
       }
       _downloadMetadata[downloadId] = metadata;
-      
+
       // Persist to database
       await _saveDownloadMetadata(downloadId, metadata);
 
       // Set up event listeners
       final finalDownloadId = downloadId;
       task.events.on<TaskStarted>((event) {
+        logger.i('Task started for download $finalDownloadId');
         _updateProgress(finalDownloadId, task, progressController);
       });
 
       task.events.on<AllComplete>((event) {
+        logger.i('Download completed for download $finalDownloadId');
         final progress = TorrentProgress(
           progress: 100.0,
           downloadSpeed: 0.0,
@@ -439,7 +475,7 @@ class AudiobookTorrentManager {
         _progressControllers.remove(downloadId);
         _activeTasks.remove(downloadId);
         _downloadMetadata.remove(downloadId);
-        
+
         // Remove from database when completed
         safeUnawaited(_removeDownloadMetadata(finalDownloadId));
       });
@@ -481,7 +517,7 @@ class AudiobookTorrentManager {
       try {
         // Check if task is stopped (paused)
         final isPaused = _downloadMetadata[downloadId]?['pausedAt'] != null;
-        
+
         String status;
         if (task.progress >= 1.0) {
           status = 'completed';
@@ -490,7 +526,7 @@ class AudiobookTorrentManager {
         } else {
           status = 'downloading';
         }
-        
+
         final progress = TorrentProgress(
           progress: task.progress * 100,
           downloadSpeed: isPaused ? 0.0 : task.currentDownloadSpeed,
@@ -549,11 +585,12 @@ class AudiobookTorrentManager {
       }
 
       await task.stop();
-      _downloadMetadata[downloadId]?['pausedAt'] = DateTime.now().toIso8601String();
-      
+      _downloadMetadata[downloadId]?['pausedAt'] =
+          DateTime.now().toIso8601String();
+
       // Update database
       await _saveDownloadMetadata(downloadId, _downloadMetadata[downloadId]!);
-      
+
       // Update progress status to paused
       final controller = _progressControllers[downloadId];
       if (controller != null && !controller.isClosed) {
@@ -592,13 +629,13 @@ class AudiobookTorrentManager {
 
       // Remove pausedAt flag
       metadata.remove('pausedAt');
-      
+
       // Update database
       await _saveDownloadMetadata(downloadId, metadata);
-      
+
       // Resume the task
       await task.start();
-      
+
       // Update progress status to downloading
       final controller = _progressControllers[downloadId];
       if (controller != null && !controller.isClosed) {
@@ -686,7 +723,7 @@ class AudiobookTorrentManager {
 
         // Use title from metadata if available, otherwise use torrent name
         final displayName = metadata['title'] as String? ?? task.metaInfo.name;
-        
+
         downloads.add({
           'id': downloadId,
           'name': displayName,
@@ -749,7 +786,7 @@ class AudiobookTorrentManager {
   Future<void> _saveDownloadMetadata(
       String downloadId, Map<String, dynamic> metadata) async {
     if (_db == null) return;
-    
+
     try {
       final store = AppDatabase().downloadsStore;
       await store.record(downloadId).put(_db!, metadata);
@@ -761,7 +798,7 @@ class AudiobookTorrentManager {
   /// Removes download metadata from database.
   Future<void> _removeDownloadMetadata(String downloadId) async {
     if (_db == null) return;
-    
+
     try {
       final store = AppDatabase().downloadsStore;
       await store.record(downloadId).delete(_db!);
@@ -773,29 +810,29 @@ class AudiobookTorrentManager {
   /// Restores downloads from database on app startup.
   Future<void> _restoreDownloads() async {
     if (_db == null) return;
-    
+
     try {
       final store = AppDatabase().downloadsStore;
       final records = await store.find(_db!);
-      
+
       for (final record in records) {
         final downloadId = record.key;
         final metadata = record.value;
-        
+
         // Check if save path still exists
         final savePath = metadata['savePath'] as String?;
         if (savePath == null) continue;
-        
+
         final saveDir = Directory(savePath);
         if (!await saveDir.exists()) {
           // Download directory doesn't exist, remove from database
           await _removeDownloadMetadata(downloadId);
           continue;
         }
-        
+
         // Restore metadata to memory
         _downloadMetadata[downloadId] = metadata;
-        
+
         // Note: We don't actually restart the download here,
         // just restore the metadata. The user can manually resume if needed.
         // This is because TorrentTask cannot be restored from disk state.

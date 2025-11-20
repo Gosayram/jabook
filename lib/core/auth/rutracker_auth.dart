@@ -170,11 +170,13 @@ class RuTrackerAuth {
             final cookies = await cookieJar.loadForRequest(uri);
             if (cookies.isNotEmpty) {
               // Convert cookies to cookie header string for CookieService
-              final cookieHeader = cookies.map((c) => '${c.name}=${c.value}').join('; ');
-              
+              final cookieHeader =
+                  cookies.map((c) => '${c.name}=${c.value}').join('; ');
+
               // Save to CookieService via DioClient (Android only)
-              await DioClient.syncCookiesFromCookieService(cookieHeader, activeBase);
-              
+              await DioClient.syncCookiesFromCookieService(
+                  cookieHeader, activeBase);
+
               await logger.log(
                 level: 'info',
                 subsystem: 'auth',
@@ -204,9 +206,11 @@ class RuTrackerAuth {
           final uri = Uri.parse(activeBase);
           final cookies = await cookieJar.loadForRequest(uri);
           if (cookies.isNotEmpty) {
-            final cookieHeader = cookies.map((c) => '${c.name}=${c.value}').join('; ');
-            await DioClient.saveCookiesToSecureStorage(cookieHeader, activeBase);
-            
+            final cookieHeader =
+                cookies.map((c) => '${c.name}=${c.value}').join('; ');
+            await DioClient.saveCookiesToSecureStorage(
+                cookieHeader, activeBase);
+
             await logger.log(
               level: 'info',
               subsystem: 'auth',
@@ -252,14 +256,17 @@ class RuTrackerAuth {
         // Validate authentication (optional confirmation)
         // If cookies are received and saved, authentication is considered successful
         // Validation is performed for confirmation and logging purposes
-        final isValid = await _validateAuthentication(dio, activeBase, operationId);
+        final isValid =
+            await _validateAuthentication(dio, activeBase, operationId);
 
-        final totalDuration = DateTime.now().difference(startTime).inMilliseconds;
-        
+        final totalDuration =
+            DateTime.now().difference(startTime).inMilliseconds;
+
         // Cookies received = authentication successful
         // Validation is optional confirmation (may fail due to network issues, timeouts, etc.)
-        const loginSuccessful = true; // Cookies received means authentication succeeded
-        
+        const loginSuccessful =
+            true; // Cookies received means authentication succeeded
+
         if (isValid) {
           _authStatusController.add(true);
           await logger.log(
@@ -281,13 +288,15 @@ class RuTrackerAuth {
           await logger.log(
             level: 'info',
             subsystem: 'auth',
-            message: 'Direct HTTP login successful (cookies received, validation failed but ignored)',
+            message:
+                'Direct HTTP login successful (cookies received, validation failed but ignored)',
             operationId: operationId,
             context: 'http_login',
             durationMs: totalDuration,
             extra: {
               'validation_passed': false,
-              'note': 'Cookies received means authentication succeeded, validation failure ignored',
+              'note':
+                  'Cookies received means authentication succeeded, validation failure ignored',
             },
           );
         }
@@ -296,7 +305,8 @@ class RuTrackerAuth {
       } else {
         // Handle authentication errors
         final errorMessage = authResult.errorMessage ?? 'Unknown error';
-        final totalDuration = DateTime.now().difference(startTime).inMilliseconds;
+        final totalDuration =
+            DateTime.now().difference(startTime).inMilliseconds;
 
         await logger.log(
           level: 'warning',
@@ -390,7 +400,8 @@ class RuTrackerAuth {
             options: Options(
               validateStatus: (status) => status != null && status < 500,
               receiveTimeout: const Duration(seconds: 5),
-              followRedirects: false, // Don't follow redirects to see if we get 302 to login
+              followRedirects:
+                  false, // Don't follow redirects to see if we get 302 to login
             ),
           )
           .timeout(const Duration(seconds: 10));
@@ -404,7 +415,11 @@ class RuTrackerAuth {
       // Check if redirected to login (not authenticated)
       final isProfileRedirectedToLogin = profileUri.contains('login.php') ||
           (profileResponse.statusCode == 302 &&
-              (profileResponse.headers.value('location')?.toLowerCase().contains('login.php') ?? false));
+              (profileResponse.headers
+                      .value('location')
+                      ?.toLowerCase()
+                      .contains('login.php') ??
+                  false));
 
       // Check for profile page elements (indicates authenticated user)
       final hasProfileElements = profileBody.contains('личный кабинет') ||
@@ -496,7 +511,11 @@ class RuTrackerAuth {
       // Check if redirected to login (not authenticated)
       final isSearchRedirectedToLogin = searchUri.contains('login.php') ||
           (searchResponse.statusCode == 302 &&
-              (searchResponse.headers.value('location')?.toLowerCase().contains('login.php') ?? false));
+              (searchResponse.headers
+                      .value('location')
+                      ?.toLowerCase()
+                      .contains('login.php') ??
+                  false));
 
       // Check for authentication required messages
       final requiresAuth = (searchBody.contains('action="https://rutracker') &&
@@ -511,7 +530,8 @@ class RuTrackerAuth {
           searchBody.contains('search') ||
           searchBody.contains('форум') ||
           searchBody.contains('forum') ||
-          searchBody.length > 1000; // Authenticated search page is usually > 1KB
+          searchBody.length >
+              1000; // Authenticated search page is usually > 1KB
 
       final isSearchAccessible = searchResponse.statusCode == 200 &&
           !isSearchRedirectedToLogin &&
@@ -572,7 +592,11 @@ class RuTrackerAuth {
 
         final isIndexRedirectedToLogin = indexUri.contains('login.php') ||
             (indexResponse.statusCode == 302 &&
-                (indexResponse.headers.value('location')?.toLowerCase().contains('login.php') ?? false));
+                (indexResponse.headers
+                        .value('location')
+                        ?.toLowerCase()
+                        .contains('login.php') ??
+                    false));
 
         final isIndexAccessible = indexResponse.statusCode == 200 &&
             !isIndexRedirectedToLogin &&
@@ -726,7 +750,7 @@ class RuTrackerAuth {
       final activeBase = await endpointManager.getActiveEndpoint();
       final dio = await DioClient.instance;
       final cookieJar = await _getCookieJar(dio);
-      
+
       await _cookieManager.clearCookie(activeBase, cookieJar);
       _authStatusController.add(false);
     } on Exception {
@@ -737,9 +761,8 @@ class RuTrackerAuth {
   /// Gets the cookie jar from Dio instance.
   Future<CookieJar> _getCookieJar(Dio dio) async {
     // Find CookieManager interceptor
-    final cookieInterceptors = dio.interceptors
-        .whereType<CookieManager>()
-        .toList();
+    final cookieInterceptors =
+        dio.interceptors.whereType<CookieManager>().toList();
     if (cookieInterceptors.isNotEmpty) {
       return cookieInterceptors.first.cookieJar;
     }
@@ -913,5 +936,4 @@ class RuTrackerAuth {
   Future<void> importCredentials(String data, {String format = 'json'}) async {
     await _credentialManager.importCredentials(data, format: format);
   }
-
 }

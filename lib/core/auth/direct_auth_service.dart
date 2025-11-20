@@ -64,8 +64,7 @@ class DirectAuthService {
     String password,
     String baseUrl,
   ) async {
-    final operationId =
-        'direct_auth_${DateTime.now().millisecondsSinceEpoch}';
+    final operationId = 'direct_auth_${DateTime.now().millisecondsSinceEpoch}';
     final logger = StructuredLogger();
     final startTime = DateTime.now();
 
@@ -158,8 +157,10 @@ class DirectAuthService {
           validateStatus: (status) => status != null && status < 600,
           followRedirects: false,
           headers: {
-            'Content-Type': 'application/x-www-form-urlencoded; charset=windows-1251',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Content-Type':
+                'application/x-www-form-urlencoded; charset=windows-1251',
+            'Accept':
+                'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
             'Accept-Language': 'ru,en-US;q=0.8,en;q=0.6',
             'Accept-Encoding': 'gzip,deflate',
             'Referer': '$baseUrl/forum/index.php',
@@ -173,7 +174,8 @@ class DirectAuthService {
 
       // Log response details including redirect info
       // In Python parser: 302 with cookies = success (allow_redirects=False)
-      final isRedirect = response.statusCode == 302 || response.statusCode == 301;
+      final isRedirect =
+          response.statusCode == 302 || response.statusCode == 301;
       final locationHeader = response.headers.value('location') ?? '';
       final setCookieHeaders = response.headers['set-cookie'];
 
@@ -182,7 +184,7 @@ class DirectAuthService {
       response.headers.forEach((key, values) {
         allHeaders[key] = values.length == 1 ? values.first : values;
       });
-      
+
       await logger.log(
         level: 'info', // Changed to 'info' to ensure it's logged
         subsystem: 'auth',
@@ -195,7 +197,8 @@ class DirectAuthService {
           'is_redirect': isRedirect,
           'location_header': locationHeader,
           'response_size': response.data?.toString().length ?? 0,
-          'has_cookies': setCookieHeaders != null && setCookieHeaders.isNotEmpty,
+          'has_cookies':
+              setCookieHeaders != null && setCookieHeaders.isNotEmpty,
           'set_cookie_headers_count': setCookieHeaders?.length ?? 0,
           'all_response_headers': allHeaders,
           'set_cookie_headers': setCookieHeaders?.toList() ?? [],
@@ -204,7 +207,7 @@ class DirectAuthService {
 
       // Step 4: Extract and validate cookies
       final cookieExtractStartTime = DateTime.now();
-      
+
       // Log cookie extraction for debugging (always log, even if no cookies)
       await logger.log(
         level: 'info', // Changed to 'info' to ensure it's logged
@@ -214,7 +217,8 @@ class DirectAuthService {
         context: 'direct_auth',
         extra: {
           'set_cookie_headers_count': setCookieHeaders?.length ?? 0,
-          'set_cookie_headers_preview': setCookieHeaders != null && setCookieHeaders.isNotEmpty
+          'set_cookie_headers_preview': setCookieHeaders != null &&
+                  setCookieHeaders.isNotEmpty
               ? setCookieHeaders
                   .map((h) => h.length > 100 ? '${h.substring(0, 100)}...' : h)
                   .toList()
@@ -222,11 +226,11 @@ class DirectAuthService {
           'set_cookie_headers_full': setCookieHeaders?.toList() ?? [],
         },
       );
-      
+
       final cookieString = _extractCookie(response);
       final cookieExtractDuration =
           DateTime.now().difference(cookieExtractStartTime).inMilliseconds;
-      
+
       // Log cookie extraction result
       await logger.log(
         level: 'info',
@@ -324,7 +328,8 @@ class DirectAuthService {
 
       if (e.type == DioExceptionType.connectionTimeout ||
           e.type == DioExceptionType.receiveTimeout) {
-        throw const AuthFailure('Request timeout. Please check your connection.');
+        throw const AuthFailure(
+            'Request timeout. Please check your connection.');
       }
 
       throw AuthFailure('Network error: ${e.message}');
@@ -367,8 +372,9 @@ class DirectAuthService {
   /// Percent-encodes a list of bytes.
   ///
   /// Converts bytes to percent-encoded string (e.g., %E2%F5%EE%E4).
-  String _percentEncode(List<int> bytes) =>
-      bytes.map((byte) => '%${byte.toRadixString(16).toUpperCase().padLeft(2, '0')}').join();
+  String _percentEncode(List<int> bytes) => bytes
+      .map((byte) => '%${byte.toRadixString(16).toUpperCase().padLeft(2, '0')}')
+      .join();
 
   /// Extracts cookie string from response.
   ///
@@ -378,9 +384,9 @@ class DirectAuthService {
     // Check Set-Cookie header
     // Dio stores Set-Cookie headers in response.headers['set-cookie'] as List<String>
     // Note: Dio headers are case-insensitive, but we check both lowercase and title case
-    final setCookieHeaders = response.headers['set-cookie'] ?? 
-                             response.headers['Set-Cookie'];
-    
+    final setCookieHeaders =
+        response.headers['set-cookie'] ?? response.headers['Set-Cookie'];
+
     if (setCookieHeaders != null && setCookieHeaders.isNotEmpty) {
       for (final cookieHeader in setCookieHeaders) {
         // Cookie header format: "bb_session=value; path=/; domain=..."
@@ -402,7 +408,7 @@ class DirectAuthService {
 
     // Also check response.headers.value('set-cookie') as fallback (case-insensitive)
     final setCookieValue = response.headers.value('set-cookie') ??
-                           response.headers.value('Set-Cookie');
+        response.headers.value('Set-Cookie');
     if (setCookieValue != null && setCookieValue.contains('bb_session=')) {
       final match = RegExp(r'bb_session=([^;]+)').firstMatch(setCookieValue);
       if (match != null) {
@@ -412,13 +418,15 @@ class DirectAuthService {
         }
       }
     }
-    
+
     // Try to get cookies from CookieManager if available
     // This is a fallback in case cookies are already processed by CookieManager
     try {
       final cookieManager = response.requestOptions.headers['Cookie'];
-      if (cookieManager != null && cookieManager.toString().contains('bb_session=')) {
-        final match = RegExp(r'bb_session=([^;]+)').firstMatch(cookieManager.toString());
+      if (cookieManager != null &&
+          cookieManager.toString().contains('bb_session=')) {
+        final match =
+            RegExp(r'bb_session=([^;]+)').firstMatch(cookieManager.toString());
         if (match != null) {
           final sessionValue = match.group(1)?.trim();
           if (sessionValue != null && sessionValue.isNotEmpty) {
@@ -450,7 +458,7 @@ class DirectAuthService {
         return 'Authentication failed - redirected to login';
       }
     }
-    
+
     final responseBody = response.data;
     if (responseBody == null) {
       return 'No response body';
@@ -519,4 +527,3 @@ class DirectAuthService {
     return 'no cookies returned';
   }
 }
-

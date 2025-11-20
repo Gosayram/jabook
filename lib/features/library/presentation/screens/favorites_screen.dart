@@ -116,9 +116,9 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(AppLocalizations.of(context)
-                    ?.failedToRemoveFromFavorites ??
-                'Failed to remove from favorites'),
+            content: Text(
+                AppLocalizations.of(context)?.failedToRemoveFromFavorites ??
+                    'Failed to remove from favorites'),
           ),
         );
       }
@@ -152,14 +152,14 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   @override
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(
-          title: Text(AppLocalizations.of(context)?.favoritesTitle ??
-              'Favorites'),
+          title:
+              Text(AppLocalizations.of(context)?.favoritesTitle ?? 'Favorites'),
           actions: [
             if (_favorites.isNotEmpty)
               IconButton(
                 icon: const Icon(Icons.refresh),
-                tooltip: AppLocalizations.of(context)?.refreshTooltip ??
-                    'Refresh',
+                tooltip:
+                    AppLocalizations.of(context)?.refreshTooltip ?? 'Refresh',
                 onPressed: _loadFavorites,
               ),
           ],

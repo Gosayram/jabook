@@ -103,7 +103,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
         if (success) {
           // Test connection after successful login
           await _testConnection();
-          
+
           // Return true to indicate successful login
           if (mounted) {
             Navigator.of(context).pop(true);
@@ -121,7 +121,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
             _statusMessage = AppLocalizations.of(context)?.loginFailedMessage ??
                 'Invalid username or password. Please check your credentials.';
           } else if (e.message.contains('captcha')) {
-            _statusMessage = 'Captcha verification required. Please try again later.';
+            _statusMessage =
+                'Captcha verification required. Please try again later.';
           } else {
             _statusMessage = e.message;
           }
@@ -135,7 +136,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
           // Provide user-friendly error messages
           final errorMsg = e.toString().toLowerCase();
           if (errorMsg.contains('timeout') || errorMsg.contains('connection')) {
-            _statusMessage = 'Network error. Please check your connection and try again.';
+            _statusMessage =
+                'Network error. Please check your connection and try again.';
           } else if (errorMsg.contains('authentication required') ||
               errorMsg.contains('network null') ||
               errorMsg.contains('null')) {
@@ -172,8 +174,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       });
     } on Exception catch (e) {
       setState(() {
-        _statusMessage = AppLocalizations.of(context)!
-            .connectionFailedMessage(e.toString());
+        _statusMessage =
+            AppLocalizations.of(context)!.connectionFailedMessage(e.toString());
         _statusColor = Colors.red;
       });
     }
@@ -200,8 +202,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       });
     } on Exception catch (e) {
       setState(() {
-        _statusMessage = AppLocalizations.of(context)!
-            .logoutErrorMessage(e.toString());
+        _statusMessage =
+            AppLocalizations.of(context)!.logoutErrorMessage(e.toString());
         _statusColor = Colors.red;
       });
     }
@@ -308,8 +310,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                           ),
                         ],
                       )
-                    : Text(
-                        AppLocalizations.of(context)?.loginButtonText ?? 'Login'),
+                    : Text(AppLocalizations.of(context)?.loginButtonText ??
+                        'Login'),
               ),
             ],
 

@@ -97,7 +97,8 @@ class PermissionService {
         await _logger.log(
           level: 'debug',
           subsystem: 'permissions',
-          message: 'Cannot request storage permission - Activity not available (expected during early initialization)',
+          message:
+              'Cannot request storage permission - Activity not available (expected during early initialization)',
           cause: e.toString(),
         );
       } else {
@@ -155,7 +156,8 @@ class PermissionService {
         await _logger.log(
           level: 'debug',
           subsystem: 'permissions',
-          message: 'Cannot request notification permission - Activity not available (expected during early initialization)',
+          message:
+              'Cannot request notification permission - Activity not available (expected during early initialization)',
           cause: e.toString(),
         );
       } else {
@@ -297,7 +299,7 @@ class PermissionService {
   ///
   /// This method requests permissions that are critical for app functionality
   /// and should be called during app initialization.
-  /// 
+  ///
   /// Note: Only requests permissions that are actually needed.
   /// Does not request camera or file picker permissions as they are not essential.
   Future<Map<String, bool>> requestEssentialPermissions() async {
@@ -320,7 +322,8 @@ class PermissionService {
           await _logger.log(
             level: 'debug',
             subsystem: 'permissions',
-            message: 'Skipping storage permission - Activity not available (expected during early initialization)',
+            message:
+                'Skipping storage permission - Activity not available (expected during early initialization)',
           );
           results['storage'] = false;
         } else {
@@ -337,7 +340,8 @@ class PermissionService {
           await _logger.log(
             level: 'debug',
             subsystem: 'permissions',
-            message: 'Skipping notification permission - Activity not available (expected during early initialization)',
+            message:
+                'Skipping notification permission - Activity not available (expected during early initialization)',
           );
           results['notification'] = false;
         } else {
@@ -388,7 +392,8 @@ class PermissionService {
         await _logger.log(
           level: 'debug',
           subsystem: 'permissions',
-          message: 'Cannot request audio permissions - Activity not available (expected during early initialization, non-critical)',
+          message:
+              'Cannot request audio permissions - Activity not available (expected during early initialization, non-critical)',
           cause: e.toString(),
         );
       } else {

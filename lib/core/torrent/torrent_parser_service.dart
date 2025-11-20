@@ -27,6 +27,7 @@ import 'package:jabook/core/parse/rutracker_parser.dart';
 class TorrentParserService {
   /// Cache service for storing parsed chapters.
   final RuTrackerCacheService _cacheService = RuTrackerCacheService();
+
   /// Audio file extensions to consider as chapters.
   static const List<String> audioExtensions = [
     '.mp3',
@@ -52,14 +53,14 @@ class TorrentParserService {
   /// For large files (>1MB), parsing is performed in an isolate to avoid blocking the UI thread.
   ///
   /// Throws [Exception] if the torrent cannot be parsed.
-  Future<List<Chapter>> extractChaptersFromTorrent(
-      List<int> torrentBytes, {bool forceRefresh = false}) async {
+  Future<List<Chapter>> extractChaptersFromTorrent(List<int> torrentBytes,
+      {bool forceRefresh = false}) async {
     try {
       // For large files, use isolate to avoid blocking UI
       if (torrentBytes.length > isolateThresholdBytes) {
         return await _extractChaptersInIsolate(torrentBytes, forceRefresh);
       }
-      
+
       // For smaller files, parse directly
       return await _extractChaptersDirectly(torrentBytes, forceRefresh);
     } on Exception {
@@ -81,24 +82,27 @@ class TorrentParserService {
 
       // Calculate infoHash from torrent info dictionary
       final infoHash = _calculateInfoHash(torrentMap);
-      
+
       // Clear cache if force refresh is requested
       if (forceRefresh && infoHash.isNotEmpty) {
         await _cacheService.clearTorrentChaptersCache(infoHash);
       }
-      
+
       // Check cache first (unless force refresh)
       if (!forceRefresh && infoHash.isNotEmpty) {
-        final cachedChapters = await _cacheService.getCachedTorrentChapters(infoHash);
+        final cachedChapters =
+            await _cacheService.getCachedTorrentChapters(infoHash);
         if (cachedChapters != null && cachedChapters.isNotEmpty) {
           // Convert cached maps to Chapter objects
-          return cachedChapters.map((c) => Chapter(
-            title: c['title'] as String? ?? '',
-            durationMs: c['duration_ms'] as int? ?? 0,
-            fileIndex: c['file_index'] as int? ?? 0,
-            startByte: c['start_byte'] as int? ?? 0,
-            endByte: c['end_byte'] as int? ?? 0,
-          )).toList();
+          return cachedChapters
+              .map((c) => Chapter(
+                    title: c['title'] as String? ?? '',
+                    durationMs: c['duration_ms'] as int? ?? 0,
+                    fileIndex: c['file_index'] as int? ?? 0,
+                    startByte: c['start_byte'] as int? ?? 0,
+                    endByte: c['end_byte'] as int? ?? 0,
+                  ))
+              .toList();
         }
       }
 
@@ -141,13 +145,15 @@ class TorrentParserService {
 
       // Cache the parsed chapters if we have an infoHash
       if (infoHash.isNotEmpty && chapters.isNotEmpty) {
-        final chaptersMap = chapters.map((c) => {
-          'title': c.title,
-          'duration_ms': c.durationMs,
-          'file_index': c.fileIndex,
-          'start_byte': c.startByte,
-          'end_byte': c.endByte,
-        }).toList();
+        final chaptersMap = chapters
+            .map((c) => {
+                  'title': c.title,
+                  'duration_ms': c.durationMs,
+                  'file_index': c.fileIndex,
+                  'start_byte': c.startByte,
+                  'end_byte': c.endByte,
+                })
+            .toList();
         await _cacheService.cacheTorrentChapters(infoHash, chaptersMap);
       }
 
@@ -164,40 +170,45 @@ class TorrentParserService {
       // Calculate infoHash for caching (before isolate)
       final torrentMap = decode(Uint8List.fromList(torrentBytes));
       final infoHash = _calculateInfoHash(torrentMap);
-      
+
       // Handle cache before parsing
       if (forceRefresh && infoHash.isNotEmpty) {
         await _cacheService.clearTorrentChaptersCache(infoHash);
       }
-      
+
       if (!forceRefresh && infoHash.isNotEmpty) {
-        final cachedChapters = await _cacheService.getCachedTorrentChapters(infoHash);
+        final cachedChapters =
+            await _cacheService.getCachedTorrentChapters(infoHash);
         if (cachedChapters != null && cachedChapters.isNotEmpty) {
-          return cachedChapters.map((c) => Chapter(
-            title: c['title'] as String? ?? '',
-            durationMs: c['duration_ms'] as int? ?? 0,
-            fileIndex: c['file_index'] as int? ?? 0,
-            startByte: c['start_byte'] as int? ?? 0,
-            endByte: c['end_byte'] as int? ?? 0,
-          )).toList();
+          return cachedChapters
+              .map((c) => Chapter(
+                    title: c['title'] as String? ?? '',
+                    durationMs: c['duration_ms'] as int? ?? 0,
+                    fileIndex: c['file_index'] as int? ?? 0,
+                    startByte: c['start_byte'] as int? ?? 0,
+                    endByte: c['end_byte'] as int? ?? 0,
+                  ))
+              .toList();
         }
       }
-      
+
       // Use compute to run parsing in isolate
       final result = await compute(_parseTorrentInIsolate, torrentBytes);
-      
+
       // Cache the parsed chapters
       if (infoHash.isNotEmpty && result.isNotEmpty) {
-        final chaptersMap = result.map((c) => {
-          'title': c.title,
-          'duration_ms': c.durationMs,
-          'file_index': c.fileIndex,
-          'start_byte': c.startByte,
-          'end_byte': c.endByte,
-        }).toList();
+        final chaptersMap = result
+            .map((c) => {
+                  'title': c.title,
+                  'duration_ms': c.durationMs,
+                  'file_index': c.fileIndex,
+                  'start_byte': c.startByte,
+                  'end_byte': c.endByte,
+                })
+            .toList();
         await _cacheService.cacheTorrentChapters(infoHash, chaptersMap);
       }
-      
+
       return result;
     } on Exception {
       return [];
@@ -281,9 +292,12 @@ class TorrentParserService {
 
     // Remove common prefixes
     title = title.replaceFirst(RegExp(r'^\d+[.\s-]+'), '');
-    title = title.replaceFirst(RegExp(r'^Глава\s*\d+[.\s-]+', caseSensitive: false), '');
-    title = title.replaceFirst(RegExp(r'^Часть\s*\d+[.\s-]+', caseSensitive: false), '');
-    title = title.replaceFirst(RegExp(r'^Chapter\s*\d+[.\s-]+', caseSensitive: false), '');
+    title = title.replaceFirst(
+        RegExp(r'^Глава\s*\d+[.\s-]+', caseSensitive: false), '');
+    title = title.replaceFirst(
+        RegExp(r'^Часть\s*\d+[.\s-]+', caseSensitive: false), '');
+    title = title.replaceFirst(
+        RegExp(r'^Chapter\s*\d+[.\s-]+', caseSensitive: false), '');
 
     // Clean up title
     title = title.trim();
@@ -308,10 +322,10 @@ class TorrentParserService {
 
       // Encode the info dictionary back to bencoded bytes
       final infoBytes = encode(info);
-      
+
       // Calculate SHA1 hash
       final hash = sha1.convert(infoBytes);
-      
+
       // Return as uppercase hexadecimal string
       return hash.toString().toUpperCase();
     } on Exception {
@@ -343,9 +357,12 @@ class TorrentParserService {
 
     // Remove common prefixes
     title = title.replaceFirst(RegExp(r'^\d+[.\s-]+'), '');
-    title = title.replaceFirst(RegExp(r'^Глава\s*\d+[.\s-]+', caseSensitive: false), '');
-    title = title.replaceFirst(RegExp(r'^Часть\s*\d+[.\s-]+', caseSensitive: false), '');
-    title = title.replaceFirst(RegExp(r'^Chapter\s*\d+[.\s-]+', caseSensitive: false), '');
+    title = title.replaceFirst(
+        RegExp(r'^Глава\s*\d+[.\s-]+', caseSensitive: false), '');
+    title = title.replaceFirst(
+        RegExp(r'^Часть\s*\d+[.\s-]+', caseSensitive: false), '');
+    title = title.replaceFirst(
+        RegExp(r'^Chapter\s*\d+[.\s-]+', caseSensitive: false), '');
 
     // Clean up title
     title = title.trim();
@@ -356,4 +373,3 @@ class TorrentParserService {
     return title;
   }
 }
-

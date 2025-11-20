@@ -51,9 +51,10 @@ class WebViewCookieManager {
 
   /// Initializes FlutterCookieBridge SessionManager for automatic cookie synchronization.
   static Future<bridge_session.SessionManager?> initCookieBridge() async {
-    final operationId = 'cookie_bridge_init_${DateTime.now().millisecondsSinceEpoch}';
+    final operationId =
+        'cookie_bridge_init_${DateTime.now().millisecondsSinceEpoch}';
     final startTime = DateTime.now();
-    
+
     await StructuredLogger().log(
       level: 'info',
       subsystem: 'cookies',
@@ -61,7 +62,7 @@ class WebViewCookieManager {
       operationId: operationId,
       context: 'cookie_bridge_init',
     );
-    
+
     try {
       // Initialize SessionManager (singleton, same instance as in DioClient)
       final sessionManager = bridge_session.SessionManager();
@@ -73,7 +74,7 @@ class WebViewCookieManager {
         context: 'cookie_bridge_init',
         extra: {},
       );
-      
+
       // Ensure DioClient is initialized (which initializes FlutterCookieBridge)
       await StructuredLogger().log(
         level: 'info',
@@ -82,9 +83,9 @@ class WebViewCookieManager {
         operationId: operationId,
         context: 'cookie_bridge_init',
       );
-      
+
       await DioClient.instance;
-      
+
       // Verify SessionManager is still available after DioClient init
       final testCookies = await sessionManager.getSessionCookies();
       await StructuredLogger().log(
@@ -99,7 +100,7 @@ class WebViewCookieManager {
           'existing_cookies': testCookies,
         },
       );
-      
+
       return sessionManager;
     } on Exception catch (e) {
       await StructuredLogger().log(
@@ -111,7 +112,8 @@ class WebViewCookieManager {
         durationMs: DateTime.now().difference(startTime).inMilliseconds,
         cause: e.toString(),
         extra: {
-          'stack_trace': (e is Error) ? (e as Error).stackTrace.toString() : null,
+          'stack_trace':
+              (e is Error) ? (e as Error).stackTrace.toString() : null,
         },
       );
       return null;
@@ -127,25 +129,26 @@ class WebViewCookieManager {
     if (!isMounted()) {
       final stackTrace = StackTrace.current;
       final stackLines = stackTrace.toString().split('\n');
-      final callerInfo = stackLines.length > 2 
-          ? stackLines[2].trim() 
-          : 'unknown';
-      
+      final callerInfo =
+          stackLines.length > 2 ? stackLines[2].trim() : 'unknown';
+
       await StructuredLogger().log(
         level: 'warning',
         subsystem: 'cookies',
         message: 'Cannot save cookies - WebView is not mounted',
         context: 'webview_cookie_save',
         extra: {
-          'note': 'WebView may have been closed. Cookies should have been saved before closing.',
+          'note':
+              'WebView may have been closed. Cookies should have been saved before closing.',
           'caller_context': callerContext ?? 'not_provided',
           'caller_stack': callerInfo,
         },
       );
       return;
     }
-    
-    final operationId = 'webview_cookie_save_${DateTime.now().millisecondsSinceEpoch}';
+
+    final operationId =
+        'webview_cookie_save_${DateTime.now().millisecondsSinceEpoch}';
     final logger = StructuredLogger();
     final startTime = DateTime.now();
 
@@ -200,13 +203,14 @@ class WebViewCookieManager {
           context: 'webview_cookie_save',
           extra: {
             'current_url': urlToUse,
-            'note': 'CookieManager can access ALL cookies including HttpOnly ones',
+            'note':
+                'CookieManager can access ALL cookies including HttpOnly ones',
           },
         );
-          
+
         final rutrackerDomains = EndpointManager.getRutrackerDomains();
         final allCookies = <Cookie>[];
-        
+
         // Get current URL from WebView controller
         String? actualWebViewUrl;
         try {
@@ -215,9 +219,9 @@ class WebViewCookieManager {
         } on Exception {
           // Use fallback URL
         }
-        
+
         final urlForCookies = actualWebViewUrl ?? urlToUse;
-          
+
         // Get cookies from current URL
         try {
           final currentUri = WebUri(urlForCookies);
@@ -226,14 +230,15 @@ class WebViewCookieManager {
             webViewController: webViewController,
           );
           for (final cookie in currentCookies) {
-            if (!allCookies.any((c) => c.name == cookie.name && c.domain == cookie.domain)) {
+            if (!allCookies.any(
+                (c) => c.name == cookie.name && c.domain == cookie.domain)) {
               allCookies.add(cookie);
             }
           }
         } on Exception {
           // Ignore errors
         }
-        
+
         // Get cookies from all RuTracker domains
         for (final domain in rutrackerDomains) {
           try {
@@ -243,7 +248,8 @@ class WebViewCookieManager {
               webViewController: webViewController,
             );
             for (final cookie in domainCookies) {
-              if (!allCookies.any((c) => c.name == cookie.name && c.domain == cookie.domain)) {
+              if (!allCookies.any(
+                  (c) => c.name == cookie.name && c.domain == cookie.domain)) {
                 allCookies.add(cookie);
               }
             }
@@ -251,9 +257,9 @@ class WebViewCookieManager {
             // Ignore errors for individual domains
           }
         }
-        
+
         cookieManagerCookies = allCookies;
-        
+
         if (cookieManagerCookies.isNotEmpty) {
           await logger.log(
             level: 'info',
@@ -264,7 +270,8 @@ class WebViewCookieManager {
             extra: {
               'total_cookie_count': cookieManagerCookies.length,
               'cookie_names': cookieManagerCookies.map((c) => c.name).toList(),
-              'has_http_only_cookies': cookieManagerCookies.any((c) => c.isHttpOnly ?? false),
+              'has_http_only_cookies':
+                  cookieManagerCookies.any((c) => c.isHttpOnly ?? false),
             },
           );
         } else {
@@ -290,32 +297,35 @@ class WebViewCookieManager {
           cause: e.toString(),
         );
       }
-      
+
       // FALLBACK METHOD: Try JavaScript if CookieManager failed or returned no cookies
       if (cookieManagerCookies == null || cookieManagerCookies.isEmpty) {
         await logger.log(
           level: 'info',
           subsystem: 'cookies',
-          message: 'Trying JavaScript as fallback (CookieManager failed or returned no cookies)',
+          message:
+              'Trying JavaScript as fallback (CookieManager failed or returned no cookies)',
           operationId: operationId,
           context: 'webview_cookie_save',
           extra: {
             'note': 'JavaScript can only access non-HttpOnly cookies',
           },
         );
-        
+
         try {
           if (!isMounted()) {
             await logger.log(
               level: 'warning',
               subsystem: 'cookies',
-              message: 'WebView widget is not mounted, skipping JavaScript cookie extraction',
+              message:
+                  'WebView widget is not mounted, skipping JavaScript cookie extraction',
               operationId: operationId,
               context: 'webview_cookie_save',
             );
           } else {
-            final jsCookiesResult = await webViewController.evaluateJavascript(source: 'document.cookie');
-            
+            final jsCookiesResult = await webViewController.evaluateJavascript(
+                source: 'document.cookie');
+
             await logger.log(
               level: 'debug',
               subsystem: 'cookies',
@@ -328,10 +338,10 @@ class WebViewCookieManager {
                 'result_string': jsCookiesResult?.toString() ?? 'null',
               },
             );
-            
+
             if (jsCookiesResult != null) {
               jsCookiesString = jsCookiesResult.toString();
-              
+
               await logger.log(
                 level: 'info',
                 subsystem: 'cookies',
@@ -340,8 +350,8 @@ class WebViewCookieManager {
                 context: 'webview_cookie_save',
                 extra: {
                   'cookie_string_length': jsCookiesString.length,
-                  'cookie_string_preview': jsCookiesString.length > 100 
-                      ? '${jsCookiesString.substring(0, 100)}...' 
+                  'cookie_string_preview': jsCookiesString.length > 100
+                      ? '${jsCookiesString.substring(0, 100)}...'
                       : jsCookiesString,
                   'is_empty': jsCookiesString.isEmpty,
                 },
@@ -359,16 +369,16 @@ class WebViewCookieManager {
           );
         }
       }
-      
+
       // Process cookies: Use CookieManager cookies as PRIMARY, JavaScript as supplement
       if (cookieManagerCookies != null && cookieManagerCookies.isNotEmpty) {
         cookies.addAll(cookieManagerCookies);
-        
+
         // Convert CookieManager cookies to strings for SessionManager
         for (final cookie in cookieManagerCookies) {
           jsCookieStrings.add('${cookie.name}=${cookie.value}');
         }
-        
+
         await logger.log(
           level: 'info',
           subsystem: 'cookies',
@@ -378,35 +388,37 @@ class WebViewCookieManager {
           extra: {
             'cookie_count': cookieManagerCookies.length,
             'cookie_names': cookieManagerCookies.map((c) => c.name).toList(),
-            'has_http_only': cookieManagerCookies.any((c) => c.isHttpOnly ?? false),
+            'has_http_only':
+                cookieManagerCookies.any((c) => c.isHttpOnly ?? false),
           },
         );
-        
+
         // CRITICAL: Sync cookies from InAppWebView CookieManager to Android CookieManager
         // This ensures that CookieService.getCookiesForUrl() can read them
         if (cookieManagerCookies.isNotEmpty) {
           await logger.log(
             level: 'info',
             subsystem: 'cookies',
-            message: 'Syncing cookies from InAppWebView to Android CookieManager',
+            message:
+                'Syncing cookies from InAppWebView to Android CookieManager',
             operationId: operationId,
             context: 'webview_cookie_save',
             extra: {
               'cookie_count': cookieManagerCookies.length,
             },
           );
-          
+
           // Sync cookies to Android CookieManager for all RuTracker domains
           // CRITICAL: Android CookieManager.setCookie() expects format: "name=value; path=/; domain=example.com"
           for (final domain in EndpointManager.getRutrackerDomains()) {
             try {
               final domainUrl = 'https://$domain';
-              
+
               // Build cookie strings for Android CookieManager
               // Format: "name=value; path=/; domain=example.com"
               final cookieStrings = <String>[];
               var syncedCount = 0;
-              
+
               for (final cookie in cookieManagerCookies) {
                 // Get domain from cookie or use fallback domain
                 var cookieDomain = cookie.domain ?? domain;
@@ -418,19 +430,21 @@ class WebViewCookieManager {
                 if (!cookieDomain.contains(domain) && domain != cookieDomain) {
                   cookieDomain = domain;
                 }
-                
+
                 // Build cookie string in format expected by Android CookieManager
                 // Format: "name=value; path=/path; domain=example.com"
-                final cookieString = '${cookie.name}=${cookie.value}; path=${cookie.path ?? '/'}; domain=$cookieDomain';
+                final cookieString =
+                    '${cookie.name}=${cookie.value}; path=${cookie.path ?? '/'}; domain=$cookieDomain';
                 cookieStrings.add(cookieString);
-                
+
                 // Set each cookie individually in Android CookieManager
-                final success = await CookieService.setCookie(domainUrl, cookieString);
+                final success =
+                    await CookieService.setCookie(domainUrl, cookieString);
                 if (success) {
                   syncedCount++;
                 }
               }
-              
+
               await logger.log(
                 level: syncedCount > 0 ? 'info' : 'warning',
                 subsystem: 'cookies',
@@ -447,7 +461,8 @@ class WebViewCookieManager {
               await logger.log(
                 level: 'warning',
                 subsystem: 'cookies',
-                message: 'Failed to sync cookies to Android CookieManager for domain',
+                message:
+                    'Failed to sync cookies to Android CookieManager for domain',
                 operationId: operationId,
                 context: 'webview_cookie_save',
                 cause: e.toString(),
@@ -456,13 +471,14 @@ class WebViewCookieManager {
             }
           }
         }
-        
+
         // Save CookieManager cookies to SessionManager
         if (sessionManager != null && jsCookieStrings.isNotEmpty) {
           await logger.log(
             level: 'info',
             subsystem: 'cookies',
-            message: 'About to save CookieManager cookies to FlutterCookieBridge SessionManager',
+            message:
+                'About to save CookieManager cookies to FlutterCookieBridge SessionManager',
             operationId: operationId,
             context: 'webview_cookie_save',
             extra: {
@@ -477,13 +493,14 @@ class WebViewCookieManager {
               'caller_context': callerContext ?? 'not_provided',
             },
           );
-          
+
           await sessionManager!.saveSessionCookies(jsCookieStrings);
-          
+
           await logger.log(
             level: 'info',
             subsystem: 'cookies',
-            message: 'CookieManager cookies saved to FlutterCookieBridge SessionManager',
+            message:
+                'CookieManager cookies saved to FlutterCookieBridge SessionManager',
             operationId: operationId,
             context: 'webview_cookie_save',
             extra: {
@@ -501,13 +518,13 @@ class WebViewCookieManager {
           operationId: operationId,
           context: 'webview_cookie_save',
           extra: {
-            'js_cookies_preview': jsCookiesString.length > 200 
-                ? '${jsCookiesString.substring(0, 200)}...' 
+            'js_cookies_preview': jsCookiesString.length > 200
+                ? '${jsCookiesString.substring(0, 200)}...'
                 : jsCookiesString,
             'js_cookies_length': jsCookiesString.length,
           },
         );
-        
+
         // Parse JavaScript cookies
         final rawCookieStrings = jsCookiesString.split(RegExp(r';\s*'));
         for (final rawCookie in rawCookieStrings) {
@@ -516,16 +533,17 @@ class WebViewCookieManager {
             jsCookieStrings.add(trimmed);
           }
         }
-        
+
         if (jsCookieStrings.isNotEmpty) {
           // Save JavaScript cookies directly to SessionManager
           if (sessionManager != null) {
             await sessionManager!.saveSessionCookies(jsCookieStrings);
-            
+
             await logger.log(
               level: 'info',
               subsystem: 'cookies',
-              message: 'JavaScript cookies saved to FlutterCookieBridge SessionManager',
+              message:
+                  'JavaScript cookies saved to FlutterCookieBridge SessionManager',
               operationId: operationId,
               context: 'webview_cookie_save',
               extra: {
@@ -534,7 +552,7 @@ class WebViewCookieManager {
               },
             );
           }
-          
+
           // Convert to WebView Cookie format for backward compatibility
           try {
             final currentUri = Uri.parse(urlToUse);
@@ -586,7 +604,7 @@ class WebViewCookieManager {
       if (jsCookieStrings.isNotEmpty && sessionManager != null) {
         await sessionManager!.saveSessionCookies(jsCookieStrings);
       }
-      
+
       // Sync to Dio CookieJar
       if (cookies.isNotEmpty) {
         try {
@@ -663,16 +681,17 @@ class WebViewCookieManager {
             ..path = webViewCookie.path ?? '/'
             ..secure = webViewCookie.isSecure ?? true
             ..httpOnly = webViewCookie.isHttpOnly ?? false;
-          
+
           // Set domain from cookie if available, otherwise will be set by saveCookiesDirectly
-          if (webViewCookie.domain != null && webViewCookie.domain!.isNotEmpty) {
+          if (webViewCookie.domain != null &&
+              webViewCookie.domain!.isNotEmpty) {
             final cookieDomain = webViewCookie.domain!.toLowerCase();
             // Normalize domain: remove leading dot if present, CookieJar handles it
-            dioCookie.domain = cookieDomain.startsWith('.') 
-                ? cookieDomain.substring(1) 
+            dioCookie.domain = cookieDomain.startsWith('.')
+                ? cookieDomain.substring(1)
                 : cookieDomain;
           }
-          
+
           dioCookies.add(dioCookie);
         } on Exception catch (e) {
           await logger.log(
@@ -705,14 +724,15 @@ class WebViewCookieManager {
       for (final domain in rutrackerDomains) {
         try {
           final domainUri = Uri.parse('https://$domain');
-          
+
           // Save ALL cookies to each domain (not filtered) - CookieJar will handle domain matching
           // This ensures cookies work when switching between rutracker mirrors
           if (dioCookies.isNotEmpty) {
             await logger.log(
               level: 'debug',
               subsystem: 'cookies',
-              message: 'Saving cookies to domain via DioClient.saveCookiesDirectly',
+              message:
+                  'Saving cookies to domain via DioClient.saveCookiesDirectly',
               operationId: operationId,
               context: 'cookie_sync_direct',
               extra: {
@@ -721,14 +741,14 @@ class WebViewCookieManager {
                 'cookie_names': dioCookies.map((c) => c.name).toList(),
               },
             );
-            
+
             await DioClient.saveCookiesDirectly(domainUri, dioCookies);
-            
+
             // CRITICAL: Wait a bit and verify cookies were saved
             // DioCookieManager.saveCookiesDirectly already does verification,
             // but we check here as well for additional confirmation
             await Future.delayed(const Duration(milliseconds: 300));
-            
+
             // Verify cookies were saved by loading them back
             // Try multiple URI variations to ensure we find saved cookies
             final cookieJar = await DioClient.getCookieJar();
@@ -738,7 +758,7 @@ class WebViewCookieManager {
               final baseCookies = await cookieJar.loadForRequest(baseUri);
               final pathUri = Uri.parse('https://$domain/');
               final pathCookies = await cookieJar.loadForRequest(pathUri);
-              
+
               // Combine all found cookies (avoid duplicates)
               final allSavedCookies = <io.Cookie>[];
               for (final cookie in savedCookies) {
@@ -756,11 +776,11 @@ class WebViewCookieManager {
                   allSavedCookies.add(cookie);
                 }
               }
-              
+
               await logger.log(
                 level: allSavedCookies.isNotEmpty ? 'info' : 'debug',
                 subsystem: 'cookies',
-                message: allSavedCookies.isNotEmpty 
+                message: allSavedCookies.isNotEmpty
                     ? 'Cookies verified in Dio CookieJar after save'
                     : 'Cookies not found in Dio CookieJar after save (may be in SessionManager, non-critical)',
                 operationId: operationId,
@@ -769,8 +789,10 @@ class WebViewCookieManager {
                   'domain': domain,
                   'saved_count': allSavedCookies.length,
                   'expected_count': dioCookies.length,
-                  'saved_cookie_names': allSavedCookies.map((c) => c.name).toList(),
-                  'expected_cookie_names': dioCookies.map((c) => c.name).toList(),
+                  'saved_cookie_names':
+                      allSavedCookies.map((c) => c.name).toList(),
+                  'expected_cookie_names':
+                      dioCookies.map((c) => c.name).toList(),
                   'uri_cookie_count': savedCookies.length,
                   'base_cookie_count': baseCookies.length,
                   'path_cookie_count': pathCookies.length,
@@ -816,7 +838,8 @@ class WebViewCookieManager {
 
   /// Restores cookies from SessionManager to WebView.
   Future<void> restoreCookies(String? initialUrl) async {
-    final operationId = 'webview_cookie_restore_${DateTime.now().millisecondsSinceEpoch}';
+    final operationId =
+        'webview_cookie_restore_${DateTime.now().millisecondsSinceEpoch}';
     final logger = StructuredLogger();
     final startTime = DateTime.now();
 
@@ -903,13 +926,14 @@ class WebViewCookieManager {
       message: 'Setting up JavaScript cookie handler for real-time monitoring',
       context: 'webview_js_handler_setup',
     );
-    
+
     try {
       webViewController.addJavaScriptHandler(
         handlerName: 'onCookieChanged',
         callback: (args) async {
-          final handlerOperationId = 'js_handler_${DateTime.now().millisecondsSinceEpoch}';
-          
+          final handlerOperationId =
+              'js_handler_${DateTime.now().millisecondsSinceEpoch}';
+
           await StructuredLogger().log(
             level: 'info',
             subsystem: 'cookies',
@@ -921,21 +945,21 @@ class WebViewCookieManager {
               'session_manager_is_null': sessionManager == null,
             },
           );
-          
+
           try {
             if (args.isNotEmpty && args[0] is String) {
               final cookieString = args[0] as String;
-              
+
               if (cookieString.isNotEmpty && sessionManager != null) {
                 final cookieStrings = cookieString
                     .split(RegExp(r';\s*'))
                     .where((s) => s.trim().isNotEmpty && s.contains('='))
                     .map((s) => s.trim())
                     .toList();
-                
+
                 if (cookieStrings.isNotEmpty) {
                   await sessionManager!.saveSessionCookies(cookieStrings);
-                  
+
                   await StructuredLogger().log(
                     level: 'info',
                     subsystem: 'cookies',
@@ -961,7 +985,7 @@ class WebViewCookieManager {
           }
         },
       );
-      
+
       await StructuredLogger().log(
         level: 'info',
         subsystem: 'cookies',
@@ -1016,11 +1040,12 @@ class WebViewCookieManager {
         setTimeout(checkCookies, 2000);
       })();
     ''';
-    
+
     unawaited(Future.delayed(const Duration(milliseconds: 2000), () async {
-      final injectionOperationId = 'js_injection_${DateTime.now().millisecondsSinceEpoch}';
+      final injectionOperationId =
+          'js_injection_${DateTime.now().millisecondsSinceEpoch}';
       final injectionStartTime = DateTime.now();
-      
+
       await StructuredLogger().log(
         level: 'info',
         subsystem: 'cookies',
@@ -1028,17 +1053,19 @@ class WebViewCookieManager {
         operationId: injectionOperationId,
         context: 'webview_js_injection',
       );
-      
+
       try {
-        final result = await webViewController.evaluateJavascript(source: jsCode);
-        
+        final result =
+            await webViewController.evaluateJavascript(source: jsCode);
+
         await StructuredLogger().log(
           level: 'info',
           subsystem: 'cookies',
           message: 'JavaScript cookie monitor injected successfully',
           operationId: injectionOperationId,
           context: 'webview_js_injection',
-          durationMs: DateTime.now().difference(injectionStartTime).inMilliseconds,
+          durationMs:
+              DateTime.now().difference(injectionStartTime).inMilliseconds,
           extra: {
             'evaluation_result': result?.toString() ?? 'null',
           },
@@ -1050,11 +1077,11 @@ class WebViewCookieManager {
           message: 'Failed to inject JavaScript cookie monitor',
           operationId: injectionOperationId,
           context: 'webview_js_injection',
-          durationMs: DateTime.now().difference(injectionStartTime).inMilliseconds,
+          durationMs:
+              DateTime.now().difference(injectionStartTime).inMilliseconds,
           cause: e.toString(),
         );
       }
     }));
   }
 }
-

@@ -26,19 +26,21 @@ class WebViewLoginDetector {
   ///
   /// PRIMARY METHOD: Checks cookies via JavaScript (as cookies are set via JavaScript).
   /// Falls back to URL/HTML checks if JavaScript cookies are not available.
-  static Future<bool> checkLoginSuccess(InAppWebViewController controller) async {
+  static Future<bool> checkLoginSuccess(
+      InAppWebViewController controller) async {
     // PRIMARY METHOD: Check cookies via JavaScript with retries
     String? jsCookiesString;
     Exception? lastError;
-    
+
     for (var attempt = 0; attempt < 3; attempt++) {
       try {
         // Wait a bit before retry (except first attempt)
         if (attempt > 0) {
           await Future.delayed(Duration(milliseconds: 300 * attempt));
         }
-        
-        final jsCookiesResult = await controller.evaluateJavascript(source: 'document.cookie');
+
+        final jsCookiesResult =
+            await controller.evaluateJavascript(source: 'document.cookie');
         if (jsCookiesResult != null) {
           jsCookiesString = jsCookiesResult.toString();
           if (jsCookiesString.isNotEmpty) {
@@ -58,7 +60,7 @@ class WebViewLoginDetector {
         }
       }
     }
-    
+
     // Process cookies if we got them
     if (jsCookiesString != null && jsCookiesString.isNotEmpty) {
       // Check if JavaScript cookies contain session cookies
@@ -66,7 +68,7 @@ class WebViewLoginDetector {
       final hasBbSession = jsCookiesString.contains('bb_session=');
       final hasBbData = jsCookiesString.contains('bb_data=');
       final hasSessionInJs = hasBbSession || hasBbData;
-      
+
       if (hasSessionInJs) {
         await StructuredLogger().log(
           level: 'info',
@@ -75,8 +77,8 @@ class WebViewLoginDetector {
           extra: {
             'has_bb_session': hasBbSession,
             'has_bb_data': hasBbData,
-            'js_cookies_preview': jsCookiesString.length > 200 
-                ? '${jsCookiesString.substring(0, 200)}...' 
+            'js_cookies_preview': jsCookiesString.length > 200
+                ? '${jsCookiesString.substring(0, 200)}...'
                 : jsCookiesString,
             'js_cookies_length': jsCookiesString.length,
           },
@@ -86,12 +88,14 @@ class WebViewLoginDetector {
         await StructuredLogger().log(
           level: 'debug',
           subsystem: 'webview',
-          message: 'JavaScript cookies found but no session cookies (bb_session/bb_data) detected',
+          message:
+              'JavaScript cookies found but no session cookies (bb_session/bb_data) detected',
           extra: {
-            'js_cookies_preview': jsCookiesString.length > 200 
-                ? '${jsCookiesString.substring(0, 200)}...' 
+            'js_cookies_preview': jsCookiesString.length > 200
+                ? '${jsCookiesString.substring(0, 200)}...'
                 : jsCookiesString,
-            'note': 'User may not be logged in yet, or cookies are still being set',
+            'note':
+                'User may not be logged in yet, or cookies are still being set',
           },
         );
       }
@@ -100,7 +104,8 @@ class WebViewLoginDetector {
       await StructuredLogger().log(
         level: 'debug',
         subsystem: 'webview',
-        message: 'Failed to get cookies via JavaScript after all retries, falling back to URL/HTML check',
+        message:
+            'Failed to get cookies via JavaScript after all retries, falling back to URL/HTML check',
         cause: lastError?.toString() ?? 'Unknown error',
         extra: {
           'retries': 3,
@@ -116,7 +121,7 @@ class WebViewLoginDetector {
 
       // Only check URL/HTML if we have some indication that login might have happened
       final urlIndicatesLogin = urlString.contains('profile.php');
-      
+
       // HTML check: look for logout button or profile link
       final htmlIndicatesLogin = html != null &&
           (html.toLowerCase().contains('выход') ||
@@ -140,11 +145,10 @@ class WebViewLoginDetector {
           },
         );
       }
-      
+
       return isLoginSuccess;
     } on Exception {
       return false;
     }
   }
 }
-

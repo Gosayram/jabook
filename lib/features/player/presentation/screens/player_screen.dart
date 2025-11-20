@@ -185,7 +185,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       final response = await dio.get('$base/forum/viewtopic.php',
           queryParameters: {'t': widget.bookId},
           options: Options(
-            responseType: ResponseType.plain, // Ensure gzip is automatically decompressed
+            responseType:
+                ResponseType.plain, // Ensure gzip is automatically decompressed
           ));
       if (response.statusCode == 200) {
         final parsed = await RuTrackerParser().parseTopicDetails(response.data);

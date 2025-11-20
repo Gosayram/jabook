@@ -101,7 +101,8 @@ class _GroupedAudiobookListState extends State<GroupedAudiobookList> {
   @override
   Widget build(BuildContext context) {
     final grouped = _groupByCategory();
-    final categories = _cachedCategories ?? grouped.keys.toList()..sort();
+    final categories = _cachedCategories ?? grouped.keys.toList()
+      ..sort();
 
     if (categories.isEmpty) {
       return Center(
@@ -128,9 +129,9 @@ class _GroupedAudiobookListState extends State<GroupedAudiobookList> {
                     : widget.loadMore != null
                         ? OutlinedButton(
                             onPressed: widget.loadMore,
-                            child: Text(AppLocalizations.of(context)
-                                    ?.loadMoreButton ??
-                                'Load more'),
+                            child: Text(
+                                AppLocalizations.of(context)?.loadMoreButton ??
+                                    'Load more'),
                           )
                         : const SizedBox.shrink(),
               ),

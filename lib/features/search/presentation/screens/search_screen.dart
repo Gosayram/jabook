@@ -178,15 +178,16 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     try {
       final endpointManager = ref.read(endpointManagerProvider);
       final base = await endpointManager.getActiveEndpoint();
-      
+
       // Verify endpoint is available before displaying
       final isAvailable = await endpointManager.quickAvailabilityCheck(base);
       if (!isAvailable) {
         // If current endpoint is unavailable, try to get a better one
-        logger.w('Current active endpoint $base is unavailable, trying to get available one');
+        logger.w(
+            'Current active endpoint $base is unavailable, trying to get available one');
         // getActiveEndpoint should already handle this, but we verify anyway
       }
-      
+
       final uri = Uri.tryParse(base);
       if (uri != null && uri.hasScheme && uri.hasAuthority) {
         final host = uri.host;
@@ -237,9 +238,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               // ignore: use_build_context_synchronously
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text(AppLocalizations.of(context)
-                          ?.authorizationSuccessful ??
-                      'Authorization successful'),
+                  content: Text(
+                      AppLocalizations.of(context)?.authorizationSuccessful ??
+                          'Authorization successful'),
                   backgroundColor: Colors.green,
                   duration: const Duration(seconds: 2),
                 ),
@@ -265,7 +266,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       // Open auth screen for manual login
       if (!mounted) return;
       final result = await context.push('/auth');
-      
+
       // If login was successful, refresh and perform search
       if (result == true && mounted) {
         // Validate cookies after returning from auth screen
@@ -286,8 +287,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(AppLocalizations.of(context)?.authorizationCheckError(e.toString()) ?? 
-                  'Authorization check error: ${e.toString()}'),
+          content: Text(AppLocalizations.of(context)
+                  ?.authorizationCheckError(e.toString()) ??
+              'Authorization check error: ${e.toString()}'),
           backgroundColor: Colors.orange,
           duration: const Duration(seconds: 3),
         ),
@@ -299,7 +301,6 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       }
     }
   }
-
 
   Future<void> _performSearch() async {
     if (_searchController.text.trim().isEmpty) return;
@@ -356,16 +357,16 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     // Second try to get from cache
     final cachedResults = await _cacheService.getCachedSearchResults(query);
     if (cachedResults != null) {
-        // Get expiration time
-        final expiration = await _cacheService.getSearchResultsExpiration(query);
-        
-        setState(() {
-          _searchResults = cachedResults;
-          _isLoading = false;
-          _isFromCache = true;
-          _cacheExpirationTime = expiration;
-        });
-        return;
+      // Get expiration time
+      final expiration = await _cacheService.getSearchResultsExpiration(query);
+
+      setState(() {
+        _searchResults = cachedResults;
+        _isLoading = false;
+        _isFromCache = true;
+        _cacheExpirationTime = expiration;
+      });
+      return;
     }
 
     // Finally, try network search
@@ -407,11 +408,11 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   Future<void> _performNetworkSearch(String query,
       {bool updateExisting = false}) async {
     final structuredLogger = StructuredLogger();
-    
+
     // Get active endpoint for logging
     final endpointManager = ref.read(endpointManagerProvider);
     final activeEndpoint = await endpointManager.getActiveEndpoint();
-    
+
     await structuredLogger.log(
       level: 'info',
       subsystem: 'search',
@@ -424,33 +425,35 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         'active_endpoint': activeEndpoint,
       },
     );
-    
+
     // CRITICAL: Comprehensive cookie synchronization before search
     // Sync cookies from all sources (CookieService, SecureStorage, CookieJar) to ensure availability
     final syncStartTime = DateTime.now();
     var syncSuccessCount = 0;
     final syncSourceDetails = <String, dynamic>{};
-    
+
     // Step 1: Sync from CookieService (Android CookieManager) - primary source
     try {
       final activeHost = Uri.parse(activeEndpoint).host;
       final url = 'https://$activeHost';
-      
+
       // Flush cookies to ensure they're available
       await CookieService.flushCookies();
-      
+
       // Try to get cookies from CookieService
       final cookieHeader = await CookieService.getCookiesForUrl(url);
-      
-      if (cookieHeader != null && cookieHeader.isNotEmpty && cookieHeader.trim().contains('=')) {
+
+      if (cookieHeader != null &&
+          cookieHeader.isNotEmpty &&
+          cookieHeader.trim().contains('=')) {
         // Check for required session cookies
         final hasBbSession = cookieHeader.contains('bb_session=');
         final hasBbData = cookieHeader.contains('bb_data=');
-        
+
         // Sync cookies to Dio CookieJar
         await DioClient.syncCookiesFromCookieService(cookieHeader, url);
         syncSuccessCount++;
-        
+
         await structuredLogger.log(
           level: 'info',
           subsystem: 'search',
@@ -464,7 +467,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             'has_required_cookies': hasBbSession || hasBbData,
           },
         );
-        
+
         syncSourceDetails['CookieService'] = {
           'success': true,
           'cookie_count': cookieHeader.split(';').length,
@@ -495,29 +498,32 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     try {
       final simpleCookieManager = SimpleCookieManager();
       final cookieString = await simpleCookieManager.getCookie(activeEndpoint);
-      
+
       if (cookieString != null && cookieString.isNotEmpty) {
         // Check for required session cookies
         final hasBbSession = cookieString.contains('bb_session=');
         final hasBbData = cookieString.contains('bb_data=');
-        
+
         // Load cookies from SecureStorage to CookieJar
         final uri = Uri.parse(activeEndpoint);
         final jar = await DioClient.getCookieJar();
         if (jar != null) {
           await simpleCookieManager.loadCookieToJar(activeEndpoint, jar);
-          
+
           // Also sync to CookieService if not already synced
           final cookies = await jar.loadForRequest(uri);
           if (cookies.isNotEmpty) {
-            final cookieHeader = cookies.map((c) => '${c.name}=${c.value}').join('; ');
-            await DioClient.syncCookiesFromCookieService(cookieHeader, activeEndpoint);
+            final cookieHeader =
+                cookies.map((c) => '${c.name}=${c.value}').join('; ');
+            await DioClient.syncCookiesFromCookieService(
+                cookieHeader, activeEndpoint);
             syncSuccessCount++;
-            
+
             await structuredLogger.log(
               level: 'info',
               subsystem: 'search',
-              message: 'Cookies synced from SecureStorage/CookieJar to CookieService',
+              message:
+                  'Cookies synced from SecureStorage/CookieJar to CookieService',
               context: 'search_request',
               extra: {
                 'cookie_count': cookies.length,
@@ -527,7 +533,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 'has_required_cookies': hasBbSession || hasBbData,
               },
             );
-            
+
             syncSourceDetails['SecureStorage'] = {
               'success': true,
               'cookie_count': cookies.length,
@@ -556,9 +562,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         'error': e.toString(),
       };
     }
-    
+
     // Log comprehensive sync summary
-    final syncDuration = DateTime.now().difference(syncStartTime).inMilliseconds;
+    final syncDuration =
+        DateTime.now().difference(syncStartTime).inMilliseconds;
     await structuredLogger.log(
       level: syncSuccessCount > 0 ? 'info' : 'warning',
       subsystem: 'search',
@@ -576,11 +583,11 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     // Use hasValidCookies which now checks CookieService first
     try {
       final hasCookies = await DioClient.hasValidCookies();
-      
+
       // Additional check: verify we have required session cookies (bb_session or bb_data)
       var hasRequiredCookies = false;
       var foundCookieNames = <String>[];
-      
+
       if (hasCookies) {
         // Check CookieJar for required cookies
         final uri = Uri.parse(activeEndpoint);
@@ -588,13 +595,12 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         if (jar != null) {
           final cookies = await jar.loadForRequest(uri);
           foundCookieNames = cookies.map((c) => c.name).toList();
-          hasRequiredCookies = cookies.any((c) => 
-            c.name.toLowerCase() == 'bb_session' || 
-            c.name.toLowerCase() == 'bb_data' ||
-            c.name.toLowerCase().contains('session')
-          );
+          hasRequiredCookies = cookies.any((c) =>
+              c.name.toLowerCase() == 'bb_session' ||
+              c.name.toLowerCase() == 'bb_data' ||
+              c.name.toLowerCase().contains('session'));
         }
-        
+
         // Also check CookieService if CookieJar doesn't have required cookies
         if (!hasRequiredCookies) {
           try {
@@ -602,15 +608,15 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             final url = 'https://$activeHost';
             final cookieHeader = await CookieService.getCookiesForUrl(url);
             if (cookieHeader != null && cookieHeader.isNotEmpty) {
-              hasRequiredCookies = cookieHeader.contains('bb_session=') || 
-                                  cookieHeader.contains('bb_data=');
+              hasRequiredCookies = cookieHeader.contains('bb_session=') ||
+                  cookieHeader.contains('bb_data=');
             }
           } on Exception {
             // Ignore CookieService check errors
           }
         }
       }
-      
+
       await structuredLogger.log(
         level: 'info',
         subsystem: 'search',
@@ -624,13 +630,14 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           'active_endpoint': activeEndpoint,
         },
       );
-      
+
       if (!hasCookies || !hasRequiredCookies) {
         // No cookies or no required session cookies - need login
         await structuredLogger.log(
           level: 'warning',
           subsystem: 'search',
-          message: 'No valid cookies or required session cookies found, requiring login',
+          message:
+              'No valid cookies or required session cookies found, requiring login',
           context: 'search_request',
           extra: {
             'has_cookies': hasCookies,
@@ -638,14 +645,14 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             'found_cookie_names': foundCookieNames,
           },
         );
-        
+
         if (mounted) {
           setState(() {
             _isLoading = false;
             _errorKind = 'auth';
-            _errorMessage = AppLocalizations.of(context)
-                    ?.authorizationFailedMessage ??
-                'Please log in first to perform search';
+            _errorMessage =
+                AppLocalizations.of(context)?.authorizationFailedMessage ??
+                    'Please log in first to perform search';
           });
           // Show login prompt
           safeUnawaited(_handleLogin());
@@ -662,7 +669,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       );
       // Continue with search attempt even if cookie check fails
     }
-    
+
     // Cookies exist, but they might be invalid - try search anyway
     // If search fails with auth error, we'll handle it in error handling
 
@@ -688,12 +695,12 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       // CRITICAL: Before making search request, verify cookies are available for active endpoint
       final searchUri = Uri.parse('$endpoint/forum/tracker.php');
       final cookieJar = await DioClient.getCookieJar();
-      
+
       // Load cookies that will be sent with the request
-      final cookiesForRequest = cookieJar != null 
+      final cookiesForRequest = cookieJar != null
           ? await cookieJar.loadForRequest(searchUri)
           : <io.Cookie>[];
-      
+
       await structuredLogger.log(
         level: cookiesForRequest.isNotEmpty ? 'info' : 'warning',
         subsystem: 'search',
@@ -704,25 +711,25 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           'search_uri': searchUri.toString(),
           'cookie_count': cookiesForRequest.length,
           'cookie_names': cookiesForRequest.map((c) => c.name).toList(),
-          'has_session_cookies': cookiesForRequest.any((c) => 
-            c.name.toLowerCase().contains('session') || 
-            c.name == 'bb_session' || 
-            c.name == 'bb_data'
-          ),
+          'has_session_cookies': cookiesForRequest.any((c) =>
+              c.name.toLowerCase().contains('session') ||
+              c.name == 'bb_session' ||
+              c.name == 'bb_data'),
         },
       );
-      
+
       // CRITICAL: If no cookies found for active endpoint, sync from CookieService
       // CookieService is the single source of truth for cookies on Android
       if (cookiesForRequest.isEmpty && cookieJar != null) {
         await structuredLogger.log(
           level: 'warning',
           subsystem: 'search',
-          message: 'No cookies found for active endpoint, syncing from CookieService',
+          message:
+              'No cookies found for active endpoint, syncing from CookieService',
           context: 'search_request',
           extra: {'endpoint': endpoint},
         );
-        
+
         // Try CookieService (Android CookieManager) - most reliable source
         // Use retries with delays to ensure cookies are available
         String? cookieHeader;
@@ -730,17 +737,19 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         var syncSuccess = false;
         final activeHost = Uri.parse(endpoint).host;
         final url = 'https://$activeHost';
-        
+
         for (var syncAttempt = 0; syncAttempt < maxSyncRetries; syncAttempt++) {
           if (syncAttempt > 0) {
             await Future.delayed(Duration(milliseconds: 300 * syncAttempt));
             // Flush cookies before each retry
             await CookieService.flushCookies();
           }
-          
+
           try {
             cookieHeader = await CookieService.getCookiesForUrl(url);
-            if (cookieHeader != null && cookieHeader.isNotEmpty && cookieHeader.trim().contains('=')) {
+            if (cookieHeader != null &&
+                cookieHeader.isNotEmpty &&
+                cookieHeader.trim().contains('=')) {
               await structuredLogger.log(
                 level: 'info',
                 subsystem: 'search',
@@ -754,13 +763,14 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                   'max_retries': maxSyncRetries,
                 },
               );
-              
+
               await DioClient.syncCookiesFromCookieService(cookieHeader, url);
-              
+
               // Wait a bit and reload cookies to verify
               await Future.delayed(const Duration(milliseconds: 400));
-              final cookiesAfterSync = await cookieJar.loadForRequest(searchUri);
-              
+              final cookiesAfterSync =
+                  await cookieJar.loadForRequest(searchUri);
+
               if (cookiesAfterSync.isNotEmpty) {
                 syncSuccess = true;
                 await structuredLogger.log(
@@ -772,7 +782,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                     'endpoint': endpoint,
                     'url': url,
                     'cookie_count_after_sync': cookiesAfterSync.length,
-                    'cookie_names_after_sync': cookiesAfterSync.map((c) => c.name).toList(),
+                    'cookie_names_after_sync':
+                        cookiesAfterSync.map((c) => c.name).toList(),
                     'sync_attempt': syncAttempt + 1,
                   },
                 );
@@ -781,7 +792,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 await structuredLogger.log(
                   level: 'warning',
                   subsystem: 'search',
-                  message: 'Cookies synced but not found in CookieJar, retrying',
+                  message:
+                      'Cookies synced but not found in CookieJar, retrying',
                   context: 'search_request',
                   extra: {
                     'endpoint': endpoint,
@@ -806,7 +818,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             );
           }
         }
-        
+
         // If CookieService sync failed, try WebView sync as fallback
         if (!syncSuccess) {
           await structuredLogger.log(
@@ -816,12 +828,12 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             context: 'search_request',
             extra: {'endpoint': endpoint},
           );
-          
+
           try {
             await DioClient.syncCookiesFromWebView();
             await Future.delayed(const Duration(milliseconds: 300));
             final cookiesAfterSync = await cookieJar.loadForRequest(searchUri);
-            
+
             await structuredLogger.log(
               level: cookiesAfterSync.isNotEmpty ? 'info' : 'warning',
               subsystem: 'search',
@@ -830,7 +842,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               extra: {
                 'endpoint': endpoint,
                 'cookie_count_after_sync': cookiesAfterSync.length,
-                'cookie_names_after_sync': cookiesAfterSync.map((c) => c.name).toList(),
+                'cookie_names_after_sync':
+                    cookiesAfterSync.map((c) => c.name).toList(),
               },
             );
           } on Exception catch (e) {
@@ -845,7 +858,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           }
         }
       }
-      
+
       // Make the search request
       // CRITICAL: Use tracker.php (not search.php) for searching torrents/audiobooks
       // tracker.php is the default search method on RuTracker for "раздачи" (torrents)
@@ -854,27 +867,28 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       final requestUri = '$endpoint/forum/tracker.php';
       final requestQueryParams = {
         'nm': query,
-        'c': CategoryConstants.audiobooksCategoryId, // Try to filter by category 33 (audiobooks)
+        'c': CategoryConstants
+            .audiobooksCategoryId, // Try to filter by category 33 (audiobooks)
         // Note: If c=33 doesn't work, we'll filter results client-side
         'o': '1', // Sort by relevance
         'start': _startOffset,
       };
-      
+
       // Before making search request, ensure cookies are available
       // Step 6: Check cookies before request and load from SecureStorage if needed
-      var finalCookies = cookieJar != null 
+      var finalCookies = cookieJar != null
           ? await cookieJar.loadForRequest(searchUri)
           : <io.Cookie>[];
-      
+
       if (finalCookies.isEmpty && cookieJar != null) {
         // Try to load from SecureStorage and sync to CookieJar
         final simpleCookieManager = SimpleCookieManager();
         final cookieString = await simpleCookieManager.getCookie(endpoint);
-        
+
         if (cookieString != null && cookieString.isNotEmpty) {
           // Load cookies from SecureStorage to CookieJar
           await simpleCookieManager.loadCookieToJar(endpoint, cookieJar);
-          
+
           // Reload cookies after sync
           final cookiesAfterLoad = await cookieJar.loadForRequest(searchUri);
           if (cookiesAfterLoad.isNotEmpty) {
@@ -892,7 +906,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           }
         }
       }
-      
+
       await structuredLogger.log(
         level: 'info',
         subsystem: 'search',
@@ -909,20 +923,22 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           'request_start_time': requestStartTime.toIso8601String(),
         },
       );
-      
+
       final response = await dio
           .get(
             requestUri,
             queryParameters: requestQueryParams,
             options: Options(
-              responseType: ResponseType.bytes, // Get raw bytes to decode Windows-1251 correctly
+              responseType: ResponseType
+                  .bytes, // Get raw bytes to decode Windows-1251 correctly
             ),
             cancelToken: _cancelToken,
           )
           .timeout(const Duration(seconds: 30));
-      
-      final requestDuration = DateTime.now().difference(requestStartTime).inMilliseconds;
-      
+
+      final requestDuration =
+          DateTime.now().difference(requestStartTime).inMilliseconds;
+
       await structuredLogger.log(
         level: response.statusCode == 200 ? 'info' : 'warning',
         subsystem: 'search',
@@ -952,10 +968,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         final responseDataType = response.data.runtimeType.toString();
         final responseDataSize = response.data is List<int>
             ? (response.data as List<int>).length
-            : (response.data is String
-                ? (response.data as String).length
-                : 0);
-        
+            : (response.data is String ? (response.data as String).length : 0);
+
         await structuredLogger.log(
           level: 'debug',
           subsystem: 'search',
@@ -964,11 +978,13 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           extra: {
             'response_data_type': responseDataType,
             'response_data_size': responseDataSize,
-            'content_type': response.headers.value('content-type') ?? 'not_provided',
-            'content_encoding': response.headers.value('content-encoding') ?? 'not_provided',
+            'content_type':
+                response.headers.value('content-type') ?? 'not_provided',
+            'content_encoding':
+                response.headers.value('content-encoding') ?? 'not_provided',
           },
         );
-        
+
         // Validate that we have data
         if (response.data == null) {
           await structuredLogger.log(
@@ -977,17 +993,18 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             message: 'Response data is null',
             context: 'search_request',
           );
-          
+
           if (mounted) {
             setState(() {
               _isLoading = false;
               _errorKind = 'network';
-              _errorMessage = 'Received empty response from server. Please try again.';
+              _errorMessage =
+                  'Received empty response from server. Please try again.';
             });
           }
           return;
         }
-        
+
         // Validate data size
         if (responseDataSize == 0) {
           await structuredLogger.log(
@@ -996,24 +1013,25 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             message: 'Response data is empty',
             context: 'search_request',
           );
-          
+
           if (mounted) {
             setState(() {
               _isLoading = false;
               _errorKind = 'network';
-              _errorMessage = 'Received empty response from server. Please try again.';
+              _errorMessage =
+                  'Received empty response from server. Please try again.';
             });
           }
           return;
         }
-        
+
         // Decode response for login page check (response.data is now List<int>)
         String? decodedTextForCheck;
         final contentType = response.headers.value('content-type') ?? '';
-        
+
         if (response.data is List<int>) {
           final bytes = response.data as List<int>;
-          
+
           // Validate bytes before decoding
           // Note: Brotli decompression is handled automatically by DioBrotliTransformer
           if (bytes.isEmpty) {
@@ -1023,17 +1041,18 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               message: 'Bytes array is empty',
               context: 'search_request',
             );
-            
+
             if (mounted) {
               setState(() {
                 _isLoading = false;
                 _errorKind = 'network';
-                _errorMessage = 'Received empty data after decompression. Please try again.';
+                _errorMessage =
+                    'Received empty data after decompression. Please try again.';
               });
             }
             return;
           }
-          
+
           // Validate bytes are valid (not all zeros or corrupted)
           final nonZeroBytes = bytes.where((b) => b != 0).length;
           if (nonZeroBytes < bytes.length * 0.1) {
@@ -1046,11 +1065,13 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               extra: {
                 'total_bytes': bytes.length,
                 'non_zero_bytes': nonZeroBytes,
-                'zero_byte_percentage': ((bytes.length - nonZeroBytes) / bytes.length * 100).toStringAsFixed(2),
+                'zero_byte_percentage':
+                    ((bytes.length - nonZeroBytes) / bytes.length * 100)
+                        .toStringAsFixed(2),
               },
             );
           }
-          
+
           await structuredLogger.log(
             level: 'debug',
             subsystem: 'search',
@@ -1068,18 +1089,19 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           // Determine encoding from Content-Type header if available
           String? detectedEncoding;
           if (contentType.isNotEmpty) {
-            final charsetMatch = RegExp(r'charset=([^;\s]+)', caseSensitive: false)
-                .firstMatch(contentType);
+            final charsetMatch =
+                RegExp(r'charset=([^;\s]+)', caseSensitive: false)
+                    .firstMatch(contentType);
             if (charsetMatch != null) {
               detectedEncoding = charsetMatch.group(1)?.toLowerCase();
             }
           }
-          
+
           try {
-            if (detectedEncoding != null && 
-                (detectedEncoding.contains('windows-1251') || 
-                 detectedEncoding.contains('cp1251') ||
-                 detectedEncoding.contains('1251'))) {
+            if (detectedEncoding != null &&
+                (detectedEncoding.contains('windows-1251') ||
+                    detectedEncoding.contains('cp1251') ||
+                    detectedEncoding.contains('1251'))) {
               // Use Windows-1251 if specified
               decodedTextForCheck = windows1251.decode(bytes);
             } else {
@@ -1102,13 +1124,14 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         } else {
           decodedTextForCheck = response.data?.toString() ?? '';
         }
-        
+
         // Check response content for login page indicators before parsing
         final responseText = decodedTextForCheck.toLowerCase();
-        final isLoginPage = responseText.contains('action="https://rutracker') &&
-            responseText.contains('login.php') &&
-            responseText.contains('password');
-        
+        final isLoginPage =
+            responseText.contains('action="https://rutracker') &&
+                responseText.contains('login.php') &&
+                responseText.contains('password');
+
         if (isLoginPage) {
           // This is a login page, not search results
           await structuredLogger.log(
@@ -1123,20 +1146,20 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                   : responseText,
             },
           );
-          
+
           if (mounted) {
             setState(() {
               _isLoading = false;
               _errorKind = 'auth';
-              _errorMessage = AppLocalizations.of(context)
-                      ?.authorizationFailedMessage ??
-                  'Authentication required. Please log in.';
+              _errorMessage =
+                  AppLocalizations.of(context)?.authorizationFailedMessage ??
+                      'Authentication required. Please log in.';
               safeUnawaited(_handleLogin());
             });
           }
           return;
         }
-        
+
         var results = <Map<String, dynamic>>[];
         try {
           // Pass response data and headers to parser for proper encoding detection
@@ -1144,13 +1167,13 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             response.data,
             contentType: response.headers.value('content-type'),
           );
-          
+
           // CRITICAL: Filter results to only include audiobooks
           // tracker.php returns ALL torrents, so we need to filter by category
           // We can identify audiobooks by checking if they belong to category 33 forums
           // or by checking the title/content for audiobook indicators
           final audiobookResults = _filterAudiobookResults(parsedResults);
-          
+
           await structuredLogger.log(
             level: 'info',
             subsystem: 'search',
@@ -1163,7 +1186,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               'filtered_audiobook_count': audiobookResults.length,
             },
           );
-          
+
           results = audiobookResults.map(_audiobookToMap).toList();
         } on ParsingFailure catch (e) {
           // Enhanced logging and recovery for parsing failures
@@ -1183,26 +1206,33 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           } else {
             responseText = response.data?.toString() ?? '';
           }
-          
+
           final responseTextLower = responseText.toLowerCase();
-          final hasSearchForm = responseTextLower.contains('form[action*="tracker"]') ||
-              responseTextLower.contains('input[name="nm"]') ||
-              responseTextLower.contains('form#quick-search');
-          final hasSearchPageElements = responseTextLower.contains('div.tcenter') ||
-              responseTextLower.contains('table.forumline') ||
-              responseTextLower.contains('div.nav');
-          final hasAccessDenied = responseTextLower.contains('доступ запрещен') ||
-              responseTextLower.contains('access denied') ||
-              responseTextLower.contains('требуется авторизация');
-          final isLoginPage = responseTextLower.contains('action="https://rutracker') &&
-              responseTextLower.contains('login.php') &&
-              responseTextLower.contains('password');
-          
+          final hasSearchForm =
+              responseTextLower.contains('form[action*="tracker"]') ||
+                  responseTextLower.contains('input[name="nm"]') ||
+                  responseTextLower.contains('form#quick-search');
+          final hasSearchPageElements =
+              responseTextLower.contains('div.tcenter') ||
+                  responseTextLower.contains('table.forumline') ||
+                  responseTextLower.contains('div.nav');
+          final hasAccessDenied =
+              responseTextLower.contains('доступ запрещен') ||
+                  responseTextLower.contains('access denied') ||
+                  responseTextLower.contains('требуется авторизация');
+          final isLoginPage =
+              responseTextLower.contains('action="https://rutracker') &&
+                  responseTextLower.contains('login.php') &&
+                  responseTextLower.contains('password');
+
           // Check if error is encoding-related
-          final isEncodingError = e.message.toLowerCase().contains('encoding') ||
+          final isEncodingError = e.message
+                  .toLowerCase()
+                  .contains('encoding') ||
               e.message.toLowerCase().contains('decode') ||
-              responseText.contains('\uFFFD'); // Replacement character indicates encoding issue
-          
+              responseText.contains(
+                  '\uFFFD'); // Replacement character indicates encoding issue
+
           await structuredLogger.log(
             level: 'error',
             subsystem: 'search',
@@ -1226,9 +1256,12 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               },
             },
           );
-          
+
           // Try automatic recovery for encoding errors
-          if (isEncodingError && response.data is List<int> && !isLoginPage && !hasAccessDenied) {
+          if (isEncodingError &&
+              response.data is List<int> &&
+              !isLoginPage &&
+              !hasAccessDenied) {
             await structuredLogger.log(
               level: 'info',
               subsystem: 'search',
@@ -1241,29 +1274,30 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 'response_data_size': (response.data as List<int>).length,
               },
             );
-            
+
             try {
               // CRITICAL: Use original bytes from response.data (not re-encoded)
               // Note: Brotli decompression is handled automatically by DioBrotliTransformer
               // These bytes are already decompressed and ready for encoding conversion
               final bytes = response.data as List<int>;
-              
+
               // Validate bytes before recovery attempt
               if (bytes.isEmpty) {
                 throw Exception('Cannot recover: bytes are empty');
               }
-              
+
               // Determine which encoding was likely used based on Content-Type
-              final detectedEncoding = contentType.toLowerCase().contains('windows-1251') ||
-                  contentType.toLowerCase().contains('cp1251') ||
-                  contentType.toLowerCase().contains('1251');
-              
+              final detectedEncoding =
+                  contentType.toLowerCase().contains('windows-1251') ||
+                      contentType.toLowerCase().contains('cp1251') ||
+                      contentType.toLowerCase().contains('1251');
+
               // Try alternative encoding
               // If Content-Type says Windows-1251, try UTF-8, and vice versa
-              final alternativeContentType = detectedEncoding 
+              final alternativeContentType = detectedEncoding
                   ? 'text/html; charset=utf-8'
                   : 'text/html; charset=windows-1251';
-              
+
               await structuredLogger.log(
                 level: 'debug',
                 subsystem: 'search',
@@ -1275,7 +1309,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                   'bytes_length': bytes.length,
                 },
               );
-              
+
               // Try parsing with alternative encoding
               // Pass original bytes (not re-encoded) to parser
               // Note: Brotli decompression is handled automatically by DioBrotliTransformer
@@ -1283,7 +1317,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 bytes, // Original bytes (Brotli already decompressed by Dio transformer)
                 contentType: alternativeContentType,
               );
-              
+
               // Validate recovery results
               if (recoveredResults.isEmpty) {
                 await structuredLogger.log(
@@ -1292,33 +1326,37 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                   message: 'Recovery succeeded but returned empty results',
                   context: 'search_request',
                   extra: {
-                    'alternative_encoding_used': detectedEncoding ? 'utf-8' : 'windows-1251',
+                    'alternative_encoding_used':
+                        detectedEncoding ? 'utf-8' : 'windows-1251',
                   },
                 );
                 // Empty results might be valid (no search results), so continue
               }
-              
-              final audiobookResults = _filterAudiobookResults(recoveredResults);
+
+              final audiobookResults =
+                  _filterAudiobookResults(recoveredResults);
               results = audiobookResults.map(_audiobookToMap).toList();
-              
+
               await structuredLogger.log(
                 level: 'info',
                 subsystem: 'search',
                 message: 'Automatic recovery from encoding error succeeded',
                 context: 'search_request',
                 extra: {
-                  'alternative_encoding_used': detectedEncoding ? 'utf-8' : 'windows-1251',
+                  'alternative_encoding_used':
+                      detectedEncoding ? 'utf-8' : 'windows-1251',
                   'recovered_results_count': recoveredResults.length,
                   'filtered_audiobook_count': audiobookResults.length,
                 },
               );
-              
+
               // Continue with successful results (skip error handling)
             } on ParsingFailure catch (recoveryError) {
               await structuredLogger.log(
                 level: 'warning',
                 subsystem: 'search',
-                message: 'Automatic recovery from encoding error failed with ParsingFailure',
+                message:
+                    'Automatic recovery from encoding error failed with ParsingFailure',
                 context: 'search_request',
                 cause: recoveryError.message,
                 extra: {
@@ -1339,7 +1377,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                   'recovery_attempted': true,
                 },
               );
-              
+
               // Try Latin-1 as last resort (never fails, but may produce mojibake)
               if (response.data is List<int>) {
                 try {
@@ -1349,17 +1387,18 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                     message: 'Trying Latin-1 decoding as last resort',
                     context: 'search_request',
                   );
-                  
+
                   final bytes = response.data as List<int>;
                   final latin1Results = await _parser.parseSearchResults(
                     bytes,
                     contentType: 'text/html; charset=iso-8859-1',
                   );
-                  
-                  final audiobookResults = _filterAudiobookResults(latin1Results);
+
+                  final audiobookResults =
+                      _filterAudiobookResults(latin1Results);
                   if (audiobookResults.isNotEmpty) {
                     results = audiobookResults.map(_audiobookToMap).toList();
-                    
+
                     await structuredLogger.log(
                       level: 'info',
                       subsystem: 'search',
@@ -1394,19 +1433,20 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               }
             }
           }
-          
+
           // If recovery didn't work or wasn't attempted, handle the error
           if (results.isEmpty) {
             // Improved check for authentication error (more specific)
             final errorMessageLower = e.message.toLowerCase();
-            final isAuthError = errorMessageLower.contains('page appears to require authentication') ||
+            final isAuthError = errorMessageLower
+                    .contains('page appears to require authentication') ||
                 errorMessageLower.contains('please log in first') ||
-                (errorMessageLower.contains('authentication') && 
-                 errorMessageLower.contains('log in')) ||
+                (errorMessageLower.contains('authentication') &&
+                    errorMessageLower.contains('log in')) ||
                 // Check response content for login page indicators
                 isLoginPage ||
                 (hasAccessDenied && !hasSearchForm);
-            
+
             if (mounted) {
               setState(() {
                 _isLoading = false;
@@ -1419,12 +1459,14 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 } else if (isEncodingError) {
                   // Task 3.3: Distinguish encoding errors and suggest specific actions
                   _errorKind = 'network';
-                  _errorMessage = 'Failed to parse search results due to encoding issue. '
+                  _errorMessage =
+                      'Failed to parse search results due to encoding issue. '
                       'This may be a temporary server problem. Please try again. '
                       'If the problem persists, try changing the mirror in Settings → Sources.';
                 } else {
                   _errorKind = 'network';
-                  _errorMessage = 'Failed to parse search results. The page structure may have changed. '
+                  _errorMessage =
+                      'Failed to parse search results. The page structure may have changed. '
                       'Please try again. If the problem persists, try changing the mirror in Settings → Sources.';
                 }
               });
@@ -1476,7 +1518,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         // Success - update active host display (don't change endpoint)
         if (mounted) {
           final uri = Uri.tryParse(endpoint);
-          if (uri != null && uri.hasScheme && uri.hasAuthority && uri.host.isNotEmpty) {
+          if (uri != null &&
+              uri.hasScheme &&
+              uri.hasAuthority &&
+              uri.host.isNotEmpty) {
             setState(() => _activeHost = uri.host);
           } else {
             // Fallback: try to extract host from endpoint string
@@ -1491,7 +1536,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             }
           }
         }
-        
+
         await structuredLogger.log(
           level: 'info',
           subsystem: 'search',
@@ -1517,7 +1562,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             'response_size': response.data?.toString().length ?? 0,
           },
         );
-        
+
         if (mounted) {
           setState(() {
             _isLoading = false;
@@ -1539,14 +1584,14 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           'timeout_seconds': 30,
         },
       );
-      
+
       if (mounted) {
         setState(() {
           _isLoading = false;
           _errorKind = 'timeout';
-          _errorMessage = AppLocalizations.of(context)
-                  ?.requestTimedOutMessage ??
-              'Request timed out. Check your connection.';
+          _errorMessage =
+              AppLocalizations.of(context)?.requestTimedOutMessage ??
+                  'Request timed out. Check your connection.';
         });
       }
       return;
@@ -1586,10 +1631,11 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           'endpoint': endpoint,
           'error_type': errorType,
           'status_code': e.response?.statusCode,
-          'response_data_preview': e.response?.data?.toString().length != null && 
-              e.response!.data.toString().length > 500
-              ? e.response!.data.toString().substring(0, 500)
-              : e.response?.data?.toString() ?? '<empty>',
+          'response_data_preview':
+              e.response?.data?.toString().length != null &&
+                      e.response!.data.toString().length > 500
+                  ? e.response!.data.toString().substring(0, 500)
+                  : e.response?.data?.toString() ?? '<empty>',
           'request_url': e.requestOptions.uri.toString(),
           'query_params': e.requestOptions.queryParameters,
         },
@@ -1598,8 +1644,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       // Check if error indicates authentication issue
       final isAuthError = e.response?.statusCode == 401 ||
           e.response?.statusCode == 403 ||
-          (e.response?.data?.toString().toLowerCase().contains('login') ?? false) ||
-          (e.response?.data?.toString().toLowerCase().contains('авторизация') ?? false) ||
+          (e.response?.data?.toString().toLowerCase().contains('login') ??
+              false) ||
+          (e.response?.data?.toString().toLowerCase().contains('авторизация') ??
+              false) ||
           (e.message?.toLowerCase().contains('authentication') ?? false);
 
       if (mounted) {
@@ -1607,9 +1655,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           _isLoading = false;
           if (isAuthError) {
             _errorKind = 'auth';
-            _errorMessage = AppLocalizations.of(context)
-                    ?.authorizationFailedMessage ??
-                'Authentication required. Please log in.';
+            _errorMessage =
+                AppLocalizations.of(context)?.authorizationFailedMessage ??
+                    'Authentication required. Please log in.';
             safeUnawaited(_handleLogin());
           } else {
             _errorKind = 'network';
@@ -1617,10 +1665,11 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           }
         });
       }
-      
+
       // Handle connection errors
-      if (!isAuthError && (e.type == DioExceptionType.connectionError ||
-          e.type == DioExceptionType.connectionTimeout)) {
+      if (!isAuthError &&
+          (e.type == DioExceptionType.connectionError ||
+              e.type == DioExceptionType.connectionTimeout)) {
         final message = e.message?.toLowerCase() ?? '';
         final isDnsError = message.contains('host lookup') ||
             message.contains('no address associated with hostname') ||
@@ -1693,7 +1742,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           'error_type': e.runtimeType.toString(),
         },
       );
-      
+
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -1708,7 +1757,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   @override
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(
-          title: Text(AppLocalizations.of(context)?.searchAudiobooks ?? 'Search Audiobooks'),
+          title: Text(AppLocalizations.of(context)?.searchAudiobooks ??
+              'Search Audiobooks'),
           actions: [
             if (_activeHost != null)
               Padding(
@@ -1733,7 +1783,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               onPressed: _handleLogin,
             ),
             IconButton(
-              tooltip: AppLocalizations.of(context)?.mirrorsTooltip ?? 'Mirrors',
+              tooltip:
+                  AppLocalizations.of(context)?.mirrorsTooltip ?? 'Mirrors',
               icon: const Icon(Icons.dns),
               onPressed: () {
                 unawaited(Navigator.push(
@@ -1744,45 +1795,46 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               },
             ),
             PopupMenuButton<String>(
-                onSelected: (value) async {
-                  final messenger = ScaffoldMessenger.of(context);
-                  final localizations = AppLocalizations.of(context);
-                  switch (value) {
-                    case 'refresh':
-                      await _forceRefreshSearch();
-                      break;
-                    case 'clear_search_cache':
-                      await _cacheService.clearSearchResultsCache();
-                      if (!mounted) break;
-                      messenger.showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            localizations?.cacheCleared ?? 'Cache cleared',
-                          ),
+              onSelected: (value) async {
+                final messenger = ScaffoldMessenger.of(context);
+                final localizations = AppLocalizations.of(context);
+                switch (value) {
+                  case 'refresh':
+                    await _forceRefreshSearch();
+                    break;
+                  case 'clear_search_cache':
+                    await _cacheService.clearSearchResultsCache();
+                    if (!mounted) break;
+                    messenger.showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          localizations?.cacheCleared ?? 'Cache cleared',
                         ),
-                      );
-                      break;
-                    case 'clear_all_cache':
-                      await _cacheService.clearAllTopicDetailsCache();
-                      await _cacheService.clearSearchResultsCache();
-                      if (!mounted) break;
-                      messenger.showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            localizations?.allCacheCleared ?? 'All cache cleared',
-                          ),
+                      ),
+                    );
+                    break;
+                  case 'clear_all_cache':
+                    await _cacheService.clearAllTopicDetailsCache();
+                    await _cacheService.clearSearchResultsCache();
+                    if (!mounted) break;
+                    messenger.showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          localizations?.allCacheCleared ?? 'All cache cleared',
                         ),
-                      );
-                      break;
-                  }
-                },
+                      ),
+                    );
+                    break;
+                }
+              },
               itemBuilder: (context) => [
                 PopupMenuItem(
                   value: 'refresh',
                   child: ListTile(
                     leading: const Icon(Icons.refresh),
                     title: Text(
-                      AppLocalizations.of(context)?.refreshCurrentSearch ?? 'Refresh current search',
+                      AppLocalizations.of(context)?.refreshCurrentSearch ??
+                          'Refresh current search',
                     ),
                     contentPadding: EdgeInsets.zero,
                   ),
@@ -1792,7 +1844,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                   child: ListTile(
                     leading: const Icon(Icons.clear_all),
                     title: Text(
-                      AppLocalizations.of(context)?.clearSearchCache ?? 'Clear search cache',
+                      AppLocalizations.of(context)?.clearSearchCache ??
+                          'Clear search cache',
                     ),
                     contentPadding: EdgeInsets.zero,
                   ),
@@ -1802,7 +1855,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                   child: ListTile(
                     leading: const Icon(Icons.delete_sweep),
                     title: Text(
-                      AppLocalizations.of(context)?.clearAllCache ?? 'Clear all cache',
+                      AppLocalizations.of(context)?.clearAllCache ??
+                          'Clear all cache',
                     ),
                     contentPadding: EdgeInsets.zero,
                   ),
@@ -1830,8 +1884,11 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                   controller: _searchController,
                   focusNode: _searchFocusNode,
                   decoration: InputDecoration(
-                    labelText: AppLocalizations.of(context)?.searchPlaceholder ?? 'Enter title, author, or keywords',
-                    hintText: AppLocalizations.of(context)?.searchPlaceholder ?? 'Enter title, author, or keywords',
+                    labelText:
+                        AppLocalizations.of(context)?.searchPlaceholder ??
+                            'Enter title, author, or keywords',
+                    hintText: AppLocalizations.of(context)?.searchPlaceholder ??
+                        'Enter title, author, or keywords',
                     suffixIcon: _searchController.text.isNotEmpty
                         ? IconButton(
                             icon: const Icon(Icons.clear),
@@ -1897,7 +1954,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                           // Open auth screen for login
                           final result = await context.push('/auth');
                           if (!mounted) return;
-                          
+
                           // If login was successful, validate cookies
                           if (result == true) {
                             final isValid = await DioClient.validateCookies();
@@ -1907,7 +1964,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                           } else {
                             return; // User cancelled, don't clear error
                           }
-                          
+
                           setState(() {
                             _errorKind = null;
                             _errorMessage = null;
@@ -1947,7 +2004,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      AppLocalizations.of(context)?.resultsFromCache ?? 'Results from cache',
+                                      AppLocalizations.of(context)
+                                              ?.resultsFromCache ??
+                                          'Results from cache',
                                       style: TextStyle(
                                         color: Colors.blue[700],
                                         fontSize: 12,
@@ -1966,12 +2025,16 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                               ),
                               TextButton.icon(
                                 icon: const Icon(Icons.refresh, size: 16),
-                                label: Text(AppLocalizations.of(context)?.refresh ?? 'Refresh'),
+                                label: Text(
+                                    AppLocalizations.of(context)?.refresh ??
+                                        'Refresh'),
                                 onPressed: _forceRefreshSearch,
                                 style: TextButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 4),
                                   minimumSize: Size.zero,
-                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                  tapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
                                 ),
                               ),
                             ],
@@ -2062,7 +2125,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                     _selectedCategories.clear();
                     setState(() {});
                   },
-                  child: Text(AppLocalizations.of(context)?.resetButton ?? 'Reset'),
+                  child: Text(
+                      AppLocalizations.of(context)?.resetButton ?? 'Reset'),
                 ),
               ],
             ],
@@ -2160,8 +2224,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                           }
                         }
                       },
-                      child: Text(AppLocalizations.of(context)?.clearButton ??
-                          'Clear'),
+                      child: Text(
+                          AppLocalizations.of(context)?.clearButton ?? 'Clear'),
                     ),
                 ],
               ),
@@ -2295,7 +2359,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               isFavorite
                   ? (AppLocalizations.of(context)?.failedToAddToFavorites ??
                       'Failed to add to favorites')
-                  : (AppLocalizations.of(context)?.failedToRemoveFromFavorites ??
+                  : (AppLocalizations.of(context)
+                          ?.failedToRemoveFromFavorites ??
                       'Failed to remove from favorites'),
             ),
           ),
@@ -2325,12 +2390,14 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         '$activeEndpoint/forum/tracker.php',
         queryParameters: {
           'nm': query,
-          'c': CategoryConstants.audiobooksCategoryId, // Try to filter by category 33 (audiobooks)
+          'c': CategoryConstants
+              .audiobooksCategoryId, // Try to filter by category 33 (audiobooks)
           'o': '1',
           'start': _searchResults.length,
         },
         options: Options(
-          responseType: ResponseType.bytes, // Get raw bytes to decode Windows-1251 correctly
+          responseType: ResponseType
+              .bytes, // Get raw bytes to decode Windows-1251 correctly
         ),
       );
       if (res.statusCode == 200) {
@@ -2340,10 +2407,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             res.data,
             contentType: res.headers.value('content-type'),
           );
-          
+
           // CRITICAL: Filter results to only include audiobooks
           final audiobookMore = _filterAudiobookResults(more);
-          
+
           if (mounted) {
             setState(() {
               _searchResults.addAll(audiobookMore.map(_audiobookToMap));
@@ -2470,7 +2537,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         iconColor = Colors.red.shade400;
         actions = [
           ElevatedButton.icon(
-            onPressed: _performSearch, // Task 3.3: Retry search on encoding/parsing errors
+            onPressed:
+                _performSearch, // Task 3.3: Retry search on encoding/parsing errors
             icon: const Icon(Icons.refresh),
             label: Text(localizations?.retry ?? 'Retry'),
           ),
@@ -2565,11 +2633,11 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   String _formatCacheExpiration(DateTime expirationTime) {
     final now = DateTime.now();
     final difference = expirationTime.difference(now);
-    
+
     if (difference.isNegative) {
       return AppLocalizations.of(context)?.cacheExpired ?? 'Expired';
     }
-    
+
     if (difference.inDays > 0) {
       return '${difference.inDays} ${AppLocalizations.of(context)?.days ?? 'days'}';
     } else if (difference.inHours > 0) {
@@ -2582,86 +2650,87 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   }
 
   Map<String, dynamic> _audiobookToMap(Audiobook audiobook) => {
-      'id': audiobook.id,
-      'title': audiobook.title,
-      'author': audiobook.author,
-      'category': audiobook.category,
-      'size': audiobook.size,
-      'seeders': audiobook.seeders,
-      'leechers': audiobook.leechers,
-      'magnetUrl': audiobook.magnetUrl,
-      'coverUrl': audiobook.coverUrl,
-      'performer': audiobook.performer,
-      'genres': audiobook.genres,
-      'chapters': audiobook.chapters.map(_chapterToMap).toList(),
-      'addedDate': audiobook.addedDate.toIso8601String(),
-    };
+        'id': audiobook.id,
+        'title': audiobook.title,
+        'author': audiobook.author,
+        'category': audiobook.category,
+        'size': audiobook.size,
+        'seeders': audiobook.seeders,
+        'leechers': audiobook.leechers,
+        'magnetUrl': audiobook.magnetUrl,
+        'coverUrl': audiobook.coverUrl,
+        'performer': audiobook.performer,
+        'genres': audiobook.genres,
+        'chapters': audiobook.chapters.map(_chapterToMap).toList(),
+        'addedDate': audiobook.addedDate.toIso8601String(),
+      };
 }
 
-  /// Filters search results to only include audiobooks.
-  ///
-  /// Since tracker.php returns ALL torrents (movies, games, books, audiobooks, etc.),
-  /// we need to filter results to only show audiobooks from category 33.
-  ///
-  /// We identify audiobooks by:
-  /// 1. Checking if the title contains audiobook-related keywords
-  /// 2. Checking if the category field indicates it's an audiobook
-  /// 3. Checking if the result has characteristics of audiobooks (size, format, etc.)
-  List<Audiobook> _filterAudiobookResults(List<Audiobook> allResults) {
-    final audiobookKeywords = [
-      'аудиокнига',
-      'аудио',
-      'радиоспектакль',
-      'биография',
-      'мемуары',
-      'чтение',
-      'читает',
-      'исполнитель',
-      'mp3',
-      'flac',
-      'm4b',
-      'ogg',
-    ];
-    
-    final excludedKeywords = [
-      'фильм',
-      'сериал',
-      'игра',
-      'программа',
-      'музыка',
-      'альбом',
-      'трек',
-      'песня',
-      'видео',
-      'dvd',
-      'blu-ray',
-      'bdrip',
-      'dvdrip',
-    ];
-    
-    return allResults.where((result) {
-      final titleLower = result.title.toLowerCase();
-      final categoryLower = result.category.toLowerCase();
-      
-      // Check if it contains audiobook-related keywords
-      final hasAudiobookKeyword = audiobookKeywords.any(
-        (keyword) => titleLower.contains(keyword) || categoryLower.contains(keyword),
-      );
-      
-      // Check if it contains excluded keywords (likely not an audiobook)
-      final hasExcludedKeyword = excludedKeywords.any(
-        titleLower.contains,
-      );
-      
-      // Include if it has audiobook keywords and doesn't have excluded keywords
-      // OR if the category explicitly indicates it's an audiobook
-      return (hasAudiobookKeyword && !hasExcludedKeyword) ||
-          categoryLower.contains('аудиокнига') ||
-          categoryLower.contains('радиоспектакль') ||
-          categoryLower.contains('биография') ||
-          categoryLower.contains('мемуары');
-    }).toList();
-  }
+/// Filters search results to only include audiobooks.
+///
+/// Since tracker.php returns ALL torrents (movies, games, books, audiobooks, etc.),
+/// we need to filter results to only show audiobooks from category 33.
+///
+/// We identify audiobooks by:
+/// 1. Checking if the title contains audiobook-related keywords
+/// 2. Checking if the category field indicates it's an audiobook
+/// 3. Checking if the result has characteristics of audiobooks (size, format, etc.)
+List<Audiobook> _filterAudiobookResults(List<Audiobook> allResults) {
+  final audiobookKeywords = [
+    'аудиокнига',
+    'аудио',
+    'радиоспектакль',
+    'биография',
+    'мемуары',
+    'чтение',
+    'читает',
+    'исполнитель',
+    'mp3',
+    'flac',
+    'm4b',
+    'ogg',
+  ];
+
+  final excludedKeywords = [
+    'фильм',
+    'сериал',
+    'игра',
+    'программа',
+    'музыка',
+    'альбом',
+    'трек',
+    'песня',
+    'видео',
+    'dvd',
+    'blu-ray',
+    'bdrip',
+    'dvdrip',
+  ];
+
+  return allResults.where((result) {
+    final titleLower = result.title.toLowerCase();
+    final categoryLower = result.category.toLowerCase();
+
+    // Check if it contains audiobook-related keywords
+    final hasAudiobookKeyword = audiobookKeywords.any(
+      (keyword) =>
+          titleLower.contains(keyword) || categoryLower.contains(keyword),
+    );
+
+    // Check if it contains excluded keywords (likely not an audiobook)
+    final hasExcludedKeyword = excludedKeywords.any(
+      titleLower.contains,
+    );
+
+    // Include if it has audiobook keywords and doesn't have excluded keywords
+    // OR if the category explicitly indicates it's an audiobook
+    return (hasAudiobookKeyword && !hasExcludedKeyword) ||
+        categoryLower.contains('аудиокнига') ||
+        categoryLower.contains('радиоспектакль') ||
+        categoryLower.contains('биография') ||
+        categoryLower.contains('мемуары');
+  }).toList();
+}
 
 /// Converts a Chapter object to a Map for caching.
 Map<String, dynamic> _chapterToMap(Chapter chapter) => {

@@ -61,7 +61,8 @@ class DownloadStatusBar extends StatelessWidget {
     return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
   }
 
-  String _formatSpeed(double bytesPerSecond) => '${_formatBytes(bytesPerSecond.toInt())}/s';
+  String _formatSpeed(double bytesPerSecond) =>
+      '${_formatBytes(bytesPerSecond.toInt())}/s';
 
   @override
   Widget build(BuildContext context) {
@@ -165,4 +166,3 @@ class DownloadStatusBar extends StatelessWidget {
     );
   }
 }
-

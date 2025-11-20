@@ -63,11 +63,11 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
       // Use singleton AppDatabase instance - it should already be initialized
       // by app.dart, but handle the case where it's not ready yet
       final appDatabase = AppDatabase();
-      
+
       // Wait a bit for database to be initialized by app.dart
       // This is a workaround for race condition on new Android
       await Future.delayed(const Duration(milliseconds: 100));
-      
+
       // Check if database is already initialized
       if (!appDatabase.isInitialized) {
         // Database not ready yet - initialize it
@@ -79,7 +79,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
           return;
         }
       }
-      
+
       // Now safely access database
       try {
         final db = appDatabase.database;
@@ -159,14 +159,16 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                 // Navigate to search screen
                 context.go('/search');
               },
-              tooltip: AppLocalizations.of(context)?.searchAudiobooks ?? 'Search',
+              tooltip:
+                  AppLocalizations.of(context)?.searchAudiobooks ?? 'Search',
             ),
             IconButton(
               icon: const Icon(Icons.download),
               onPressed: () {
                 context.go('/downloads');
               },
-              tooltip: AppLocalizations.of(context)?.downloadsTitle ?? 'Downloads',
+              tooltip:
+                  AppLocalizations.of(context)?.downloadsTitle ?? 'Downloads',
             ),
             IconButton(
               icon: const Icon(Icons.filter_list),
@@ -207,7 +209,7 @@ class _LibraryContent extends ConsumerWidget {
     final padding = ResponsiveUtils.getResponsivePadding(context);
     final iconSize = ResponsiveUtils.getIconSize(context, baseSize: 64);
     final spacing = ResponsiveUtils.getSpacing(context, baseSpacing: 16);
-    
+
     return ResponsiveUtils.responsiveContainer(
       context,
       Center(
@@ -227,8 +229,10 @@ class _LibraryContent extends ConsumerWidget {
               AppLocalizations.of(context)?.libraryEmptyMessage ??
                   'Your library is empty',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontSize: (Theme.of(context).textTheme.titleMedium?.fontSize ?? 16) *
-                        ResponsiveUtils.getFontSizeMultiplier(context),
+                    fontSize:
+                        (Theme.of(context).textTheme.titleMedium?.fontSize ??
+                                16) *
+                            ResponsiveUtils.getFontSizeMultiplier(context),
                   ),
               textAlign: TextAlign.center,
             ),
@@ -271,9 +275,9 @@ class _LibraryContent extends ConsumerWidget {
                   child: _buildActionButton(
                     context,
                     icon: Icons.folder_open,
-                    label: AppLocalizations.of(context)
-                            ?.importFromFilesButton ??
-                        'Import from Files',
+                    label:
+                        AppLocalizations.of(context)?.importFromFilesButton ??
+                            'Import from Files',
                     onPressed: () => _showImportDialog(context),
                   ),
                 ),
@@ -308,7 +312,7 @@ class _LibraryContent extends ConsumerWidget {
     final buttonWidth = isDesktop ? 220.0 : (isTablet ? 200.0 : 180.0);
     final iconSize = ResponsiveUtils.getIconSize(context, baseSize: 20);
     final padding = ResponsiveUtils.getSpacing(context, baseSpacing: 12);
-    
+
     return SizedBox(
       width: buttonWidth,
       child: OutlinedButton.icon(
@@ -373,8 +377,9 @@ class _LibraryContent extends ConsumerWidget {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-                content: Text(AppLocalizations.of(context)?.importedSuccess(importedCount) ?? 
-                        'Imported $importedCount audiobook(s)'),
+              content: Text(AppLocalizations.of(context)
+                      ?.importedSuccess(importedCount) ??
+                  'Imported $importedCount audiobook(s)'),
             ),
           );
         }
@@ -394,19 +399,20 @@ class _LibraryContent extends ConsumerWidget {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-                content: Text(
-                    'File picker is already open. Please close it first.'),
+              content:
+                  Text('File picker is already open. Please close it first.'),
             ),
           );
         }
         return;
       }
-      
+
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content: Text(AppLocalizations.of(context)?.importFailedMessage(e.toString()) ?? 
-                      'Import failed: ${e.toString()}'),
+            content: Text(AppLocalizations.of(context)
+                    ?.importFailedMessage(e.toString()) ??
+                'Import failed: ${e.toString()}'),
           ),
         );
       }
@@ -466,8 +472,9 @@ class _LibraryContent extends ConsumerWidget {
           if (context.mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                  content: Text(AppLocalizations.of(context)?.scanSuccessMessage(importedCount) ?? 
-                          'Scanned and imported $importedCount audiobook(s)'),
+                content: Text(AppLocalizations.of(context)
+                        ?.scanSuccessMessage(importedCount) ??
+                    'Scanned and imported $importedCount audiobook(s)'),
               ),
             );
           }
@@ -486,10 +493,10 @@ class _LibraryContent extends ConsumerWidget {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-                content: Text(
-                    AppLocalizations.of(context)?.noFolderSelectedMessage ??
-                        'No folder selected. Please try again or check app permissions.'),
-                duration: const Duration(seconds: 3),
+              content: Text(AppLocalizations.of(context)
+                      ?.noFolderSelectedMessage ??
+                  'No folder selected. Please try again or check app permissions.'),
+              duration: const Duration(seconds: 3),
             ),
           );
         }
@@ -500,19 +507,20 @@ class _LibraryContent extends ConsumerWidget {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-                content: Text(
-                    'File picker is already open. Please close it first.'),
+              content:
+                  Text('File picker is already open. Please close it first.'),
             ),
           );
         }
         return;
       }
-      
+
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content: Text(AppLocalizations.of(context)?.scanFailedMessage(e.toString()) ?? 
-                      'Scan failed: ${e.toString()}'),
+            content: Text(
+                AppLocalizations.of(context)?.scanFailedMessage(e.toString()) ??
+                    'Scan failed: ${e.toString()}'),
           ),
         );
       }

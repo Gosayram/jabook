@@ -223,7 +223,8 @@ class RuTrackerCacheService {
   }
 
   /// Generates cache key for torrent chapters.
-  String _getTorrentChaptersKey(String infoHash) => 'torrent_chapters:$infoHash';
+  String _getTorrentChaptersKey(String infoHash) =>
+      'torrent_chapters:$infoHash';
 
   /// Clears cached chapters for a specific torrent.
   ///

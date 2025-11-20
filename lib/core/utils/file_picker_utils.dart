@@ -120,43 +120,50 @@ Future<String?> pickDirectory() async {
     if (Platform.isAndroid) {
       final androidInfo = await DeviceInfoPlugin().androidInfo;
       final sdkInt = androidInfo.version.sdkInt;
-      
-      debugPrint('[file_picker_utils] Picking directory on Android SDK $sdkInt');
-      
+
+      debugPrint(
+          '[file_picker_utils] Picking directory on Android SDK $sdkInt');
+
       // Android 13+ (API 33+): Use native SAF implementation with proper permission handling
       // This ensures takePersistableUriPermission is called correctly
       if (sdkInt >= 33) {
         try {
           const methodChannel = MethodChannel('directory_picker_channel');
-          final result = await methodChannel.invokeMethod<String>('pickDirectory');
-          
+          final result =
+              await methodChannel.invokeMethod<String>('pickDirectory');
+
           if (result == null || result.isEmpty) {
-            debugPrint('[file_picker_utils] Directory picker returned null on Android SDK $sdkInt (user cancelled)');
+            debugPrint(
+                '[file_picker_utils] Directory picker returned null on Android SDK $sdkInt (user cancelled)');
             return null;
           }
-          
-          debugPrint('[file_picker_utils] Directory selected via native SAF: $result');
+
+          debugPrint(
+              '[file_picker_utils] Directory selected via native SAF: $result');
           // Result is a URI string (e.g., "content://com.android.externalstorage.documents/tree/primary%3ADownload")
           // This URI can be used with DocumentFile or ContentResolver for file operations
           return result;
         } on PlatformException catch (e) {
-          debugPrint('[file_picker_utils] Native directory picker error: ${e.code} - ${e.message}');
+          debugPrint(
+              '[file_picker_utils] Native directory picker error: ${e.code} - ${e.message}');
           // Fallback to FilePicker if native method fails
           debugPrint('[file_picker_utils] Falling back to FilePicker plugin');
         } on Exception catch (e) {
-          debugPrint('[file_picker_utils] Exception in native directory picker: $e');
+          debugPrint(
+              '[file_picker_utils] Exception in native directory picker: $e');
           // Fallback to FilePicker if native method fails
           debugPrint('[file_picker_utils] Falling back to FilePicker plugin');
         }
       }
-      
+
       // Android 11-12 (API 30-32) or fallback: Use FilePicker plugin
       // Android 11+ (API 30+) uses Scoped Storage, SAF is required
       // getDirectoryPath() should work, but may return null silently
       final directory = await FilePicker.platform.getDirectoryPath();
-      
+
       if (directory == null) {
-        debugPrint('[file_picker_utils] Directory picker returned null on Android SDK $sdkInt');
+        debugPrint(
+            '[file_picker_utils] Directory picker returned null on Android SDK $sdkInt');
         // On Android 11+, if null is returned, it might be due to:
         // 1. User cancelled (normal - this is expected)
         // 2. SAF permission issue (should be handled by system)
@@ -164,15 +171,17 @@ Future<String?> pickDirectory() async {
         // We return null gracefully - caller should handle this
         return null;
       }
-      
+
       debugPrint('[file_picker_utils] Directory selected: $directory');
       return directory;
     } else {
       // iOS and other platforms
-      debugPrint('[file_picker_utils] Picking directory on ${Platform.operatingSystem}');
+      debugPrint(
+          '[file_picker_utils] Picking directory on ${Platform.operatingSystem}');
       final directory = await FilePicker.platform.getDirectoryPath();
       if (directory == null) {
-        debugPrint('[file_picker_utils] Directory picker returned null on ${Platform.operatingSystem}');
+        debugPrint(
+            '[file_picker_utils] Directory picker returned null on ${Platform.operatingSystem}');
       } else {
         debugPrint('[file_picker_utils] Directory selected: $directory');
       }
@@ -186,17 +195,17 @@ Future<String?> pickDirectory() async {
       // Return null instead of throwing - caller should handle this gracefully
       return null;
     }
-    
+
     debugPrint('[file_picker_utils] Error picking directory: $e');
     debugPrint('[file_picker_utils] Stack trace: $stackTrace');
-    
+
     // On Android, some errors might be platform-specific
     if (Platform.isAndroid) {
       // Log the error for debugging but don't throw
       // The caller should handle null gracefully
       return null;
     }
-    
+
     throw Exception('Failed to pick directory: $e');
   }
 }

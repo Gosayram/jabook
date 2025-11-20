@@ -53,7 +53,7 @@ class WebViewCloudflareHandler {
   /// that mentions Cloudflare (e.g., in headers or meta tags).
   static bool looksLikeCloudflare(String html) {
     final h = html.toLowerCase();
-    
+
     // Check for active challenge indicators (strong signals)
     final hasActiveChallenge = h.contains('checking your browser') ||
         h.contains('please enable javascript') ||
@@ -65,11 +65,11 @@ class WebViewCloudflareHandler {
         h.contains('cf-browser-verification') ||
         h.contains('cf-challenge-running') ||
         h.contains('ddos-guard');
-    
+
     if (!hasActiveChallenge) {
       return false;
     }
-    
+
     // If we have active challenge indicators, check if page has real content
     final hasRealContent = h.contains('forum') ||
         h.contains('трекер') ||
@@ -81,16 +81,16 @@ class WebViewCloudflareHandler {
         h.contains('index.php') ||
         h.contains('viewtopic') ||
         h.contains('viewforum');
-    
+
     if (hasRealContent) {
       return false;
     }
-    
+
     // Check page size - challenge pages are usually small (< 50KB)
     if (html.length > 50000) {
       return false;
     }
-    
+
     return true;
   }
 
@@ -98,22 +98,24 @@ class WebViewCloudflareHandler {
   void startCloudflareWait(InAppWebViewController controller, String url) {
     // Cancel any existing timer
     cloudflareCheckTimer?.cancel();
-    
+
     // Record challenge start time
     cloudflareChallengeStartTime = DateTime.now();
-    
+
     // Wait 2 seconds first, then check periodically
     Future.delayed(const Duration(seconds: 2), () {
       if (!isMounted()) return;
-      
-      cloudflareCheckTimer = Timer.periodic(const Duration(seconds: 10), (timer) async {
+
+      cloudflareCheckTimer =
+          Timer.periodic(const Duration(seconds: 10), (timer) async {
         if (!isMounted()) {
           timer.cancel();
           return;
         }
-        
-        final elapsed = DateTime.now().difference(cloudflareChallengeStartTime!);
-        
+
+        final elapsed =
+            DateTime.now().difference(cloudflareChallengeStartTime!);
+
         // Check if we've waited too long
         if (elapsed > cloudflareWaitDuration) {
           timer.cancel();
@@ -136,7 +138,7 @@ class WebViewCloudflareHandler {
           }
           return;
         }
-        
+
         // Check if challenge has passed
         try {
           final html = await controller.getHtml();
@@ -170,9 +172,9 @@ class WebViewCloudflareHandler {
   void showCloudflareHint() {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(AppLocalizations.of(context)
-                ?.securityVerificationInProgress ??
-            'Security verification in progress - please wait...'),
+        content: Text(
+            AppLocalizations.of(context)?.securityVerificationInProgress ??
+                'Security verification in progress - please wait...'),
         duration: const Duration(seconds: 3),
       ),
     );
@@ -193,4 +195,3 @@ class WebViewCloudflareHandler {
     cloudflareCheckTimer?.cancel();
   }
 }
-

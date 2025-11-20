@@ -1316,4 +1316,10 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get minutes => 'мин.';
+
+  @override
+  String get showMore => 'Показать больше';
+
+  @override
+  String get showLess => 'Показать меньше';
 }

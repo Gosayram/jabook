@@ -41,7 +41,7 @@ class AppDatabase {
     }
     return _db!;
   }
-  
+
   /// Checks if database is initialized.
   bool get isInitialized => _isInitialized && _db != null;
 

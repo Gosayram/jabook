@@ -307,7 +307,8 @@ class AudiobookMetadataService {
             'start': start,
           },
           options: Options(
-            responseType: ResponseType.plain, // Ensure gzip is automatically decompressed
+            responseType:
+                ResponseType.plain, // Ensure gzip is automatically decompressed
           ),
         );
 

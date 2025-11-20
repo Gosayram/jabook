@@ -44,27 +44,26 @@ class SecureRutrackerWebView extends StatefulWidget {
   const SecureRutrackerWebView({super.key});
 
   @override
-  State<SecureRutrackerWebView> createState() =>
-      _SecureRutrackerWebViewState();
+  State<SecureRutrackerWebView> createState() => _SecureRutrackerWebViewState();
 }
 
 /// State class for SecureRutrackerWebView widget.
 class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
   InAppWebViewController? _webViewController;
   InAppWebViewSettings? _settings;
-  
+
   bool _isLoading = true;
   bool _hasError = false;
   String? _errorMessage;
   bool _cloudflareDetected = false;
   bool _loginDetected = false;
-  
+
   String? _initialUrl;
   bridge_session.SessionManager? _sessionManager;
   WebViewCookieManager? _cookieManager;
   WebViewStateManager? _stateManager;
   WebViewCloudflareHandler? _cloudflareHandler;
-  
+
   final GlobalKey _webViewKey = GlobalKey();
 
   @override
@@ -77,20 +76,20 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
     try {
       // Initialize cookie bridge
       _sessionManager = await WebViewCookieManager.initCookieBridge();
-      
+
       // Resolve initial URL
       _initialUrl = await WebViewNavigationHandler.resolveInitialUrl();
-      
+
       // Get user agent
       final userAgentManager = UserAgentManager();
       final userAgent = await userAgentManager.getUserAgent();
-      
+
       // Configure WebView settings
       _settings = InAppWebViewSettings(
         userAgent: userAgent,
         mediaPlaybackRequiresUserGesture: false,
       );
-      
+
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -104,7 +103,7 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
         context: 'webview_init',
         cause: e.toString(),
       );
-      
+
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -117,20 +116,20 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
 
   Future<void> _onWebViewCreated(InAppWebViewController controller) async {
     _webViewController = controller;
-    
+
     if (_webViewController == null) return;
-    
+
     // Initialize managers
     _cookieManager = WebViewCookieManager(
       webViewController: _webViewController!,
       sessionManager: _sessionManager,
       isMounted: () => mounted,
     );
-    
+
     _stateManager = WebViewStateManager(
       webViewController: _webViewController!,
     );
-    
+
     _cloudflareHandler = WebViewCloudflareHandler(
       context: context,
       isMounted: () => mounted,
@@ -142,17 +141,17 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
         }
       },
     );
-    
+
     // Setup cookie handlers
     await _cookieManager!.setupJavaScriptCookieHandler();
     await _cookieManager!.injectCookieMonitorScript();
-    
+
     // Restore cookies
     await _cookieManager!.restoreCookies(_initialUrl);
-    
+
     // Restore WebView state
     await _stateManager!.restoreWebViewHistory();
-    
+
     // Load initial URL
     if (_initialUrl != null) {
       await _webViewController!.loadUrl(
@@ -165,26 +164,26 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
     NavigationAction navigationAction,
   ) async {
     final url = navigationAction.request.url?.toString() ?? '';
-    
+
     // Handle magnet links
     if (url.startsWith('magnet:')) {
       await _launchExternal(Uri.parse(url));
       return NavigationActionPolicy.CANCEL;
     }
-    
+
     // Handle torrent files
     if (url.toLowerCase().endsWith('.torrent')) {
       await _handleTorrent(Uri.parse(url));
       return NavigationActionPolicy.CANCEL;
     }
-    
+
     // Open external domains in browser
     final uri = Uri.tryParse(url);
     if (uri != null && !uri.host.contains('rutracker')) {
       await _launchExternal(uri);
       return NavigationActionPolicy.CANCEL;
     }
-    
+
     return NavigationActionPolicy.ALLOW;
   }
 
@@ -205,7 +204,7 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
     WebUri? url,
   ) async {
     if (!mounted || _webViewController == null) return;
-    
+
     try {
       // Check for Cloudflare challenge
       final html = await controller.getHtml();
@@ -219,17 +218,17 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
       } else {
         _cloudflareHandler?.hideCloudflareOverlay();
       }
-      
+
       // Check for login success
       final loginSuccess = await WebViewLoginDetector.checkLoginSuccess(
         controller,
       );
-      
+
       if (loginSuccess && !_loginDetected) {
         _loginDetected = true;
         // Show success message immediately (don't wait for cookie sync)
         _showLoginSuccessHint();
-        
+
         // Sync cookies asynchronously (don't block UI)
         // This ensures the success message appears quickly
         safeUnawaited(
@@ -244,16 +243,16 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
           },
         );
       }
-      
+
       // Save WebView state
       await _stateManager?.saveWebViewHistory();
-      
+
       // Save cookies periodically (if not already saved during login)
       if (!loginSuccess) {
-      await _cookieManager?.saveCookies(
-        callerContext: 'page_load',
-        initialUrl: url?.toString(),
-      );
+        await _cookieManager?.saveCookies(
+          callerContext: 'page_load',
+          initialUrl: url?.toString(),
+        );
       }
     } on Exception catch (e) {
       await StructuredLogger().log(
@@ -264,7 +263,7 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
         cause: e.toString(),
       );
     }
-    
+
     if (mounted) {
       setState(() {
         _isLoading = false;
@@ -279,12 +278,13 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
   ) async {
     final errorMessage = error.description;
     final errorType = error.type;
-    
+
     // Handle non-critical errors (advertisements, blocked resources, etc.)
     if (errorMessage.contains('ERR_BLOCKED_BY_ORB') ||
         errorMessage.contains('ERR_BLOCKED_BY_CLIENT') ||
         errorMessage.contains('ERR_BLOCKED_BY_RESPONSE') ||
-        errorMessage.contains('ERR_NAME_NOT_RESOLVED') || // DNS errors from ads/external links
+        errorMessage.contains(
+            'ERR_NAME_NOT_RESOLVED') || // DNS errors from ads/external links
         errorMessage.contains('CORS') ||
         errorMessage.contains('Cross-Origin') ||
         errorMessage.contains('ERR_INSECURE_RESPONSE') ||
@@ -296,7 +296,8 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
         await StructuredLogger().log(
           level: 'debug',
           subsystem: 'webview',
-          message: 'Non-critical WebView error (likely from ads/external resources)',
+          message:
+              'Non-critical WebView error (likely from ads/external resources)',
           context: 'webview_error',
           extra: {
             'error_message': errorMessage,
@@ -308,21 +309,20 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
       }
       return;
     }
-    
+
     // Handle network errors
     if (errorMessage.contains('ERR_INTERNET_DISCONNECTED') ||
         errorMessage.contains('ERR_NETWORK_CHANGED')) {
       if (mounted) {
         setState(() {
           _hasError = true;
-          _errorMessage = AppLocalizations.of(context)
-                  ?.networkError ??
+          _errorMessage = AppLocalizations.of(context)?.networkError ??
               'Network error. Please check your internet connection.';
         });
       }
       return;
     }
-    
+
     // Handle other errors
     if (mounted) {
       setState(() {
@@ -330,7 +330,7 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
         _errorMessage = 'Loading error: $errorMessage';
       });
     }
-    
+
     await StructuredLogger().log(
       level: 'error',
       subsystem: 'webview',
@@ -353,7 +353,7 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
 
   Future<void> _saveCookiesAndClose() async {
     if (_webViewController == null || !mounted) return;
-    
+
     try {
       // CRITICAL: If login was successful, force sync cookies before closing
       // This ensures cookies are available even if async sync hasn't completed
@@ -364,19 +364,20 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
           message: 'Login was successful, forcing cookie sync before close',
           context: 'webview_close',
         );
-        
+
         // Get current URL for cookie sync
-        final currentUrl = await _webViewController!.getUrl().then((u) => u?.toString());
-        
+        final currentUrl =
+            await _webViewController!.getUrl().then((u) => u?.toString());
+
         // Save cookies to Android CookieManager first
         await _cookieManager?.saveCookies(
           callerContext: 'user_close_force_sync',
           initialUrl: currentUrl,
         );
-        
+
         // Wait for CookieManager to process
         await Future.delayed(const Duration(milliseconds: 300));
-        
+
         // Force sync cookies to Dio (synchronous, blocking)
         try {
           await _syncCookiesAfterLogin(currentUrl);
@@ -393,10 +394,11 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
         // Normal save if login wasn't detected
         await _cookieManager?.saveCookies(
           callerContext: 'user_close',
-          initialUrl: await _webViewController!.getUrl().then((u) => u?.toString()),
+          initialUrl:
+              await _webViewController!.getUrl().then((u) => u?.toString()),
         );
       }
-      
+
       // Get cookie string for return value
       String? cookieString;
       try {
@@ -409,7 +411,7 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
       } on Exception {
         // Ignore errors
       }
-      
+
       if (mounted) {
         Navigator.of(context).pop<String>(cookieString);
       }
@@ -421,7 +423,7 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
         context: 'webview_close',
         cause: e.toString(),
       );
-      
+
       if (mounted) {
         Navigator.of(context).pop<String>();
       }
@@ -454,8 +456,7 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
               'Download Torrent',
         ),
         content: Text(
-          AppLocalizations.of(context)?.selectActionText ??
-              'Select action:',
+          AppLocalizations.of(context)?.selectActionText ?? 'Select action:',
         ),
         actions: [
           TextButton(
@@ -499,7 +500,7 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
   ///
   /// This is the new approach: get cookies directly from Android CookieManager
   /// (which WebView uses) and sync them to Dio CookieJar.
-  /// 
+  ///
   /// This is the async version that doesn't block the UI.
   Future<void> _syncCookiesAfterLoginAsync(String? currentUrl) async {
     // First, save cookies to ensure they're synced to Android CookieManager
@@ -512,7 +513,7 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
       // Android CookieManager needs time to sync cookies from WebView
       await Future.delayed(const Duration(milliseconds: 500));
     }
-    
+
     // Then sync to Dio with retries
     await _syncCookiesAfterLogin(currentUrl);
   }
@@ -522,7 +523,8 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
   /// This is the new approach: get cookies directly from Android CookieManager
   /// (which WebView uses) and sync them to Dio CookieJar.
   Future<void> _syncCookiesAfterLogin(String? currentUrl) async {
-    final operationId = 'cookie_sync_after_login_${DateTime.now().millisecondsSinceEpoch}';
+    final operationId =
+        'cookie_sync_after_login_${DateTime.now().millisecondsSinceEpoch}';
     final startTime = DateTime.now();
 
     try {
@@ -552,13 +554,14 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
         // Try to get from WebView
         try {
           final webViewUrl = await _webViewController?.getUrl();
-          if (webViewUrl != null && webViewUrl.toString().contains('rutracker')) {
+          if (webViewUrl != null &&
+              webViewUrl.toString().contains('rutracker')) {
             baseUrl = webViewUrl.toString();
           }
         } on Exception {
           // Ignore
         }
-        
+
         // Fallback to active endpoint (most important!)
         if (baseUrl == null || !baseUrl.contains('rutracker')) {
           baseUrl = activeEndpoint;
@@ -581,7 +584,8 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
 
       final rutrackerBaseUrl = '${uri.scheme}://${uri.host}';
       final activeEndpointUri = Uri.parse(activeEndpoint);
-      final activeEndpointBaseUrl = '${activeEndpointUri.scheme}://${activeEndpointUri.host}';
+      final activeEndpointBaseUrl =
+          '${activeEndpointUri.scheme}://${activeEndpointUri.host}';
 
       await StructuredLogger().log(
         level: 'info',
@@ -608,22 +612,25 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
             operationId: operationId,
             context: 'webview_login_sync',
           );
-          
+
           // Get cookies directly from InAppWebView CookieManager
           // CRITICAL: Only get cookies for the active endpoint (not all domains)
           final cookieManager = CookieManager.instance();
           final allCookies = <Cookie>[];
-          
+
           // Try active endpoint FIRST (most important!)
           try {
             final activeEndpointUri = WebUri(activeEndpointBaseUrl);
-            final activeCookies = await cookieManager.getCookies(url: activeEndpointUri);
+            final activeCookies =
+                await cookieManager.getCookies(url: activeEndpointUri);
             for (final cookie in activeCookies) {
-              if (!allCookies.any((c) => c.name == cookie.name && (c.domain ?? '') == (cookie.domain ?? ''))) {
+              if (!allCookies.any((c) =>
+                  c.name == cookie.name &&
+                  (c.domain ?? '') == (cookie.domain ?? ''))) {
                 allCookies.add(cookie);
               }
             }
-            
+
             await StructuredLogger().log(
               level: 'info',
               subsystem: 'cookies',
@@ -646,18 +653,21 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
               extra: {'active_endpoint': activeEndpointBaseUrl},
             );
           }
-          
+
           // Also try WebView URL if different from active endpoint
           if (rutrackerBaseUrl != activeEndpointBaseUrl) {
             try {
               final webViewUri = WebUri(rutrackerBaseUrl);
-              final webViewCookies = await cookieManager.getCookies(url: webViewUri);
+              final webViewCookies =
+                  await cookieManager.getCookies(url: webViewUri);
               for (final cookie in webViewCookies) {
-                if (!allCookies.any((c) => c.name == cookie.name && (c.domain ?? '') == (cookie.domain ?? ''))) {
+                if (!allCookies.any((c) =>
+                    c.name == cookie.name &&
+                    (c.domain ?? '') == (cookie.domain ?? ''))) {
                   allCookies.add(cookie);
                 }
               }
-              
+
               await StructuredLogger().log(
                 level: 'info',
                 subsystem: 'cookies',
@@ -673,12 +683,13 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
               // Ignore
             }
           }
-          
+
           if (allCookies.isNotEmpty) {
             await StructuredLogger().log(
               level: 'info',
               subsystem: 'cookies',
-              message: 'Got cookies from InAppWebView CookieManager, syncing to Dio',
+              message:
+                  'Got cookies from InAppWebView CookieManager, syncing to Dio',
               operationId: operationId,
               context: 'webview_login_sync',
               extra: {
@@ -688,7 +699,7 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
                 'webview_domain': rutrackerBaseUrl,
               },
             );
-            
+
             // Convert InAppWebView cookies to Dio Cookie objects and save directly
             final dioCookies = <io.Cookie>[];
             for (final cookie in allCookies) {
@@ -699,14 +710,14 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
                 ..httpOnly = cookie.isHttpOnly ?? false;
               dioCookies.add(dioCookie);
             }
-            
+
             // Save cookies directly to Dio CookieJar
             final jar = await DioClient.getCookieJar();
             if (jar != null && dioCookies.isNotEmpty) {
               // CRITICAL: Save cookies for the active endpoint FIRST (most important!)
               final activeUri = Uri.parse(activeEndpointBaseUrl);
               await jar.saveFromResponse(activeUri, dioCookies);
-              
+
               await StructuredLogger().log(
                 level: 'info',
                 subsystem: 'cookies',
@@ -718,12 +729,12 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
                   'active_endpoint': activeEndpointBaseUrl,
                 },
               );
-              
+
               // Also save to WebView domain (if different from active endpoint)
               if (rutrackerBaseUrl != activeEndpointBaseUrl) {
                 final webViewUri = Uri.parse(rutrackerBaseUrl);
                 await jar.saveFromResponse(webViewUri, dioCookies);
-                
+
                 await StructuredLogger().log(
                   level: 'info',
                   subsystem: 'cookies',
@@ -735,13 +746,14 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
                   },
                 );
               }
-              
+
               // Don't save to other domains - only active endpoint is needed
-              
+
               await StructuredLogger().log(
                 level: 'info',
                 subsystem: 'cookies',
-                message: 'Cookies synced directly from InAppWebView to Dio CookieJar',
+                message:
+                    'Cookies synced directly from InAppWebView to Dio CookieJar',
                 operationId: operationId,
                 context: 'webview_login_sync',
                 extra: {
@@ -750,36 +762,41 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
                   'webview_domain': rutrackerBaseUrl,
                 },
               );
-              
+
               // Also save to SecureStorage for persistence (use active endpoint)
-              final cookieHeader = dioCookies.map((c) => '${c.name}=${c.value}').join('; ');
-              await DioClient.saveCookiesToSecureStorage(cookieHeader, activeEndpointBaseUrl);
-              
+              final cookieHeader =
+                  dioCookies.map((c) => '${c.name}=${c.value}').join('; ');
+              await DioClient.saveCookiesToSecureStorage(
+                  cookieHeader, activeEndpointBaseUrl);
+
               // Flush cookies to ensure they are saved
               await CookieService.flushCookies();
-              
+
               return; // Success, exit early
             }
           } else {
             await StructuredLogger().log(
               level: 'warning',
               subsystem: 'cookies',
-              message: 'No cookies found in InAppWebView CookieManager, trying JavaScript fallback',
+              message:
+                  'No cookies found in InAppWebView CookieManager, trying JavaScript fallback',
               operationId: operationId,
               context: 'webview_login_sync',
             );
-            
+
             // FALLBACK: Try to get cookies via JavaScript
             if (_webViewController != null) {
               try {
-                final jsCookiesResult = await _webViewController!.evaluateJavascript(source: 'document.cookie');
+                final jsCookiesResult = await _webViewController!
+                    .evaluateJavascript(source: 'document.cookie');
                 if (jsCookiesResult != null) {
                   final jsCookiesString = jsCookiesResult.toString();
                   if (jsCookiesString.isNotEmpty) {
                     await StructuredLogger().log(
                       level: 'info',
                       subsystem: 'cookies',
-                      message: 'Got cookies via JavaScript fallback, parsing and syncing',
+                      message:
+                          'Got cookies via JavaScript fallback, parsing and syncing',
                       operationId: operationId,
                       context: 'webview_login_sync',
                       extra: {
@@ -789,20 +806,20 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
                             : jsCookiesString,
                       },
                     );
-                    
+
                     // Parse JavaScript cookies and sync to Dio
                     final cookieParts = jsCookiesString.split('; ');
                     final dioCookies = <io.Cookie>[];
                     for (final part in cookieParts) {
                       final trimmed = part.trim();
                       if (trimmed.isEmpty) continue;
-                      
+
                       final equalIndex = trimmed.indexOf('=');
                       if (equalIndex <= 0) continue;
-                      
+
                       final name = trimmed.substring(0, equalIndex).trim();
                       final value = trimmed.substring(equalIndex + 1).trim();
-                      
+
                       if (name.isNotEmpty && value.isNotEmpty) {
                         final dioCookie = io.Cookie(name, value)
                           ..path = '/'
@@ -810,18 +827,19 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
                         dioCookies.add(dioCookie);
                       }
                     }
-                    
+
                     if (dioCookies.isNotEmpty) {
                       final jar = await DioClient.getCookieJar();
                       if (jar != null) {
                         // CRITICAL: Save cookies for the active endpoint FIRST (most important!)
                         final activeUri = Uri.parse(activeEndpointBaseUrl);
                         await jar.saveFromResponse(activeUri, dioCookies);
-                        
+
                         await StructuredLogger().log(
                           level: 'info',
                           subsystem: 'cookies',
-                          message: 'Cookies saved for active endpoint (JavaScript fallback)',
+                          message:
+                              'Cookies saved for active endpoint (JavaScript fallback)',
                           operationId: operationId,
                           context: 'webview_login_sync',
                           extra: {
@@ -829,19 +847,20 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
                             'active_endpoint': activeEndpointBaseUrl,
                           },
                         );
-                        
+
                         // Also save to WebView domain (if different from active endpoint)
                         if (rutrackerBaseUrl != activeEndpointBaseUrl) {
                           final webViewUri = Uri.parse(rutrackerBaseUrl);
                           await jar.saveFromResponse(webViewUri, dioCookies);
                         }
-                        
+
                         // Don't save to other domains - only active endpoint is needed
-                        
+
                         await StructuredLogger().log(
                           level: 'info',
                           subsystem: 'cookies',
-                          message: 'Cookies synced from JavaScript to Dio CookieJar',
+                          message:
+                              'Cookies synced from JavaScript to Dio CookieJar',
                           operationId: operationId,
                           context: 'webview_login_sync',
                           extra: {
@@ -850,14 +869,17 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
                             'webview_domain': rutrackerBaseUrl,
                           },
                         );
-                        
+
                         // Save to SecureStorage (use active endpoint)
-                        final cookieHeader = dioCookies.map((c) => '${c.name}=${c.value}').join('; ');
-                        await DioClient.saveCookiesToSecureStorage(cookieHeader, activeEndpointBaseUrl);
-                        
+                        final cookieHeader = dioCookies
+                            .map((c) => '${c.name}=${c.value}')
+                            .join('; ');
+                        await DioClient.saveCookiesToSecureStorage(
+                            cookieHeader, activeEndpointBaseUrl);
+
                         // Flush cookies to ensure they are saved
                         await CookieService.flushCookies();
-                        
+
                         return; // Success via JavaScript
                       }
                     }
@@ -879,14 +901,15 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
           await StructuredLogger().log(
             level: 'warning',
             subsystem: 'cookies',
-            message: 'Failed to get cookies from InAppWebView CookieManager, falling back to Android CookieManager',
+            message:
+                'Failed to get cookies from InAppWebView CookieManager, falling back to Android CookieManager',
             operationId: operationId,
             context: 'webview_login_sync',
             cause: e.toString(),
           );
         }
       }
-      
+
       // FALLBACK: Try Android CookieManager if InAppWebView method failed
       // CRITICAL: First, ensure cookies are synced from InAppWebView to Android CookieManager
       // This is a fallback in case saveCookies() didn't run or didn't complete
@@ -894,17 +917,18 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
         await StructuredLogger().log(
           level: 'info',
           subsystem: 'cookies',
-          message: 'Forcing cookie sync from InAppWebView to Android CookieManager before reading',
+          message:
+              'Forcing cookie sync from InAppWebView to Android CookieManager before reading',
           operationId: operationId,
           context: 'webview_login_sync',
         );
-        
+
         // Force save cookies to ensure they're in Android CookieManager
         await _cookieManager!.saveCookies(
           callerContext: 'sync_before_read',
           initialUrl: baseUrl,
         );
-        
+
         // Wait for Android CookieManager to process
         await Future.delayed(const Duration(milliseconds: 500));
       }
@@ -913,24 +937,30 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
       // Cookies may not be immediately available after login, so retry with delays
       // CRITICAL: Try active endpoint FIRST, then WebView URL
       String? cookieHeader;
-      const maxRetries = 8; // Increased retries for more reliable cookie retrieval
+      const maxRetries =
+          8; // Increased retries for more reliable cookie retrieval
       const initialRetryDelay = Duration(milliseconds: 300);
-      
+
       for (var attempt = 0; attempt < maxRetries; attempt++) {
         if (attempt > 0) {
           // Exponential backoff: 300ms, 500ms, 700ms, 1000ms, etc.
           final delayMs = initialRetryDelay.inMilliseconds + (attempt * 200);
           await Future.delayed(Duration(milliseconds: delayMs));
         }
-        
+
         // Try active endpoint FIRST (most important!)
-        final cookiesFromActiveEndpoint = await CookieService.getCookiesForUrl(activeEndpointBaseUrl);
+        final cookiesFromActiveEndpoint =
+            await CookieService.getCookiesForUrl(activeEndpointBaseUrl);
         // Then try WebView URL
-        final cookiesFromFullUrl = await CookieService.getCookiesForUrl(baseUrl);
-        final cookiesFromBaseUrl = await CookieService.getCookiesForUrl(rutrackerBaseUrl);
-        
-        cookieHeader = cookiesFromActiveEndpoint ?? cookiesFromFullUrl ?? cookiesFromBaseUrl;
-        
+        final cookiesFromFullUrl =
+            await CookieService.getCookiesForUrl(baseUrl);
+        final cookiesFromBaseUrl =
+            await CookieService.getCookiesForUrl(rutrackerBaseUrl);
+
+        cookieHeader = cookiesFromActiveEndpoint ??
+            cookiesFromFullUrl ??
+            cookiesFromBaseUrl;
+
         await StructuredLogger().log(
           level: 'debug',
           subsystem: 'cookies',
@@ -943,15 +973,18 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
             'active_endpoint': activeEndpointBaseUrl,
             'full_url': baseUrl,
             'base_url': rutrackerBaseUrl,
-            'cookies_from_active_endpoint': cookiesFromActiveEndpoint != null && cookiesFromActiveEndpoint.isNotEmpty,
-            'cookies_from_full_url': cookiesFromFullUrl != null && cookiesFromFullUrl.isNotEmpty,
-            'cookies_from_base_url': cookiesFromBaseUrl != null && cookiesFromBaseUrl.isNotEmpty,
+            'cookies_from_active_endpoint': cookiesFromActiveEndpoint != null &&
+                cookiesFromActiveEndpoint.isNotEmpty,
+            'cookies_from_full_url':
+                cookiesFromFullUrl != null && cookiesFromFullUrl.isNotEmpty,
+            'cookies_from_base_url':
+                cookiesFromBaseUrl != null && cookiesFromBaseUrl.isNotEmpty,
             'active_endpoint_length': cookiesFromActiveEndpoint?.length ?? 0,
             'full_url_length': cookiesFromFullUrl?.length ?? 0,
             'base_url_length': cookiesFromBaseUrl?.length ?? 0,
           },
         );
-        
+
         if (cookieHeader != null && cookieHeader.isNotEmpty) {
           await StructuredLogger().log(
             level: 'info',
@@ -961,8 +994,8 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
             context: 'webview_login_sync',
             extra: {
               'attempt': attempt + 1,
-              'url_used': cookiesFromActiveEndpoint != null 
-                  ? activeEndpointBaseUrl 
+              'url_used': cookiesFromActiveEndpoint != null
+                  ? activeEndpointBaseUrl
                   : (cookiesFromFullUrl != null ? baseUrl : rutrackerBaseUrl),
               'cookie_header_length': cookieHeader.length,
               'cookie_header_preview': cookieHeader.length > 200
@@ -972,7 +1005,7 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
           );
           break;
         }
-        
+
         await StructuredLogger().log(
           level: 'debug',
           subsystem: 'cookies',
@@ -994,14 +1027,16 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
         await StructuredLogger().log(
           level: 'debug',
           subsystem: 'cookies',
-          message: 'No cookies found in CookieManager after login (cookies may be saved but not yet accessible via CookieManager.getCookie)',
+          message:
+              'No cookies found in CookieManager after login (cookies may be saved but not yet accessible via CookieManager.getCookie)',
           operationId: operationId,
           context: 'webview_login_sync',
           durationMs: DateTime.now().difference(startTime).inMilliseconds,
           extra: {
             'rutracker_url': rutrackerBaseUrl,
             'base_url': baseUrl,
-            'note': 'Cookies may be available later or saved via WebView CookieManager',
+            'note':
+                'Cookies may be available later or saved via WebView CookieManager',
           },
         );
         return;
@@ -1024,14 +1059,16 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
 
       // CRITICAL: Flush cookies to ensure they are saved to disk
       await CookieService.flushCookies();
-      
+
       // CRITICAL: Sync cookies to Dio using active endpoint (not WebView URL)
       // This ensures cookies are available for the active endpoint used by search
-      await DioClient.syncCookiesFromCookieService(cookieHeader, activeEndpointBaseUrl);
+      await DioClient.syncCookiesFromCookieService(
+          cookieHeader, activeEndpointBaseUrl);
 
       // Save cookies to SecureStorage for auto-login on app restart (use active endpoint)
-      await DioClient.saveCookiesToSecureStorage(cookieHeader, activeEndpointBaseUrl);
-      
+      await DioClient.saveCookiesToSecureStorage(
+          cookieHeader, activeEndpointBaseUrl);
+
       // Flush again after syncing to ensure everything is persisted
       await CookieService.flushCookies();
 
@@ -1043,7 +1080,7 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
         final searchUri = Uri.parse('$activeEndpointBaseUrl/forum/tracker.php');
         final savedCookies = await jar.loadForRequest(activeUri);
         final searchCookies = await jar.loadForRequest(searchUri);
-        
+
         await StructuredLogger().log(
           level: savedCookies.isNotEmpty ? 'info' : 'warning',
           subsystem: 'cookies',
@@ -1056,11 +1093,10 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
             'search_cookie_count': searchCookies.length,
             'saved_cookie_names': savedCookies.map((c) => c.name).toList(),
             'search_cookie_names': searchCookies.map((c) => c.name).toList(),
-            'has_session_cookies': savedCookies.any((c) => 
-              c.name.toLowerCase().contains('session') || 
-              c.name == 'bb_session' || 
-              c.name == 'bb_data'
-            ),
+            'has_session_cookies': savedCookies.any((c) =>
+                c.name.toLowerCase().contains('session') ||
+                c.name == 'bb_session' ||
+                c.name == 'bb_data'),
           },
         );
       }
@@ -1161,8 +1197,10 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
                           onLoadStop: _onLoadStop,
                           onReceivedError: _onReceivedError,
                           onProgressChanged: _onProgressChanged,
-                          shouldOverrideUrlLoading: (controller, navigationAction) async {
-                            final policy = await _onNavigationRequest(navigationAction);
+                          shouldOverrideUrlLoading:
+                              (controller, navigationAction) async {
+                            final policy =
+                                await _onNavigationRequest(navigationAction);
                             return policy;
                           },
                         ),
@@ -1259,7 +1297,6 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
             AppLocalizations.of(context)?.doneButtonText ?? 'Done',
           ),
           backgroundColor: Colors.green,
-      ),
-    );
+        ),
+      );
 }
-

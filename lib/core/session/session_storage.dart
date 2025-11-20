@@ -48,8 +48,7 @@ class SessionStorage {
     List<Cookie> cookies,
     String endpoint,
   ) async {
-    final operationId =
-        'save_cookies_${DateTime.now().millisecondsSinceEpoch}';
+    final operationId = 'save_cookies_${DateTime.now().millisecondsSinceEpoch}';
     final logger = StructuredLogger();
     final startTime = DateTime.now();
 
@@ -136,8 +135,7 @@ class SessionStorage {
   ///
   /// Throws [AuthFailure] if retrieval fails.
   Future<List<Cookie>?> loadCookies() async {
-    final operationId =
-        'load_cookies_${DateTime.now().millisecondsSinceEpoch}';
+    final operationId = 'load_cookies_${DateTime.now().millisecondsSinceEpoch}';
     final logger = StructuredLogger();
     final startTime = DateTime.now();
 
@@ -283,7 +281,9 @@ class SessionStorage {
     final data = '$endpoint|$cookieData';
     final bytes = Uint8List.fromList(data.codeUnits);
     final digest = sha256.convert(bytes);
-    return digest.toString().substring(0, 16); // Use first 16 chars as session ID
+    return digest
+        .toString()
+        .substring(0, 16); // Use first 16 chars as session ID
   }
 
   /// Gets the current session ID from metadata.
@@ -298,4 +298,3 @@ class SessionStorage {
     }
   }
 }
-

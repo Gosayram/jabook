@@ -15,7 +15,8 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter/foundation.dart' show debugPrint, kReleaseMode; // debugPrint
+import 'package:flutter/foundation.dart'
+    show debugPrint, kReleaseMode; // debugPrint
 import 'package:jabook/core/errors/failures.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
@@ -223,18 +224,22 @@ class StructuredLogger {
           _ => '📝',
         };
         final subsystemStr = subsystem.padRight(12);
-        final messageStr = message.length > 60 ? '${message.substring(0, 60)}...' : message;
+        final messageStr =
+            message.length > 60 ? '${message.substring(0, 60)}...' : message;
         debugPrint('$levelEmoji [$subsystemStr] $messageStr');
-        
+
         // For network subsystem, show more details
         if (subsystem == 'network' && extra != null) {
           final method = extra['method']?.toString() ?? '';
-          final url = extra['url']?.toString() ?? extra['request_url']?.toString() ?? '';
+          final url = extra['url']?.toString() ??
+              extra['request_url']?.toString() ??
+              '';
           final statusCode = extra['status_code']?.toString() ?? '';
           final duration = durationMs != null ? '${durationMs}ms' : '';
-          
+
           if (method.isNotEmpty && url.isNotEmpty) {
-            final shortUrl = url.length > 50 ? '${url.substring(0, 50)}...' : url;
+            final shortUrl =
+                url.length > 50 ? '${url.substring(0, 50)}...' : url;
             if (statusCode.isNotEmpty) {
               debugPrint('   → $method $statusCode $shortUrl $duration');
             } else {
@@ -353,8 +358,8 @@ class StructuredLogger {
             e.forEach((k, v) {
               final cookieKey = k.toString().toLowerCase();
               if (cookieKey == 'value' || cookieKey == 'cookie_value') {
-                cookieMap[k] = v != null && v.toString().isNotEmpty 
-                    ? '${v.toString().substring(0, v.toString().length > 10 ? 10 : v.toString().length)}...' 
+                cookieMap[k] = v != null && v.toString().isNotEmpty
+                    ? '${v.toString().substring(0, v.toString().length > 10 ? 10 : v.toString().length)}...'
                     : '<empty>';
               } else {
                 cookieMap[k] = v;
@@ -423,7 +428,7 @@ class StructuredLogger {
       }
 
       final logDir = _logFile!.parent;
-      
+
       // Ensure log directory exists
       if (!await logDir.exists()) {
         await logDir.create(recursive: true);
@@ -468,12 +473,13 @@ class StructuredLogger {
       // Rename current log file with timestamp
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       final backupFile = File('${logDir.path}/$baseName.$timestamp.ndjson');
-      
+
       // Check if backup file already exists (unlikely but possible)
       if (await backupFile.exists()) {
         // Add random suffix to avoid conflicts
         final randomSuffix = DateTime.now().microsecondsSinceEpoch;
-        final backupFileWithSuffix = File('${logDir.path}/$baseName.$timestamp.$randomSuffix.ndjson');
+        final backupFileWithSuffix =
+            File('${logDir.path}/$baseName.$timestamp.$randomSuffix.ndjson');
         await _logFile!.rename(backupFileWithSuffix.path);
       } else {
         await _logFile!.rename(backupFile.path);

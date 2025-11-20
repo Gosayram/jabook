@@ -280,9 +280,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             leading: const Icon(Icons.login),
             title: Text(AppLocalizations.of(context)?.loginButton ??
                 'Login to RuTracker'),
-            subtitle: Text(AppLocalizations.of(context)
-                    ?.loginRequiredForSearch ??
-                'Enter your credentials to authenticate'),
+            subtitle: Text(
+                AppLocalizations.of(context)?.loginRequiredForSearch ??
+                    'Enter your credentials to authenticate'),
             onTap: () async {
               final messenger = ScaffoldMessenger.of(context);
               final localizations = AppLocalizations.of(context);
@@ -315,8 +315,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             leading: const Icon(Icons.logout),
             title: Text(AppLocalizations.of(context)?.clearSessionButton ??
                 'Clear RuTracker session (cookie)'),
-            subtitle: Text(AppLocalizations.of(context)
-                    ?.clearSessionSubtitle ??
+            subtitle: Text(AppLocalizations.of(context)?.clearSessionSubtitle ??
                 'Delete saved cookies and logout from account'),
             onTap: () async {
               // Clear cookies in Dio and secure storage
@@ -329,8 +328,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               if (mounted) {
                 messenger.showSnackBar(
                   SnackBar(
-                      content: Text(localizations
-                              ?.sessionClearedMessage ??
+                      content: Text(localizations?.sessionClearedMessage ??
                           'RuTracker session cleared')),
                 );
               }
@@ -448,8 +446,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
       messenger.showSnackBar(
         SnackBar(
-          content: Text(localizations
-                  ?.metadataUpdateStartedMessage ??
+          content: Text(localizations?.metadataUpdateStartedMessage ??
               'Metadata update started...'),
           duration: const Duration(seconds: 2),
         ),
@@ -463,8 +460,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       if (mounted) {
         messenger.showSnackBar(
           SnackBar(
-            content: Text(localizations?.metadataUpdateCompletedMessage(total) ??
-                'Update completed: collected $total records'),
+            content: Text(
+                localizations?.metadataUpdateCompletedMessage(total) ??
+                    'Update completed: collected $total records'),
             duration: const Duration(seconds: 3),
           ),
         );
@@ -582,8 +580,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             title: Text(localizations?.playbackSpeedTitle ??
                 localizations?.playbackSpeed ??
                 'Playback Speed'),
-            subtitle: Text(AppLocalizations.of(context)?.playbackSpeedDefault ??
-                '1.0x'),
+            subtitle: Text(
+                AppLocalizations.of(context)?.playbackSpeedDefault ?? '1.0x'),
             onTap: () {
               // TODO: Implement playback speed selection
             },
@@ -705,9 +703,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   }
                 },
                 icon: const Icon(Icons.auto_delete),
-                label: Text(AppLocalizations.of(context)
-                        ?.clearExpiredCacheButton ??
-                    'Clear Expired Cache'),
+                label: Text(
+                    AppLocalizations.of(context)?.clearExpiredCacheButton ??
+                        'Clear Expired Cache'),
               ),
               OutlinedButton.icon(
                 onPressed: () async {
@@ -805,8 +803,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               const SizedBox(height: 8),
               _buildPermissionRow(
                 icon: Icons.notifications,
-                title: AppLocalizations.of(context)?.notificationsPermissionName ??
-                    'Notifications',
+                title:
+                    AppLocalizations.of(context)?.notificationsPermissionName ??
+                        'Notifications',
                 description: AppLocalizations.of(context)
                         ?.notificationsPermissionDescription ??
                     'Show playback controls and updates',
@@ -890,12 +889,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       setState(() {});
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-              granted
-                  ? (AppLocalizations.of(context)?.fileAccessAvailable ??
-                      'File access available')
-                  : (AppLocalizations.of(context)?.fileAccessUnavailable ??
-                      'File access unavailable')),
+          content: Text(granted
+              ? (AppLocalizations.of(context)?.fileAccessAvailable ??
+                  'File access available')
+              : (AppLocalizations.of(context)?.fileAccessUnavailable ??
+                  'File access unavailable')),
         ),
       );
     }
@@ -951,8 +949,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             leading: const Icon(Icons.file_download),
             title: Text(AppLocalizations.of(context)?.exportDataButton ??
                 'Export Data'),
-            subtitle: Text(AppLocalizations.of(context)
-                    ?.exportDataSubtitle ??
+            subtitle: Text(AppLocalizations.of(context)?.exportDataSubtitle ??
                 'Save all your data to a backup file'),
             trailing: const Icon(Icons.arrow_forward_ios),
             onTap: () => _exportData(context),
@@ -975,7 +972,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final messenger = ScaffoldMessenger.of(context)
       ..showSnackBar(
         SnackBar(
-          content: Text(localizations?.exportingDataMessage ?? 'Exporting data...'),
+          content:
+              Text(localizations?.exportingDataMessage ?? 'Exporting data...'),
           duration: const Duration(seconds: 1),
         ),
       );
@@ -1060,7 +1058,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         if (!mounted) return;
         messenger.showSnackBar(
           SnackBar(
-            content: Text(localizations?.importingDataMessage ?? 'Importing data...'),
+            content: Text(
+                localizations?.importingDataMessage ?? 'Importing data...'),
             duration: const Duration(seconds: 2),
           ),
         );

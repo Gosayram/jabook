@@ -206,8 +206,9 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
       if (!mounted) return;
       scaffoldMessenger.showSnackBar(
         SnackBar(
-            content: Text(localizations?.failedToClearCacheMessage(e.toString()) ?? 
-                    'Failed to clear cache: ${e.toString()}'),
+          content: Text(
+              localizations?.failedToClearCacheMessage(e.toString()) ??
+                  'Failed to clear cache: ${e.toString()}'),
         ),
       );
     }
@@ -230,9 +231,9 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
       if (!mounted) return;
       scaffoldMessenger.showSnackBar(
         SnackBar(
-            content: Text(localizations
-                    ?.mirrorHealthCheckCompletedMessage(mirrors.length, mirrors.length) ??
-                'Mirror health check completed'),
+          content: Text(localizations?.mirrorHealthCheckCompletedMessage(
+                  mirrors.length, mirrors.length) ??
+              'Mirror health check completed'),
         ),
       );
     } on Exception catch (e) {
@@ -240,8 +241,9 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
       if (!mounted) return;
       scaffoldMessenger.showSnackBar(
         SnackBar(
-            content: Text(localizations?.failedToTestMirrorsMessage(e.toString()) ?? 
-                    'Failed to test mirrors: ${e.toString()}'),
+          content: Text(
+              localizations?.failedToTestMirrorsMessage(e.toString()) ??
+                  'Failed to test mirrors: ${e.toString()}'),
         ),
       );
     }
@@ -264,8 +266,7 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
                 icon: const Icon(Icons.dns),
               ),
               Tab(
-                text: AppLocalizations.of(context)?.downloadsTab ??
-                    'Downloads',
+                text: AppLocalizations.of(context)?.downloadsTab ?? 'Downloads',
                 icon: const Icon(Icons.download),
               ),
               Tab(
@@ -359,15 +360,15 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
                   statusColor = Colors.green;
                 } else if (healthScore >= 30) {
                   isActuallyActive = true;
-                  statusText = AppLocalizations.of(context)
-                          ?.mirrorStatusDegraded ??
-                      'Degraded';
+                  statusText =
+                      AppLocalizations.of(context)?.mirrorStatusDegraded ??
+                          'Degraded';
                   statusColor = Colors.orange;
                 } else {
                   isActuallyActive = false;
-                  statusText = AppLocalizations.of(context)
-                          ?.mirrorStatusUnhealthy ??
-                      'Unhealthy';
+                  statusText =
+                      AppLocalizations.of(context)?.mirrorStatusUnhealthy ??
+                          'Unhealthy';
                   statusColor = Colors.red;
                 }
 
@@ -588,8 +589,8 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
           const SizedBox(height: 8),
           Semantics(
             button: true,
-            label: AppLocalizations.of(context)?.exportLogsButton ??
-                'Export logs',
+            label:
+                AppLocalizations.of(context)?.exportLogsButton ?? 'Export logs',
             child: FloatingActionButton(
               heroTag: 'export',
               mini: true,

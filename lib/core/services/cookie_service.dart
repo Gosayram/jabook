@@ -44,7 +44,8 @@ class CookieService {
       await StructuredLogger().log(
         level: 'debug',
         subsystem: 'cookies',
-        message: 'CookieService.getCookiesForUrl called on web platform (not supported)',
+        message:
+            'CookieService.getCookiesForUrl called on web platform (not supported)',
         context: 'cookie_service',
         extra: {'url': url, 'platform': 'web'},
       );
@@ -133,7 +134,8 @@ class CookieService {
       await StructuredLogger().log(
         level: 'debug',
         subsystem: 'cookies',
-        message: 'CookieService.setCookie called on web platform (not supported)',
+        message:
+            'CookieService.setCookie called on web platform (not supported)',
         context: 'cookie_service',
         extra: {'url': url, 'platform': 'web'},
       );
@@ -152,7 +154,8 @@ class CookieService {
         context: 'cookie_service',
         extra: {
           'url': url,
-          'cookie_preview': cookie.length > 100 ? '${cookie.substring(0, 100)}...' : cookie,
+          'cookie_preview':
+              cookie.length > 100 ? '${cookie.substring(0, 100)}...' : cookie,
         },
       );
 
@@ -223,7 +226,8 @@ class CookieService {
       await StructuredLogger().log(
         level: 'debug',
         subsystem: 'cookies',
-        message: 'CookieService.flushCookies called on web platform (not supported)',
+        message:
+            'CookieService.flushCookies called on web platform (not supported)',
         context: 'cookie_service',
         extra: {'platform': 'web'},
       );
@@ -300,7 +304,8 @@ class CookieService {
       await StructuredLogger().log(
         level: 'debug',
         subsystem: 'cookies',
-        message: 'CookieService.clearAllCookies called on web platform (not supported)',
+        message:
+            'CookieService.clearAllCookies called on web platform (not supported)',
         context: 'cookie_service',
         extra: {'platform': 'web'},
       );
@@ -366,4 +371,3 @@ class CookieService {
     }
   }
 }
-
