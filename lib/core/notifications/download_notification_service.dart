@@ -14,8 +14,11 @@
 
 import 'dart:io';
 
+import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:go_router/go_router.dart';
 import 'package:jabook/core/logging/environment_logger.dart';
+import 'package:jabook/core/torrent/audiobook_torrent_manager.dart';
 
 /// Service for managing download notifications on Android.
 ///
@@ -35,6 +38,10 @@ class DownloadNotificationService {
   bool _initialized = false;
   final Map<String, int> _notificationIds = {};
   int _nextNotificationId = 1000;
+  final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
+
+  /// Gets the navigator key for navigation from notifications.
+  GlobalKey<NavigatorState> get navigatorKey => _navigatorKey;
 
   /// Initializes the notification service.
   ///
@@ -61,6 +68,8 @@ class DownloadNotificationService {
       await _notifications!.initialize(
         initSettings,
         onDidReceiveNotificationResponse: _onNotificationTapped,
+        onDidReceiveBackgroundNotificationResponse:
+            _onBackgroundNotificationTapped,
       );
 
       // Create notification channel for downloads
@@ -129,7 +138,21 @@ class DownloadNotificationService {
           ? 'Completed'
           : status == 'paused'
               ? 'Paused'
-              : '$progressPercent% • $speedText';
+              : status == 'restored'
+                  ? 'Tap to resume'
+                  : '$progressPercent% • $speedText';
+
+      // Add action buttons for restored/paused downloads
+      List<AndroidNotificationAction>? actions;
+      if (status == 'restored' || status == 'paused') {
+        actions = [
+          AndroidNotificationAction(
+            'resume_$downloadId',
+            status == 'restored' ? 'Resume' : 'Resume',
+            cancelNotification: false,
+          ),
+        ];
+      }
 
       final androidDetails = AndroidNotificationDetails(
         'downloads',
@@ -137,12 +160,13 @@ class DownloadNotificationService {
         channelDescription: 'Notifications for active torrent downloads',
         importance: Importance.low,
         priority: Priority.low,
-        showProgress: true,
+        showProgress: status != 'restored' && status != 'paused',
         maxProgress: 100,
         progress: progressPercent,
         onlyAlertOnce: true,
         ongoing: status == 'downloading',
         autoCancel: status == 'completed',
+        actions: actions,
       );
 
       final notificationDetails = NotificationDetails(android: androidDetails);
@@ -191,8 +215,99 @@ class DownloadNotificationService {
 
   /// Handles notification tap events.
   void _onNotificationTapped(NotificationResponse response) {
-    // Could navigate to downloads screen here
-    EnvironmentLogger().d('Notification tapped: ${response.id}');
+    _handleNotificationResponse(response);
+  }
+
+  /// Handles background notification tap events.
+  @pragma('vm:entry-point')
+  static void _onBackgroundNotificationTapped(NotificationResponse response) {
+    // Background handler - navigation will be handled when app is in foreground
+    EnvironmentLogger().d('Background notification tapped: ${response.id}');
+  }
+
+  /// Handles notification response (tap or action).
+  void _handleNotificationResponse(NotificationResponse response) {
+    final actionId = response.actionId;
+    final notificationId = response.id;
+
+    // Find downloadId by notificationId
+    String? downloadId;
+    for (final entry in _notificationIds.entries) {
+      if (entry.value == notificationId) {
+        downloadId = entry.key;
+        break;
+      }
+    }
+
+    if (downloadId == null) {
+      EnvironmentLogger()
+          .w('Download ID not found for notification: $notificationId');
+      // Navigate to downloads screen anyway
+      _navigateToDownloads();
+      return;
+    }
+
+    // Handle action buttons
+    if (actionId != null && actionId.startsWith('resume_')) {
+      // Resume download
+      _resumeDownload(downloadId);
+    } else {
+      // Tap on notification - navigate to specific download
+      _navigateToDownloads(downloadId: downloadId);
+    }
+  }
+
+  /// Navigates to the downloads screen.
+  ///
+  /// If [downloadId] is provided, navigates to the specific download.
+  void _navigateToDownloads({String? downloadId}) {
+    final context = _navigatorKey.currentContext;
+    if (context != null) {
+      try {
+        // Use GoRouter for navigation with downloadId if provided
+        final route = downloadId != null
+            ? '/downloads?downloadId=$downloadId'
+            : '/downloads';
+        context.go(route);
+        EnvironmentLogger().d(
+          'Navigated to downloads screen from notification${downloadId != null ? ' (downloadId: $downloadId)' : ''}',
+        );
+      } on Exception catch (e) {
+        EnvironmentLogger().e('Failed to navigate to downloads: $e');
+      }
+    } else {
+      EnvironmentLogger().w('Navigator context not available, cannot navigate');
+    }
+  }
+
+  /// Resumes a download.
+  void _resumeDownload(String downloadId) {
+    try {
+      final torrentManager = AudiobookTorrentManager();
+      // Check if it's a restored download
+      torrentManager.getActiveDownloads().then((downloads) {
+        final download = downloads.firstWhere(
+          (d) => d['id'] == downloadId,
+          orElse: () => <String, dynamic>{},
+        );
+        if (download.isEmpty) return;
+
+        final status = download['status'] as String?;
+        if (status == 'restored') {
+          torrentManager.resumeRestoredDownload(downloadId).catchError((e) {
+            EnvironmentLogger().e('Failed to resume restored download: $e');
+          });
+        } else if (status == 'paused') {
+          torrentManager.resumeDownload(downloadId).catchError((e) {
+            EnvironmentLogger().e('Failed to resume paused download: $e');
+          });
+        }
+      }).catchError((e) {
+        EnvironmentLogger().e('Failed to get downloads: $e');
+      });
+    } on Exception catch (e) {
+      EnvironmentLogger().e('Failed to resume download: $e');
+    }
   }
 
   /// Formats download speed for display.

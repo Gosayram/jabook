@@ -22,10 +22,10 @@ import 'package:go_router/go_router.dart';
 import 'package:jabook/core/favorites/favorites_service.dart';
 import 'package:jabook/core/utils/file_picker_utils.dart' as file_picker_utils;
 import 'package:jabook/core/utils/responsive_utils.dart';
+import 'package:jabook/core/utils/storage_path_utils.dart';
 import 'package:jabook/data/db/app_database.dart';
 import 'package:jabook/l10n/app_localizations.dart';
 import 'package:path/path.dart' as path;
-import 'package:path_provider/path_provider.dart';
 
 /// Main screen for displaying the user's audiobook library.
 ///
@@ -613,8 +613,10 @@ class _LibraryContent extends ConsumerWidget {
 
   Future<int> _copyAudioFilesToLibrary(List<PlatformFile> files) async {
     var importedCount = 0;
-    final libraryDir = await getLibraryDirectory();
-    final audiobooksDir = Directory('${libraryDir.path}/audiobooks');
+    // Use default audiobook path from StoragePathUtils
+    final storageUtils = StoragePathUtils();
+    final libraryDir = await storageUtils.getDefaultAudiobookPath();
+    final audiobooksDir = Directory(libraryDir);
 
     if (!await audiobooksDir.exists()) {
       await audiobooksDir.create(recursive: true);

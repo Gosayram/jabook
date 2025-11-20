@@ -674,22 +674,73 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
     }
 
     final handler = ExternalTorrentHandler();
-    final success = await handler.openMagnetLink(magnetUrl);
+    final result = await handler.openMagnetLink(magnetUrl);
+    final success = result['success'] as bool? ?? false;
+    final pathPassed = result['pathPassed'] as bool? ?? false;
+    final clientName = result['clientName'] as String?;
 
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            success
-                ? (AppLocalizations.of(context)?.openedInExternalClient ??
-                    'Opened in external torrent client')
-                : (AppLocalizations.of(context)?.failedToOpenExternalClient ??
-                    'Failed to open in external client'),
+      if (success) {
+        if (!pathPassed && clientName != null) {
+          // Show warning if path couldn't be passed
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.check_circle, color: Colors.white),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          AppLocalizations.of(context)
+                                  ?.openedInExternalClient ??
+                              'Opened in external torrent client',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Note: Save path could not be passed to $clientName. '
+                    'You may need to set it manually in the client.',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ],
+              ),
+              backgroundColor: Colors.orange,
+              duration: const Duration(seconds: 5),
+            ),
+          );
+        } else {
+          // Success without warning
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                AppLocalizations.of(context)?.openedInExternalClient ??
+                    'Opened in external torrent client',
+              ),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+      } else {
+        // Failed to open
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              AppLocalizations.of(context)?.failedToOpenExternalClient ??
+                  'Failed to open in external client',
+            ),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
           ),
-          backgroundColor: success ? Colors.green : Colors.red,
-          duration: const Duration(seconds: 2),
-        ),
-      );
+        );
+      }
     }
   }
 
@@ -806,11 +857,30 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
 
       final torrentManager =
           await ref.read(audiobookTorrentManagerProvider.future);
-      final downloadId = await torrentManager.downloadFromTorrentFile(
-        torrentFile.path,
-        '$downloadDir/${widget.topicId}',
-        title: audiobookTitle.isNotEmpty ? audiobookTitle : null,
-      );
+      String downloadId;
+      try {
+        downloadId = await torrentManager.downloadFromTorrentFile(
+          torrentFile.path,
+          '$downloadDir/${widget.topicId}',
+          title: audiobookTitle.isNotEmpty ? audiobookTitle : null,
+        );
+      } on TorrentFailure catch (e) {
+        logger.e('Failed to start download: $e');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(e.message),
+              backgroundColor: Colors.orange,
+              duration: const Duration(seconds: 5),
+              action: SnackBarAction(
+                label: 'Settings',
+                onPressed: () => context.go('/settings'),
+              ),
+            ),
+          );
+        }
+        return;
+      }
 
       logger.i('Download started successfully with ID: $downloadId');
 
@@ -926,11 +996,30 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
 
       final torrentManager =
           await ref.read(audiobookTorrentManagerProvider.future);
-      final downloadId = await torrentManager.downloadSequential(
-        magnetUrl,
-        '$downloadDir/${widget.topicId}',
-        title: audiobookTitle.isNotEmpty ? audiobookTitle : null,
-      );
+      String downloadId;
+      try {
+        downloadId = await torrentManager.downloadSequential(
+          magnetUrl,
+          '$downloadDir/${widget.topicId}',
+          title: audiobookTitle.isNotEmpty ? audiobookTitle : null,
+        );
+      } on TorrentFailure catch (e) {
+        logger.e('Failed to start download: $e');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(e.message),
+              backgroundColor: Colors.orange,
+              duration: const Duration(seconds: 5),
+              action: SnackBarAction(
+                label: 'Settings',
+                onPressed: () => context.go('/settings'),
+              ),
+            ),
+          );
+        }
+        return;
+      }
 
       logger.i('Download started successfully with ID: $downloadId');
 

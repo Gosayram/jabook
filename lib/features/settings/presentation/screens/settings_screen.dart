@@ -28,6 +28,7 @@ import 'package:jabook/core/metadata/metadata_sync_scheduler.dart';
 import 'package:jabook/core/net/dio_client.dart';
 import 'package:jabook/core/permissions/permission_service_v2.dart';
 import 'package:jabook/core/utils/file_picker_utils.dart' as file_picker_utils;
+import 'package:jabook/core/utils/storage_path_utils.dart';
 import 'package:jabook/data/db/app_database.dart';
 import 'package:jabook/features/settings/presentation/screens/mirror_settings_screen.dart';
 import 'package:jabook/l10n/app_localizations.dart';
@@ -54,12 +55,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   final PermissionServiceV2 _permissionService = PermissionServiceV2();
   String _selectedLanguage = 'system';
   String? _downloadFolderPath;
+  bool _wifiOnlyDownloads = false;
 
   @override
   void initState() {
     super.initState();
     _loadLanguagePreference();
     _loadDownloadFolder();
+    _loadWifiOnlySetting();
   }
 
   Future<void> _loadLanguagePreference() async {
@@ -70,11 +73,32 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Future<void> _loadDownloadFolder() async {
-    final prefs = await SharedPreferences.getInstance();
-    final savedPath = prefs.getString('download_folder_path');
+    // Use StoragePathUtils to get default path if not set
+    final storageUtils = StoragePathUtils();
+    final path = await storageUtils.getDefaultAudiobookPath();
     if (mounted) {
       setState(() {
-        _downloadFolderPath = savedPath;
+        _downloadFolderPath = path;
+      });
+    }
+  }
+
+  Future<void> _loadWifiOnlySetting() async {
+    final prefs = await SharedPreferences.getInstance();
+    final wifiOnly = prefs.getBool('wifi_only_downloads') ?? false;
+    if (mounted) {
+      setState(() {
+        _wifiOnlyDownloads = wifiOnly;
+      });
+    }
+  }
+
+  Future<void> _saveWifiOnlySetting(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('wifi_only_downloads', value);
+    if (mounted) {
+      setState(() {
+        _wifiOnlyDownloads = value;
       });
     }
   }
@@ -641,14 +665,72 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           button: true,
           label: 'Set download location',
           child: ListTile(
-            leading: const Icon(Icons.storage),
+            leading: const Icon(Icons.folder),
             title: Text(localizations?.downloadLocationTitle ??
                 localizations?.downloadLocation ??
                 'Download Location'),
-            subtitle: Text(_downloadFolderPath != null
-                ? (localizations?.currentDownloadFolder(_downloadFolderPath!) ??
-                    'Current folder: $_downloadFolderPath')
-                : (localizations?.defaultDownloadFolder ?? 'Default folder')),
+            subtitle: _downloadFolderPath != null
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.folder_outlined,
+                            size: 16,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurface
+                                .withValues(alpha: 0.6),
+                          ),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              _downloadFolderPath!,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurface
+                                        .withValues(alpha: 0.6),
+                                  ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  )
+                : Text(
+                    localizations?.defaultDownloadFolder ?? 'Default folder',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .onSurface
+                              .withValues(alpha: 0.6),
+                        ),
+                  ),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (Platform.isAndroid)
+                  IconButton(
+                    icon: const Icon(Icons.help_outline),
+                    onPressed: () => _showFolderSelectionInstructions(context),
+                    tooltip: 'Show instructions',
+                  ),
+                if (_downloadFolderPath != null)
+                  IconButton(
+                    icon: const Icon(Icons.edit),
+                    onPressed: () => _selectDownloadFolder(context),
+                    tooltip: 'Change folder',
+                  ),
+              ],
+            ),
             onTap: () => _selectDownloadFolder(context),
           ),
         ),
@@ -657,13 +739,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           title: Text(localizations?.wifiOnlyDownloadsTitle ??
               localizations?.wifiOnlyDownloads ??
               'Wi-Fi Only Downloads'),
+          subtitle: Text(
+            _wifiOnlyDownloads
+                ? 'Downloads will only start when connected to Wi-Fi'
+                : 'Downloads can start on any network connection',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context)
+                      .colorScheme
+                      .onSurface
+                      .withValues(alpha: 0.6),
+                ),
+          ),
           trailing: Semantics(
             label: 'Wi-Fi only downloads toggle',
             child: Switch(
-              value: true,
-              onChanged: (value) {
-                // TODO: Implement Wi-Fi only setting
-              },
+              value: _wifiOnlyDownloads,
+              onChanged: _saveWifiOnlySetting,
             ),
           ),
         ),
@@ -1115,6 +1206,58 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
   }
 
+  /// Shows the folder selection instructions dialog.
+  Future<void> _showFolderSelectionInstructions(BuildContext context) async {
+    if (!mounted) return;
+
+    final localizations = AppLocalizations.of(context);
+    final dialogTitle =
+        localizations?.selectFolderDialogTitle ?? 'Select Download Folder';
+    final dialogMessage = localizations?.selectFolderDialogMessage ??
+        'To select a download folder:\n\n'
+            '1. Navigate to the desired folder in the file manager\n'
+            '2. Tap "Use this folder" button in the top right corner\n\n'
+            'The selected folder will be used to save downloaded audiobooks.';
+    final cancelText = localizations?.cancel ?? 'Cancel';
+
+    if (!context.mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(
+              Icons.info_outline,
+              color: Theme.of(dialogContext).colorScheme.primary,
+            ),
+            const SizedBox(width: 8),
+            Expanded(child: Text(dialogTitle)),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Text(
+            dialogMessage,
+            style: Theme.of(dialogContext).textTheme.bodyMedium,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: Text(cancelText),
+          ),
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.of(dialogContext).pop();
+              _selectDownloadFolder(context);
+            },
+            icon: const Icon(Icons.folder_open),
+            label: const Text('Select Folder'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _selectDownloadFolder(BuildContext context) async {
     if (!mounted) return;
 
@@ -1132,27 +1275,45 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         if (!mounted) return;
         // Show instruction dialog for Android 13+
         // Use savedContext which was captured before async operations
-        final dialogTitle = localizations?.selectFolderDialogTitle ??
-            'Select Download Folder';
+        final dialogTitle =
+            localizations?.selectFolderDialogTitle ?? 'Select Download Folder';
         final dialogMessage = localizations?.selectFolderDialogMessage ??
-            'Please select the folder where downloaded audiobooks will be saved. In the file manager, navigate to the desired folder and tap "Use this folder" to confirm.';
+            'To select a download folder:\n\n'
+                '1. Navigate to the desired folder in the file manager\n'
+                '2. Tap "Use this folder" button in the top right corner\n\n'
+                'The selected folder will be used to save downloaded audiobooks.';
         final cancelText = localizations?.cancel ?? 'Cancel';
-        
+
         // Check if context is still mounted before using it
         if (!savedContext.mounted) return;
         final shouldProceed = await showDialog<bool>(
           context: savedContext,
           builder: (dialogContext) => AlertDialog(
-            title: Text(dialogTitle),
-            content: Text(dialogMessage),
+            title: Row(
+              children: [
+                Icon(
+                  Icons.info_outline,
+                  color: Theme.of(dialogContext).colorScheme.primary,
+                ),
+                const SizedBox(width: 8),
+                Expanded(child: Text(dialogTitle)),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: Text(
+                dialogMessage,
+                style: Theme.of(dialogContext).textTheme.bodyMedium,
+              ),
+            ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(dialogContext).pop(false),
                 child: Text(cancelText),
               ),
-              ElevatedButton(
+              ElevatedButton.icon(
                 onPressed: () => Navigator.of(dialogContext).pop(true),
-                child: const Text('OK'),
+                icon: const Icon(Icons.folder_open),
+                label: const Text('Continue'),
               ),
             ],
           ),
@@ -1169,9 +1330,30 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       final selectedPath = await file_picker_utils.pickDirectory();
 
       if (selectedPath != null) {
-        // Save selected path to SharedPreferences
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('download_folder_path', selectedPath);
+        // Validate folder accessibility
+        try {
+          final dir = Directory(selectedPath);
+          if (!await dir.exists()) {
+            if (mounted) {
+              messenger.showSnackBar(
+                const SnackBar(
+                  content: Text(
+                    'Selected folder is not accessible. Please try again.',
+                  ),
+                  backgroundColor: Colors.orange,
+                  duration: Duration(seconds: 3),
+                ),
+              );
+            }
+            return;
+          }
+        } on Exception {
+          // If we can't check, still try to save - might be SAF URI
+        }
+
+        // Save selected path using StoragePathUtils
+        final storageUtils = StoragePathUtils();
+        await storageUtils.setDownloadFolderPath(selectedPath);
 
         if (mounted) {
           setState(() {
@@ -1179,10 +1361,33 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           });
           messenger.showSnackBar(
             SnackBar(
-              content: Text(localizations?.folderSelectedSuccessMessage ??
-                  'Download folder selected successfully'),
+              content: Row(
+                children: [
+                  const Icon(Icons.check_circle, color: Colors.white),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          localizations?.folderSelectedSuccessMessage ??
+                              'Download folder selected successfully',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          selectedPath,
+                          style: const TextStyle(fontSize: 12),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
               backgroundColor: Colors.green,
-              duration: const Duration(seconds: 2),
             ),
           );
         }
@@ -1202,7 +1407,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       if (mounted) {
         messenger.showSnackBar(
           SnackBar(
-            content: Text('Error selecting folder: ${e.toString()}'),
+            content: Row(
+              children: [
+                const Icon(Icons.error, color: Colors.white),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Error selecting folder: ${e.toString()}',
+                  ),
+                ),
+              ],
+            ),
             backgroundColor: Colors.red,
             duration: const Duration(seconds: 3),
           ),

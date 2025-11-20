@@ -21,12 +21,14 @@ import 'package:b_encode_decode/b_encode_decode.dart';
 import 'package:dtorrent_common/dtorrent_common.dart'; // PeerSource is used in addPeer call
 import 'package:dtorrent_parser/dtorrent_parser.dart';
 import 'package:dtorrent_task_v2/dtorrent_task_v2.dart';
+import 'package:jabook/core/background/download_background_service.dart';
 import 'package:jabook/core/errors/failures.dart';
 import 'package:jabook/core/logging/environment_logger.dart';
 import 'package:jabook/core/notifications/download_notification_service.dart';
+import 'package:jabook/core/utils/network_utils.dart';
 import 'package:jabook/core/utils/safe_async.dart';
+import 'package:jabook/core/utils/storage_path_utils.dart';
 import 'package:jabook/data/db/app_database.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:sembast/sembast.dart';
 
 /// Represents the progress of a torrent download.
@@ -139,6 +141,16 @@ class AudiobookTorrentManager {
     if (_db == null) {
       logger.w('AudiobookTorrentManager not initialized with database');
       // Continue without persistence, but log warning
+    }
+
+    // Check Wi-Fi only setting
+    final networkUtils = NetworkUtils();
+    final canDownload = await networkUtils.canDownload();
+    if (!canDownload) {
+      final connectionType = await networkUtils.getConnectionTypeDescription();
+      throw TorrentFailure(
+        'Download blocked: Wi-Fi only mode is enabled, but current connection is $connectionType',
+      );
     }
 
     String? downloadId;
@@ -265,6 +277,9 @@ class AudiobookTorrentManager {
 
       // Persist to database
       await _saveDownloadMetadata(downloadId, metadata);
+
+      // Register background service for monitoring downloads
+      safeUnawaited(_registerBackgroundService());
 
       // Set up event listeners
       // downloadId is guaranteed to be non-null at this point
@@ -408,6 +423,16 @@ class AudiobookTorrentManager {
       // Continue without persistence, but log warning
     }
 
+    // Check Wi-Fi only setting
+    final networkUtils = NetworkUtils();
+    final canDownload = await networkUtils.canDownload();
+    if (!canDownload) {
+      final connectionType = await networkUtils.getConnectionTypeDescription();
+      throw TorrentFailure(
+        'Download blocked: Wi-Fi only mode is enabled, but current connection is $connectionType',
+      );
+    }
+
     String? downloadId;
     try {
       // Generate a unique download ID
@@ -450,6 +475,7 @@ class AudiobookTorrentManager {
       final metadata = <String, dynamic>{
         'savePath': savePath,
         'startedAt': DateTime.now().toIso8601String(),
+        'torrentBytes': torrentBytes, // Store torrent bytes for restoration
       };
       if (title != null && title.isNotEmpty) {
         metadata['title'] = title;
@@ -458,6 +484,9 @@ class AudiobookTorrentManager {
 
       // Persist to database
       await _saveDownloadMetadata(downloadId, metadata);
+
+      // Register background service for monitoring downloads
+      safeUnawaited(_registerBackgroundService());
 
       // Set up event listeners
       final finalDownloadId = downloadId;
@@ -709,6 +738,52 @@ class AudiobookTorrentManager {
     }
   }
 
+  /// Resumes a restored download by restarting it.
+  ///
+  /// The [downloadId] parameter is the unique identifier of the download.
+  /// The download must be in restored state (not active).
+  ///
+  /// Throws [TorrentFailure] if the download cannot be resumed.
+  Future<void> resumeRestoredDownload(String downloadId) async {
+    final metadata = _downloadMetadata[downloadId];
+    if (metadata == null) {
+      throw const TorrentFailure('Download not found');
+    }
+
+    if (_activeTasks.containsKey(downloadId)) {
+      throw const TorrentFailure('Download is already active');
+    }
+
+    final savePath = metadata['savePath'] as String?;
+    if (savePath == null) {
+      throw const TorrentFailure('Save path not found');
+    }
+
+    // Check if we have magnet URL or torrent file
+    final magnetUrl = metadata['magnetUrl'] as String?;
+    final torrentBytes = metadata['torrentBytes'] as Uint8List?;
+
+    if (magnetUrl != null && magnetUrl.isNotEmpty) {
+      // Resume from magnet URL
+      await downloadSequential(
+        magnetUrl,
+        savePath,
+        title: metadata['title'] as String?,
+      );
+    } else if (torrentBytes != null) {
+      // Resume from torrent file
+      await downloadFromTorrentBytes(
+        torrentBytes,
+        savePath,
+        title: metadata['title'] as String?,
+      );
+    } else {
+      throw const TorrentFailure(
+        'Cannot resume: no magnet URL or torrent file found',
+      );
+    }
+  }
+
   /// Removes a torrent download from the manager.
   ///
   /// This method stops the download and removes it from the active downloads list.
@@ -763,7 +838,8 @@ class AudiobookTorrentManager {
   /// Gets a list of all active downloads.
   ///
   /// This method returns information about all currently active downloads,
-  /// including their IDs, progress, and status.
+  /// including their IDs, progress, and status. It also includes restored
+  /// downloads that were recovered from the database but not yet restarted.
   ///
   /// Returns a list of maps containing download information.
   ///
@@ -772,6 +848,7 @@ class AudiobookTorrentManager {
     try {
       final downloads = <Map<String, dynamic>>[];
 
+      // Add active tasks
       for (final entry in _activeTasks.entries) {
         final downloadId = entry.key;
         final task = entry.value;
@@ -795,6 +872,43 @@ class AudiobookTorrentManager {
           'startedAt': metadata['startedAt'],
           'pausedAt': metadata['pausedAt'],
           'savePath': metadata['savePath'],
+          'isActive': true, // Mark as active
+        });
+      }
+
+      // Add restored downloads (from database but not active)
+      for (final entry in _downloadMetadata.entries) {
+        final downloadId = entry.key;
+        // Skip if already in active tasks
+        if (_activeTasks.containsKey(downloadId)) continue;
+
+        final metadata = entry.value;
+        final savePath = metadata['savePath'] as String?;
+        if (savePath == null) continue;
+
+        // Check if download directory still exists
+        final saveDir = Directory(savePath);
+        if (!await saveDir.exists()) {
+          await _removeDownloadMetadata(downloadId);
+          continue;
+        }
+
+        downloads.add({
+          'id': downloadId,
+          'name': metadata['title'] as String? ?? 'Unknown',
+          'title': metadata['title'],
+          'progress': 0.0, // Unknown progress for restored downloads
+          'downloadSpeed': 0.0,
+          'uploadSpeed': 0.0,
+          'downloadedBytes': 0,
+          'totalBytes': 0,
+          'seeders': 0,
+          'leechers': 0,
+          'status': 'restored', // New status for restored downloads
+          'startedAt': metadata['startedAt'],
+          'pausedAt': metadata['pausedAt'],
+          'savePath': savePath,
+          'isActive': false, // Mark as not active
         });
       }
 
@@ -809,6 +923,9 @@ class AudiobookTorrentManager {
   /// This method closes all active download streams and clears the
   /// progress controllers. It should be called when the application
   /// is closing or when torrent functionality is no longer needed.
+  ///
+  /// Note: Download metadata is preserved in the database to allow
+  /// restoration of downloads after app restart.
   ///
   /// Throws [TorrentFailure] if shutdown fails.
   Future<void> shutdown() async {
@@ -832,7 +949,8 @@ class AudiobookTorrentManager {
       await Future.wait(_activeTasks.values.map((task) => task.dispose()));
       _activeTasks.clear();
 
-      _downloadMetadata.clear();
+      // Don't clear _downloadMetadata - it's needed for restoration
+      // Metadata is already persisted in database via _saveDownloadMetadata
     } on Exception catch (e) {
       throw TorrentFailure(
           'Failed to shutdown torrent manager: ${e.toString()}');
@@ -902,12 +1020,15 @@ class AudiobookTorrentManager {
   /// Gets the default download directory for torrent files.
   ///
   /// This method returns the path to the directory where torrent files
-  /// should be saved. If the directory doesn't exist, it will be created.
+  /// should be saved. Uses the default audiobook path from StoragePathUtils.
+  /// If the directory doesn't exist, it will be created.
   ///
   /// Returns the path to the download directory as a string.
   static Future<String> getDownloadDirectory() async {
-    final appDocDir = await getApplicationDocumentsDirectory();
-    final downloadDir = Directory('${appDocDir.path}/downloads');
+    // Use default audiobook path from StoragePathUtils
+    final storageUtils = StoragePathUtils();
+    final audiobookPath = await storageUtils.getDefaultAudiobookPath();
+    final downloadDir = Directory(audiobookPath);
     if (!await downloadDir.exists()) {
       await downloadDir.create(recursive: true);
     }
@@ -924,5 +1045,18 @@ class AudiobookTorrentManager {
       return '${(bytes / (1024 * 1024)).toStringAsFixed(2)} MB';
     }
     return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(2)} GB';
+  }
+
+  /// Registers background service for monitoring downloads.
+  ///
+  /// This ensures downloads continue even when app is in background.
+  Future<void> _registerBackgroundService() async {
+    try {
+      final backgroundService = DownloadBackgroundService();
+      await backgroundService.registerDownloadMonitoring();
+    } on Exception catch (e) {
+      EnvironmentLogger().w('Failed to register background service: $e');
+      // Continue without background service - downloads will still work
+    }
   }
 }

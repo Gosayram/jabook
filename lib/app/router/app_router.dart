@@ -83,7 +83,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     ),
     GoRoute(
       path: '/downloads',
-      builder: (context, state) => const DownloadsScreen(),
+      builder: (context, state) {
+        // Get downloadId from query parameters if present
+        final downloadId = state.uri.queryParameters['downloadId'];
+        return DownloadsScreen(highlightDownloadId: downloadId);
+      },
     ),
     GoRoute(
       path: '/auth',

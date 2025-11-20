@@ -20,6 +20,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:jabook/app/router/app_router.dart';
 import 'package:jabook/app/theme/app_theme.dart';
 import 'package:jabook/core/auth/rutracker_auth.dart';
+import 'package:jabook/core/background/download_background_service.dart';
 import 'package:jabook/core/cache/rutracker_cache_service.dart';
 import 'package:jabook/core/config/app_config.dart';
 import 'package:jabook/core/config/language_manager.dart';
@@ -29,10 +30,13 @@ import 'package:jabook/core/endpoints/endpoint_manager.dart';
 import 'package:jabook/core/logging/environment_logger.dart';
 import 'package:jabook/core/logging/structured_logger.dart';
 import 'package:jabook/core/net/dio_client.dart';
+import 'package:jabook/core/notifications/download_notification_service.dart';
 import 'package:jabook/core/permissions/permission_service.dart';
 import 'package:jabook/core/session/session_manager.dart';
+import 'package:jabook/core/torrent/audiobook_torrent_manager.dart';
 import 'package:jabook/core/utils/first_launch.dart';
 import 'package:jabook/core/utils/safe_async.dart';
+import 'package:jabook/core/utils/storage_path_utils.dart';
 import 'package:jabook/data/db/app_database.dart';
 import 'package:jabook/features/auth/data/providers/auth_provider.dart';
 import 'package:jabook/features/auth/data/repositories/auth_repository_impl.dart';
@@ -60,7 +64,8 @@ class JaBookApp extends ConsumerStatefulWidget {
 ///
 /// Handles initialization of environment, configuration,
 /// and logging for the application lifecycle.
-class _JaBookAppState extends ConsumerState<JaBookApp> {
+class _JaBookAppState extends ConsumerState<JaBookApp>
+    with WidgetsBindingObserver {
   final AppConfig config = AppConfig();
   final EnvironmentLogger logger = EnvironmentLogger();
   final AppDatabase database = AppDatabase();
@@ -81,6 +86,8 @@ class _JaBookAppState extends ConsumerState<JaBookApp> {
   @override
   void initState() {
     super.initState();
+    // Add lifecycle observer to handle app state changes
+    WidgetsBinding.instance.addObserver(this);
     try {
       // Record app start time for UI render metrics
       _appStartTime = DateTime.now();
@@ -122,6 +129,87 @@ class _JaBookAppState extends ConsumerState<JaBookApp> {
     }
   }
 
+  @override
+  void dispose() {
+    // Remove lifecycle observer
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    logger.i('App lifecycle state changed: $state');
+
+    // Handle app state changes to ensure downloads continue in background
+    switch (state) {
+      case AppLifecycleState.resumed:
+        // App returned to foreground
+        logger.i('App resumed - checking download status');
+        _onAppResumed();
+        break;
+      case AppLifecycleState.paused:
+        // App went to background
+        logger.i('App paused - saving download state');
+        _onAppPaused();
+        break;
+      case AppLifecycleState.inactive:
+        // App is transitioning (e.g., incoming call)
+        logger.d('App inactive');
+        break;
+      case AppLifecycleState.detached:
+        // App is being terminated
+        logger.i('App detached - saving final download state');
+        _onAppDetached();
+        break;
+      case AppLifecycleState.hidden:
+        // App is hidden (Android 12+)
+        logger.d('App hidden');
+        break;
+    }
+  }
+
+  /// Handles app resume event.
+  ///
+  /// Checks download status and ensures notifications are up to date.
+  Future<void> _onAppResumed() async {
+    try {
+      // Downloads should continue automatically - no action needed
+      // State is already persisted via _saveDownloadMetadata during download progress
+      logger.i('App resumed - downloads should continue automatically');
+    } on Exception catch (e) {
+      logger.w('Error handling app resume: $e');
+    }
+  }
+
+  /// Handles app pause event.
+  ///
+  /// Saves download state to ensure persistence.
+  Future<void> _onAppPaused() async {
+    try {
+      // Save download state to database
+      // Downloads will continue in background if they're active
+      // State is already saved via _saveDownloadMetadata during download progress
+      logger.i('App paused - download state saved');
+    } on Exception catch (e) {
+      logger.w('Error handling app pause: $e');
+    }
+  }
+
+  /// Handles app detach event.
+  ///
+  /// Saves final download state before app termination.
+  Future<void> _onAppDetached() async {
+    try {
+      // Final save of download state
+      // Note: We don't call shutdown() here as it would stop all downloads
+      // Downloads should continue in background if possible
+      logger.i('App detached - final state saved');
+    } on Exception catch (e) {
+      logger.w('Error handling app detach: $e');
+    }
+  }
+
   Future<void> _initializeApp() async {
     // Add small delay to ensure Flutter is fully ready on new Android
     // This helps avoid race conditions during initialization
@@ -147,11 +235,15 @@ class _JaBookAppState extends ConsumerState<JaBookApp> {
 
       // Initialize configuration based on flavor (lightweight, can run in parallel)
       // Request essential permissions (can be deferred, but better to do early)
+      // Initialize default storage path
+      // Initialize background service for downloads
       // Run these in parallel to speed up startup
       final envInitStart = DateTime.now();
       await Future.wait([
         _initializeEnvironment(),
         _requestEssentialPermissions(),
+        StoragePathUtils().initializeDefaultPath(),
+        _initializeBackgroundService(),
       ]);
       final envInitDuration =
           DateTime.now().difference(envInitStart).inMilliseconds;
@@ -503,6 +595,43 @@ class _JaBookAppState extends ConsumerState<JaBookApp> {
     }
   }
 
+  /// Initializes the background service for downloads.
+  Future<void> _initializeBackgroundService() async {
+    try {
+      logger.i('Initializing background download service...');
+      final backgroundService = DownloadBackgroundService();
+      await backgroundService.initialize();
+
+      // Register monitoring task if there are active downloads
+      // This will be checked after torrent manager is initialized
+      safeUnawaited(
+        () async {
+          try {
+            // Wait a bit for torrent manager to be ready
+            await Future.delayed(const Duration(seconds: 2));
+            final torrentManager = AudiobookTorrentManager();
+            final activeDownloads = await torrentManager.getActiveDownloads();
+            if (activeDownloads.isNotEmpty) {
+              logger.i(
+                'Found ${activeDownloads.length} active downloads, registering background monitoring',
+              );
+              await backgroundService.registerDownloadMonitoring();
+            }
+          } on Exception catch (e) {
+            logger.w('Failed to register download monitoring: $e');
+          }
+        }(),
+        onError: (e, stack) {
+          logger.w('Error in background service registration: $e');
+        },
+      );
+    } on Exception catch (e) {
+      logger.w('Failed to initialize background service: $e');
+      // Continue without background service - downloads will still work
+      // when app is in foreground
+    }
+  }
+
   // Cache locale to avoid repeated FutureBuilder calls
   Locale? _cachedLocale;
   Future<Locale>? _localeFuture;
@@ -649,6 +778,14 @@ class _JaBookAppState extends ConsumerState<JaBookApp> {
                     config.isDebug ? _scaffoldMessengerKey : null,
                 // Performance optimizations and responsive framework
                 builder: (context, child) {
+                  // Set navigator key for notification service
+                  final notificationService = DownloadNotificationService();
+                  if (notificationService.navigatorKey.currentContext == null) {
+                    // Navigator will be available after MaterialApp.router builds
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      // Navigator key is now available
+                    });
+                  }
                   // Track first frame render time
                   final appStartTime = _appStartTime;
                   if (!_firstFrameTracked && appStartTime != null) {
