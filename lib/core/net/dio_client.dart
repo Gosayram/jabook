@@ -18,9 +18,8 @@ import 'dart:io' as io;
 import 'package:cookie_jar/cookie_jar.dart';
 import 'package:dio/dio.dart';
 import 'package:dio_cookie_manager/dio_cookie_manager.dart' as dio_cookie;
-import 'package:flutter_cookie_bridge/flutter_cookie_bridge.dart';
-import 'package:flutter_cookie_bridge/session_manager.dart' as bridge_session;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:jabook/core/auth/simple_cookie_manager.dart';
 import 'package:jabook/core/endpoints/endpoint_manager.dart';
 import 'package:jabook/core/logging/structured_logger.dart';
 import 'package:jabook/core/net/dio_cookie_manager.dart';
@@ -45,8 +44,7 @@ class DioClient {
   static SessionManager? _sessionManager;
   static DateTime? _appStartTime;
   static bool _firstRequestTracked = false;
-  static FlutterCookieBridge? _cookieBridge;
-  static bridge_session.SessionManager? _bridgeSessionManager;
+  static SimpleCookieManager? _simpleCookieManager;
 
   /// Gets the singleton Dio instance configured for RuTracker requests.
   ///
@@ -101,32 +99,29 @@ class DioClient {
     // Add authentication redirect handler and resilient retry policy for idempotent requests
     dio.interceptors.add(DioInterceptors.createAuthAndRetryInterceptor(dio));
 
-    // Initialize FlutterCookieBridge for automatic cookie synchronization
-    // According to .report-issue-docs.md: this library handles cookie sync
-    // between WebView and Dio automatically, ensuring legitimate Cloudflare connections
-    _cookieBridge ??= FlutterCookieBridge();
-    _bridgeSessionManager ??= bridge_session.SessionManager();
-    
     // Initialize cookie jar
     _cookieJar ??= CookieJar();
     dio.interceptors.add(dio_cookie.CookieManager(_cookieJar!));
-    
-    // Add FlutterCookieBridge interceptor for automatic cookie sync
-    // IMPORTANT: This interceptor must be AFTER CookieManager so that:
-    // 1. CookieManager adds cookies from CookieJar to requests
-    // 2. This interceptor merges cookies from SessionManager with existing Cookie header
-    // 3. CookieManager saves cookies from responses to CookieJar
-    // 4. This interceptor also saves cookies from responses to SessionManager
-    dio.interceptors.add(DioInterceptors.createCookieBridgeInterceptor(
-      _bridgeSessionManager!,
-    ));
-    
-    await StructuredLogger().log(
-      level: 'info',
-      subsystem: 'cookies',
-      message: 'FlutterCookieBridge initialized for automatic cookie sync',
-      context: 'cookie_bridge_init',
-    );
+
+    // Initialize SimpleCookieManager and load saved cookies
+    _simpleCookieManager ??= SimpleCookieManager();
+    try {
+      await _simpleCookieManager!.loadCookieToJar(activeBase, _cookieJar!);
+      await StructuredLogger().log(
+        level: 'info',
+        subsystem: 'cookies',
+        message: 'Cookies loaded from SimpleCookieManager',
+        context: 'cookie_init',
+      );
+    } on Exception catch (e) {
+      await StructuredLogger().log(
+        level: 'debug',
+        subsystem: 'cookies',
+        message: 'No saved cookies found or failed to load',
+        context: 'cookie_init',
+        cause: e.toString(),
+      );
+    }
 
     // Add SessionInterceptor for automatic session validation and refresh
     // Use singleton SessionManager instance
@@ -155,19 +150,7 @@ class DioClient {
     _sessionManager = null;
     _firstRequestTracked = false;
     _appStartTime = null;
-    // Keep _cookieJar and _cookieBridge to preserve cookies across resets
-  }
-  
-  /// Gets the FlutterCookieBridge instance for WebView integration.
-  ///
-  /// This method returns the singleton FlutterCookieBridge instance
-  /// that handles automatic cookie synchronization between WebView and Dio.
-  ///
-  /// Returns the FlutterCookieBridge instance.
-  static Future<FlutterCookieBridge> get cookieBridge async {
-    await instance; // Ensure Dio is initialized
-    _cookieBridge ??= FlutterCookieBridge();
-    return _cookieBridge!;
+    // Keep _cookieJar to preserve cookies across resets
   }
 
   /// Gets the user agent string for HTTP requests.
@@ -183,12 +166,18 @@ class DioClient {
 
   /// Synchronizes cookies from WebView to the Dio client.
   ///
-  /// This method should be called to ensure that authentication cookies
-  /// obtained through WebView login are available for HTTP requests.
+  /// DEPRECATED: This method is no longer needed as we use direct HTTP authentication.
+  /// Kept for backward compatibility but does nothing.
   ///
-  /// It validates cookies before saving and handles various cookie formats.
+  /// @deprecated Use SimpleCookieManager instead
   static Future<void> syncCookiesFromWebView() async {
-    await DioCookieManager.syncCookiesFromWebView(_cookieJar);
+    // No-op: WebView synchronization is no longer needed
+    await StructuredLogger().log(
+      level: 'debug',
+      subsystem: 'cookies',
+      message: 'syncCookiesFromWebView called but is deprecated (no-op)',
+      context: 'cookie_sync_deprecated',
+    );
   }
 
   /// Saves cookies directly to Dio CookieJar.
@@ -210,10 +199,18 @@ class DioClient {
 
   /// Synchronizes cookies from Dio cookie jar to WebView storage.
   ///
-  /// This method should be called after HTTP-based login to ensure cookies
-  /// are available for WebView as well.
+  /// DEPRECATED: This method is no longer needed as we use direct HTTP authentication.
+  /// Kept for backward compatibility but does nothing.
+  ///
+  /// @deprecated Use SimpleCookieManager instead
   static Future<void> syncCookiesToWebView() async {
-    await DioCookieManager.syncCookiesToWebView(_cookieJar);
+    // No-op: WebView synchronization is no longer needed
+    await StructuredLogger().log(
+      level: 'debug',
+      subsystem: 'cookies',
+      message: 'syncCookiesToWebView called but is deprecated (no-op)',
+      context: 'cookie_sync_deprecated',
+    );
   }
 
   /// Syncs cookies to a new endpoint when switching mirrors.
@@ -256,11 +253,10 @@ class DioClient {
   ///
   /// Returns true if cookies are valid and authentication is active, false otherwise.
   static Future<bool> validateCookies() async {
-      final dio = await instance;
+    final dio = await instance;
     return DioCookieManager.validateCookies(
       dio,
       _cookieJar,
-      _bridgeSessionManager,
     );
   }
 

@@ -17,6 +17,7 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:jabook/core/backup/backup_service.dart';
 import 'package:jabook/core/cache/rutracker_cache_service.dart';
 import 'package:jabook/core/config/language_manager.dart';
@@ -27,7 +28,6 @@ import 'package:jabook/core/net/dio_client.dart';
 import 'package:jabook/core/permissions/permission_service_v2.dart';
 import 'package:jabook/data/db/app_database.dart';
 import 'package:jabook/features/settings/presentation/screens/mirror_settings_screen.dart';
-import 'package:jabook/features/webview/secure_rutracker_webview.dart';
 import 'package:jabook/l10n/app_localizations.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -278,31 +278,34 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           const SizedBox(height: 16),
           ListTile(
             leading: const Icon(Icons.login),
-            title: Text(AppLocalizations.of(context)?.loginViaWebViewButton ??
-                'Login to RuTracker via WebView'),
+            title: Text(AppLocalizations.of(context)?.loginButton ??
+                'Login to RuTracker'),
             subtitle: Text(AppLocalizations.of(context)
-                    ?.loginViaWebViewSubtitle ??
-                'Pass Cloudflare/captcha and save cookie for client'),
+                    ?.loginRequiredForSearch ??
+                'Enter your credentials to authenticate'),
             onTap: () async {
               final messenger = ScaffoldMessenger.of(context);
               final localizations = AppLocalizations.of(context);
-              final cookieStr = await Navigator.push<String>(
-                context,
-                MaterialPageRoute(
-                    builder: (_) => const SecureRutrackerWebView()),
-              );
-              if (cookieStr != null && cookieStr.isNotEmpty) {
-                final prefs = await SharedPreferences.getInstance();
-                // Optionally persist raw cookie string (for Android channel flow)
-                await prefs.setString('rutracker_cookie_string', cookieStr);
-                // Try sync into Dio cookie jar from stored JSON if present
-                await DioClient.syncCookiesFromWebView();
-                if (mounted) {
+              // Navigate to auth screen
+              final result = await context.push('/auth');
+              // If login was successful, validate cookies
+              if (result == true && mounted) {
+                final isValid = await DioClient.validateCookies();
+                if (isValid) {
                   messenger.showSnackBar(
                     SnackBar(
-                        content: Text(localizations
-                                ?.cookiesSavedForHttpClient ??
-                            'Cookies saved for HTTP client')),
+                      content: Text(localizations?.authorizationSuccessful ??
+                          'Authorization successful'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                } else {
+                  messenger.showSnackBar(
+                    SnackBar(
+                      content: Text(localizations?.authorizationFailedMessage ??
+                          'Authorization failed'),
+                      backgroundColor: Colors.orange,
+                    ),
                   );
                 }
               }
@@ -316,7 +319,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     ?.clearSessionSubtitle ??
                 'Delete saved cookies and logout from account'),
             onTap: () async {
-              // Clear cookies in Dio and WebView storage
+              // Clear cookies in Dio and secure storage
               final messenger = ScaffoldMessenger.of(context);
               final localizations = AppLocalizations.of(context);
               await DioClient.clearCookies();

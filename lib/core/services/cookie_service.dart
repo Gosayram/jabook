@@ -179,6 +179,70 @@ class CookieService {
     }
   }
 
+  /// Flushes cookies to ensure they are saved to disk.
+  ///
+  /// This method ensures that all pending cookie changes are persisted.
+  /// Returns true if flush was successful, false otherwise.
+  static Future<bool> flushCookies() async {
+    final operationId = 'cookie_flush_${DateTime.now().millisecondsSinceEpoch}';
+    final startTime = DateTime.now();
+
+    try {
+      await StructuredLogger().log(
+        level: 'debug',
+        subsystem: 'cookies',
+        message: 'Flushing cookies to disk',
+        operationId: operationId,
+        context: 'cookie_service',
+      );
+
+      final result = await _channel.invokeMethod<bool>('flushCookies');
+
+      final duration = DateTime.now().difference(startTime).inMilliseconds;
+      await StructuredLogger().log(
+        level: (result ?? false) ? 'info' : 'warning',
+        subsystem: 'cookies',
+        message: (result ?? false)
+            ? 'Cookies flushed to disk'
+            : 'Failed to flush cookies',
+        operationId: operationId,
+        context: 'cookie_service',
+        durationMs: duration,
+        extra: {'success': result ?? false},
+      );
+
+      return result ?? false;
+    } on PlatformException catch (e) {
+      final duration = DateTime.now().difference(startTime).inMilliseconds;
+      await StructuredLogger().log(
+        level: 'error',
+        subsystem: 'cookies',
+        message: 'Failed to flush cookies',
+        operationId: operationId,
+        context: 'cookie_service',
+        durationMs: duration,
+        cause: e.toString(),
+        extra: {
+          'error_code': e.code,
+          'error_message': e.message,
+        },
+      );
+      return false;
+    } on Exception catch (e) {
+      final duration = DateTime.now().difference(startTime).inMilliseconds;
+      await StructuredLogger().log(
+        level: 'error',
+        subsystem: 'cookies',
+        message: 'Exception flushing cookies',
+        operationId: operationId,
+        context: 'cookie_service',
+        durationMs: duration,
+        cause: e.toString(),
+      );
+      return false;
+    }
+  }
+
   /// Clears all cookies from Android CookieManager.
   ///
   /// Returns true if cookies were cleared successfully, false otherwise.

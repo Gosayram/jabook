@@ -19,13 +19,13 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:jabook/core/cache/rutracker_cache_service.dart';
 import 'package:jabook/core/endpoints/endpoint_provider.dart';
 import 'package:jabook/core/errors/failures.dart';
 import 'package:jabook/core/net/dio_client.dart';
 import 'package:jabook/core/parse/rutracker_parser.dart';
 import 'package:jabook/core/session/auth_error_handler.dart';
-import 'package:jabook/features/webview/secure_rutracker_webview.dart';
 import 'package:jabook/l10n/app_localizations.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -89,6 +89,9 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
       final response = await dio
           .get(
             '$activeEndpoint/forum/viewtopic.php?t=${widget.topicId}',
+            options: Options(
+              responseType: ResponseType.plain, // Ensure gzip is automatically decompressed
+            ),
           )
           .timeout(const Duration(seconds: 30));
 
@@ -544,17 +547,18 @@ void _showAuthenticationPrompt(BuildContext context) {
           child: Text(AppLocalizations.of(context)!.cancel),
         ),
         TextButton(
-          onPressed: () {
+          onPressed: () async {
             Navigator.pop(ctx);
-            // Navigate to login screen
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const SecureRutrackerWebView()),
-            ).then((_) async {
-              // Sync cookies after login
-              await DioClient.syncCookiesFromWebView();
-              // Retry loading topic - this will be handled by the parent widget
-            });
+            // Navigate to auth screen
+            final result = await context.push('/auth');
+            // If login was successful, validate cookies
+            if (result == true) {
+              final isValid = await DioClient.validateCookies();
+              if (isValid && context.mounted) {
+                // Retry loading topic - this will be handled by the parent widget
+                // The widget will automatically reload when auth status changes
+              }
+            }
           },
           child: Text(AppLocalizations.of(context)!.login),
         ),

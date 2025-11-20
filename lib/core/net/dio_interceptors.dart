@@ -20,6 +20,7 @@ import 'package:flutter_cookie_bridge/session_manager.dart' as bridge_session;
 import 'package:jabook/core/endpoints/endpoint_manager.dart';
 import 'package:jabook/core/logging/structured_logger.dart';
 import 'package:jabook/core/net/dio_cookie_manager.dart';
+import 'package:jabook/core/services/cookie_service.dart';
 import 'package:jabook/core/utils/safe_async.dart';
 import 'package:jabook/data/db/app_database.dart';
 
@@ -667,6 +668,126 @@ class DioInterceptors {
         return handler.next(error);
       },
     );
+
+  /// Creates an Android CookieManager interceptor for automatic cookie synchronization.
+  ///
+  /// This interceptor automatically gets cookies from Android CookieManager (used by WebView)
+  /// and adds them to requests. This ensures cookies from WebView login are always available.
+  ///
+  /// This interceptor should be added BEFORE CookieManager interceptor to ensure
+  /// Android CookieManager cookies have priority.
+  static Interceptor createAndroidCookieManagerInterceptor() =>
+      InterceptorsWrapper(
+        onRequest: (request, handler) async {
+          try {
+            // Get base URL from request
+            final uri = request.uri;
+            final baseUrl = '${uri.scheme}://${uri.host}';
+            
+            // Get cookies from Android CookieManager (used by WebView)
+            final cookieHeader = await CookieService.getCookiesForUrl(baseUrl);
+            
+            if (cookieHeader != null && cookieHeader.isNotEmpty) {
+              // Merge with existing Cookie header (if any)
+              final existingCookieHeader = request.headers['Cookie'];
+              
+              if (existingCookieHeader != null && existingCookieHeader.isNotEmpty) {
+                // Merge cookies: combine existing and Android CookieManager cookies, avoiding duplicates
+                final existingCookieNames = existingCookieHeader
+                    .split('; ')
+                    .map((c) => c.split('=').first.trim())
+                    .where((name) => name.isNotEmpty)
+                    .toSet();
+                
+                final androidCookies = cookieHeader.split('; ');
+                final newCookies = androidCookies.where((c) {
+                  final parts = c.split('=');
+                  if (parts.isEmpty) return false;
+                  final name = parts.first.trim();
+                  return name.isNotEmpty && !existingCookieNames.contains(name);
+                }).toList();
+                
+                if (newCookies.isNotEmpty) {
+                  request.headers['Cookie'] = '$existingCookieHeader; ${newCookies.join('; ')}';
+                  
+                  await StructuredLogger().log(
+                    level: 'debug',
+                    subsystem: 'cookies',
+                    message: 'Merged cookies from Android CookieManager with existing cookies',
+                    context: 'android_cookie_manager_request',
+                    extra: {
+                      'uri': request.uri.toString(),
+                      'base_url': baseUrl,
+                      'existing_cookie_count': existingCookieNames.length,
+                      'android_cookie_count': androidCookies.length,
+                      'new_cookies_count': newCookies.length,
+                      'final_cookie_header_length': request.headers['Cookie']?.length ?? 0,
+                    },
+                  );
+                } else {
+                  // All Android cookies already in existing header
+                  await StructuredLogger().log(
+                    level: 'debug',
+                    subsystem: 'cookies',
+                    message: 'All Android CookieManager cookies already in request',
+                    context: 'android_cookie_manager_request',
+                    extra: {
+                      'uri': request.uri.toString(),
+                      'base_url': baseUrl,
+                    },
+                  );
+                }
+              } else {
+                // No existing cookies, just use Android CookieManager cookies
+                request.headers['Cookie'] = cookieHeader;
+                
+                await StructuredLogger().log(
+                  level: 'info',
+                  subsystem: 'cookies',
+                  message: 'Added cookies from Android CookieManager to request',
+                  context: 'android_cookie_manager_request',
+                  extra: {
+                    'uri': request.uri.toString(),
+                    'base_url': baseUrl,
+                    'cookie_header_length': cookieHeader.length,
+                    'cookie_count': cookieHeader.split('; ').length,
+                    'cookie_names': cookieHeader.split('; ').map((c) {
+                      final parts = c.split('=');
+                      return parts.isNotEmpty ? parts.first.trim() : '';
+                    }).where((name) => name.isNotEmpty).toList(),
+                  },
+                );
+              }
+            } else {
+              // No cookies in Android CookieManager - log for debugging
+              await StructuredLogger().log(
+                level: 'debug',
+                subsystem: 'cookies',
+                message: 'No cookies found in Android CookieManager',
+                context: 'android_cookie_manager_request',
+                extra: {
+                  'uri': request.uri.toString(),
+                  'base_url': baseUrl,
+                  'note': 'Request will proceed without Android CookieManager cookies',
+                },
+              );
+            }
+          } on Exception catch (e) {
+            await StructuredLogger().log(
+              level: 'warning',
+              subsystem: 'cookies',
+              message: 'Failed to get cookies from Android CookieManager',
+              context: 'android_cookie_manager_request',
+              cause: e.toString(),
+              extra: {
+                'uri': request.uri.toString(),
+                'note': 'Request will proceed without Android CookieManager cookies',
+              },
+            );
+          }
+          handler.next(request);
+        },
+      );
 
   /// Creates a FlutterCookieBridge interceptor for automatic cookie synchronization.
   ///

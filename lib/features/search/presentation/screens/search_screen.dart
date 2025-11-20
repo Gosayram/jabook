@@ -21,7 +21,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:jabook/core/cache/rutracker_cache_service.dart';
-import 'package:jabook/core/endpoints/endpoint_manager.dart';
+import 'package:jabook/core/constants/category_constants.dart';
 import 'package:jabook/core/endpoints/endpoint_provider.dart';
 import 'package:jabook/core/errors/failures.dart';
 import 'package:jabook/core/favorites/favorites_service.dart';
@@ -37,7 +37,6 @@ import 'package:jabook/data/db/app_database.dart';
 import 'package:jabook/features/auth/data/providers/auth_provider.dart';
 import 'package:jabook/features/search/presentation/widgets/grouped_audiobook_list.dart';
 import 'package:jabook/features/settings/presentation/screens/mirror_settings_screen.dart';
-import 'package:jabook/features/webview/secure_rutracker_webview.dart';
 import 'package:jabook/l10n/app_localizations.dart';
 
 /// Screen for searching audiobooks on RuTracker.
@@ -213,7 +212,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     }
   }
 
-  /// Handles login with biometric authentication or WebView fallback.
+  /// Handles login with stored credentials or opens auth screen.
   Future<void> _handleLogin() async {
     try {
       final repository = ref.read(authRepositoryProvider);
@@ -222,13 +221,12 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       final hasStored = await repository.hasStoredCredentials();
 
       if (hasStored) {
-        // Try to login with stored credentials first (without biometric check to avoid permission request)
-        // This will only use biometric if credentials require it
+        // Try to login with stored credentials first
         try {
           final success = await repository.loginWithStoredCredentials();
 
           if (success) {
-            // HTTP login already syncs cookies, just validate
+            // Validate cookies
             final isValid = await DioClient.validateCookies();
 
             if (isValid) {
@@ -257,23 +255,32 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           }
         } on Exception catch (e) {
           logger.w('Login with stored credentials failed: $e');
-          // Fall through to WebView login
+          // Fall through to auth screen
         }
+      }
 
-        // If stored credentials login failed, open WebView directly
-        // We don't check biometric availability here to avoid permission request
-        // User can use biometric if they want when opening WebView
-        await _openWebViewLogin();
-      } else {
-        // No stored credentials, open WebView directly
-        await _openWebViewLogin();
+      // Open auth screen for manual login
+      if (!mounted) return;
+      final result = await context.push('/auth');
+      
+      // If login was successful, refresh and perform search
+      if (result == true && mounted) {
+        // Validate cookies after returning from auth screen
+        final isValid = await DioClient.validateCookies();
+        if (isValid) {
+          if (_errorKind == 'auth') {
+            setState(() {
+              _errorKind = null;
+              _errorMessage = null;
+            });
+            await _performSearch();
+          }
+        }
       }
     } on Exception catch (e, stackTrace) {
-      // Catch any unexpected errors and always open WebView as fallback
       logger.e('Error in _handleLogin: $e', stackTrace: stackTrace);
       if (!mounted) return;
 
-      // Show error message but still open WebView
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(AppLocalizations.of(context)?.authorizationCheckError(e.toString()) ?? 
@@ -283,356 +290,13 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         ),
       );
 
-      // Always try to open WebView as fallback
-      await _openWebViewLogin();
+      // Open auth screen as fallback
+      if (mounted) {
+        await context.push('/auth');
+      }
     }
   }
 
-  /// Opens WebView for manual login.
-  Future<void> _openWebViewLogin() async {
-    final operationId = 'webview_login_${DateTime.now().millisecondsSinceEpoch}';
-    final structuredLogger = StructuredLogger();
-    await structuredLogger.log(
-      level: 'info',
-      subsystem: 'auth',
-      message: 'Opening WebView for login',
-      operationId: operationId,
-      context: 'webview_login',
-    );
-    
-    try {
-      if (!mounted) return;
-      final navigator = Navigator.of(context);
-      await navigator.push<String>(
-        MaterialPageRoute(
-          builder: (_) => const SecureRutrackerWebView(),
-        ),
-      );
-      if (!mounted) return;
-
-      await structuredLogger.log(
-        level: 'info',
-        subsystem: 'auth',
-        message: 'WebView closed, starting cookie sync',
-        operationId: operationId,
-        context: 'webview_login',
-      );
-
-      // Wait a bit for cookies to be saved in CookieManager
-      await Future.delayed(const Duration(milliseconds: 1500));
-      await structuredLogger.log(
-        level: 'debug',
-        subsystem: 'auth',
-        message: 'Waited 1500ms for cookies to be saved in CookieManager',
-        operationId: operationId,
-        context: 'webview_login',
-      );
-
-      // NEW APPROACH: Sync cookies from CookieManager (Kotlin) to Dio
-      // Try multiple RuTracker domains with retries to ensure we get all cookies
-      final rutrackerDomains = ['rutracker.me', 'rutracker.net', 'rutracker.org'];
-      var cookiesSynced = false;
-      const maxRetries = 5;
-      const retryDelay = Duration(milliseconds: 500);
-      
-      for (final domain in rutrackerDomains) {
-        try {
-          final url = 'https://$domain';
-          
-          // Try multiple times with delays
-          String? cookieHeader;
-          for (var attempt = 0; attempt < maxRetries; attempt++) {
-            if (attempt > 0) {
-              await Future.delayed(retryDelay);
-            }
-            
-            await structuredLogger.log(
-              level: 'debug',
-              subsystem: 'auth',
-              message: 'Attempting to sync cookies from CookieManager for domain (attempt ${attempt + 1}/$maxRetries)',
-              operationId: operationId,
-              context: 'webview_login',
-              extra: {'domain': domain, 'url': url, 'attempt': attempt + 1},
-            );
-            
-            cookieHeader = await CookieService.getCookiesForUrl(url);
-            if (cookieHeader != null && cookieHeader.isNotEmpty) {
-              break; // Found cookies, exit retry loop
-            }
-          }
-          
-          if (cookieHeader != null && cookieHeader.isNotEmpty) {
-            await DioClient.syncCookiesFromCookieService(cookieHeader, url);
-            await DioClient.saveCookiesToSecureStorage(cookieHeader, url);
-            cookiesSynced = true;
-            
-            await structuredLogger.log(
-              level: 'info',
-              subsystem: 'auth',
-              message: 'Cookies synced from CookieManager for domain',
-              operationId: operationId,
-              context: 'webview_login',
-              extra: {
-                'domain': domain,
-                'cookie_header_length': cookieHeader.length,
-              },
-            );
-            break; // Success, no need to try other domains
-          }
-        } on Exception catch (e) {
-          await structuredLogger.log(
-            level: 'debug',
-            subsystem: 'auth',
-            message: 'Failed to sync cookies from CookieManager for domain',
-            operationId: operationId,
-            context: 'webview_login',
-            cause: e.toString(),
-            extra: {'domain': domain},
-          );
-        }
-      }
-      
-      if (!cookiesSynced) {
-        // Try alternative sync method from SharedPreferences (WebView storage)
-        await structuredLogger.log(
-          level: 'debug',
-          subsystem: 'auth',
-          message: 'No cookies found in CookieManager, trying SharedPreferences sync',
-          operationId: operationId,
-          context: 'webview_login',
-          extra: {
-            'domains_tried': rutrackerDomains,
-            'fallback_method': 'SharedPreferences',
-          },
-        );
-        
-        try {
-          // Try syncing from SharedPreferences (where WebView stores cookies)
-          await DioClient.syncCookiesFromWebView();
-          await structuredLogger.log(
-            level: 'info',
-            subsystem: 'auth',
-            message: 'Cookies synced from SharedPreferences (WebView storage)',
-            operationId: operationId,
-            context: 'webview_login',
-          );
-          cookiesSynced = true;
-        } on Exception catch (e) {
-          await structuredLogger.log(
-            level: 'debug',
-            subsystem: 'auth',
-            message: 'No cookies found in SharedPreferences either (cookies may be saved but not yet accessible)',
-            operationId: operationId,
-            context: 'webview_login',
-            cause: e.toString(),
-            extra: {
-              'domains_tried': rutrackerDomains,
-              'note': 'Cookies may be available later or saved via WebView CookieManager',
-            },
-          );
-        }
-      }
-
-      // Check cookies before validation
-      final hasCookies = await DioClient.hasValidCookies();
-      await structuredLogger.log(
-        level: 'debug',
-        subsystem: 'auth',
-        message: 'Has cookies check result',
-        operationId: operationId,
-        context: 'webview_login',
-        extra: {'has_cookies': hasCookies},
-      );
-
-      // Validate authentication
-      await structuredLogger.log(
-        level: 'debug',
-        subsystem: 'auth',
-        message: 'Starting cookie validation',
-        operationId: operationId,
-        context: 'webview_login',
-      );
-      final isValid = await DioClient.validateCookies();
-      await structuredLogger.log(
-        level: 'info',
-        subsystem: 'auth',
-        message: 'Cookie validation result',
-        operationId: operationId,
-        context: 'webview_login',
-        extra: {'is_valid': isValid, 'has_cookies': hasCookies},
-      );
-      
-      if (isValid) {
-        if (!mounted) return;
-        // ignore: use_build_context_synchronously
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(AppLocalizations.of(context)
-                    ?.authorizationSuccessful ??
-                'Authorization successful'),
-            backgroundColor: Colors.green,
-            duration: const Duration(seconds: 2),
-          ),
-        );
-        // Clear auth errors if any
-        if (_errorKind == 'auth') {
-          setState(() {
-            _errorKind = null;
-            _errorMessage = null;
-          });
-          await _performSearch();
-        }
-      } else {
-        await structuredLogger.log(
-          level: 'debug',
-          subsystem: 'auth',
-          message: 'Cookie validation failed after WebView login (cookies may need time to sync, this is expected)',
-          operationId: operationId,
-          context: 'webview_login',
-          extra: {
-            'has_cookies': hasCookies,
-            'note': 'Cookies may be available but validation failed due to timing or endpoint issues',
-          },
-        );
-        
-        // Try to get more details about why validation failed
-        try {
-          final db = AppDatabase().database;
-          final endpointManager = EndpointManager(db);
-          final activeBase = await endpointManager.getActiveEndpoint();
-          await DioClient.instance; // Ensure Dio is initialized
-          final uri = Uri.parse(activeBase);
-          
-          // CRITICAL: Check cookies in Dio jar with detailed logging
-          await structuredLogger.log(
-            level: 'debug',
-            subsystem: 'auth',
-            message: 'Checking Dio CookieJar for cookies',
-            operationId: operationId,
-            context: 'webview_login',
-            extra: {
-              'endpoint': activeBase,
-              'uri_host': uri.host,
-              'uri_scheme': uri.scheme,
-              'uri_path': uri.path,
-            },
-          );
-          
-          final cookieJar = await DioClient.getCookieJar();
-          if (cookieJar != null) {
-            // Try loading cookies for the exact URI
-            final dioCookies = await cookieJar.loadForRequest(uri);
-            
-            // Also try loading for base domain
-            final baseUri = Uri.parse('https://${uri.host}');
-            final baseCookies = await cookieJar.loadForRequest(baseUri);
-            
-            await structuredLogger.log(
-              level: 'debug',
-              subsystem: 'auth',
-              message: 'Cookies in Dio jar after failed validation (debug info)',
-              operationId: operationId,
-              context: 'webview_login',
-              extra: {
-                'endpoint': activeBase,
-                'uri_host': uri.host,
-                'uri_full': uri.toString(),
-                'base_uri': baseUri.toString(),
-                'cookie_count_for_uri': dioCookies.length,
-                'cookie_count_for_base': baseCookies.length,
-                'cookies_for_uri': dioCookies.map((c) => {
-                  'name': c.name,
-                  'domain': c.domain ?? '<null>',
-                  'path': c.path ?? '/',
-                  'has_value': c.value.isNotEmpty,
-                  'value_length': c.value.length,
-                  'value_preview': c.value.isNotEmpty 
-                      ? '${c.value.substring(0, c.value.length > 20 ? 20 : c.value.length)}...' 
-                      : '<empty>',
-                  'secure': c.secure,
-                  'http_only': c.httpOnly,
-                  'is_session_cookie': c.name.toLowerCase().contains('session') ||
-                      c.name == 'bb_session' ||
-                      c.name == 'bb_data',
-                }).toList(),
-                'cookies_for_base': baseCookies.map((c) => {
-                  'name': c.name,
-                  'domain': c.domain ?? '<null>',
-                  'path': c.path ?? '/',
-                  'has_value': c.value.isNotEmpty,
-                  'value_length': c.value.length,
-                  'value_preview': c.value.isNotEmpty 
-                      ? '${c.value.substring(0, c.value.length > 20 ? 20 : c.value.length)}...' 
-                      : '<empty>',
-                  'secure': c.secure,
-                  'http_only': c.httpOnly,
-                  'is_session_cookie': c.name.toLowerCase().contains('session') ||
-                      c.name == 'bb_session' ||
-                      c.name == 'bb_data',
-                }).toList(),
-              },
-            );
-            
-            // CRITICAL: If no cookies found, log error
-            if (dioCookies.isEmpty && baseCookies.isEmpty) {
-              await structuredLogger.log(
-                level: 'error',
-                subsystem: 'auth',
-                message: 'CRITICAL: No cookies found in Dio CookieJar after WebView login!',
-                operationId: operationId,
-                context: 'webview_login',
-                extra: {
-                  'endpoint': activeBase,
-                  'uri_host': uri.host,
-                  'note': 'Cookies were not synced from WebView to Dio CookieJar',
-                },
-              );
-            }
-          } else {
-            await structuredLogger.log(
-              level: 'warning',
-              subsystem: 'auth',
-              message: 'CookieJar is null after failed validation',
-              operationId: operationId,
-              context: 'webview_login',
-            );
-          }
-        } on Exception catch (e) {
-          await structuredLogger.log(
-            level: 'warning',
-            subsystem: 'auth',
-            message: 'Failed to check cookies in Dio jar',
-            operationId: operationId,
-            context: 'webview_login',
-            cause: e.toString(),
-          );
-        }
-        
-        if (!mounted) return;
-        // ignore: use_build_context_synchronously
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(AppLocalizations.of(context)
-                    ?.authorizationFailedMessage ??
-                'Authorization failed. Please check your login and password'),
-            backgroundColor: Colors.orange,
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      }
-    } on Exception catch (e, stackTrace) {
-      logger.e('Error opening WebView login: $e', stackTrace: stackTrace);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(AppLocalizations.of(context)?.authorizationPageError(e.toString()) ?? 
-                  'Authorization page error: ${e.toString()}'),
-          backgroundColor: Colors.red,
-          duration: const Duration(seconds: 3),
-        ),
-      );
-    }
-  }
 
   Future<void> _performSearch() async {
     if (_searchController.text.trim().isEmpty) return;
@@ -719,27 +383,62 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       },
     );
     
-    // Ensure cookies are synced before network search
+    // CRITICAL: Sync cookies from CookieService (Android CookieManager) before search
+    // CookieService is the single source of truth for cookies on Android
     try {
-      await DioClient.syncCookiesFromWebView();
-      await structuredLogger.log(
-        level: 'debug',
-        subsystem: 'search',
-        message: 'Cookies synced from WebView',
-        context: 'search_request',
-      );
+      // Try to get cookies from CookieService for active endpoint
+      final endpointManager = ref.read(endpointManagerProvider);
+      final activeEndpoint = await endpointManager.getActiveEndpoint();
+      final activeHost = Uri.parse(activeEndpoint).host;
+      final url = 'https://$activeHost';
+      
+      // Flush cookies to ensure they're available
+      await CookieService.flushCookies();
+      
+      // Try to get cookies from CookieService
+      final cookieHeader = await CookieService.getCookiesForUrl(url);
+      
+      if (cookieHeader != null && cookieHeader.isNotEmpty && cookieHeader.trim().contains('=')) {
+        // Sync cookies to Dio CookieJar
+        await DioClient.syncCookiesFromCookieService(cookieHeader, url);
+        await structuredLogger.log(
+          level: 'info',
+          subsystem: 'search',
+          message: 'Cookies synced from CookieService before search',
+          context: 'search_request',
+          extra: {
+            'url': url,
+            'cookie_header_length': cookieHeader.length,
+          },
+        );
+      } else {
+        // Fallback: Try syncing from WebView storage
+        await DioClient.syncCookiesFromWebView();
+        await structuredLogger.log(
+          level: 'debug',
+          subsystem: 'search',
+          message: 'Cookies synced from WebView (fallback)',
+          context: 'search_request',
+        );
+      }
     } on Exception catch (e) {
       await structuredLogger.log(
         level: 'warning',
         subsystem: 'search',
-        message: 'Failed to sync cookies from WebView, continuing anyway',
+        message: 'Failed to sync cookies before search, trying WebView fallback',
         context: 'search_request',
         cause: e.toString(),
       );
+      // Try WebView sync as fallback
+      try {
+        await DioClient.syncCookiesFromWebView();
+      } on Exception {
+        // Ignore fallback errors
+      }
     }
 
     // Check if we have cookies before performing search
-    // First check if cookies exist (fast check), then validate if needed
+    // Use hasValidCookies which now checks CookieService first
     try {
       final hasCookies = await DioClient.hasValidCookies();
       await structuredLogger.log(
@@ -768,7 +467,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 'Please log in first to perform search';
           });
           // Show login prompt
-          safeUnawaited(_openWebViewLogin());
+          safeUnawaited(_handleLogin());
         }
         return;
       }
@@ -808,7 +507,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
     try {
       // CRITICAL: Before making search request, verify cookies are available for active endpoint
-      final searchUri = Uri.parse('$endpoint/forum/search.php');
+      final searchUri = Uri.parse('$endpoint/forum/tracker.php');
       final cookieJar = await DioClient.getCookieJar();
       
       // Load cookies that will be sent with the request
@@ -834,52 +533,113 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         },
       );
       
-      // If no cookies found for active endpoint, try to sync from WebView/CookieService
+      // CRITICAL: If no cookies found for active endpoint, sync from CookieService
+      // CookieService is the single source of truth for cookies on Android
       if (cookiesForRequest.isEmpty && cookieJar != null) {
         await structuredLogger.log(
           level: 'warning',
           subsystem: 'search',
-          message: 'No cookies found for active endpoint, syncing from WebView/CookieService',
+          message: 'No cookies found for active endpoint, syncing from CookieService',
           context: 'search_request',
           extra: {'endpoint': endpoint},
         );
         
-        // Try CookieService first (Android CookieManager) - most reliable
-        try {
-          final cookieHeader = await CookieService.getCookiesForUrl(endpoint);
-          if (cookieHeader != null && cookieHeader.isNotEmpty) {
+        // Try CookieService (Android CookieManager) - most reliable source
+        // Use retries with delays to ensure cookies are available
+        String? cookieHeader;
+        const maxSyncRetries = 6;
+        var syncSuccess = false;
+        final activeHost = Uri.parse(endpoint).host;
+        final url = 'https://$activeHost';
+        
+        for (var syncAttempt = 0; syncAttempt < maxSyncRetries; syncAttempt++) {
+          if (syncAttempt > 0) {
+            await Future.delayed(Duration(milliseconds: 300 * syncAttempt));
+            // Flush cookies before each retry
+            await CookieService.flushCookies();
+          }
+          
+          try {
+            cookieHeader = await CookieService.getCookiesForUrl(url);
+            if (cookieHeader != null && cookieHeader.isNotEmpty && cookieHeader.trim().contains('=')) {
+              await structuredLogger.log(
+                level: 'info',
+                subsystem: 'search',
+                message: 'Found cookies in CookieService, syncing to Dio',
+                context: 'search_request',
+                extra: {
+                  'endpoint': endpoint,
+                  'url': url,
+                  'cookie_header_length': cookieHeader.length,
+                  'sync_attempt': syncAttempt + 1,
+                },
+              );
+              
+              await DioClient.syncCookiesFromCookieService(cookieHeader, url);
+              
+              // Wait a bit and reload cookies to verify
+              await Future.delayed(const Duration(milliseconds: 400));
+              final cookiesAfterSync = await cookieJar.loadForRequest(searchUri);
+              
+              if (cookiesAfterSync.isNotEmpty) {
+                syncSuccess = true;
+                await structuredLogger.log(
+                  level: 'info',
+                  subsystem: 'search',
+                  message: 'Cookies successfully synced from CookieService',
+                  context: 'search_request',
+                  extra: {
+                    'endpoint': endpoint,
+                    'url': url,
+                    'cookie_count_after_sync': cookiesAfterSync.length,
+                    'cookie_names_after_sync': cookiesAfterSync.map((c) => c.name).toList(),
+                    'sync_attempt': syncAttempt + 1,
+                  },
+                );
+                break; // Success, exit retry loop
+              } else {
+                await structuredLogger.log(
+                  level: 'warning',
+                  subsystem: 'search',
+                  message: 'Cookies synced but not found in CookieJar, retrying',
+                  context: 'search_request',
+                  extra: {
+                    'endpoint': endpoint,
+                    'url': url,
+                    'sync_attempt': syncAttempt + 1,
+                  },
+                );
+              }
+            }
+          } on Exception catch (e) {
             await structuredLogger.log(
-              level: 'info',
+              level: 'debug',
               subsystem: 'search',
-              message: 'Found cookies in CookieService, syncing to Dio',
+              message: 'CookieService sync attempt failed, retrying',
               context: 'search_request',
+              cause: e.toString(),
               extra: {
                 'endpoint': endpoint,
-                'cookie_header_length': cookieHeader.length,
+                'url': url,
+                'sync_attempt': syncAttempt + 1,
               },
             );
-            
-            await DioClient.syncCookiesFromCookieService(cookieHeader, endpoint);
-            
-            // Wait a bit and reload cookies
-            await Future.delayed(const Duration(milliseconds: 200));
-            final cookiesAfterSync = await cookieJar.loadForRequest(searchUri);
-            
-            await structuredLogger.log(
-              level: cookiesAfterSync.isNotEmpty ? 'info' : 'warning',
-              subsystem: 'search',
-              message: 'Cookies after sync from CookieService',
-              context: 'search_request',
-              extra: {
-                'endpoint': endpoint,
-                'cookie_count_after_sync': cookiesAfterSync.length,
-                'cookie_names_after_sync': cookiesAfterSync.map((c) => c.name).toList(),
-              },
-            );
-          } else {
-            // Fallback to WebView sync
+          }
+        }
+        
+        // If CookieService sync failed, try WebView sync as fallback
+        if (!syncSuccess) {
+          await structuredLogger.log(
+            level: 'warning',
+            subsystem: 'search',
+            message: 'CookieService sync failed, trying WebView fallback',
+            context: 'search_request',
+            extra: {'endpoint': endpoint},
+          );
+          
+          try {
             await DioClient.syncCookiesFromWebView();
-            await Future.delayed(const Duration(milliseconds: 200));
+            await Future.delayed(const Duration(milliseconds: 300));
             final cookiesAfterSync = await cookieJar.loadForRequest(searchUri);
             
             await structuredLogger.log(
@@ -893,27 +653,29 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 'cookie_names_after_sync': cookiesAfterSync.map((c) => c.name).toList(),
               },
             );
+          } on Exception catch (e) {
+            await structuredLogger.log(
+              level: 'warning',
+              subsystem: 'search',
+              message: 'WebView sync also failed',
+              context: 'search_request',
+              cause: e.toString(),
+              extra: {'endpoint': endpoint},
+            );
           }
-        } on Exception catch (e) {
-          await structuredLogger.log(
-            level: 'warning',
-            subsystem: 'search',
-            message: 'Failed to sync cookies, trying WebView fallback',
-            context: 'search_request',
-            cause: e.toString(),
-            extra: {'endpoint': endpoint},
-          );
-          
-          // Fallback to WebView sync
-          await DioClient.syncCookiesFromWebView();
         }
       }
       
       // Make the search request
+      // CRITICAL: Use tracker.php (not search.php) for searching torrents/audiobooks
+      // tracker.php is the default search method on RuTracker for "раздачи" (torrents)
+      // search.php is for searching all topics (including discussions)
       final requestStartTime = DateTime.now();
-      final requestUri = '$endpoint/forum/search.php';
+      final requestUri = '$endpoint/forum/tracker.php';
       final requestQueryParams = {
         'nm': query,
+        'c': CategoryConstants.audiobooksCategoryId, // Try to filter by category 33 (audiobooks)
+        // Note: If c=33 doesn't work, we'll filter results client-side
         'o': '1', // Sort by relevance
         'start': _startOffset,
       };
@@ -942,6 +704,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           .get(
             requestUri,
             queryParameters: requestQueryParams,
+            options: Options(
+              responseType: ResponseType.plain, // Ensure gzip is automatically decompressed
+            ),
             cancelToken: _cancelToken,
           )
           .timeout(const Duration(seconds: 30));
@@ -971,7 +736,14 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         List<Map<String, dynamic>> results;
         try {
           final parsedResults = await _parser.parseSearchResults(response.data);
-          results = parsedResults.map(_audiobookToMap).toList();
+          
+          // CRITICAL: Filter results to only include audiobooks
+          // tracker.php returns ALL torrents, so we need to filter by category
+          // We can identify audiobooks by checking if they belong to category 33 forums
+          // or by checking the title/content for audiobook indicators
+          final audiobookResults = _filterAudiobookResults(parsedResults);
+          
+          results = audiobookResults.map(_audiobookToMap).toList();
         } on ParsingFailure catch (e) {
           await structuredLogger.log(
             level: 'error',
@@ -990,11 +762,24 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             },
           );
           
+          // Check if parsing failure indicates authentication issue
+          final isAuthError = e.message.toLowerCase().contains('authentication') ||
+              e.message.toLowerCase().contains('log in') ||
+              e.message.toLowerCase().contains('require');
+          
           if (mounted) {
             setState(() {
               _isLoading = false;
-              _errorKind = 'network';
-              _errorMessage = 'Failed to parse search results. The page structure may have changed.';
+              if (isAuthError) {
+                _errorKind = 'auth';
+                _errorMessage = AppLocalizations.of(context)
+                        ?.authorizationFailedMessage ??
+                    'Authentication required. Please log in.';
+                safeUnawaited(_handleLogin());
+              } else {
+                _errorKind = 'network';
+                _errorMessage = 'Failed to parse search results. The page structure may have changed.';
+              }
             });
           }
           return;
@@ -1166,7 +951,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                     ?.authorizationFailedMessage ??
                 'Authentication required. Please log in.';
           });
-          safeUnawaited(_openWebViewLogin());
+          safeUnawaited(_handleLogin());
         }
         return;
       }
@@ -1381,22 +1166,18 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                       ),
                       TextButton(
                         onPressed: () async {
-                          await Navigator.push<String>(
-                            context,
-                            MaterialPageRoute(
-                                builder: (_) => const SecureRutrackerWebView()),
-                          );
+                          // Open auth screen for login
+                          final result = await context.push('/auth');
                           if (!mounted) return;
                           
-                          // Wait a bit for cookies to be saved in WebView
-                          await Future.delayed(const Duration(milliseconds: 500));
-                          
-                          // Sync cookies from WebView (multiple attempts to ensure sync)
-                          for (var i = 0; i < 3; i++) {
-                          await DioClient.syncCookiesFromWebView();
-                            if (i < 2) {
-                              await Future.delayed(const Duration(milliseconds: 200));
+                          // If login was successful, validate cookies
+                          if (result == true) {
+                            final isValid = await DioClient.validateCookies();
+                            if (!isValid) {
+                              return; // Login failed, don't clear error
                             }
+                          } else {
+                            return; // User cancelled, don't clear error
                           }
                           
                           setState(() {
@@ -1788,20 +1569,28 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       final activeEndpoint = await endpointManager.getActiveEndpoint();
       final dio = await DioClient.instance;
       final res = await dio.get(
-        '$activeEndpoint/forum/search.php',
+        '$activeEndpoint/forum/tracker.php',
         queryParameters: {
           'nm': query,
+          'c': CategoryConstants.audiobooksCategoryId, // Try to filter by category 33 (audiobooks)
           'o': '1',
           'start': _searchResults.length,
         },
+        options: Options(
+          responseType: ResponseType.plain, // Ensure gzip is automatically decompressed
+        ),
       );
       if (res.statusCode == 200) {
         try {
           final more = await _parser.parseSearchResults(res.data);
+          
+          // CRITICAL: Filter results to only include audiobooks
+          final audiobookMore = _filterAudiobookResults(more);
+          
           if (mounted) {
             setState(() {
-              _searchResults.addAll(more.map(_audiobookToMap));
-              _hasMore = more.isNotEmpty;
+              _searchResults.addAll(audiobookMore.map(_audiobookToMap));
+              _hasMore = audiobookMore.isNotEmpty;
             });
           }
         } on ParsingFailure catch (e) {
@@ -2028,6 +1817,71 @@ Map<String, dynamic> _audiobookToMap(Audiobook audiobook) => {
       'addedDate': audiobook.addedDate.toIso8601String(),
     };
 
+  /// Filters search results to only include audiobooks.
+  ///
+  /// Since tracker.php returns ALL torrents (movies, games, books, audiobooks, etc.),
+  /// we need to filter results to only show audiobooks from category 33.
+  ///
+  /// We identify audiobooks by:
+  /// 1. Checking if the title contains audiobook-related keywords
+  /// 2. Checking if the category field indicates it's an audiobook
+  /// 3. Checking if the result has characteristics of audiobooks (size, format, etc.)
+  List<Audiobook> _filterAudiobookResults(List<Audiobook> allResults) {
+    final audiobookKeywords = [
+      'аудиокнига',
+      'аудио',
+      'радиоспектакль',
+      'биография',
+      'мемуары',
+      'чтение',
+      'читает',
+      'исполнитель',
+      'mp3',
+      'flac',
+      'm4b',
+      'ogg',
+    ];
+    
+    final excludedKeywords = [
+      'фильм',
+      'сериал',
+      'игра',
+      'программа',
+      'музыка',
+      'альбом',
+      'трек',
+      'песня',
+      'видео',
+      'dvd',
+      'blu-ray',
+      'bdrip',
+      'dvdrip',
+    ];
+    
+    return allResults.where((result) {
+      final titleLower = result.title.toLowerCase();
+      final categoryLower = result.category.toLowerCase();
+      
+      // Check if it contains audiobook-related keywords
+      final hasAudiobookKeyword = audiobookKeywords.any(
+        (keyword) => titleLower.contains(keyword) || categoryLower.contains(keyword),
+      );
+      
+      // Check if it contains excluded keywords (likely not an audiobook)
+      final hasExcludedKeyword = excludedKeywords.any(
+        titleLower.contains,
+      );
+      
+      // Include if it has audiobook keywords and doesn't have excluded keywords
+      // OR if the category explicitly indicates it's an audiobook
+      return (hasAudiobookKeyword && !hasExcludedKeyword) ||
+          categoryLower.contains('аудиокнига') ||
+          categoryLower.contains('радиоспектакль') ||
+          categoryLower.contains('биография') ||
+          categoryLower.contains('мемуары');
+    }).toList();
+  }
+
 /// Converts a Chapter object to a Map for caching.
 Map<String, dynamic> _chapterToMap(Chapter chapter) => {
       'title': chapter.title,
@@ -2036,5 +1890,3 @@ Map<String, dynamic> _chapterToMap(Chapter chapter) => {
       'startByte': chapter.startByte,
       'endByte': chapter.endByte,
     };
-
-// Unused legacy dialog removed; login flow handled inline via WebView

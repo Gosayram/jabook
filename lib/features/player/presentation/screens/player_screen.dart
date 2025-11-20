@@ -15,6 +15,7 @@
 import 'dart:async';
 
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:jabook/core/endpoints/endpoint_manager.dart';
@@ -182,7 +183,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       final base = await endpointManager.getActiveEndpoint();
       final dio = await DioClient.instance;
       final response = await dio.get('$base/forum/viewtopic.php',
-          queryParameters: {'t': widget.bookId});
+          queryParameters: {'t': widget.bookId},
+          options: Options(
+            responseType: ResponseType.plain, // Ensure gzip is automatically decompressed
+          ));
       if (response.statusCode == 200) {
         final parsed = await RuTrackerParser().parseTopicDetails(response.data);
         if (parsed != null) {

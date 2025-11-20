@@ -38,6 +38,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   bool _rememberMe = true;
   String _statusMessage = '';
   Color _statusColor = Colors.grey;
+  bool _isLoggingIn = false;
 
   @override
   void initState() {
@@ -61,6 +62,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
         _statusMessage = AppLocalizations.of(context)?.pleaseEnterCredentials ??
             'Please enter username and password';
         _statusColor = Colors.red;
+        _isLoggingIn = false;
       });
       return;
     }
@@ -69,6 +71,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       _statusMessage =
           AppLocalizations.of(context)?.loggingInText ?? 'Logging in...';
       _statusColor = Colors.blue;
+      _isLoggingIn = true;
     });
 
     try {
@@ -86,34 +89,62 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
         );
       }
 
-      setState(() {
-        _statusMessage = success
-            ? (AppLocalizations.of(context)?.loginSuccessMessage ??
-                'Login successful!')
-            : (AppLocalizations.of(context)?.loginFailedMessage ??
-                'Login failed. Please check credentials');
-        _statusColor = success ? Colors.green : Colors.red;
-      });
+      if (mounted) {
+        setState(() {
+          _statusMessage = success
+              ? (AppLocalizations.of(context)?.loginSuccessMessage ??
+                  'Login successful!')
+              : (AppLocalizations.of(context)?.loginFailedMessage ??
+                  'Login failed. Please check credentials');
+          _statusColor = success ? Colors.green : Colors.red;
+          _isLoggingIn = false;
+        });
 
-      if (success) {
-        // Test connection after successful login
-        await _testConnection();
+        if (success) {
+          // Test connection after successful login
+          await _testConnection();
+          
+          // Return true to indicate successful login
+          if (mounted) {
+            Navigator.of(context).pop(true);
+          }
+        }
       }
     } on AuthFailure catch (e) {
       // Use AuthErrorHandler for authentication errors
       if (mounted) {
         AuthErrorHandler.showAuthErrorSnackBar(context, e);
         setState(() {
-          _statusMessage = e.message;
+          // Provide user-friendly error messages
+          if (e.message.contains('Invalid username or password') ||
+              e.message.contains('wrong username/password')) {
+            _statusMessage = AppLocalizations.of(context)?.loginFailedMessage ??
+                'Invalid username or password. Please check your credentials.';
+          } else if (e.message.contains('captcha')) {
+            _statusMessage = 'Captcha verification required. Please try again later.';
+          } else {
+            _statusMessage = e.message;
+          }
           _statusColor = Colors.red;
+          _isLoggingIn = false;
         });
       }
     } on Exception catch (e) {
-      setState(() {
-        _statusMessage = AppLocalizations.of(context)!
-            .loginErrorMessage(e.toString());
-        _statusColor = Colors.red;
-      });
+      if (mounted) {
+        setState(() {
+          // Provide user-friendly error messages
+          final errorMsg = e.toString().toLowerCase();
+          if (errorMsg.contains('timeout') || errorMsg.contains('connection')) {
+            _statusMessage = 'Network error. Please check your connection and try again.';
+          } else {
+            final errorString = e.toString();
+            _statusMessage = AppLocalizations.of(context)?.loginFailedMessage ??
+                'Login failed: $errorString';
+          }
+          _statusColor = Colors.red;
+          _isLoggingIn = false;
+        });
+      }
     }
   }
 
@@ -252,9 +283,27 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
               ),
               const SizedBox(height: 20),
               ElevatedButton(
-                onPressed: _login,
-                child: Text(
-                    AppLocalizations.of(context)?.loginButtonText ?? 'Login'),
+                onPressed: _isLoggingIn ? null : _login,
+                child: _isLoggingIn
+                    ? Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            AppLocalizations.of(context)?.loggingInText ??
+                                'Logging in...',
+                          ),
+                        ],
+                      )
+                    : Text(
+                        AppLocalizations.of(context)?.loginButtonText ?? 'Login'),
               ),
             ],
 

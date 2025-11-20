@@ -18,9 +18,9 @@ import 'dart:io' as io;
 
 import 'package:cookie_jar/cookie_jar.dart';
 import 'package:dio/dio.dart';
-import 'package:flutter_cookie_bridge/session_manager.dart' as bridge_session;
 import 'package:jabook/core/endpoints/endpoint_manager.dart';
 import 'package:jabook/core/logging/structured_logger.dart';
+import 'package:jabook/core/services/cookie_service.dart';
 import 'package:jabook/data/db/app_database.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -31,337 +31,18 @@ class DioCookieManager {
 
   /// Synchronizes cookies from WebView to the Dio client.
   ///
-  /// This method should be called to ensure that authentication cookies
-  /// obtained through WebView login are available for HTTP requests.
+  /// DEPRECATED: This method is no longer needed as we use direct HTTP authentication.
+  /// Kept as no-op for backward compatibility.
   ///
-  /// It validates cookies before saving and handles various cookie formats.
-  ///
-  /// The [cookieJar] parameter is the CookieJar instance to save cookies to.
+  /// @deprecated Use SimpleCookieManager instead
   static Future<void> syncCookiesFromWebView([CookieJar? cookieJar]) async {
-    final operationId =
-        'cookie_sync_webview_${DateTime.now().millisecondsSinceEpoch}';
-    final logger = StructuredLogger();
-    final startTime = DateTime.now();
-
-    try {
-      await logger.log(
-        level: 'debug',
-        subsystem: 'cookies',
-        message: 'Cookie sync from WebView started',
-        operationId: operationId,
-        context: 'cookie_sync',
-      );
-
-      final prefs = await SharedPreferences.getInstance();
-      final cookieJson = prefs.getString('rutracker_cookies_v1');
-      if (cookieJson == null) {
-        await logger.log(
-          level: 'debug',
-          subsystem: 'cookies',
-          message: 'No cookies found in WebView storage',
-          operationId: operationId,
-          context: 'cookie_sync',
-          durationMs: DateTime.now().difference(startTime).inMilliseconds,
-        );
-        return;
-      }
-
-      final db = AppDatabase().database;
-      final endpointManager = EndpointManager(db);
-      final activeBase = await endpointManager.getActiveEndpoint();
-      final uri = Uri.parse(activeBase);
-
-      // Parse cookies list from JSON (as saved by secure webview)
-      List<dynamic> list;
-      try {
-        list = jsonDecode(cookieJson) as List<dynamic>;
-      } on Exception catch (e) {
-        await logger.log(
-          level: 'error',
-          subsystem: 'cookies',
-          message: 'Failed to parse cookie JSON',
-          operationId: operationId,
-          context: 'cookie_sync',
-          durationMs: DateTime.now().difference(startTime).inMilliseconds,
-          cause: e.toString(),
-        );
-        return;
-      }
-
-      await logger.log(
-        level: 'debug',
-        subsystem: 'cookies',
-        message: 'Parsed cookies from JSON',
-        operationId: operationId,
-        context: 'cookie_sync',
-        extra: {
-          'total_cookies': list.length,
-          'active_endpoint': activeBase,
-        },
-      );
-
-      if (list.isEmpty) {
-        await logger.log(
-          level: 'debug',
-          subsystem: 'cookies',
-          message: 'Cookie list is empty',
-          operationId: operationId,
-          context: 'cookie_sync',
-          durationMs: DateTime.now().difference(startTime).inMilliseconds,
-        );
-        return;
-      }
-
-      final jar = cookieJar ?? CookieJar();
-      final cookies = <Cookie>[];
-      final skippedCookies = <Map<String, dynamic>>[];
-      final validName = RegExp(r"^[!#\$%&'*+.^_`|~0-9A-Za-z-]+$");
-      var skippedCount = 0;
-
-      for (final c in list) {
-        try {
-          final m = Map<String, dynamic>.from(c as Map);
-          var name = m['name']?.toString();
-          var value = m['value']?.toString();
-          final originalName = name;
-
-          if (name == null || value == null) {
-            skippedCount++;
-            skippedCookies.add({
-              'name': originalName ?? '<null>',
-              'reason': 'name_or_value_null',
-            });
-            continue;
-          }
-
-          // Trim and strip surrounding quotes
-          name = name.trim();
-          value = value.trim();
-          if (name.isEmpty || value.isEmpty) {
-            skippedCount++;
-            skippedCookies.add({
-              'name': originalName ?? '<unknown>',
-              'reason': 'name_or_value_empty_after_trim',
-            });
-            continue;
-          }
-
-          if (name.length >= 2 && name.startsWith('"') && name.endsWith('"')) {
-            name = name.substring(1, name.length - 1);
-          }
-          if (value.length >= 2 &&
-              value.startsWith('"') &&
-              value.endsWith('"')) {
-            value = value.substring(1, value.length - 1);
-          }
-
-          // Validate cookie name format
-          if (!validName.hasMatch(name)) {
-            skippedCount++;
-            skippedCookies.add({
-              'name': name,
-              'reason': 'invalid_name_format',
-            });
-            continue;
-          }
-
-          // Extract domain, path, and other properties
-          final domain = m['domain']?.toString().trim();
-          final path = (m['path']?.toString() ?? '/').trim();
-
-          // Validate domain matches the endpoint if domain is provided
-          if (domain != null && domain.isNotEmpty) {
-            final normalizedDomain = domain.startsWith('.') 
-                ? domain.substring(1) 
-                : domain;
-            if (!normalizedDomain.contains(uri.host) && 
-                !uri.host.endsWith('.$normalizedDomain') &&
-                normalizedDomain != uri.host) {
-              skippedCount++;
-              skippedCookies.add({
-                'name': name,
-                'domain': domain,
-                'reason': 'domain_mismatch',
-                'expected_host': uri.host,
-              });
-              continue;
-            }
-          }
-
-          // CRITICAL: CookieJar behavior:
-          // - If cookie has domain, it's saved in domainCookies (index 0) for subdomain sharing
-          // - If cookie has NO domain, it's saved in hostCookies (index 1) for exact host match
-          // Only set domain if it was provided in the original cookie data
-          final cookie = Cookie(name, value)
-            ..path = path
-            ..secure = true;
-          
-          // Only set domain if it was provided and is valid
-          if (domain != null && domain.isNotEmpty) {
-            // Normalize domain: remove leading dot if present
-            final normalizedDomain = domain.startsWith('.') 
-                ? domain.substring(1) 
-                : domain;
-            cookie.domain = normalizedDomain;
-          }
-          // If domain is not provided, CookieJar will use uri.host automatically
-
-          cookies.add(cookie);
-        } on Exception catch (e) {
-          // Log individual cookie parsing errors but continue
-          skippedCount++;
-          skippedCookies.add({
-            'reason': 'parse_exception',
-            'error': e.toString(),
-          });
-        }
-      }
-
-      // Log parsed cookies (without values for security)
-      if (cookies.isNotEmpty) {
-        await logger.log(
-          level: 'debug',
-          subsystem: 'cookies',
-          message: 'Parsed cookies from WebView',
-          operationId: operationId,
-          context: 'cookie_sync',
-          extra: {
-            'cookies': cookies
-                .map((c) => {
-                      'name': c.name,
-                      'domain': c.domain ?? '<null>',
-                      'path': c.path ?? '/',
-                    })
-                .toList(),
-          },
-        );
-      }
-
-      if (skippedCookies.isNotEmpty) {
-        await logger.log(
-          level: 'debug',
-          subsystem: 'cookies',
-          message: 'Skipped cookies during parsing',
-          operationId: operationId,
-          context: 'cookie_sync',
-          extra: {
-            'skipped_cookies': skippedCookies,
-          },
-        );
-      }
-
-      if (cookies.isEmpty) {
-        await logger.log(
-          level: 'warning',
-          subsystem: 'cookies',
-          message: 'No valid cookies to sync after parsing',
-          operationId: operationId,
-          context: 'cookie_sync',
-          durationMs: DateTime.now().difference(startTime).inMilliseconds,
-          extra: {
-            'total': list.length,
-            'skipped': skippedCount,
-          },
-        );
-        return;
-      }
-
-      // Save cookies for all rutracker domains (net, me, org) to ensure
-      // cookies work when switching between mirrors
-      final rutrackerDomains = EndpointManager.getRutrackerDomains();
-      final savedDomains = <String>[];
-      final domainCookieCounts = <String, int>{};
-
-      for (final domain in rutrackerDomains) {
-        try {
-          final domainUri = Uri.parse('https://$domain');
-          // Filter cookies that belong to this domain or are domain-wide
-          final domainCookies = cookies.where((cookie) {
-            final cookieDomain = cookie.domain?.toLowerCase() ?? '';
-            if (cookieDomain.isEmpty) return false;
-            return cookieDomain == domain ||
-                cookieDomain == '.$domain' ||
-                cookieDomain.contains(domain) ||
-                (cookieDomain.startsWith('.') &&
-                    cookieDomain.substring(1) == domain);
-          }).toList();
-
-          if (domainCookies.isNotEmpty) {
-            await jar.saveFromResponse(domainUri, domainCookies);
-            savedDomains.add(domain);
-            domainCookieCounts[domain] = domainCookies.length;
-
-            await logger.log(
-              level: 'debug',
-              subsystem: 'cookies',
-              message: 'Saved cookies for domain',
-              operationId: operationId,
-              context: 'cookie_sync',
-              extra: {
-                'domain': domain,
-                'cookie_count': domainCookies.length,
-                'cookies': domainCookies
-                    .map((c) => {
-                          'name': c.name,
-                          'domain': c.domain ?? '<null>',
-                          'path': c.path ?? '/',
-                        })
-                    .toList(),
-              },
-            );
-          }
-        } on Exception catch (e) {
-          await logger.log(
-            level: 'debug',
-            subsystem: 'cookies',
-            message: 'Failed to save cookies for domain',
-            operationId: operationId,
-            context: 'cookie_sync',
-            cause: e.toString(),
-            extra: {'domain': domain},
-          );
-        }
-      }
-
-      // Also save to active endpoint URI
-      if (!savedDomains.contains(uri.host)) {
-        await jar.saveFromResponse(uri, cookies);
-        savedDomains.add(uri.host);
-        domainCookieCounts[uri.host] = cookies.length;
-      }
-
-      final duration = DateTime.now().difference(startTime).inMilliseconds;
-      await logger.log(
-        level: 'info',
-        subsystem: 'cookies',
-        message: 'Synced cookies from WebView to Dio',
-        operationId: operationId,
-        context: 'cookie_sync',
-        durationMs: duration,
-        extra: {
-          'count': cookies.length,
-          'total': list.length,
-          'skipped': skippedCount,
-          'domains': savedDomains,
-          'domain_cookie_counts': domainCookieCounts,
-        },
-      );
-    } on Exception catch (e) {
-      final duration = DateTime.now().difference(startTime).inMilliseconds;
-      await logger.log(
-        level: 'warning',
-        subsystem: 'cookies',
-        message: 'Failed to sync cookies from WebView',
-        operationId: operationId,
-        context: 'cookie_sync',
-        durationMs: duration,
-        cause: e.toString(),
-        extra: {
-          'stack_trace':
-              (e is Error) ? (e as Error).stackTrace.toString() : null,
-        },
-      );
-    }
+    // No-op: WebView synchronization is no longer needed
+    await StructuredLogger().log(
+      level: 'debug',
+      subsystem: 'cookies',
+      message: 'syncCookiesFromWebView called but is deprecated (no-op)',
+      context: 'cookie_sync_deprecated',
+    );
   }
 
   /// Saves cookies directly to Dio CookieJar.
@@ -631,116 +312,18 @@ class DioCookieManager {
 
   /// Synchronizes cookies from Dio cookie jar to WebView storage.
   ///
-  /// This method should be called after HTTP-based login to ensure cookies
-  /// are available for WebView as well.
+  /// DEPRECATED: This method is no longer needed as we use direct HTTP authentication.
+  /// Kept as no-op for backward compatibility.
   ///
-  /// The [cookieJar] parameter is the CookieJar instance to load cookies from.
+  /// @deprecated Use SimpleCookieManager instead
   static Future<void> syncCookiesToWebView([CookieJar? cookieJar]) async {
-    final operationId =
-        'cookie_sync_dio_${DateTime.now().millisecondsSinceEpoch}';
-    final logger = StructuredLogger();
-    final startTime = DateTime.now();
-
-    try {
-      await logger.log(
-        level: 'debug',
-        subsystem: 'cookies',
-        message: 'Cookie sync to WebView started',
-        operationId: operationId,
-        context: 'cookie_sync',
-      );
-
-      final jar = cookieJar ?? CookieJar();
-      final db = AppDatabase().database;
-      final endpointManager = EndpointManager(db);
-      final activeBase = await endpointManager.getActiveEndpoint();
-      final uri = Uri.parse(activeBase);
-
-      // Load cookies for the active endpoint
-      final cookies = await jar.loadForRequest(uri);
-
-      await logger.log(
-        level: 'debug',
-        subsystem: 'cookies',
-        message: 'Loaded cookies from Dio cookie jar',
-        operationId: operationId,
-        context: 'cookie_sync',
-        extra: {
-          'cookie_count': cookies.length,
-          'endpoint': activeBase,
-          'cookies': cookies
-              .map((c) => {
-                    'name': c.name,
-                    'domain': c.domain ?? '<null>',
-                    'path': c.path ?? '/',
-                  })
-              .toList(),
-        },
-      );
-
-      if (cookies.isEmpty) {
-        await logger.log(
-          level: 'debug',
-          subsystem: 'cookies',
-          message: 'No cookies in Dio cookie jar to sync',
-          operationId: operationId,
-          context: 'cookie_sync',
-          durationMs: DateTime.now().difference(startTime).inMilliseconds,
-        );
-        return;
-      }
-
-      // Convert Dio Cookie objects to JSON format compatible with WebView storage
-      final cookieList = <Map<String, String>>[];
-      for (final cookie in cookies) {
-        cookieList.add({
-          'name': cookie.name,
-          'value': cookie.value,
-          'domain': cookie.domain ?? uri.host,
-          'path': cookie.path ?? '/',
-        });
-      }
-
-      // Save to SharedPreferences in the same format as WebView
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('rutracker_cookies_v1', jsonEncode(cookieList));
-
-      final duration = DateTime.now().difference(startTime).inMilliseconds;
-      await logger.log(
-        level: 'info',
-        subsystem: 'cookies',
-        message: 'Synced cookies from Dio to WebView storage',
-        operationId: operationId,
-        context: 'cookie_sync',
-        durationMs: duration,
-        extra: {
-          'count': cookieList.length,
-          'endpoint': activeBase,
-          'cookies_synced': cookies
-              .map((c) => {
-                    'name': c.name,
-                    'domain': c.domain ?? '<null>',
-                    'path': c.path ?? '/',
-                  })
-              .toList(),
-        },
-      );
-    } on Exception catch (e) {
-      final duration = DateTime.now().difference(startTime).inMilliseconds;
-      await logger.log(
-        level: 'warning',
-        subsystem: 'cookies',
-        message: 'Failed to sync cookies to WebView',
-        operationId: operationId,
-        context: 'cookie_sync',
-        durationMs: duration,
-        cause: e.toString(),
-        extra: {
-          'stack_trace':
-              (e is Error) ? (e as Error).stackTrace.toString() : null,
-        },
-      );
-    }
+    // No-op: WebView synchronization is no longer needed
+    await StructuredLogger().log(
+      level: 'debug',
+      subsystem: 'cookies',
+      message: 'syncCookiesToWebView called but is deprecated (no-op)',
+      context: 'cookie_sync_deprecated',
+    );
   }
 
   /// Syncs cookies to a new endpoint when switching mirrors.
@@ -1013,42 +596,105 @@ class DioCookieManager {
   ///
   /// Returns true if cookies exist and appear to be valid, false otherwise.
   static Future<bool> hasValidCookies() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final cookieJson = prefs.getString('rutracker_cookies_v1');
+    final operationId = 'has_valid_cookies_${DateTime.now().millisecondsSinceEpoch}';
+    final logger = StructuredLogger();
+    final startTime = DateTime.now();
 
-      if (cookieJson == null || cookieJson.isEmpty) {
-        return false;
+    try {
+      // CRITICAL: Check CookieService (Android CookieManager) first - this is the primary source
+      // after WebView login. CookieService is the single source of truth for cookies on Android.
+      
+      // Try all RuTracker domains to find cookies
+      final rutrackerDomains = EndpointManager.getRutrackerDomains();
+      for (final domain in rutrackerDomains) {
+        try {
+          final url = 'https://$domain';
+          final cookieHeader = await CookieService.getCookiesForUrl(url);
+          
+          if (cookieHeader != null && cookieHeader.isNotEmpty) {
+            // Check if cookie header contains actual cookies (not just whitespace)
+            final trimmed = cookieHeader.trim();
+            if (trimmed.isNotEmpty && trimmed.contains('=')) {
+              await logger.log(
+                level: 'info',
+                subsystem: 'cookies',
+                message: 'Found valid cookies in CookieService',
+                operationId: operationId,
+                context: 'has_valid_cookies',
+                durationMs: DateTime.now().difference(startTime).inMilliseconds,
+                extra: {
+                  'domain': domain,
+                  'cookie_header_length': cookieHeader.length,
+                },
+              );
+              return true;
+            }
+          }
+        } on Exception {
+          // Continue to next domain
+          continue;
+        }
       }
 
-      // Check if cookies are in valid JSON format
+      // Fallback: Check SharedPreferences (WebView storage)
       try {
-        final list = jsonDecode(cookieJson) as List<dynamic>;
-        if (list.isEmpty) {
-          return false;
-        }
+        final prefs = await SharedPreferences.getInstance();
+        final cookieJson = prefs.getString('rutracker_cookies_v1');
 
-        // Check if we have at least one cookie with a value
-        var hasValidCookie = false;
-        for (final c in list) {
-          final cookie = c as Map<String, dynamic>;
-          final name = cookie['name'] as String?;
-          final value = cookie['value'] as String?;
+        if (cookieJson != null && cookieJson.isNotEmpty) {
+          // Check if cookies are in valid JSON format
+          try {
+            final list = jsonDecode(cookieJson) as List<dynamic>;
+            if (list.isNotEmpty) {
+              // Check if we have at least one cookie with a value
+              for (final c in list) {
+                final cookie = c as Map<String, dynamic>;
+                final name = cookie['name'] as String?;
+                final value = cookie['value'] as String?;
 
-          if (name != null &&
-              name.isNotEmpty &&
-              value != null &&
-              value.isNotEmpty) {
-            hasValidCookie = true;
-            break;
+                if (name != null &&
+                    name.isNotEmpty &&
+                    value != null &&
+                    value.isNotEmpty) {
+                  await logger.log(
+                    level: 'info',
+                    subsystem: 'cookies',
+                    message: 'Found valid cookies in SharedPreferences',
+                    operationId: operationId,
+                    context: 'has_valid_cookies',
+                    durationMs: DateTime.now().difference(startTime).inMilliseconds,
+                  );
+                  return true;
+                }
+              }
+            }
+          } on FormatException {
+            // Invalid JSON, continue
           }
         }
-
-        return hasValidCookie;
-      } on FormatException {
-        return false;
+      } on Exception {
+        // Ignore SharedPreferences errors
       }
-    } on Exception {
+
+      await logger.log(
+        level: 'debug',
+        subsystem: 'cookies',
+        message: 'No valid cookies found',
+        operationId: operationId,
+        context: 'has_valid_cookies',
+        durationMs: DateTime.now().difference(startTime).inMilliseconds,
+      );
+      return false;
+    } on Exception catch (e) {
+      await logger.log(
+        level: 'error',
+        subsystem: 'cookies',
+        message: 'Exception checking for valid cookies',
+        operationId: operationId,
+        context: 'has_valid_cookies',
+        durationMs: DateTime.now().difference(startTime).inMilliseconds,
+        cause: e.toString(),
+      );
       return false;
     }
   }
@@ -1059,11 +705,9 @@ class DioCookieManager {
   ///
   /// The [cookieJar] parameter is the CookieJar instance to use.
   /// The [dio] parameter is the Dio instance to use for the test request.
-  /// The [bridgeSessionManager] parameter is the SessionManager instance to use.
   static Future<bool> validateCookies(
     Dio dio, [
     CookieJar? cookieJar,
-    bridge_session.SessionManager? bridgeSessionManager,
   ]) async {
     final operationId =
         'cookie_validate_${DateTime.now().millisecondsSinceEpoch}';
@@ -1234,122 +878,8 @@ class DioCookieManager {
               },
             );
             
-            // CRITICAL: Try to sync from SessionManager as last resort
-            try {
-              if (bridgeSessionManager != null) {
-                final sessionCookies = await bridgeSessionManager.getSessionCookies();
-                if (sessionCookies.isNotEmpty) {
-                  await logger.log(
-                    level: 'info',
-                    subsystem: 'cookies',
-                    message: 'Found cookies in SessionManager, syncing to CookieJar',
-                    operationId: operationId,
-                    context: 'cookie_validation',
-                    extra: {
-                      'session_cookie_count': sessionCookies.length,
-                    },
-                  );
-                  
-                  // Parse session cookies and save to CookieJar
-                  final parsedCookies = <io.Cookie>[];
-                  for (final cookieString in sessionCookies) {
-                    if (cookieString.contains('=')) {
-                      final parts = cookieString.split('=');
-                      if (parts.length >= 2) {
-                        final name = parts[0].trim();
-                        final value = parts.sublist(1).join('=').trim();
-                        if (name.isNotEmpty && value.isNotEmpty) {
-                          // CRITICAL: Don't set domain - CookieJar will use uri.host automatically
-                          // This ensures cookie is saved in hostCookies for exact host matching
-                          final cookie = io.Cookie(name, value)
-                            ..path = '/'  // Always use '/' for rutracker cookies
-                            ..secure = true;
-                          // Don't set domain - CookieJar will use uri.host automatically
-                          parsedCookies.add(cookie);
-                        }
-                      }
-                    }
-                  }
-                  
-                  if (parsedCookies.isNotEmpty) {
-                    await jar.saveFromResponse(uri, parsedCookies);
-                    
-                    // Wait a bit for cookies to be persisted
-                    await Future.delayed(const Duration(milliseconds: 200));
-                    
-                    // Check again after SessionManager sync - try multiple URI variations
-                    final dioCookiesAfterSessionSync = await jar.loadForRequest(uri);
-                    final baseUri = Uri.parse('https://${uri.host}');
-                    final baseCookiesAfterSessionSync = await jar.loadForRequest(baseUri);
-                    final pathUri = Uri.parse('https://${uri.host}/');
-                    final pathCookiesAfterSessionSync = await jar.loadForRequest(pathUri);
-                    
-                    // Combine all found cookies (avoid duplicates)
-                    final allCookiesAfterSessionSync = <io.Cookie>[];
-                    for (final cookie in dioCookiesAfterSessionSync) {
-                      if (!allCookiesAfterSessionSync.any((c) => c.name == cookie.name)) {
-                        allCookiesAfterSessionSync.add(cookie);
-                      }
-                    }
-                    for (final cookie in baseCookiesAfterSessionSync) {
-                      if (!allCookiesAfterSessionSync.any((c) => c.name == cookie.name)) {
-                        allCookiesAfterSessionSync.add(cookie);
-                      }
-                    }
-                    for (final cookie in pathCookiesAfterSessionSync) {
-                      if (!allCookiesAfterSessionSync.any((c) => c.name == cookie.name)) {
-                        allCookiesAfterSessionSync.add(cookie);
-                      }
-                    }
-                    if (allCookiesAfterSessionSync.isNotEmpty) {
-                      await logger.log(
-                        level: 'info',
-                        subsystem: 'cookies',
-                        message: 'Cookies synced from SessionManager to CookieJar successfully',
-                        operationId: operationId,
-                        context: 'cookie_validation',
-                        extra: {
-                          'cookie_count': allCookiesAfterSessionSync.length,
-                          'uri_cookie_count': dioCookiesAfterSessionSync.length,
-                          'base_cookie_count': baseCookiesAfterSessionSync.length,
-                          'path_cookie_count': pathCookiesAfterSessionSync.length,
-                        },
-                      );
-                    } else {
-                      await logger.log(
-                        level: 'error',
-                        subsystem: 'cookies',
-                        message: 'Cookies still not found in CookieJar after SessionManager sync',
-                        operationId: operationId,
-                        context: 'cookie_validation',
-                        extra: {
-                          'uri_cookie_count': dioCookiesAfterSessionSync.length,
-                          'base_cookie_count': baseCookiesAfterSessionSync.length,
-                          'path_cookie_count': pathCookiesAfterSessionSync.length,
-                        },
-                      );
-                      return false;
-                    }
-                  } else {
-                    return false;
-                  }
-                } else {
-                  return false;
-                }
-              } else {
-                return false;
-              }
-            } on Exception catch (e) {
-              await logger.log(
-                level: 'error',
-                subsystem: 'cookies',
-                message: 'Failed to sync from SessionManager',
-                operationId: operationId,
-                context: 'cookie_validation',
-                cause: e.toString(),
-              );
-              return false;
-            }
+            // DEPRECATED: SessionManager sync removed - no longer using FlutterCookieBridge
+            // Cookies are now managed directly through SimpleCookieManager
           }
         }
       } on Exception catch (e) {

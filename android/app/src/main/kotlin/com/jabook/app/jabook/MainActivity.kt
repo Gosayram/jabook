@@ -52,6 +52,14 @@ class MainActivity : FlutterActivity() {
                         result.error("CLEAR_COOKIES_ERROR", e.message, null)
                     }
                 }
+                "flushCookies" -> {
+                    try {
+                        cookieManager.flush()
+                        result.success(true)
+                    } catch (e: Exception) {
+                        result.error("FLUSH_COOKIES_ERROR", e.message, null)
+                    }
+                }
                 else -> {
                     result.notImplemented()
                 }

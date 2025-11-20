@@ -13,15 +13,18 @@
 // limitations under the License.
 
 import 'dart:async';
+import 'dart:io' as io;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_cookie_bridge/session_manager.dart' as bridge_session;
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'package:jabook/core/endpoints/endpoint_manager.dart';
 import 'package:jabook/core/logging/structured_logger.dart';
 import 'package:jabook/core/net/dio_client.dart';
 import 'package:jabook/core/net/user_agent_manager.dart';
 import 'package:jabook/core/services/cookie_service.dart';
-import 'package:jabook/features/webview/permission_wrapper.dart';
+import 'package:jabook/core/utils/safe_async.dart';
+import 'package:jabook/data/db/app_database.dart';
 import 'package:jabook/features/webview/webview_cloudflare_handler.dart';
 import 'package:jabook/features/webview/webview_cookie_manager.dart';
 import 'package:jabook/features/webview/webview_login_detector.dart';
@@ -224,20 +227,22 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
       
       if (loginSuccess && !_loginDetected) {
         _loginDetected = true;
+        // Show success message immediately (don't wait for cookie sync)
         _showLoginSuccessHint();
         
-        // CRITICAL: Save cookies FIRST to ensure they're synced to Android CookieManager
-        // This must happen BEFORE _syncCookiesAfterLogin tries to read them
-        await _cookieManager?.saveCookies(
-          callerContext: 'login_success',
-          initialUrl: url?.toString(),
+        // Sync cookies asynchronously (don't block UI)
+        // This ensures the success message appears quickly
+        safeUnawaited(
+          _syncCookiesAfterLoginAsync(url?.toString()),
+          onError: (e, stack) {
+            StructuredLogger().log(
+              level: 'error',
+              subsystem: 'cookies',
+              message: 'Failed to sync cookies after login (async)',
+              cause: e.toString(),
+            );
+          },
         );
-        
-        // Wait a bit for Android CookieManager to process the cookies
-        await Future.delayed(const Duration(milliseconds: 500));
-        
-        // NEW APPROACH: Get cookies from CookieManager (Kotlin) and sync to Dio
-        await _syncCookiesAfterLogin(url?.toString());
       }
       
       // Save WebView state
@@ -350,11 +355,47 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
     if (_webViewController == null || !mounted) return;
     
     try {
-      // Save cookies one final time
-      await _cookieManager?.saveCookies(
-        callerContext: 'user_close',
-        initialUrl: await _webViewController!.getUrl().then((u) => u?.toString()),
-      );
+      // CRITICAL: If login was successful, force sync cookies before closing
+      // This ensures cookies are available even if async sync hasn't completed
+      if (_loginDetected) {
+        await StructuredLogger().log(
+          level: 'info',
+          subsystem: 'cookies',
+          message: 'Login was successful, forcing cookie sync before close',
+          context: 'webview_close',
+        );
+        
+        // Get current URL for cookie sync
+        final currentUrl = await _webViewController!.getUrl().then((u) => u?.toString());
+        
+        // Save cookies to Android CookieManager first
+        await _cookieManager?.saveCookies(
+          callerContext: 'user_close_force_sync',
+          initialUrl: currentUrl,
+        );
+        
+        // Wait for CookieManager to process
+        await Future.delayed(const Duration(milliseconds: 300));
+        
+        // Force sync cookies to Dio (synchronous, blocking)
+        try {
+          await _syncCookiesAfterLogin(currentUrl);
+        } on Exception catch (e) {
+          await StructuredLogger().log(
+            level: 'warning',
+            subsystem: 'cookies',
+            message: 'Failed to force sync cookies on close, but continuing',
+            context: 'webview_close',
+            cause: e.toString(),
+          );
+        }
+      } else {
+        // Normal save if login wasn't detected
+        await _cookieManager?.saveCookies(
+          callerContext: 'user_close',
+          initialUrl: await _webViewController!.getUrl().then((u) => u?.toString()),
+        );
+      }
       
       // Get cookie string for return value
       String? cookieString;
@@ -458,6 +499,28 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
   ///
   /// This is the new approach: get cookies directly from Android CookieManager
   /// (which WebView uses) and sync them to Dio CookieJar.
+  /// 
+  /// This is the async version that doesn't block the UI.
+  Future<void> _syncCookiesAfterLoginAsync(String? currentUrl) async {
+    // First, save cookies to ensure they're synced to Android CookieManager
+    if (_cookieManager != null) {
+      await _cookieManager!.saveCookies(
+        callerContext: 'login_success_async',
+        initialUrl: currentUrl,
+      );
+      // CRITICAL: Increased delay to let CookieManager process cookies
+      // Android CookieManager needs time to sync cookies from WebView
+      await Future.delayed(const Duration(milliseconds: 500));
+    }
+    
+    // Then sync to Dio with retries
+    await _syncCookiesAfterLogin(currentUrl);
+  }
+
+  /// Syncs cookies from CookieManager (Kotlin) to Dio after successful login.
+  ///
+  /// This is the new approach: get cookies directly from Android CookieManager
+  /// (which WebView uses) and sync them to Dio CookieJar.
   Future<void> _syncCookiesAfterLogin(String? currentUrl) async {
     final operationId = 'cookie_sync_after_login_${DateTime.now().millisecondsSinceEpoch}';
     final startTime = DateTime.now();
@@ -472,7 +535,18 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
         extra: {'current_url': currentUrl},
       );
 
-      // Get base URL for RuTracker (use current URL or default)
+      // CRITICAL: Get the active endpoint first - we need to sync cookies for the active domain
+      final db = AppDatabase().database;
+      final endpointManager = EndpointManager(db);
+      String activeEndpoint;
+      try {
+        activeEndpoint = await endpointManager.getActiveEndpoint();
+      } on Exception {
+        // Fallback if endpoint manager fails
+        activeEndpoint = 'https://rutracker.me';
+      }
+
+      // Get base URL for RuTracker (use current URL from WebView or active endpoint)
       var baseUrl = currentUrl;
       if (baseUrl == null || !baseUrl.contains('rutracker')) {
         // Try to get from WebView
@@ -485,9 +559,9 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
           // Ignore
         }
         
-        // Fallback to default RuTracker URL
+        // Fallback to active endpoint (most important!)
         if (baseUrl == null || !baseUrl.contains('rutracker')) {
-          baseUrl = 'https://rutracker.org';
+          baseUrl = activeEndpoint;
         }
       }
 
@@ -506,7 +580,314 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
       }
 
       final rutrackerBaseUrl = '${uri.scheme}://${uri.host}';
+      final activeEndpointUri = Uri.parse(activeEndpoint);
+      final activeEndpointBaseUrl = '${activeEndpointUri.scheme}://${activeEndpointUri.host}';
 
+      await StructuredLogger().log(
+        level: 'info',
+        subsystem: 'cookies',
+        message: 'Syncing cookies for active endpoint',
+        operationId: operationId,
+        context: 'webview_login_sync',
+        extra: {
+          'webview_url': baseUrl,
+          'active_endpoint': activeEndpoint,
+          'active_endpoint_base': activeEndpointBaseUrl,
+          'rutracker_base_url': rutrackerBaseUrl,
+        },
+      );
+
+      // CRITICAL: First, try to get cookies directly from InAppWebView CookieManager
+      // This is more reliable than going through Android CookieManager
+      if (_webViewController != null) {
+        try {
+          await StructuredLogger().log(
+            level: 'info',
+            subsystem: 'cookies',
+            message: 'Getting cookies directly from InAppWebView CookieManager',
+            operationId: operationId,
+            context: 'webview_login_sync',
+          );
+          
+          // Get cookies directly from InAppWebView CookieManager
+          // CRITICAL: Only get cookies for the active endpoint (not all domains)
+          final cookieManager = CookieManager.instance();
+          final allCookies = <Cookie>[];
+          
+          // Try active endpoint FIRST (most important!)
+          try {
+            final activeEndpointUri = WebUri(activeEndpointBaseUrl);
+            final activeCookies = await cookieManager.getCookies(url: activeEndpointUri);
+            for (final cookie in activeCookies) {
+              if (!allCookies.any((c) => c.name == cookie.name && (c.domain ?? '') == (cookie.domain ?? ''))) {
+                allCookies.add(cookie);
+              }
+            }
+            
+            await StructuredLogger().log(
+              level: 'info',
+              subsystem: 'cookies',
+              message: 'Got cookies from active endpoint',
+              operationId: operationId,
+              context: 'webview_login_sync',
+              extra: {
+                'active_endpoint': activeEndpointBaseUrl,
+                'cookie_count': activeCookies.length,
+              },
+            );
+          } on Exception catch (e) {
+            await StructuredLogger().log(
+              level: 'debug',
+              subsystem: 'cookies',
+              message: 'Failed to get cookies from active endpoint',
+              operationId: operationId,
+              context: 'webview_login_sync',
+              cause: e.toString(),
+              extra: {'active_endpoint': activeEndpointBaseUrl},
+            );
+          }
+          
+          // Also try WebView URL if different from active endpoint
+          if (rutrackerBaseUrl != activeEndpointBaseUrl) {
+            try {
+              final webViewUri = WebUri(rutrackerBaseUrl);
+              final webViewCookies = await cookieManager.getCookies(url: webViewUri);
+              for (final cookie in webViewCookies) {
+                if (!allCookies.any((c) => c.name == cookie.name && (c.domain ?? '') == (cookie.domain ?? ''))) {
+                  allCookies.add(cookie);
+                }
+              }
+              
+              await StructuredLogger().log(
+                level: 'info',
+                subsystem: 'cookies',
+                message: 'Got additional cookies from WebView domain',
+                operationId: operationId,
+                context: 'webview_login_sync',
+                extra: {
+                  'webview_domain': rutrackerBaseUrl,
+                  'cookie_count': webViewCookies.length,
+                },
+              );
+            } on Exception {
+              // Ignore
+            }
+          }
+          
+          if (allCookies.isNotEmpty) {
+            await StructuredLogger().log(
+              level: 'info',
+              subsystem: 'cookies',
+              message: 'Got cookies from InAppWebView CookieManager, syncing to Dio',
+              operationId: operationId,
+              context: 'webview_login_sync',
+              extra: {
+                'cookie_count': allCookies.length,
+                'cookie_names': allCookies.map((c) => c.name).toList(),
+                'active_endpoint': activeEndpointBaseUrl,
+                'webview_domain': rutrackerBaseUrl,
+              },
+            );
+            
+            // Convert InAppWebView cookies to Dio Cookie objects and save directly
+            final dioCookies = <io.Cookie>[];
+            for (final cookie in allCookies) {
+              final dioCookie = io.Cookie(cookie.name, cookie.value)
+                ..path = cookie.path ?? '/'
+                ..domain = cookie.domain
+                ..secure = cookie.isSecure ?? true
+                ..httpOnly = cookie.isHttpOnly ?? false;
+              dioCookies.add(dioCookie);
+            }
+            
+            // Save cookies directly to Dio CookieJar
+            final jar = await DioClient.getCookieJar();
+            if (jar != null && dioCookies.isNotEmpty) {
+              // CRITICAL: Save cookies for the active endpoint FIRST (most important!)
+              final activeUri = Uri.parse(activeEndpointBaseUrl);
+              await jar.saveFromResponse(activeUri, dioCookies);
+              
+              await StructuredLogger().log(
+                level: 'info',
+                subsystem: 'cookies',
+                message: 'Cookies saved for active endpoint',
+                operationId: operationId,
+                context: 'webview_login_sync',
+                extra: {
+                  'cookie_count': dioCookies.length,
+                  'active_endpoint': activeEndpointBaseUrl,
+                },
+              );
+              
+              // Also save to WebView domain (if different from active endpoint)
+              if (rutrackerBaseUrl != activeEndpointBaseUrl) {
+                final webViewUri = Uri.parse(rutrackerBaseUrl);
+                await jar.saveFromResponse(webViewUri, dioCookies);
+                
+                await StructuredLogger().log(
+                  level: 'info',
+                  subsystem: 'cookies',
+                  message: 'Cookies also saved for WebView domain',
+                  operationId: operationId,
+                  context: 'webview_login_sync',
+                  extra: {
+                    'webview_domain': rutrackerBaseUrl,
+                  },
+                );
+              }
+              
+              // Don't save to other domains - only active endpoint is needed
+              
+              await StructuredLogger().log(
+                level: 'info',
+                subsystem: 'cookies',
+                message: 'Cookies synced directly from InAppWebView to Dio CookieJar',
+                operationId: operationId,
+                context: 'webview_login_sync',
+                extra: {
+                  'cookie_count': dioCookies.length,
+                  'active_endpoint': activeEndpointBaseUrl,
+                  'webview_domain': rutrackerBaseUrl,
+                },
+              );
+              
+              // Also save to SecureStorage for persistence (use active endpoint)
+              final cookieHeader = dioCookies.map((c) => '${c.name}=${c.value}').join('; ');
+              await DioClient.saveCookiesToSecureStorage(cookieHeader, activeEndpointBaseUrl);
+              
+              // Flush cookies to ensure they are saved
+              await CookieService.flushCookies();
+              
+              return; // Success, exit early
+            }
+          } else {
+            await StructuredLogger().log(
+              level: 'warning',
+              subsystem: 'cookies',
+              message: 'No cookies found in InAppWebView CookieManager, trying JavaScript fallback',
+              operationId: operationId,
+              context: 'webview_login_sync',
+            );
+            
+            // FALLBACK: Try to get cookies via JavaScript
+            if (_webViewController != null) {
+              try {
+                final jsCookiesResult = await _webViewController!.evaluateJavascript(source: 'document.cookie');
+                if (jsCookiesResult != null) {
+                  final jsCookiesString = jsCookiesResult.toString();
+                  if (jsCookiesString.isNotEmpty) {
+                    await StructuredLogger().log(
+                      level: 'info',
+                      subsystem: 'cookies',
+                      message: 'Got cookies via JavaScript fallback, parsing and syncing',
+                      operationId: operationId,
+                      context: 'webview_login_sync',
+                      extra: {
+                        'cookie_string_length': jsCookiesString.length,
+                        'cookie_string_preview': jsCookiesString.length > 200
+                            ? '${jsCookiesString.substring(0, 200)}...'
+                            : jsCookiesString,
+                      },
+                    );
+                    
+                    // Parse JavaScript cookies and sync to Dio
+                    final cookieParts = jsCookiesString.split('; ');
+                    final dioCookies = <io.Cookie>[];
+                    for (final part in cookieParts) {
+                      final trimmed = part.trim();
+                      if (trimmed.isEmpty) continue;
+                      
+                      final equalIndex = trimmed.indexOf('=');
+                      if (equalIndex <= 0) continue;
+                      
+                      final name = trimmed.substring(0, equalIndex).trim();
+                      final value = trimmed.substring(equalIndex + 1).trim();
+                      
+                      if (name.isNotEmpty && value.isNotEmpty) {
+                        final dioCookie = io.Cookie(name, value)
+                          ..path = '/'
+                          ..secure = true;
+                        dioCookies.add(dioCookie);
+                      }
+                    }
+                    
+                    if (dioCookies.isNotEmpty) {
+                      final jar = await DioClient.getCookieJar();
+                      if (jar != null) {
+                        // CRITICAL: Save cookies for the active endpoint FIRST (most important!)
+                        final activeUri = Uri.parse(activeEndpointBaseUrl);
+                        await jar.saveFromResponse(activeUri, dioCookies);
+                        
+                        await StructuredLogger().log(
+                          level: 'info',
+                          subsystem: 'cookies',
+                          message: 'Cookies saved for active endpoint (JavaScript fallback)',
+                          operationId: operationId,
+                          context: 'webview_login_sync',
+                          extra: {
+                            'cookie_count': dioCookies.length,
+                            'active_endpoint': activeEndpointBaseUrl,
+                          },
+                        );
+                        
+                        // Also save to WebView domain (if different from active endpoint)
+                        if (rutrackerBaseUrl != activeEndpointBaseUrl) {
+                          final webViewUri = Uri.parse(rutrackerBaseUrl);
+                          await jar.saveFromResponse(webViewUri, dioCookies);
+                        }
+                        
+                        // Don't save to other domains - only active endpoint is needed
+                        
+                        await StructuredLogger().log(
+                          level: 'info',
+                          subsystem: 'cookies',
+                          message: 'Cookies synced from JavaScript to Dio CookieJar',
+                          operationId: operationId,
+                          context: 'webview_login_sync',
+                          extra: {
+                            'cookie_count': dioCookies.length,
+                            'active_endpoint': activeEndpointBaseUrl,
+                            'webview_domain': rutrackerBaseUrl,
+                          },
+                        );
+                        
+                        // Save to SecureStorage (use active endpoint)
+                        final cookieHeader = dioCookies.map((c) => '${c.name}=${c.value}').join('; ');
+                        await DioClient.saveCookiesToSecureStorage(cookieHeader, activeEndpointBaseUrl);
+                        
+                        // Flush cookies to ensure they are saved
+                        await CookieService.flushCookies();
+                        
+                        return; // Success via JavaScript
+                      }
+                    }
+                  }
+                }
+              } on Exception catch (e) {
+                await StructuredLogger().log(
+                  level: 'warning',
+                  subsystem: 'cookies',
+                  message: 'Failed to get cookies via JavaScript fallback',
+                  operationId: operationId,
+                  context: 'webview_login_sync',
+                  cause: e.toString(),
+                );
+              }
+            }
+          }
+        } on Exception catch (e) {
+          await StructuredLogger().log(
+            level: 'warning',
+            subsystem: 'cookies',
+            message: 'Failed to get cookies from InAppWebView CookieManager, falling back to Android CookieManager',
+            operationId: operationId,
+            context: 'webview_login_sync',
+            cause: e.toString(),
+          );
+        }
+      }
+      
+      // FALLBACK: Try Android CookieManager if InAppWebView method failed
       // CRITICAL: First, ensure cookies are synced from InAppWebView to Android CookieManager
       // This is a fallback in case saveCookies() didn't run or didn't complete
       if (_cookieManager != null && _webViewController != null) {
@@ -525,25 +906,30 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
         );
         
         // Wait for Android CookieManager to process
-        await Future.delayed(const Duration(milliseconds: 300));
+        await Future.delayed(const Duration(milliseconds: 500));
       }
 
       // Get cookies from CookieManager (Kotlin) with retries
       // Cookies may not be immediately available after login, so retry with delays
+      // CRITICAL: Try active endpoint FIRST, then WebView URL
       String? cookieHeader;
-      const maxRetries = 5;
-      const retryDelay = Duration(milliseconds: 500);
+      const maxRetries = 8; // Increased retries for more reliable cookie retrieval
+      const initialRetryDelay = Duration(milliseconds: 300);
       
       for (var attempt = 0; attempt < maxRetries; attempt++) {
         if (attempt > 0) {
-          await Future.delayed(retryDelay);
+          // Exponential backoff: 300ms, 500ms, 700ms, 1000ms, etc.
+          final delayMs = initialRetryDelay.inMilliseconds + (attempt * 200);
+          await Future.delayed(Duration(milliseconds: delayMs));
         }
         
-        // Try with full URL first, then base URL
+        // Try active endpoint FIRST (most important!)
+        final cookiesFromActiveEndpoint = await CookieService.getCookiesForUrl(activeEndpointBaseUrl);
+        // Then try WebView URL
         final cookiesFromFullUrl = await CookieService.getCookiesForUrl(baseUrl);
         final cookiesFromBaseUrl = await CookieService.getCookiesForUrl(rutrackerBaseUrl);
         
-        cookieHeader = cookiesFromFullUrl ?? cookiesFromBaseUrl;
+        cookieHeader = cookiesFromActiveEndpoint ?? cookiesFromFullUrl ?? cookiesFromBaseUrl;
         
         await StructuredLogger().log(
           level: 'debug',
@@ -554,10 +940,13 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
           extra: {
             'attempt': attempt + 1,
             'max_retries': maxRetries,
+            'active_endpoint': activeEndpointBaseUrl,
             'full_url': baseUrl,
             'base_url': rutrackerBaseUrl,
+            'cookies_from_active_endpoint': cookiesFromActiveEndpoint != null && cookiesFromActiveEndpoint.isNotEmpty,
             'cookies_from_full_url': cookiesFromFullUrl != null && cookiesFromFullUrl.isNotEmpty,
             'cookies_from_base_url': cookiesFromBaseUrl != null && cookiesFromBaseUrl.isNotEmpty,
+            'active_endpoint_length': cookiesFromActiveEndpoint?.length ?? 0,
             'full_url_length': cookiesFromFullUrl?.length ?? 0,
             'base_url_length': cookiesFromBaseUrl?.length ?? 0,
           },
@@ -572,7 +961,9 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
             context: 'webview_login_sync',
             extra: {
               'attempt': attempt + 1,
-              'url_used': cookiesFromFullUrl != null ? baseUrl : rutrackerBaseUrl,
+              'url_used': cookiesFromActiveEndpoint != null 
+                  ? activeEndpointBaseUrl 
+                  : (cookiesFromFullUrl != null ? baseUrl : rutrackerBaseUrl),
               'cookie_header_length': cookieHeader.length,
               'cookie_header_preview': cookieHeader.length > 200
                   ? '${cookieHeader.substring(0, 200)}...'
@@ -597,31 +988,7 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
         );
       }
 
-      if (cookieHeader == null || cookieHeader.isEmpty) {
-        // Try all RuTracker domains as fallback
-        final rutrackerDomains = ['rutracker.me', 'rutracker.net', 'rutracker.org'];
-        for (final domain in rutrackerDomains) {
-          if (domain == uri.host) continue; // Already tried
-          
-          final domainUrl = 'https://$domain';
-          cookieHeader = await CookieService.getCookiesForUrl(domainUrl);
-          
-          if (cookieHeader != null && cookieHeader.isNotEmpty) {
-            await StructuredLogger().log(
-              level: 'info',
-              subsystem: 'cookies',
-              message: 'Got cookies from CookieManager for fallback domain',
-              operationId: operationId,
-              context: 'webview_login_sync',
-              extra: {
-                'domain': domain,
-                'cookie_header_length': cookieHeader.length,
-              },
-            );
-            break;
-          }
-        }
-      }
+      // No need to try other domains - only active endpoint is needed
 
       if (cookieHeader == null || cookieHeader.isEmpty) {
         await StructuredLogger().log(
@@ -655,11 +1022,48 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
         },
       );
 
-      // Sync cookies to Dio using DioClient
-      await DioClient.syncCookiesFromCookieService(cookieHeader, rutrackerBaseUrl);
+      // CRITICAL: Flush cookies to ensure they are saved to disk
+      await CookieService.flushCookies();
+      
+      // CRITICAL: Sync cookies to Dio using active endpoint (not WebView URL)
+      // This ensures cookies are available for the active endpoint used by search
+      await DioClient.syncCookiesFromCookieService(cookieHeader, activeEndpointBaseUrl);
 
-      // Save cookies to SecureStorage for auto-login on app restart
-      await DioClient.saveCookiesToSecureStorage(cookieHeader, rutrackerBaseUrl);
+      // Save cookies to SecureStorage for auto-login on app restart (use active endpoint)
+      await DioClient.saveCookiesToSecureStorage(cookieHeader, activeEndpointBaseUrl);
+      
+      // Flush again after syncing to ensure everything is persisted
+      await CookieService.flushCookies();
+
+      // CRITICAL: Verify cookies were saved correctly by loading them back
+      await Future.delayed(const Duration(milliseconds: 200));
+      final jar = await DioClient.getCookieJar();
+      if (jar != null) {
+        final activeUri = Uri.parse(activeEndpointBaseUrl);
+        final searchUri = Uri.parse('$activeEndpointBaseUrl/forum/tracker.php');
+        final savedCookies = await jar.loadForRequest(activeUri);
+        final searchCookies = await jar.loadForRequest(searchUri);
+        
+        await StructuredLogger().log(
+          level: savedCookies.isNotEmpty ? 'info' : 'warning',
+          subsystem: 'cookies',
+          message: 'Verified cookies in CookieJar after sync',
+          operationId: operationId,
+          context: 'webview_login_sync',
+          extra: {
+            'active_endpoint': activeEndpointBaseUrl,
+            'saved_cookie_count': savedCookies.length,
+            'search_cookie_count': searchCookies.length,
+            'saved_cookie_names': savedCookies.map((c) => c.name).toList(),
+            'search_cookie_names': searchCookies.map((c) => c.name).toList(),
+            'has_session_cookies': savedCookies.any((c) => 
+              c.name.toLowerCase().contains('session') || 
+              c.name == 'bb_session' || 
+              c.name == 'bb_data'
+            ),
+          },
+        );
+      }
 
       final duration = DateTime.now().difference(startTime).inMilliseconds;
       await StructuredLogger().log(
@@ -670,7 +1074,8 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
         context: 'webview_login_sync',
         durationMs: duration,
         extra: {
-          'rutracker_url': rutrackerBaseUrl,
+          'active_endpoint': activeEndpointBaseUrl,
+          'webview_domain': rutrackerBaseUrl,
           'cookie_header_length': cookieHeader.length,
         },
       );
@@ -695,11 +1100,7 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
   }
 
   @override
-  Widget build(BuildContext context) => PermissionWrapper(
-      onPermissionsGranted: () {
-        // Permissions granted, WebView can be used
-      },
-      child: Scaffold(
+  Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(
           title: Text(
             AppLocalizations.of(context)?.webViewTitle ?? 'RuTracker',
@@ -858,7 +1259,6 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
             AppLocalizations.of(context)?.doneButtonText ?? 'Done',
           ),
           backgroundColor: Colors.green,
-        ),
       ),
     );
 }

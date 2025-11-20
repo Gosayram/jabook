@@ -17,6 +17,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:jabook/core/config/app_config.dart';
+import 'package:jabook/features/auth/presentation/screens/auth_screen.dart';
 import 'package:jabook/features/debug/presentation/screens/debug_screen.dart';
 import 'package:jabook/features/library/presentation/screens/favorites_screen.dart';
 import 'package:jabook/features/library/presentation/screens/library_screen.dart';
@@ -79,6 +80,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     GoRoute(
       path: '/favorites',
       builder: (context, state) => const FavoritesScreen(),
+    ),
+    GoRoute(
+      path: '/auth',
+      builder: (context, state) => const AuthScreen(),
     ),
   ];
 

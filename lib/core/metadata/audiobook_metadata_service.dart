@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'package:dio/dio.dart';
 import 'package:jabook/core/logging/structured_logger.dart';
 import 'package:jabook/core/net/dio_client.dart';
 import 'package:jabook/core/parse/rutracker_parser.dart';
@@ -297,6 +298,9 @@ class AudiobookMetadataService {
           queryParameters: {
             'start': start,
           },
+          options: Options(
+            responseType: ResponseType.plain, // Ensure gzip is automatically decompressed
+          ),
         );
 
         final pageRequestDuration =

@@ -51,8 +51,11 @@ class RuTrackerRepositoryImpl implements RuTrackerRepository {
       final dio = await DioClient.instance;
 
       // Build search URL with proper RuTracker parameters
+      // CRITICAL: Use tracker.php (not search.php) for searching torrents/audiobooks
+      // tracker.php is the default search method on RuTracker for "раздачи" (torrents)
+      // Try to use c=33 to filter by audiobooks category
       final searchPath =
-          '/forum/search.php?nm=$query&f=${CategoryConstants.audiobooksCategoryId}&start=${(page - 1) * CategoryConstants.searchResultsPerPage}';
+          '/forum/tracker.php?nm=$query&c=${CategoryConstants.audiobooksCategoryId}&start=${(page - 1) * CategoryConstants.searchResultsPerPage}';
       final searchUrl = await _endpointManager.buildUrl(searchPath);
 
       final response = await dio.get(
@@ -67,7 +70,7 @@ class RuTrackerRepositoryImpl implements RuTrackerRepository {
       );
 
       final results =
-          await _parser.parseSearchResults(response.data.toString());
+          await _parser.parseSearchResults(response.data);
       return results
           .map((audiobook) => Audiobook(
                 id: audiobook.id,
@@ -103,7 +106,9 @@ class RuTrackerRepositoryImpl implements RuTrackerRepository {
     try {
       final dio = await DioClient.instance;
 
-      const indexPath = '/forum/index.php';
+      // CRITICAL: Load index.php?c=33 to get ONLY audiobooks category structure
+      // This is the static page that contains all forums and subforums for audiobooks
+      const indexPath = '/forum/index.php?c=${CategoryConstants.audiobooksCategoryId}';
       final indexUrl = await _endpointManager.buildUrl(indexPath);
       final response = await dio.get(
         indexUrl,
@@ -203,7 +208,7 @@ class RuTrackerRepositoryImpl implements RuTrackerRepository {
         ),
       );
 
-      final details = await _parser.parseTopicDetails(response.data.toString());
+      final details = await _parser.parseTopicDetails(response.data);
       if (details == null) return null;
 
       return Audiobook(
@@ -426,7 +431,7 @@ class RuTrackerRepositoryImpl implements RuTrackerRepository {
       );
 
       final results =
-          await _parser.parseSearchResults(response.data.toString());
+          await _parser.parseSearchResults(response.data);
       return results
           .map((audiobook) => Audiobook(
                 id: audiobook.id,
