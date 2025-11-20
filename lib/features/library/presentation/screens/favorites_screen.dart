@@ -150,25 +150,36 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
       };
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(
-          title:
-              Text(AppLocalizations.of(context)?.favoritesTitle ?? 'Favorites'),
-          actions: [
-            if (_favorites.isNotEmpty)
-              IconButton(
-                icon: const Icon(Icons.refresh),
-                tooltip:
-                    AppLocalizations.of(context)?.refreshTooltip ?? 'Refresh',
-                onPressed: _loadFavorites,
-              ),
-          ],
+  Widget build(BuildContext context) => PopScope(
+        onPopInvokedWithResult: (didPop, result) {
+          if (didPop) return;
+          // Allow navigation back using GoRouter
+          if (context.canPop()) {
+            context.pop();
+          } else {
+            context.go('/');
+          }
+        },
+        child: Scaffold(
+          appBar: AppBar(
+            title: Text(
+                AppLocalizations.of(context)?.favoritesTitle ?? 'Favorites'),
+            actions: [
+              if (_favorites.isNotEmpty)
+                IconButton(
+                  icon: const Icon(Icons.refresh),
+                  tooltip:
+                      AppLocalizations.of(context)?.refreshTooltip ?? 'Refresh',
+                  onPressed: _loadFavorites,
+                ),
+            ],
+          ),
+          body: _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : _favorites.isEmpty
+                  ? _buildEmptyState(context)
+                  : _buildFavoritesList(context),
         ),
-        body: _isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : _favorites.isEmpty
-                ? _buildEmptyState(context)
-                : _buildFavoritesList(context),
       );
 
   /// Builds empty state widget when no favorites are available.
