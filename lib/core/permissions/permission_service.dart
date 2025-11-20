@@ -1,3 +1,17 @@
+// Copyright 2025 Jabook Contributors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 import 'package:flutter/material.dart';
 import 'package:jabook/core/logging/structured_logger.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -75,12 +89,25 @@ class PermissionService {
 
       return storageStatus.isGranted;
     } on Exception catch (e) {
-      await _logger.log(
-        level: 'error',
-        subsystem: 'permissions',
-        message: 'Error requesting storage permission',
-        cause: e.toString(),
-      );
+      // Check if error is about missing Activity
+      final errorStr = e.toString();
+      if (errorStr.contains('Unable to detect current Android Activity') ||
+          errorStr.contains('Activity')) {
+        // This is expected during early app initialization - log as debug, not warning
+        await _logger.log(
+          level: 'debug',
+          subsystem: 'permissions',
+          message: 'Cannot request storage permission - Activity not available (expected during early initialization)',
+          cause: e.toString(),
+        );
+      } else {
+        await _logger.log(
+          level: 'error',
+          subsystem: 'permissions',
+          message: 'Error requesting storage permission',
+          cause: e.toString(),
+        );
+      }
       return false;
     }
   }
@@ -120,12 +147,25 @@ class PermissionService {
 
       return status.isGranted;
     } on Exception catch (e) {
-      await _logger.log(
-        level: 'error',
-        subsystem: 'permissions',
-        message: 'Error requesting notification permission',
-        cause: e.toString(),
-      );
+      // Check if error is about missing Activity
+      final errorStr = e.toString();
+      if (errorStr.contains('Unable to detect current Android Activity') ||
+          errorStr.contains('Activity')) {
+        // This is expected during early app initialization - log as debug, not warning
+        await _logger.log(
+          level: 'debug',
+          subsystem: 'permissions',
+          message: 'Cannot request notification permission - Activity not available (expected during early initialization)',
+          cause: e.toString(),
+        );
+      } else {
+        await _logger.log(
+          level: 'error',
+          subsystem: 'permissions',
+          message: 'Error requesting notification permission',
+          cause: e.toString(),
+        );
+      }
       return false;
     }
   }
@@ -257,6 +297,9 @@ class PermissionService {
   ///
   /// This method requests permissions that are critical for app functionality
   /// and should be called during app initialization.
+  /// 
+  /// Note: Only requests permissions that are actually needed.
+  /// Does not request camera or file picker permissions as they are not essential.
   Future<Map<String, bool>> requestEssentialPermissions() async {
     final results = <String, bool>{};
 
@@ -267,13 +310,42 @@ class PermissionService {
         message: 'Requesting essential permissions',
       );
 
-      // Request storage permission
-      results['storage'] = await requestStoragePermission();
+      // Request storage permission (only if needed - not for login)
+      // Skip if Activity is not available
+      try {
+        results['storage'] = await requestStoragePermission();
+      } on Exception catch (e) {
+        final errorStr = e.toString();
+        if (errorStr.contains('Unable to detect current Android Activity')) {
+          await _logger.log(
+            level: 'debug',
+            subsystem: 'permissions',
+            message: 'Skipping storage permission - Activity not available (expected during early initialization)',
+          );
+          results['storage'] = false;
+        } else {
+          rethrow;
+        }
+      }
 
       // Request notification permission
-      results['notification'] = await requestNotificationPermission();
+      try {
+        results['notification'] = await requestNotificationPermission();
+      } on Exception catch (e) {
+        final errorStr = e.toString();
+        if (errorStr.contains('Unable to detect current Android Activity')) {
+          await _logger.log(
+            level: 'debug',
+            subsystem: 'permissions',
+            message: 'Skipping notification permission - Activity not available (expected during early initialization)',
+          );
+          results['notification'] = false;
+        } else {
+          rethrow;
+        }
+      }
 
-      // Request audio permissions for media playback
+      // Request audio permissions for media playback (optional, non-blocking)
       results['audio'] = await _requestAudioPermissions();
 
       // Request network permissions
@@ -289,9 +361,9 @@ class PermissionService {
       return results;
     } on Exception catch (e) {
       await _logger.log(
-        level: 'error',
+        level: 'warning',
         subsystem: 'permissions',
-        message: 'Error requesting essential permissions',
+        message: 'Error requesting essential permissions (continuing anyway)',
         cause: e.toString(),
       );
       return results;
@@ -302,18 +374,33 @@ class PermissionService {
   Future<bool> _requestAudioPermissions() async {
     try {
       // Request wake lock permission for audio playback
+      // Note: This is optional and not critical for app functionality
       final wakeLockStatus =
           await Permission.ignoreBatteryOptimizations.request();
 
       return wakeLockStatus.isGranted;
     } on Exception catch (e) {
-      await _logger.log(
-        level: 'error',
-        subsystem: 'permissions',
-        message: 'Error requesting audio permissions',
-        cause: e.toString(),
-      );
-      return false;
+      // Check if error is about missing Activity
+      final errorStr = e.toString();
+      if (errorStr.contains('Unable to detect current Android Activity') ||
+          errorStr.contains('Activity')) {
+        // This is expected during early app initialization - log as debug, not warning
+        await _logger.log(
+          level: 'debug',
+          subsystem: 'permissions',
+          message: 'Cannot request audio permissions - Activity not available (expected during early initialization, non-critical)',
+          cause: e.toString(),
+        );
+      } else {
+        await _logger.log(
+          level: 'debug',
+          subsystem: 'permissions',
+          message: 'Error requesting audio permissions (non-critical)',
+          cause: e.toString(),
+        );
+      }
+      // Return true to not block app functionality - this permission is optional
+      return true;
     }
   }
 

@@ -620,7 +620,12 @@
   },
   "importedSuccess": "Imported $count audiobook(s)",
   "@importedSuccess": {
-    "description": "Message for successful import"
+    "description": "Message for successful import",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "noFilesSelectedMessage": "No files selected",
   "@noFilesSelectedMessage": {
@@ -628,7 +633,12 @@
   },
   "importFailedMessage": "Failed to import: $error",
   "@importFailedMessage": {
-    "description": "Message for import failure"
+    "description": "Message for import failure",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
   },
   "scanFolderTitle": "Scan Folder",
   "@scanFolderTitle": {
@@ -644,7 +654,12 @@
   },
   "scanSuccessMessage": "Found and imported $count audiobook(s)",
   "@scanSuccessMessage": {
-    "description": "Message for successful scan"
+    "description": "Message for successful scan",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "noAudiobooksFoundMessage": "No audiobook files found in selected folder",
   "@noAudiobooksFoundMessage": {
@@ -656,7 +671,12 @@
   },
   "scanFailedMessage": "Failed to scan folder: $error",
   "@scanFailedMessage": {
-    "description": "Message for scan failure"
+    "description": "Message for scan failure",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
   },
   "authScreenTitle": "RuTracker Connection",
   "@authScreenTitle": {
@@ -686,7 +706,45 @@
   "@logoutButtonText": {
     "description": "Text for logout button"
   },
-  
+  "loggingInText": "Logging in...",
+  "@loggingInText": {
+    "description": "Message during login"
+  },
+  "loginSuccessMessage": "Login successful!",
+  "@loginSuccessMessage": {
+    "description": "Message for successful login"
+  },
+  "loginFailedMessage": "Login failed. Please check credentials",
+  "@loginFailedMessage": {
+    "description": "Message for failed login"
+  },
+  "loginErrorMessage": "Login error: $error",
+  "@loginErrorMessage": {
+    "description": "Message for login error",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "connectionSuccessMessage": "Connection successful! Using: $endpoint",
+  "@connectionSuccessMessage": {
+    "description": "Message for successful connection test",
+    "placeholders": {
+      "endpoint": {
+        "type": "String"
+      }
+    }
+  },
+  "connectionFailedMessage": "Connection test failed: $error",
+  "@connectionFailedMessage": {
+    "description": "Message for failed connection test",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
   "loggingOutText": "Logging out...",
   "@loggingOutText": {
     "description": "Message during logout"
@@ -697,7 +755,12 @@
   },
   "logoutErrorMessage": "Logout error: $error",
   "@logoutErrorMessage": {
-    "description": "Message for logout error"
+    "description": "Message for logout error",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
   },
   "configureMirrorsSubtitle": "Configure and test RuTracker mirrors",
   "@configureMirrorsSubtitle": {
@@ -801,7 +864,12 @@
   },
   "lastCheckedText": "Last checked: $date",
   "@lastCheckedText": {
-    "description": "Text for showing mirror last check time"
+    "description": "Text for showing mirror last check time",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
   },
   "testMirrorButtonText": "Test this mirror",
   "@testMirrorButtonText": {
@@ -877,11 +945,21 @@
   },
   "networkErrorMessage": "Network error: $error",
   "@networkErrorMessage": {
-    "description": "Message for network error"
+    "description": "Message for network error",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
   },
   "errorLoadingTopicMessage": "Error loading topic: $error",
   "@errorLoadingTopicMessage": {
-    "description": "Message for topic loading error"
+    "description": "Message for topic loading error",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
   },
   "failedToLoadTopicMessage": "Failed to load topic",
   "@failedToLoadTopicMessage": {
@@ -905,7 +983,12 @@
   },
   "copyToClipboardMessage": "$label copied to clipboard",
   "@copyToClipboardMessage": {
-    "description": "Message for copy to clipboard"
+    "description": "Message for copy to clipboard",
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
   },
   "navLibraryText": "Library",
   "@navLibraryText": {
@@ -931,7 +1014,7 @@
   "@authDialogTitle": {
     "description": "Title for login screen"
   },
-  "authHelpText": "Enter your credentials",
+  "authHelpText": "Login to RuTracker to access audiobook search and downloads. Your credentials are stored securely.",
   "@authHelpText": {
     "description": "Help text for authentication"
   },
@@ -951,8 +1034,753 @@
   "@logsExportedSuccessfullyMessage": {
     "description": "Message for successful log export"
   },
-  "mirrorHealthCheckCompletedMessage": "Mirror health check completed",
+  "mirrorHealthCheckCompletedMessage": "Mirror health check completed: $tested/$total mirrors",
   "@mirrorHealthCheckCompletedMessage": {
-    "description": "Message for completed mirror health check"
+    "description": "Message for completed mirror health check",
+    "placeholders": {
+      "tested": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "noActiveMirrorsMessage": "No active mirrors to test",
+  "@noActiveMirrorsMessage": {
+    "description": "Message when no active mirrors available for testing"
+  },
+  "activeMirrorSetMessage": "Active mirror set: $url",
+  "@activeMirrorSetMessage": {
+    "description": "Message when active mirror is set",
+    "placeholders": {
+      "url": {
+        "type": "String"
+      }
+    }
+  },
+  "failedToSetActiveMirrorMessage": "Failed to set active mirror: $error",
+  "@failedToSetActiveMirrorMessage": {
+    "description": "Message when failed to set active mirror",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "activeMirrorText": "Active mirror: $url",
+  "@activeMirrorText": {
+    "description": "Text showing active mirror",
+    "placeholders": {
+      "url": {
+        "type": "String"
+      }
+    }
+  },
+  "failedToSetBestMirrorMessage": "Failed to set best mirror: $error",
+  "@failedToSetBestMirrorMessage": {
+    "description": "Message when failed to set best mirror",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "activeMirrorDisabledMessage": "Active mirror disabled. Switched to: $url",
+  "@activeMirrorDisabledMessage": {
+    "description": "Message when active mirror is disabled and switched",
+    "placeholders": {
+      "url": {
+        "type": "String"
+      }
+    }
+  },
+  "warningFailedToSelectNewActiveMirrorMessage": "Warning: failed to select new active mirror: $error",
+  "@warningFailedToSelectNewActiveMirrorMessage": {
+    "description": "Warning message when failed to select new active mirror",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "urlCopiedToClipboardMessage": "URL copied to clipboard",
+  "@urlCopiedToClipboardMessage": {
+    "description": "Message when URL is copied to clipboard"
+  },
+  "editPriorityTitle": "Edit Priority",
+  "@editPriorityTitle": {
+    "description": "Title for edit priority dialog"
+  },
+  "priorityHelperText": "Lower number = higher priority",
+  "@priorityHelperText": {
+    "description": "Helper text for priority input"
+  },
+  "saveButtonText": "Save",
+  "@saveButtonText": {
+    "description": "Save button text"
+  },
+  "priorityUpdatedMessage": "Priority updated: $priority",
+  "@priorityUpdatedMessage": {
+    "description": "Message when priority is updated",
+    "placeholders": {
+      "priority": {
+        "type": "int"
+      }
+    }
+  },
+  "failedToUpdatePriorityMessage": "Failed to update priority: $error",
+  "@failedToUpdatePriorityMessage": {
+    "description": "Message when failed to update priority",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "deleteMirrorTitle": "Delete Mirror?",
+  "@deleteMirrorTitle": {
+    "description": "Title for delete mirror dialog"
+  },
+  "defaultMirrorWarningMessage": "Warning: this is a default mirror. It will be removed from the list, but can be added again.",
+  "@defaultMirrorWarningMessage": {
+    "description": "Warning message for default mirror deletion"
+  },
+  "confirmDeleteMirrorMessage": "Are you sure you want to delete this mirror?",
+  "@confirmDeleteMirrorMessage": {
+    "description": "Confirmation message for mirror deletion"
+  },
+  "deleteButtonText": "Delete",
+  "@deleteButtonText": {
+    "description": "Delete button text"
+  },
+  "mirrorDeletedMessage": "Mirror deleted: $url",
+  "@mirrorDeletedMessage": {
+    "description": "Message when mirror is deleted",
+    "placeholders": {
+      "url": {
+        "type": "String"
+      }
+    }
+  },
+  "failedToDeleteMirrorMessage": "Failed to delete mirror: $error",
+  "@failedToDeleteMirrorMessage": {
+    "description": "Message when failed to delete mirror",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "urlMustStartWithHttpMessage": "URL must start with http:// or https://",
+  "@urlMustStartWithHttpMessage": {
+    "description": "Message when URL format is invalid"
+  },
+  "invalidUrlFormatMessage": "Invalid URL format",
+  "@invalidUrlFormatMessage": {
+    "description": "Message for invalid URL format"
+  },
+  "mirrorAlreadyExistsMessage": "This mirror already exists in the list",
+  "@mirrorAlreadyExistsMessage": {
+    "description": "Message when mirror already exists"
+  },
+  "onlyActiveFilterText": "Only Active",
+  "@onlyActiveFilterText": {
+    "description": "Filter text for showing only active mirrors"
+  },
+  "onlyHealthyFilterText": "Only Healthy",
+  "@onlyHealthyFilterText": {
+    "description": "Filter text for showing only healthy mirrors"
+  },
+  "sortByPriorityText": "By Priority",
+  "@sortByPriorityText": {
+    "description": "Sort option text for priority"
+  },
+  "sortByHealthText": "By Health",
+  "@sortByHealthText": {
+    "description": "Sort option text for health"
+  },
+  "sortBySpeedText": "By Speed",
+  "@sortBySpeedText": {
+    "description": "Sort option text for speed"
+  },
+  "noMirrorsMatchFiltersMessage": "No mirrors match the filters",
+  "@noMirrorsMatchFiltersMessage": {
+    "description": "Message when no mirrors match filters"
+  },
+  "setBestMirrorButtonText": "Set Best Mirror",
+  "@setBestMirrorButtonText": {
+    "description": "Button text for setting best mirror"
+  },
+  "healthScoreText": "Health: $score%",
+  "@healthScoreText": {
+    "description": "Text showing health score",
+    "placeholders": {
+      "score": {
+        "type": "int"
+      }
+    }
+  },
+  "priorityText": "Priority: $priority",
+  "@priorityText": {
+    "description": "Text showing priority",
+    "placeholders": {
+      "priority": {
+        "type": "int"
+      }
+    }
+  },
+  "setAsActiveTooltip": "Set as active",
+  "@setAsActiveTooltip": {
+    "description": "Tooltip for set as active button"
+  },
+  "copyUrlTooltip": "Copy URL",
+  "@copyUrlTooltip": {
+    "description": "Tooltip for copy URL button"
+  },
+  "deleteMirrorTooltip": "Delete mirror",
+  "@deleteMirrorTooltip": {
+    "description": "Tooltip for delete mirror button"
+  },
+  "activeLabelText": "Active",
+  "@activeLabelText": {
+    "description": "Label text for active status"
+  },
+  "failedToClearCacheMessage": "Failed to clear cache: $error",
+  "@failedToClearCacheMessage": {
+    "description": "Message for failed cache clearing",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "failedToTestMirrorsMessage": "Failed to test mirrors: $error",
+  "@failedToTestMirrorsMessage": {
+    "description": "Message for failed mirror testing",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "mirrorStatusDegraded": "Degraded",
+  "@mirrorStatusDegraded": {
+    "description": "Status for degraded mirror"
+  },
+  "mirrorStatusUnhealthy": "Unhealthy",
+  "@mirrorStatusUnhealthy": {
+    "description": "Status for unhealthy mirror"
+  },
+  "pleaseEnterCredentials": "Please enter username and password",
+  "@pleaseEnterCredentials": {
+    "description": "Message prompting for credentials"
+  },
+  "testingConnectionText": "Testing connection...",
+  "@testingConnectionText": {
+    "description": "Message during connection testing"
+  },
+  "favoritesTitle": "Favorites",
+  "@favoritesTitle": {
+    "description": "Title for favorites screen"
+  },
+  "refreshTooltip": "Refresh",
+  "@refreshTooltip": {
+    "description": "Tooltip for refresh button"
+  },
+  "noFavoritesMessage": "No favorite audiobooks",
+  "@noFavoritesMessage": {
+    "description": "Message when no favorites"
+  },
+  "addFavoritesHint": "Add audiobooks to favorites from search results",
+  "@addFavoritesHint": {
+    "description": "Hint for empty favorites"
+  },
+  "goToSearchButton": "Go to Search",
+  "@goToSearchButton": {
+    "description": "Button to navigate to search"
+  },
+  "removedFromFavorites": "Removed from favorites",
+  "@removedFromFavorites": {
+    "description": "Message when removed from favorites"
+  },
+  "failedToRemoveFromFavorites": "Failed to remove from favorites",
+  "@failedToRemoveFromFavorites": {
+    "description": "Error message for failed removal"
+  },
+  "favoritesTooltip": "Favorites",
+  "@favoritesTooltip": {
+    "description": "Tooltip for favorites button"
+  },
+  "filterLibraryTooltip": "Filter library",
+  "@filterLibraryTooltip": {
+    "description": "Tooltip for filter button"
+  },
+  "addAudiobookTooltip": "Add audiobook",
+  "@addAudiobookTooltip": {
+    "description": "Tooltip for add audiobook button"
+  },
+  "libraryEmptyMessage": "Your library is empty",
+  "@libraryEmptyMessage": {
+    "description": "Message when library is empty"
+  },
+  "addAudiobooksHint": "Add audiobooks to your library to start listening",
+  "@addAudiobooksHint": {
+    "description": "Hint for empty library"
+  },
+  "searchForAudiobooksButton": "Search for audiobooks",
+  "@searchForAudiobooksButton": {
+    "description": "Button label for searching"
+  },
+  "importFromFilesButton": "Import from Files",
+  "@importFromFilesButton": {
+    "description": "Button label for importing files"
+  },
+  "biometricAuthInProgress": "Please wait, biometric authentication in progress...",
+  "@biometricAuthInProgress": {
+    "description": "Message during biometric authentication"
+  },
+  "authorizationSuccessful": "Authorization successful",
+  "@authorizationSuccessful": {
+    "description": "Message for successful authorization"
+  },
+  "authorizationTitle": "Authorization",
+  "@authorizationTitle": {
+    "description": "Title for authorization dialog"
+  },
+  "biometricUnavailableMessage": "Biometric authentication is unavailable or failed. Open WebView to login?",
+  "@biometricUnavailableMessage": {
+    "description": "Message when biometric auth is unavailable"
+  },
+  "openWebViewButton": "Open WebView",
+  "@openWebViewButton": {
+    "description": "Button to open WebView login"
+  },
+  "authorizationCheckError": "Error checking authorization: $error",
+  "@authorizationCheckError": {
+    "description": "Error message for authorization check",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "authorizationFailedMessage": "Authorization failed. Please check your login and password",
+  "@authorizationFailedMessage": {
+    "description": "Message for failed authorization"
+  },
+  "authorizationPageError": "Error opening authorization page: $error",
+  "@authorizationPageError": {
+    "description": "Error message for authorization page",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "filtersLabel": "Filters:",
+  "@filtersLabel": {
+    "description": "Label for filters section"
+  },
+  "resetButton": "Reset",
+  "@resetButton": {
+    "description": "Button to reset filters"
+  },
+  "otherCategory": "Other",
+  "@otherCategory": {
+    "description": "Fallback category name"
+  },
+  "searchHistoryTitle": "Search History",
+  "@searchHistoryTitle": {
+    "description": "Title for search history section"
+  },
+  "clearButton": "Clear",
+  "@clearButton": {
+    "description": "Button to clear history"
+  },
+  "failedToAddToFavorites": "Failed to add to favorites",
+  "@failedToAddToFavorites": {
+    "description": "Error message for failed favorite addition"
+  },
+  "loadMoreButton": "Load more",
+  "@loadMoreButton": {
+    "description": "Button to load more results"
+  },
+  "allowButton": "Allow",
+  "@allowButton": {
+    "description": "Button to allow permission"
+  },
+  "copyMagnetLink": "Copy Magnet Link",
+  "@copyMagnetLink": {
+    "description": "Menu item to copy magnet link"
+  },
+  "downloadTorrentMenu": "Download Torrent",
+  "@downloadTorrentMenu": {
+    "description": "Menu item to download torrent"
+  },
+  "openTorrentInExternalApp": "Open torrent file in external app",
+  "@openTorrentInExternalApp": {
+    "description": "Subtitle for torrent download"
+  },
+  "failedToOpenTorrent": "Failed to open torrent: $error",
+  "@failedToOpenTorrent": {
+    "description": "Error message for failed torrent opening",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "urlUnavailable": "URL unavailable",
+  "@urlUnavailable": {
+    "description": "Error message for unavailable URL"
+  },
+  "invalidUrlFormat": "Invalid URL format: $url",
+  "@invalidUrlFormat": {
+    "description": "Error message for invalid URL",
+    "placeholders": {
+      "url": {
+        "type": "String"
+      }
+    }
+  },
+  "genericError": "Error: $error",
+  "@genericError": {
+    "description": "Generic error message",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "retryConnectionMessage": "Retrying connection ($current/$max)...",
+  "@retryConnectionMessage": {
+    "description": "Message for retrying connection",
+    "placeholders": {
+      "current": {
+        "type": "int"
+      },
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "loadError": "Load error: $desc",
+  "@loadError": {
+    "description": "Error message for load failure",
+    "placeholders": {
+      "desc": {
+        "type": "String"
+      }
+    }
+  },
+  "pageLoadError": "An error occurred while loading the page",
+  "@pageLoadError": {
+    "description": "Error message for page load failure"
+  },
+  "securityVerificationInProgress": "Security verification in progress - please wait...",
+  "@securityVerificationInProgress": {
+    "description": "Message during security verification"
+  },
+  "openInBrowserButton": "Open in Browser",
+  "@openInBrowserButton": {
+    "description": "Button to open in browser"
+  },
+  "fileWillOpenInBrowser": "The file will be opened in browser for download",
+  "@fileWillOpenInBrowser": {
+    "description": "Message for file download in browser"
+  },
+  "resetFiltersButton": "Reset Filters",
+  "@resetFiltersButton": {
+    "description": "Button to reset filters"
+  },
+  "languageChangedMessage": "Language changed to $languageName",
+  "@languageChangedMessage": {
+    "description": "Message when language is changed",
+    "placeholders": {
+      "languageName": {
+        "type": "String"
+      }
+    }
+  },
+  "rutrackerSessionDescription": "RuTracker session management (cookie)",
+  "@rutrackerSessionDescription": {
+    "description": "Description for RuTracker session section"
+  },
+  "loginViaWebViewButton": "Login to RuTracker via WebView",
+  "@loginViaWebViewButton": {
+    "description": "Button text for WebView login"
+  },
+  "loginViaWebViewSubtitle": "Pass Cloudflare/captcha and save cookie for client",
+  "@loginViaWebViewSubtitle": {
+    "description": "Subtitle for WebView login button"
+  },
+  "cookiesSavedForHttpClient": "Cookies saved for HTTP client",
+  "@cookiesSavedForHttpClient": {
+    "description": "Message when cookies are saved"
+  },
+  "clearSessionButton": "Clear RuTracker session (cookie)",
+  "@clearSessionButton": {
+    "description": "Button text to clear session"
+  },
+  "clearSessionSubtitle": "Delete saved cookies and logout from account",
+  "@clearSessionSubtitle": {
+    "description": "Subtitle for clear session button"
+  },
+  "sessionClearedMessage": "RuTracker session cleared",
+  "@sessionClearedMessage": {
+    "description": "Message when session is cleared"
+  },
+  "metadataSectionTitle": "Audiobook Metadata",
+  "@metadataSectionTitle": {
+    "description": "Title for metadata section"
+  },
+  "metadataSectionDescription": "Manage local audiobook metadata database",
+  "@metadataSectionDescription": {
+    "description": "Description for metadata section"
+  },
+  "totalRecordsLabel": "Total records",
+  "@totalRecordsLabel": {
+    "description": "Label for total records"
+  },
+  "lastUpdateLabel": "Last update",
+  "@lastUpdateLabel": {
+    "description": "Label for last update"
+  },
+  "updatingText": "Updating...",
+  "@updatingText": {
+    "description": "Text shown during update"
+  },
+  "updateMetadataButton": "Update Metadata",
+  "@updateMetadataButton": {
+    "description": "Button text to update metadata"
+  },
+  "metadataUpdateStartedMessage": "Metadata update started...",
+  "@metadataUpdateStartedMessage": {
+    "description": "Message when metadata update starts"
+  },
+  "metadataUpdateCompletedMessage": "Update completed: collected $total records",
+  "@metadataUpdateCompletedMessage": {
+    "description": "Message when metadata update completes",
+    "placeholders": {
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "metadataUpdateError": "Update error: $error",
+  "@metadataUpdateError": {
+    "description": "Error message for metadata update",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "neverDate": "Never",
+  "@neverDate": {
+    "description": "Text for never date"
+  },
+  "daysAgo": "$days days ago",
+  "@daysAgo": {
+    "description": "Text for days ago",
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "hoursAgo": "$hours hours ago",
+  "@hoursAgo": {
+    "description": "Text for hours ago",
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      }
+    }
+  },
+  "minutesAgo": "$minutes minutes ago",
+  "@minutesAgo": {
+    "description": "Text for minutes ago",
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "justNow": "Just now",
+  "@justNow": {
+    "description": "Text for just now"
+  },
+  "unknownDate": "Unknown",
+  "@unknownDate": {
+    "description": "Text for unknown date"
+  },
+  "playbackSpeedDefault": "1.0x",
+  "@playbackSpeedDefault": {
+    "description": "Default playback speed"
+  },
+  "skipDurationDefault": "15 seconds",
+  "@skipDurationDefault": {
+    "description": "Default skip duration"
+  },
+  "clearExpiredCacheButton": "Clear Expired Cache",
+  "@clearExpiredCacheButton": {
+    "description": "Button text to clear expired cache"
+  },
+  "appPermissionsTitle": "App Permissions",
+  "@appPermissionsTitle": {
+    "description": "Title for permissions section"
+  },
+  "storagePermissionName": "Storage",
+  "@storagePermissionName": {
+    "description": "Name for storage permission"
+  },
+  "storagePermissionDescription": "Save audiobook files and cache data",
+  "@storagePermissionDescription": {
+    "description": "Description for storage permission"
+  },
+  "notificationsPermissionName": "Notifications",
+  "@notificationsPermissionName": {
+    "description": "Name for notifications permission"
+  },
+  "notificationsPermissionDescription": "Show playback controls and updates",
+  "@notificationsPermissionDescription": {
+    "description": "Description for notifications permission"
+  },
+  "grantAllPermissionsButton": "Grant All Permissions",
+  "@grantAllPermissionsButton": {
+    "description": "Button text to grant all permissions"
+  },
+  "allPermissionsGranted": "All permissions granted",
+  "@allPermissionsGranted": {
+    "description": "Message when all permissions are granted"
+  },
+  "fileAccessAvailable": "File access available",
+  "@fileAccessAvailable": {
+    "description": "Message when file access is available"
+  },
+  "fileAccessUnavailable": "File access unavailable",
+  "@fileAccessUnavailable": {
+    "description": "Message when file access is unavailable"
+  },
+  "notificationsAvailable": "Notifications available",
+  "@notificationsAvailable": {
+    "description": "Message when notifications are available"
+  },
+  "notificationsUnavailable": "Notifications unavailable",
+  "@notificationsUnavailable": {
+    "description": "Message when notifications are unavailable"
+  },
+  "capabilitiesStatus": "Capabilities: $grantedCount/$total",
+  "@capabilitiesStatus": {
+    "description": "Status message for capabilities",
+    "placeholders": {
+      "grantedCount": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "backupRestoreTitle": "Backup & Restore",
+  "@backupRestoreTitle": {
+    "description": "Title for backup and restore section"
+  },
+  "backupRestoreDescription": "Export and import your data (favorites, history, metadata)",
+  "@backupRestoreDescription": {
+    "description": "Description for backup and restore section"
+  },
+  "exportDataButton": "Export Data",
+  "@exportDataButton": {
+    "description": "Button text to export data"
+  },
+  "exportDataSubtitle": "Save all your data to a backup file",
+  "@exportDataSubtitle": {
+    "description": "Subtitle for export data button"
+  },
+  "importDataButton": "Import Data",
+  "@importDataButton": {
+    "description": "Button text to import data"
+  },
+  "importDataSubtitle": "Restore data from a backup file",
+  "@importDataSubtitle": {
+    "description": "Subtitle for import data button"
+  },
+  "exportingDataMessage": "Exporting data...",
+  "@exportingDataMessage": {
+    "description": "Message when exporting data"
+  },
+  "dataExportedSuccessfullyMessage": "Data exported successfully",
+  "@dataExportedSuccessfullyMessage": {
+    "description": "Message when data export succeeds"
+  },
+  "failedToExportMessage": "Failed to export: $error",
+  "@failedToExportMessage": {
+    "description": "Error message for failed export",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "importBackupTitle": "Import Backup",
+  "@importBackupTitle": {
+    "description": "Title for import backup dialog"
+  },
+  "importBackupConfirmationMessage": "This will import data from the backup file. Existing data may be merged or replaced. Continue?",
+  "@importBackupConfirmationMessage": {
+    "description": "Confirmation message for import backup"
+  },
+  "importButton": "Import",
+  "@importButton": {
+    "description": "Button text to import"
+  },
+  "importingDataMessage": "Importing data...",
+  "@importingDataMessage": {
+    "description": "Message when importing data"
+  },
+  "failedToImportMessage": "Failed to import: $error",
+  "@failedToImportMessage": {
+    "description": "Error message for failed import",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "rutrackerLoginTooltip": "RuTracker Login",
+  "@rutrackerLoginTooltip": {
+    "description": "Tooltip for RuTracker login button"
+  },
+  "mirrorsTooltip": "Mirrors",
+  "@mirrorsTooltip": {
+    "description": "Tooltip for mirrors button"
+  },
+  "currentMirrorLabel": "Current mirror: {host}",
+  "@currentMirrorLabel": {
+    "description": "Label showing current active mirror",
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "allMirrorsFailedMessage": "All mirrors failed",
+  "@allMirrorsFailedMessage": {
+    "description": "Error message when all mirrors fail"
+  },
+  "unknownError": "Unknown error",
+  "@unknownError": {
+    "description": "Message for unknown error"
+  },
+  "mirrorConnectionError": "Could not connect to RuTracker mirrors. Check your internet connection or try selecting another mirror in settings",
+  "@mirrorConnectionError": {
+    "description": "Error message when cannot connect to RuTracker mirrors"
+  },
+  "mirrorConnectionFailed": "Could not connect to RuTracker mirrors",
+  "@mirrorConnectionFailed": {
+    "description": "Short error message when cannot connect to RuTracker mirrors"
   }
 }

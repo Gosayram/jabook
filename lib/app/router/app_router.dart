@@ -1,8 +1,23 @@
+// Copyright 2025 Jabook Contributors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:jabook/core/config/app_config.dart';
+import 'package:jabook/features/auth/presentation/screens/auth_screen.dart';
 import 'package:jabook/features/debug/presentation/screens/debug_screen.dart';
 import 'package:jabook/features/library/presentation/screens/favorites_screen.dart';
 import 'package:jabook/features/library/presentation/screens/library_screen.dart';
@@ -66,10 +81,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       path: '/favorites',
       builder: (context, state) => const FavoritesScreen(),
     ),
+    GoRoute(
+      path: '/auth',
+      builder: (context, state) => const AuthScreen(),
+    ),
   ];
 
   return GoRouter(
     routes: routes,
+    // Use redirect to control navigation and prevent building screens before ready
+    redirect: (context, state) => null, // null means proceed with navigation
     initialLocation: '/',
     errorBuilder: (context, state) => Scaffold(
       appBar: AppBar(
@@ -144,7 +165,15 @@ class _MainNavigationWrapperState
   @override
   Widget build(BuildContext context) {
     // Get current location to determine selected index
-    final currentLocation = GoRouterState.of(context).uri.toString();
+    // Safely get router state - handle case where router is not ready yet
+    var currentLocation = '/';
+    try {
+      final routerState = GoRouterState.of(context);
+      currentLocation = routerState.uri.toString();
+    } on Exception {
+      // Router not ready yet - use default location
+      currentLocation = '/';
+    }
     final navigationItems = _buildNavigationItems(context);
     _selectedIndex =
         navigationItems.indexWhere((item) => item.route == currentLocation);

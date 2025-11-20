@@ -1,5 +1,21 @@
+// Copyright 2025 Jabook Contributors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 import 'dart:async';
 
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:jabook/core/endpoints/endpoint_manager.dart';
@@ -10,6 +26,7 @@ import 'package:jabook/core/stream/local_stream_server.dart';
 import 'package:jabook/data/db/app_database.dart';
 import 'package:jabook/l10n/app_localizations.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:rxdart/rxdart.dart';
 
 /// Main audiobook player screen.
 ///
@@ -66,13 +83,19 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       await _loadAudiobookFromRutracker();
 
       // Set up audio player listeners
-      _positionSubscription = _audioPlayer.positionStream.listen((position) {
-        setState(() {
-          _currentPosition = position;
-        });
+      // Throttle position updates to avoid excessive rebuilds (update every 200ms)
+      _positionSubscription = _audioPlayer.positionStream
+          .throttleTime(const Duration(milliseconds: 200))
+          .listen((position) {
+        if (mounted) {
+          setState(() {
+            _currentPosition = position;
+          });
+        }
       });
 
       _playerStateSubscription = _audioPlayer.playerStateStream.listen((state) {
+        if (!mounted) return;
         setState(() {
           _isPlaying = state.playing;
           _isLoading = state.processingState == ProcessingState.loading;
@@ -83,7 +106,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
             _audiobook != null &&
             _audiobook!.chapters.length > 1) {
           final currentIndex = _audioPlayer.currentIndex ?? 0;
-          if (currentIndex != _currentChapterIndex) {
+          if (currentIndex != _currentChapterIndex && mounted) {
             setState(() {
               _currentChapterIndex = currentIndex;
             });
@@ -93,6 +116,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 
       // Set total duration
       _audioPlayer.durationStream.listen((duration) async {
+        if (!mounted) return;
         setState(() {
           _totalDuration = duration ?? Duration.zero;
         });
@@ -159,7 +183,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       final base = await endpointManager.getActiveEndpoint();
       final dio = await DioClient.instance;
       final response = await dio.get('$base/forum/viewtopic.php',
-          queryParameters: {'t': widget.bookId});
+          queryParameters: {'t': widget.bookId},
+          options: Options(
+            responseType: ResponseType.plain, // Ensure gzip is automatically decompressed
+          ));
       if (response.statusCode == 200) {
         final parsed = await RuTrackerParser().parseTopicDetails(response.data);
         if (parsed != null) {
@@ -349,13 +376,41 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                   // ignore: deprecated_member_use_from_same_package
                   final coverUrl = (_audiobook as dynamic).coverUrl as String?;
                   if (coverUrl != null && coverUrl.isNotEmpty) {
-                    return ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: Image.network(
-                        coverUrl,
-                        width: 96,
-                        height: 96,
-                        fit: BoxFit.cover,
+                    return RepaintBoundary(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: CachedNetworkImage(
+                          imageUrl: coverUrl,
+                          width: 96,
+                          height: 96,
+                          fit: BoxFit.cover,
+                          placeholder: (context, url) => Container(
+                            width: 96,
+                            height: 96,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .surfaceContainerHighest,
+                            child: const Center(
+                              child: SizedBox(
+                                width: 24,
+                                height: 24,
+                                child:
+                                    CircularProgressIndicator(strokeWidth: 2),
+                              ),
+                            ),
+                          ),
+                          errorWidget: (context, url, error) => Container(
+                            width: 96,
+                            height: 96,
+                            color: Theme.of(context).colorScheme.errorContainer,
+                            child: Icon(
+                              Icons.error_outline,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onErrorContainer,
+                            ),
+                          ),
+                        ),
                       ),
                     );
                   }
@@ -466,12 +521,15 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                       itemCount: _audiobook!.chapters.length,
                       itemBuilder: (context, index) {
                         final chapter = _audiobook!.chapters[index];
-                        return ListTile(
-                          leading: const Icon(Icons.book),
-                          title: Text(chapter.title),
-                          subtitle: Text(_formatDuration(
-                              Duration(milliseconds: chapter.durationMs))),
-                          onTap: () => _seekToChapter(chapter),
+                        // Use RepaintBoundary to isolate repaints for each chapter item
+                        return RepaintBoundary(
+                          child: ListTile(
+                            leading: const Icon(Icons.book),
+                            title: Text(chapter.title),
+                            subtitle: Text(_formatDuration(
+                                Duration(milliseconds: chapter.durationMs))),
+                            onTap: () => _seekToChapter(chapter),
+                          ),
                         );
                       },
                     ),

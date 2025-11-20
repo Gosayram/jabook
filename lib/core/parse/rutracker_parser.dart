@@ -1,8 +1,23 @@
+// Copyright 2025 Jabook Contributors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 import 'dart:convert';
 
 import 'package:html/dom.dart';
 import 'package:html/parser.dart' as parser;
 import 'package:jabook/core/errors/failures.dart';
+import 'package:jabook/core/logging/structured_logger.dart';
 import 'package:windows1251/windows1251.dart';
 
 /// Represents an audiobook with metadata from RuTracker.
@@ -101,17 +116,18 @@ class Chapter {
 class RuTrackerParser {
   // CSS selectors centralized for easier maintenance
   static const String _rowSelector = 'tr.hl-tr';
-  static const String _titleSelector = 'a.torTopic, a.torTopic.tt-text';
+  static const String _titleSelector = 'a.torTopic, a.torTopic.tt-text, a[href*="viewtopic.php?t="]';
   static const String _authorSelector =
       'a.pmed, .topicAuthor a, a[href*="profile.php"]';
   static const String _sizeSelector = 'span.small, a.f-dl.dl-stub';
   static const String _seedersSelector = 'span.seedmed, span.seedmed b';
   static const String _leechersSelector = 'span.leechmed, span.leechmed b';
   static const String _downloadHrefSelector = 'a[href^="dl.php?t="]';
-  static const String _coverSelector =
-      'img[src*="static.rutracker"], img.postimg';
-  static const String _postBodySelector = '.post-body';
-  static const String _maintitleSelector = 'h1.maintitle';
+  static const String _magnetLinkSelector = 'a.magnet-link, a[href^="magnet:"]';
+  static const String _postBodySelector = '.post_body, .post-body';
+  static const String _maintitleSelector = 'h1.maintitle a, h1.maintitle';
+  static const String _torStatsSelector = '#t-tor-stats';
+  static const String _torSizeSelector = '#tor-size-humn, span#tor-size-humn';
 
   /// Parses search results from RuTracker search page HTML.
   ///
@@ -119,70 +135,603 @@ class RuTrackerParser {
   /// audiobook information including titles, authors, magnet links, etc.
   /// It automatically handles character encoding (UTF-8 or Windows-1251).
   ///
-  /// The [html] parameter contains the HTML content of the search results page.
+  /// The [htmlData] parameter contains the HTML content of the search results page.
+  /// The [contentType] parameter is the Content-Type header value for encoding detection.
   ///
   /// Returns a list of [Audiobook] objects found in the search results.
   ///
   /// Throws [ParsingFailure] if the HTML cannot be parsed.
-  Future<List<Audiobook>> parseSearchResults(String html) async {
+  Future<List<Audiobook>> parseSearchResults(
+    dynamic htmlData, {
+    String? contentType,
+  }) async {
+    final logger = StructuredLogger();
     try {
-      // Try UTF-8 first, fallback to cp1251
       String decodedHtml;
-      try {
-        decodedHtml = utf8.decode(html.codeUnits);
-      } on FormatException {
-        decodedHtml = windows1251.decode(html.codeUnits);
+      
+      // Log initial data type and size for diagnostics
+      final dataType = htmlData.runtimeType.toString();
+      final dataSize = htmlData is List<int> 
+          ? htmlData.length 
+          : (htmlData is String ? htmlData.length : 0);
+      
+      await logger.log(
+        level: 'debug',
+        subsystem: 'parser',
+        message: 'Starting HTML decoding',
+        context: 'parse_search_results',
+        extra: {
+          'data_type': dataType,
+          'data_size_bytes': dataSize,
+          'content_type': contentType ?? 'not_provided',
+        },
+      );
+      
+      // Determine encoding from Content-Type header if available
+      String? detectedEncoding;
+      if (contentType != null) {
+        final charsetMatch = RegExp(r'charset=([^;\s]+)', caseSensitive: false)
+            .firstMatch(contentType);
+        if (charsetMatch != null) {
+          detectedEncoding = charsetMatch.group(1)?.toLowerCase();
+        }
+      }
+      
+      if (htmlData is String) {
+        // String data - check if it's already correctly decoded
+        // If it contains typical Windows-1251 characters incorrectly decoded as UTF-8,
+        // we might need to re-encode, but this is complex, so we'll use as-is for now
+        decodedHtml = htmlData;
+        
+        await logger.log(
+          level: 'debug',
+          subsystem: 'parser',
+          message: 'HTML data is already a String, using as-is',
+          context: 'parse_search_results',
+          extra: {
+            'string_length': decodedHtml.length,
+            'preview': decodedHtml.length > 200 
+                ? decodedHtml.substring(0, 200) 
+                : decodedHtml,
+          },
+        );
+        
+        // Check for signs of incorrect encoding (mojibake)
+        // If string contains replacement characters or unusual sequences, it might be wrong
+        if (decodedHtml.contains('\uFFFD') || 
+            (decodedHtml.contains('Р') && decodedHtml.contains('С'))) {
+          // Possible encoding issue, but we can't fix it from String
+          await logger.log(
+            level: 'warning',
+            subsystem: 'parser',
+            message: 'Possible encoding issue detected in String data',
+            context: 'parse_search_results',
+            extra: {
+              'has_replacement_char': decodedHtml.contains('\uFFFD'),
+            },
+          );
+        }
+      } else if (htmlData is List<int>) {
+        // Binary data (bytes) - decode based on detected encoding or try both
+        // Note: Brotli decompression is handled automatically by DioBrotliTransformer in DioClient
+        // These bytes are already decompressed and ready for encoding conversion
+        // They need to be decoded from Windows-1251 (RuTracker default)
+        final bytes = htmlData;
+        
+        // Validate bytes before decoding
+        if (bytes.isEmpty) {
+          throw const ParsingFailure(
+            'Received empty bytes. This may indicate a network error.',
+          );
+        }
+        
+        await logger.log(
+          level: 'debug',
+          subsystem: 'parser',
+          message: 'Decoding bytes (Brotli already decompressed by Dio transformer)',
+          context: 'parse_search_results',
+          extra: {
+            'bytes_length': bytes.length,
+            'detected_encoding': detectedEncoding ?? 'auto-detect',
+            'first_bytes_preview': bytes.length > 50 
+                ? bytes.sublist(0, 50).toString() 
+                : bytes.toString(),
+          },
+        );
+        
+        if (detectedEncoding != null) {
+          // Use detected encoding from Content-Type header
+          if (detectedEncoding.contains('windows-1251') || 
+              detectedEncoding.contains('cp1251') ||
+              detectedEncoding.contains('1251')) {
+            try {
+              decodedHtml = windows1251.decode(bytes);
+              await logger.log(
+                level: 'debug',
+                subsystem: 'parser',
+                message: 'Successfully decoded with Windows-1251',
+                context: 'parse_search_results',
+                extra: {
+                  'decoded_length': decodedHtml.length,
+                  'preview': decodedHtml.length > 200 
+                      ? decodedHtml.substring(0, 200) 
+                      : decodedHtml,
+                },
+              );
+            } on Exception catch (e) {
+              await logger.log(
+                level: 'warning',
+                subsystem: 'parser',
+                message: 'Windows-1251 decoding failed, trying UTF-8',
+                context: 'parse_search_results',
+                cause: e.toString(),
+              );
+              // Fallback to UTF-8 if Windows-1251 fails
+              try {
+                decodedHtml = utf8.decode(bytes);
+              } on FormatException catch (e2) {
+                await logger.log(
+                  level: 'error',
+                  subsystem: 'parser',
+                  message: 'Both Windows-1251 and UTF-8 decoding failed',
+                  context: 'parse_search_results',
+                  cause: e2.toString(),
+                );
+                throw ParsingFailure(
+                  'Failed to decode bytes: Windows-1251 failed (${e.toString()}), UTF-8 failed (${e2.toString()})',
+                  e2,
+                );
+              }
+            }
+          } else if (detectedEncoding.contains('utf-8') || 
+                     detectedEncoding.contains('utf8')) {
+            try {
+              decodedHtml = utf8.decode(bytes);
+              await logger.log(
+                level: 'debug',
+                subsystem: 'parser',
+                message: 'Successfully decoded with UTF-8',
+                context: 'parse_search_results',
+                extra: {
+                  'decoded_length': decodedHtml.length,
+                },
+              );
+            } on FormatException catch (e) {
+              await logger.log(
+                level: 'warning',
+                subsystem: 'parser',
+                message: 'UTF-8 decoding failed, trying Windows-1251',
+                context: 'parse_search_results',
+                cause: e.toString(),
+              );
+              // Fallback to Windows-1251 if UTF-8 fails (RuTracker sometimes lies)
+              try {
+                decodedHtml = windows1251.decode(bytes);
+              } on Exception catch (e2) {
+                await logger.log(
+                  level: 'error',
+                  subsystem: 'parser',
+                  message: 'Both UTF-8 and Windows-1251 decoding failed',
+                  context: 'parse_search_results',
+                  cause: e2.toString(),
+                );
+                throw ParsingFailure(
+                  'Failed to decode bytes: UTF-8 failed (${e.toString()}), Windows-1251 failed (${e2.toString()})',
+                  e2,
+                );
+              }
+            }
+          } else {
+            // Unknown encoding, try both
+            try {
+              decodedHtml = utf8.decode(bytes);
+            } on FormatException {
+              try {
+                decodedHtml = windows1251.decode(bytes);
+              } on Exception catch (e) {
+                throw ParsingFailure(
+                  'Failed to decode bytes with unknown encoding: ${e.toString()}',
+                  e,
+                );
+              }
+            }
+          }
+        } else {
+          // No encoding specified - try Windows-1251 first (RuTracker default)
+          // then fallback to UTF-8
+          try {
+            decodedHtml = windows1251.decode(bytes);
+            await logger.log(
+              level: 'debug',
+              subsystem: 'parser',
+              message: 'Successfully decoded with Windows-1251 (default)',
+              context: 'parse_search_results',
+              extra: {
+                'decoded_length': decodedHtml.length,
+              },
+            );
+          } on Exception catch (e) {
+            await logger.log(
+              level: 'warning',
+              subsystem: 'parser',
+              message: 'Windows-1251 decoding failed, trying UTF-8',
+              context: 'parse_search_results',
+              cause: e.toString(),
+            );
+            try {
+              decodedHtml = utf8.decode(bytes);
+            } on FormatException catch (e2) {
+              await logger.log(
+                level: 'warning',
+                subsystem: 'parser',
+                message: 'UTF-8 decoding also failed, trying Latin-1 as last resort',
+                context: 'parse_search_results',
+                cause: e2.toString(),
+              );
+              // Last resort: try to decode as Latin-1 (never fails)
+              decodedHtml = latin1.decode(bytes);
+            }
+          }
+        }
+      } else {
+        // Fallback: try to convert to string
+        await logger.log(
+          level: 'warning',
+          subsystem: 'parser',
+          message: 'Unexpected data type, converting to string',
+          context: 'parse_search_results',
+          extra: {
+            'data_type': dataType,
+          },
+        );
+        decodedHtml = htmlData.toString();
       }
 
-      final document = parser.parse(decodedHtml);
+      // Validate decoded HTML before parsing
+      if (decodedHtml.isEmpty) {
+        throw const ParsingFailure(
+          'Decoded HTML is empty. This may indicate a network error or encoding issue.',
+        );
+      }
+      
+      // Check for valid HTML structure
+      final hasHtmlStructure = decodedHtml.contains('<html') || 
+          decodedHtml.contains('<HTML') ||
+          decodedHtml.contains('<body') ||
+          decodedHtml.contains('<BODY');
+      
+      if (!hasHtmlStructure) {
+        await logger.log(
+          level: 'error',
+          subsystem: 'parser',
+          message: 'Decoded text does not appear to be valid HTML',
+          context: 'parse_search_results',
+          extra: {
+            'decoded_length': decodedHtml.length,
+            'preview': decodedHtml.length > 500 
+                ? decodedHtml.substring(0, 500) 
+                : decodedHtml,
+            'has_html_tag': decodedHtml.contains('<html'),
+            'has_body_tag': decodedHtml.contains('<body'),
+          },
+        );
+        throw ParsingFailure(
+          'Response does not appear to be valid HTML. This may indicate a network error or encoding issue. '
+          'Decoded text length: ${decodedHtml.length} bytes.',
+        );
+      }
+      
+      // Check for encoding issues (mojibake) - signs of incorrect decoding
+      // If decoded HTML contains replacement characters or unusual sequences, it might be wrong
+      final hasEncodingIssues = decodedHtml.contains('\uFFFD') || 
+          (decodedHtml.contains('Р') && decodedHtml.contains('С') && decodedHtml.length < 1000);
+      
+      if (hasEncodingIssues) {
+        await logger.log(
+          level: 'warning',
+          subsystem: 'parser',
+          message: 'Possible encoding issues detected in decoded HTML',
+          context: 'parse_search_results',
+          extra: {
+            'has_replacement_char': decodedHtml.contains('\uFFFD'),
+            'has_suspicious_chars': decodedHtml.contains('Р') && decodedHtml.contains('С'),
+          },
+        );
+      }
+      
+      // Try to parse the document
+      Document? document;
+      try {
+        document = parser.parse(decodedHtml);
+        
+        // Validate that parsing produced a valid document
+        // Note: parser.parse() never returns null, but we check body for validity
+        if (document.body == null) {
+          throw const ParsingFailure(
+            'HTML parser returned document without body. This may indicate invalid HTML structure.',
+          );
+        }
+        
+        await logger.log(
+          level: 'debug',
+          subsystem: 'parser',
+          message: 'Successfully parsed HTML document',
+          context: 'parse_search_results',
+          extra: {
+            'has_body': document.body != null,
+            'has_head': document.head != null,
+          },
+        );
+      } on Exception catch (e) {
+        await logger.log(
+          level: 'error',
+          subsystem: 'parser',
+          message: 'Failed to parse HTML document',
+          context: 'parse_search_results',
+          cause: e.toString(),
+          extra: {
+            'has_encoding_issues': hasEncodingIssues,
+            'html_data_type': htmlData.runtimeType.toString(),
+            'decoded_length': decodedHtml.length,
+            'html_preview': decodedHtml.length > 1000 
+                ? decodedHtml.substring(0, 1000) 
+                : decodedHtml,
+          },
+        );
+        
+        // If parsing fails and we have encoding issues, try to re-encode
+        if (hasEncodingIssues && htmlData is List<int>) {
+          final bytes = htmlData;
+          try {
+            await logger.log(
+              level: 'info',
+              subsystem: 'parser',
+              message: 'Attempting recovery with alternative encoding',
+              context: 'parse_search_results',
+              extra: {
+                'original_encoding': detectedEncoding ?? 'auto-detect',
+                'will_try_alternative': true,
+              },
+            );
+            
+            // Try alternative encoding
+            final alternativeDecoded = (detectedEncoding?.contains('utf') ?? false)
+                ? windows1251.decode(bytes)
+                : utf8.decode(bytes);
+            
+            // Validate alternative decoded HTML
+            if (alternativeDecoded.isEmpty || 
+                (!alternativeDecoded.contains('<html') && 
+                 !alternativeDecoded.contains('<HTML') &&
+                 !alternativeDecoded.contains('<body') &&
+                 !alternativeDecoded.contains('<BODY'))) {
+              throw ParsingFailure(
+                'Alternative encoding also produced invalid HTML. '
+                'Original encoding: ${detectedEncoding ?? 'auto-detect'}.',
+                e,
+              );
+            }
+            
+            document = parser.parse(alternativeDecoded);
+            decodedHtml = alternativeDecoded; // Update for later use
+            
+            await logger.log(
+              level: 'info',
+              subsystem: 'parser',
+              message: 'Recovery with alternative encoding succeeded',
+              context: 'parse_search_results',
+              extra: {
+                'alternative_encoding': (detectedEncoding?.contains('utf') ?? false) 
+                    ? 'windows-1251' 
+                    : 'utf-8',
+              },
+            );
+          } on Exception catch (recoveryError) {
+            await logger.log(
+              level: 'error',
+              subsystem: 'parser',
+              message: 'Recovery with alternative encoding also failed',
+              context: 'parse_search_results',
+              cause: recoveryError.toString(),
+            );
+            // If re-encoding also fails, throw detailed error
+            throw ParsingFailure(
+              'Failed to parse HTML: encoding issue detected. Tried ${detectedEncoding ?? 'auto-detect'}, but parsing still failed. '
+              'Original error: ${e.toString()}, Recovery error: ${recoveryError.toString()}',
+              e,
+            );
+          }
+        } else {
+          throw ParsingFailure(
+            'Failed to parse HTML document structure. This may indicate a change in page structure or encoding issues. '
+            'Error: ${e.toString()}',
+            e,
+          );
+        }
+      }
+      
       final results = <Audiobook>[];
+
+      // Check if page requires authentication or has errors
+      // Note: RuTracker shows login form for guests, but search can still work (with limitations)
+      // So we only check for actual access denied messages, not just presence of login form
+      final pageText = (document.text ?? '').toLowerCase();
+      final hasAccessDenied = pageText.contains('доступ запрещен') ||
+          pageText.contains('access denied') ||
+          pageText.contains('недостаточно прав') ||
+          pageText.contains('требуется авторизация') ||
+          pageText.contains('авторизуйтесь');
+      
+      // If page has access denied message, it's an auth issue
+      if (hasAccessDenied) {
+        throw const ParsingFailure(
+          'Page appears to require authentication. Please log in first.',
+        );
+      }
+      
+      // If no guest search form and no results, might be wrong page type
+      // But don't throw error yet - let's check if there are actual results
 
       // Parse actual RuTracker topic rows structure
       final topicRows = document.querySelectorAll(_rowSelector);
+      
+      // If no rows found, check if page structure is unexpected
+      if (topicRows.isEmpty) {
+        // Improved check for search form (more reliable)
+        final hasSearchForm = document.querySelector('form[action*="tracker"]') != null ||
+            document.querySelector('form[action*="search"]') != null ||
+            document.querySelector('input[name="nm"]') != null ||
+            document.querySelector('form#quick-search-guest') != null ||
+            document.querySelector('form#quick-search') != null;
+        
+        // Check for search page elements (even if results are empty)
+        final hasSearchPageElements = document.querySelector('div.tCenter') != null ||
+            document.querySelector('table.forumline') != null ||
+            document.querySelector('div.nav') != null;
+        
+        // Check if this is the main index page (not search results)
+        final isIndexPage = document.querySelector('div#forums_list_wrap') != null ||
+            document.querySelector('div#latest_news') != null;
+        
+        // Improved check for access denied messages (more specific)
+        final hasAccessDenied = pageText.contains('доступ запрещен') ||
+            pageText.contains('access denied') ||
+            pageText.contains('недостаточно прав') ||
+            pageText.contains('требуется авторизация') ||
+            pageText.contains('авторизуйтесь');
+        
+        // If page has access denied message, it's an auth issue
+        if (hasAccessDenied) {
+          throw const ParsingFailure(
+            'Page appears to require authentication. Please log in first.',
+          );
+        }
+        
+        // If there's a search form OR search page elements, it's likely empty results (not an error)
+        // If it's index page, it's also valid (just no search was performed)
+        if (hasSearchForm || hasSearchPageElements || isIndexPage) {
+          // Empty results are valid - return empty list
+          return results;
+        }
+        
+        // If no search form, no search page elements, and not index page - possibly error
+        // Provide more detailed error message
+        final pageLength = decodedHtml.length;
+        final hasHtmlStructure = decodedHtml.contains('<html') || decodedHtml.contains('<body');
+        final hasRuTrackerElements = decodedHtml.contains('rutracker') || 
+            decodedHtml.contains('RuTracker') ||
+            decodedHtml.contains('форум');
+        
+        String errorMessage;
+        if (!hasHtmlStructure) {
+          errorMessage = 'Response does not appear to be valid HTML. This may indicate a network error or encoding issue.';
+        } else if (!hasRuTrackerElements) {
+          errorMessage = 'Response does not appear to be from RuTracker. Page structure may have changed or wrong endpoint was used.';
+        } else {
+          errorMessage = 'Page structure may have changed. Unable to find search results or search form. Response size: $pageLength bytes.';
+        }
+        
+        throw ParsingFailure(errorMessage);
+      }
 
       for (final row in topicRows) {
         // Skip ad/outer rows
         if (row.classes.any((c) => c.contains('banner') || c.contains('ads'))) {
           continue;
         }
-        final topicId =
-            row.attributes['data-topic_id'] ?? _extractTopicIdFromAny(row);
+        
         final titleElement = row.querySelector(_titleSelector);
+        if (titleElement == null) {
+          continue;
+        }
+        
+        // Extract topic ID with priority: data-topic_id attribute (most reliable)
+        var topicId = row.attributes['data-topic_id'] ?? '';
+        if (topicId.isEmpty) {
+          // Try to extract from title link href
+          final titleHref = titleElement.attributes['href'];
+          if (titleHref != null) {
+            topicId = _extractTopicIdFromUrl(titleHref);
+          }
+        }
+        if (topicId.isEmpty) {
+          topicId = _extractTopicIdFromAny(row);
+        }
+        
+        // If still no topic ID, try to extract from download link
+        if (topicId.isEmpty) {
+          final magnetElement = row.querySelector(_downloadHrefSelector);
+          if (magnetElement != null) {
+            final href = magnetElement.attributes['href'];
+            if (href != null) {
+              topicId = _extractInfoHashFromUrl(href);
+            }
+          }
+        }
+        
+        // Use title as fallback ID if no topic ID found (shouldn't happen, but be safe)
+        if (topicId.isEmpty) {
+          topicId = titleElement.text.trim().hashCode.toString();
+        }
+        
         final authorElement = row.querySelector(_authorSelector);
         final sizeElement = row.querySelector(_sizeSelector);
         final seedersElement = row.querySelector(_seedersSelector);
         final leechersElement = row.querySelector(_leechersSelector);
         final magnetElement = row.querySelector(_downloadHrefSelector);
 
-        if (titleElement != null && (topicId.isNotEmpty)) {
-          // Extract size from download link text (e.g., "40 MB")
-          final sizeText = sizeElement?.text.trim() ?? '0 MB';
-
-          // Extract magnet URL from download link
-          final magnetUrl = magnetElement != null
-              ? 'magnet:?xt=urn:btih:${_extractInfoHashFromUrl(magnetElement.attributes['href'])}'
-              : '';
-
-          final audiobook = Audiobook(
-            id: topicId,
-            title: titleElement.text.trim(),
-            author: authorElement?.text.trim() ?? 'Unknown',
-            category: _extractCategoryFromTitle(titleElement.text),
-            size: sizeText,
-            seeders: int.tryParse(seedersElement?.text.trim() ?? '0') ?? 0,
-            leechers: int.tryParse(leechersElement?.text.trim() ?? '0') ?? 0,
-            magnetUrl: magnetUrl,
-            coverUrl: _extractCoverUrl(row),
-            chapters: [],
-            addedDate: _extractDateFromRow(row),
-          );
-          results.add(audiobook);
+        // Extract size from multiple possible locations
+        var sizeText = '0 MB';
+        if (sizeElement != null) {
+          sizeText = sizeElement.text.trim();
+        } else {
+          // Try to extract from row text using regex
+          final sizeMatch = RegExp(r'([\d.,]+\s*[KMGT]?B)', caseSensitive: false)
+              .firstMatch(row.text);
+          if (sizeMatch != null) {
+            sizeText = sizeMatch.group(1)?.trim() ?? '0 MB';
+          }
         }
+
+        // Extract magnet URL from download link
+        var magnetUrl = '';
+        if (magnetElement != null) {
+          final href = magnetElement.attributes['href'];
+          if (href != null) {
+            magnetUrl = 'magnet:?xt=urn:btih:${_extractInfoHashFromUrl(href)}';
+          }
+        }
+
+        final audiobook = Audiobook(
+          id: topicId,
+          title: titleElement.text.trim(),
+          author: authorElement?.text.trim() ?? 'Unknown',
+          category: _extractCategoryFromTitle(titleElement.text),
+          size: sizeText,
+          seeders: int.tryParse(seedersElement?.text.trim() ?? '0') ?? 0,
+          leechers: int.tryParse(leechersElement?.text.trim() ?? '0') ?? 0,
+          magnetUrl: magnetUrl,
+          coverUrl: _extractCoverUrl(row),
+          chapters: [],
+          addedDate: _extractDateFromRow(row),
+        );
+        results.add(audiobook);
       }
 
       return results;
-    } on Exception {
-      throw const ParsingFailure('Failed to parse search results');
+    } on ParsingFailure {
+      // Re-throw parsing failures as-is
+      rethrow;
+    } on FormatException catch (e) {
+      throw ParsingFailure(
+        'Failed to decode HTML content. Encoding issue: ${e.message}',
+        e,
+      );
+    } on Exception catch (e) {
+      throw ParsingFailure(
+        'Failed to parse search results: ${e.toString()}',
+        e,
+      );
     }
   }
 
@@ -192,23 +741,292 @@ class RuTrackerParser {
   /// comprehensive audiobook information including chapters, cover art,
   /// and detailed metadata. It automatically handles character encoding.
   ///
-  /// The [html] parameter contains the HTML content of the topic page.
+  /// The [htmlData] parameter contains the HTML content of the topic page.
+  /// The [contentType] parameter is the Content-Type header value for encoding detection.
   ///
   /// Returns an [Audiobook] object with detailed information, or `null`
   /// if the page cannot be parsed or doesn't contain valid audiobook data.
   ///
   /// Throws [ParsingFailure] if the HTML cannot be parsed.
-  Future<Audiobook?> parseTopicDetails(String html) async {
+  Future<Audiobook?> parseTopicDetails(
+    dynamic htmlData, {
+    String? contentType,
+  }) async {
+    final logger = StructuredLogger();
     try {
-      // Try UTF-8 first, fallback to cp1251
       String decodedHtml;
-      try {
-        decodedHtml = utf8.decode(html.codeUnits);
-      } on FormatException {
-        decodedHtml = windows1251.decode(html.codeUnits);
+      
+      // Log initial data type and size for diagnostics
+      final dataType = htmlData.runtimeType.toString();
+      final dataSize = htmlData is List<int> 
+          ? htmlData.length 
+          : (htmlData is String ? htmlData.length : 0);
+      
+      await logger.log(
+        level: 'debug',
+        subsystem: 'parser',
+        message: 'Starting HTML decoding for topic details',
+        context: 'parse_topic_details',
+        extra: {
+          'data_type': dataType,
+          'data_size_bytes': dataSize,
+          'content_type': contentType ?? 'not_provided',
+        },
+      );
+      
+      // Determine encoding from Content-Type header if available
+      String? detectedEncoding;
+      if (contentType != null) {
+        final charsetMatch = RegExp(r'charset=([^;\s]+)', caseSensitive: false)
+            .firstMatch(contentType);
+        if (charsetMatch != null) {
+          detectedEncoding = charsetMatch.group(1)?.toLowerCase();
+        }
+      }
+      
+      if (htmlData is String) {
+        // String data - use as-is (may have encoding issues, but we can't fix from String)
+        decodedHtml = htmlData;
+        
+        await logger.log(
+          level: 'debug',
+          subsystem: 'parser',
+          message: 'HTML data is already a String, using as-is',
+          context: 'parse_topic_details',
+          extra: {
+            'string_length': decodedHtml.length,
+          },
+        );
+      } else if (htmlData is List<int>) {
+        // Binary data (bytes) - decode based on detected encoding or try both
+        // Note: Brotli decompression is handled automatically by DioBrotliTransformer in DioClient
+        // These bytes are already decompressed and ready for encoding conversion
+        final bytes = htmlData;
+        
+        // Validate bytes before decoding
+        if (bytes.isEmpty) {
+          throw const ParsingFailure(
+            'Received empty bytes. This may indicate a network error.',
+          );
+        }
+        
+        await logger.log(
+          level: 'debug',
+          subsystem: 'parser',
+          message: 'Decoding bytes (Brotli already decompressed by Dio transformer)',
+          context: 'parse_topic_details',
+          extra: {
+            'bytes_length': bytes.length,
+            'detected_encoding': detectedEncoding ?? 'auto-detect',
+          },
+        );
+        
+        if (detectedEncoding != null) {
+          // Use detected encoding from Content-Type header
+          if (detectedEncoding.contains('windows-1251') || 
+              detectedEncoding.contains('cp1251') ||
+              detectedEncoding.contains('1251')) {
+            try {
+              decodedHtml = windows1251.decode(bytes);
+              await logger.log(
+                level: 'debug',
+                subsystem: 'parser',
+                message: 'Successfully decoded with Windows-1251',
+                context: 'parse_topic_details',
+              );
+            } on Exception catch (e) {
+              await logger.log(
+                level: 'warning',
+                subsystem: 'parser',
+                message: 'Windows-1251 decoding failed, trying UTF-8',
+                context: 'parse_topic_details',
+                cause: e.toString(),
+              );
+              // Fallback to UTF-8 if Windows-1251 fails
+              try {
+                decodedHtml = utf8.decode(bytes);
+              } on FormatException catch (e2) {
+                await logger.log(
+                  level: 'error',
+                  subsystem: 'parser',
+                  message: 'Both Windows-1251 and UTF-8 decoding failed',
+                  context: 'parse_topic_details',
+                  cause: e2.toString(),
+                );
+                throw ParsingFailure(
+                  'Failed to decode bytes: Windows-1251 failed (${e.toString()}), UTF-8 failed (${e2.toString()})',
+                  e2,
+                );
+              }
+            }
+          } else if (detectedEncoding.contains('utf-8') || 
+                     detectedEncoding.contains('utf8')) {
+            try {
+              decodedHtml = utf8.decode(bytes);
+              await logger.log(
+                level: 'debug',
+                subsystem: 'parser',
+                message: 'Successfully decoded with UTF-8',
+                context: 'parse_topic_details',
+              );
+            } on FormatException catch (e) {
+              await logger.log(
+                level: 'warning',
+                subsystem: 'parser',
+                message: 'UTF-8 decoding failed, trying Windows-1251',
+                context: 'parse_topic_details',
+                cause: e.toString(),
+              );
+              // Fallback to Windows-1251 if UTF-8 fails (RuTracker sometimes lies)
+              try {
+                decodedHtml = windows1251.decode(bytes);
+              } on Exception catch (e2) {
+                await logger.log(
+                  level: 'error',
+                  subsystem: 'parser',
+                  message: 'Both UTF-8 and Windows-1251 decoding failed',
+                  context: 'parse_topic_details',
+                  cause: e2.toString(),
+                );
+                throw ParsingFailure(
+                  'Failed to decode bytes: UTF-8 failed (${e.toString()}), Windows-1251 failed (${e2.toString()})',
+                  e2,
+                );
+              }
+            }
+          } else {
+            // Unknown encoding, try both
+            try {
+              decodedHtml = utf8.decode(bytes);
+            } on FormatException {
+              try {
+                decodedHtml = windows1251.decode(bytes);
+              } on Exception catch (e) {
+                throw ParsingFailure(
+                  'Failed to decode bytes with unknown encoding: ${e.toString()}',
+                  e,
+                );
+              }
+            }
+          }
+        } else {
+          // No encoding specified - try Windows-1251 first (RuTracker default)
+          // then fallback to UTF-8
+          try {
+            decodedHtml = windows1251.decode(bytes);
+            await logger.log(
+              level: 'debug',
+              subsystem: 'parser',
+              message: 'Successfully decoded with Windows-1251 (default)',
+              context: 'parse_topic_details',
+            );
+          } on Exception catch (e) {
+            await logger.log(
+              level: 'warning',
+              subsystem: 'parser',
+              message: 'Windows-1251 decoding failed, trying UTF-8',
+              context: 'parse_topic_details',
+              cause: e.toString(),
+            );
+            try {
+              decodedHtml = utf8.decode(bytes);
+            } on FormatException catch (e2) {
+              await logger.log(
+                level: 'warning',
+                subsystem: 'parser',
+                message: 'UTF-8 decoding also failed, trying Latin-1 as last resort',
+                context: 'parse_topic_details',
+                cause: e2.toString(),
+              );
+              // Last resort: try to decode as Latin-1 (never fails)
+              decodedHtml = latin1.decode(bytes);
+            }
+          }
+        }
+      } else {
+        // Fallback: try to convert to string
+        await logger.log(
+          level: 'warning',
+          subsystem: 'parser',
+          message: 'Unexpected data type, converting to string',
+          context: 'parse_topic_details',
+          extra: {
+            'data_type': dataType,
+          },
+        );
+        decodedHtml = htmlData.toString();
       }
 
-      final document = parser.parse(decodedHtml);
+      // Validate decoded HTML before parsing
+      if (decodedHtml.isEmpty) {
+        throw const ParsingFailure(
+          'Decoded HTML is empty. This may indicate a network error or encoding issue.',
+        );
+      }
+      
+      // Check for valid HTML structure
+      final hasHtmlStructure = decodedHtml.contains('<html') || 
+          decodedHtml.contains('<HTML') ||
+          decodedHtml.contains('<body') ||
+          decodedHtml.contains('<BODY');
+      
+      if (!hasHtmlStructure) {
+        await logger.log(
+          level: 'error',
+          subsystem: 'parser',
+          message: 'Decoded text does not appear to be valid HTML',
+          context: 'parse_topic_details',
+          extra: {
+            'decoded_length': decodedHtml.length,
+            'has_html_tag': decodedHtml.contains('<html'),
+            'has_body_tag': decodedHtml.contains('<body'),
+          },
+        );
+        throw ParsingFailure(
+          'Response does not appear to be valid HTML. This may indicate a network error or encoding issue. '
+          'Decoded text length: ${decodedHtml.length} bytes.',
+        );
+      }
+
+      Document? document;
+      try {
+        document = parser.parse(decodedHtml);
+        
+        // Validate that parsing produced a valid document
+        if (document.body == null) {
+          throw const ParsingFailure(
+            'HTML parser returned document without body. This may indicate invalid HTML structure.',
+          );
+        }
+        
+        await logger.log(
+          level: 'debug',
+          subsystem: 'parser',
+          message: 'Successfully parsed HTML document',
+          context: 'parse_topic_details',
+          extra: {
+            'has_body': document.body != null,
+            'has_head': document.head != null,
+          },
+        );
+      } on Exception catch (e) {
+        await logger.log(
+          level: 'error',
+          subsystem: 'parser',
+          message: 'Failed to parse HTML document',
+          context: 'parse_topic_details',
+          cause: e.toString(),
+          extra: {
+            'html_data_type': htmlData.runtimeType.toString(),
+            'decoded_length': decodedHtml.length,
+          },
+        );
+        throw ParsingFailure(
+          'Failed to parse HTML document structure. This may indicate a change in page structure or encoding issues. '
+          'Error: ${e.toString()}',
+          e,
+        );
+      }
 
       // Parse actual RuTracker topic page structure
       final titleElement = document.querySelector(_maintitleSelector);
@@ -218,67 +1036,250 @@ class RuTrackerParser {
         return null;
       }
 
-      // Extract metadata from post content
-      final authorElement =
-          postBody.querySelector('a[href*="profile.php"], .topicAuthor a');
-      final sizeMatch =
-          RegExp(r'Размер[:\s]*([\d.,]+\s*[KMGT]?B)').firstMatch(postBody.text);
-      final seedersMatch = RegExp(r'Сиды[:\s]*(\d+)').firstMatch(postBody.text);
-      final leechersMatch =
-          RegExp(r'Личи[:\s]*(\d+)').firstMatch(postBody.text);
+      // Extract all structured metadata from span.post-b
+      final metadata = _extractAllMetadata(postBody);
+      
+      // Extract author from structured metadata with priority:
+      // 1. "Автор" field (if present)
+      // 2. "Фамилия автора" + "Имя автора" (if both present)
+      // 3. Profile link (fallback)
+      String? authorName;
+      final authorText = metadata['Автор'];
+      if (authorText != null && authorText.isNotEmpty) {
+        authorName = authorText.trim();
+      } else {
+        // Try combining surname and name
+        final surnameText = metadata['Фамилия автора'];
+        final nameText = metadata['Имя автора'];
+        if (surnameText != null && nameText != null) {
+          authorName = '$surnameText $nameText'.trim();
+        }
+      }
+      
+      // Fallback to profile link if structured metadata not found
+      if (authorName == null || authorName.isEmpty) {
+        final authorElement =
+            postBody.querySelector('a[href*="profile.php"], .topicAuthor a');
+        authorName = authorElement?.text.trim();
+      }
+      
+      // Extract statistics from attach table first (most reliable source)
+      // Cache frequently used selectors to avoid multiple DOM queries
+      final attachTable = document.querySelector('table.attach');
+      final torStats = document.querySelector(_torStatsSelector);
+      String? sizeText;
+      int? seeders, leechers;
+      DateTime? registeredDate;
+      
+      if (attachTable != null) {
+        // Extract size from span#tor-size-humn (most accurate)
+        final sizeSpan = attachTable.querySelector('span#tor-size-humn');
+        if (sizeSpan != null) {
+          sizeText = sizeSpan.text.trim();
+        }
+        
+        // Extract registered date from attach table (format: "ДД-МММ-ГГ ЧЧ:ММ")
+        // Iterate through table rows to find the one containing "Зарегистрирован"
+        final rows = attachTable.querySelectorAll('tr');
+        for (final row in rows) {
+          final rowText = row.text;
+          if (rowText.contains('Зарегистрирован')) {
+            // Look for date pattern "ДД-МММ-ГГ ЧЧ:ММ" or "ДД-МММ-ГГ"
+            final dateMatch = RegExp(r'(\d{2})-(\w{3})-(\d{2})(?:\s+(\d{2}):(\d{2}))?')
+                .firstMatch(rowText);
+            if (dateMatch != null) {
+              registeredDate = _parseAttachTableDate(
+                dateMatch.group(1)!,
+                dateMatch.group(2)!,
+                dateMatch.group(3)!,
+                dateMatch.group(4),
+                dateMatch.group(5),
+              );
+              break;
+            }
+          }
+        }
+      }
+      
+      // Extract size from multiple possible locations (fallback)
+      if (sizeText == null || sizeText.isEmpty) {
+        // Try from tor-size-humn span (if not in attach table)
+        final sizeSpan = document.querySelector(_torSizeSelector);
+        if (sizeSpan != null) {
+          sizeText = sizeSpan.text.trim();
+        }
+      }
+      // Try from tor-stats table (reuse cached selector)
+      if ((sizeText == null || sizeText.isEmpty) && torStats != null) {
+        final sizeMatch = RegExp(r'Размер[:\s]*<b>([\d.,]+\s*[KMGT]?B)</b>')
+            .firstMatch(torStats.innerHtml);
+        sizeText = sizeMatch?.group(1)?.trim();
+      }
+      // Fallback to post body text
+      if (sizeText == null || sizeText.isEmpty) {
+        final sizeMatch =
+            RegExp(r'Размер[:\s]*([\d.,]+\s*[KMGT]?B)').firstMatch(postBody.text);
+        sizeText = sizeMatch?.group(1)?.trim();
+      }
+      
+      // Extract seeders and leechers from tor-stats table (reuse cached selector)
+      if (torStats != null) {
+        // Extract seeders and leechers with improved selectors
+        final seedersElement = torStats.querySelector('span.seed b, span.seedmed b');
+        final leechersElement = torStats.querySelector('span.leech b, span.leechmed b');
+        seeders = int.tryParse(seedersElement?.text.trim() ?? '0');
+        leechers = int.tryParse(leechersElement?.text.trim() ?? '0');
+      }
+      // Fallback to post body text
+      if (seeders == null) {
+        final seedersMatch = RegExp(r'Сиды[:\s]*(\d+)').firstMatch(postBody.text);
+        seeders = int.tryParse(seedersMatch?.group(1) ?? '0') ?? 0;
+      }
+      if (leechers == null) {
+        final leechersMatch = RegExp(r'Личи[:\s]*(\d+)').firstMatch(postBody.text);
+        leechers = int.tryParse(leechersMatch?.group(1) ?? '0') ?? 0;
+      }
 
-      // Extract magnet link from download buttons
-      final magnetElement = document.querySelector(_downloadHrefSelector);
-      final coverElement = document.querySelector(_coverSelector);
+      // Extract magnet link - try magnet-link class first, then dl.php
+      String? magnetUrl;
+      final magnetElement = document.querySelector(_magnetLinkSelector);
+      if (magnetElement != null && magnetElement.attributes['href'] != null) {
+        final href = magnetElement.attributes['href']!;
+        if (href.startsWith('magnet:')) {
+          magnetUrl = href;
+        } else {
+          // Extract info hash from data-topic_id or href
+          final topicId = magnetElement.attributes['data-topic_id'] ??
+              _extractInfoHashFromUrl(href);
+          if (topicId.isNotEmpty) {
+            magnetUrl = 'magnet:?xt=urn:btih:$topicId';
+          }
+        }
+      }
+      // Fallback to dl.php link
+      if (magnetUrl == null || magnetUrl.isEmpty) {
+        final dlElement = document.querySelector(_downloadHrefSelector);
+        if (dlElement != null) {
+          final topicId = _extractInfoHashFromUrl(dlElement.attributes['href']);
+          if (topicId.isNotEmpty) {
+            magnetUrl = 'magnet:?xt=urn:btih:$topicId';
+          }
+        }
+      }
+      
+      // Extract cover image with improved logic
+      final coverUrl = _extractCoverUrlImproved(postBody, document.documentElement!);
 
       final chapters = <Chapter>[];
-      // Try to parse chapters from description (common pattern)
-      final chapterMatches =
-          RegExp(r'(\d+[.:]\s*[^\n]+?)\s*\(?(\d+:\d+(?::\d+)?)\)?')
-              .allMatches(postBody.text);
-      for (final match in chapterMatches) {
-        final title = match.group(1)?.trim() ?? '';
-        final duration = match.group(2)?.trim() ?? '0:00';
-
-        final durationParts = duration.split(':');
-        var durationMs = 0;
-        if (durationParts.length == 2) {
-          durationMs =
-              (int.parse(durationParts[0]) * 60 + int.parse(durationParts[1])) *
-                  1000;
-        } else if (durationParts.length == 3) {
-          durationMs = (int.parse(durationParts[0]) * 3600 +
-                  int.parse(durationParts[1]) * 60 +
-                  int.parse(durationParts[2])) *
-              1000;
+      // Try to parse chapters from description with improved flexible patterns
+      final chapterText = postBody.text;
+      
+      // Pattern 1: "1. Название (1:23:45)" or "01. Название (1:23:45)"
+      final pattern1 = RegExp(r'(\d+)[.:]\s*([^\n(]+?)\s*\((\d+:\d+(?::\d+)?)\)');
+      for (final match in pattern1.allMatches(chapterText)) {
+        final title = match.group(2)?.trim() ?? '';
+        final duration = match.group(3)?.trim() ?? '0:00';
+        chapters.add(_createChapterFromDuration(title, duration));
+      }
+      
+      // Pattern 2: "01 - Название [1:23:45]"
+      if (chapters.isEmpty) {
+        final pattern2 = RegExp(r'(\d+)\s*[-–]\s*([^\n[\]]+?)\s*\[(\d+:\d+(?::\d+)?)\]');
+        for (final match in pattern2.allMatches(chapterText)) {
+          final title = match.group(2)?.trim() ?? '';
+          final duration = match.group(3)?.trim() ?? '0:00';
+          chapters.add(_createChapterFromDuration(title, duration));
         }
+      }
+      
+      // Pattern 3: "Глава 1: Название (01:23:45)" or "Часть 1: Название (01:23:45)"
+      if (chapters.isEmpty) {
+        final pattern3 = RegExp(
+          r'(?:Глава|Часть|Книга|Часть)\s*\d+[.:]\s*([^\n(]+?)\s*\((\d+:\d+(?::\d+)?)\)',
+          caseSensitive: false,
+        );
+        for (final match in pattern3.allMatches(chapterText)) {
+          final title = match.group(1)?.trim() ?? '';
+          final duration = match.group(2)?.trim() ?? '0:00';
+          chapters.add(_createChapterFromDuration(title, duration));
+        }
+      }
+      
+      // Pattern 4: Fallback to original pattern
+      if (chapters.isEmpty) {
+        final pattern4 = RegExp(r'(\d+[.:]\s*[^\n]+?)\s*\(?(\d+:\d+(?::\d+)?)\)?');
+        for (final match in pattern4.allMatches(chapterText)) {
+          final title = match.group(1)?.trim() ?? '';
+          final duration = match.group(2)?.trim() ?? '0:00';
+          chapters.add(_createChapterFromDuration(title, duration));
+        }
+      }
 
-        chapters.add(Chapter(
-          title: title,
-          durationMs: durationMs,
-          fileIndex: 0,
-          startByte: 0,
-          endByte: 0,
-        ));
+      // Extract topic ID from multiple possible sources (improved)
+      var topicId = '';
+      // Try from post body data attribute (most reliable)
+      final dataAttr = postBody.attributes['data-ext_link_data'];
+      if (dataAttr != null) {
+        final topicMatch = RegExp(r'"t":(\d+)').firstMatch(dataAttr);
+        topicId = topicMatch?.group(1) ?? '';
+      }
+      // Try from URL in title link
+      if (topicId.isEmpty) {
+        final titleLink = titleElement.querySelector('a[href*="viewtopic.php?t="]');
+        if (titleLink != null) {
+          topicId = _extractTopicIdFromUrl(titleLink.attributes['href'] ?? '');
+        }
+      }
+      // Try from magnet link data-topic_id attribute
+      if (topicId.isEmpty) {
+        final magnetElement = document.querySelector(_magnetLinkSelector);
+        if (magnetElement != null) {
+          final dataTopicId = magnetElement.attributes['data-topic_id'];
+          if (dataTopicId != null && dataTopicId.isNotEmpty) {
+            topicId = dataTopicId;
+          }
+        }
+      }
+      // Fallback to extracting from document
+      if (topicId.isEmpty) {
+        topicId = _extractTopicIdFromUrl(document.documentElement?.outerHtml ?? '');
+      }
+
+      // Extract category from breadcrumb navigation (preferred) or post body metadata or title
+      var category = _extractCategoryFromBreadcrumb(document.documentElement!);
+      if (category.isEmpty) {
+        category = _extractCategoryFromPostBody(postBody);
+      }
+      if (category.isEmpty) {
+        category = _extractCategoryFromTitle(titleElement.text);
       }
 
       return Audiobook(
-        id: _extractTopicIdFromUrl(document.documentElement?.outerHtml ?? ''),
+        id: topicId,
         title: titleElement.text.trim(),
-        author: authorElement?.text.trim() ?? 'Unknown',
-        category: _extractCategoryFromTitle(titleElement.text),
-        size: sizeMatch?.group(1)?.trim() ?? '0 MB',
-        seeders: int.tryParse(seedersMatch?.group(1) ?? '0') ?? 0,
-        leechers: int.tryParse(leechersMatch?.group(1) ?? '0') ?? 0,
-        magnetUrl: magnetElement != null
-            ? 'magnet:?xt=urn:btih:${_extractInfoHashFromUrl(magnetElement.attributes['href'])}'
-            : '',
-        coverUrl: coverElement?.attributes['src'],
+        author: authorName ?? 'Unknown',
+        category: category,
+        size: sizeText ?? '0 MB',
+        seeders: seeders,
+        leechers: leechers,
+        magnetUrl: magnetUrl ?? '',
+        coverUrl: coverUrl,
         chapters: chapters,
-        addedDate: _extractDateFromPost(postBody),
+        addedDate: registeredDate ?? _extractDateFromPost(postBody),
       );
-    } on Exception {
-      throw const ParsingFailure('Failed to parse topic details');
+    } on ParsingFailure {
+      // Re-throw parsing failures as-is
+      rethrow;
+    } on FormatException catch (e) {
+      throw ParsingFailure(
+        'Failed to decode HTML content. Encoding issue: ${e.message}',
+        e,
+      );
+    } on Exception catch (e) {
+      throw ParsingFailure(
+        'Failed to parse topic details: ${e.toString()}',
+        e,
+      );
     }
   }
 }
@@ -286,8 +1287,37 @@ class RuTrackerParser {
 // Helper methods for parsing
 String _extractInfoHashFromUrl(String? url) {
   if (url == null) return '';
+  // Try to extract info hash from magnet link
+  if (url.startsWith('magnet:')) {
+    final hashMatch = RegExp(r'btih:([A-F0-9]+)', caseSensitive: false)
+        .firstMatch(url);
+    return hashMatch?.group(1) ?? '';
+  }
+  // Extract topic ID from dl.php?t=XXX
   final match = RegExp(r't=(\d+)').firstMatch(url);
   return match?.group(1) ?? '';
+}
+
+/// Extracts category from post body metadata.
+String _extractCategoryFromPostBody(Element postBody) {
+  // Try to find structured metadata with span.post-b containing "Категория"
+  final allPostB = postBody.querySelectorAll('span.post-b');
+  for (final element in allPostB) {
+    final text = element.text.toLowerCase();
+    if (text.contains('категория')) {
+      // Get the parent element text to find the value after "Категория:"
+      final parentText = element.parent?.text ?? '';
+      final categoryMatch = RegExp(r'Категория[:\s]*([^\n<]+)')
+          .firstMatch(parentText);
+      if (categoryMatch != null) {
+        final category = categoryMatch.group(1)?.trim() ?? '';
+        if (category.isNotEmpty) {
+          return category;
+        }
+      }
+    }
+  }
+  return '';
 }
 
 String _extractCategoryFromTitle(String title) {
@@ -305,24 +1335,75 @@ String? _extractCoverUrl(Element row) {
 }
 
 DateTime _extractDateFromRow(Element row) {
-  final dateElement = row.querySelector('.small');
+  // Try multiple selectors for date element
+  final dateElement = row.querySelector('.small') ??
+      row.querySelector('td.small') ??
+      row.querySelector('span.small');
+  
   if (dateElement != null) {
     try {
       final dateText = dateElement.text.trim();
-      final dateMatch = RegExp(r'(\d{2}-\w{3}-\d{2})').firstMatch(dateText);
+      
+      // Pattern 1: "ДД-МММ-ГГ" format (e.g., "08-Июн-07")
+      var dateMatch = RegExp(r'(\d{2})-(\w{3})-(\d{2})').firstMatch(dateText);
       if (dateMatch != null) {
-        return DateTime.parse('20${dateMatch.group(1)!.split('-')[2]}-'
-            '${_monthToNumber(dateMatch.group(1)!.split('-')[1])}-'
-            '${dateMatch.group(1)!.split('-')[0]}');
+        final day = int.parse(dateMatch.group(1)!);
+        final month = _monthToNumber(dateMatch.group(2)!);
+        final yearTwoDigits = int.parse(dateMatch.group(3)!);
+        // If year >= 50, assume 1900s (1950-1999), otherwise 2000s (2000-2049)
+        final year = yearTwoDigits >= 50 
+            ? 1900 + yearTwoDigits 
+            : 2000 + yearTwoDigits;
+        return DateTime(year, month, day);
+      }
+      
+      // Pattern 2: "ДД.ММ.ГГГГ" format (e.g., "08.06.2007")
+      dateMatch = RegExp(r'(\d{2})\.(\d{2})\.(\d{4})').firstMatch(dateText);
+      if (dateMatch != null) {
+        final day = int.parse(dateMatch.group(1)!);
+        final month = int.parse(dateMatch.group(2)!);
+        final year = int.parse(dateMatch.group(3)!);
+        return DateTime(year, month, day);
+      }
+      
+      // Pattern 3: "ДД.ММ.ГГ" format (e.g., "08.06.07")
+      dateMatch = RegExp(r'(\d{2})\.(\d{2})\.(\d{2})').firstMatch(dateText);
+      if (dateMatch != null) {
+        final day = int.parse(dateMatch.group(1)!);
+        final month = int.parse(dateMatch.group(2)!);
+        final yearTwoDigits = int.parse(dateMatch.group(3)!);
+        final year = yearTwoDigits >= 50 
+            ? 1900 + yearTwoDigits 
+            : 2000 + yearTwoDigits;
+        return DateTime(year, month, day);
       }
     } on Exception {
       // Fallback to current date
     }
   }
+  
+  // Try to extract from row text as fallback
+  final rowText = row.text;
+  final dateMatch = RegExp(r'(\d{2})-(\w{3})-(\d{2})').firstMatch(rowText);
+  if (dateMatch != null) {
+    try {
+      final day = int.parse(dateMatch.group(1)!);
+      final month = _monthToNumber(dateMatch.group(2)!);
+      final yearTwoDigits = int.parse(dateMatch.group(3)!);
+      final year = yearTwoDigits >= 50 
+          ? 1900 + yearTwoDigits 
+          : 2000 + yearTwoDigits;
+      return DateTime(year, month, day);
+    } on Exception {
+      // Fallback
+    }
+  }
+  
   return DateTime.now();
 }
 
 DateTime _extractDateFromPost(Element postBody) {
+  // Try to extract from "Добавлено: ДД.ММ.ГГГГ" format
   final dateMatch =
       RegExp(r'Добавлено[:\s]*(\d{2}\.\d{2}\.\d{4})').firstMatch(postBody.text);
   if (dateMatch != null) {
@@ -333,7 +1414,79 @@ DateTime _extractDateFromPost(Element postBody) {
       // Fallback
     }
   }
+  
+  // Try to extract from attach table format in post body text
+  final attachDateMatch = RegExp(r'(\d{2})-(\w{3})-(\d{2})(?:\s+(\d{2}):(\d{2}))?')
+      .firstMatch(postBody.text);
+  if (attachDateMatch != null) {
+    final parsedDate = _parseAttachTableDate(
+      attachDateMatch.group(1)!,
+      attachDateMatch.group(2)!,
+      attachDateMatch.group(3)!,
+      attachDateMatch.group(4),
+      attachDateMatch.group(5),
+    );
+    if (parsedDate != null) {
+      return parsedDate;
+    }
+  }
+  
   return DateTime.now();
+}
+
+/// Parses date from attach table format "ДД-МММ-ГГ ЧЧ:ММ" or "ДД-МММ-ГГ".
+///
+/// Handles year conversion: if year >= 50 → 1900s (1950-1999), else → 2000s (2000-2049).
+DateTime? _parseAttachTableDate(
+  String dayStr,
+  String monthStr,
+  String yearStr,
+  String? hourStr,
+  String? minuteStr,
+) {
+  try {
+    final day = int.parse(dayStr);
+    final month = _monthToNumber(monthStr);
+    final yearTwoDigits = int.parse(yearStr);
+    // If year >= 50, assume 1900s (1950-1999), otherwise 2000s (2000-2049)
+    final year = yearTwoDigits >= 50 
+        ? 1900 + yearTwoDigits 
+        : 2000 + yearTwoDigits;
+    
+    if (hourStr != null && minuteStr != null) {
+      final hour = int.parse(hourStr);
+      final minute = int.parse(minuteStr);
+      return DateTime(year, month, day, hour, minute);
+    } else {
+      return DateTime(year, month, day);
+    }
+  } on Exception {
+    return null;
+  }
+}
+
+/// Creates a Chapter from title and duration string.
+Chapter _createChapterFromDuration(String title, String duration) {
+  final durationParts = duration.split(':');
+  var durationMs = 0;
+  if (durationParts.length == 2) {
+    durationMs =
+        (int.parse(durationParts[0]) * 60 + int.parse(durationParts[1])) *
+            1000;
+  } else if (durationParts.length == 3) {
+    durationMs = (int.parse(durationParts[0]) * 3600 +
+            int.parse(durationParts[1]) * 60 +
+            int.parse(durationParts[2])) *
+        1000;
+  }
+
+  return Chapter(
+    title: title,
+    durationMs: durationMs,
+    fileIndex: 0,
+    startByte: 0,
+    endByte: 0,
+  );
 }
 
 String _extractTopicIdFromUrl(String url) {
@@ -368,4 +1521,186 @@ int _monthToNumber(String month) {
     'дек': 12
   };
   return months[month.toLowerCase()] ?? 1;
+}
+
+/// Extracts all structured metadata from span.post-b elements.
+///
+/// This method iterates through all span.post-b elements in the post body
+/// and extracts key-value pairs following the pattern "Ключ: Значение".
+/// It handles various formats including:
+/// - "Ключ: Значение"
+/// - "Ключ Значение"
+/// - Multi-line values
+Map<String, String> _extractAllMetadata(Element postBody) {
+  final metadata = <String, String>{};
+  final allPostB = postBody.querySelectorAll('span.post-b');
+  
+  for (final element in allPostB) {
+    final key = element.text.trim();
+    if (key.isEmpty) continue;
+    
+    // Get parent element to find the value after the key
+    final parent = element.parent;
+    if (parent == null) continue;
+    
+    // Try to find value in the same line or next line
+    // Look in parent's text first
+    final parentText = parent.text;
+    
+    // Pattern 1: "Ключ: Значение" or "Ключ Значение" on the same line
+    final match1 = RegExp('${RegExp.escape(key)}[:\\s]+([^\\n<]+)')
+        .firstMatch(parentText);
+    if (match1 != null) {
+      final value = match1.group(1)?.trim() ?? '';
+      if (value.isNotEmpty && !value.contains(key)) {
+        metadata[key] = value;
+        continue;
+      }
+    }
+    
+    // Pattern 2: Look for value in the next sibling element
+    final nextSibling = element.nextElementSibling;
+    if (nextSibling != null) {
+      final siblingText = nextSibling.text.trim();
+      if (siblingText.isNotEmpty && !siblingText.contains(key)) {
+        metadata[key] = siblingText;
+        continue;
+      }
+    }
+    
+    // Pattern 3: Look for value after the key in parent's innerHTML
+    final parentHtml = parent.innerHtml;
+    final match2 = RegExp('${RegExp.escape(key)}[:\\s]*([^<\\n]+)')
+        .firstMatch(parentHtml);
+    if (match2 != null) {
+      final value = match2.group(1)?.trim() ?? '';
+      // Remove HTML tags from value
+      final cleanValue = value.replaceAll(RegExp(r'<[^>]+>'), '').trim();
+      if (cleanValue.isNotEmpty && !cleanValue.contains(key)) {
+        metadata[key] = cleanValue;
+      }
+    }
+  }
+  
+  return metadata;
+}
+
+/// Extracts cover image URL with improved logic.
+///
+/// This method tries multiple sources in priority order:
+/// 1. var.postImg with title attribute (contains full URL)
+/// 2. var.postImgAligned with title attribute
+/// 3. img elements with src containing static.rutracker or fastpic
+String? _extractCoverUrlImproved(Element postBody, Element document) {
+  // Priority 1: var.postImg with title attribute (contains full URL)
+  final postImgVar = postBody.querySelector(
+    'var.postImg[title], var.postImgAligned[title]'
+  );
+  if (postImgVar != null) {
+    final title = postImgVar.attributes['title'];
+    if (title != null && title.isNotEmpty) {
+      return title;
+    }
+  }
+  
+  // Priority 2: var.postImg with title containing fastpic or rutracker
+  final postImgFastpic = postBody.querySelector(
+    'var.postImg[title*="fastpic"], var.postImg[title*="rutracker"], '
+    'var.postImgAligned[title*="fastpic"], var.postImgAligned[title*="rutracker"]'
+  );
+  if (postImgFastpic != null) {
+    final title = postImgFastpic.attributes['title'];
+    if (title != null && title.isNotEmpty) {
+      return title;
+    }
+  }
+  
+  // Priority 3: img with src containing static.rutracker or fastpic
+  final imgElement = document.querySelector(
+    'img[src*="static.rutracker"], img[src*="fastpic"], img.postimg'
+  );
+  return imgElement?.attributes['src'];
+}
+
+/// Extracts category from breadcrumb navigation.
+///
+/// This method looks for the breadcrumb navigation element and extracts
+/// the last link which typically represents the category.
+String _extractCategoryFromBreadcrumb(Element document) {
+  final breadcrumb = document.querySelector('td.nav.t-breadcrumb-top');
+  if (breadcrumb != null) {
+    final links = breadcrumb.querySelectorAll('a');
+    if (links.length >= 2) {
+      // Last link usually represents the category
+      return links.last.text.trim();
+    }
+  }
+  return '';
+}
+
+/// Parses relative date strings like "4 года", "28 дней", etc.
+///
+/// This method attempts to parse relative dates and convert them to
+/// approximate DateTime values. For absolute dates, it tries to parse
+/// formats like "ДД-МММ-ГГ ЧЧ:ММ".
+///
+/// Note: This function is reserved for future use when the Audiobook model
+/// is extended to include registeredDate field.
+// ignore: unused_element
+DateTime? _parseRelativeDate(String dateText) {
+  if (dateText.isEmpty) return null;
+  
+  // Try to parse absolute date format: "27-Окт-21 11:06" or "27-Окт-99 11:06"
+  final absoluteMatch = RegExp(r'(\d{2})-(\w{3})-(\d{2})\s+(\d{2}):(\d{2})')
+      .firstMatch(dateText);
+  if (absoluteMatch != null) {
+    try {
+      final day = int.parse(absoluteMatch.group(1)!);
+      final month = _monthToNumber(absoluteMatch.group(2)!);
+      final yearTwoDigits = int.parse(absoluteMatch.group(3)!);
+      // If year >= 50, assume 1900s (1950-1999), otherwise 2000s (2000-2049)
+      final year = yearTwoDigits >= 50 
+          ? 1900 + yearTwoDigits 
+          : 2000 + yearTwoDigits;
+      final hour = int.parse(absoluteMatch.group(4)!);
+      final minute = int.parse(absoluteMatch.group(5)!);
+      return DateTime(year, month, day, hour, minute);
+    } on Exception {
+      // Fallback to date only
+      try {
+        final day = int.parse(absoluteMatch.group(1)!);
+        final month = _monthToNumber(absoluteMatch.group(2)!);
+        final yearTwoDigits = int.parse(absoluteMatch.group(3)!);
+        // If year >= 50, assume 1900s (1950-1999), otherwise 2000s (2000-2049)
+        final year = yearTwoDigits >= 50 
+            ? 1900 + yearTwoDigits 
+            : 2000 + yearTwoDigits;
+        return DateTime(year, month, day);
+      } on Exception {
+        return null;
+      }
+    }
+  }
+  
+  // Try to parse relative dates
+  final now = DateTime.now();
+  final yearMatch = RegExp(r'(\d+)\s*год').firstMatch(dateText);
+  if (yearMatch != null) {
+    final years = int.tryParse(yearMatch.group(1) ?? '0') ?? 0;
+    return now.subtract(Duration(days: years * 365));
+  }
+  
+  final monthMatch = RegExp(r'(\d+)\s*месяц').firstMatch(dateText);
+  if (monthMatch != null) {
+    final months = int.tryParse(monthMatch.group(1) ?? '0') ?? 0;
+    return now.subtract(Duration(days: months * 30));
+  }
+  
+  final dayMatch = RegExp(r'(\d+)\s*дн').firstMatch(dateText);
+  if (dayMatch != null) {
+    final days = int.tryParse(dayMatch.group(1) ?? '0') ?? 0;
+    return now.subtract(Duration(days: days));
+  }
+  
+  return null;
 }

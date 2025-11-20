@@ -1,7 +1,21 @@
+// Copyright 2025 Jabook Contributors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter/foundation.dart' show debugPrint; // debugPrint
+import 'package:flutter/foundation.dart' show debugPrint, kReleaseMode; // debugPrint
 import 'package:jabook/core/errors/failures.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
@@ -81,6 +95,9 @@ class StructuredLogger {
   /// [context] - Additional context about what the application is doing
   /// [state_before] - State before the operation (for state transitions)
   /// [state_after] - State after the operation (for state transitions)
+  ///
+  /// In release mode, only 'error' and 'warning' levels are logged to reduce
+  /// performance impact and log file size.
   Future<void> log({
     required String level,
     required String subsystem,
@@ -93,6 +110,14 @@ class StructuredLogger {
     Map<String, dynamic>? stateBefore,
     Map<String, dynamic>? stateAfter,
   }) async {
+    // In release mode, skip debug and info logs to improve performance
+    // Only log errors, warnings, and critical info
+    if (kReleaseMode) {
+      if (level != 'error' && level != 'warning' && level != 'critical') {
+        return; // Skip debug/info logs in release mode
+      }
+    }
+
     if (_logFile == null) {
       await initialize();
     }
@@ -186,6 +211,38 @@ class StructuredLogger {
       };
 
       final logLine = jsonEncode(logEntry);
+
+      // In debug mode, also print to console for immediate visibility
+      if (!kReleaseMode) {
+        final levelEmoji = switch (level) {
+          'error' => '❌',
+          'warning' => '⚠️',
+          'info' => 'ℹ️',
+          'debug' => '🔍',
+          'critical' => '🚨',
+          _ => '📝',
+        };
+        final subsystemStr = subsystem.padRight(12);
+        final messageStr = message.length > 60 ? '${message.substring(0, 60)}...' : message;
+        debugPrint('$levelEmoji [$subsystemStr] $messageStr');
+        
+        // For network subsystem, show more details
+        if (subsystem == 'network' && extra != null) {
+          final method = extra['method']?.toString() ?? '';
+          final url = extra['url']?.toString() ?? extra['request_url']?.toString() ?? '';
+          final statusCode = extra['status_code']?.toString() ?? '';
+          final duration = durationMs != null ? '${durationMs}ms' : '';
+          
+          if (method.isNotEmpty && url.isNotEmpty) {
+            final shortUrl = url.length > 50 ? '${url.substring(0, 50)}...' : url;
+            if (statusCode.isNotEmpty) {
+              debugPrint('   → $method $statusCode $shortUrl $duration');
+            } else {
+              debugPrint('   → $method $shortUrl $duration');
+            }
+          }
+        }
+      }
 
       await _logFile!.writeAsString(
         '$logLine\n',
@@ -288,7 +345,26 @@ class StructuredLogger {
           lowerKey.contains('password') ||
           lowerKey.contains('set-cookie');
 
-      if (isSensitiveKey) {
+      // For cookies list, show structure but redact values
+      if (lowerKey == 'cookies' && value is List) {
+        result[key] = value.map((e) {
+          if (e is Map) {
+            final cookieMap = <String, dynamic>{};
+            e.forEach((k, v) {
+              final cookieKey = k.toString().toLowerCase();
+              if (cookieKey == 'value' || cookieKey == 'cookie_value') {
+                cookieMap[k] = v != null && v.toString().isNotEmpty 
+                    ? '${v.toString().substring(0, v.toString().length > 10 ? 10 : v.toString().length)}...' 
+                    : '<empty>';
+              } else {
+                cookieMap[k] = v;
+              }
+            });
+            return cookieMap;
+          }
+          return e;
+        }).toList();
+      } else if (isSensitiveKey && lowerKey != 'cookies') {
         result[key] = '<redacted>';
       } else if (value is String) {
         result[key] = _scrubSensitiveData(value);
@@ -316,15 +392,23 @@ class StructuredLogger {
     if (_logFile == null) return;
 
     try {
+      // Check if file exists before trying to get its size
+      if (!await _logFile!.exists()) {
+        return; // File doesn't exist yet, no rotation needed
+      }
+
       final fileSize = await _logFile!.length();
 
       if (fileSize > _maxLogSize) {
         await _rotateLogs();
       }
-    } on Exception {
+    } on Exception catch (e) {
       // Log rotation failure shouldn't prevent normal logging
-      // ignore: avoid_print
-      print('Log rotation failed');
+      // Only log in debug mode to avoid console spam
+      if (!kReleaseMode) {
+        debugPrint('Log rotation check failed (non-critical): $e');
+      }
+      // Silently continue - rotation will be retried on next write
     }
   }
 
@@ -333,42 +417,76 @@ class StructuredLogger {
     if (_logFile == null) return;
 
     try {
+      // Check if file exists before rotation
+      if (!await _logFile!.exists()) {
+        return; // Nothing to rotate
+      }
+
       final logDir = _logFile!.parent;
+      
+      // Ensure log directory exists
+      if (!await logDir.exists()) {
+        await logDir.create(recursive: true);
+        return; // Directory didn't exist, nothing to rotate
+      }
+
       final fileName = _logFile!.uri.pathSegments.last;
       final baseName = fileName.replaceAll('.ndjson', '');
 
       // Delete old log files if we have too many
-      final allFiles = await logDir
-          .list()
-          .where((entity) => entity is File && entity.path.contains(baseName))
-          .cast<File>()
-          .toList();
-
-      // Sort by last modified date (newest first)
       try {
-        allFiles.sort((a, b) {
-          final aMod = a.statSync().modified;
-          final bMod = b.statSync().modified;
-          return bMod.compareTo(aMod);
-        });
-      } on Exception {
-        // Fallback to simple name-based sorting
-        allFiles.sort((a, b) => b.path.compareTo(a.path));
-      }
+        final allFiles = await logDir
+            .list()
+            .where((entity) => entity is File && entity.path.contains(baseName))
+            .cast<File>()
+            .toList();
 
-      for (var i = _maxLogFiles; i < allFiles.length; i++) {
-        await allFiles[i].delete();
+        // Sort by last modified date (newest first)
+        try {
+          allFiles.sort((a, b) {
+            final aMod = a.statSync().modified;
+            final bMod = b.statSync().modified;
+            return bMod.compareTo(aMod);
+          });
+        } on Exception {
+          // Fallback to simple name-based sorting
+          allFiles.sort((a, b) => b.path.compareTo(a.path));
+        }
+
+        // Delete old files beyond the limit
+        for (var i = _maxLogFiles; i < allFiles.length; i++) {
+          try {
+            await allFiles[i].delete();
+          } on Exception {
+            // Ignore deletion errors for old files
+          }
+        }
+      } on Exception {
+        // Ignore errors listing/deleting old files - continue with rotation
       }
 
       // Rename current log file with timestamp
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       final backupFile = File('${logDir.path}/$baseName.$timestamp.ndjson');
-      await _logFile!.rename(backupFile.path);
+      
+      // Check if backup file already exists (unlikely but possible)
+      if (await backupFile.exists()) {
+        // Add random suffix to avoid conflicts
+        final randomSuffix = DateTime.now().microsecondsSinceEpoch;
+        final backupFileWithSuffix = File('${logDir.path}/$baseName.$timestamp.$randomSuffix.ndjson');
+        await _logFile!.rename(backupFileWithSuffix.path);
+      } else {
+        await _logFile!.rename(backupFile.path);
+      }
 
       // Create new log file
       _logFile = File('${logDir.path}/$baseName.ndjson');
-    } on Exception {
-      throw const LoggingFailure('Failed to rotate logs');
+    } on Exception catch (e) {
+      // Log rotation failure shouldn't prevent normal logging
+      if (!kReleaseMode) {
+        debugPrint('Log rotation failed (non-critical): $e');
+      }
+      // Don't throw - allow logging to continue with existing file
     }
   }
 

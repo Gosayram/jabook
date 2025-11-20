@@ -1,9 +1,24 @@
+// Copyright 2025 Jabook Contributors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:jabook/core/favorites/favorites_service.dart';
 import 'package:jabook/core/parse/rutracker_parser.dart';
 import 'package:jabook/data/db/app_database.dart';
 import 'package:jabook/features/search/presentation/widgets/audiobook_card.dart';
+import 'package:jabook/l10n/app_localizations.dart';
 
 /// Screen for displaying user's favorite audiobooks.
 ///
@@ -90,17 +105,20 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
         });
 
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Удалено из избранного'),
-            duration: Duration(seconds: 2),
+          SnackBar(
+            content: Text(AppLocalizations.of(context)?.removedFromFavorites ??
+                'Removed from favorites'),
+            duration: const Duration(seconds: 2),
           ),
         );
       }
     } on Exception {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Не удалось удалить из избранного'),
+          SnackBar(
+            content: Text(AppLocalizations.of(context)
+                    ?.failedToRemoveFromFavorites ??
+                'Failed to remove from favorites'),
           ),
         );
       }
@@ -132,12 +150,14 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   @override
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(
-          title: const Text('Избранное'),
+          title: Text(AppLocalizations.of(context)?.favoritesTitle ??
+              'Favorites'),
           actions: [
             if (_favorites.isNotEmpty)
               IconButton(
                 icon: const Icon(Icons.refresh),
-                tooltip: 'Обновить',
+                tooltip: AppLocalizations.of(context)?.refreshTooltip ??
+                    'Refresh',
                 onPressed: _loadFavorites,
               ),
           ],
@@ -161,12 +181,14 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
             ),
             const SizedBox(height: 16),
             Text(
-              'Нет избранных аудиокниг',
+              AppLocalizations.of(context)?.noFavoritesMessage ??
+                  'No favorite audiobooks',
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 8),
             Text(
-              'Добавьте аудиокниги в избранное из результатов поиска',
+              AppLocalizations.of(context)?.addFavoritesHint ??
+                  'Add audiobooks to favorites from search results',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: Colors.grey.shade600,
                   ),
@@ -176,7 +198,8 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
             ElevatedButton.icon(
               onPressed: () => context.go('/search'),
               icon: const Icon(Icons.search),
-              label: const Text('Перейти к поиску'),
+              label: Text(AppLocalizations.of(context)?.goToSearchButton ??
+                  'Go to Search'),
             ),
           ],
         ),

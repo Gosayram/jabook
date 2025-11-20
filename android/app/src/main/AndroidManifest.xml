@@ -1,0 +1,131 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.jabook.app.jabook">
+
+    <!-- Network permissions (API 21+) -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <!-- Required only if your app modifies network configuration -->
+    <!-- <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" /> -->
+
+    <!-- Legacy external storage permissions (Android 5.0-12, API 21-32) -->
+    <!-- READ_EXTERNAL_STORAGE: Required for reading files on external storage -->
+    <!-- Note: On Android 6.0+ (API 23+), this is a runtime permission -->
+    <uses-permission
+        android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+    
+    <!-- WRITE_EXTERNAL_STORAGE: Required for writing files on external storage -->
+    <!-- Note: On Android 6.0+ (API 23+), this is a runtime permission -->
+    <!-- On Android 10+ (API 29+), Scoped Storage limits this permission -->
+    <!-- On Android 11+ (API 30+), this permission is mostly ignored, use SAF instead -->
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+
+    <!-- Modern scoped media permissions (Android 13+, API 33+) -->
+    <!-- These replace READ_EXTERNAL_STORAGE for media files on Android 13+ -->
+    <!-- Audio-only permission is enough for audio playback apps -->
+    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+    <!-- Uncomment if you really access images or videos -->
+    <!-- <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" /> -->
+    <!-- <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" /> -->
+
+    <!-- Notification permission (Android 13+, API 33+) -->
+    <!-- Required for showing notifications on Android 13+ -->
+    <!-- On Android 12 and below, notifications work without explicit permission -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- Power and audio service permissions -->
+    <!-- WAKE_LOCK: Prevents device from sleeping during audio playback (API 21+) -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    
+    <!-- FOREGROUND_SERVICE: Required for foreground services (Android 9+, API 28+) -->
+    <!-- Note: On Android 9+ (API 28+), foreground services require this permission -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+
+    <!-- Required for Android 14+ (API 34+) when using media playback foreground services -->
+    <!-- This is a more specific permission for media playback foreground services -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+
+    <!-- Optional: requesting battery optimization exemption requires strict justification -->
+    <!-- This permission is rarely approved by Google Play and should be avoided -->
+    <!-- <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" /> -->
+
+    <application
+        android:label="jabook"
+        android:name="${applicationName}"
+        android:icon="@mipmap/ic_launcher"
+        android:usesCleartextTraffic="true"
+        android:networkSecurityConfig="@xml/network_security_config"
+        android:requestLegacyExternalStorage="true">
+        
+        <!-- requestLegacyExternalStorage: Allows access to legacy storage model on Android 10 (API 29) -->
+        <!-- This attribute is ignored on Android 11+ (API 30+) where Scoped Storage is mandatory -->
+        <!-- It helps maintain compatibility for apps targeting Android 10 while transitioning to SAF -->
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:taskAffinity=""
+            android:theme="@style/LaunchTheme"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+            android:hardwareAccelerated="true"
+            android:windowSoftInputMode="adjustResize">
+
+            <!-- Theme applied before Flutter UI becomes visible -->
+            <meta-data
+                android:name="io.flutter.embedding.android.NormalTheme"
+                android:resource="@style/NormalTheme" />
+
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- Background audio playback service -->
+        <service
+            android:name="com.ryanheise.audioservice.AudioService"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback">
+            <intent-filter>
+                <action android:name="android.media.browse.MediaBrowserService" />
+            </intent-filter>
+        </service>
+
+        <!-- Required for Flutter engine -->
+        <meta-data
+            android:name="flutterEmbedding"
+            android:value="2" />
+    </application>
+
+    <!-- Queries required for url_launcher, PROCESS_TEXT, and SAF usage -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.PROCESS_TEXT" />
+            <data android:mimeType="text/plain" />
+        </intent>
+
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <category android:name="android.intent.category.BROWSABLE" />
+            <data android:scheme="https" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <category android:name="android.intent.category.BROWSABLE" />
+            <data android:scheme="http" />
+        </intent>
+
+        <!-- Storage Access Framework (SAF) queries for folder selection on Android 11+ -->
+        <intent>
+            <action android:name="android.intent.action.OPEN_DOCUMENT_TREE" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.OPEN_DOCUMENT" />
+        </intent>
+    </queries>
+
+</manifest>

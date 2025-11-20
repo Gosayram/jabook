@@ -1,10 +1,28 @@
+// Copyright 2025 Jabook Contributors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:b_encode_decode/b_encode_decode.dart';
+// ignore: unused_import
+import 'package:dtorrent_common/dtorrent_common.dart'; // PeerSource is used in addPeer call
 import 'package:dtorrent_parser/dtorrent_parser.dart';
 import 'package:dtorrent_task_v2/dtorrent_task_v2.dart';
 import 'package:jabook/core/errors/failures.dart';
+import 'package:jabook/core/utils/safe_async.dart';
 import 'package:path_provider/path_provider.dart';
 
 /// Represents the progress of a torrent download.
@@ -74,6 +92,9 @@ class AudiobookTorrentManager {
   /// Map of download metadata.
   final Map<String, Map<String, dynamic>> _downloadMetadata = {};
 
+  /// Map of metadata downloaders for active downloads.
+  final Map<String, MetadataDownloader> _metadataDownloaders = {};
+
   /// Starts a sequential torrent download for an audiobook.
   ///
   /// This method initiates a torrent download using the provided magnet URL
@@ -85,24 +106,19 @@ class AudiobookTorrentManager {
   ///
   /// Throws [TorrentFailure] if the download cannot be started.
   Future<void> downloadSequential(String magnetUrl, String savePath) async {
+    String? downloadId;
     try {
       // Generate a unique download ID
-      final downloadId = DateTime.now().millisecondsSinceEpoch.toString();
+      downloadId = DateTime.now().millisecondsSinceEpoch.toString();
 
       // Create progress controller for this download
       final progressController = StreamController<TorrentProgress>.broadcast();
       _progressControllers[downloadId] = progressController;
 
-      // Parse magnet URL to extract info hash
-      final uri = Uri.parse(magnetUrl);
-      final xtParam = uri.queryParameters['xt'];
-      if (xtParam == null || !xtParam.startsWith('urn:btih:')) {
-        throw const TorrentFailure('Invalid magnet URL: missing info hash');
-      }
-
-      final infoHash = xtParam.substring('urn:btih:'.length);
-      if (infoHash.length != 40) {
-        throw const TorrentFailure('Invalid info hash length');
+      // Parse magnet link
+      final magnet = MagnetParser.parse(magnetUrl);
+      if (magnet == null) {
+        throw const TorrentFailure('Invalid magnet URL: failed to parse');
       }
 
       // Create download directory if it doesn't exist
@@ -111,32 +127,103 @@ class AudiobookTorrentManager {
         await downloadDir.create(recursive: true);
       }
 
-      // For now, we'll use a placeholder approach since dtorrent_task
-      // requires actual .torrent files. In a real implementation, we would:
-      // 1. Fetch the .torrent file from a tracker using the magnet link
-      // 2. Or use a proper magnet link resolver library
-      // 3. Or implement magnet link support ourselves
+      // Check metadata cache first
+      var metadataBytes =
+          await MetadataDownloader.loadFromCache(magnet.infoHashString);
 
-      // Placeholder: Create a simple task that simulates download progress
-      // This will be replaced with actual torrent functionality
+      // Store metadata downloader and peers for later transfer
+      MetadataDownloader? metadataDownloader;
+      List<Peer>? metadataPeers;
+
+      // If not in cache, download metadata
+      if (metadataBytes == null) {
+        // Create metadata downloader
+        metadataDownloader = MetadataDownloader.fromMagnet(magnetUrl);
+        _metadataDownloaders[downloadId] = metadataDownloader;
+        final metadataListener = metadataDownloader.createListener();
+
+        // Wait for metadata download with timeout
+        final metadataCompleter = Completer<Uint8List>();
+        metadataListener
+          ..on<MetaDataDownloadProgress>((event) {
+            // Emit metadata download progress
+            final progress = TorrentProgress(
+              progress: event.progress * 100,
+              downloadSpeed: 0.0,
+              uploadSpeed: 0.0,
+              downloadedBytes: 0,
+              totalBytes: 0,
+              seeders: 0,
+              leechers: 0,
+              status: 'downloading_metadata',
+            );
+            progressController.add(progress);
+          })
+          ..on<MetaDataDownloadComplete>((event) {
+            if (!metadataCompleter.isCompleted) {
+              metadataCompleter.complete(Uint8List.fromList(event.data));
+            }
+          });
+
+        // Start metadata download
+        safeUnawaited(metadataDownloader.startDownload());
+
+        // Wait for metadata with timeout (180 seconds)
+        try {
+          metadataBytes = await metadataCompleter.future.timeout(
+            const Duration(seconds: 180),
+            onTimeout: () {
+              throw const TorrentFailure(
+                  'Metadata download timeout after 180 seconds');
+            },
+          );
+          // Save peers before cleanup
+          metadataPeers = metadataDownloader.activePeers.toList();
+        } finally {
+          // Clean up metadata downloader
+          _metadataDownloaders.remove(downloadId);
+          await metadataDownloader.stop();
+        }
+      }
+
+      // Parse torrent from metadata
+      final msg = decode(metadataBytes);
+      final torrentMap = <String, dynamic>{'info': msg};
+      final torrentModel = parseTorrentFileContent(torrentMap);
+
+      if (torrentModel == null) {
+        throw const TorrentFailure('Failed to parse torrent from metadata');
+      }
+
+      // Create torrent task with web seeds and acceptable sources from magnet link
       final task = TorrentTask.newTask(
-        await _createPlaceholderTorrent(magnetUrl),
+        torrentModel,
         savePath,
         true, // sequential download for audiobooks
+        magnet.webSeeds.isNotEmpty ? magnet.webSeeds : null,
+        magnet.acceptableSources.isNotEmpty ? magnet.acceptableSources : null,
       );
       _activeTasks[downloadId] = task;
+
+      // Apply selected files from magnet link (BEP 0053) if specified
+      if (magnet.selectedFileIndices != null &&
+          magnet.selectedFileIndices!.isNotEmpty) {
+        task.applySelectedFiles(magnet.selectedFileIndices!);
+      }
 
       // Store metadata
       _downloadMetadata[downloadId] = {
         'magnetUrl': magnetUrl,
         'savePath': savePath,
-        'infoHash': infoHash,
+        'infoHash': magnet.infoHashString,
         'startedAt': DateTime.now(),
       };
 
       // Set up event listeners
+      // downloadId is guaranteed to be non-null at this point
+      final finalDownloadId = downloadId;
       task.events.on<TaskStarted>((event) {
-        _updateProgress(downloadId, task, progressController);
+        _updateProgress(finalDownloadId, task, progressController);
       });
 
       task.events.on<AllComplete>((event) {
@@ -155,44 +242,66 @@ class AudiobookTorrentManager {
           ..close();
         _progressControllers.remove(downloadId);
         _activeTasks.remove(downloadId);
+        _downloadMetadata.remove(downloadId);
       });
 
       // Start the download
       await task.start();
+
+      // Transfer peers from metadata downloader if available
+      if (metadataPeers != null && metadataPeers.isNotEmpty) {
+        for (final peer in metadataPeers) {
+          try {
+            task.addPeer(peer.address, PeerSource.manual, type: peer.type);
+          } on Exception {
+            // Skip peers that can't be transferred
+          }
+        }
+      }
+
+      // Add trackers from magnet link to TorrentTask
+      if (magnet.trackers.isNotEmpty) {
+        final infoHashBuffer = Uint8List.fromList(
+          List.generate(magnet.infoHashString.length ~/ 2, (i) {
+            final s = magnet.infoHashString.substring(i * 2, i * 2 + 2);
+            return int.parse(s, radix: 16);
+          }),
+        );
+        for (var trackerUrl in magnet.trackers) {
+          try {
+            task.startAnnounceUrl(trackerUrl, infoHashBuffer);
+          } on Exception {
+            // Skip trackers that can't be added
+          }
+        }
+      }
+
+      // Add DHT nodes from torrent model
+      torrentModel.nodes.forEach(task.addDHTNode);
     } on Exception catch (e) {
+      // Clean up on error
+      if (downloadId != null) {
+        final controller = _progressControllers[downloadId];
+        if (controller != null) {
+          safeUnawaited(controller.close());
+        }
+        _progressControllers.remove(downloadId);
+        final task = _activeTasks[downloadId];
+        if (task != null) {
+          safeUnawaited(task.dispose());
+        }
+        _activeTasks.remove(downloadId);
+        final metadata = _metadataDownloaders[downloadId];
+        if (metadata != null) {
+          safeUnawaited(metadata.stop());
+        }
+        _metadataDownloaders.remove(downloadId);
+        _downloadMetadata.remove(downloadId);
+      }
       throw TorrentFailure('Failed to start download: ${e.toString()}');
     }
   }
 
-  Future<Torrent> _createPlaceholderTorrent(String magnetUrl) async {
-    // Create a placeholder torrent for simulation purposes
-    // In a real implementation, this would fetch the actual torrent metadata
-    // from trackers using the magnet link
-
-    // Extract info hash from magnet URL for naming
-    final uri = Uri.parse(magnetUrl);
-    final xtParam = uri.queryParameters['xt'] ?? '';
-    final infoHash = xtParam.startsWith('urn:btih:')
-        ? xtParam.substring('urn:btih:'.length)
-        : 'placeholder';
-
-    // Create a minimal torrent structure using the correct constructor
-    // The Torrent constructor requires: _info, name, infoHash, infoHashBuffer, length
-    return Torrent(
-      {
-        'name': 'audiobook_$infoHash',
-        'piece length': 262144,
-        'pieces': '',
-        'length': 1024 * 1024 * 100
-      },
-      'audiobook_$infoHash',
-      infoHash,
-      Uint8List(20), // Placeholder info hash buffer
-      1024 * 1024 * 100, // 100MB placeholder size
-      createdBy: 'JaBook Audiobook Player',
-      creationDate: DateTime.now(),
-    );
-  }
 
   void _updateProgress(String downloadId, TorrentTask task,
       StreamController<TorrentProgress> progressController) {
@@ -293,6 +402,12 @@ class AudiobookTorrentManager {
         _activeTasks.remove(downloadId);
       }
 
+      final metadata = _metadataDownloaders[downloadId];
+      if (metadata != null) {
+        await metadata.stop();
+        _metadataDownloaders.remove(downloadId);
+      }
+
       await _progressControllers[downloadId]?.close();
       _progressControllers.remove(downloadId);
       _downloadMetadata.remove(downloadId);
@@ -367,6 +482,16 @@ class AudiobookTorrentManager {
   /// Throws [TorrentFailure] if shutdown fails.
   Future<void> shutdown() async {
     try {
+      // Stop all metadata downloaders
+      await Future.wait(_metadataDownloaders.values.map((metadata) async {
+        try {
+          await metadata.stop();
+        } on Exception {
+          // Ignore errors during shutdown
+        }
+      }));
+      _metadataDownloaders.clear();
+
       // Close all progress controllers
       await Future.wait(
           _progressControllers.values.map((controller) => controller.close()));

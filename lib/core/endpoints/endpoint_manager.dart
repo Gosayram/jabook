@@ -1,9 +1,26 @@
+// Copyright 2025 Jabook Contributors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 import 'package:jabook/core/errors/failures.dart';
 import 'package:jabook/core/logging/structured_logger.dart';
 import 'package:jabook/core/net/dio_client.dart';
 import 'package:jabook/core/net/user_agent_manager.dart';
 import 'package:jabook/core/utils/dns_lookup.dart';
+import 'package:jabook/core/utils/safe_async.dart';
 import 'package:sembast/sembast.dart';
 
 /// Manages RuTracker endpoint configuration and health monitoring.
@@ -33,19 +50,65 @@ class EndpointManager {
   RecordRef<String, Map<String, dynamic>> get _endpointsRef =>
       _store.record(_storeKey);
 
+  /// Default RuTracker endpoints configuration.
+  ///
+  /// This is the single source of truth for all RuTracker mirrors.
+  /// All endpoints are defined here and used throughout the application.
+  /// Priority: lower number = higher priority (1 is highest).
+  static List<Map<String, dynamic>> getDefaultEndpoints() => [
+        {'url': 'https://rutracker.me', 'priority': 1, 'enabled': true},
+        {'url': 'https://rutracker.net', 'priority': 2, 'enabled': true},
+        {'url': 'https://rutracker.org', 'priority': 3, 'enabled': true},
+      ];
+
+  /// Returns list of default endpoint URLs in priority order.
+  ///
+  /// This method provides a convenient way to get all endpoint URLs
+  /// without needing to parse the full endpoint configuration.
+  static List<String> getDefaultEndpointUrls() => getDefaultEndpoints()
+      .map((e) => e['url'] as String)
+      .toList();
+
+  /// Returns list of RuTracker domain names (without protocol).
+  ///
+  /// Used for cookie management and domain matching.
+  static List<String> getRutrackerDomains() =>
+      ['rutracker.me', 'rutracker.net', 'rutracker.org'];
+
+  /// Returns the primary fallback endpoint URL.
+  ///
+  /// This is used as the ultimate fallback when all other endpoints fail.
+  /// Currently returns rutracker.me as it's the most stable and accessible mirror.
+  static String getPrimaryFallbackEndpoint() => 'https://rutracker.me';
+
   /// Initializes the EndpointManager with default endpoints and performs health checks.
+  ///
+  /// Health checks are performed asynchronously in the background to avoid
+  /// blocking application startup.
   Future<void> initialize() async {
     await initializeDefaultEndpoints();
-    await _performInitialHealthChecks();
+    // Perform health checks in background - don't block initialization
+    // This allows the app to start even if network is unavailable
+    safeUnawaited(
+      _performInitialHealthChecks(),
+      onError: (e, stack) {
+        final logger = StructuredLogger();
+        safeUnawaited(
+          logger.log(
+            level: 'warning',
+            subsystem: 'endpoints',
+            message: 'Health checks failed during initialization',
+            context: 'endpoint_init',
+            cause: e.toString(),
+          ),
+        );
+      },
+    );
   }
 
   /// Initializes the default RuTracker endpoints if none exist.
   Future<void> initializeDefaultEndpoints() async {
-    final defaultEndpoints = [
-      {'url': 'https://rutracker.me', 'priority': 1, 'enabled': true},
-      {'url': 'https://rutracker.net', 'priority': 2, 'enabled': true},
-      {'url': 'https://rutracker.org', 'priority': 3, 'enabled': true},
-    ];
+    final defaultEndpoints = getDefaultEndpoints();
 
     final record = await _endpointsRef.get(_db);
     if (record == null) {
@@ -58,24 +121,90 @@ class EndpointManager {
 
   /// Performs initial health checks on all endpoints
   Future<void> _performInitialHealthChecks() async {
-    final record = await _endpointsRef.get(_db);
-    final endpoints =
-        List<Map<String, dynamic>>.from((record?['endpoints'] as List?) ?? []);
+    try {
+      final record = await _endpointsRef.get(_db);
+      final endpoints =
+          List<Map<String, dynamic>>.from((record?['endpoints'] as List?) ?? []);
 
-    for (final endpoint in endpoints) {
-      final url = endpoint['url'] as String;
-      if (endpoint['enabled'] == true) {
-        await healthCheck(url);
+      for (final endpoint in endpoints) {
+        final url = endpoint['url'] as String;
+        if (endpoint['enabled'] == true) {
+          try {
+            await healthCheck(url);
+          } on StateError catch (e) {
+            // Handle "Bad state: read only" error - database may not be ready yet
+            if (e.message.contains('read only') || e.message.contains('read-only')) {
+              final logger = StructuredLogger();
+              await logger.log(
+                level: 'warning',
+                subsystem: 'endpoints',
+                message: 'Health check skipped - database not ready',
+                context: 'endpoint_init',
+                cause: e.toString(),
+                extra: {
+                  'url': url,
+                  'note': 'Database may be in read-only mode during initialization',
+                },
+              );
+              // Skip this health check, continue with others
+              continue;
+            }
+            // Re-throw other StateErrors
+            rethrow;
+          } on Exception catch (e) {
+            // Log other errors but continue with other endpoints
+            final logger = StructuredLogger();
+            await logger.log(
+              level: 'warning',
+              subsystem: 'endpoints',
+              message: 'Health check failed for endpoint',
+              context: 'endpoint_init',
+              cause: e.toString(),
+              extra: {'url': url},
+            );
+            // Continue with other endpoints
+            continue;
+          }
+        }
       }
+    } on StateError catch (e) {
+      // Handle "Bad state: read only" error at the top level
+      if (e.message.contains('read only') || e.message.contains('read-only')) {
+        final logger = StructuredLogger();
+        await logger.log(
+          level: 'warning',
+          subsystem: 'endpoints',
+          message: 'Initial health checks skipped - database not ready',
+          context: 'endpoint_init',
+          cause: e.toString(),
+          extra: {
+            'note': 'Database may be in read-only mode during initialization. Health checks will be retried later.',
+          },
+        );
+        return; // Exit gracefully
+      }
+      // Re-throw other StateErrors
+      rethrow;
+    } on Exception catch (e) {
+      // Log other errors
+      final logger = StructuredLogger();
+      await logger.log(
+        level: 'warning',
+        subsystem: 'endpoints',
+        message: 'Initial health checks failed',
+        context: 'endpoint_init',
+        cause: e.toString(),
+      );
+      // Don't rethrow - allow app to continue
     }
   }
 
   /// Performs a health check on the specified endpoint with exponential backoff.
-  /// Minimum time between health checks for the same endpoint (5 minutes).
-  static const Duration _healthCheckCacheTTL = Duration(minutes: 5);
+  /// Minimum time between health checks for the same endpoint (15 minutes - increased to reduce Cloudflare rate limiting).
+  static const Duration _healthCheckCacheTTL = Duration(minutes: 15);
 
-  /// Cache TTL for quick availability checks (30 seconds - much shorter than full health check).
-  static const Duration _quickCheckCacheTTL = Duration(seconds: 30);
+  /// Cache TTL for quick availability checks (5 minutes - increased to reduce Cloudflare rate limiting).
+  static const Duration _quickCheckCacheTTL = Duration(minutes: 5);
 
   /// Maximum retries for temporary errors.
   static const int _maxRetries = 3;
@@ -333,15 +462,16 @@ class EndpointManager {
             body.contains('cf-challenge-running') ||
             body.contains('cf-ray');
 
-        // Consider healthy: 2xx-3xx, or CF challenge (403/503 + CF headers/body)
+        // Consider healthy: 2xx-3xx, or CF challenge (401/403/503 + CF headers/body)
         // Even if CF challenge, mirror is working, just protected
+        // 401/403/503 without Cloudflare = NOT healthy (blocked/forbidden/server error)
         final isHealthy = (status >= 200 && status < 400) ||
-            ((status == 403 || status == 503) && (isCloudflare || looksLikeCf));
+            ((status == 401 || status == 403 || status == 503) && (isCloudflare || looksLikeCf));
 
         // Calculate health score (0-100)
         var newHealthScore =
             _calculateHealthScore(rtt, isHealthy ? 200 : status);
-        if ((status == 403 || status == 503) && (isCloudflare || looksLikeCf)) {
+        if ((status == 401 || status == 403 || status == 503) && (isCloudflare || looksLikeCf)) {
           // Cloudflare challenge: mirror is working, just protected
           // Give it a reasonable health score (60-80) to indicate it's usable
           newHealthScore = (newHealthScore - 20).clamp(60, 85);
@@ -391,7 +521,29 @@ class EndpointManager {
           'last_failure': null,
           'cooldown_until': null,
         });
-        await _endpointsRef.put(_db, {'endpoints': endpoints});
+        try {
+          await _endpointsRef.put(_db, {'endpoints': endpoints});
+        } on StateError catch (e) {
+          // Handle "Bad state: read only" error - database may not be ready
+          if (e.message.contains('read only') || e.message.contains('read-only')) {
+            await logger.log(
+              level: 'warning',
+              subsystem: 'endpoints',
+              message: 'Failed to save health check result - database not ready',
+              operationId: operationId,
+              context: 'health_check',
+              cause: e.toString(),
+              extra: {
+                'url': endpoint,
+                'note': 'Health check completed but result not saved. Will retry later.',
+              },
+            );
+            // Don't throw - health check succeeded, just couldn't save
+            return;
+          }
+          // Re-throw other StateErrors
+          rethrow;
+        }
 
         // Update quick check cache with fresh result
         _quickCheckCache[endpoint] = {
@@ -868,16 +1020,44 @@ class EndpointManager {
       final userAgentManager = UserAgentManager();
       final userAgent = await userAgentManager.getUserAgent();
 
-      // Perform DNS lookup before HTTP request
+      // Perform DNS lookup before HTTP request with timeout
       final endpointUri = Uri.parse(endpoint);
       final host = endpointUri.host;
       DnsLookupResult? dnsResult;
 
       try {
+        // DNS lookup with timeout to prevent hanging
         dnsResult = await dnsLookup(
           host,
           operationId: operationId,
+        ).timeout(
+          const Duration(seconds: 3),
+          onTimeout: () {
+            throw TimeoutException('DNS lookup timed out after 3 seconds');
+          },
         );
+
+        // If DNS lookup failed, endpoint is unavailable
+        if (!dnsResult.success) {
+          await logger.log(
+            level: 'warning',
+            subsystem: 'network',
+            message: 'DNS lookup failed - endpoint unavailable',
+            operationId: operationId,
+            context: 'quick_availability_check',
+            extra: {
+              'host': host,
+              'dns_success': false,
+              'original_subsystem': 'endpoints',
+            },
+          );
+          // Cache negative result
+          _quickCheckCache[endpoint] = {
+            'result': false,
+            'timestamp': DateTime.now(),
+          };
+          return false;
+        }
 
         await logger.log(
           level: 'debug',
@@ -893,20 +1073,46 @@ class EndpointManager {
             'original_subsystem': 'endpoints',
           },
         );
-      } on Exception catch (e) {
+      } on TimeoutException {
+        // DNS timeout - endpoint unavailable
         await logger.log(
           level: 'warning',
           subsystem: 'network',
-          message: 'DNS lookup failed before quick availability check',
+          message: 'DNS lookup timed out - endpoint unavailable',
+          operationId: operationId,
+          context: 'quick_availability_check',
+          extra: {
+            'host': host,
+            'timeout_seconds': 3,
+            'original_subsystem': 'endpoints',
+          },
+        );
+        // Cache negative result
+        _quickCheckCache[endpoint] = {
+          'result': false,
+          'timestamp': DateTime.now(),
+        };
+        return false;
+      } on Exception catch (e) {
+        // DNS error - endpoint unavailable
+        await logger.log(
+          level: 'warning',
+          subsystem: 'network',
+          message: 'DNS lookup failed - endpoint unavailable',
           operationId: operationId,
           context: 'quick_availability_check',
           cause: e.toString(),
           extra: {
             'host': host,
-            'note': 'Continuing with HTTP request anyway',
             'original_subsystem': 'endpoints',
           },
         );
+        // Cache negative result
+        _quickCheckCache[endpoint] = {
+          'result': false,
+          'timestamp': DateTime.now(),
+        };
+        return false;
       }
 
       final requestStartTime = DateTime.now();
@@ -927,7 +1133,6 @@ class EndpointManager {
           'url': requestUrl,
           'method': 'GET',
           'cache_used': false,
-          if (dnsResult != null)
             'dns_lookup': {
               'success': dnsResult.success,
               'ip_addresses': dnsResult.ipAddresses,
@@ -940,7 +1145,9 @@ class EndpointManager {
           .get(
             requestUrl,
             options: Options(
-              validateStatus: (status) => status != null && status < 500,
+              // Accept 500 as "available but server error" - endpoint is reachable
+              // Only reject 5xx if it's a real server error, not Cloudflare
+              validateStatus: (status) => status != null && status < 600,
               headers: {
                 'User-Agent': userAgent,
                 'Accept':
@@ -975,10 +1182,17 @@ class EndpointManager {
           body.contains('just a moment');
 
       // Endpoint is available if:
-      // 1. Status 200-399 (success/redirect)
-      // 2. Status 403/503 with CloudFlare headers/body (reachable but protected)
+      // 1. Status 200-399 (success/redirect) - definitely available
+      // 2. Status 401/403/503 with CloudFlare headers/body (reachable but protected by CF)
+      //    Cloudflare challenge means endpoint is working, just needs CF verification
+      // 
+      // Endpoint is NOT available if:
+      // - Status 401/403 without Cloudflare (blocked/forbidden - endpoint is not usable)
+      // - Status 500 (server error - endpoint is not working properly)
+      // - Status 4xx/5xx without Cloudflare protection
       final isAvailable = (status >= 200 && status < 400) ||
-          ((status == 403 || status == 503) && (isCloudflare || looksLikeCf));
+          ((status == 401 || status == 403 || status == 503) &&
+              (isCloudflare || looksLikeCf));
 
       final totalDuration = DateTime.now().difference(startTime).inMilliseconds;
 
@@ -998,7 +1212,6 @@ class EndpointManager {
             'response_size_bytes': bodySize,
             'rtt_ms': requestDuration,
             'is_cloudflare_detected': true,
-            if (dnsResult != null)
               'dns_lookup': {
                 'success': dnsResult.success,
                 'ip_addresses': dnsResult.ipAddresses,
@@ -1043,7 +1256,6 @@ class EndpointManager {
             'response_size_bytes': bodySize,
             'rtt_ms': requestDuration,
             'is_cloudflare_detected': isCloudflare,
-            if (dnsResult != null)
               'dns_lookup': {
                 'success': dnsResult.success,
                 'ip_addresses': dnsResult.ipAddresses,
@@ -1077,7 +1289,71 @@ class EndpointManager {
     } on DioException catch (e) {
       final totalDuration = DateTime.now().difference(startTime).inMilliseconds;
 
+      // Check for 401/403/500 - these indicate endpoint is NOT available for use
+      // 401/403 without Cloudflare = endpoint is blocked/forbidden (not usable)
+      // 500 = server error (endpoint is not working properly)
+      // IMPORTANT: Only 401/403 WITH Cloudflare should be considered available
+      final statusCode = e.response?.statusCode;
+      if (statusCode == 401 || statusCode == 403 || statusCode == 500) {
+        // Check if it's Cloudflare challenge (only for 401/403, not 500)
+        final headers = e.response?.headers;
+        final isCloudflare = statusCode != 500 && headers != null && (
+          (headers.value('server')?.toLowerCase().contains('cloudflare') ?? false) ||
+          headers.map.keys.any((k) => k.toLowerCase() == 'cf-ray')
+        );
+        
+        // Only consider available if it's 401/403 with Cloudflare (not 500)
+        if (isCloudflare && statusCode != 500) {
+          await logger.log(
+            level: 'info',
+            subsystem: 'endpoints',
+            message: 'Endpoint available but protected by CloudFlare',
+            operationId: operationId,
+            context: 'quick_availability_check',
+            durationMs: totalDuration,
+            extra: {
+              'url': endpoint,
+              'status_code': statusCode,
+              'is_cloudflare': true,
+            },
+          );
+          // Cache positive result - endpoint is available (CF protected)
+          _quickCheckCache[endpoint] = {
+            'result': true,
+            'timestamp': DateTime.now(),
+          };
+          return true;
+        } else {
+          // 401/403 without Cloudflare or 500 = endpoint is NOT available
+          final message = statusCode == 500 
+              ? 'Endpoint unavailable: server error'
+              : 'Endpoint unavailable: blocked/forbidden';
+          await logger.log(
+            level: 'warning',
+            subsystem: 'endpoints',
+            message: message,
+            operationId: operationId,
+            context: 'quick_availability_check',
+            durationMs: totalDuration,
+            extra: {
+              'url': endpoint,
+              'status_code': statusCode,
+              'is_server_error': statusCode == 500,
+              'is_blocked': statusCode == 401 || statusCode == 403,
+              'is_cloudflare': false,
+            },
+          );
+          // Cache negative result - endpoint is not available
+          _quickCheckCache[endpoint] = {
+            'result': false,
+            'timestamp': DateTime.now(),
+          };
+          return false; // Not available
+        }
+      }
+
       // DNS errors indicate endpoint is unavailable
+      // Check this AFTER status code checks, because 500 is not a DNS error
       final isDnsError = e.type == DioExceptionType.connectionError;
       if (isDnsError) {
         final message = e.message?.toLowerCase() ?? '';
@@ -1127,7 +1403,7 @@ class EndpointManager {
           'url': endpoint,
           'error': e.message,
           'error_type': errorType,
-          'status_code': e.response?.statusCode,
+          'status_code': statusCode,
           'stack_trace': e.stackTrace.toString(),
         },
       );
@@ -1374,9 +1650,8 @@ class EndpointManager {
       );
 
       if (fallbackEndpoints.isEmpty) {
-        // Ultimate fallback: use rutracker.net as guaranteed working mirror
-        // Changed from rutracker.me (which is blocked by CloudFlare)
-        const hardcodedFallback = 'https://rutracker.net';
+        // Ultimate fallback: use primary fallback endpoint
+        final hardcodedFallback = getPrimaryFallbackEndpoint();
         final duration = DateTime.now().difference(startTime).inMilliseconds;
         await logger.log(
           level: 'warning',
@@ -1393,10 +1668,62 @@ class EndpointManager {
         return hardcodedFallback;
       }
 
-      // Sort fallback by priority
+      // Sort fallback by priority, then check availability
       fallbackEndpoints.sort((a, b) => a['priority'].compareTo(b['priority']));
-      final chosen = fallbackEndpoints.first['url'] as String;
-      final chosenData = fallbackEndpoints.first;
+      
+      // Try endpoints in priority order, checking availability
+      String? chosen;
+      Map<String, dynamic>? chosenData;
+      var foundByAvailability = false;
+      for (final endpoint in fallbackEndpoints) {
+        final url = endpoint['url'] as String;
+        final isAvailable = await quickAvailabilityCheck(url);
+        if (isAvailable) {
+          chosen = url;
+          chosenData = endpoint;
+          foundByAvailability = true;
+          break;
+        }
+      }
+      
+      // If no available endpoint found, try hardcoded fallback
+      if (chosen == null) {
+        final hardcodedFallback = getPrimaryFallbackEndpoint();
+        // Check if hardcoded fallback is available
+        final isHardcodedAvailable = await quickAvailabilityCheck(hardcodedFallback);
+        if (isHardcodedAvailable) {
+          chosen = hardcodedFallback;
+          await logger.log(
+            level: 'warning',
+            subsystem: 'endpoints',
+            message: 'All fallback endpoints failed, using hardcoded fallback (available)',
+            operationId: operationId,
+            context: 'endpoint_selection',
+            extra: {
+              'chosen_url': chosen,
+              'total_checked': fallbackEndpoints.length,
+              'hardcoded_available': true,
+            },
+          );
+        } else {
+          // Last resort: use first by priority even if unavailable
+        chosen = fallbackEndpoints.first['url'] as String;
+        chosenData = fallbackEndpoints.first;
+        await logger.log(
+          level: 'error',
+          subsystem: 'endpoints',
+            message: 'All endpoints including hardcoded fallback failed availability check, using first by priority',
+          operationId: operationId,
+          context: 'endpoint_selection',
+          extra: {
+            'chosen_url': chosen,
+            'total_checked': fallbackEndpoints.length,
+              'hardcoded_available': false,
+              'warning': 'Selected endpoint may be unavailable',
+          },
+        );
+        }
+      }
 
       // Persist sticky active
       await _endpointsRef.put(_db, {
@@ -1411,7 +1738,9 @@ class EndpointManager {
         'primary_sort': 'priority',
         'healthy_candidates': 0,
         'fallback_candidates': fallbackEndpoints.length,
-        'selection_method': 'fallback_by_priority',
+        'selection_method': foundByAvailability 
+            ? 'fallback_by_availability' 
+            : 'fallback_by_priority',
         'fallback_reason': 'no_healthy_endpoints',
       };
 
@@ -1427,8 +1756,8 @@ class EndpointManager {
           fallbackComparison = {
             'runner_up_url': runnerUpFallback['url'],
             'runner_up_priority': runnerUpFallback['priority'] ?? 999,
-            'chosen_priority': chosenData['priority'] ?? 999,
-            'priority_diff': (chosenData['priority'] ?? 999) -
+            'chosen_priority': chosenData?['priority'] ?? 999,
+            'priority_diff': (chosenData?['priority'] ?? 999) -
                 (runnerUpFallback['priority'] ?? 999),
           };
         }
@@ -1443,9 +1772,9 @@ class EndpointManager {
         durationMs: duration,
         extra: {
           'url': chosen,
-          'selection_reason': 'fallback_by_priority',
-          'health_score': chosenData['health_score'] ?? 0,
-          'priority': chosenData['priority'] ?? 999,
+          'selection_reason': fallbackCriteria['selection_method'] as String,
+          'health_score': chosenData?['health_score'] ?? 0,
+          'priority': chosenData?['priority'] ?? 999,
           'selection_criteria': fallbackCriteria,
           if (fallbackComparison != null)
             'comparison_with_runner_up': fallbackComparison,
@@ -1467,9 +1796,60 @@ class EndpointManager {
       return a['priority'].compareTo(b['priority']);
     });
 
-    final chosen = healthyEndpoints.first['url'] as String;
-    final chosenData = healthyEndpoints.first;
-    final runnerUp = healthyEndpoints.length > 1 ? healthyEndpoints[1] : null;
+    // Check availability of healthy endpoints before selection
+    String? chosen;
+    Map<String, dynamic>? chosenData;
+    Map<String, dynamic>? runnerUp;
+    for (final endpoint in healthyEndpoints) {
+      final url = endpoint['url'] as String;
+      final isAvailable = await quickAvailabilityCheck(url);
+      if (isAvailable) {
+        chosen = url;
+        chosenData = endpoint;
+        final chosenIndex = healthyEndpoints.indexOf(endpoint);
+        runnerUp = chosenIndex + 1 < healthyEndpoints.length
+            ? healthyEndpoints[chosenIndex + 1]
+            : null;
+        break;
+      }
+    }
+
+    // If no available healthy endpoint found, fall back to fallback logic
+    if (chosen == null) {
+      await logger.log(
+        level: 'warning',
+        subsystem: 'endpoints',
+        message: 'No available healthy endpoints found, falling back to fallback logic',
+        operationId: operationId,
+        context: 'endpoint_selection',
+        extra: {
+          'healthy_count': healthyEndpoints.length,
+          'all_checked_unavailable': true,
+        },
+      );
+      // Fall through to fallback logic below
+      // This will be handled by the fallback section above
+      final fallbackEndpoints =
+          endpoints.where((e) => e['enabled'] == true).toList();
+      if (fallbackEndpoints.isEmpty) {
+        final hardcodedFallback = getPrimaryFallbackEndpoint();
+        return hardcodedFallback;
+      }
+      fallbackEndpoints.sort((a, b) => a['priority'].compareTo(b['priority']));
+      for (final endpoint in fallbackEndpoints) {
+        final url = endpoint['url'] as String;
+        final isAvailable = await quickAvailabilityCheck(url);
+        if (isAvailable) {
+          chosen = url;
+          chosenData = endpoint;
+          break;
+        }
+      }
+      if (chosen == null) {
+        chosen = fallbackEndpoints.first['url'] as String;
+        chosenData = fallbackEndpoints.first;
+      }
+    }
 
     // Persist sticky active
     await _endpointsRef.put(_db, {
@@ -1488,9 +1868,9 @@ class EndpointManager {
       extra: {
         'url': chosen,
         'selection_reason': 'best_health_score',
-        'health_score': chosenData['health_score'] ?? 0,
-        'rtt': chosenData['rtt'] ?? 9999,
-        'priority': chosenData['priority'] ?? 999,
+        'health_score': chosenData?['health_score'] ?? 0,
+        'rtt': chosenData?['rtt'] ?? 9999,
+        'priority': chosenData?['priority'] ?? 999,
         'selection_criteria': {
           'primary': 'health_score',
           'secondary': 'rtt',

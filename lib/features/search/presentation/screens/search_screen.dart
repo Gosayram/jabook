@@ -1,24 +1,45 @@
+// Copyright 2025 Jabook Contributors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io' as io;
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
+import 'package:go_router/go_router.dart';
+import 'package:jabook/core/auth/simple_cookie_manager.dart';
 import 'package:jabook/core/cache/rutracker_cache_service.dart';
+import 'package:jabook/core/constants/category_constants.dart';
 import 'package:jabook/core/endpoints/endpoint_provider.dart';
+import 'package:jabook/core/errors/failures.dart';
 import 'package:jabook/core/favorites/favorites_service.dart';
 import 'package:jabook/core/logging/environment_logger.dart';
+import 'package:jabook/core/logging/structured_logger.dart';
 import 'package:jabook/core/metadata/audiobook_metadata_service.dart';
 import 'package:jabook/core/net/dio_client.dart';
 import 'package:jabook/core/parse/rutracker_parser.dart';
 import 'package:jabook/core/search/search_history_service.dart';
+import 'package:jabook/core/services/cookie_service.dart';
 import 'package:jabook/core/utils/safe_async.dart';
 import 'package:jabook/data/db/app_database.dart';
 import 'package:jabook/features/auth/data/providers/auth_provider.dart';
 import 'package:jabook/features/search/presentation/widgets/grouped_audiobook_list.dart';
 import 'package:jabook/features/settings/presentation/screens/mirror_settings_screen.dart';
-import 'package:jabook/features/webview/secure_rutracker_webview.dart';
 import 'package:jabook/l10n/app_localizations.dart';
+import 'package:windows1251/windows1251.dart';
 
 /// Screen for searching audiobooks on RuTracker.
 ///
@@ -65,6 +86,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
   @override
   void dispose() {
+    _debounce?.cancel();
+    _cancelToken?.cancel();
     _searchController.dispose();
     _scrollController.dispose();
     _searchFocusNode.dispose();
@@ -154,16 +177,44 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     try {
       final endpointManager = ref.read(endpointManagerProvider);
       final base = await endpointManager.getActiveEndpoint();
-      final host = Uri.parse(base).host;
-      if (mounted) {
-        setState(() => _activeHost = host);
+      
+      // Verify endpoint is available before displaying
+      final isAvailable = await endpointManager.quickAvailabilityCheck(base);
+      if (!isAvailable) {
+        // If current endpoint is unavailable, try to get a better one
+        logger.w('Current active endpoint $base is unavailable, trying to get available one');
+        // getActiveEndpoint should already handle this, but we verify anyway
       }
-    } on Object {
-      // ignore
+      
+      final uri = Uri.tryParse(base);
+      if (uri != null && uri.hasScheme && uri.hasAuthority) {
+        final host = uri.host;
+        if (mounted && host.isNotEmpty) {
+          setState(() => _activeHost = host);
+        }
+      } else {
+        // Fallback: try to extract host from base string
+        try {
+          final host = Uri.parse(base).host;
+          if (mounted && host.isNotEmpty) {
+            setState(() => _activeHost = host);
+          }
+        } on Exception {
+          // If parsing fails, set to null
+          if (mounted) {
+            setState(() => _activeHost = null);
+          }
+        }
+      }
+    } on Exception catch (e) {
+      logger.w('Failed to load active host: $e');
+      if (mounted) {
+        setState(() => _activeHost = null);
+      }
     }
   }
 
-  /// Handles login with biometric authentication or WebView fallback.
+  /// Handles login with stored credentials or opens auth screen.
   Future<void> _handleLogin() async {
     try {
       final repository = ref.read(authRepositoryProvider);
@@ -172,197 +223,82 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       final hasStored = await repository.hasStoredCredentials();
 
       if (hasStored) {
-        // Check if biometric authentication is available
-        final isBiometricAvailable = await repository.isBiometricAvailable();
+        // Try to login with stored credentials first
+        try {
+          final success = await repository.loginWithStoredCredentials();
 
-        if (isBiometricAvailable) {
-          // Show loading indicator
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text(
-                    'Подождите, выполняется биометрическая аутентификация...'),
-                duration: Duration(seconds: 2),
-              ),
-            );
-          }
+          if (success) {
+            // Validate cookies
+            final isValid = await DioClient.validateCookies();
 
-          // Attempt login with biometric authentication
-          try {
-            final success = await repository.loginWithStoredCredentials(
-              useBiometric: true,
-            );
+            if (isValid) {
+              if (!mounted) return;
+              // ignore: use_build_context_synchronously
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(AppLocalizations.of(context)
+                          ?.authorizationSuccessful ??
+                      'Authorization successful'),
+                  backgroundColor: Colors.green,
+                  duration: const Duration(seconds: 2),
+                ),
+              );
 
-            if (success) {
-              // HTTP login already syncs cookies, just validate
-              // Note: syncCookiesFromWebView() is not needed here because
-              // loginViaHttp already synced cookies TO WebView via syncCookiesToWebView()
-              final isValid = await DioClient.validateCookies();
-
-              if (isValid) {
-                if (!mounted) return;
-                // ignore: use_build_context_synchronously
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Авторизация успешна'),
-                    backgroundColor: Colors.green,
-                    duration: Duration(seconds: 2),
-                  ),
-                );
-
-                // Clear auth errors if any
-                if (_errorKind == 'auth') {
-                  setState(() {
-                    _errorKind = null;
-                    _errorMessage = null;
-                  });
-                  await _performSearch();
-                }
-                return;
+              // Clear auth errors if any
+              if (_errorKind == 'auth') {
+                setState(() {
+                  _errorKind = null;
+                  _errorMessage = null;
+                });
+                await _performSearch();
               }
+              return;
             }
-          } on Exception catch (e) {
-            logger.w('Biometric authentication failed: $e');
-            // Fall through to WebView login (don't show dialog on error)
           }
+        } on Exception catch (e) {
+          logger.w('Login with stored credentials failed: $e');
+          // Fall through to auth screen
+        }
+      }
 
-          // If biometric failed or not available, show dialog
-          if (!mounted) return;
-          final useWebView = await showDialog<bool>(
-            context: context,
-            builder: (context) => AlertDialog(
-              title: const Text('Авторизация'),
-              content: const Text(
-                'Биометрическая аутентификация недоступна или не удалась. '
-                'Открыть WebView для входа?',
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context, false),
-                  child: const Text('Отмена'),
-                ),
-                ElevatedButton(
-                  onPressed: () => Navigator.pop(context, true),
-                  child: const Text('Открыть WebView'),
-                ),
-              ],
-            ),
-          );
-
-          if (useWebView ?? false) {
-            await _openWebViewLogin();
-          }
-        } else {
-          // No biometric available, show dialog
-          if (!mounted) return;
-          final useWebView = await showDialog<bool>(
-            context: context,
-            builder: (context) => AlertDialog(
-              title: const Text('Авторизация'),
-              content: const Text(
-                'Биометрическая аутентификация недоступна. '
-                'Открыть WebView для входа?',
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context, false),
-                  child: const Text('Отмена'),
-                ),
-                ElevatedButton(
-                  onPressed: () => Navigator.pop(context, true),
-                  child: const Text('Открыть WebView'),
-                ),
-              ],
-            ),
-          );
-
-          if (useWebView ?? false) {
-            await _openWebViewLogin();
+      // Open auth screen for manual login
+      if (!mounted) return;
+      final result = await context.push('/auth');
+      
+      // If login was successful, refresh and perform search
+      if (result == true && mounted) {
+        // Validate cookies after returning from auth screen
+        final isValid = await DioClient.validateCookies();
+        if (isValid) {
+          if (_errorKind == 'auth') {
+            setState(() {
+              _errorKind = null;
+              _errorMessage = null;
+            });
+            await _performSearch();
           }
         }
-      } else {
-        // No stored credentials, open WebView directly
-        await _openWebViewLogin();
       }
     } on Exception catch (e, stackTrace) {
-      // Catch any unexpected errors and always open WebView as fallback
       logger.e('Error in _handleLogin: $e', stackTrace: stackTrace);
       if (!mounted) return;
 
-      // Show error message but still open WebView
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Ошибка при проверке авторизации: ${e.toString()}'),
+          content: Text(AppLocalizations.of(context)?.authorizationCheckError(e.toString()) ?? 
+                  'Authorization check error: ${e.toString()}'),
           backgroundColor: Colors.orange,
           duration: const Duration(seconds: 3),
         ),
       );
 
-      // Always try to open WebView as fallback
-      await _openWebViewLogin();
-    }
-  }
-
-  /// Opens WebView for manual login.
-  Future<void> _openWebViewLogin() async {
-    try {
-      await Navigator.push<String>(
-        context,
-        MaterialPageRoute(
-          builder: (_) => const SecureRutrackerWebView(),
-        ),
-      );
-      if (!mounted) return;
-
-      // Sync cookies from WebView
-      await DioClient.syncCookiesFromWebView();
-
-      // Validate authentication
-      final isValid = await DioClient.validateCookies();
-      if (isValid) {
-        if (!mounted) return;
-        // ignore: use_build_context_synchronously
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Авторизация успешна'),
-            backgroundColor: Colors.green,
-            duration: Duration(seconds: 2),
-          ),
-        );
-        // Clear auth errors if any
-        if (_errorKind == 'auth') {
-          setState(() {
-            _errorKind = null;
-            _errorMessage = null;
-          });
-          await _performSearch();
-        }
-      } else {
-        if (!mounted) return;
-        // ignore: use_build_context_synchronously
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Авторизация не удалась. Проверьте логин и пароль',
-            ),
-            backgroundColor: Colors.orange,
-            duration: Duration(seconds: 3),
-          ),
-        );
+      // Open auth screen as fallback
+      if (mounted) {
+        await context.push('/auth');
       }
-    } on Exception catch (e, stackTrace) {
-      logger.e('Error opening WebView login: $e', stackTrace: stackTrace);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content:
-              Text('Ошибка открытия страницы авторизации: ${e.toString()}'),
-          backgroundColor: Colors.red,
-          duration: const Duration(seconds: 3),
-        ),
-      );
     }
   }
+
 
   Future<void> _performSearch() async {
     if (_searchController.text.trim().isEmpty) return;
@@ -436,250 +372,1309 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   /// [updateExisting] - if true, updates existing results instead of replacing them.
   Future<void> _performNetworkSearch(String query,
       {bool updateExisting = false}) async {
-    // Ensure cookies are synced and validated before network search
-    await DioClient.syncCookiesFromWebView();
-
-    // Fetch from network using EndpointManager with automatic fallback
+    final structuredLogger = StructuredLogger();
+    
+    // Get active endpoint for logging
     final endpointManager = ref.read(endpointManagerProvider);
-    final dio = await DioClient.instance;
-
-    // Get all enabled endpoints sorted by priority and health
-    final allEndpoints = await endpointManager.getAllEndpoints();
-    final enabledEndpoints =
-        allEndpoints.where((e) => e['enabled'] == true).toList()
-          ..sort((a, b) {
-            // Sort by health score (descending), then priority (ascending)
-            final healthA = a['health_score'] as int? ?? 0;
-            final healthB = b['health_score'] as int? ?? 0;
-            if (healthA != healthB) return healthB.compareTo(healthA);
-            return (a['priority'] as int? ?? 999)
-                .compareTo(b['priority'] as int? ?? 999);
-          });
-
-    // Ensure we have at least the fallback endpoint
-    if (enabledEndpoints.isEmpty) {
-      enabledEndpoints.add({
-        'url': 'https://rutracker.net',
-        'priority': 1,
-        'health_score': 100,
-      });
+    final activeEndpoint = await endpointManager.getActiveEndpoint();
+    
+    await structuredLogger.log(
+      level: 'info',
+      subsystem: 'search',
+      message: 'Starting network search',
+      context: 'search_request',
+      extra: {
+        'query': query,
+        'update_existing': updateExisting,
+        'start_offset': _startOffset,
+        'active_endpoint': activeEndpoint,
+      },
+    );
+    
+    // CRITICAL: Comprehensive cookie synchronization before search
+    // Sync cookies from all sources (CookieService, SecureStorage, CookieJar) to ensure availability
+    final syncStartTime = DateTime.now();
+    var syncSuccessCount = 0;
+    final syncSourceDetails = <String, dynamic>{};
+    
+    // Step 1: Sync from CookieService (Android CookieManager) - primary source
+    try {
+      final activeHost = Uri.parse(activeEndpoint).host;
+      final url = 'https://$activeHost';
+      
+      // Flush cookies to ensure they're available
+      await CookieService.flushCookies();
+      
+      // Try to get cookies from CookieService
+      final cookieHeader = await CookieService.getCookiesForUrl(url);
+      
+      if (cookieHeader != null && cookieHeader.isNotEmpty && cookieHeader.trim().contains('=')) {
+        // Check for required session cookies
+        final hasBbSession = cookieHeader.contains('bb_session=');
+        final hasBbData = cookieHeader.contains('bb_data=');
+        
+        // Sync cookies to Dio CookieJar
+        await DioClient.syncCookiesFromCookieService(cookieHeader, url);
+        syncSuccessCount++;
+        
+        await structuredLogger.log(
+          level: 'info',
+          subsystem: 'search',
+          message: 'Cookies synced from CookieService before search',
+          context: 'search_request',
+          extra: {
+            'url': url,
+            'cookie_header_length': cookieHeader.length,
+            'has_bb_session': hasBbSession,
+            'has_bb_data': hasBbData,
+            'has_required_cookies': hasBbSession || hasBbData,
+          },
+        );
+        
+        syncSourceDetails['CookieService'] = {
+          'success': true,
+          'cookie_count': cookieHeader.split(';').length,
+          'has_bb_session': hasBbSession,
+          'has_bb_data': hasBbData,
+        };
+      } else {
+        syncSourceDetails['CookieService'] = {
+          'success': false,
+          'reason': 'no_cookies_found',
+        };
+      }
+    } on Exception catch (e) {
+      await structuredLogger.log(
+        level: 'warning',
+        subsystem: 'search',
+        message: 'Failed to sync cookies from CookieService',
+        context: 'search_request',
+        cause: e.toString(),
+      );
+      syncSourceDetails['CookieService'] = {
+        'success': false,
+        'error': e.toString(),
+      };
     }
 
-    // Try each endpoint until one succeeds
-    Exception? lastException;
-    for (final endpointData in enabledEndpoints) {
-      final endpoint = endpointData['url'] as String;
-
-      try {
-        final response = await dio
-            .get(
-              '$endpoint/forum/search.php',
-              queryParameters: {
-                'nm': query,
-                'o': '1', // Sort by relevance
-                'start': _startOffset,
+    // Step 2: Sync from SecureStorage/CookieJar - fallback source
+    try {
+      final simpleCookieManager = SimpleCookieManager();
+      final cookieString = await simpleCookieManager.getCookie(activeEndpoint);
+      
+      if (cookieString != null && cookieString.isNotEmpty) {
+        // Check for required session cookies
+        final hasBbSession = cookieString.contains('bb_session=');
+        final hasBbData = cookieString.contains('bb_data=');
+        
+        // Load cookies from SecureStorage to CookieJar
+        final uri = Uri.parse(activeEndpoint);
+        final jar = await DioClient.getCookieJar();
+        if (jar != null) {
+          await simpleCookieManager.loadCookieToJar(activeEndpoint, jar);
+          
+          // Also sync to CookieService if not already synced
+          final cookies = await jar.loadForRequest(uri);
+          if (cookies.isNotEmpty) {
+            final cookieHeader = cookies.map((c) => '${c.name}=${c.value}').join('; ');
+            await DioClient.syncCookiesFromCookieService(cookieHeader, activeEndpoint);
+            syncSuccessCount++;
+            
+            await structuredLogger.log(
+              level: 'info',
+              subsystem: 'search',
+              message: 'Cookies synced from SecureStorage/CookieJar to CookieService',
+              context: 'search_request',
+              extra: {
+                'cookie_count': cookies.length,
+                'cookie_names': cookies.map((c) => c.name).toList(),
+                'has_bb_session': hasBbSession,
+                'has_bb_data': hasBbData,
+                'has_required_cookies': hasBbSession || hasBbData,
               },
-              cancelToken: _cancelToken,
-            )
-            .timeout(const Duration(seconds: 30));
+            );
+            
+            syncSourceDetails['SecureStorage'] = {
+              'success': true,
+              'cookie_count': cookies.length,
+              'cookie_names': cookies.map((c) => c.name).toList(),
+              'has_bb_session': hasBbSession,
+              'has_bb_data': hasBbData,
+            };
+          }
+        }
+      } else {
+        syncSourceDetails['SecureStorage'] = {
+          'success': false,
+          'reason': 'no_cookies_found',
+        };
+      }
+    } on Exception catch (e) {
+      await structuredLogger.log(
+        level: 'debug',
+        subsystem: 'search',
+        message: 'Failed to sync cookies from SecureStorage',
+        context: 'search_request',
+        cause: e.toString(),
+      );
+      syncSourceDetails['SecureStorage'] = {
+        'success': false,
+        'error': e.toString(),
+      };
+    }
+    
+    // Log comprehensive sync summary
+    final syncDuration = DateTime.now().difference(syncStartTime).inMilliseconds;
+    await structuredLogger.log(
+      level: syncSuccessCount > 0 ? 'info' : 'warning',
+      subsystem: 'search',
+      message: 'Cookie synchronization completed before search',
+      context: 'search_request',
+      durationMs: syncDuration,
+      extra: {
+        'sync_success_count': syncSuccessCount,
+        'sync_sources': syncSourceDetails,
+        'total_sync_duration_ms': syncDuration,
+      },
+    );
 
-        if (response.statusCode == 200) {
-          final results = await _parser.parseSearchResults(response.data);
-
-          // Cache the results
-          // Convert Audiobook objects to maps for caching
-          final resultsMap = results.map(_audiobookToMap).toList();
-          await _cacheService.cacheSearchResults(query, resultsMap);
-
-          if (updateExisting && mounted) {
-            // Update existing results (for background refresh from local DB)
-            setState(() {
-              final networkResults = results.map(_audiobookToMap).toList();
-              // Merge with existing, avoiding duplicates
-              final existingIds =
-                  _searchResults.map((r) => r['id'] as String?).toSet();
-              final newResults = networkResults
-                  .where((r) => !existingIds.contains(r['id'] as String?))
-                  .toList();
-              _searchResults = [..._searchResults, ...newResults];
-              _isFromLocalDb = false; // Switch to network results
-              _errorKind = null;
-              _errorMessage = null;
-              _hasMore = results.isNotEmpty;
-            });
-          } else {
-            setState(() {
-              // Convert Audiobook objects to maps for UI
-              _searchResults = results.map(_audiobookToMap).toList();
-              _isLoading = false;
-              _isFromCache = false;
-              _isFromLocalDb = false;
-              _errorKind = null;
-              _errorMessage = null;
-              _hasMore = results.isNotEmpty;
-              _showHistory = false;
-            });
-
-            // Save to search history
-            if (_historyService != null && query.isNotEmpty) {
-              await _historyService!.saveSearchQuery(query);
-              await _loadSearchHistory();
+    // Check if we have cookies and required session cookies before performing search
+    // Use hasValidCookies which now checks CookieService first
+    try {
+      final hasCookies = await DioClient.hasValidCookies();
+      
+      // Additional check: verify we have required session cookies (bb_session or bb_data)
+      var hasRequiredCookies = false;
+      var foundCookieNames = <String>[];
+      
+      if (hasCookies) {
+        // Check CookieJar for required cookies
+        final uri = Uri.parse(activeEndpoint);
+        final jar = await DioClient.getCookieJar();
+        if (jar != null) {
+          final cookies = await jar.loadForRequest(uri);
+          foundCookieNames = cookies.map((c) => c.name).toList();
+          hasRequiredCookies = cookies.any((c) => 
+            c.name.toLowerCase() == 'bb_session' || 
+            c.name.toLowerCase() == 'bb_data' ||
+            c.name.toLowerCase().contains('session')
+          );
+        }
+        
+        // Also check CookieService if CookieJar doesn't have required cookies
+        if (!hasRequiredCookies) {
+          try {
+            final activeHost = Uri.parse(activeEndpoint).host;
+            final url = 'https://$activeHost';
+            final cookieHeader = await CookieService.getCookiesForUrl(url);
+            if (cookieHeader != null && cookieHeader.isNotEmpty) {
+              hasRequiredCookies = cookieHeader.contains('bb_session=') || 
+                                  cookieHeader.contains('bb_data=');
             }
+          } on Exception {
+            // Ignore CookieService check errors
           }
+        }
+      }
+      
+      await structuredLogger.log(
+        level: 'info',
+        subsystem: 'search',
+        message: 'Cookie validation check before search',
+        context: 'search_request',
+        extra: {
+          'has_cookies': hasCookies,
+          'has_required_cookies': hasRequiredCookies,
+          'found_cookie_names': foundCookieNames,
+          'checked_sources': ['CookieService', 'CookieJar', 'SecureStorage'],
+          'active_endpoint': activeEndpoint,
+        },
+      );
+      
+      if (!hasCookies || !hasRequiredCookies) {
+        // No cookies or no required session cookies - need login
+        await structuredLogger.log(
+          level: 'warning',
+          subsystem: 'search',
+          message: 'No valid cookies or required session cookies found, requiring login',
+          context: 'search_request',
+          extra: {
+            'has_cookies': hasCookies,
+            'has_required_cookies': hasRequiredCookies,
+            'found_cookie_names': foundCookieNames,
+          },
+        );
+        
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+            _errorKind = 'auth';
+            _errorMessage = AppLocalizations.of(context)
+                    ?.authorizationFailedMessage ??
+                'Please log in first to perform search';
+          });
+          // Show login prompt
+          safeUnawaited(_handleLogin());
+        }
+        return;
+      }
+    } on Exception catch (e) {
+      await structuredLogger.log(
+        level: 'error',
+        subsystem: 'search',
+        message: 'Error checking cookies, continuing with search attempt',
+        context: 'search_request',
+        cause: e.toString(),
+      );
+      // Continue with search attempt even if cookie check fails
+    }
+    
+    // Cookies exist, but they might be invalid - try search anyway
+    // If search fails with auth error, we'll handle it in error handling
 
-          // Success - break retry loop
-          return;
-        } else {
-          // Non-200 status - try next endpoint if it's a server error (5xx)
-          if (response.statusCode != null && response.statusCode! >= 500) {
-            continue;
+    // CRITICAL: Use ONLY the active endpoint for search - don't switch mirrors
+    final dio = await DioClient.instance;
+
+    await structuredLogger.log(
+      level: 'info',
+      subsystem: 'search',
+      message: 'Starting search with active endpoint',
+      context: 'search_request',
+      extra: {
+        'query': query,
+        'active_endpoint': activeEndpoint,
+        'start_offset': _startOffset,
+      },
+    );
+
+    // Use only the active endpoint - don't try other endpoints
+    final endpoint = activeEndpoint;
+
+    try {
+      // CRITICAL: Before making search request, verify cookies are available for active endpoint
+      final searchUri = Uri.parse('$endpoint/forum/tracker.php');
+      final cookieJar = await DioClient.getCookieJar();
+      
+      // Load cookies that will be sent with the request
+      final cookiesForRequest = cookieJar != null 
+          ? await cookieJar.loadForRequest(searchUri)
+          : <io.Cookie>[];
+      
+      await structuredLogger.log(
+        level: cookiesForRequest.isNotEmpty ? 'info' : 'warning',
+        subsystem: 'search',
+        message: 'Cookies loaded for search request',
+        context: 'search_request',
+        extra: {
+          'endpoint': endpoint,
+          'search_uri': searchUri.toString(),
+          'cookie_count': cookiesForRequest.length,
+          'cookie_names': cookiesForRequest.map((c) => c.name).toList(),
+          'has_session_cookies': cookiesForRequest.any((c) => 
+            c.name.toLowerCase().contains('session') || 
+            c.name == 'bb_session' || 
+            c.name == 'bb_data'
+          ),
+        },
+      );
+      
+      // CRITICAL: If no cookies found for active endpoint, sync from CookieService
+      // CookieService is the single source of truth for cookies on Android
+      if (cookiesForRequest.isEmpty && cookieJar != null) {
+        await structuredLogger.log(
+          level: 'warning',
+          subsystem: 'search',
+          message: 'No cookies found for active endpoint, syncing from CookieService',
+          context: 'search_request',
+          extra: {'endpoint': endpoint},
+        );
+        
+        // Try CookieService (Android CookieManager) - most reliable source
+        // Use retries with delays to ensure cookies are available
+        String? cookieHeader;
+        const maxSyncRetries = 6;
+        var syncSuccess = false;
+        final activeHost = Uri.parse(endpoint).host;
+        final url = 'https://$activeHost';
+        
+        for (var syncAttempt = 0; syncAttempt < maxSyncRetries; syncAttempt++) {
+          if (syncAttempt > 0) {
+            await Future.delayed(Duration(milliseconds: 300 * syncAttempt));
+            // Flush cookies before each retry
+            await CookieService.flushCookies();
           }
-          // Client error (4xx) - don't retry, show error
+          
+          try {
+            cookieHeader = await CookieService.getCookiesForUrl(url);
+            if (cookieHeader != null && cookieHeader.isNotEmpty && cookieHeader.trim().contains('=')) {
+              await structuredLogger.log(
+                level: 'info',
+                subsystem: 'search',
+                message: 'Syncing cookies before search',
+                context: 'search_request',
+                extra: {
+                  'source': 'CookieService',
+                  'url': url,
+                  'cookie_header_length': cookieHeader.length,
+                  'sync_attempt': syncAttempt + 1,
+                  'max_retries': maxSyncRetries,
+                },
+              );
+              
+              await DioClient.syncCookiesFromCookieService(cookieHeader, url);
+              
+              // Wait a bit and reload cookies to verify
+              await Future.delayed(const Duration(milliseconds: 400));
+              final cookiesAfterSync = await cookieJar.loadForRequest(searchUri);
+              
+              if (cookiesAfterSync.isNotEmpty) {
+                syncSuccess = true;
+                await structuredLogger.log(
+                  level: 'info',
+                  subsystem: 'search',
+                  message: 'Cookies successfully synced from CookieService',
+                  context: 'search_request',
+                  extra: {
+                    'endpoint': endpoint,
+                    'url': url,
+                    'cookie_count_after_sync': cookiesAfterSync.length,
+                    'cookie_names_after_sync': cookiesAfterSync.map((c) => c.name).toList(),
+                    'sync_attempt': syncAttempt + 1,
+                  },
+                );
+                break; // Success, exit retry loop
+              } else {
+                await structuredLogger.log(
+                  level: 'warning',
+                  subsystem: 'search',
+                  message: 'Cookies synced but not found in CookieJar, retrying',
+                  context: 'search_request',
+                  extra: {
+                    'endpoint': endpoint,
+                    'url': url,
+                    'sync_attempt': syncAttempt + 1,
+                  },
+                );
+              }
+            }
+          } on Exception catch (e) {
+            await structuredLogger.log(
+              level: 'debug',
+              subsystem: 'search',
+              message: 'CookieService sync attempt failed, retrying',
+              context: 'search_request',
+              cause: e.toString(),
+              extra: {
+                'endpoint': endpoint,
+                'url': url,
+                'sync_attempt': syncAttempt + 1,
+              },
+            );
+          }
+        }
+        
+        // If CookieService sync failed, try WebView sync as fallback
+        if (!syncSuccess) {
+          await structuredLogger.log(
+            level: 'warning',
+            subsystem: 'search',
+            message: 'CookieService sync failed, trying WebView fallback',
+            context: 'search_request',
+            extra: {'endpoint': endpoint},
+          );
+          
+          try {
+            await DioClient.syncCookiesFromWebView();
+            await Future.delayed(const Duration(milliseconds: 300));
+            final cookiesAfterSync = await cookieJar.loadForRequest(searchUri);
+            
+            await structuredLogger.log(
+              level: cookiesAfterSync.isNotEmpty ? 'info' : 'warning',
+              subsystem: 'search',
+              message: 'Cookies after sync from WebView',
+              context: 'search_request',
+              extra: {
+                'endpoint': endpoint,
+                'cookie_count_after_sync': cookiesAfterSync.length,
+                'cookie_names_after_sync': cookiesAfterSync.map((c) => c.name).toList(),
+              },
+            );
+          } on Exception catch (e) {
+            await structuredLogger.log(
+              level: 'warning',
+              subsystem: 'search',
+              message: 'WebView sync also failed',
+              context: 'search_request',
+              cause: e.toString(),
+              extra: {'endpoint': endpoint},
+            );
+          }
+        }
+      }
+      
+      // Make the search request
+      // CRITICAL: Use tracker.php (not search.php) for searching torrents/audiobooks
+      // tracker.php is the default search method on RuTracker for "раздачи" (torrents)
+      // search.php is for searching all topics (including discussions)
+      final requestStartTime = DateTime.now();
+      final requestUri = '$endpoint/forum/tracker.php';
+      final requestQueryParams = {
+        'nm': query,
+        'c': CategoryConstants.audiobooksCategoryId, // Try to filter by category 33 (audiobooks)
+        // Note: If c=33 doesn't work, we'll filter results client-side
+        'o': '1', // Sort by relevance
+        'start': _startOffset,
+      };
+      
+      // Before making search request, ensure cookies are available
+      // Step 6: Check cookies before request and load from SecureStorage if needed
+      var finalCookies = cookieJar != null 
+          ? await cookieJar.loadForRequest(searchUri)
+          : <io.Cookie>[];
+      
+      if (finalCookies.isEmpty && cookieJar != null) {
+        // Try to load from SecureStorage and sync to CookieJar
+        final simpleCookieManager = SimpleCookieManager();
+        final cookieString = await simpleCookieManager.getCookie(endpoint);
+        
+        if (cookieString != null && cookieString.isNotEmpty) {
+          // Load cookies from SecureStorage to CookieJar
+          await simpleCookieManager.loadCookieToJar(endpoint, cookieJar);
+          
+          // Reload cookies after sync
+          final cookiesAfterLoad = await cookieJar.loadForRequest(searchUri);
+          if (cookiesAfterLoad.isNotEmpty) {
+            finalCookies = cookiesAfterLoad;
+            await structuredLogger.log(
+              level: 'info',
+              subsystem: 'search',
+              message: 'Loaded cookies from SecureStorage to CookieJar',
+              context: 'search_request',
+              extra: {
+                'cookie_count': cookiesAfterLoad.length,
+                'cookie_names': cookiesAfterLoad.map((c) => c.name).toList(),
+              },
+            );
+          }
+        }
+      }
+      
+      await structuredLogger.log(
+        level: 'info',
+        subsystem: 'search',
+        message: 'Making search HTTP request',
+        context: 'search_request',
+        extra: {
+          'endpoint': endpoint,
+          'request_uri': requestUri,
+          'query_params': requestQueryParams,
+          'method': 'GET',
+          'cookies_count': finalCookies.length,
+          'cookies_names': finalCookies.map((c) => c.name).toList(),
+          'will_send_cookies': finalCookies.isNotEmpty,
+          'request_start_time': requestStartTime.toIso8601String(),
+        },
+      );
+      
+      final response = await dio
+          .get(
+            requestUri,
+            queryParameters: requestQueryParams,
+            options: Options(
+              responseType: ResponseType.bytes, // Get raw bytes to decode Windows-1251 correctly
+            ),
+            cancelToken: _cancelToken,
+          )
+          .timeout(const Duration(seconds: 30));
+      
+      final requestDuration = DateTime.now().difference(requestStartTime).inMilliseconds;
+      
+      await structuredLogger.log(
+        level: response.statusCode == 200 ? 'info' : 'warning',
+        subsystem: 'search',
+        message: 'Search HTTP response received',
+        context: 'search_request',
+        durationMs: requestDuration,
+        extra: {
+          'endpoint': endpoint,
+          'status_code': response.statusCode,
+          'response_size_bytes': response.data?.toString().length ?? 0,
+          'response_url': response.realUri.toString(),
+          'is_redirect': response.isRedirect,
+          'redirect_location': response.headers.value('location'),
+          'cookies_were_sent': finalCookies.isNotEmpty,
+          'cookies_sent_count': finalCookies.length,
+          'response_headers': {
+            'content-type': response.headers.value('content-type'),
+            'server': response.headers.value('server'),
+            'cf-ray': response.headers.value('cf-ray'),
+          },
+        },
+      );
+
+      if (response.statusCode == 200) {
+        // CRITICAL: Validate response data before processing
+        // Task 3.2: Check data type, size, and validity at each stage
+        final responseDataType = response.data.runtimeType.toString();
+        final responseDataSize = response.data is List<int>
+            ? (response.data as List<int>).length
+            : (response.data is String
+                ? (response.data as String).length
+                : 0);
+        
+        await structuredLogger.log(
+          level: 'debug',
+          subsystem: 'search',
+          message: 'Validating response data',
+          context: 'search_request',
+          extra: {
+            'response_data_type': responseDataType,
+            'response_data_size': responseDataSize,
+            'content_type': response.headers.value('content-type') ?? 'not_provided',
+            'content_encoding': response.headers.value('content-encoding') ?? 'not_provided',
+          },
+        );
+        
+        // Validate that we have data
+        if (response.data == null) {
+          await structuredLogger.log(
+            level: 'error',
+            subsystem: 'search',
+            message: 'Response data is null',
+            context: 'search_request',
+          );
+          
           if (mounted) {
             setState(() {
               _isLoading = false;
               _errorKind = 'network';
-              _errorMessage = 'HTTP ${response.statusCode}';
+              _errorMessage = 'Received empty response from server. Please try again.';
             });
           }
           return;
         }
-      } on TimeoutException {
-        lastException = TimeoutException('Request timed out');
-        // Log timeout as warning
-        logger.w('Request timeout for endpoint $endpoint');
-
-        // Try to switch endpoint automatically
-        try {
-          final switched = await endpointManager.trySwitchEndpoint(endpoint);
-          if (switched) {
-            final newEndpoint = await endpointManager.getActiveEndpoint();
-            logger.i(
-                'Auto-switched from $endpoint to $newEndpoint due to timeout');
+        
+        // Validate data size
+        if (responseDataSize == 0) {
+          await structuredLogger.log(
+            level: 'error',
+            subsystem: 'search',
+            message: 'Response data is empty',
+            context: 'search_request',
+          );
+          
+          if (mounted) {
+            setState(() {
+              _isLoading = false;
+              _errorKind = 'network';
+              _errorMessage = 'Received empty response from server. Please try again.';
+            });
           }
-        } on Exception catch (switchError) {
-          logger.w('Failed to auto-switch endpoint: $switchError');
-        }
-
-        // Continue to next endpoint
-        continue;
-      } on DioException catch (e) {
-        lastException = e;
-
-        if (CancelToken.isCancel(e)) {
-          // Silently ignore cancelled request
           return;
         }
-
-        // DNS errors should skip to next endpoint immediately
-        if (e.type == DioExceptionType.connectionError) {
-          final message = e.message?.toLowerCase() ?? '';
-          final isDnsError = message.contains('host lookup') ||
-              message.contains('no address associated with hostname') ||
-              message.contains('name or service not known');
-
-          if (isDnsError) {
-            // Log DNS error as warning, not error (it's expected when endpoint is unavailable)
-            logger.w('DNS error for endpoint $endpoint: ${e.message}');
-
-            // Try to switch endpoint automatically via EndpointManager
-            try {
-              final switched =
-                  await endpointManager.trySwitchEndpoint(endpoint);
-              if (switched) {
-                final newEndpoint = await endpointManager.getActiveEndpoint();
-                logger.i(
-                    'Auto-switched from $endpoint to $newEndpoint due to DNS error');
-              }
-            } on Exception catch (switchError) {
-              logger.w('Failed to auto-switch endpoint: $switchError');
+        
+        // Decode response for login page check (response.data is now List<int>)
+        String? decodedTextForCheck;
+        final contentType = response.headers.value('content-type') ?? '';
+        
+        if (response.data is List<int>) {
+          final bytes = response.data as List<int>;
+          
+          // Validate bytes before decoding
+          // Note: Brotli decompression is handled automatically by DioBrotliTransformer
+          if (bytes.isEmpty) {
+            await structuredLogger.log(
+              level: 'error',
+              subsystem: 'search',
+              message: 'Bytes array is empty',
+              context: 'search_request',
+            );
+            
+            if (mounted) {
+              setState(() {
+                _isLoading = false;
+                _errorKind = 'network';
+                _errorMessage = 'Received empty data after decompression. Please try again.';
+              });
             }
-
-            // Try next endpoint (don't wait for timeout)
-            continue;
+            return;
           }
-        }
-
-        // For connection errors, timeouts, or server errors (5xx), try next endpoint
-        if (e.type == DioExceptionType.connectionError ||
-            e.type == DioExceptionType.connectionTimeout ||
-            e.type == DioExceptionType.receiveTimeout ||
-            e.type == DioExceptionType.sendTimeout ||
-            (e.type == DioExceptionType.badResponse &&
-                e.response?.statusCode != null &&
-                e.response!.statusCode! >= 500)) {
-          // Try next endpoint
-          continue;
-        }
-
-        // For auth errors or client errors (4xx except 5xx), don't retry
-        // Break and show error
-        break;
-      } on Exception catch (e) {
-        lastException = e;
-        // Try next endpoint for other exceptions
-        continue;
-      }
-    }
-
-    // All endpoints failed - show error
-    if (mounted) {
-      setState(() {
-        _isLoading = false;
-      });
-
-      if (lastException is DioException) {
-        final e = lastException;
-        if (e.message?.contains('Authentication required') ?? false) {
-          setState(() {
-            _errorKind = 'auth';
-            _errorMessage = 'Authentication required';
-          });
-        } else if (e.type == DioExceptionType.connectionTimeout ||
-            e.type == DioExceptionType.receiveTimeout ||
-            e.type == DioExceptionType.sendTimeout) {
-          setState(() {
-            _errorKind = 'timeout';
-            _errorMessage =
-                'Request timed out. Проверьте подключение к интернету';
-          });
-        } else if (e.type == DioExceptionType.connectionError) {
-          final message = e.message?.toLowerCase() ?? '';
-          final isDnsError = message.contains('host lookup') ||
-              message.contains('no address associated with hostname') ||
-              message.contains('name or service not known');
-
-          if (isDnsError) {
-            setState(() {
-              _errorKind = 'mirror';
-              _errorMessage =
-                  'Не удалось подключиться к зеркалам RuTracker. Проверьте подключение к интернету или попробуйте выбрать другое зеркало в настройках';
-            });
-          } else {
-            setState(() {
-              _errorKind = 'mirror';
-              _errorMessage = 'Не удалось подключиться к зеркалам RuTracker';
-            });
+          
+          // Validate bytes are valid (not all zeros or corrupted)
+          final nonZeroBytes = bytes.where((b) => b != 0).length;
+          if (nonZeroBytes < bytes.length * 0.1) {
+            // Less than 10% non-zero bytes might indicate corruption
+            await structuredLogger.log(
+              level: 'warning',
+              subsystem: 'search',
+              message: 'Response data may be corrupted (too many zero bytes)',
+              context: 'search_request',
+              extra: {
+                'total_bytes': bytes.length,
+                'non_zero_bytes': nonZeroBytes,
+                'zero_byte_percentage': ((bytes.length - nonZeroBytes) / bytes.length * 100).toStringAsFixed(2),
+              },
+            );
+          }
+          
+          await structuredLogger.log(
+            level: 'debug',
+            subsystem: 'search',
+            message: 'Validating bytes before decoding',
+            context: 'search_request',
+            extra: {
+              'bytes_length': bytes.length,
+              'non_zero_bytes': nonZeroBytes,
+              'first_bytes_preview': bytes.length > 50
+                  ? bytes.sublist(0, 50).toString()
+                  : bytes.toString(),
+            },
+          );
+          // Try to decode for login page check
+          // Determine encoding from Content-Type header if available
+          String? detectedEncoding;
+          if (contentType.isNotEmpty) {
+            final charsetMatch = RegExp(r'charset=([^;\s]+)', caseSensitive: false)
+                .firstMatch(contentType);
+            if (charsetMatch != null) {
+              detectedEncoding = charsetMatch.group(1)?.toLowerCase();
+            }
+          }
+          
+          try {
+            if (detectedEncoding != null && 
+                (detectedEncoding.contains('windows-1251') || 
+                 detectedEncoding.contains('cp1251') ||
+                 detectedEncoding.contains('1251'))) {
+              // Use Windows-1251 if specified
+              decodedTextForCheck = windows1251.decode(bytes);
+            } else {
+              // Try Windows-1251 first (RuTracker default), then UTF-8
+              try {
+                decodedTextForCheck = windows1251.decode(bytes);
+              } on Exception {
+                decodedTextForCheck = utf8.decode(bytes);
+              }
+            }
+          } on Exception {
+            try {
+              // Fallback to UTF-8
+              decodedTextForCheck = utf8.decode(bytes);
+            } on FormatException {
+              // If both fail, use toString as last resort
+              decodedTextForCheck = String.fromCharCodes(bytes);
+            }
           }
         } else {
+          decodedTextForCheck = response.data?.toString() ?? '';
+        }
+        
+        // Check response content for login page indicators before parsing
+        final responseText = decodedTextForCheck.toLowerCase();
+        final isLoginPage = responseText.contains('action="https://rutracker') &&
+            responseText.contains('login.php') &&
+            responseText.contains('password');
+        
+        if (isLoginPage) {
+          // This is a login page, not search results
+          await structuredLogger.log(
+            level: 'warning',
+            subsystem: 'search',
+            message: 'Received login page instead of search results',
+            context: 'search_request',
+            extra: {
+              'endpoint': endpoint,
+              'response_preview': responseText.length > 500
+                  ? responseText.substring(0, 500)
+                  : responseText,
+            },
+          );
+          
+          if (mounted) {
+            setState(() {
+              _isLoading = false;
+              _errorKind = 'auth';
+              _errorMessage = AppLocalizations.of(context)
+                      ?.authorizationFailedMessage ??
+                  'Authentication required. Please log in.';
+              safeUnawaited(_handleLogin());
+            });
+          }
+          return;
+        }
+        
+        var results = <Map<String, dynamic>>[];
+        try {
+          // Pass response data and headers to parser for proper encoding detection
+          final parsedResults = await _parser.parseSearchResults(
+            response.data,
+            contentType: response.headers.value('content-type'),
+          );
+          
+          // CRITICAL: Filter results to only include audiobooks
+          // tracker.php returns ALL torrents, so we need to filter by category
+          // We can identify audiobooks by checking if they belong to category 33 forums
+          // or by checking the title/content for audiobook indicators
+          final audiobookResults = _filterAudiobookResults(parsedResults);
+          
+          await structuredLogger.log(
+            level: 'info',
+            subsystem: 'search',
+            message: 'Parsing search results',
+            context: 'search_request',
+            extra: {
+              'endpoint': endpoint,
+              'response_size_bytes': response.data?.toString().length ?? 0,
+              'parsed_results_count': parsedResults.length,
+              'filtered_audiobook_count': audiobookResults.length,
+            },
+          );
+          
+          results = audiobookResults.map(_audiobookToMap).toList();
+        } on ParsingFailure catch (e) {
+          // Enhanced logging and recovery for parsing failures
+          String? responseText;
+          if (response.data is List<int>) {
+            final bytes = response.data as List<int>;
+            // Try to decode for analysis
+            try {
+              responseText = windows1251.decode(bytes);
+            } on Exception {
+              try {
+                responseText = utf8.decode(bytes);
+              } on FormatException {
+                responseText = String.fromCharCodes(bytes);
+              }
+            }
+          } else {
+            responseText = response.data?.toString() ?? '';
+          }
+          
+          final responseTextLower = responseText.toLowerCase();
+          final hasSearchForm = responseTextLower.contains('form[action*="tracker"]') ||
+              responseTextLower.contains('input[name="nm"]') ||
+              responseTextLower.contains('form#quick-search');
+          final hasSearchPageElements = responseTextLower.contains('div.tcenter') ||
+              responseTextLower.contains('table.forumline') ||
+              responseTextLower.contains('div.nav');
+          final hasAccessDenied = responseTextLower.contains('доступ запрещен') ||
+              responseTextLower.contains('access denied') ||
+              responseTextLower.contains('требуется авторизация');
+          final isLoginPage = responseTextLower.contains('action="https://rutracker') &&
+              responseTextLower.contains('login.php') &&
+              responseTextLower.contains('password');
+          
+          // Check if error is encoding-related
+          final isEncodingError = e.message.toLowerCase().contains('encoding') ||
+              e.message.toLowerCase().contains('decode') ||
+              responseText.contains('\uFFFD'); // Replacement character indicates encoding issue
+          
+          await structuredLogger.log(
+            level: 'error',
+            subsystem: 'search',
+            message: 'Failed to parse search results',
+            context: 'search_request',
+            cause: e.message,
+            extra: {
+              'endpoint': endpoint,
+              'status_code': response.statusCode,
+              'response_size': responseText.length,
+              'response_preview': responseText.length > 1000
+                  ? responseText.substring(0, 1000)
+                  : responseText,
+              'error_type': 'ParsingFailure',
+              'is_encoding_error': isEncodingError,
+              'page_analysis': {
+                'has_search_form': hasSearchForm,
+                'has_search_page_elements': hasSearchPageElements,
+                'has_access_denied': hasAccessDenied,
+                'is_login_page': isLoginPage,
+              },
+            },
+          );
+          
+          // Try automatic recovery for encoding errors
+          if (isEncodingError && response.data is List<int> && !isLoginPage && !hasAccessDenied) {
+            await structuredLogger.log(
+              level: 'info',
+              subsystem: 'search',
+              message: 'Attempting automatic recovery from encoding error',
+              context: 'search_request',
+              extra: {
+                'original_encoding_attempt': contentType,
+                'will_try_alternative_encoding': true,
+                'response_data_type': response.data.runtimeType.toString(),
+                'response_data_size': (response.data as List<int>).length,
+              },
+            );
+            
+            try {
+              // CRITICAL: Use original bytes from response.data (not re-encoded)
+              // Note: Brotli decompression is handled automatically by DioBrotliTransformer
+              // These bytes are already decompressed and ready for encoding conversion
+              final bytes = response.data as List<int>;
+              
+              // Validate bytes before recovery attempt
+              if (bytes.isEmpty) {
+                throw Exception('Cannot recover: bytes are empty');
+              }
+              
+              // Determine which encoding was likely used based on Content-Type
+              final detectedEncoding = contentType.toLowerCase().contains('windows-1251') ||
+                  contentType.toLowerCase().contains('cp1251') ||
+                  contentType.toLowerCase().contains('1251');
+              
+              // Try alternative encoding
+              // If Content-Type says Windows-1251, try UTF-8, and vice versa
+              final alternativeContentType = detectedEncoding 
+                  ? 'text/html; charset=utf-8'
+                  : 'text/html; charset=windows-1251';
+              
+              await structuredLogger.log(
+                level: 'debug',
+                subsystem: 'search',
+                message: 'Trying recovery with alternative encoding',
+                context: 'search_request',
+                extra: {
+                  'original_content_type': contentType,
+                  'alternative_content_type': alternativeContentType,
+                  'bytes_length': bytes.length,
+                },
+              );
+              
+              // Try parsing with alternative encoding
+              // Pass original bytes (not re-encoded) to parser
+              // Note: Brotli decompression is handled automatically by DioBrotliTransformer
+              final recoveredResults = await _parser.parseSearchResults(
+                bytes, // Original bytes (Brotli already decompressed by Dio transformer)
+                contentType: alternativeContentType,
+              );
+              
+              // Validate recovery results
+              if (recoveredResults.isEmpty) {
+                await structuredLogger.log(
+                  level: 'warning',
+                  subsystem: 'search',
+                  message: 'Recovery succeeded but returned empty results',
+                  context: 'search_request',
+                  extra: {
+                    'alternative_encoding_used': detectedEncoding ? 'utf-8' : 'windows-1251',
+                  },
+                );
+                // Empty results might be valid (no search results), so continue
+              }
+              
+              final audiobookResults = _filterAudiobookResults(recoveredResults);
+              results = audiobookResults.map(_audiobookToMap).toList();
+              
+              await structuredLogger.log(
+                level: 'info',
+                subsystem: 'search',
+                message: 'Automatic recovery from encoding error succeeded',
+                context: 'search_request',
+                extra: {
+                  'alternative_encoding_used': detectedEncoding ? 'utf-8' : 'windows-1251',
+                  'recovered_results_count': recoveredResults.length,
+                  'filtered_audiobook_count': audiobookResults.length,
+                },
+              );
+              
+              // Continue with successful results (skip error handling)
+            } on ParsingFailure catch (recoveryError) {
+              await structuredLogger.log(
+                level: 'warning',
+                subsystem: 'search',
+                message: 'Automatic recovery from encoding error failed with ParsingFailure',
+                context: 'search_request',
+                cause: recoveryError.message,
+                extra: {
+                  'error_type': 'ParsingFailure',
+                  'recovery_attempted': true,
+                },
+              );
+              // Fall through to error handling
+            } on Exception catch (recoveryError) {
+              await structuredLogger.log(
+                level: 'warning',
+                subsystem: 'search',
+                message: 'Automatic recovery from encoding error failed',
+                context: 'search_request',
+                cause: recoveryError.toString(),
+                extra: {
+                  'error_type': recoveryError.runtimeType.toString(),
+                  'recovery_attempted': true,
+                },
+              );
+              
+              // Try Latin-1 as last resort (never fails, but may produce mojibake)
+              if (response.data is List<int>) {
+                try {
+                  await structuredLogger.log(
+                    level: 'info',
+                    subsystem: 'search',
+                    message: 'Trying Latin-1 decoding as last resort',
+                    context: 'search_request',
+                  );
+                  
+                  final bytes = response.data as List<int>;
+                  final latin1Results = await _parser.parseSearchResults(
+                    bytes,
+                    contentType: 'text/html; charset=iso-8859-1',
+                  );
+                  
+                  final audiobookResults = _filterAudiobookResults(latin1Results);
+                  if (audiobookResults.isNotEmpty) {
+                    results = audiobookResults.map(_audiobookToMap).toList();
+                    
+                    await structuredLogger.log(
+                      level: 'info',
+                      subsystem: 'search',
+                      message: 'Latin-1 recovery succeeded',
+                      context: 'search_request',
+                      extra: {
+                        'recovered_results_count': results.length,
+                      },
+                    );
+                    // Continue with successful results
+                  } else {
+                    await structuredLogger.log(
+                      level: 'warning',
+                      subsystem: 'search',
+                      message: 'Latin-1 recovery returned empty results',
+                      context: 'search_request',
+                    );
+                    // Fall through to error handling
+                  }
+                } on Exception catch (latin1Error) {
+                  await structuredLogger.log(
+                    level: 'error',
+                    subsystem: 'search',
+                    message: 'Latin-1 recovery also failed',
+                    context: 'search_request',
+                    cause: latin1Error.toString(),
+                  );
+                  // Fall through to error handling
+                }
+              } else {
+                // Fall through to error handling
+              }
+            }
+          }
+          
+          // If recovery didn't work or wasn't attempted, handle the error
+          if (results.isEmpty) {
+            // Improved check for authentication error (more specific)
+            final errorMessageLower = e.message.toLowerCase();
+            final isAuthError = errorMessageLower.contains('page appears to require authentication') ||
+                errorMessageLower.contains('please log in first') ||
+                (errorMessageLower.contains('authentication') && 
+                 errorMessageLower.contains('log in')) ||
+                // Check response content for login page indicators
+                isLoginPage ||
+                (hasAccessDenied && !hasSearchForm);
+            
+            if (mounted) {
+              setState(() {
+                _isLoading = false;
+                if (isAuthError) {
+                  _errorKind = 'auth';
+                  _errorMessage = AppLocalizations.of(context)
+                          ?.authorizationFailedMessage ??
+                      'Authentication required. Please log in.';
+                  safeUnawaited(_handleLogin());
+                } else if (isEncodingError) {
+                  // Task 3.3: Distinguish encoding errors and suggest specific actions
+                  _errorKind = 'network';
+                  _errorMessage = 'Failed to parse search results due to encoding issue. '
+                      'This may be a temporary server problem. Please try again. '
+                      'If the problem persists, try changing the mirror in Settings → Sources.';
+                } else {
+                  _errorKind = 'network';
+                  _errorMessage = 'Failed to parse search results. The page structure may have changed. '
+                      'Please try again. If the problem persists, try changing the mirror in Settings → Sources.';
+                }
+              });
+            }
+            return;
+          }
+        }
+
+        // Cache the results
+        // Results are already maps
+        await _cacheService.cacheSearchResults(query, results);
+
+        if (updateExisting && mounted) {
+          // Update existing results (for background refresh from local DB)
           setState(() {
+            final networkResults = results;
+            // Merge with existing, avoiding duplicates
+            final existingIds =
+                _searchResults.map((r) => r['id'] as String?).toSet();
+            final newResults = networkResults
+                .where((r) => !existingIds.contains(r['id'] as String?))
+                .toList();
+            _searchResults = [..._searchResults, ...newResults];
+            _isFromLocalDb = false; // Switch to network results
+            _errorKind = null;
+            _errorMessage = null;
+            _hasMore = results.isNotEmpty;
+          });
+        } else {
+          setState(() {
+            // Results are already maps
+            _searchResults = results;
+            _isLoading = false;
+            _isFromCache = false;
+            _isFromLocalDb = false;
+            _errorKind = null;
+            _errorMessage = null;
+            _hasMore = results.isNotEmpty;
+            _showHistory = false;
+          });
+
+          // Save to search history
+          if (_historyService != null && query.isNotEmpty) {
+            await _historyService!.saveSearchQuery(query);
+            await _loadSearchHistory();
+          }
+        }
+
+        // Success - update active host display (don't change endpoint)
+        if (mounted) {
+          final uri = Uri.tryParse(endpoint);
+          if (uri != null && uri.hasScheme && uri.hasAuthority && uri.host.isNotEmpty) {
+            setState(() => _activeHost = uri.host);
+          } else {
+            // Fallback: try to extract host from endpoint string
+            try {
+              final host = Uri.parse(endpoint).host;
+              if (host.isNotEmpty) {
+                setState(() => _activeHost = host);
+              }
+            } on Exception {
+              // If parsing fails, try to reload host
+              await _loadActiveHost();
+            }
+          }
+        }
+        
+        await structuredLogger.log(
+          level: 'info',
+          subsystem: 'search',
+          message: 'Search completed successfully',
+          context: 'search_request',
+          extra: {
+            'endpoint': endpoint,
+            'results_count': results.length,
+            'has_more': _hasMore,
+          },
+        );
+        return;
+      } else {
+        // Non-200 status - show error
+        await structuredLogger.log(
+          level: 'warning',
+          subsystem: 'search',
+          message: 'Search request returned non-200 status',
+          context: 'search_request',
+          extra: {
+            'endpoint': endpoint,
+            'status_code': response.statusCode,
+            'response_size': response.data?.toString().length ?? 0,
+          },
+        );
+        
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
             _errorKind = 'network';
-            _errorMessage = e.message ?? 'Unknown error';
+            _errorMessage = 'HTTP ${response.statusCode}';
           });
         }
-      } else {
+        return;
+      }
+    } on TimeoutException catch (e) {
+      await structuredLogger.log(
+        level: 'warning',
+        subsystem: 'search',
+        message: 'Search request timed out',
+        context: 'search_request',
+        cause: e.toString(),
+        extra: {
+          'endpoint': endpoint,
+          'timeout_seconds': 30,
+        },
+      );
+      
+      if (mounted) {
         setState(() {
-          _errorKind = 'network';
-          _errorMessage = lastException?.toString() ?? 'All mirrors failed';
+          _isLoading = false;
+          _errorKind = 'timeout';
+          _errorMessage = AppLocalizations.of(context)
+                  ?.requestTimedOutMessage ??
+              'Request timed out. Check your connection.';
         });
       }
+      return;
+    } on DioException catch (e) {
+      // Check if request was cancelled
+      if (e.type == DioExceptionType.cancel) {
+        // Silently ignore cancelled request
+        await structuredLogger.log(
+          level: 'debug',
+          subsystem: 'search',
+          message: 'Search request cancelled',
+          context: 'search_request',
+          extra: {'endpoint': endpoint},
+        );
+        return;
+      }
+
+      // Log detailed error information
+      final errorType = switch (e.type) {
+        DioExceptionType.connectionTimeout => 'Connection timeout',
+        DioExceptionType.sendTimeout => 'Send timeout',
+        DioExceptionType.receiveTimeout => 'Receive timeout',
+        DioExceptionType.badResponse => 'Bad response',
+        DioExceptionType.cancel => 'Request cancelled',
+        DioExceptionType.connectionError => 'Connection error',
+        DioExceptionType.badCertificate => 'Bad certificate',
+        DioExceptionType.unknown => 'Unknown error',
+      };
+
+      await structuredLogger.log(
+        level: 'error',
+        subsystem: 'search',
+        message: 'Search request failed with DioException',
+        context: 'search_request',
+        cause: e.toString(),
+        extra: {
+          'endpoint': endpoint,
+          'error_type': errorType,
+          'status_code': e.response?.statusCode,
+          'response_data_preview': e.response?.data?.toString().length != null && 
+              e.response!.data.toString().length > 500
+              ? e.response!.data.toString().substring(0, 500)
+              : e.response?.data?.toString() ?? '<empty>',
+          'request_url': e.requestOptions.uri.toString(),
+          'query_params': e.requestOptions.queryParameters,
+        },
+      );
+
+      // Check if error indicates authentication issue
+      final isAuthError = e.response?.statusCode == 401 ||
+          e.response?.statusCode == 403 ||
+          (e.response?.data?.toString().toLowerCase().contains('login') ?? false) ||
+          (e.response?.data?.toString().toLowerCase().contains('авторизация') ?? false) ||
+          (e.message?.toLowerCase().contains('authentication') ?? false);
+
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          if (isAuthError) {
+            _errorKind = 'auth';
+            _errorMessage = AppLocalizations.of(context)
+                    ?.authorizationFailedMessage ??
+                'Authentication required. Please log in.';
+            safeUnawaited(_handleLogin());
+          } else {
+            _errorKind = 'network';
+            _errorMessage = 'Search failed: $errorType';
+          }
+        });
+      }
+      
+      // Handle connection errors
+      if (!isAuthError && (e.type == DioExceptionType.connectionError ||
+          e.type == DioExceptionType.connectionTimeout)) {
+        final message = e.message?.toLowerCase() ?? '';
+        final isDnsError = message.contains('host lookup') ||
+            message.contains('no address associated with hostname') ||
+            message.contains('name or service not known') ||
+            message.contains('failed host lookup') ||
+            message.contains('network is unreachable');
+
+        await structuredLogger.log(
+          level: 'error',
+          subsystem: 'search',
+          message: 'Connection error detected',
+          context: 'search_request',
+          cause: e.toString(),
+          extra: {
+            'endpoint': endpoint,
+            'error_type': e.type.toString(),
+            'error_message': e.message,
+            'is_dns_error': isDnsError,
+            'request_path': e.requestOptions.path,
+          },
+        );
+
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+            _errorKind = isDnsError ? 'mirror' : 'network';
+            _errorMessage = isDnsError
+                ? (AppLocalizations.of(context)?.networkConnectionError ??
+                    'Could not connect. Check your internet or choose another mirror in Settings → Sources.')
+                : (AppLocalizations.of(context)?.connectionFailed ??
+                    'Connection failed. Please check your internet connection.');
+          });
+        }
+        return;
+      }
+
+      // Handle other DioException types
+      await structuredLogger.log(
+        level: 'error',
+        subsystem: 'search',
+        message: 'Other DioException error',
+        context: 'search_request',
+        cause: e.toString(),
+        extra: {
+          'endpoint': endpoint,
+          'error_type': e.type.toString(),
+          'error_message': e.message,
+          'status_code': e.response?.statusCode,
+          'request_path': e.requestOptions.path,
+        },
+      );
+
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorKind = 'network';
+          _errorMessage = e.message ?? 'Network error occurred';
+        });
+      }
+      return;
+    } on Exception catch (e) {
+      await structuredLogger.log(
+        level: 'error',
+        subsystem: 'search',
+        message: 'Unexpected error during search',
+        context: 'search_request',
+        cause: e.toString(),
+        extra: {
+          'endpoint': endpoint,
+          'error_type': e.runtimeType.toString(),
+        },
+      );
+      
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorKind = 'network';
+          _errorMessage = e.toString();
+        });
+      }
+      return;
     }
   }
 
   @override
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(
-          title: Text(AppLocalizations.of(context)!.searchAudiobooks),
+          title: Text(AppLocalizations.of(context)?.searchAudiobooks ?? 'Search Audiobooks'),
           actions: [
             if (_activeHost != null)
               Padding(
@@ -698,12 +1693,13 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 ),
               ),
             IconButton(
-              tooltip: 'RuTracker Login',
+              tooltip: AppLocalizations.of(context)?.rutrackerLoginTooltip ??
+                  'RuTracker Login',
               icon: const Icon(Icons.vpn_key),
               onPressed: _handleLogin,
             ),
             IconButton(
-              tooltip: 'Mirrors',
+              tooltip: AppLocalizations.of(context)?.mirrorsTooltip ?? 'Mirrors',
               icon: const Icon(Icons.dns),
               onPressed: () {
                 unawaited(Navigator.push(
@@ -734,8 +1730,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                   controller: _searchController,
                   focusNode: _searchFocusNode,
                   decoration: InputDecoration(
-                    labelText: AppLocalizations.of(context)!.searchPlaceholder,
-                    hintText: AppLocalizations.of(context)!.searchPlaceholder,
+                    labelText: AppLocalizations.of(context)?.searchPlaceholder ?? 'Enter title, author, or keywords',
+                    hintText: AppLocalizations.of(context)?.searchPlaceholder ?? 'Enter title, author, or keywords',
                     suffixIcon: _searchController.text.isNotEmpty
                         ? IconButton(
                             icon: const Icon(Icons.clear),
@@ -798,13 +1794,20 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                       ),
                       TextButton(
                         onPressed: () async {
-                          await Navigator.push<String>(
-                            context,
-                            MaterialPageRoute(
-                                builder: (_) => const SecureRutrackerWebView()),
-                          );
+                          // Open auth screen for login
+                          final result = await context.push('/auth');
                           if (!mounted) return;
-                          await DioClient.syncCookiesFromWebView();
+                          
+                          // If login was successful, validate cookies
+                          if (result == true) {
+                            final isValid = await DioClient.validateCookies();
+                            if (!isValid) {
+                              return; // Login failed, don't clear error
+                            }
+                          } else {
+                            return; // User cancelled, don't clear error
+                          }
+                          
                           setState(() {
                             _errorKind = null;
                             _errorMessage = null;
@@ -840,7 +1843,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                                   size: 16, color: Colors.blue[700]),
                               const SizedBox(width: 8),
                               Text(
-                                AppLocalizations.of(context)!.resultsFromCache,
+                                AppLocalizations.of(context)?.resultsFromCache ?? 'Results from cache',
                                 style: TextStyle(
                                   color: Colors.blue[700],
                                   fontSize: 12,
@@ -924,7 +1927,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           Row(
             children: [
               Text(
-                'Фильтры:',
+                AppLocalizations.of(context)?.filtersLabel ?? 'Filters:',
                 style: Theme.of(context).textTheme.labelMedium,
               ),
               if (_selectedCategories.isNotEmpty) ...[
@@ -934,7 +1937,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                     _selectedCategories.clear();
                     setState(() {});
                   },
-                  child: const Text('Сбросить'),
+                  child: Text(AppLocalizations.of(context)?.resetButton ?? 'Reset'),
                 ),
               ],
             ],
@@ -983,7 +1986,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       return _searchResults;
     }
     return _searchResults.where((result) {
-      final category = result['category'] as String? ?? 'Другое';
+      final category = result['category'] as String? ??
+          (AppLocalizations.of(context)?.otherCategory ?? 'Other');
       return _selectedCategories.contains(category);
     }).toList();
   }
@@ -1011,7 +2015,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               child: Row(
                 children: [
                   Text(
-                    'История поиска',
+                    AppLocalizations.of(context)?.searchHistoryTitle ??
+                        'Search History',
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
                           fontWeight: FontWeight.bold,
                         ),
@@ -1030,7 +2035,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                           }
                         }
                       },
-                      child: const Text('Очистить'),
+                      child: Text(AppLocalizations.of(context)?.clearButton ??
+                          'Clear'),
                     ),
                 ],
               ),
@@ -1121,7 +2127,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     return GroupedAudiobookList(
       audiobooks: filteredResults,
       onAudiobookTap: (id) {
-        Navigator.pushNamed(context, '/topic/$id');
+        context.push('/topic/$id');
       },
       loadMore: _hasMore && !_isLoadingMore ? _loadMore : null,
       hasMore: _hasMore,
@@ -1162,8 +2168,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           SnackBar(
             content: Text(
               isFavorite
-                  ? 'Не удалось добавить в избранное'
-                  : 'Не удалось удалить из избранного',
+                  ? (AppLocalizations.of(context)?.failedToAddToFavorites ??
+                      'Failed to add to favorites')
+                  : (AppLocalizations.of(context)?.failedToRemoveFromFavorites ??
+                      'Failed to remove from favorites'),
             ),
           ),
         );
@@ -1189,20 +2197,52 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       final activeEndpoint = await endpointManager.getActiveEndpoint();
       final dio = await DioClient.instance;
       final res = await dio.get(
-        '$activeEndpoint/forum/search.php',
+        '$activeEndpoint/forum/tracker.php',
         queryParameters: {
           'nm': query,
+          'c': CategoryConstants.audiobooksCategoryId, // Try to filter by category 33 (audiobooks)
           'o': '1',
           'start': _searchResults.length,
         },
+        options: Options(
+          responseType: ResponseType.bytes, // Get raw bytes to decode Windows-1251 correctly
+        ),
       );
       if (res.statusCode == 200) {
-        final more = await _parser.parseSearchResults(res.data);
-        if (mounted) {
-          setState(() {
-            _searchResults.addAll(more.map(_audiobookToMap));
-            _hasMore = more.isNotEmpty;
-          });
+        try {
+          // Pass response data and headers to parser for proper encoding detection
+          final more = await _parser.parseSearchResults(
+            res.data,
+            contentType: res.headers.value('content-type'),
+          );
+          
+          // CRITICAL: Filter results to only include audiobooks
+          final audiobookMore = _filterAudiobookResults(more);
+          
+          if (mounted) {
+            setState(() {
+              _searchResults.addAll(audiobookMore.map(_audiobookToMap));
+              _hasMore = audiobookMore.isNotEmpty;
+            });
+          }
+        } on ParsingFailure catch (e) {
+          await StructuredLogger().log(
+            level: 'error',
+            subsystem: 'search',
+            message: 'Failed to parse additional search results',
+            context: 'search_pagination',
+            cause: e.message,
+            extra: {
+              'start_offset': _startOffset,
+              'error_type': 'ParsingFailure',
+            },
+          );
+          // Don't show error to user for pagination failures, just stop loading more
+          if (mounted) {
+            setState(() {
+              _hasMore = false;
+            });
+          }
         }
       }
     } on Object {
@@ -1305,7 +2345,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         iconColor = Colors.red.shade400;
         actions = [
           ElevatedButton.icon(
-            onPressed: _performSearch,
+            onPressed: _performSearch, // Task 3.3: Retry search on encoding/parsing errors
             icon: const Icon(Icons.refresh),
             label: Text(localizations?.retry ?? 'Retry'),
           ),
@@ -1318,8 +2358,11 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             label: Text(localizations?.changeMirror ?? 'Change Mirror'),
           ),
         ];
-        message = localizations?.networkConnectionError ??
-            'Could not connect. Check your internet or choose another mirror in Settings → Sources.';
+        // Task 3.3: Use specific error message if available, otherwise use default
+        message = (_errorMessage?.isNotEmpty ?? false)
+            ? _errorMessage!
+            : (localizations?.networkConnectionError ??
+                'Could not connect. Check your internet or choose another mirror in Settings → Sources.');
         break;
     }
 
@@ -1375,7 +2418,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                     Icon(Icons.dns, size: 16, color: Colors.grey.shade600),
                     const SizedBox(width: 6),
                     Text(
-                      'Current mirror: $_activeHost',
+                      AppLocalizations.of(context)
+                              ?.currentMirrorLabel(_activeHost!) ??
+                          'Current mirror: $_activeHost',
                       style: TextStyle(
                         fontSize: 12,
                         color: Colors.grey.shade600,
@@ -1407,6 +2452,71 @@ Map<String, dynamic> _audiobookToMap(Audiobook audiobook) => {
       'addedDate': audiobook.addedDate.toIso8601String(),
     };
 
+  /// Filters search results to only include audiobooks.
+  ///
+  /// Since tracker.php returns ALL torrents (movies, games, books, audiobooks, etc.),
+  /// we need to filter results to only show audiobooks from category 33.
+  ///
+  /// We identify audiobooks by:
+  /// 1. Checking if the title contains audiobook-related keywords
+  /// 2. Checking if the category field indicates it's an audiobook
+  /// 3. Checking if the result has characteristics of audiobooks (size, format, etc.)
+  List<Audiobook> _filterAudiobookResults(List<Audiobook> allResults) {
+    final audiobookKeywords = [
+      'аудиокнига',
+      'аудио',
+      'радиоспектакль',
+      'биография',
+      'мемуары',
+      'чтение',
+      'читает',
+      'исполнитель',
+      'mp3',
+      'flac',
+      'm4b',
+      'ogg',
+    ];
+    
+    final excludedKeywords = [
+      'фильм',
+      'сериал',
+      'игра',
+      'программа',
+      'музыка',
+      'альбом',
+      'трек',
+      'песня',
+      'видео',
+      'dvd',
+      'blu-ray',
+      'bdrip',
+      'dvdrip',
+    ];
+    
+    return allResults.where((result) {
+      final titleLower = result.title.toLowerCase();
+      final categoryLower = result.category.toLowerCase();
+      
+      // Check if it contains audiobook-related keywords
+      final hasAudiobookKeyword = audiobookKeywords.any(
+        (keyword) => titleLower.contains(keyword) || categoryLower.contains(keyword),
+      );
+      
+      // Check if it contains excluded keywords (likely not an audiobook)
+      final hasExcludedKeyword = excludedKeywords.any(
+        titleLower.contains,
+      );
+      
+      // Include if it has audiobook keywords and doesn't have excluded keywords
+      // OR if the category explicitly indicates it's an audiobook
+      return (hasAudiobookKeyword && !hasExcludedKeyword) ||
+          categoryLower.contains('аудиокнига') ||
+          categoryLower.contains('радиоспектакль') ||
+          categoryLower.contains('биография') ||
+          categoryLower.contains('мемуары');
+    }).toList();
+  }
+
 /// Converts a Chapter object to a Map for caching.
 Map<String, dynamic> _chapterToMap(Chapter chapter) => {
       'title': chapter.title,
@@ -1415,5 +2525,3 @@ Map<String, dynamic> _chapterToMap(Chapter chapter) => {
       'startByte': chapter.startByte,
       'endByte': chapter.endByte,
     };
-
-// Unused legacy dialog removed; login flow handled inline via WebView

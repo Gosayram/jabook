@@ -1,3 +1,17 @@
+// Copyright 2025 Jabook Contributors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:jabook/core/cache/rutracker_cache_service.dart';
@@ -127,6 +141,7 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
 
   Future<void> _exportLogs(BuildContext context) async {
     final scaffoldMessenger = ScaffoldMessenger.of(context);
+    final localizations = AppLocalizations.of(context);
     try {
       final structuredLogger = StructuredLogger();
       await structuredLogger.initialize();
@@ -134,13 +149,17 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
 
       if (!mounted) return;
       scaffoldMessenger.showSnackBar(
-        const SnackBar(content: Text('Logs exported successfully')),
+        SnackBar(
+            content: Text(localizations?.logsExportedSuccessfullyMessage ??
+                'Logs exported successfully')),
       );
     } on Exception catch (e) {
       _logger.e('Failed to export logs: $e');
       if (!mounted) return;
       scaffoldMessenger.showSnackBar(
-        SnackBar(content: Text('Failed to export logs: $e')),
+        SnackBar(
+            content: Text(
+                '${localizations?.failedToExportLogsMessage ?? 'Failed to export logs'}: $e')),
       );
     }
   }
@@ -172,24 +191,31 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
 
   Future<void> _clearCache(BuildContext context) async {
     final scaffoldMessenger = ScaffoldMessenger.of(context);
+    final localizations = AppLocalizations.of(context);
     try {
       await _cacheService.clearSearchResultsCache();
       await _loadCacheStats();
       if (!mounted) return;
       scaffoldMessenger.showSnackBar(
-        const SnackBar(content: Text('Cache cleared successfully')),
+        SnackBar(
+            content: Text(localizations?.cacheClearedSuccessfullyMessage ??
+                'Cache cleared successfully')),
       );
     } on Exception catch (e) {
       _logger.e('Failed to clear cache: $e');
       if (!mounted) return;
       scaffoldMessenger.showSnackBar(
-        SnackBar(content: Text('Failed to clear cache: $e')),
+        SnackBar(
+            content: Text(localizations?.failedToClearCacheMessage(e.toString()) ?? 
+                    'Failed to clear cache: ${e.toString()}'),
+        ),
       );
     }
   }
 
   Future<void> _testAllMirrors(BuildContext context) async {
     final scaffoldMessenger = ScaffoldMessenger.of(context);
+    final localizations = AppLocalizations.of(context);
     try {
       // Test all mirrors using EndpointManager
       final mirrors = await _endpointManager.getAllEndpoints();
@@ -203,13 +229,20 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
 
       if (!mounted) return;
       scaffoldMessenger.showSnackBar(
-        const SnackBar(content: Text('Mirror health check completed')),
+        SnackBar(
+            content: Text(localizations
+                    ?.mirrorHealthCheckCompletedMessage(mirrors.length, mirrors.length) ??
+                'Mirror health check completed'),
+        ),
       );
     } on Exception catch (e) {
       _logger.e('Failed to test mirrors: $e');
       if (!mounted) return;
       scaffoldMessenger.showSnackBar(
-        SnackBar(content: Text('Failed to test mirrors: $e')),
+        SnackBar(
+            content: Text(localizations?.failedToTestMirrorsMessage(e.toString()) ?? 
+                    'Failed to test mirrors: ${e.toString()}'),
+        ),
       );
     }
   }
@@ -221,22 +254,23 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
               AppLocalizations.of(context)?.debugToolsTitle ?? 'Debug Tools'),
           bottom: TabBar(
             controller: _tabController,
-            tabs: const [
+            tabs: [
               Tab(
-                text: 'Logs',
-                icon: Icon(Icons.description),
+                text: AppLocalizations.of(context)?.logsTab ?? 'Logs',
+                icon: const Icon(Icons.description),
               ),
               Tab(
-                text: 'Mirrors',
-                icon: Icon(Icons.dns),
+                text: AppLocalizations.of(context)?.mirrorsTab ?? 'Mirrors',
+                icon: const Icon(Icons.dns),
               ),
               Tab(
-                text: 'Downloads',
-                icon: Icon(Icons.download),
+                text: AppLocalizations.of(context)?.downloadsTab ??
+                    'Downloads',
+                icon: const Icon(Icons.download),
               ),
               Tab(
-                text: 'Cache',
-                icon: Icon(Icons.cached),
+                text: AppLocalizations.of(context)?.cacheTab ?? 'Cache',
+                icon: const Icon(Icons.cached),
               ),
             ],
           ),
@@ -325,13 +359,15 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
                   statusColor = Colors.green;
                 } else if (healthScore >= 30) {
                   isActuallyActive = true;
-                  statusText =
-                      'Degraded'; // TODO: Add localization key for degraded status
+                  statusText = AppLocalizations.of(context)
+                          ?.mirrorStatusDegraded ??
+                      'Degraded';
                   statusColor = Colors.orange;
                 } else {
                   isActuallyActive = false;
-                  statusText =
-                      'Unhealthy'; // TODO: Add localization key for unhealthy status
+                  statusText = AppLocalizations.of(context)
+                          ?.mirrorStatusUnhealthy ??
+                      'Unhealthy';
                   statusColor = Colors.red;
                 }
 
@@ -423,7 +459,8 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
                 ),
                 trailing: Semantics(
                   button: true,
-                  label: 'Delete download',
+                  label: AppLocalizations.of(context)?.deleteDownloadButton ??
+                      'Delete download',
                   child: IconButton(
                     icon: const Icon(Icons.delete),
                     onPressed: () {
@@ -539,7 +576,8 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
         children: [
           Semantics(
             button: true,
-            label: 'Refresh debug data',
+            label: AppLocalizations.of(context)?.refreshDebugDataButton ??
+                'Refresh debug data',
             child: FloatingActionButton(
               heroTag: 'refresh',
               mini: true,
@@ -550,7 +588,8 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
           const SizedBox(height: 8),
           Semantics(
             button: true,
-            label: 'Export logs',
+            label: AppLocalizations.of(context)?.exportLogsButton ??
+                'Export logs',
             child: FloatingActionButton(
               heroTag: 'export',
               mini: true,

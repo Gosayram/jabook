@@ -1,3 +1,17 @@
+// Copyright 2025 Jabook Contributors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
@@ -37,8 +51,11 @@ class RuTrackerRepositoryImpl implements RuTrackerRepository {
       final dio = await DioClient.instance;
 
       // Build search URL with proper RuTracker parameters
+      // CRITICAL: Use tracker.php (not search.php) for searching torrents/audiobooks
+      // tracker.php is the default search method on RuTracker for "раздачи" (torrents)
+      // Try to use c=33 to filter by audiobooks category
       final searchPath =
-          '/forum/search.php?nm=$query&f=${CategoryConstants.audiobooksCategoryId}&start=${(page - 1) * CategoryConstants.searchResultsPerPage}';
+          '/forum/tracker.php?nm=$query&c=${CategoryConstants.audiobooksCategoryId}&start=${(page - 1) * CategoryConstants.searchResultsPerPage}';
       final searchUrl = await _endpointManager.buildUrl(searchPath);
 
       final response = await dio.get(
@@ -53,7 +70,7 @@ class RuTrackerRepositoryImpl implements RuTrackerRepository {
       );
 
       final results =
-          await _parser.parseSearchResults(response.data.toString());
+          await _parser.parseSearchResults(response.data);
       return results
           .map((audiobook) => Audiobook(
                 id: audiobook.id,
@@ -89,7 +106,9 @@ class RuTrackerRepositoryImpl implements RuTrackerRepository {
     try {
       final dio = await DioClient.instance;
 
-      const indexPath = '/forum/index.php';
+      // CRITICAL: Load index.php?c=33 to get ONLY audiobooks category structure
+      // This is the static page that contains all forums and subforums for audiobooks
+      const indexPath = '/forum/index.php?c=${CategoryConstants.audiobooksCategoryId}';
       final indexUrl = await _endpointManager.buildUrl(indexPath);
       final response = await dio.get(
         indexUrl,
@@ -181,7 +200,9 @@ class RuTrackerRepositoryImpl implements RuTrackerRepository {
       final response = await dio.get(
         topicUrl,
         options: Options(
-          responseType: ResponseType.plain,
+          // Get raw bytes (Brotli decompression handled automatically by DioBrotliTransformer)
+          // Bytes are ready for Windows-1251 decoding
+          responseType: ResponseType.bytes,
           headers: {
             'Accept': 'text/html,application/xhtml+xml,application/xml',
             'Accept-Charset': 'windows-1251,utf-8',
@@ -189,7 +210,12 @@ class RuTrackerRepositoryImpl implements RuTrackerRepository {
         ),
       );
 
-      final details = await _parser.parseTopicDetails(response.data.toString());
+      // Pass response data and headers to parser for proper encoding detection
+      // Note: Brotli decompression is handled automatically by DioBrotliTransformer
+      final details = await _parser.parseTopicDetails(
+        response.data,
+        contentType: response.headers.value('content-type'),
+      );
       if (details == null) return null;
 
       return Audiobook(
@@ -412,7 +438,7 @@ class RuTrackerRepositoryImpl implements RuTrackerRepository {
       );
 
       final results =
-          await _parser.parseSearchResults(response.data.toString());
+          await _parser.parseSearchResults(response.data);
       return results
           .map((audiobook) => Audiobook(
                 id: audiobook.id,

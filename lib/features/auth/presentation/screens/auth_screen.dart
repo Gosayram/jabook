@@ -1,6 +1,22 @@
+// Copyright 2025 Jabook Contributors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:jabook/core/endpoints/endpoint_provider.dart';
+import 'package:jabook/core/errors/failures.dart';
+import 'package:jabook/core/session/auth_error_handler.dart';
 import 'package:jabook/features/auth/data/providers/auth_provider.dart';
 import 'package:jabook/l10n/app_localizations.dart';
 
@@ -22,6 +38,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   bool _rememberMe = true;
   String _statusMessage = '';
   Color _statusColor = Colors.grey;
+  bool _isLoggingIn = false;
 
   @override
   void initState() {
@@ -42,15 +59,19 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   Future<void> _login() async {
     if (_usernameController.text.isEmpty || _passwordController.text.isEmpty) {
       setState(() {
-        _statusMessage = 'Please enter username and password';
+        _statusMessage = AppLocalizations.of(context)?.pleaseEnterCredentials ??
+            'Please enter username and password';
         _statusColor = Colors.red;
+        _isLoggingIn = false;
       });
       return;
     }
 
     setState(() {
-      _statusMessage = 'Logging in...';
+      _statusMessage =
+          AppLocalizations.of(context)?.loggingInText ?? 'Logging in...';
       _statusColor = Colors.blue;
+      _isLoggingIn = true;
     });
 
     try {
@@ -68,28 +89,75 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
         );
       }
 
-      setState(() {
-        _statusMessage = success
-            ? 'Login successful!'
-            : 'Login failed. Please check credentials';
-        _statusColor = success ? Colors.green : Colors.red;
-      });
+      if (mounted) {
+        setState(() {
+          _statusMessage = success
+              ? (AppLocalizations.of(context)?.loginSuccessMessage ??
+                  'Login successful!')
+              : (AppLocalizations.of(context)?.loginFailedMessage ??
+                  'Login failed. Please check credentials');
+          _statusColor = success ? Colors.green : Colors.red;
+          _isLoggingIn = false;
+        });
 
-      if (success) {
-        // Test connection after successful login
-        await _testConnection();
+        if (success) {
+          // Test connection after successful login
+          await _testConnection();
+          
+          // Return true to indicate successful login
+          if (mounted) {
+            Navigator.of(context).pop(true);
+          }
+        }
+      }
+    } on AuthFailure catch (e) {
+      // Use AuthErrorHandler for authentication errors
+      if (mounted) {
+        AuthErrorHandler.showAuthErrorSnackBar(context, e);
+        setState(() {
+          // Provide user-friendly error messages
+          if (e.message.contains('Invalid username or password') ||
+              e.message.contains('wrong username/password')) {
+            _statusMessage = AppLocalizations.of(context)?.loginFailedMessage ??
+                'Invalid username or password. Please check your credentials.';
+          } else if (e.message.contains('captcha')) {
+            _statusMessage = 'Captcha verification required. Please try again later.';
+          } else {
+            _statusMessage = e.message;
+          }
+          _statusColor = Colors.red;
+          _isLoggingIn = false;
+        });
       }
     } on Exception catch (e) {
-      setState(() {
-        _statusMessage = 'Login error: ${e.toString()}';
-        _statusColor = Colors.red;
-      });
+      if (mounted) {
+        setState(() {
+          // Provide user-friendly error messages
+          final errorMsg = e.toString().toLowerCase();
+          if (errorMsg.contains('timeout') || errorMsg.contains('connection')) {
+            _statusMessage = 'Network error. Please check your connection and try again.';
+          } else if (errorMsg.contains('authentication required') ||
+              errorMsg.contains('network null') ||
+              errorMsg.contains('null')) {
+            // Handle authentication errors that might show as "network null"
+            _statusMessage = AppLocalizations.of(context)?.loginFailedMessage ??
+                'Authentication failed. Please check your credentials and try again.';
+          } else {
+            final errorString = e.toString();
+            _statusMessage = AppLocalizations.of(context)?.loginFailedMessage ??
+                'Login failed: $errorString';
+          }
+          _statusColor = Colors.red;
+          _isLoggingIn = false;
+        });
+      }
     }
   }
 
   Future<void> _testConnection() async {
     setState(() {
-      _statusMessage = 'Testing connection...';
+      _statusMessage = AppLocalizations.of(context)?.testingConnectionText ??
+          'Testing connection...';
       _statusColor = Colors.blue;
     });
 
@@ -98,12 +166,14 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       final activeEndpoint = await endpointManager.getActiveEndpoint();
 
       setState(() {
-        _statusMessage = 'Connection successful! Using: $activeEndpoint';
+        _statusMessage = AppLocalizations.of(context)!
+            .connectionSuccessMessage(activeEndpoint);
         _statusColor = Colors.green;
       });
     } on Exception catch (e) {
       setState(() {
-        _statusMessage = 'Connection test failed: ${e.toString()}';
+        _statusMessage = AppLocalizations.of(context)!
+            .connectionFailedMessage(e.toString());
         _statusColor = Colors.red;
       });
     }
@@ -130,8 +200,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       });
     } on Exception catch (e) {
       setState(() {
-        _statusMessage =
-            '${AppLocalizations.of(context)?.logoutErrorMessage ?? 'Logout error:'} ${e.toString()}';
+        _statusMessage = AppLocalizations.of(context)!
+            .logoutErrorMessage(e.toString());
         _statusColor = Colors.red;
       });
     }
@@ -219,9 +289,27 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
               ),
               const SizedBox(height: 20),
               ElevatedButton(
-                onPressed: _login,
-                child: Text(
-                    AppLocalizations.of(context)?.loginButtonText ?? 'Login'),
+                onPressed: _isLoggingIn ? null : _login,
+                child: _isLoggingIn
+                    ? Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            AppLocalizations.of(context)?.loggingInText ??
+                                'Logging in...',
+                          ),
+                        ],
+                      )
+                    : Text(
+                        AppLocalizations.of(context)?.loginButtonText ?? 'Login'),
               ),
             ],
 

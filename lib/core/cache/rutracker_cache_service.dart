@@ -1,4 +1,19 @@
+// Copyright 2025 Jabook Contributors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 import 'package:jabook/core/cache/cache_manager.dart';
+import 'package:jabook/core/session/session_storage.dart';
 import 'package:sembast/sembast.dart';
 
 /// Service for caching RuTracker search results and topic details.
@@ -18,6 +33,9 @@ class RuTrackerCacheService {
   /// Cache manager instance.
   final CacheManager _cacheManager = CacheManager();
 
+  /// Session storage for getting session ID.
+  final SessionStorage _sessionStorage = const SessionStorage();
+
   /// TTL for search results in seconds (1 hour).
   static const int searchResultsTTL = 3600;
 
@@ -29,13 +47,16 @@ class RuTrackerCacheService {
     await _cacheManager.initialize(db);
   }
 
-  /// Caches search results with TTL.
+  /// Caches search results with TTL and session binding.
   ///
   /// The [query] parameter is the search query.
   /// The [results] parameter is the list of audiobook maps to cache.
+  /// Results are bound to the current session ID to ensure cache
+  /// is cleared when session changes.
   Future<void> cacheSearchResults(
       String query, List<Map<String, dynamic>> results) async {
-    final key = _getSearchResultsKey(query);
+    final sessionId = await _sessionStorage.getSessionId();
+    final key = _getSearchResultsKey(query, sessionId);
     await _cacheManager.storeWithTTL(key, results, searchResultsTTL);
   }
 
@@ -43,9 +64,11 @@ class RuTrackerCacheService {
   ///
   /// The [query] parameter is the search query.
   /// Returns the cached results or `null` if expired or not found.
+  /// Only returns results for the current session.
   Future<List<Map<String, dynamic>>?> getCachedSearchResults(
       String query) async {
-    final key = _getSearchResultsKey(query);
+    final sessionId = await _sessionStorage.getSessionId();
+    final key = _getSearchResultsKey(query, sessionId);
     final cachedData = await _cacheManager.getIfNotExpired(key);
 
     if (cachedData is List) {
@@ -99,8 +122,9 @@ class RuTrackerCacheService {
   }
 
   /// Checks if search results are cached for a query.
-  Future<bool> hasCachedSearchResults(String query) {
-    final key = _getSearchResultsKey(query);
+  Future<bool> hasCachedSearchResults(String query) async {
+    final sessionId = await _sessionStorage.getSessionId();
+    final key = _getSearchResultsKey(query, sessionId);
     return _cacheManager.exists(key);
   }
 
@@ -111,8 +135,9 @@ class RuTrackerCacheService {
   }
 
   /// Gets the expiration time for cached search results.
-  Future<DateTime?> getSearchResultsExpiration(String query) {
-    final key = _getSearchResultsKey(query);
+  Future<DateTime?> getSearchResultsExpiration(String query) async {
+    final sessionId = await _sessionStorage.getSessionId();
+    final key = _getSearchResultsKey(query, sessionId);
     return _cacheManager.getExpirationTime(key);
   }
 
@@ -122,9 +147,26 @@ class RuTrackerCacheService {
     return _cacheManager.getExpirationTime(key);
   }
 
-  /// Generates cache key for search results.
-  String _getSearchResultsKey(String query) =>
-      'search:${query.toLowerCase().trim()}';
+  /// Generates cache key for search results with session binding.
+  ///
+  /// The [query] parameter is the search query.
+  /// The [sessionId] parameter is the current session ID (optional).
+  /// If sessionId is null, uses 'no_session' as fallback.
+  String _getSearchResultsKey(String query, String? sessionId) {
+    final session = sessionId ?? 'no_session';
+    return 'search:$session:${query.toLowerCase().trim()}';
+  }
+
+  /// Clears all cached search results for the current session.
+  ///
+  /// This is useful when session changes or user logs out.
+  Future<void> clearCurrentSessionCache() async {
+    final sessionId = await _sessionStorage.getSessionId();
+    if (sessionId != null) {
+      await _cacheManager.clearByPrefix('search:$sessionId:');
+      await _cacheManager.clearByPrefix('topic:$sessionId:');
+    }
+  }
 
   /// Generates cache key for topic details.
   String _getTopicDetailsKey(String topicId) => 'topic:$topicId';

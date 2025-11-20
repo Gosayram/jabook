@@ -1,3 +1,17 @@
+// Copyright 2025 Jabook Contributors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 import 'package:path_provider/path_provider.dart';
 import 'package:sembast/sembast_io.dart';
 
@@ -16,19 +30,33 @@ class AppDatabase {
   static AppDatabase? _instance;
 
   /// Database instance for all operations.
-  late Database _db;
+  Database? _db;
+  bool _isInitialized = false;
 
   /// Gets the database instance for direct operations.
-  Database get database => _db;
+  /// Throws StateError if database is not initialized.
+  Database get database {
+    if (!_isInitialized || _db == null) {
+      throw StateError('Database is not initialized. Call initialize() first.');
+    }
+    return _db!;
+  }
+  
+  /// Checks if database is initialized.
+  bool get isInitialized => _isInitialized && _db != null;
 
   /// Initializes the database and creates all necessary stores.
   ///
   /// This method should be called once when the app starts.
   Future<void> initialize() async {
+    if (_isInitialized && _db != null) {
+      return; // Already initialized
+    }
     final appDocumentDir = await getApplicationDocumentsDirectory();
     final dbPath = '${appDocumentDir.path}/jabook.db';
 
     _db = await databaseFactoryIo.openDatabase(dbPath);
+    _isInitialized = true;
   }
 
   /// Gets the user preferences store.
@@ -73,6 +101,10 @@ class AppDatabase {
 
   /// Closes the database connection.
   Future<void> close() async {
-    await _db.close();
+    if (_isInitialized && _db != null) {
+      await _db!.close();
+      _db = null;
+      _isInitialized = false;
+    }
   }
 }

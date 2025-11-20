@@ -1,3 +1,17 @@
+// Copyright 2025 Jabook Contributors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 import 'package:flutter/material.dart';
 import 'package:jabook/features/search/presentation/widgets/audiobook_card.dart';
 import 'package:jabook/l10n/app_localizations.dart';
@@ -6,7 +20,7 @@ import 'package:jabook/l10n/app_localizations.dart';
 ///
 /// This widget groups search results by category and displays them
 /// in expandable sections for better organization.
-class GroupedAudiobookList extends StatelessWidget {
+class GroupedAudiobookList extends StatefulWidget {
   /// Creates a new GroupedAudiobookList instance.
   ///
   /// The [audiobooks] parameter is a list of audiobook maps to display.
@@ -48,17 +62,38 @@ class GroupedAudiobookList extends StatelessWidget {
   /// Callback when favorite button is tapped. Receives topicId and new favorite state.
   final void Function(String topicId, bool isFavorite)? onFavoriteToggle;
 
+  @override
+  State<GroupedAudiobookList> createState() => _GroupedAudiobookListState();
+}
+
+class _GroupedAudiobookListState extends State<GroupedAudiobookList> {
+  /// Cached grouped data to avoid recomputation on every build.
+  Map<String, List<Map<String, dynamic>>>? _cachedGrouped;
+  List<String>? _cachedCategories;
+  int? _lastAudiobooksLength;
+
   /// Groups audiobooks by category.
+  /// Optimized to use putIfAbsent for better performance.
+  /// Results are cached to avoid recomputation on every build.
   Map<String, List<Map<String, dynamic>>> _groupByCategory() {
+    // Check if we can use cached result
+    if (_cachedGrouped != null &&
+        _lastAudiobooksLength == widget.audiobooks.length) {
+      return _cachedGrouped!;
+    }
+
     final grouped = <String, List<Map<String, dynamic>>>{};
 
-    for (final audiobook in audiobooks) {
-      final category = audiobook['category'] as String? ?? 'Другое';
-      if (!grouped.containsKey(category)) {
-        grouped[category] = [];
-      }
-      grouped[category]!.add(audiobook);
+    for (final audiobook in widget.audiobooks) {
+      final category = audiobook['category'] as String? ??
+          (AppLocalizations.of(context)?.otherCategory ?? 'Other');
+      grouped.putIfAbsent(category, () => []).add(audiobook);
     }
+
+    // Cache the result
+    _cachedGrouped = grouped;
+    _lastAudiobooksLength = widget.audiobooks.length;
+    _cachedCategories = grouped.keys.toList()..sort();
 
     return grouped;
   }
@@ -66,7 +101,7 @@ class GroupedAudiobookList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final grouped = _groupByCategory();
-    final categories = grouped.keys.toList()..sort();
+    final categories = _cachedCategories ?? grouped.keys.toList()..sort();
 
     if (categories.isEmpty) {
       return Center(
@@ -76,25 +111,29 @@ class GroupedAudiobookList extends StatelessWidget {
 
     // ignore: prefer_expression_function_bodies
     return ListView.builder(
-      itemCount: categories.length + (hasMore ? 1 : 0),
+      itemCount: categories.length + (widget.hasMore ? 1 : 0),
       itemBuilder: (context, index) {
         if (index >= categories.length) {
           // Load more indicator
-          return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            child: Center(
-              child: isLoadingMore
-                  ? const SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: CircularProgressIndicator(),
-                    )
-                  : loadMore != null
-                      ? OutlinedButton(
-                          onPressed: loadMore,
-                          child: const Text('Load more'),
-                        )
-                      : const SizedBox.shrink(),
+          return RepaintBoundary(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              child: Center(
+                child: widget.isLoadingMore
+                    ? const SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(),
+                      )
+                    : widget.loadMore != null
+                        ? OutlinedButton(
+                            onPressed: widget.loadMore,
+                            child: Text(AppLocalizations.of(context)
+                                    ?.loadMoreButton ??
+                                'Load more'),
+                          )
+                        : const SizedBox.shrink(),
+              ),
             ),
           );
         }
@@ -102,12 +141,15 @@ class GroupedAudiobookList extends StatelessWidget {
         final category = categories[index];
         final categoryAudiobooks = grouped[category]!;
 
-        return _CategorySection(
-          categoryName: category,
-          audiobooks: categoryAudiobooks,
-          onAudiobookTap: onAudiobookTap,
-          favoriteIds: favoriteIds,
-          onFavoriteToggle: onFavoriteToggle,
+        // Use RepaintBoundary to isolate repaints for each category section
+        return RepaintBoundary(
+          child: _CategorySection(
+            categoryName: category,
+            audiobooks: categoryAudiobooks,
+            onAudiobookTap: widget.onAudiobookTap,
+            favoriteIds: widget.favoriteIds,
+            onFavoriteToggle: widget.onFavoriteToggle,
+          ),
         );
       },
     );
@@ -200,11 +242,17 @@ class _CategorySectionState extends State<_CategorySection> {
             ),
           ),
           // Audiobooks list (expandable)
+          // Use ListView.builder instead of spread operator for better performance
           if (_isExpanded)
-            ...widget.audiobooks.map(
-              (audiobook) {
+            ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: widget.audiobooks.length,
+              itemBuilder: (context, index) {
+                final audiobook = widget.audiobooks[index];
                 final topicId = audiobook['id'] as String? ?? '';
                 final isFavorite = widget.favoriteIds.contains(topicId);
+                // RepaintBoundary is already in AudiobookCard, no need to add here
                 return AudiobookCard(
                   audiobook: audiobook,
                   onTap: () => widget.onAudiobookTap(topicId),

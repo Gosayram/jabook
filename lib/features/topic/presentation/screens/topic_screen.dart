@@ -1,3 +1,17 @@
+// Copyright 2025 Jabook Contributors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 import 'dart:async';
 
 import 'package:cached_network_image/cached_network_image.dart';
@@ -5,11 +19,13 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:jabook/core/cache/rutracker_cache_service.dart';
 import 'package:jabook/core/endpoints/endpoint_provider.dart';
+import 'package:jabook/core/errors/failures.dart';
 import 'package:jabook/core/net/dio_client.dart';
 import 'package:jabook/core/parse/rutracker_parser.dart';
-import 'package:jabook/features/webview/secure_rutracker_webview.dart';
+import 'package:jabook/core/session/auth_error_handler.dart';
 import 'package:jabook/l10n/app_localizations.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -73,11 +89,21 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
       final response = await dio
           .get(
             '$activeEndpoint/forum/viewtopic.php?t=${widget.topicId}',
+            options: Options(
+              // Get raw bytes (Brotli decompression handled automatically by DioBrotliTransformer)
+              // Bytes are ready for Windows-1251 decoding
+              responseType: ResponseType.bytes,
+            ),
           )
           .timeout(const Duration(seconds: 30));
 
       if (response.statusCode == 200) {
-        final audiobook = await _parser.parseTopicDetails(response.data);
+        // Pass response data and headers to parser for proper encoding detection
+        // Note: Brotli decompression is handled automatically by DioBrotliTransformer
+        final audiobook = await _parser.parseTopicDetails(
+          response.data,
+          contentType: response.headers.value('content-type'),
+        );
 
         if (audiobook != null) {
           // Cache the topic details
@@ -127,14 +153,21 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
           _hasError = true;
         });
 
-        // Handle authentication errors specifically
-        if (e.message?.contains('Authentication required') ?? false) {
+        // Handle authentication errors using AuthErrorHandler
+        if (e.error is AuthFailure) {
+          final authError = e.error as AuthFailure;
+          AuthErrorHandler.showAuthErrorSnackBar(context, authError);
+          _showAuthenticationPrompt(context);
+        } else if (e.message?.contains('Authentication required') ?? false ||
+            e.response?.statusCode == 401 ||
+            e.response?.statusCode == 403) {
+          AuthErrorHandler.showAuthErrorSnackBar(context, e);
           _showAuthenticationPrompt(context);
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-                content:
-                    Text('Network error: ${e.message ?? "Unknown error"}')),
+                content: Text(AppLocalizations.of(context)!
+                    .networkErrorMessage(e.message ?? 'Unknown error'))),
           );
         }
       }
@@ -145,7 +178,8 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
           _hasError = true;
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading topic: $e')),
+          SnackBar(content: Text(AppLocalizations.of(context)!
+              .errorLoadingTopicMessage(e.toString()))),
         );
       }
     }
@@ -178,19 +212,21 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
                 icon: const Icon(Icons.download),
                 onSelected: _handleDownloadAction,
                 itemBuilder: (context) => [
-                  const PopupMenuItem(
+                  PopupMenuItem(
                     value: 'magnet',
                     child: ListTile(
-                      leading: Icon(Icons.link),
-                      title: Text('Copy Magnet Link'),
+                      leading: const Icon(Icons.link),
+                      title: Text(AppLocalizations.of(context)?.copyMagnetLink ??
+                          'Copy Magnet Link'),
                       contentPadding: EdgeInsets.zero,
                     ),
                   ),
-                  const PopupMenuItem(
+                  PopupMenuItem(
                     value: 'torrent',
                     child: ListTile(
-                      leading: Icon(Icons.file_download),
-                      title: Text('Download Torrent'),
+                      leading: const Icon(Icons.file_download),
+                      title: Text(AppLocalizations.of(context)?.downloadTorrentMenu ??
+                          'Download Torrent'),
                       contentPadding: EdgeInsets.zero,
                     ),
                   ),
@@ -294,14 +330,27 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
           ),
           const SizedBox(height: 16),
           if (coverUrl != null)
-            CachedNetworkImage(
-              imageUrl: coverUrl,
-              height: 200,
-              fit: BoxFit.cover,
-              placeholder: (context, url) => const Center(
-                child: CircularProgressIndicator(),
+            RepaintBoundary(
+              child: CachedNetworkImage(
+                imageUrl: coverUrl,
+                height: 200,
+                fit: BoxFit.cover,
+                placeholder: (context, url) => Container(
+                  height: 200,
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                  child: const Center(
+                    child: CircularProgressIndicator(),
+                  ),
+                ),
+                errorWidget: (context, url, e) => Container(
+                  height: 200,
+                  color: Theme.of(context).colorScheme.errorContainer,
+                  child: Icon(
+                    Icons.error_outline,
+                    color: Theme.of(context).colorScheme.onErrorContainer,
+                  ),
+                ),
               ),
-              errorWidget: (context, url, e) => const Icon(Icons.error),
             ),
           const SizedBox(height: 16),
           if (magnetUrl.isNotEmpty)
@@ -319,19 +368,16 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
                       overflow: TextOverflow.ellipsis,
                     ),
                     trailing: const Icon(Icons.copy),
-                    onTap: () {
-                      _copyToClipboard(
-                          magnetUrl,
-                          AppLocalizations.of(context)
-                                  ?.magnetLinkCopiedMessage ??
-                              'Magnet link');
-                    },
+                    onTap: _copyMagnetLink,
                   ),
                   const Divider(height: 1),
                   ListTile(
                     leading: const Icon(Icons.file_download),
-                    title: const Text('Download Torrent'),
-                    subtitle: const Text('Open torrent file in external app'),
+                    title: Text(AppLocalizations.of(context)?.downloadTorrentMenu ??
+                        'Download Torrent'),
+                    subtitle: Text(AppLocalizations.of(context)
+                            ?.openTorrentInExternalApp ??
+                        'Open torrent file in external app'),
                     trailing: const Icon(Icons.open_in_new),
                     onTap: _downloadTorrent,
                   ),
@@ -367,16 +413,19 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
                   AppLocalizations.of(context)?.unknownChapterText ??
                   'Unknown Chapter';
               final durationMs = chapter['durationMs'] as int? ?? 0;
-              return Card(
-                margin: const EdgeInsets.only(bottom: 8),
-                child: ListTile(
-                  leading: const Icon(Icons.play_circle_outline),
-                  title: Text(chapterTitle),
-                  subtitle: Text(_formatDuration(durationMs)),
-                  trailing: const Icon(Icons.more_vert),
-                  onTap: () {
-                    _playChapter(chapter);
-                  },
+              // Use RepaintBoundary to isolate repaints for each chapter item
+              return RepaintBoundary(
+                child: Card(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  child: ListTile(
+                    leading: const Icon(Icons.play_circle_outline),
+                    title: Text(chapterTitle),
+                    subtitle: Text(_formatDuration(durationMs)),
+                    trailing: const Icon(Icons.more_vert),
+                    onTap: () {
+                      _playChapter(chapter);
+                    },
+                  ),
                 ),
               );
             },
@@ -414,13 +463,10 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
 
   void _copyMagnetLink() {
     if (_audiobook != null && (_audiobook!['magnetUrl'] as String).isNotEmpty) {
-      _copyToClipboard(_audiobook!['magnetUrl'] as String, 'Magnet link');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text(
-                AppLocalizations.of(context)?.magnetLinkCopiedMessage ??
-                    'Magnet link copied to clipboard')),
-      );
+      final magnetLinkLabel = AppLocalizations.of(context)
+              ?.magnetLinkLabelText ??
+          'Magnet link';
+      _copyToClipboard(_audiobook!['magnetUrl'] as String, magnetLinkLabel);
     }
   }
 
@@ -441,7 +487,9 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
     } on Exception catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to open torrent: $e')),
+          SnackBar(
+              content: Text(AppLocalizations.of(context)!
+                  .failedToOpenTorrent(e.toString()))),
         );
       }
     }
@@ -462,7 +510,9 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
   void _copyToClipboard(String text, String label) {
     Clipboard.setData(ClipboardData(text: text));
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$label copied to clipboard')),
+      SnackBar(
+          content: Text(AppLocalizations.of(context)!
+              .copyToClipboardMessage(label))),
     );
   }
 }
@@ -504,17 +554,18 @@ void _showAuthenticationPrompt(BuildContext context) {
           child: Text(AppLocalizations.of(context)!.cancel),
         ),
         TextButton(
-          onPressed: () {
+          onPressed: () async {
             Navigator.pop(ctx);
-            // Navigate to login screen
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const SecureRutrackerWebView()),
-            ).then((_) async {
-              // Sync cookies after login
-              await DioClient.syncCookiesFromWebView();
-              // Retry loading topic - this will be handled by the parent widget
-            });
+            // Navigate to auth screen
+            final result = await context.push('/auth');
+            // If login was successful, validate cookies
+            if (result == true) {
+              final isValid = await DioClient.validateCookies();
+              if (isValid && context.mounted) {
+                // Retry loading topic - this will be handled by the parent widget
+                // The widget will automatically reload when auth status changes
+              }
+            }
           },
           child: Text(AppLocalizations.of(context)!.login),
         ),

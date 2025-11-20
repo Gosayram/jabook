@@ -1,3 +1,18 @@
+// Copyright 2025 Jabook Contributors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:jabook/l10n/app_localizations.dart';
 
@@ -34,147 +49,154 @@ class AudiobookCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // On Android 16, AppLocalizations may not be initialized yet during early startup
+    // Use safe access with fallback values
+    final localizations = AppLocalizations.of(context);
     final title = audiobook['title'] as String? ??
-        AppLocalizations.of(context)!.unknownTitle;
+        localizations?.unknownTitle ?? 'Unknown Title';
     final author = audiobook['author'] as String? ??
-        AppLocalizations.of(context)!.unknownAuthor;
+        localizations?.unknownAuthor ?? 'Unknown Author';
     final size = audiobook['size'] as String? ??
-        AppLocalizations.of(context)!.unknownSize;
+        localizations?.unknownSize ?? 'Unknown Size';
     final seeders = audiobook['seeders'] as int? ?? 0;
     final leechers = audiobook['leechers'] as int? ?? 0;
-    final category = audiobook['category'] as String? ?? 'Другое';
+    final category = audiobook['category'] as String? ??
+        (AppLocalizations.of(context)?.otherCategory ?? 'Other');
     final coverUrl = audiobook['coverUrl'] as String?;
 
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(12.0),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Cover image or placeholder
-              _buildCover(coverUrl, context),
-              const SizedBox(width: 12),
-              // Content
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Title and category badge
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: Text(
-                            title,
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleMedium
-                                ?.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
+    // Wrap card in RepaintBoundary to isolate repaints
+    return RepaintBoundary(
+      child: Card(
+        margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        elevation: 2,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.all(12.0),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Cover image or placeholder
+                _buildCover(coverUrl, context),
+                const SizedBox(width: 12),
+                // Content
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Title and category badge
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              title,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleMedium
+                                  ?.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        _CategoryBadge(category: category),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    // Author
-                    Text(
-                      author,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          const SizedBox(width: 8),
+                          _CategoryBadge(category: category),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      // Author
+                      Text(
+                        author,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurface
+                                  .withValues(alpha: 0.7),
+                            ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 8),
+                      // Size and stats row
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.storage,
+                            size: 14,
                             color: Theme.of(context)
                                 .colorScheme
                                 .onSurface
-                                .withValues(alpha: 0.7),
+                                .withValues(alpha: 0.6),
                           ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 8),
-                    // Size and stats row
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.storage,
-                          size: 14,
-                          color: Theme.of(context)
-                              .colorScheme
-                              .onSurface
-                              .withValues(alpha: 0.6),
+                          const SizedBox(width: 4),
+                          Text(
+                            size,
+                            style:
+                                Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurface
+                                          .withValues(alpha: 0.6),
+                                    ),
+                          ),
+                          const SizedBox(width: 16),
+                          _StatIndicator(
+                            icon: Icons.arrow_upward,
+                            value: seeders,
+                            color: Colors.green,
+                          ),
+                          const SizedBox(width: 12),
+                          _StatIndicator(
+                            icon: Icons.arrow_downward,
+                            value: leechers,
+                            color: Colors.orange,
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                // Favorite button and arrow indicator
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (onFavoriteToggle != null)
+                      IconButton(
+                        icon: Icon(
+                          isFavorite ? Icons.favorite : Icons.favorite_border,
+                          size: 20,
+                          color: isFavorite
+                              ? Colors.red
+                              : Theme.of(context)
+                                  .colorScheme
+                                  .onSurface
+                                  .withValues(alpha: 0.5),
                         ),
-                        const SizedBox(width: 4),
-                        Text(
-                          size,
-                          style:
-                              Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onSurface
-                                        .withValues(alpha: 0.6),
-                                  ),
-                        ),
-                        const SizedBox(width: 16),
-                        _StatIndicator(
-                          icon: Icons.arrow_upward,
-                          value: seeders,
-                          color: Colors.green,
-                        ),
-                        const SizedBox(width: 12),
-                        _StatIndicator(
-                          icon: Icons.arrow_downward,
-                          value: leechers,
-                          color: Colors.orange,
-                        ),
-                      ],
+                        onPressed: () {
+                          onFavoriteToggle!(!isFavorite);
+                        },
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                      ),
+                    if (onFavoriteToggle != null) const SizedBox(height: 4),
+                    Icon(
+                      Icons.chevron_right,
+                      size: 16,
+                      color: Theme.of(context)
+                          .colorScheme
+                          .onSurface
+                          .withValues(alpha: 0.3),
                     ),
                   ],
                 ),
-              ),
-              // Favorite button and arrow indicator
-              Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (onFavoriteToggle != null)
-                    IconButton(
-                      icon: Icon(
-                        isFavorite ? Icons.favorite : Icons.favorite_border,
-                        size: 20,
-                        color: isFavorite
-                            ? Colors.red
-                            : Theme.of(context)
-                                .colorScheme
-                                .onSurface
-                                .withValues(alpha: 0.5),
-                      ),
-                      onPressed: () {
-                        onFavoriteToggle!(!isFavorite);
-                      },
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                    ),
-                  if (onFavoriteToggle != null) const SizedBox(height: 4),
-                  Icon(
-                    Icons.chevron_right,
-                    size: 16,
-                    color: Theme.of(context)
-                        .colorScheme
-                        .onSurface
-                        .withValues(alpha: 0.3),
-                  ),
-                ],
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -184,15 +206,30 @@ class AudiobookCard extends StatelessWidget {
   /// Builds cover image widget or placeholder.
   Widget _buildCover(String? coverUrl, BuildContext context) =>
       coverUrl != null && coverUrl.isNotEmpty
-          ? ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: Image.network(
-                coverUrl,
-                width: 60,
-                height: 60,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) =>
-                    _buildPlaceholder(context),
+          ? RepaintBoundary(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: CachedNetworkImage(
+                  imageUrl: coverUrl,
+                  width: 60,
+                  height: 60,
+                  fit: BoxFit.cover,
+                  placeholder: (context, url) => Container(
+                    width: 60,
+                    height: 60,
+                    color:
+                        Theme.of(context).colorScheme.surfaceContainerHighest,
+                    child: const Center(
+                      child: SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    ),
+                  ),
+                  errorWidget: (context, url, error) =>
+                      _buildPlaceholder(context),
+                ),
               ),
             )
           : _buildPlaceholder(context);

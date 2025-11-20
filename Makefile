@@ -7,6 +7,8 @@ FLAVORS = dev stage prod
 ANDROID_BUILD_VARIANTS = $(addsuffix $(FLAVOR), $(FLAVORS))
 IOS_BUILD_VARIANTS = $(addprefix $(PROJECT_NAME)-, $(FLAVORS))
 SIGNING_SCRIPT = scripts/signing.sh
+PUBSPEC_FILE = pubspec.yaml
+VERSION = $(shell grep "^version:" $(PUBSPEC_FILE) | sed 's/version:[[:space:]]*//' | cut -d+ -f1)
 
 # Default target
 .PHONY: help
@@ -17,7 +19,7 @@ help:
 	@echo "Development Commands:"
 	@echo "  make install                       - Install dependencies"
 	@echo "  make clean                         - Clean build artifacts"
-	@echo "  make run                           - Run built APK (build/app/outputs/apk/release/app-release.apk)"
+	@echo "  make run                           - Run built APK (build/app/outputs/apk/release/app-arm64-v8a-release.apk)"
 	@echo "  make setup-android                 - Setup Android project configuration"
 	@echo "  make setup-ios                     - Setup iOS project configuration"
 	@echo "  make setup                         - Setup both Android and iOS projects"
@@ -44,6 +46,17 @@ help:
 	@echo "  make fmt                           - Format code"
 	@echo "  make lint                          - Run linting"
 	@echo "  make l10n                          - Generate localization files (flutter gen-l10n)"
+	@echo "  make analyze-size                  - Analyze APK size with detailed breakdown"
+	@echo ""
+	@echo "Maintenance Commands:"
+	@echo "  make update-version [VERSION] [BUILD] - Update version in pubspec.yaml"
+	@echo "  make update-copyright                 - Update copyright year in all files"
+	@echo "  make check-copyright                  - Check copyright headers in Dart files"
+	@echo "  make add-copyright                   - Add copyright headers to Dart files"
+	@echo "  make changelog                       - Generate CHANGELOG.md from git commits"
+	@echo "  make tag                             - Create git tag from current version"
+	@echo "  make push-tag                        - Create tag and push to remote repository"
+	@echo "  make release-tag                    - Create release: update changelog, create tag and push"
 	@echo ""
 	@echo "Release Commands:"
 	@echo "  make release-android               - Build all signed Android release variants"
@@ -59,16 +72,23 @@ install:
 clean:
 	rm -rf build/
 	rm -rf android/
+	rm -rf debug-info/
 	@echo "Cleaned build artifacts"
 
 .PHONY: run
 run:
-	@if [ ! -f "build/app/outputs/apk/release/app-release.apk" ]; then \
-		echo "Error: APK not found at build/app/outputs/apk/release/app-release.apk"; \
-		echo "Please build the APK first using: make build-android-prod"; \
+	@APK_PATH="build/app/outputs/apk/release/app-arm64-v8a-release.apk"; \
+	if [ ! -f "$$APK_PATH" ]; then \
+		echo "Error: APK not found at $$APK_PATH"; \
+		echo "Please build the APK first using: make build-android-signed-apk"; \
 		exit 1; \
 	fi
-	flutter run --use-application-binary=build/app/outputs/apk/release/app-release.apk
+	flutter run \
+		--use-application-binary=build/app/outputs/apk/release/app-arm64-v8a-release.apk \
+		--verbose \
+		--profile \
+		--trace-startup \
+		--device-timeout=30
 
 # Android build commands
 .PHONY: build-android-dev
@@ -77,12 +97,21 @@ build-android-dev:
 
 .PHONY: build-android-stage
 build-android-stage:
-	flutter build apk --target lib/main.dart --release
+	flutter build apk --target lib/main.dart --release \
+		--obfuscate \
+		--split-debug-info=./debug-info \
+		--split-per-abi \
+		--tree-shake-icons
+	@echo "Android stage APK built with optimizations at: build/app/outputs/apk/"
 
 .PHONY: build-android-prod
 build-android-prod:
-	flutter build apk --target lib/main.dart --release
-	@echo "Android production APK built at: build/app/outputs/flutter-apk/app-release.apk"
+	flutter build apk --target lib/main.dart --release \
+		--obfuscate \
+		--split-debug-info=./debug-info \
+		--split-per-abi \
+		--tree-shake-icons
+	@echo "Android production APK built with optimizations at: build/app/outputs/apk/"
 
 .PHONY: sign-android
 sign-android:
@@ -128,25 +157,50 @@ patch-gradle-signing:
 		exit 1; \
 	fi
 
+.PHONY: patch-gradle-minsdk
+patch-gradle-minsdk:
+	@echo "Patching Gradle minSdk to 21..."
+	@if [ -f "scripts/patch-gradle-minsdk.sh" ]; then \
+		scripts/patch-gradle-minsdk.sh; \
+		echo "minSdk patched successfully"; \
+	else \
+		echo "Warning: patch-gradle-minsdk.sh not found, skipping minSdk patch"; \
+	fi
+
 .PHONY: build-android-bundle
 build-android-bundle:
 	@if [ ! -f "android/key.properties" ]; then \
 		echo "Warning: android/key.properties not found, building unsigned bundle"; \
-		flutter build appbundle --target lib/main.dart --release; \
+		flutter build appbundle --target lib/main.dart --release \
+			--obfuscate \
+			--split-debug-info=./debug-info; \
+		echo "Android App Bundle built with optimizations at: build/app/outputs/bundle/release/app-release.aab"; \
 	else \
-		flutter build appbundle --target lib/main.dart --release; \
-		echo "Android App Bundle built at: build/app/outputs/bundle/release/app-release.aab"; \
+		flutter build appbundle --target lib/main.dart --release \
+			--obfuscate \
+			--split-debug-info=./debug-info; \
+		echo "Android App Bundle built with optimizations at: build/app/outputs/bundle/release/app-release.aab"; \
 	fi
 
 .PHONY: build-android-signed
-build-android-signed: use-existing-android-cert patch-gradle-signing build-android-bundle
+build-android-signed: use-existing-android-cert patch-gradle-signing patch-gradle-minsdk build-android-bundle
 	@echo "Signed Android App Bundle built successfully"
 
 .PHONY: build-android-signed-apk
-build-android-signed-apk: use-existing-android-cert patch-gradle-signing
-	@echo "Building signed universal APK..."
-	flutter build apk --target lib/main.dart --release
-	@echo "Signed universal APK built at: build/app/outputs/apk/release/app-release.apk"
+build-android-signed-apk: use-existing-android-cert patch-gradle-signing patch-gradle-minsdk
+	@echo "Building signed optimized APK (without obfuscation for easier debugging)..."
+	flutter build apk --target lib/main.dart --release \
+		--split-per-abi \
+		--tree-shake-icons
+	@echo "Signed optimized APK built at: build/app/outputs/apk/"
+
+.PHONY: build-android-debug-apk
+build-android-debug-apk: use-existing-android-cert patch-gradle-signing patch-gradle-minsdk
+	@echo "Building signed debug APK (no obfuscation for easier debugging)..."
+	flutter build apk --target lib/main.dart --release \
+		--split-per-abi \
+		--tree-shake-icons
+	@echo "Signed debug APK built at: build/app/outputs/apk/"
 
 # iOS build commands
 .PHONY: build-ios-dev
@@ -245,14 +299,96 @@ docs:
 # Size analysis
 .PHONY: size
 size:
-	flutter build apk --split-per-abi --release
+	flutter build apk --target lib/main.dart --release \
+		--split-per-abi \
+		--tree-shake-icons
 	flutter pub run flutter_launcher_icons:main
 	@echo "App size analysis complete. Check build/app/outputs/apk/"
+	@echo "Note: Use 'make analyze-size' for detailed size breakdown"
+
+# Analyze APK size (detailed breakdown)
+# Note: --analyze-size cannot be used with --split-debug-info
+.PHONY: analyze-size
+analyze-size:
+	@echo "Building APK with size analysis..."
+	flutter build apk --target lib/main.dart --release \
+		--analyze-size \
+		--split-per-abi \
+		--tree-shake-icons
+	@echo "Size analysis complete. Check the output above for detailed breakdown."
 
 # Version management
 .PHONY: version
 version:
 	@echo "Current version: $$(grep version pubspec.yaml | cut -d' ' -f2)"
+
+# Project maintenance commands
+.PHONY: update-version
+update-version:
+	@if [ -z "$(VERSION)" ]; then \
+		hack/update-version.sh; \
+	else \
+		if [ -z "$(BUILD)" ]; then \
+			hack/update-version.sh "$(VERSION)"; \
+		else \
+			hack/update-version.sh "$(VERSION)" "$(BUILD)"; \
+		fi; \
+	fi
+
+.PHONY: update-copyright
+update-copyright:
+	@echo "Updating copyright year in all files..."
+	hack/update-copyright.sh
+
+.PHONY: check-copyright
+check-copyright:
+	@echo "Checking copyright headers in Dart files..."
+	hack/check-copyright.sh
+
+.PHONY: add-copyright
+add-copyright:
+	@echo "Adding copyright headers to Dart files..."
+	hack/add-copyright.sh
+
+.PHONY: changelog
+changelog:
+	@if [ -z "$(OUTPUT)" ]; then \
+		hack/generate-changelog.sh; \
+	else \
+		hack/generate-changelog.sh "$(OUTPUT)"; \
+	fi
+
+# Git tagging commands
+.PHONY: tag
+tag:
+	@if [ ! -f "$(PUBSPEC_FILE)" ]; then \
+		echo "Error: $(PUBSPEC_FILE) not found"; \
+		exit 1; \
+	fi
+	@TAG_VERSION="v$(VERSION)"; \
+	if git rev-parse "$$TAG_VERSION" >/dev/null 2>&1; then \
+		echo "Error: Tag $$TAG_VERSION already exists"; \
+		exit 1; \
+	fi; \
+	echo "Creating tag $$TAG_VERSION..."; \
+	git tag -a "$$TAG_VERSION" -m "Release $$TAG_VERSION"; \
+	echo "✅ Tag $$TAG_VERSION created"
+
+.PHONY: push-tag
+push-tag: tag
+	@TAG_VERSION="v$(VERSION)"; \
+	CURRENT_BRANCH=$$(git branch --show-current 2>/dev/null || echo ""); \
+	REMOTE=$$(git config branch.$$CURRENT_BRANCH.remote 2>/dev/null || echo "origin"); \
+	if [ -z "$$REMOTE" ] || [ "$$REMOTE" = "" ]; then \
+		REMOTE="origin"; \
+	fi; \
+	echo "Pushing tag $$TAG_VERSION to $$REMOTE..."; \
+	git push $$REMOTE "$$TAG_VERSION"; \
+	echo "✅ Tag $$TAG_VERSION pushed to $$REMOTE"
+
+.PHONY: release-tag
+release-tag: changelog push-tag
+	@echo "✅ Release $(VERSION) created and pushed"
 
 # Update dependencies
 .PHONY: update-deps
@@ -279,6 +415,13 @@ install-ios:
 setup-android:
 	@echo "Setting up Android project configuration..."
 	flutter create . --org com.jabook.app --platforms=android -a kotlin
+	@echo "Patching Android minSdk to 21 (Android 5.0+)..."
+	@if [ -f "scripts/patch-gradle-minsdk.sh" ]; then \
+		scripts/patch-gradle-minsdk.sh; \
+		echo "minSdk patched successfully"; \
+	else \
+		echo "Warning: patch-gradle-minsdk.sh not found, skipping minSdk patch"; \
+	fi
 	@echo "Generating custom launcher icons..."
 	dart run flutter_launcher_icons:main
 	@echo "Android project setup complete!"
@@ -352,7 +495,12 @@ build-flavor:
 		echo "Usage: make build-flavor FLAVOR=dev|stage|prod"; \
 		exit 1; \
 	fi
-	flutter build apk --flavor $(FLAVOR) --target lib/main.dart --release
+	flutter build apk --flavor $(FLAVOR) --target lib/main.dart --release \
+		--obfuscate \
+		--split-debug-info=./debug-info \
+		--split-per-abi \
+		--tree-shake-icons
+	@echo "Android $(FLAVOR) APK built with optimizations at: build/app/outputs/apk/"
 
 # Run tests with coverage
 .PHONY: test-coverage
