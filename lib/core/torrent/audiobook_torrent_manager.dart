@@ -23,6 +23,7 @@ import 'package:dtorrent_parser/dtorrent_parser.dart';
 import 'package:dtorrent_task_v2/dtorrent_task_v2.dart';
 import 'package:jabook/core/errors/failures.dart';
 import 'package:jabook/core/logging/environment_logger.dart';
+import 'package:jabook/core/notifications/download_notification_service.dart';
 import 'package:jabook/core/utils/safe_async.dart';
 import 'package:jabook/data/db/app_database.dart';
 import 'package:path_provider/path_provider.dart';
@@ -101,6 +102,10 @@ class AudiobookTorrentManager {
   /// Database instance for persisting download state.
   Database? _db;
 
+  /// Notification service for download progress updates.
+  final DownloadNotificationService _notificationService =
+      DownloadNotificationService();
+
   /// Initializes the torrent manager with database connection.
   ///
   /// This method should be called once when the app starts to enable
@@ -110,6 +115,8 @@ class AudiobookTorrentManager {
     if (_db != null) {
       await _restoreDownloads();
     }
+    // Initialize notification service
+    await _notificationService.initialize();
   }
 
   /// Starts a sequential torrent download for an audiobook.
@@ -263,7 +270,9 @@ class AudiobookTorrentManager {
       // downloadId is guaranteed to be non-null at this point
       final finalDownloadId = downloadId;
       task.events.on<TaskStarted>((event) {
-        logger.i('Task started for download $finalDownloadId');
+        logger
+          ..i('Task started for download $finalDownloadId')
+          ..i('Connecting to peers...');
         _updateProgress(finalDownloadId, task, progressController);
       });
 
@@ -507,6 +516,9 @@ class AudiobookTorrentManager {
 
   void _updateProgress(String downloadId, TorrentTask task,
       StreamController<TorrentProgress> progressController) {
+    // Track last log time to avoid spamming logs
+    DateTime? lastLogTime;
+
     // Update progress periodically
     Timer.periodic(const Duration(seconds: 1), (timer) async {
       if (!_activeTasks.containsKey(downloadId)) {
@@ -540,12 +552,53 @@ class AudiobookTorrentManager {
 
         progressController.add(progress);
 
+        // Update notification
+        final metadata = _downloadMetadata[downloadId];
+        final title = metadata?['title'] as String? ?? task.metaInfo.name;
+        safeUnawaited(_notificationService.showDownloadProgress(
+          downloadId,
+          title,
+          progress.progress,
+          progress.downloadSpeed,
+          status,
+        ));
+
+        // Log progress every 10 seconds
+        final now = DateTime.now();
+        if (lastLogTime == null ||
+            now.difference(lastLogTime!) >= const Duration(seconds: 10)) {
+          EnvironmentLogger()
+            ..i('Download progress: $downloadId')
+            ..i('  Progress: ${progress.progress.toStringAsFixed(1)}%')
+            ..i('  Downloaded: ${_formatBytesForLog(progress.downloadedBytes)} / ${_formatBytesForLog(progress.totalBytes)}')
+            ..i('  Speed: ${_formatBytesForLog(progress.downloadSpeed.toInt())}/s')
+            ..i('  Seeders: ${progress.seeders}, Leechers: ${progress.leechers}')
+            ..i('  Status: $status');
+          lastLogTime = now;
+        }
+
         if (task.progress >= 1.0) {
           timer.cancel();
           await progressController.close();
+          // Show completion notification before removing metadata
+          final metadata = _downloadMetadata[downloadId];
           _progressControllers.remove(downloadId);
           _activeTasks.remove(downloadId);
           _downloadMetadata.remove(downloadId);
+          // Show completion notification and cancel after delay
+          final title = metadata?['title'] as String? ?? task.metaInfo.name;
+          safeUnawaited(_notificationService.showDownloadProgress(
+            downloadId,
+            title,
+            100.0,
+            0.0,
+            'completed',
+          ));
+          // Cancel notification after 3 seconds
+          Future.delayed(const Duration(seconds: 3), () {
+            safeUnawaited(
+                _notificationService.cancelDownloadNotification(downloadId));
+          });
         }
       } on Exception catch (e) {
         // Task might be disposed or in error state
@@ -672,6 +725,9 @@ class AudiobookTorrentManager {
         _activeTasks.remove(downloadId);
       }
 
+      // Cancel notification
+      await _notificationService.cancelDownloadNotification(downloadId);
+
       final metadata = _metadataDownloaders[downloadId];
       if (metadata != null) {
         await metadata.stop();
@@ -738,6 +794,7 @@ class AudiobookTorrentManager {
           'status': task.progress >= 1.0 ? 'completed' : 'downloading',
           'startedAt': metadata['startedAt'],
           'pausedAt': metadata['pausedAt'],
+          'savePath': metadata['savePath'],
         });
       }
 
@@ -855,5 +912,17 @@ class AudiobookTorrentManager {
       await downloadDir.create(recursive: true);
     }
     return downloadDir.path;
+  }
+
+  /// Formats bytes for logging purposes.
+  String _formatBytesForLog(int bytes) {
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1024 * 1024) {
+      return '${(bytes / 1024).toStringAsFixed(2)} KB';
+    }
+    if (bytes < 1024 * 1024 * 1024) {
+      return '${(bytes / (1024 * 1024)).toStringAsFixed(2)} MB';
+    }
+    return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(2)} GB';
   }
 }

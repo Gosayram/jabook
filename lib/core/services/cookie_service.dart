@@ -89,10 +89,16 @@ class CookieService {
       return result;
     } on PlatformException catch (e) {
       final duration = DateTime.now().difference(startTime).inMilliseconds;
+      // Check if this is a MissingPluginException
+      final isMissingPlugin = e.code == 'not_implemented' ||
+          (e.message?.contains('No implementation found') ?? false);
+
       await StructuredLogger().log(
-        level: 'error',
+        level: isMissingPlugin ? 'warning' : 'error',
         subsystem: 'cookies',
-        message: 'Failed to get cookies from CookieManager',
+        message: isMissingPlugin
+            ? 'Cookie plugin not available (MissingPluginException) - MethodChannel may not be registered'
+            : 'Failed to get cookies from CookieManager',
         operationId: operationId,
         context: 'cookie_service',
         durationMs: duration,
@@ -101,6 +107,7 @@ class CookieService {
           'url': url,
           'error_code': e.code,
           'error_message': e.message,
+          'is_missing_plugin': isMissingPlugin,
         },
       );
       return null;
@@ -183,10 +190,16 @@ class CookieService {
       return result ?? false;
     } on PlatformException catch (e) {
       final duration = DateTime.now().difference(startTime).inMilliseconds;
+      // Check if this is a MissingPluginException
+      final isMissingPlugin = e.code == 'not_implemented' ||
+          (e.message?.contains('No implementation found') ?? false);
+
       await StructuredLogger().log(
-        level: 'error',
+        level: isMissingPlugin ? 'warning' : 'error',
         subsystem: 'cookies',
-        message: 'Failed to set cookie in CookieManager',
+        message: isMissingPlugin
+            ? 'Cookie plugin not available (MissingPluginException) - MethodChannel may not be registered'
+            : 'Failed to set cookie in CookieManager',
         operationId: operationId,
         context: 'cookie_service',
         durationMs: duration,
@@ -195,6 +208,7 @@ class CookieService {
           'url': url,
           'error_code': e.code,
           'error_message': e.message,
+          'is_missing_plugin': isMissingPlugin,
         },
       );
       return false;

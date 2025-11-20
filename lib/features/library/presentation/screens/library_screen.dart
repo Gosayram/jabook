@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:async';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
@@ -44,6 +45,7 @@ class LibraryScreen extends ConsumerStatefulWidget {
 class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   int _favoritesCount = 0;
   FavoritesService? _favoritesService;
+  DateTime? _lastBackPressTime;
 
   @override
   void initState() {
@@ -95,6 +97,57 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     }
   }
 
+  void _showFilterDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(
+          AppLocalizations.of(context)?.filterLibraryTooltip ??
+              'Filter Library',
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              AppLocalizations.of(context)?.filterOptionsComingSoon ??
+                  'Filter options will be available soon. You will be able to filter by:',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 16),
+            ListTile(
+              leading: const Icon(Icons.category),
+              title: Text(
+                AppLocalizations.of(context)?.filterByCategory ?? 'Category',
+              ),
+              enabled: false,
+            ),
+            ListTile(
+              leading: const Icon(Icons.person),
+              title: Text(
+                AppLocalizations.of(context)?.filterByAuthor ?? 'Author',
+              ),
+              enabled: false,
+            ),
+            ListTile(
+              leading: const Icon(Icons.calendar_today),
+              title: Text(
+                AppLocalizations.of(context)?.filterByDate ?? 'Date Added',
+              ),
+              enabled: false,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: Text(AppLocalizations.of(context)?.close ?? 'Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _loadFavoritesCount() async {
     if (_favoritesService == null) return;
     try {
@@ -110,89 +163,115 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(
-          title: Text(AppLocalizations.of(context)?.libraryTitle ?? 'Library'),
-          actions: [
-            Stack(
-              clipBehavior: Clip.none,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.favorite),
-                  onPressed: () {
-                    context.go('/favorites');
-                    // Count will be reloaded when screen becomes visible again
-                  },
-                  tooltip: AppLocalizations.of(context)?.favoritesTooltip ??
-                      'Favorites',
+  Widget build(BuildContext context) => PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, result) async {
+          if (didPop) return;
+
+          final now = DateTime.now();
+          final shouldExit = _lastBackPressTime == null ||
+              now.difference(_lastBackPressTime!) > const Duration(seconds: 2);
+
+          if (shouldExit) {
+            _lastBackPressTime = now;
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    AppLocalizations.of(context)?.pressBackAgainToExit ??
+                        'Press back again to exit',
+                  ),
+                  duration: const Duration(seconds: 2),
                 ),
-                if (_favoritesCount > 0)
-                  Positioned(
-                    right: 6,
-                    top: 6,
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: const BoxDecoration(
-                        color: Colors.red,
-                        shape: BoxShape.circle,
-                      ),
-                      constraints: const BoxConstraints(
-                        minWidth: 16,
-                        minHeight: 16,
-                      ),
-                      child: Text(
-                        _favoritesCount > 99 ? '99+' : '$_favoritesCount',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
+              );
+            }
+          } else {
+            // Exit app
+            exit(0);
+          }
+        },
+        child: Scaffold(
+          appBar: AppBar(
+            title:
+                Text(AppLocalizations.of(context)?.libraryTitle ?? 'Library'),
+            actions: [
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.favorite),
+                    onPressed: () {
+                      context.go('/favorites');
+                      // Count will be reloaded when screen becomes visible again
+                    },
+                    tooltip: AppLocalizations.of(context)?.favoritesTooltip ??
+                        'Favorites',
+                  ),
+                  if (_favoritesCount > 0)
+                    Positioned(
+                      right: 6,
+                      top: 6,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
                         ),
-                        textAlign: TextAlign.center,
+                        constraints: const BoxConstraints(
+                          minWidth: 16,
+                          minHeight: 16,
+                        ),
+                        child: Text(
+                          _favoritesCount > 99 ? '99+' : '$_favoritesCount',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
                       ),
                     ),
-                  ),
-              ],
-            ),
-            IconButton(
-              icon: const Icon(Icons.search),
-              onPressed: () {
-                // Navigate to search screen
-                context.go('/search');
-              },
-              tooltip:
-                  AppLocalizations.of(context)?.searchAudiobooks ?? 'Search',
-            ),
-            IconButton(
-              icon: const Icon(Icons.download),
-              onPressed: () {
-                context.go('/downloads');
-              },
-              tooltip:
-                  AppLocalizations.of(context)?.downloadsTitle ?? 'Downloads',
-            ),
-            IconButton(
-              icon: const Icon(Icons.filter_list),
-              onPressed: () {
-                // Show filter options - navigate to settings for now
-                context.go('/settings');
-              },
-              tooltip: AppLocalizations.of(context)?.filterLibraryTooltip ??
-                  'Filter library',
-            ),
-          ],
-        ),
-        body: const _LibraryContent(),
-        floatingActionButton: ResponsiveUtils.isDesktop(context)
-            ? null // Hide FAB on desktop, use app bar actions instead
-            : FloatingActionButton(
+                ],
+              ),
+              IconButton(
+                icon: const Icon(Icons.search),
                 onPressed: () {
-                  // Navigate to search screen for now - FAB functionality
+                  // Navigate to search screen
                   context.go('/search');
                 },
-                tooltip: AppLocalizations.of(context)?.addAudiobookTooltip ??
-                    'Add audiobook',
-                child: const Icon(Icons.add),
+                tooltip:
+                    AppLocalizations.of(context)?.searchAudiobooks ?? 'Search',
               ),
+              IconButton(
+                icon: const Icon(Icons.download),
+                onPressed: () {
+                  context.go('/downloads');
+                },
+                tooltip:
+                    AppLocalizations.of(context)?.downloadsTitle ?? 'Downloads',
+              ),
+              IconButton(
+                icon: const Icon(Icons.filter_list),
+                onPressed: () => _showFilterDialog(context),
+                tooltip: AppLocalizations.of(context)?.filterLibraryTooltip ??
+                    'Filter library',
+              ),
+            ],
+          ),
+          body: const _LibraryContent(),
+          floatingActionButton: ResponsiveUtils.isDesktop(context)
+              ? null // Hide FAB on desktop, use app bar actions instead
+              : FloatingActionButton(
+                  onPressed: () {
+                    // Navigate to search screen for now - FAB functionality
+                    context.go('/search');
+                  },
+                  tooltip: AppLocalizations.of(context)?.addAudiobookTooltip ??
+                      'Add audiobook',
+                  child: const Icon(Icons.add),
+                ),
+        ),
       );
 }
 

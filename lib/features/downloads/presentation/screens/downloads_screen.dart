@@ -15,6 +15,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:jabook/core/config/app_config.dart';
 import 'package:jabook/core/torrent/audiobook_torrent_manager.dart';
 import 'package:jabook/l10n/app_localizations.dart';
 
@@ -80,192 +82,320 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
   String _formatSpeed(double bytesPerSecond) =>
       '${_formatBytes(bytesPerSecond.toInt())}/s';
 
+  String _formatTimeRemaining(TorrentProgress progress) {
+    if (progress.downloadSpeed <= 0 || progress.progress >= 100) {
+      return '';
+    }
+    final remainingBytes = progress.totalBytes - progress.downloadedBytes;
+    final secondsRemaining = (remainingBytes / progress.downloadSpeed).ceil();
+
+    if (secondsRemaining < 60) {
+      return '${secondsRemaining}s';
+    } else if (secondsRemaining < 3600) {
+      final minutes = secondsRemaining ~/ 60;
+      final seconds = secondsRemaining % 60;
+      return '${minutes}m ${seconds}s';
+    } else {
+      final hours = secondsRemaining ~/ 3600;
+      final minutes = (secondsRemaining % 3600) ~/ 60;
+      return '${hours}h ${minutes}m';
+    }
+  }
+
+  String _formatPath(String? path) {
+    if (path == null || path.isEmpty) return '';
+    // Show only last part of path for brevity
+    final parts = path.split('/');
+    if (parts.length > 3) {
+      return '.../${parts.sublist(parts.length - 2).join('/')}';
+    }
+    return path;
+  }
+
   @override
-  Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(
-          title: Text(
-            AppLocalizations.of(context)?.downloadsTitle ?? 'Downloads',
-          ),
-        ),
-        body: _downloads.isEmpty
-            ? Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.download_done,
-                      size: 64,
-                      color: Theme.of(context)
-                          .colorScheme
-                          .onSurface
-                          .withValues(alpha: 0.3),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      AppLocalizations.of(context)?.noActiveDownloads ??
-                          'No active downloads',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurface
-                                .withValues(alpha: 0.6),
-                          ),
-                    ),
-                  ],
+  Widget build(BuildContext context) => PopScope(
+        onPopInvokedWithResult: (didPop, result) {
+          if (didPop) return;
+          // Allow navigation back
+          Navigator.of(context).pop();
+        },
+        child: Scaffold(
+          appBar: AppBar(
+            title: Text(
+              AppLocalizations.of(context)?.downloadsTitle ?? 'Downloads',
+            ),
+            actions: [
+              if (AppConfig().debugFeaturesEnabled)
+                IconButton(
+                  icon: const Icon(Icons.bug_report),
+                  onPressed: () => context.go('/debug'),
+                  tooltip: AppLocalizations.of(context)?.debugTitle ?? 'Debug',
                 ),
-              )
-            : RefreshIndicator(
-                onRefresh: _loadDownloads,
-                child: ListView.builder(
-                  itemCount: _downloads.length,
-                  itemBuilder: (context, index) {
-                    final download = _downloads[index];
-                    final downloadId = download['id'] as String? ?? '';
-                    final title = download['name'] as String? ?? 'Unknown';
+            ],
+          ),
+          body: _downloads.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.download_done,
+                        size: 64,
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurface
+                            .withValues(alpha: 0.3),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        AppLocalizations.of(context)?.noActiveDownloads ??
+                            'No active downloads',
+                        style:
+                            Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurface
+                                      .withValues(alpha: 0.6),
+                                ),
+                      ),
+                    ],
+                  ),
+                )
+              : RefreshIndicator(
+                  onRefresh: _loadDownloads,
+                  child: ListView.builder(
+                    itemCount: _downloads.length,
+                    itemBuilder: (context, index) {
+                      final download = _downloads[index];
+                      final downloadId = download['id'] as String? ?? '';
+                      final title = download['name'] as String? ?? 'Unknown';
+                      final savePath = download['savePath'] as String?;
 
-                    // Get current progress from stream
-                    Stream<TorrentProgress>? progressStream;
-                    try {
-                      progressStream =
-                          _torrentManager.getProgressStream(downloadId);
-                    } on Exception {
-                      // Download might be completed or removed
-                      progressStream = null;
-                    }
+                      // Get current progress from stream
+                      Stream<TorrentProgress>? progressStream;
+                      try {
+                        progressStream =
+                            _torrentManager.getProgressStream(downloadId);
+                      } on Exception {
+                        // Download might be completed or removed
+                        progressStream = null;
+                      }
 
-                    if (progressStream == null) {
-                      // Fallback to static data from download map
-                      final staticProgress =
-                          download['progress'] as double? ?? 0.0;
-                      final isCompleted = staticProgress >= 100.0;
-                      return Card(
-                        margin: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 4),
-                        child: ListTile(
-                          leading: Icon(
-                            isCompleted ? Icons.check_circle : Icons.download,
-                            color: isCompleted
-                                ? Colors.green
-                                : Theme.of(context).colorScheme.primary,
-                          ),
-                          title: Text(title,
-                              maxLines: 1, overflow: TextOverflow.ellipsis),
-                          subtitle:
-                              Text('${staticProgress.toStringAsFixed(1)}%'),
-                        ),
-                      );
-                    }
-
-                    return StreamBuilder<TorrentProgress>(
-                      stream: progressStream,
-                      builder: (context, snapshot) {
-                        final progress =
-                            snapshot.data ?? _progressMap[downloadId];
-                        if (progress != null &&
-                            !_progressMap.containsKey(downloadId)) {
-                          // Cache progress
-                          WidgetsBinding.instance.addPostFrameCallback((_) {
-                            if (mounted) {
-                              setState(() {
-                                _progressMap[downloadId] = progress;
-                              });
-                            }
-                          });
-                        }
-                        final isPaused = progress?.status == 'paused';
-                        final isCompleted = progress?.status == 'completed';
-                        final isError =
-                            progress?.status.startsWith('error') ?? false;
-
+                      if (progressStream == null) {
+                        // Fallback to static data from download map
+                        final staticProgress =
+                            download['progress'] as double? ?? 0.0;
+                        final isCompleted = staticProgress >= 100.0;
                         return Card(
                           margin: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
-                          ),
+                              horizontal: 8, vertical: 4),
                           child: ListTile(
                             leading: Icon(
-                              isCompleted
-                                  ? Icons.check_circle
-                                  : isError
-                                      ? Icons.error
-                                      : Icons.download,
+                              isCompleted ? Icons.check_circle : Icons.download,
                               color: isCompleted
                                   ? Colors.green
-                                  : isError
-                                      ? Colors.red
-                                      : Theme.of(context).colorScheme.primary,
+                                  : Theme.of(context).colorScheme.primary,
                             ),
-                            title: Text(
-                              title,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                            title: Text(title,
+                                maxLines: 1, overflow: TextOverflow.ellipsis),
+                            subtitle:
+                                Text('${staticProgress.toStringAsFixed(1)}%'),
+                          ),
+                        );
+                      }
+
+                      return StreamBuilder<TorrentProgress>(
+                        stream: progressStream,
+                        builder: (context, snapshot) {
+                          final progress =
+                              snapshot.data ?? _progressMap[downloadId];
+                          if (progress != null &&
+                              !_progressMap.containsKey(downloadId)) {
+                            // Cache progress
+                            WidgetsBinding.instance.addPostFrameCallback((_) {
+                              if (mounted) {
+                                setState(() {
+                                  _progressMap[downloadId] = progress;
+                                });
+                              }
+                            });
+                          }
+                          final isPaused = progress?.status == 'paused';
+                          final isCompleted = progress?.status == 'completed';
+                          final isError =
+                              progress?.status.startsWith('error') ?? false;
+
+                          return Card(
+                            margin: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
                             ),
-                            subtitle: progress != null
-                                ? Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      const SizedBox(height: 4),
-                                      LinearProgressIndicator(
-                                        value: progress.progress / 100,
-                                        backgroundColor: Theme.of(context)
-                                            .colorScheme
-                                            .surfaceContainerHighest
-                                            .withValues(alpha: 0.3),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Row(
-                                        children: [
-                                          Text(
-                                            '${progress.progress.toStringAsFixed(1)}%',
-                                            style: Theme.of(context)
-                                                .textTheme
-                                                .bodySmall,
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Text(
-                                            '${_formatBytes(progress.downloadedBytes)} / ${_formatBytes(progress.totalBytes)}',
-                                            style: Theme.of(context)
-                                                .textTheme
-                                                .bodySmall,
-                                          ),
-                                          if (progress.downloadSpeed > 0) ...[
+                            child: ListTile(
+                              leading: Icon(
+                                isCompleted
+                                    ? Icons.check_circle
+                                    : isError
+                                        ? Icons.error
+                                        : Icons.download,
+                                color: isCompleted
+                                    ? Colors.green
+                                    : isError
+                                        ? Colors.red
+                                        : Theme.of(context).colorScheme.primary,
+                              ),
+                              title: Text(
+                                title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              subtitle: progress != null
+                                  ? Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        const SizedBox(height: 4),
+                                        LinearProgressIndicator(
+                                          value: progress.progress / 100,
+                                          backgroundColor: Theme.of(context)
+                                              .colorScheme
+                                              .surfaceContainerHighest
+                                              .withValues(alpha: 0.3),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Row(
+                                          children: [
+                                            Text(
+                                              '${progress.progress.toStringAsFixed(1)}%',
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .bodySmall,
+                                            ),
                                             const SizedBox(width: 8),
                                             Text(
-                                              _formatSpeed(
-                                                  progress.downloadSpeed),
+                                              '${_formatBytes(progress.downloadedBytes)} / ${_formatBytes(progress.totalBytes)}',
                                               style: Theme.of(context)
                                                   .textTheme
                                                   .bodySmall,
                                             ),
                                           ],
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Wrap(
+                                          spacing: 8,
+                                          runSpacing: 4,
+                                          children: [
+                                            if (progress.downloadSpeed > 0) ...[
+                                              Text(
+                                                _formatSpeed(
+                                                    progress.downloadSpeed),
+                                                style: Theme.of(context)
+                                                    .textTheme
+                                                    .bodySmall
+                                                    ?.copyWith(
+                                                      color: Theme.of(context)
+                                                          .colorScheme
+                                                          .primary,
+                                                    ),
+                                              ),
+                                              if (progress.progress < 100) ...[
+                                                Text(
+                                                  '•',
+                                                  style: Theme.of(context)
+                                                      .textTheme
+                                                      .bodySmall,
+                                                ),
+                                                Text(
+                                                  _formatTimeRemaining(
+                                                      progress),
+                                                  style: Theme.of(context)
+                                                      .textTheme
+                                                      .bodySmall,
+                                                ),
+                                              ],
+                                            ],
+                                          ],
+                                        ),
+                                        if (savePath != null &&
+                                            savePath.isNotEmpty) ...[
+                                          const SizedBox(height: 4),
+                                          Row(
+                                            children: [
+                                              Icon(
+                                                Icons.folder,
+                                                size: 14,
+                                                color: Theme.of(context)
+                                                    .colorScheme
+                                                    .onSurface
+                                                    .withValues(alpha: 0.6),
+                                              ),
+                                              const SizedBox(width: 4),
+                                              Expanded(
+                                                child: Text(
+                                                  _formatPath(savePath),
+                                                  style: Theme.of(context)
+                                                      .textTheme
+                                                      .bodySmall
+                                                      ?.copyWith(
+                                                        color: Theme.of(context)
+                                                            .colorScheme
+                                                            .onSurface
+                                                            .withValues(
+                                                                alpha: 0.6),
+                                                      ),
+                                                  maxLines: 1,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
                                         ],
-                                      ),
-                                    ],
-                                  )
-                                : Text(
-                                    AppLocalizations.of(context)?.loading ??
-                                        'Loading...',
-                                  ),
-                            trailing: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                if (!isCompleted && !isError)
+                                      ],
+                                    )
+                                  : Text(
+                                      AppLocalizations.of(context)?.loading ??
+                                          'Loading...',
+                                    ),
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if (!isCompleted && !isError)
+                                    IconButton(
+                                      icon: Icon(isPaused
+                                          ? Icons.play_arrow
+                                          : Icons.pause),
+                                      onPressed: () async {
+                                        final messenger =
+                                            ScaffoldMessenger.of(context);
+                                        try {
+                                          if (isPaused) {
+                                            await _torrentManager
+                                                .resumeDownload(downloadId);
+                                          } else {
+                                            await _torrentManager
+                                                .pauseDownload(downloadId);
+                                          }
+                                          await _loadDownloads();
+                                        } on Exception catch (e) {
+                                          if (!mounted) return;
+                                          messenger.showSnackBar(
+                                            SnackBar(
+                                              content: Text(
+                                                  'Error: ${e.toString()}'),
+                                            ),
+                                          );
+                                        }
+                                      },
+                                      tooltip: isPaused ? 'Resume' : 'Pause',
+                                    ),
                                   IconButton(
-                                    icon: Icon(isPaused
-                                        ? Icons.play_arrow
-                                        : Icons.pause),
+                                    icon: const Icon(Icons.close),
                                     onPressed: () async {
                                       final messenger =
                                           ScaffoldMessenger.of(context);
                                       try {
-                                        if (isPaused) {
-                                          await _torrentManager
-                                              .resumeDownload(downloadId);
-                                        } else {
-                                          await _torrentManager
-                                              .pauseDownload(downloadId);
-                                        }
+                                        await _torrentManager
+                                            .removeDownload(downloadId);
                                         await _loadDownloads();
                                       } on Exception catch (e) {
                                         if (!mounted) return;
@@ -277,37 +407,17 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                                         );
                                       }
                                     },
-                                    tooltip: isPaused ? 'Resume' : 'Pause',
+                                    tooltip: 'Cancel',
                                   ),
-                                IconButton(
-                                  icon: const Icon(Icons.close),
-                                  onPressed: () async {
-                                    final messenger =
-                                        ScaffoldMessenger.of(context);
-                                    try {
-                                      await _torrentManager
-                                          .removeDownload(downloadId);
-                                      await _loadDownloads();
-                                    } on Exception catch (e) {
-                                      if (!mounted) return;
-                                      messenger.showSnackBar(
-                                        SnackBar(
-                                          content:
-                                              Text('Error: ${e.toString()}'),
-                                        ),
-                                      );
-                                    }
-                                  },
-                                  tooltip: 'Cancel',
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
-                          ),
-                        );
-                      },
-                    );
-                  },
+                          );
+                        },
+                      );
+                    },
+                  ),
                 ),
-              ),
+        ),
       );
 }

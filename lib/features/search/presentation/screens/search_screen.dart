@@ -1166,6 +1166,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           final parsedResults = await _parser.parseSearchResults(
             response.data,
             contentType: response.headers.value('content-type'),
+            baseUrl: endpoint,
           );
 
           // CRITICAL: Filter results to only include audiobooks
@@ -1316,6 +1317,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               final recoveredResults = await _parser.parseSearchResults(
                 bytes, // Original bytes (Brotli already decompressed by Dio transformer)
                 contentType: alternativeContentType,
+                baseUrl: endpoint,
               );
 
               // Validate recovery results
@@ -1392,6 +1394,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                   final latin1Results = await _parser.parseSearchResults(
                     bytes,
                     contentType: 'text/html; charset=iso-8859-1',
+                    baseUrl: endpoint,
                   );
 
                   final audiobookResults =
@@ -2406,6 +2409,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           final more = await _parser.parseSearchResults(
             res.data,
             contentType: res.headers.value('content-type'),
+            baseUrl: activeEndpoint,
           );
 
           // CRITICAL: Filter results to only include audiobooks

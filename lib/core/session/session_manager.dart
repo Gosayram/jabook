@@ -474,10 +474,12 @@ class SessionManager {
       // Try to get stored credentials
       final credentials = await _credentialManager.getCredentials();
       if (credentials == null) {
+        // This is expected if user is not logged in - log as debug, not warning
         await logger.log(
-          level: 'warning',
+          level: 'debug',
           subsystem: 'session_manager',
-          message: 'No stored credentials available for session refresh',
+          message:
+              'No stored credentials available for session refresh (user not logged in)',
           operationId: operationId,
           context: 'session_refresh',
           durationMs: DateTime.now().difference(startTime).inMilliseconds,
@@ -487,10 +489,12 @@ class SessionManager {
 
       // Re-authenticate using stored credentials
       if (_rutrackerAuth == null) {
+        // This may be expected if auth is not initialized yet - log as debug
         await logger.log(
-          level: 'warning',
+          level: 'debug',
           subsystem: 'session_manager',
-          message: 'RuTrackerAuth not available for session refresh',
+          message:
+              'RuTrackerAuth not available for session refresh (not initialized)',
           operationId: operationId,
           context: 'session_refresh',
           durationMs: DateTime.now().difference(startTime).inMilliseconds,

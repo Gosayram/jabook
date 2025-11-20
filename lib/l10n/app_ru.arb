@@ -1851,5 +1851,75 @@
   "showLess": "Показать меньше",
   "@showLess": {
     "description": "Кнопка для сворачивания текста"
+  },
+  "selectFolderDialogTitle": "Выбор папки для загрузок",
+  "@selectFolderDialogTitle": {
+    "description": "Заголовок диалога выбора папки"
+  },
+  "selectFolderDialogMessage": "Пожалуйста, выберите папку, в которую будут сохраняться загруженные аудиокниги. В файловом менеджере перейдите к нужной папке и нажмите \"Использовать эту папку\" для подтверждения.",
+  "@selectFolderDialogMessage": {
+    "description": "Инструкции по выбору папки на Android 13+"
+  },
+  "folderSelectedSuccessMessage": "Папка для загрузок выбрана успешно",
+  "@folderSelectedSuccessMessage": {
+    "description": "Сообщение при успешном выборе папки"
+  },
+  "folderSelectionCancelledMessage": "Выбор папки отменен",
+  "@folderSelectionCancelledMessage": {
+    "description": "Сообщение при отмене выбора папки"
+  },
+  "currentDownloadFolder": "Текущая папка: {path}",
+  "@currentDownloadFolder": {
+    "description": "Путь к текущей папке загрузок",
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
+  "defaultDownloadFolder": "Папка по умолчанию",
+  "pressBackAgainToExit": "Нажмите еще раз для выхода",
+  "@pressBackAgainToExit": {
+    "description": "Сообщение при нажатии кнопки назад, просьба нажать еще раз для выхода"
+  },
+  "filterOptionsComingSoon": "Фильтры будут доступны в ближайшее время. Вы сможете фильтровать по:",
+  "@filterOptionsComingSoon": {
+    "description": "Сообщение в диалоге фильтров о том, что фильтры скоро появятся"
+  },
+  "filterByCategory": "Категория",
+  "@filterByCategory": {
+    "description": "Опция фильтрации по категории"
+  },
+  "filterByAuthor": "Автор",
+  "@filterByAuthor": {
+    "description": "Опция фильтрации по автору"
+  },
+  "filterByDate": "Дата добавления",
+  "@filterByDate": {
+    "description": "Опция фильтрации по дате добавления"
+  },
+  "close": "Закрыть",
+  "@close": {
+    "description": "Текст кнопки закрытия"
+  },
+  "openInExternalClient": "Открыть во внешнем клиенте",
+  "@openInExternalClient": {
+    "description": "Кнопка для открытия торрента во внешнем клиенте"
+  },
+  "downloadTorrentInApp": "Скачать через встроенный клиент",
+  "@downloadTorrentInApp": {
+    "description": "Описание для скачивания торрента в приложении"
+  },
+  "openedInExternalClient": "Открыто во внешнем торрент-клиенте",
+  "@openedInExternalClient": {
+    "description": "Сообщение при открытии торрента во внешнем клиенте"
+  },
+  "failedToOpenExternalClient": "Не удалось открыть во внешнем клиенте",
+  "@failedToOpenExternalClient": {
+    "description": "Сообщение при ошибке открытия во внешнем клиенте"
+  },
+  "noMagnetLinkAvailable": "Magnet-ссылка недоступна",
+  "@noMagnetLinkAvailable": {
+    "description": "Сообщение когда magnet-ссылка недоступна"
   }
 }

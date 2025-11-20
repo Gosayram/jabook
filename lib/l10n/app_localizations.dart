@@ -2548,6 +2548,108 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Show less'**
   String get showLess;
+
+  /// Title for folder selection dialog
+  ///
+  /// In en, this message translates to:
+  /// **'Select Download Folder'**
+  String get selectFolderDialogTitle;
+
+  /// Instructions for selecting folder on Android 13+
+  ///
+  /// In en, this message translates to:
+  /// **'Please select the folder where downloaded audiobooks will be saved. In the file manager, navigate to the desired folder and tap \"Use this folder\" to confirm.'**
+  String get selectFolderDialogMessage;
+
+  /// Message when folder is selected successfully
+  ///
+  /// In en, this message translates to:
+  /// **'Download folder selected successfully'**
+  String get folderSelectedSuccessMessage;
+
+  /// Message when folder selection is cancelled
+  ///
+  /// In en, this message translates to:
+  /// **'Folder selection cancelled'**
+  String get folderSelectionCancelledMessage;
+
+  /// Current download folder path
+  ///
+  /// In en, this message translates to:
+  /// **'Current folder: {path}'**
+  String currentDownloadFolder(String path);
+
+  /// No description provided for @defaultDownloadFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Default folder'**
+  String get defaultDownloadFolder;
+
+  /// Message shown when user presses back button, asking to press again to exit
+  ///
+  /// In en, this message translates to:
+  /// **'Press back again to exit'**
+  String get pressBackAgainToExit;
+
+  /// Message in filter dialog indicating filters are coming soon
+  ///
+  /// In en, this message translates to:
+  /// **'Filter options will be available soon. You will be able to filter by:'**
+  String get filterOptionsComingSoon;
+
+  /// Filter option by category
+  ///
+  /// In en, this message translates to:
+  /// **'Category'**
+  String get filterByCategory;
+
+  /// Filter option by author
+  ///
+  /// In en, this message translates to:
+  /// **'Author'**
+  String get filterByAuthor;
+
+  /// Filter option by date added
+  ///
+  /// In en, this message translates to:
+  /// **'Date Added'**
+  String get filterByDate;
+
+  /// Close button text
+  ///
+  /// In en, this message translates to:
+  /// **'Close'**
+  String get close;
+
+  /// Button to open torrent in external client
+  ///
+  /// In en, this message translates to:
+  /// **'Open in External Client'**
+  String get openInExternalClient;
+
+  /// Description for downloading torrent in app
+  ///
+  /// In en, this message translates to:
+  /// **'Download using built-in torrent client'**
+  String get downloadTorrentInApp;
+
+  /// Message when torrent is opened in external client
+  ///
+  /// In en, this message translates to:
+  /// **'Opened in external torrent client'**
+  String get openedInExternalClient;
+
+  /// Message when failed to open in external client
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to open in external client'**
+  String get failedToOpenExternalClient;
+
+  /// Message when magnet link is not available
+  ///
+  /// In en, this message translates to:
+  /// **'No magnet link available'**
+  String get noMagnetLinkAvailable;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

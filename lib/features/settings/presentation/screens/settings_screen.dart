@@ -14,6 +14,7 @@
 
 import 'dart:io';
 
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -26,6 +27,7 @@ import 'package:jabook/core/metadata/audiobook_metadata_service.dart';
 import 'package:jabook/core/metadata/metadata_sync_scheduler.dart';
 import 'package:jabook/core/net/dio_client.dart';
 import 'package:jabook/core/permissions/permission_service_v2.dart';
+import 'package:jabook/core/utils/file_picker_utils.dart' as file_picker_utils;
 import 'package:jabook/data/db/app_database.dart';
 import 'package:jabook/features/settings/presentation/screens/mirror_settings_screen.dart';
 import 'package:jabook/l10n/app_localizations.dart';
@@ -51,11 +53,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   final LanguageManager _languageManager = LanguageManager();
   final PermissionServiceV2 _permissionService = PermissionServiceV2();
   String _selectedLanguage = 'system';
+  String? _downloadFolderPath;
 
   @override
   void initState() {
     super.initState();
     _loadLanguagePreference();
+    _loadDownloadFolder();
   }
 
   Future<void> _loadLanguagePreference() async {
@@ -63,6 +67,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     setState(() {
       _selectedLanguage = languageCode;
     });
+  }
+
+  Future<void> _loadDownloadFolder() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedPath = prefs.getString('download_folder_path');
+    if (mounted) {
+      setState(() {
+        _downloadFolderPath = savedPath;
+      });
+    }
   }
 
   Future<void> _changeLanguage(String languageCode, WidgetRef ref) async {
@@ -631,10 +645,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             title: Text(localizations?.downloadLocationTitle ??
                 localizations?.downloadLocation ??
                 'Download Location'),
-            subtitle: const Text('/storage/emulated/0/Download'),
-            onTap: () {
-              // TODO: Implement download location selection
-            },
+            subtitle: Text(_downloadFolderPath != null
+                ? (localizations?.currentDownloadFolder(_downloadFolderPath!) ??
+                    'Current folder: $_downloadFolderPath')
+                : (localizations?.defaultDownloadFolder ?? 'Default folder')),
+            onTap: () => _selectDownloadFolder(context),
           ),
         ),
         ListTile(
@@ -1097,6 +1112,102 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           backgroundColor: Colors.red,
         ),
       );
+    }
+  }
+
+  Future<void> _selectDownloadFolder(BuildContext context) async {
+    if (!mounted) return;
+
+    // Save context and localizations before any async operations
+    final savedContext = context;
+    final localizations = AppLocalizations.of(savedContext);
+    final messenger = ScaffoldMessenger.of(savedContext);
+
+    // Check Android version to show instruction dialog for Android 13+
+    if (Platform.isAndroid) {
+      final androidInfo = await DeviceInfoPlugin().androidInfo;
+      final sdkInt = androidInfo.version.sdkInt;
+
+      if (sdkInt >= 33) {
+        if (!mounted) return;
+        // Show instruction dialog for Android 13+
+        // Use savedContext which was captured before async operations
+        final dialogTitle = localizations?.selectFolderDialogTitle ??
+            'Select Download Folder';
+        final dialogMessage = localizations?.selectFolderDialogMessage ??
+            'Please select the folder where downloaded audiobooks will be saved. In the file manager, navigate to the desired folder and tap "Use this folder" to confirm.';
+        final cancelText = localizations?.cancel ?? 'Cancel';
+        
+        // Check if context is still mounted before using it
+        if (!savedContext.mounted) return;
+        final shouldProceed = await showDialog<bool>(
+          context: savedContext,
+          builder: (dialogContext) => AlertDialog(
+            title: Text(dialogTitle),
+            content: Text(dialogMessage),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(false),
+                child: Text(cancelText),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.of(dialogContext).pop(true),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+
+        if (shouldProceed != true) {
+          return; // User cancelled
+        }
+      }
+    }
+
+    // Open folder picker
+    try {
+      final selectedPath = await file_picker_utils.pickDirectory();
+
+      if (selectedPath != null) {
+        // Save selected path to SharedPreferences
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('download_folder_path', selectedPath);
+
+        if (mounted) {
+          setState(() {
+            _downloadFolderPath = selectedPath;
+          });
+          messenger.showSnackBar(
+            SnackBar(
+              content: Text(localizations?.folderSelectedSuccessMessage ??
+                  'Download folder selected successfully'),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+      } else {
+        // User cancelled folder selection
+        if (mounted) {
+          messenger.showSnackBar(
+            SnackBar(
+              content: Text(localizations?.folderSelectionCancelledMessage ??
+                  'Folder selection cancelled'),
+              duration: const Duration(seconds: 1),
+            ),
+          );
+        }
+      }
+    } on Exception catch (e) {
+      if (mounted) {
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text('Error selecting folder: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
     }
   }
 }

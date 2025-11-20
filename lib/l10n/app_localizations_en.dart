@@ -1322,4 +1322,57 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get showLess => 'Show less';
+
+  @override
+  String get selectFolderDialogTitle => 'Select Download Folder';
+
+  @override
+  String get selectFolderDialogMessage => 'Please select the folder where downloaded audiobooks will be saved. In the file manager, navigate to the desired folder and tap \"Use this folder\" to confirm.';
+
+  @override
+  String get folderSelectedSuccessMessage => 'Download folder selected successfully';
+
+  @override
+  String get folderSelectionCancelledMessage => 'Folder selection cancelled';
+
+  @override
+  String currentDownloadFolder(String path) {
+    return 'Current folder: $path';
+  }
+
+  @override
+  String get defaultDownloadFolder => 'Default folder';
+
+  @override
+  String get pressBackAgainToExit => 'Press back again to exit';
+
+  @override
+  String get filterOptionsComingSoon => 'Filter options will be available soon. You will be able to filter by:';
+
+  @override
+  String get filterByCategory => 'Category';
+
+  @override
+  String get filterByAuthor => 'Author';
+
+  @override
+  String get filterByDate => 'Date Added';
+
+  @override
+  String get close => 'Close';
+
+  @override
+  String get openInExternalClient => 'Open in External Client';
+
+  @override
+  String get downloadTorrentInApp => 'Download using built-in torrent client';
+
+  @override
+  String get openedInExternalClient => 'Opened in external torrent client';
+
+  @override
+  String get failedToOpenExternalClient => 'Failed to open in external client';
+
+  @override
+  String get noMagnetLinkAvailable => 'No magnet link available';
 }

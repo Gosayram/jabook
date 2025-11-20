@@ -30,6 +30,7 @@ import 'package:jabook/core/parse/rutracker_parser.dart';
 import 'package:jabook/core/session/auth_error_handler.dart';
 import 'package:jabook/core/torrent/audiobook_torrent_manager.dart';
 import 'package:jabook/core/torrent/audiobook_torrent_manager_provider.dart';
+import 'package:jabook/core/torrent/external_torrent_handler.dart';
 import 'package:jabook/core/torrent/torrent_parser_service.dart';
 import 'package:jabook/features/downloads/presentation/widgets/download_status_bar.dart';
 import 'package:jabook/l10n/app_localizations.dart';
@@ -465,21 +466,23 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
             children: [
               _buildChip(
                 category,
-                Colors.blue.shade100,
+                Theme.of(context).colorScheme.primaryContainer,
+                labelColor: Theme.of(context).colorScheme.onPrimaryContainer,
               ),
               _buildChip(
                 size,
-                Colors.green.shade100,
+                Theme.of(context).colorScheme.secondaryContainer,
+                labelColor: Theme.of(context).colorScheme.onSecondaryContainer,
               ),
               _buildChip(
                 '$seeders${AppLocalizations.of(context)?.seedersLabel ?? ' seeders'}',
-                Colors.green.shade100,
-                labelColor: Colors.green.shade900,
+                Theme.of(context).colorScheme.tertiaryContainer,
+                labelColor: Theme.of(context).colorScheme.onTertiaryContainer,
               ),
               _buildChip(
                 '$leechers${AppLocalizations.of(context)?.leechersLabel ?? ' leechers'}',
-                Colors.red.shade100,
-                labelColor: Colors.red.shade900,
+                Theme.of(context).colorScheme.errorContainer,
+                labelColor: Theme.of(context).colorScheme.onErrorContainer,
               ),
             ],
           ),
@@ -491,8 +494,14 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
               children: genres
                   .map((genre) => Chip(
                         label: Text(genre),
-                        backgroundColor: Colors.purple.shade100,
-                        labelStyle: TextStyle(color: Colors.purple.shade900),
+                        backgroundColor: Theme.of(context)
+                            .colorScheme
+                            .tertiaryContainer
+                            .withValues(alpha: 0.7),
+                        labelStyle: TextStyle(
+                          color:
+                              Theme.of(context).colorScheme.onTertiaryContainer,
+                        ),
                       ))
                   .toList(),
             ),
@@ -545,11 +554,23 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
                     title: Text(
                         AppLocalizations.of(context)?.downloadTorrentMenu ??
                             'Download Torrent'),
+                    subtitle: Text(
+                        AppLocalizations.of(context)?.downloadTorrentInApp ??
+                            'Download using built-in torrent client'),
+                    trailing: const Icon(Icons.download),
+                    onTap: _downloadTorrent,
+                  ),
+                  const Divider(height: 1),
+                  ListTile(
+                    leading: const Icon(Icons.open_in_new),
+                    title: Text(
+                        AppLocalizations.of(context)?.openInExternalClient ??
+                            'Open in External Client'),
                     subtitle: Text(AppLocalizations.of(context)
                             ?.openTorrentInExternalApp ??
-                        'Open torrent file in external app'),
-                    trailing: const Icon(Icons.open_in_new),
-                    onTap: _downloadTorrent,
+                        'Open magnet link in external torrent client'),
+                    trailing: const Icon(Icons.launch),
+                    onTap: _openInExternalClient,
                   ),
                 ],
               ),
@@ -631,6 +652,44 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
       case 'download_magnet':
         _startMagnetDownload();
         break;
+    }
+  }
+
+  Future<void> _openInExternalClient() async {
+    if (_audiobook == null) return;
+
+    final magnetUrl = _audiobook!['magnetUrl'] as String? ?? '';
+    if (magnetUrl.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              AppLocalizations.of(context)?.noMagnetLinkAvailable ??
+                  'No magnet link available',
+            ),
+          ),
+        );
+      }
+      return;
+    }
+
+    final handler = ExternalTorrentHandler();
+    final success = await handler.openMagnetLink(magnetUrl);
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            success
+                ? (AppLocalizations.of(context)?.openedInExternalClient ??
+                    'Opened in external torrent client')
+                : (AppLocalizations.of(context)?.failedToOpenExternalClient ??
+                    'Failed to open in external client'),
+          ),
+          backgroundColor: success ? Colors.green : Colors.red,
+          duration: const Duration(seconds: 2),
+        ),
+      );
     }
   }
 

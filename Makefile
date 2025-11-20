@@ -71,7 +71,6 @@ install:
 .PHONY: clean
 clean:
 	rm -rf build/
-	rm -rf android/
 	rm -rf debug-info/
 	@echo "Cleaned build artifacts"
 

@@ -154,6 +154,7 @@ class RuTrackerParser {
   Future<List<Audiobook>> parseSearchResults(
     dynamic htmlData, {
     String? contentType,
+    String? baseUrl,
   }) async {
     final logger = StructuredLogger();
     try {
@@ -727,7 +728,7 @@ class RuTrackerParser {
           }
         }
 
-        final coverUrl = _extractCoverUrl(row);
+        final coverUrl = _extractCoverUrl(row, baseUrl: baseUrl);
         final audiobook = Audiobook(
           id: topicId,
           title: titleElement.text.trim(),
@@ -1468,7 +1469,7 @@ String _extractCategoryFromTitle(String title) {
 ///
 /// Tries multiple selectors in priority order to find cover image.
 /// Returns normalized absolute URL or null if not found.
-String? _extractCoverUrl(Element row) {
+String? _extractCoverUrl(Element row, {String? baseUrl}) {
   final logger = EnvironmentLogger()
     ..d('Extracting cover URL from search result row');
 
@@ -1478,7 +1479,7 @@ String? _extractCoverUrl(Element row) {
   if (postImgVar != null) {
     final title = postImgVar.attributes['title'];
     if (title != null && title.isNotEmpty) {
-      final normalizedUrl = _normalizeCoverUrl(title);
+      final normalizedUrl = _normalizeCoverUrl(title, baseUrl: baseUrl);
       if (normalizedUrl != null) {
         logger.d('Cover URL extracted (Priority 1): $normalizedUrl');
         return normalizedUrl;
@@ -1507,7 +1508,7 @@ String? _extractCoverUrl(Element row) {
   if (imgElement != null) {
     final src = imgElement.attributes['src'];
     if (src != null && src.isNotEmpty) {
-      final normalizedUrl = _normalizeCoverUrl(src);
+      final normalizedUrl = _normalizeCoverUrl(src, baseUrl: baseUrl);
       if (normalizedUrl != null) {
         logger.d('Cover URL extracted (Priority 3): $normalizedUrl');
         return normalizedUrl;
@@ -1520,7 +1521,7 @@ String? _extractCoverUrl(Element row) {
   if (imgLazy != null) {
     final dataSrc = imgLazy.attributes['data-src'];
     if (dataSrc != null && dataSrc.isNotEmpty) {
-      final normalizedUrl = _normalizeCoverUrl(dataSrc);
+      final normalizedUrl = _normalizeCoverUrl(dataSrc, baseUrl: baseUrl);
       if (normalizedUrl != null) {
         logger.d('Cover URL extracted (Priority 4): $normalizedUrl');
         return normalizedUrl;
@@ -1536,7 +1537,7 @@ String? _extractCoverUrl(Element row) {
       // Extract first URL from srcset
       final firstUrl = srcset.split(',').first.trim().split(' ').first;
       if (firstUrl.isNotEmpty) {
-        final normalizedUrl = _normalizeCoverUrl(firstUrl);
+        final normalizedUrl = _normalizeCoverUrl(firstUrl, baseUrl: baseUrl);
         if (normalizedUrl != null) {
           logger.d('Cover URL extracted (Priority 5): $normalizedUrl');
           return normalizedUrl;
@@ -1551,32 +1552,63 @@ String? _extractCoverUrl(Element row) {
 
 /// Normalizes cover URL to absolute URL.
 ///
-/// Converts relative URLs to absolute URLs using rutracker.org as base.
-String? _normalizeCoverUrl(String? url) {
-  if (url == null || url.isEmpty) return null;
+/// Converts relative URLs to absolute URLs using provided baseUrl or rutracker.org as fallback.
+String? _normalizeCoverUrl(String? url, {String? baseUrl}) {
+  if (url == null || url.isEmpty) {
+    EnvironmentLogger().d('_normalizeCoverUrl: URL is null or empty');
+    return null;
+  }
+
+  final logger = EnvironmentLogger()
+    ..d('_normalizeCoverUrl: Normalizing URL: $url (baseUrl: $baseUrl)');
 
   // If URL already absolute, return as is
   if (url.startsWith('http://') || url.startsWith('https://')) {
+    logger.d('_normalizeCoverUrl: URL is already absolute: $url');
     return url;
   }
 
-  // If URL relative, convert to absolute
+  // Determine base URL to use
+  String effectiveBaseUrl;
+  if (baseUrl != null && baseUrl.isNotEmpty) {
+    // Remove trailing slash from baseUrl
+    effectiveBaseUrl = baseUrl.endsWith('/')
+        ? baseUrl.substring(0, baseUrl.length - 1)
+        : baseUrl;
+    // Ensure baseUrl has protocol
+    if (!effectiveBaseUrl.startsWith('http://') &&
+        !effectiveBaseUrl.startsWith('https://')) {
+      effectiveBaseUrl = 'https://$effectiveBaseUrl';
+    }
+  } else {
+    // Fallback to rutracker.org
+    effectiveBaseUrl = 'https://rutracker.org';
+  }
+
+  // If URL relative (starts with /), convert to absolute
   if (url.startsWith('/')) {
-    // Use rutracker.org as base domain
-    return 'https://rutracker.org$url';
+    final normalized = '$effectiveBaseUrl$url';
+    logger.d('_normalizeCoverUrl: Normalized relative URL: $normalized');
+    return normalized;
   }
 
   // If URL starts with //, add https:
   if (url.startsWith('//')) {
-    return 'https:$url';
+    final normalized = 'https:$url';
+    logger
+        .d('_normalizeCoverUrl: Normalized protocol-relative URL: $normalized');
+    return normalized;
   }
 
   // If URL doesn't start with /, possibly already full path
   // Try to add base URL
   if (!url.contains('://')) {
-    return 'https://rutracker.org/$url';
+    final normalized = '$effectiveBaseUrl/$url';
+    logger.d('_normalizeCoverUrl: Normalized path URL: $normalized');
+    return normalized;
   }
 
+  logger.w('_normalizeCoverUrl: Could not normalize URL: $url');
   return url;
 }
 

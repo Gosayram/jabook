@@ -123,10 +123,14 @@ class SessionValidator {
       return isValid;
     } on DioException catch (e) {
       final totalDuration = DateTime.now().difference(startTime).inMilliseconds;
+      // 404 status code might be expected for some endpoints - log as debug
+      final is404 = e.response?.statusCode == 404;
       await logger.log(
-        level: 'warning',
+        level: is404 ? 'debug' : 'warning',
         subsystem: 'session_validator',
-        message: 'Session validation failed - network error',
+        message: is404
+            ? 'Session validation - endpoint returned 404 (may be expected)'
+            : 'Session validation failed - network error',
         operationId: operationId,
         context: 'session_validation',
         durationMs: totalDuration,

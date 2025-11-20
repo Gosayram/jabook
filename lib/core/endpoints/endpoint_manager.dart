@@ -21,6 +21,7 @@ import 'package:jabook/core/net/dio_client.dart';
 import 'package:jabook/core/net/user_agent_manager.dart';
 import 'package:jabook/core/utils/dns_lookup.dart';
 import 'package:jabook/core/utils/safe_async.dart';
+import 'package:jabook/data/db/app_database.dart';
 import 'package:sembast/sembast.dart';
 
 /// Manages RuTracker endpoint configuration and health monitoring.
@@ -120,6 +121,33 @@ class EndpointManager {
 
   /// Performs initial health checks on all endpoints
   Future<void> _performInitialHealthChecks() async {
+    // Wait for database to be ready (with timeout)
+    final db = AppDatabase();
+    var retries = 0;
+    const maxRetries = 10;
+    const retryDelay = Duration(milliseconds: 100);
+
+    while (!db.isInitialized && retries < maxRetries) {
+      await Future.delayed(retryDelay);
+      retries++;
+    }
+
+    if (!db.isInitialized) {
+      final logger = StructuredLogger();
+      await logger.log(
+        level: 'warning',
+        subsystem: 'endpoints',
+        message:
+            'Database not ready after waiting, skipping initial health checks',
+        context: 'endpoint_init',
+        extra: {
+          'note':
+              'Health checks will be performed later when database is ready',
+        },
+      );
+      return;
+    }
+
     try {
       final record = await _endpointsRef.get(_db);
       final endpoints = List<Map<String, dynamic>>.from(
