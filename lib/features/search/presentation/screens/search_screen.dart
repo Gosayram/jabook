@@ -20,6 +20,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:jabook/core/auth/simple_cookie_manager.dart';
 import 'package:jabook/core/cache/rutracker_cache_service.dart';
 import 'package:jabook/core/constants/category_constants.dart';
 import 'package:jabook/core/endpoints/endpoint_provider.dart';
@@ -372,6 +373,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       {bool updateExisting = false}) async {
     final structuredLogger = StructuredLogger();
     
+    // Get active endpoint for logging
+    final endpointManager = ref.read(endpointManagerProvider);
+    final activeEndpoint = await endpointManager.getActiveEndpoint();
+    
     await structuredLogger.log(
       level: 'info',
       subsystem: 'search',
@@ -380,6 +385,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       extra: {
         'query': query,
         'update_existing': updateExisting,
+        'start_offset': _startOffset,
+        'active_endpoint': activeEndpoint,
       },
     );
     
@@ -437,16 +444,60 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       }
     }
 
+    // Before checking hasValidCookies, try to sync cookies from SecureStorage/CookieJar
+    try {
+      final simpleCookieManager = SimpleCookieManager();
+      final cookieString = await simpleCookieManager.getCookie(activeEndpoint);
+      
+      if (cookieString != null && cookieString.isNotEmpty) {
+        // Cookies exist in SecureStorage, sync to CookieService
+        final uri = Uri.parse(activeEndpoint);
+        final jar = await DioClient.getCookieJar();
+        if (jar != null) {
+          // Load cookies from CookieJar
+          final cookies = await jar.loadForRequest(uri);
+          if (cookies.isNotEmpty) {
+            // Convert to cookie header and sync to CookieService
+            final cookieHeader = cookies.map((c) => '${c.name}=${c.value}').join('; ');
+            await DioClient.syncCookiesFromCookieService(cookieHeader, activeEndpoint);
+            
+            await structuredLogger.log(
+              level: 'info',
+              subsystem: 'search',
+              message: 'Synced cookies from SecureStorage/CookieJar to CookieService',
+              context: 'search_request',
+              extra: {
+                'cookie_count': cookies.length,
+                'cookie_names': cookies.map((c) => c.name).toList(),
+              },
+            );
+          }
+        }
+      }
+    } on Exception catch (e) {
+      await structuredLogger.log(
+        level: 'debug',
+        subsystem: 'search',
+        message: 'Failed to sync cookies from SecureStorage',
+        context: 'search_request',
+        cause: e.toString(),
+      );
+    }
+
     // Check if we have cookies before performing search
     // Use hasValidCookies which now checks CookieService first
     try {
       final hasCookies = await DioClient.hasValidCookies();
       await structuredLogger.log(
-        level: 'debug',
+        level: 'info',
         subsystem: 'search',
-        message: 'Cookie validation check',
+        message: 'Cookie validation check before search',
         context: 'search_request',
-        extra: {'has_cookies': hasCookies},
+        extra: {
+          'has_cookies': hasCookies,
+          'checked_sources': ['CookieService', 'CookieJar', 'SecureStorage'],
+          'active_endpoint': activeEndpoint,
+        },
       );
       
       if (!hasCookies) {
@@ -486,8 +537,6 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     // If search fails with auth error, we'll handle it in error handling
 
     // CRITICAL: Use ONLY the active endpoint for search - don't switch mirrors
-    final endpointManager = ref.read(endpointManagerProvider);
-    final activeEndpoint = await endpointManager.getActiveEndpoint();
     final dio = await DioClient.instance;
 
     await structuredLogger.log(
@@ -565,13 +614,14 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               await structuredLogger.log(
                 level: 'info',
                 subsystem: 'search',
-                message: 'Found cookies in CookieService, syncing to Dio',
+                message: 'Syncing cookies before search',
                 context: 'search_request',
                 extra: {
-                  'endpoint': endpoint,
+                  'source': 'CookieService',
                   'url': url,
                   'cookie_header_length': cookieHeader.length,
                   'sync_attempt': syncAttempt + 1,
+                  'max_retries': maxSyncRetries,
                 },
               );
               
@@ -680,23 +730,53 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         'start': _startOffset,
       };
       
-      // Get cookies that will actually be sent (after sync)
-      final finalCookies = cookieJar != null 
+      // Before making search request, ensure cookies are available
+      // Step 6: Check cookies before request and load from SecureStorage if needed
+      var finalCookies = cookieJar != null 
           ? await cookieJar.loadForRequest(searchUri)
           : <io.Cookie>[];
+      
+      if (finalCookies.isEmpty && cookieJar != null) {
+        // Try to load from SecureStorage and sync to CookieJar
+        final simpleCookieManager = SimpleCookieManager();
+        final cookieString = await simpleCookieManager.getCookie(endpoint);
+        
+        if (cookieString != null && cookieString.isNotEmpty) {
+          // Load cookies from SecureStorage to CookieJar
+          await simpleCookieManager.loadCookieToJar(endpoint, cookieJar);
+          
+          // Reload cookies after sync
+          final cookiesAfterLoad = await cookieJar.loadForRequest(searchUri);
+          if (cookiesAfterLoad.isNotEmpty) {
+            finalCookies = cookiesAfterLoad;
+            await structuredLogger.log(
+              level: 'info',
+              subsystem: 'search',
+              message: 'Loaded cookies from SecureStorage to CookieJar',
+              context: 'search_request',
+              extra: {
+                'cookie_count': cookiesAfterLoad.length,
+                'cookie_names': cookiesAfterLoad.map((c) => c.name).toList(),
+              },
+            );
+          }
+        }
+      }
       
       await structuredLogger.log(
         level: 'info',
         subsystem: 'search',
-        message: 'Making search request',
+        message: 'Making search HTTP request',
         context: 'search_request',
         extra: {
           'endpoint': endpoint,
           'request_uri': requestUri,
           'query_params': requestQueryParams,
+          'method': 'GET',
           'cookies_count': finalCookies.length,
           'cookies_names': finalCookies.map((c) => c.name).toList(),
           'will_send_cookies': finalCookies.isNotEmpty,
+          'request_start_time': requestStartTime.toIso8601String(),
         },
       );
       
@@ -716,23 +796,61 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       await structuredLogger.log(
         level: response.statusCode == 200 ? 'info' : 'warning',
         subsystem: 'search',
-        message: 'Search request completed',
+        message: 'Search HTTP response received',
         context: 'search_request',
         durationMs: requestDuration,
         extra: {
           'endpoint': endpoint,
           'status_code': response.statusCode,
-          'response_size': response.data?.toString().length ?? 0,
+          'response_size_bytes': response.data?.toString().length ?? 0,
+          'response_url': response.realUri.toString(),
+          'is_redirect': response.isRedirect,
+          'redirect_location': response.headers.value('location'),
           'cookies_were_sent': finalCookies.isNotEmpty,
           'cookies_sent_count': finalCookies.length,
           'response_headers': {
             'content-type': response.headers.value('content-type'),
-            'set-cookie': response.headers.value('set-cookie') != null ? 'present' : 'absent',
+            'server': response.headers.value('server'),
+            'cf-ray': response.headers.value('cf-ray'),
           },
         },
       );
 
       if (response.statusCode == 200) {
+        // Check response content for login page indicators before parsing
+        final responseText = response.data?.toString().toLowerCase() ?? '';
+        final isLoginPage = responseText.contains('action="https://rutracker') &&
+            responseText.contains('login.php') &&
+            responseText.contains('password');
+        
+        if (isLoginPage) {
+          // This is a login page, not search results
+          await structuredLogger.log(
+            level: 'warning',
+            subsystem: 'search',
+            message: 'Received login page instead of search results',
+            context: 'search_request',
+            extra: {
+              'endpoint': endpoint,
+              'response_preview': responseText.length > 500
+                  ? responseText.substring(0, 500)
+                  : responseText,
+            },
+          );
+          
+          if (mounted) {
+            setState(() {
+              _isLoading = false;
+              _errorKind = 'auth';
+              _errorMessage = AppLocalizations.of(context)
+                      ?.authorizationFailedMessage ??
+                  'Authentication required. Please log in.';
+              safeUnawaited(_handleLogin());
+            });
+          }
+          return;
+        }
+        
         List<Map<String, dynamic>> results;
         try {
           final parsedResults = await _parser.parseSearchResults(response.data);
@@ -743,8 +861,37 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           // or by checking the title/content for audiobook indicators
           final audiobookResults = _filterAudiobookResults(parsedResults);
           
+          await structuredLogger.log(
+            level: 'info',
+            subsystem: 'search',
+            message: 'Parsing search results',
+            context: 'search_request',
+            extra: {
+              'endpoint': endpoint,
+              'response_size_bytes': response.data?.toString().length ?? 0,
+              'parsed_results_count': parsedResults.length,
+              'filtered_audiobook_count': audiobookResults.length,
+            },
+          );
+          
           results = audiobookResults.map(_audiobookToMap).toList();
         } on ParsingFailure catch (e) {
+          // Enhanced logging for parsing failures
+          final responseText = response.data?.toString() ?? '';
+          final responseTextLower = responseText.toLowerCase();
+          final hasSearchForm = responseTextLower.contains('form[action*="tracker"]') ||
+              responseTextLower.contains('input[name="nm"]') ||
+              responseTextLower.contains('form#quick-search');
+          final hasSearchPageElements = responseTextLower.contains('div.tcenter') ||
+              responseTextLower.contains('table.forumline') ||
+              responseTextLower.contains('div.nav');
+          final hasAccessDenied = responseTextLower.contains('доступ запрещен') ||
+              responseTextLower.contains('access denied') ||
+              responseTextLower.contains('требуется авторизация');
+          final isLoginPage = responseTextLower.contains('action="https://rutracker') &&
+              responseTextLower.contains('login.php') &&
+              responseTextLower.contains('password');
+          
           await structuredLogger.log(
             level: 'error',
             subsystem: 'search',
@@ -754,18 +901,30 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             extra: {
               'endpoint': endpoint,
               'status_code': response.statusCode,
-              'response_size': response.data?.toString().length ?? 0,
-              'response_preview': response.data?.toString().length != null && response.data!.toString().length > 500
-                  ? response.data!.toString().substring(0, 500)
-                  : response.data?.toString() ?? '<empty>',
+              'response_size': responseText.length,
+              'response_preview': responseText.length > 1000
+                  ? responseText.substring(0, 1000)
+                  : responseText,
               'error_type': 'ParsingFailure',
+              'page_analysis': {
+                'has_search_form': hasSearchForm,
+                'has_search_page_elements': hasSearchPageElements,
+                'has_access_denied': hasAccessDenied,
+                'is_login_page': isLoginPage,
+              },
             },
           );
           
-          // Check if parsing failure indicates authentication issue
-          final isAuthError = e.message.toLowerCase().contains('authentication') ||
-              e.message.toLowerCase().contains('log in') ||
-              e.message.toLowerCase().contains('require');
+          // Improved check for authentication error (more specific)
+          // Check for specific authentication-related phrases
+          final errorMessageLower = e.message.toLowerCase();
+          final isAuthError = errorMessageLower.contains('page appears to require authentication') ||
+              errorMessageLower.contains('please log in first') ||
+              (errorMessageLower.contains('authentication') && 
+               errorMessageLower.contains('log in')) ||
+              // Check response content for login page indicators
+              isLoginPage ||
+              (hasAccessDenied && !hasSearchForm);
           
           if (mounted) {
             setState(() {
@@ -917,48 +1076,62 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       }
 
       // Log detailed error information
+      final errorType = switch (e.type) {
+        DioExceptionType.connectionTimeout => 'Connection timeout',
+        DioExceptionType.sendTimeout => 'Send timeout',
+        DioExceptionType.receiveTimeout => 'Receive timeout',
+        DioExceptionType.badResponse => 'Bad response',
+        DioExceptionType.cancel => 'Request cancelled',
+        DioExceptionType.connectionError => 'Connection error',
+        DioExceptionType.badCertificate => 'Bad certificate',
+        DioExceptionType.unknown => 'Unknown error',
+      };
+
       await structuredLogger.log(
         level: 'error',
         subsystem: 'search',
-        message: 'Search request failed',
+        message: 'Search request failed with DioException',
         context: 'search_request',
         cause: e.toString(),
         extra: {
           'endpoint': endpoint,
-          'error_type': e.type.toString(),
-          'error_message': e.message,
+          'error_type': errorType,
           'status_code': e.response?.statusCode,
-          'response_data_preview': e.response?.data?.toString().length != null 
-              ? (e.response!.data!.toString().length > 200 
-                  ? e.response!.data!.toString().substring(0, 200) 
-                  : e.response!.data!.toString())
-              : 'null',
-          'is_auth_error': e.response?.statusCode == 401 || e.response?.statusCode == 403,
-          'request_path': e.requestOptions.path,
-          'request_method': e.requestOptions.method,
-          'request_headers': e.requestOptions.headers,
+          'response_data_preview': e.response?.data?.toString().length != null && 
+              e.response!.data.toString().length > 500
+              ? e.response!.data.toString().substring(0, 500)
+              : e.response?.data?.toString() ?? '<empty>',
+          'request_url': e.requestOptions.uri.toString(),
+          'query_params': e.requestOptions.queryParameters,
         },
       );
 
-      // Handle auth errors
-      if (e.response?.statusCode == 401 || e.response?.statusCode == 403 ||
-          (e.message?.contains('Authentication required') ?? false)) {
-        if (mounted) {
-          setState(() {
-            _isLoading = false;
+      // Check if error indicates authentication issue
+      final isAuthError = e.response?.statusCode == 401 ||
+          e.response?.statusCode == 403 ||
+          (e.response?.data?.toString().toLowerCase().contains('login') ?? false) ||
+          (e.response?.data?.toString().toLowerCase().contains('авторизация') ?? false) ||
+          (e.message?.toLowerCase().contains('authentication') ?? false);
+
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          if (isAuthError) {
             _errorKind = 'auth';
             _errorMessage = AppLocalizations.of(context)
                     ?.authorizationFailedMessage ??
                 'Authentication required. Please log in.';
-          });
-          safeUnawaited(_handleLogin());
-        }
-        return;
+            safeUnawaited(_handleLogin());
+          } else {
+            _errorKind = 'network';
+            _errorMessage = 'Search failed: $errorType';
+          }
+        });
       }
-
+      
       // Handle connection errors
-      if (e.type == DioExceptionType.connectionError ||
-          e.type == DioExceptionType.connectionTimeout) {
+      if (!isAuthError && (e.type == DioExceptionType.connectionError ||
+          e.type == DioExceptionType.connectionTimeout)) {
         final message = e.message?.toLowerCase() ?? '';
         final isDnsError = message.contains('host lookup') ||
             message.contains('no address associated with hostname') ||

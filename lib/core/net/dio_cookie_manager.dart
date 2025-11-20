@@ -18,8 +18,10 @@ import 'dart:io' as io;
 
 import 'package:cookie_jar/cookie_jar.dart';
 import 'package:dio/dio.dart';
+import 'package:jabook/core/auth/simple_cookie_manager.dart';
 import 'package:jabook/core/endpoints/endpoint_manager.dart';
 import 'package:jabook/core/logging/structured_logger.dart';
+import 'package:jabook/core/net/dio_client.dart';
 import 'package:jabook/core/services/cookie_service.dart';
 import 'package:jabook/data/db/app_database.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -601,10 +603,7 @@ class DioCookieManager {
     final startTime = DateTime.now();
 
     try {
-      // CRITICAL: Check CookieService (Android CookieManager) first - this is the primary source
-      // after WebView login. CookieService is the single source of truth for cookies on Android.
-      
-      // Try all RuTracker domains to find cookies
+      // Step 1: Check CookieService (Android CookieManager) first - primary source
       final rutrackerDomains = EndpointManager.getRutrackerDomains();
       for (final domain in rutrackerDomains) {
         try {
@@ -625,6 +624,7 @@ class DioCookieManager {
                 extra: {
                   'domain': domain,
                   'cookie_header_length': cookieHeader.length,
+                  'source': 'CookieService',
                 },
               );
               return true;
@@ -636,7 +636,88 @@ class DioCookieManager {
         }
       }
 
-      // Fallback: Check SharedPreferences (WebView storage)
+      // Step 2: Check CookieJar (fallback) - cookies may be here after direct HTTP login
+      try {
+        final jar = await DioClient.getCookieJar();
+        if (jar != null) {
+          final db = AppDatabase().database;
+          final endpointManager = EndpointManager(db);
+          final activeBase = await endpointManager.getActiveEndpoint();
+          final uri = Uri.parse(activeBase);
+          final cookies = await jar.loadForRequest(uri);
+          
+          if (cookies.isNotEmpty) {
+            // Check if we have session cookies
+            final hasSessionCookie = cookies.any((c) => 
+              c.name.toLowerCase().contains('session') || 
+              c.name == 'bb_session' || 
+              c.name == 'bb_data'
+            );
+            
+            if (hasSessionCookie) {
+              await logger.log(
+                level: 'info',
+                subsystem: 'cookies',
+                message: 'Found valid cookies in CookieJar',
+                operationId: operationId,
+                context: 'has_valid_cookies',
+                durationMs: DateTime.now().difference(startTime).inMilliseconds,
+                extra: {
+                  'cookie_count': cookies.length,
+                  'cookie_names': cookies.map((c) => c.name).toList(),
+                  'source': 'CookieJar',
+                },
+              );
+              return true;
+            }
+          }
+        }
+      } on Exception catch (e) {
+      await logger.log(
+        level: 'debug',
+        subsystem: 'cookies',
+        message: 'Error checking CookieJar',
+        operationId: operationId,
+        context: 'has_valid_cookies',
+        cause: e.toString(),
+      );
+    }
+
+      // Step 3: Check SecureStorage (fallback) - cookies may be here after direct HTTP login
+      try {
+        final db = AppDatabase().database;
+        final endpointManager = EndpointManager(db);
+        final activeBase = await endpointManager.getActiveEndpoint();
+        final simpleCookieManager = SimpleCookieManager();
+        final cookieString = await simpleCookieManager.getCookie(activeBase);
+        
+        if (cookieString != null && cookieString.isNotEmpty && cookieString.contains('bb_session=')) {
+          await logger.log(
+            level: 'info',
+            subsystem: 'cookies',
+            message: 'Found valid cookies in SecureStorage',
+            operationId: operationId,
+            context: 'has_valid_cookies',
+            durationMs: DateTime.now().difference(startTime).inMilliseconds,
+            extra: {
+              'cookie_length': cookieString.length,
+              'source': 'SecureStorage',
+            },
+          );
+          return true;
+        }
+      } on Exception catch (e) {
+        await logger.log(
+          level: 'debug',
+          subsystem: 'cookies',
+          message: 'Error checking SecureStorage',
+          operationId: operationId,
+          context: 'has_valid_cookies',
+          cause: e.toString(),
+        );
+      }
+
+      // Step 4: Check SharedPreferences (WebView storage) - legacy fallback
       try {
         final prefs = await SharedPreferences.getInstance();
         final cookieJson = prefs.getString('rutracker_cookies_v1');
@@ -663,6 +744,9 @@ class DioCookieManager {
                     operationId: operationId,
                     context: 'has_valid_cookies',
                     durationMs: DateTime.now().difference(startTime).inMilliseconds,
+                    extra: {
+                      'source': 'SharedPreferences',
+                    },
                   );
                   return true;
                 }
@@ -679,10 +763,13 @@ class DioCookieManager {
       await logger.log(
         level: 'debug',
         subsystem: 'cookies',
-        message: 'No valid cookies found',
+        message: 'No valid cookies found in any source',
         operationId: operationId,
         context: 'has_valid_cookies',
         durationMs: DateTime.now().difference(startTime).inMilliseconds,
+        extra: {
+          'checked_sources': ['CookieService', 'CookieJar', 'SecureStorage', 'SharedPreferences'],
+        },
       );
       return false;
     } on Exception catch (e) {

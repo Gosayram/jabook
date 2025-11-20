@@ -19,6 +19,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:jabook/core/favorites/favorites_service.dart';
+import 'package:jabook/core/utils/file_picker_utils.dart' as file_picker_utils;
+import 'package:jabook/core/utils/responsive_utils.dart';
 import 'package:jabook/data/db/app_database.dart';
 import 'package:jabook/l10n/app_localizations.dart';
 import 'package:path/path.dart' as path;
@@ -171,15 +173,17 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
           ],
         ),
         body: const _LibraryContent(),
-        floatingActionButton: FloatingActionButton(
-          onPressed: () {
-            // Navigate to search screen for now - FAB functionality
-            context.go('/search');
-          },
-          tooltip: AppLocalizations.of(context)?.addAudiobookTooltip ??
-              'Add audiobook',
-          child: const Icon(Icons.add),
-        ),
+        floatingActionButton: ResponsiveUtils.isDesktop(context)
+            ? null // Hide FAB on desktop, use app bar actions instead
+            : FloatingActionButton(
+                onPressed: () {
+                  // Navigate to search screen for now - FAB functionality
+                  context.go('/search');
+                },
+                tooltip: AppLocalizations.of(context)?.addAudiobookTooltip ??
+                    'Add audiobook',
+                child: const Icon(Icons.add),
+              ),
       );
 }
 
@@ -192,35 +196,55 @@ class _LibraryContent extends ConsumerWidget {
   const _LibraryContent();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) => Center(
+  Widget build(BuildContext context, WidgetRef ref) {
+    final padding = ResponsiveUtils.getResponsivePadding(context);
+    final iconSize = ResponsiveUtils.getIconSize(context, baseSize: 64);
+    final spacing = ResponsiveUtils.getSpacing(context, baseSpacing: 16);
+    
+    return ResponsiveUtils.responsiveContainer(
+      context,
+      Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Semantics(
               label: 'Empty library',
-              child: const Icon(Icons.library_books_outlined,
-                  size: 64, color: Colors.grey),
+              child: Icon(
+                Icons.library_books_outlined,
+                size: iconSize,
+                color: Colors.grey,
+              ),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: spacing),
             Text(
               AppLocalizations.of(context)?.libraryEmptyMessage ??
                   'Your library is empty',
-              style: Theme.of(context).textTheme.titleMedium,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontSize: (Theme.of(context).textTheme.titleMedium?.fontSize ?? 16) *
+                        ResponsiveUtils.getFontSizeMultiplier(context),
+                  ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 8),
-            Text(
-              AppLocalizations.of(context)?.addAudiobooksHint ??
-                  'Add audiobooks to your library to start listening',
-              style: Theme.of(context)
-                  .textTheme
-                  .bodyMedium
-                  ?.copyWith(color: Colors.grey),
-              textAlign: TextAlign.center,
+            SizedBox(height: spacing / 2),
+            Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: ResponsiveUtils.getHorizontalPadding(context),
+              ),
+              child: Text(
+                AppLocalizations.of(context)?.addAudiobooksHint ??
+                    'Add audiobooks to your library to start listening',
+                style: Theme.of(context)
+                    .textTheme
+                    .bodyMedium
+                    ?.copyWith(color: Colors.grey),
+                textAlign: TextAlign.center,
+              ),
             ),
-            const SizedBox(height: 24),
-            Column(
-              mainAxisSize: MainAxisSize.min,
+            SizedBox(height: spacing * 1.5),
+            Wrap(
+              spacing: spacing,
+              runSpacing: spacing,
+              alignment: WrapAlignment.center,
               children: [
                 Semantics(
                   button: true,
@@ -234,7 +258,6 @@ class _LibraryContent extends ConsumerWidget {
                     onPressed: () => context.go('/search'),
                   ),
                 ),
-                const SizedBox(height: 12),
                 Semantics(
                   button: true,
                   label: 'Import audiobooks from files',
@@ -247,7 +270,6 @@ class _LibraryContent extends ConsumerWidget {
                     onPressed: () => _showImportDialog(context),
                   ),
                 ),
-                const SizedBox(height: 12),
                 Semantics(
                   button: true,
                   label: 'Scan folder for audiobooks',
@@ -263,25 +285,44 @@ class _LibraryContent extends ConsumerWidget {
             ),
           ],
         ),
-      );
+      ),
+      padding: padding,
+    );
+  }
 
   Widget _buildActionButton(
     BuildContext context, {
     required IconData icon,
     required String label,
     required VoidCallback onPressed,
-  }) =>
-      SizedBox(
-        width: 200,
-        child: OutlinedButton.icon(
-          icon: Icon(icon, size: 20),
-          label: Text(label),
-          onPressed: onPressed,
-          style: OutlinedButton.styleFrom(
-            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+  }) {
+    final isDesktop = ResponsiveUtils.isDesktop(context);
+    final isTablet = ResponsiveUtils.isTablet(context);
+    final buttonWidth = isDesktop ? 220.0 : (isTablet ? 200.0 : 180.0);
+    final iconSize = ResponsiveUtils.getIconSize(context, baseSize: 20);
+    final padding = ResponsiveUtils.getSpacing(context, baseSpacing: 12);
+    
+    return SizedBox(
+      width: buttonWidth,
+      child: OutlinedButton.icon(
+        icon: Icon(icon, size: iconSize),
+        label: Text(
+          label,
+          style: TextStyle(
+            fontSize: (Theme.of(context).textTheme.bodyMedium?.fontSize ?? 14) *
+                ResponsiveUtils.getFontSizeMultiplier(context),
           ),
         ),
-      );
+        onPressed: onPressed,
+        style: OutlinedButton.styleFrom(
+          padding: EdgeInsets.symmetric(
+            vertical: padding,
+            horizontal: padding * 1.33,
+          ),
+        ),
+      ),
+    );
+  }
 
   // Removed unused method
 
@@ -391,7 +432,8 @@ class _LibraryContent extends ConsumerWidget {
     Navigator.pop(context);
 
     try {
-      final directory = await FilePicker.platform.getDirectoryPath();
+      // Use the utility function which has better error handling
+      final directory = await file_picker_utils.pickDirectory();
 
       if (directory != null) {
         final dir = Directory(directory);
@@ -433,12 +475,15 @@ class _LibraryContent extends ConsumerWidget {
           }
         }
       } else {
+        // Directory is null - user may have cancelled or there was an issue
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
                 content: Text(
                     AppLocalizations.of(context)?.noFolderSelectedMessage ??
-                        'No folder selected')),
+                        'No folder selected. Please try again or check app permissions.'),
+                duration: const Duration(seconds: 3),
+            ),
           );
         }
       }

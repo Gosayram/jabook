@@ -14,6 +14,7 @@
 
 import 'dart:async';
 
+import 'package:device_preview/device_preview.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -110,10 +111,20 @@ void main() {
     // This helps on new Android versions where initialization timing is critical
     Future.delayed(const Duration(milliseconds: 100), () {
       // Run app with performance optimizations
+      // Wrap app in DevicePreview for visual debugging (only in debug mode)
+      const app = ProviderScope(
+        child: JaBookApp(),
+      );
+      
       runApp(
-        const ProviderScope(
-          child: JaBookApp(),
-        ),
+        kDebugMode
+            ? DevicePreview(
+                // Use default devices plus popular Android devices
+                builder: (context) => app,
+                // Store device settings in memory (not persistent)
+                storage: DevicePreviewStorage.none(),
+              )
+            : app,
       );
     });
   }, (error, stackTrace) {

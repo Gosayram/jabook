@@ -18,6 +18,7 @@ import 'dart:io' as io;
 import 'package:cookie_jar/cookie_jar.dart';
 import 'package:dio/dio.dart';
 import 'package:dio_cookie_manager/dio_cookie_manager.dart' as dio_cookie;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:jabook/core/auth/simple_cookie_manager.dart';
 import 'package:jabook/core/endpoints/endpoint_manager.dart';
@@ -90,6 +91,12 @@ class DioClient {
       },
     );
 
+    // Interceptors are added in a specific order (executed in reverse order):
+    // 1. LoggingInterceptor (first - logs all requests/responses)
+    // 2. AuthAndRetryInterceptor (second - handles auth errors and retries)
+    // 3. CookieManager (third - manages cookies)
+    // 4. SessionInterceptor (fourth - validates session)
+    
     // Add structured logging interceptor
     dio.interceptors.add(DioInterceptors.createLoggingInterceptor(
       appStartTime: _appStartTime,
@@ -239,8 +246,10 @@ class DioClient {
     await DioCookieManager.clearCookies(_cookieJar);
     // Also clear from SecureStorage
     await clearCookiesFromSecureStorage();
-    // Clear from CookieManager (Kotlin)
-    await CookieService.clearAllCookies();
+    // Clear from CookieManager (Kotlin) - Android only
+    if (!kIsWeb) {
+      await CookieService.clearAllCookies();
+    }
   }
 
   /// Checks if valid cookies are available for authentication.
@@ -434,9 +443,36 @@ class DioClient {
         await jar.saveFromResponse(baseUri, cookies);
       }
 
-      // Also save to all RuTracker domains for compatibility
-      // This ensures cookies work when switching between mirrors
+      // CRITICAL: Save cookies to CookieService (Android CookieManager) for all RuTracker domains
+      // This ensures cookies are available for WebView and other components
       final rutrackerDomains = EndpointManager.getRutrackerDomains();
+      var savedToCookieServiceCount = 0;
+      for (final domain in rutrackerDomains) {
+        try {
+          final domainUrl = 'https://$domain';
+          for (final cookie in cookies) {
+            // Format for Android CookieManager: "name=value; path=/; domain=example.com"
+            final cookieString = '${cookie.name}=${cookie.value}; path=${cookie.path ?? '/'}; domain=$domain';
+            final success = await CookieService.setCookie(domainUrl, cookieString);
+            if (success) {
+              savedToCookieServiceCount++;
+            }
+          }
+        } on Exception catch (e) {
+          await logger.log(
+            level: 'debug',
+            subsystem: 'cookies',
+            message: 'Failed to save cookie to CookieService for domain',
+            operationId: operationId,
+            context: 'cookie_sync_service',
+            cause: e.toString(),
+            extra: {'domain': domain},
+          );
+        }
+      }
+      
+      // Also save to all RuTracker domains in CookieJar for compatibility
+      // This ensures cookies work when switching between mirrors
       for (final domain in rutrackerDomains) {
         if (domain != uri.host) {
           try {
@@ -465,6 +501,25 @@ class DioClient {
             );
           }
         }
+      }
+      
+      // Log successful save to CookieService
+      if (savedToCookieServiceCount > 0) {
+        // CRITICAL: Flush cookies to ensure they are persisted to disk
+        await CookieService.flushCookies();
+        
+        await logger.log(
+          level: 'info',
+          subsystem: 'cookies',
+          message: 'Cookies saved to CookieService and flushed to disk',
+          operationId: operationId,
+          context: 'cookie_sync_service',
+          extra: {
+            'saved_count': savedToCookieServiceCount,
+            'total_cookies': cookies.length,
+            'domains': rutrackerDomains,
+          },
+        );
       }
       
       // CRITICAL: Verify cookies were saved by loading them back
@@ -625,10 +680,12 @@ class DioClient {
         },
       );
 
-      // Sync cookies to CookieManager (Kotlin) first
-      await CookieService.setCookie(url, cookieHeader);
+      // Sync cookies to CookieManager (Kotlin) first - Android only
+      if (!kIsWeb) {
+        await CookieService.setCookie(url, cookieHeader);
+      }
 
-      // Sync cookies to Dio CookieJar
+      // Sync cookies to Dio CookieJar (works on all platforms)
       await syncCookiesFromCookieService(cookieHeader, url);
 
       final duration = DateTime.now().difference(startTime).inMilliseconds;

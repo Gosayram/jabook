@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart';
 import 'package:jabook/core/logging/structured_logger.dart';
 
@@ -20,6 +21,9 @@ import 'package:jabook/core/logging/structured_logger.dart';
 /// This service provides a bridge between Flutter and Android's native
 /// CookieManager, allowing Flutter to read and manage cookies that are
 /// set by WebView. This is the single source of truth for cookies on Android.
+///
+/// Note: This service is Android-only. On web, cookies are managed by the browser
+/// and Dio's CookieJar. All methods return null/false on web platform.
 class CookieService {
   /// Private constructor to prevent instantiation.
   const CookieService._();
@@ -32,7 +36,21 @@ class CookieService {
   /// Returns null if no cookies are available or if an error occurs.
   ///
   /// The [url] parameter is the URL to get cookies for (e.g., "https://rutracker.org").
+  ///
+  /// Note: On web platform, this returns null as cookies are managed by the browser.
   static Future<String?> getCookiesForUrl(String url) async {
+    // CookieService is Android-only, return null on web
+    if (kIsWeb) {
+      await StructuredLogger().log(
+        level: 'debug',
+        subsystem: 'cookies',
+        message: 'CookieService.getCookiesForUrl called on web platform (not supported)',
+        context: 'cookie_service',
+        extra: {'url': url, 'platform': 'web'},
+      );
+      return null;
+    }
+
     final operationId = 'cookie_get_${DateTime.now().millisecondsSinceEpoch}';
     final startTime = DateTime.now();
 
@@ -107,7 +125,21 @@ class CookieService {
   /// The [cookie] parameter is the cookie string in the format "name=value; path=/; domain=example.com".
   ///
   /// Returns true if the cookie was set successfully, false otherwise.
+  ///
+  /// Note: On web platform, this returns false as cookies are managed by the browser.
   static Future<bool> setCookie(String url, String cookie) async {
+    // CookieService is Android-only, return false on web
+    if (kIsWeb) {
+      await StructuredLogger().log(
+        level: 'debug',
+        subsystem: 'cookies',
+        message: 'CookieService.setCookie called on web platform (not supported)',
+        context: 'cookie_service',
+        extra: {'url': url, 'platform': 'web'},
+      );
+      return false;
+    }
+
     final operationId = 'cookie_set_${DateTime.now().millisecondsSinceEpoch}';
     final startTime = DateTime.now();
 
@@ -183,7 +215,21 @@ class CookieService {
   ///
   /// This method ensures that all pending cookie changes are persisted.
   /// Returns true if flush was successful, false otherwise.
+  ///
+  /// Note: On web platform, this returns false as cookies are managed by the browser.
   static Future<bool> flushCookies() async {
+    // CookieService is Android-only, return false on web
+    if (kIsWeb) {
+      await StructuredLogger().log(
+        level: 'debug',
+        subsystem: 'cookies',
+        message: 'CookieService.flushCookies called on web platform (not supported)',
+        context: 'cookie_service',
+        extra: {'platform': 'web'},
+      );
+      return false;
+    }
+
     final operationId = 'cookie_flush_${DateTime.now().millisecondsSinceEpoch}';
     final startTime = DateTime.now();
 
@@ -246,7 +292,21 @@ class CookieService {
   /// Clears all cookies from Android CookieManager.
   ///
   /// Returns true if cookies were cleared successfully, false otherwise.
+  ///
+  /// Note: On web platform, this returns false as cookies are managed by the browser.
   static Future<bool> clearAllCookies() async {
+    // CookieService is Android-only, return false on web
+    if (kIsWeb) {
+      await StructuredLogger().log(
+        level: 'debug',
+        subsystem: 'cookies',
+        message: 'CookieService.clearAllCookies called on web platform (not supported)',
+        context: 'cookie_service',
+        extra: {'platform': 'web'},
+      );
+      return false;
+    }
+
     final operationId = 'cookie_clear_${DateTime.now().millisecondsSinceEpoch}';
     final startTime = DateTime.now();
 

@@ -136,6 +136,12 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
           final errorMsg = e.toString().toLowerCase();
           if (errorMsg.contains('timeout') || errorMsg.contains('connection')) {
             _statusMessage = 'Network error. Please check your connection and try again.';
+          } else if (errorMsg.contains('authentication required') ||
+              errorMsg.contains('network null') ||
+              errorMsg.contains('null')) {
+            // Handle authentication errors that might show as "network null"
+            _statusMessage = AppLocalizations.of(context)?.loginFailedMessage ??
+                'Authentication failed. Please check your credentials and try again.';
           } else {
             final errorString = e.toString();
             _statusMessage = AppLocalizations.of(context)?.loginFailedMessage ??

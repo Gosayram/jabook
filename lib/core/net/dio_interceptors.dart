@@ -280,6 +280,15 @@ class DioInterceptors {
   static Interceptor createAuthAndRetryInterceptor(Dio dio) =>
       InterceptorsWrapper(
       onResponse: (response, handler) {
+        final requestUri = response.requestOptions.uri.toString();
+        final isLoginRequest = requestUri.contains('/forum/login.php');
+        
+        // Skip auth checks for login requests - 302 is success for login
+        // In Python parser: allow_redirects=False, 302 with cookies = success
+        if (isLoginRequest) {
+          return handler.next(response);
+        }
+        
         // Check if we got redirected to login page instead of the requested resource
         if (response.realUri.toString().contains('login.php') &&
             response.requestOptions.uri.toString().contains('rutracker')) {

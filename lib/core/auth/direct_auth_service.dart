@@ -171,8 +171,20 @@ class DirectAuthService {
       final requestDuration =
           DateTime.now().difference(requestStartTime).inMilliseconds;
 
+      // Log response details including redirect info
+      // In Python parser: 302 with cookies = success (allow_redirects=False)
+      final isRedirect = response.statusCode == 302 || response.statusCode == 301;
+      final locationHeader = response.headers.value('location') ?? '';
+      final setCookieHeaders = response.headers['set-cookie'];
+
+      // Log all response headers for debugging
+      final allHeaders = <String, dynamic>{};
+      response.headers.forEach((key, values) {
+        allHeaders[key] = values.length == 1 ? values.first : values;
+      });
+      
       await logger.log(
-        level: 'debug',
+        level: 'info', // Changed to 'info' to ensure it's logged
         subsystem: 'auth',
         message: 'Authentication request completed',
         operationId: operationId,
@@ -180,18 +192,61 @@ class DirectAuthService {
         durationMs: requestDuration,
         extra: {
           'status_code': response.statusCode,
+          'is_redirect': isRedirect,
+          'location_header': locationHeader,
           'response_size': response.data?.toString().length ?? 0,
-          'has_cookies': response.headers.value('set-cookie') != null,
+          'has_cookies': setCookieHeaders != null && setCookieHeaders.isNotEmpty,
+          'set_cookie_headers_count': setCookieHeaders?.length ?? 0,
+          'all_response_headers': allHeaders,
+          'set_cookie_headers': setCookieHeaders?.toList() ?? [],
         },
       );
 
       // Step 4: Extract and validate cookies
       final cookieExtractStartTime = DateTime.now();
+      
+      // Log cookie extraction for debugging (always log, even if no cookies)
+      await logger.log(
+        level: 'info', // Changed to 'info' to ensure it's logged
+        subsystem: 'auth',
+        message: 'Extracting cookies from response',
+        operationId: operationId,
+        context: 'direct_auth',
+        extra: {
+          'set_cookie_headers_count': setCookieHeaders?.length ?? 0,
+          'set_cookie_headers_preview': setCookieHeaders != null && setCookieHeaders.isNotEmpty
+              ? setCookieHeaders
+                  .map((h) => h.length > 100 ? '${h.substring(0, 100)}...' : h)
+                  .toList()
+              : <String>[],
+          'set_cookie_headers_full': setCookieHeaders?.toList() ?? [],
+        },
+      );
+      
       final cookieString = _extractCookie(response);
       final cookieExtractDuration =
           DateTime.now().difference(cookieExtractStartTime).inMilliseconds;
+      
+      // Log cookie extraction result
+      await logger.log(
+        level: 'info',
+        subsystem: 'auth',
+        message: 'Cookie extraction completed',
+        operationId: operationId,
+        context: 'direct_auth',
+        durationMs: cookieExtractDuration,
+        extra: {
+          'cookie_found': cookieString != null,
+          'cookie_length': cookieString?.length ?? 0,
+          'cookie_preview': cookieString != null && cookieString.length > 50
+              ? '${cookieString.substring(0, 50)}...'
+              : cookieString,
+        },
+      );
 
       if (cookieString != null) {
+        // Success: cookies found (even with 302 status)
+        // In Python parser: 302 with bb_session cookie = success
         await logger.log(
           level: 'info',
           subsystem: 'auth',
@@ -201,6 +256,9 @@ class DirectAuthService {
           durationMs: DateTime.now().difference(startTime).inMilliseconds,
           extra: {
             'cookie_length': cookieString.length,
+            'status_code': response.statusCode,
+            'is_302_redirect': response.statusCode == 302,
+            'location_header': locationHeader,
             'steps': {
               'encode_ms': encodeDuration,
               'form_data_ms': formDataDuration,
@@ -319,7 +377,10 @@ class DirectAuthService {
   String? _extractCookie(Response response) {
     // Check Set-Cookie header
     // Dio stores Set-Cookie headers in response.headers['set-cookie'] as List<String>
-    final setCookieHeaders = response.headers['set-cookie'];
+    // Note: Dio headers are case-insensitive, but we check both lowercase and title case
+    final setCookieHeaders = response.headers['set-cookie'] ?? 
+                             response.headers['Set-Cookie'];
+    
     if (setCookieHeaders != null && setCookieHeaders.isNotEmpty) {
       for (final cookieHeader in setCookieHeaders) {
         // Cookie header format: "bb_session=value; path=/; domain=..."
@@ -339,8 +400,9 @@ class DirectAuthService {
       }
     }
 
-    // Also check response.headers.value('set-cookie') as fallback
-    final setCookieValue = response.headers.value('set-cookie');
+    // Also check response.headers.value('set-cookie') as fallback (case-insensitive)
+    final setCookieValue = response.headers.value('set-cookie') ??
+                           response.headers.value('Set-Cookie');
     if (setCookieValue != null && setCookieValue.contains('bb_session=')) {
       final match = RegExp(r'bb_session=([^;]+)').firstMatch(setCookieValue);
       if (match != null) {
@@ -349,6 +411,23 @@ class DirectAuthService {
           return 'bb_session=$sessionValue; bb_ssl=1';
         }
       }
+    }
+    
+    // Try to get cookies from CookieManager if available
+    // This is a fallback in case cookies are already processed by CookieManager
+    try {
+      final cookieManager = response.requestOptions.headers['Cookie'];
+      if (cookieManager != null && cookieManager.toString().contains('bb_session=')) {
+        final match = RegExp(r'bb_session=([^;]+)').firstMatch(cookieManager.toString());
+        if (match != null) {
+          final sessionValue = match.group(1)?.trim();
+          if (sessionValue != null && sessionValue.isNotEmpty) {
+            return 'bb_session=$sessionValue; bb_ssl=1';
+          }
+        }
+      }
+    } on Exception {
+      // Ignore errors in fallback
     }
 
     return null;
@@ -361,6 +440,17 @@ class DirectAuthService {
   /// In Python parser, errors are checked by searching for CP1251-encoded error strings
   /// in the response content. We decode the response and check for error patterns.
   String? _checkForErrors(Response response) {
+    // If 302 redirect but no cookies, check for error messages
+    // In Python parser: 302 without cookies = authentication failed
+    if (response.statusCode == 302) {
+      // Check location header - if redirects to login, it's an error
+      final location = response.headers.value('location') ?? '';
+      if (location.contains('login.php')) {
+        // Redirected back to login = authentication failed
+        return 'Authentication failed - redirected to login';
+      }
+    }
+    
     final responseBody = response.data;
     if (responseBody == null) {
       return 'No response body';

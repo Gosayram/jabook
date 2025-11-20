@@ -17,7 +17,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
 import 'package:jabook/app/router/app_router.dart';
 import 'package:jabook/app/theme/app_theme.dart';
 import 'package:jabook/core/auth/rutracker_auth.dart';
@@ -39,6 +38,7 @@ import 'package:jabook/features/auth/data/providers/auth_provider.dart';
 import 'package:jabook/features/auth/data/repositories/auth_repository_impl.dart';
 import 'package:jabook/features/permissions/presentation/widgets/permissions_onboarding_dialog.dart';
 import 'package:jabook/l10n/app_localizations.dart';
+import 'package:responsive_framework/responsive_framework.dart';
 
 /// Main application widget for JaBook audiobook player.
 ///
@@ -627,7 +627,7 @@ class _JaBookAppState extends ConsumerState<JaBookApp> {
             routerConfig: router,
             debugShowCheckedModeBanner: config.isDebug,
             scaffoldMessengerKey: config.isDebug ? _scaffoldMessengerKey : null,
-            // Performance optimizations
+            // Performance optimizations and responsive framework
             builder: (context, child) {
               // Track first frame render time
               final appStartTime = _appStartTime;
@@ -660,15 +660,25 @@ class _JaBookAppState extends ConsumerState<JaBookApp> {
               if (mediaQuery == null) {
                 return child ?? const SizedBox.shrink();
               }
-              return MediaQuery(
-                // Use text scaler from device but clamp it for consistency
-                data: mediaQuery.copyWith(
-                  textScaler: mediaQuery.textScaler.clamp(
-                        minScaleFactor: 0.8,
-                        maxScaleFactor: 1.2,
-                      ),
+              
+              // Wrap with ResponsiveFramework for adaptive UI
+              return ResponsiveBreakpoints.builder(
+                child: MediaQuery(
+                  // Use text scaler from device but clamp it for consistency
+                  data: mediaQuery.copyWith(
+                    textScaler: mediaQuery.textScaler.clamp(
+                          minScaleFactor: 0.8,
+                          maxScaleFactor: 1.2,
+                        ),
+                  ),
+                  child: child ?? const SizedBox.shrink(),
                 ),
-                child: child ?? const SizedBox.shrink(),
+                breakpoints: [
+                  const Breakpoint(start: 0, end: 450, name: MOBILE),
+                  const Breakpoint(start: 451, end: 800, name: TABLET),
+                  const Breakpoint(start: 801, end: 1920, name: DESKTOP),
+                  const Breakpoint(start: 1921, end: double.infinity, name: '4K'),
+                ],
               );
             },
             localizationsDelegates: const [

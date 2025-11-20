@@ -187,25 +187,47 @@ class RuTrackerParser {
       
       // If no rows found, check if page structure is unexpected
       if (topicRows.isEmpty) {
-        // Check if this might be an error page or empty results page
+        // Improved check for search form (more reliable)
         final hasSearchForm = document.querySelector('form[action*="tracker"]') != null ||
+            document.querySelector('form[action*="search"]') != null ||
             document.querySelector('input[name="nm"]') != null ||
-            document.querySelector('form#quick-search-guest') != null;
+            document.querySelector('form#quick-search-guest') != null ||
+            document.querySelector('form#quick-search') != null;
+        
+        // Check for search page elements (even if results are empty)
+        final hasSearchPageElements = document.querySelector('div.tCenter') != null ||
+            document.querySelector('table.forumline') != null ||
+            document.querySelector('div.nav') != null;
         
         // Check if this is the main index page (not search results)
         final isIndexPage = document.querySelector('div#forums_list_wrap') != null ||
             document.querySelector('div#latest_news') != null;
         
-        // If there's a search form but no results, it's likely empty results (not an error)
-        // If it's index page, it's also valid (just no search was performed)
-        if (!hasSearchForm && !isIndexPage) {
-          // Page structure is unexpected - might be an error or different page type
+        // Improved check for access denied messages (more specific)
+        final hasAccessDenied = pageText.contains('доступ запрещен') ||
+            pageText.contains('access denied') ||
+            pageText.contains('недостаточно прав') ||
+            pageText.contains('требуется авторизация') ||
+            pageText.contains('авторизуйтесь');
+        
+        // If page has access denied message, it's an auth issue
+        if (hasAccessDenied) {
           throw const ParsingFailure(
-            'No search results found. Page structure may have changed or page requires authentication.',
+            'Page appears to require authentication. Please log in first.',
           );
         }
-        // Empty results are valid - return empty list
-        return results;
+        
+        // If there's a search form OR search page elements, it's likely empty results (not an error)
+        // If it's index page, it's also valid (just no search was performed)
+        if (hasSearchForm || hasSearchPageElements || isIndexPage) {
+          // Empty results are valid - return empty list
+          return results;
+        }
+        
+        // If no search form, no search page elements, and not index page - possibly error
+        throw const ParsingFailure(
+          'Page structure may have changed. Unable to parse search results.',
+        );
       }
 
       for (final row in topicRows) {
