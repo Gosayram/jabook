@@ -203,12 +203,23 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
   @override
   Widget build(BuildContext context) => PopScope(
         onPopInvokedWithResult: (didPop, result) {
-          if (didPop) return;
+          if (didPop) {
+            EnvironmentLogger().d('DownloadsScreen: Pop already handled');
+            return;
+          }
           // Allow navigation back using GoRouter
-          if (context.canPop()) {
+          final canPop = context.canPop();
+          EnvironmentLogger().d(
+            'DownloadsScreen: onPopInvokedWithResult - canPop: $canPop',
+          );
+          if (canPop) {
             context.pop();
+            EnvironmentLogger()
+                .d('DownloadsScreen: Popped using context.pop()');
           } else {
             context.go('/');
+            EnvironmentLogger()
+                .d('DownloadsScreen: Navigated to home using context.go()');
           }
         },
         child: Scaffold(
