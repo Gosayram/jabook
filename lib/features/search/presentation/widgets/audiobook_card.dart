@@ -71,7 +71,7 @@ class AudiobookCard extends StatelessWidget {
     // Wrap card in RepaintBoundary to isolate repaints
     return RepaintBoundary(
       child: Card(
-        margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
         elevation: 2,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
@@ -80,7 +80,7 @@ class AudiobookCard extends StatelessWidget {
           onTap: onTap,
           borderRadius: BorderRadius.circular(12),
           child: Padding(
-            padding: const EdgeInsets.all(12.0),
+            padding: const EdgeInsets.all(14.0),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -132,13 +132,13 @@ class AudiobookCard extends StatelessWidget {
                         children: [
                           Icon(
                             Icons.storage,
-                            size: 14,
+                            size: 16,
                             color: Theme.of(context)
                                 .colorScheme
                                 .onSurface
                                 .withValues(alpha: 0.6),
                           ),
-                          const SizedBox(width: 4),
+                          const SizedBox(width: 6),
                           Text(
                             size,
                             style:
@@ -147,6 +147,7 @@ class AudiobookCard extends StatelessWidget {
                                           .colorScheme
                                           .onSurface
                                           .withValues(alpha: 0.6),
+                                      fontSize: 12,
                                     ),
                           ),
                           const SizedBox(width: 16),
@@ -211,6 +212,7 @@ class AudiobookCard extends StatelessWidget {
   Widget _buildCover(String? coverUrl, BuildContext context) {
     // Validate URL
     if (coverUrl == null || coverUrl.isEmpty) {
+      EnvironmentLogger().d('Cover URL is null or empty');
       return _buildPlaceholder(context);
     }
 
@@ -218,21 +220,36 @@ class AudiobookCard extends StatelessWidget {
     final uri = Uri.tryParse(coverUrl);
     if (uri == null || !uri.hasScheme || !uri.hasAuthority) {
       // URL is invalid, show placeholder
-      EnvironmentLogger().w('Invalid cover URL: $coverUrl');
+      EnvironmentLogger().w('Invalid cover URL format: $coverUrl');
       return _buildPlaceholder(context);
     }
 
+    // Log successful URL parsing for debugging
+    EnvironmentLogger().d('Loading cover image from: $coverUrl');
+
     return RepaintBoundary(
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(10),
         child: CachedNetworkImage(
           imageUrl: coverUrl,
-          width: 60,
-          height: 60,
+          width: 68,
+          height: 68,
           fit: BoxFit.cover,
+          // Images from RuTracker are typically up to 500x500, usually smaller
+          // Use appropriate cache size for display (68x68 in card, 2x for retina)
+          memCacheWidth: 136,
+          memCacheHeight: 136,
+          // Add headers to ensure proper loading
+          httpHeaders: const {
+            'Accept': 'image/*',
+            'User-Agent': 'Mozilla/5.0',
+          },
+          // Use fadeInDuration for smoother loading
+          fadeInDuration: const Duration(milliseconds: 200),
+          fadeOutDuration: const Duration(milliseconds: 100),
           placeholder: (context, url) => Container(
-            width: 60,
-            height: 60,
+            width: 68,
+            height: 68,
             color: Theme.of(context).colorScheme.surfaceContainerHighest,
             child: const Center(
               child: SizedBox(
@@ -243,9 +260,11 @@ class AudiobookCard extends StatelessWidget {
             ),
           ),
           errorWidget: (context, url, error) {
-            // Log error loading image
-            EnvironmentLogger()
-                .w('Failed to load cover image: $url, error: $error');
+            // Log error loading image with more details
+            EnvironmentLogger().w(
+              'Failed to load cover image: $url (error: ${error.runtimeType})',
+              error: error,
+            );
             return _buildPlaceholder(context);
           },
         ),
@@ -255,25 +274,16 @@ class AudiobookCard extends StatelessWidget {
 
   /// Builds placeholder when no cover is available.
   Widget _buildPlaceholder(BuildContext context) => Container(
-        width: 60,
-        height: 60,
+        width: 68,
+        height: 68,
         decoration: BoxDecoration(
           color: Theme.of(context).colorScheme.primaryContainer,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(10),
         ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(8),
-          child: Image.asset(
-            'assets/icons/app_icon.png',
-            width: 60,
-            height: 60,
-            fit: BoxFit.cover,
-            errorBuilder: (context, error, stackTrace) => Icon(
-              Icons.audiotrack,
-              color: Theme.of(context).colorScheme.onPrimaryContainer,
-              size: 28,
-            ),
-          ),
+        child: Icon(
+          Icons.audiotrack,
+          color: Theme.of(context).colorScheme.onPrimaryContainer,
+          size: 32,
         ),
       );
 }
@@ -325,19 +335,26 @@ class _StatIndicator extends StatelessWidget {
   final Color color;
 
   @override
-  Widget build(BuildContext context) => Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: color),
-          const SizedBox(width: 2),
-          Text(
-            '$value',
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-              color: value > 0 ? color : Colors.grey,
-            ),
+  Widget build(BuildContext context) {
+    final displayText = '$value';
+    final textColor = value > 0
+        ? color
+        : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4);
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 16, color: color),
+        const SizedBox(width: 4),
+        Text(
+          displayText,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: textColor,
           ),
-        ],
-      );
+        ),
+      ],
+    );
+  }
 }

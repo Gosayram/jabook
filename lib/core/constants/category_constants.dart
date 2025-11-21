@@ -20,14 +20,31 @@ class CategoryConstants {
   /// Audiobooks main category ID
   static const String audiobooksCategoryId = '33';
 
-  /// Popular categories for featured content
-  static const List<String> popularCategoryIds = ['574', '1036', '400'];
+  /// Popular categories for featured content (recommendations)
+  /// These are subcategories from category 33 (Audiobooks)
+  static const List<String> popularCategoryIds = [
+    '2387', // Российская фантастика, фэнтези, мистика, ужасы, фанфики
+    '2388', // Зарубежная фантастика, фэнтези, мистика, ужасы, фанфики
+    '574', // Радиоспектакли и литературные чтения
+    '1036', // Биографии и мемуары
+    '400', // История, культурология, философия
+    '399', // Зарубежная литература
+    '402', // Русская литература
+    '499', // Зарубежные детективы, приключения, триллеры, боевики
+    '2137', // Российские детективы, приключения, триллеры, боевики
+  ];
 
   /// Category ID to name mapping
   static const Map<String, String> categoryNameMap = {
+    '2387': 'Российская фантастика',
+    '2388': 'Зарубежная фантастика',
     '574': 'Радиоспектакли',
     '1036': 'Биографии и мемуары',
     '400': 'История и философия',
+    '399': 'Зарубежная литература',
+    '402': 'Русская литература',
+    '499': 'Зарубежные детективы',
+    '2137': 'Российские детективы',
     '395': 'Новости и информация',
     '2322': 'Общение и обсуждения',
   };

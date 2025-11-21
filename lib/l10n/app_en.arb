@@ -1936,5 +1936,26 @@
   "noMagnetLinkAvailable": "No magnet link available",
   "@noMagnetLinkAvailable": {
     "description": "Message when magnet link is not available"
+  },
+  "recommended": "Recommended",
+  "@recommended": {
+    "description": "Title for recommended audiobooks section"
+  },
+  "noResultsForQuery": "Nothing found for query: \"{query}\"",
+  "@noResultsForQuery": {
+    "description": "Message when no results found for specific query",
+    "placeholders": {
+      "query": {
+        "type": "String"
+      }
+    }
+  },
+  "tryDifferentKeywords": "Try changing keywords",
+  "@tryDifferentKeywords": {
+    "description": "Suggestion to try different search keywords"
+  },
+  "clearSearch": "Clear search",
+  "@clearSearch": {
+    "description": "Button to clear search field"
   }
 }

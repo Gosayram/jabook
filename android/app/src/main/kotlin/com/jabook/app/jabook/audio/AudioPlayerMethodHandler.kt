@@ -14,11 +14,8 @@
 
 package com.jabook.app.jabook.audio
 
-import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
-import android.content.ServiceConnection
-import android.os.IBinder
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 
@@ -32,16 +29,71 @@ class AudioPlayerMethodHandler(
     private val context: Context
 ) : MethodChannel.MethodCallHandler {
     
-    private var audioService: AudioPlayerService? = null
-    private var serviceConnection: ServiceConnection? = null
-    private var isServiceBound = false
+    /**
+     * Gets AudioPlayerService instance, ensuring service is started.
+     * Returns null if service is not available.
+     */
+    private fun getService(): AudioPlayerService? {
+        var service = AudioPlayerService.getInstance()
+        if (service == null) {
+            // Service not running, start it
+            val intent = Intent(context, AudioPlayerService::class.java)
+            try {
+                context.startForegroundService(intent)
+                // Wait a bit for service to initialize
+                Thread.sleep(100)
+                service = AudioPlayerService.getInstance()
+            } catch (e: Exception) {
+                android.util.Log.e("AudioPlayerMethodHandler", "Failed to start service", e)
+            }
+        }
+        return service
+    }
+    
+    /**
+     * Executes method call with retry logic if service is not ready.
+     */
+    private fun executeWithRetry(
+        maxRetries: Int = 3,
+        delayMs: Long = 200,
+        action: () -> Unit,
+        onError: (Exception) -> Unit
+    ) {
+        var retries = 0
+        while (retries < maxRetries) {
+            try {
+                val service = getService()
+                if (service != null) {
+                    action()
+                    return
+                } else {
+                    retries++
+                    if (retries < maxRetries) {
+                        Thread.sleep(delayMs)
+                    }
+                }
+            } catch (e: Exception) {
+                if (retries >= maxRetries - 1) {
+                    onError(e)
+                    return
+                }
+                retries++
+                Thread.sleep(delayMs)
+            }
+        }
+        onError(Exception("Service not available after $maxRetries retries"))
+    }
     
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
         try {
             when (call.method) {
                 "initialize" -> {
-                    bindService()
-                    result.success(true)
+                    val service = getService()
+                    if (service != null) {
+                        result.success(true)
+                    } else {
+                        result.error("SERVICE_UNAVAILABLE", "Failed to initialize audio service", null)
+                    }
                 }
                 "setPlaylist" -> {
                     val filePaths = call.argument<List<String>>("filePaths") ?: emptyList()
@@ -50,123 +102,159 @@ class AudioPlayerMethodHandler(
                         result.error("INVALID_ARGUMENT", "File paths list cannot be empty", null)
                         return
                     }
-                    audioService?.setPlaylist(filePaths, metadata)
+                    executeWithRetry(
+                        action = {
+                            getService()?.setPlaylist(filePaths, metadata)
+                            result.success(true)
+                        },
+                        onError = { e ->
+                            result.error("EXCEPTION", e.message ?: "Failed to set playlist", null)
+                        }
+                    )
+                }
+                "play" -> {
+                    executeWithRetry(
+                        action = {
+                            getService()?.play()
+                            result.success(true)
+                        },
+                        onError = { e ->
+                            result.error("EXCEPTION", e.message ?: "Failed to play", null)
+                        }
+                    )
+                }
+                "pause" -> {
+                    executeWithRetry(
+                        action = {
+                            getService()?.pause()
+                            result.success(true)
+                        },
+                        onError = { e ->
+                            result.error("EXCEPTION", e.message ?: "Failed to pause", null)
+                        }
+                    )
+                }
+                "stop" -> {
+                    executeWithRetry(
+                        action = {
+                            getService()?.stop()
+                            result.success(true)
+                        },
+                        onError = { e ->
+                            result.error("EXCEPTION", e.message ?: "Failed to stop", null)
+                        }
+                    )
+                }
+                "seek" -> {
+                    val positionMs = call.argument<Long>("positionMs") ?: 0L
+                    executeWithRetry(
+                        action = {
+                            getService()?.seekTo(positionMs)
+                            result.success(true)
+                        },
+                        onError = { e ->
+                            result.error("EXCEPTION", e.message ?: "Failed to seek", null)
+                        }
+                    )
+                }
+                "setSpeed" -> {
+                    val speed = call.argument<Double>("speed")?.toFloat() ?: 1.0f
+                    executeWithRetry(
+                        action = {
+                            getService()?.setSpeed(speed)
+                            result.success(true)
+                        },
+                        onError = { e ->
+                            result.error("EXCEPTION", e.message ?: "Failed to set speed", null)
+                        }
+                    )
+                }
+                "getPosition" -> {
+                    val position = getService()?.getCurrentPosition() ?: 0L
+                    result.success(position)
+                }
+                "getDuration" -> {
+                    val duration = getService()?.getDuration() ?: 0L
+                    result.success(duration)
+                }
+                "getState" -> {
+                    val state = getService()?.getPlayerState() ?: emptyMap()
+                    result.success(state)
+                }
+                "next" -> {
+                    executeWithRetry(
+                        action = {
+                            getService()?.next()
+                            result.success(true)
+                        },
+                        onError = { e ->
+                            result.error("EXCEPTION", e.message ?: "Failed to skip next", null)
+                        }
+                    )
+                }
+                "previous" -> {
+                    executeWithRetry(
+                        action = {
+                            getService()?.previous()
+                            result.success(true)
+                        },
+                        onError = { e ->
+                            result.error("EXCEPTION", e.message ?: "Failed to skip previous", null)
+                        }
+                    )
+                }
+                "seekToTrack" -> {
+                    val index = call.argument<Int>("index") ?: 0
+                    executeWithRetry(
+                        action = {
+                            getService()?.seekToTrack(index)
+                            result.success(true)
+                        },
+                        onError = { e ->
+                            result.error("EXCEPTION", e.message ?: "Failed to seek to track", null)
+                        }
+                    )
+                }
+                "updateMetadata" -> {
+                    val metadata = call.argument<Map<String, String>>("metadata")
+                    if (metadata != null) {
+                        executeWithRetry(
+                            action = {
+                                getService()?.updateMetadata(metadata)
+                                result.success(true)
+                            },
+                            onError = { e ->
+                                result.error("EXCEPTION", e.message ?: "Failed to update metadata", null)
+                            }
+                        )
+                    } else {
+                        result.success(true)
+                    }
+                }
+                "seekToTrackAndPosition" -> {
+                    val trackIndex = call.argument<Int>("trackIndex") ?: 0
+                    val positionMs = call.argument<Long>("positionMs") ?: 0L
+                    executeWithRetry(
+                        action = {
+                            getService()?.seekToTrackAndPosition(trackIndex, positionMs)
+                            result.success(true)
+                        },
+                        onError = { e ->
+                            result.error("EXCEPTION", e.message ?: "Failed to seek to track and position", null)
+                        }
+                    )
+                }
+                "dispose" -> {
+                    // Service will continue running in foreground
+                    // Just acknowledge disposal
                     result.success(true)
                 }
-            "play" -> {
-                audioService?.play()
-                result.success(true)
-            }
-            "pause" -> {
-                audioService?.pause()
-                result.success(true)
-            }
-            "stop" -> {
-                audioService?.stop()
-                result.success(true)
-            }
-            "seek" -> {
-                val positionMs = call.argument<Long>("positionMs") ?: 0L
-                audioService?.seekTo(positionMs)
-                result.success(true)
-            }
-            "setSpeed" -> {
-                val speed = call.argument<Double>("speed")?.toFloat() ?: 1.0f
-                audioService?.setSpeed(speed)
-                result.success(true)
-            }
-            "getPosition" -> {
-                val position = audioService?.getCurrentPosition() ?: 0L
-                result.success(position)
-            }
-            "getDuration" -> {
-                val duration = audioService?.getDuration() ?: 0L
-                result.success(duration)
-            }
-            "getState" -> {
-                val state = audioService?.getPlayerState() ?: emptyMap()
-                result.success(state)
-            }
-            "next" -> {
-                audioService?.next()
-                result.success(true)
-            }
-            "previous" -> {
-                audioService?.previous()
-                result.success(true)
-            }
-            "seekToTrack" -> {
-                val index = call.argument<Int>("index") ?: 0
-                audioService?.seekToTrack(index)
-                result.success(true)
-            }
-            "updateMetadata" -> {
-                val metadata = call.argument<Map<String, String>>("metadata")
-                if (metadata != null) {
-                    audioService?.updateMetadata(metadata)
-                }
-                result.success(true)
-            }
-            "seekToTrackAndPosition" -> {
-                val trackIndex = call.argument<Int>("trackIndex") ?: 0
-                val positionMs = call.argument<Long>("positionMs") ?: 0L
-                audioService?.seekToTrackAndPosition(trackIndex, positionMs)
-                result.success(true)
-            }
-            "dispose" -> {
-                unbindService()
-                result.success(true)
-            }
-            else -> result.notImplemented()
+                else -> result.notImplemented()
             }
         } catch (e: Exception) {
             android.util.Log.e("AudioPlayerMethodHandler", "Error handling method call: ${call.method}", e)
             result.error("EXCEPTION", e.message ?: "Unknown error", null)
         }
-    }
-    
-    /**
-     * Binds to AudioPlayerService.
-     */
-    private fun bindService() {
-        if (isServiceBound) {
-            audioService = AudioPlayerService.getInstance()
-            return
-        }
-        
-        val intent = Intent(context, AudioPlayerService::class.java)
-        context.startForegroundService(intent)
-        
-        serviceConnection = object : ServiceConnection {
-            override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
-                isServiceBound = true
-                audioService = AudioPlayerService.getInstance()
-            }
-            
-            override fun onServiceDisconnected(name: ComponentName?) {
-                isServiceBound = false
-                audioService = null
-            }
-        }
-        
-        context.bindService(intent, serviceConnection!!, Context.BIND_AUTO_CREATE)
-        
-        // Try to get instance immediately (service might already be running)
-        audioService = AudioPlayerService.getInstance()
-    }
-    
-    /**
-     * Unbinds from AudioPlayerService.
-     */
-    private fun unbindService() {
-        if (!isServiceBound) return
-        
-        serviceConnection?.let {
-            context.unbindService(it)
-        }
-        serviceConnection = null
-        isServiceBound = false
-        audioService = null
     }
 }
 

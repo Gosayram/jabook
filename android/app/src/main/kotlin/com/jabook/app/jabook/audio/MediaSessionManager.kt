@@ -24,7 +24,22 @@ import androidx.media3.common.util.UnstableApi
  * Manages MediaSession for system integration.
  *
  * This class handles MediaSession creation and updates for integration
- * with Android system controls, Android Auto, Wear OS, etc.
+ * with Android system controls, Android Auto, Wear OS, lockscreen controls,
+ * and headset button clicks.
+ * 
+ * MediaSession automatically delegates all commands to the Player,
+ * which handles:
+ * - Play/Pause from lockscreen, notification, headset buttons
+ * - Next/Previous track navigation (single/double/triple headset clicks)
+ * - Seek operations
+ * - Playback speed changes
+ * 
+ * The Player's AudioAttributes configuration (with handleAudioFocus=true)
+ * automatically handles audio focus management:
+ * - Ducking when other apps need temporary focus (navigation, notifications)
+ * - Pausing when audio focus is lost (incoming calls)
+ * - Resuming when audio focus is regained
+ * - Auto-pause on AUDIO_BECOMING_NOISY (headphones unplugged)
  */
 @UnstableApi
 class MediaSessionManager(
@@ -39,8 +54,17 @@ class MediaSessionManager(
     
     /**
      * Initializes MediaSession.
+     * 
+     * MediaSession.Builder with Player automatically handles all commands.
+     * Headset button clicks (single/double/triple) are handled by the system
+     * and routed through MediaSession to the Player.
+     * 
+     * Audio focus is managed automatically by ExoPlayer through AudioAttributes
+     * configured with handleAudioFocus=true in AudioPlayerService.
      */
     private fun initializeMediaSession() {
+        // MediaSession.Builder with Player automatically handles all commands
+        // No custom callback needed - Player handles everything
         mediaSession = MediaSession.Builder(context, player).build()
     }
     
@@ -65,4 +89,3 @@ class MediaSessionManager(
         mediaSession = null
     }
 }
-

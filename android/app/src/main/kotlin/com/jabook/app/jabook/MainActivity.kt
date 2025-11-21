@@ -8,6 +8,7 @@ import android.provider.Settings
 import android.webkit.CookieManager
 import androidx.annotation.RequiresApi
 import com.jabook.app.jabook.audio.AudioPlayerMethodHandler
+import com.jabook.app.jabook.download.DownloadServiceMethodHandler
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -145,6 +146,31 @@ class MainActivity : FlutterActivity() {
         audioPlayerChannel.setMethodCallHandler(
             AudioPlayerMethodHandler(this)
         )
+        
+        // Register notification intent handler channel
+        val notificationChannel = MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            "com.jabook.app.jabook/notification"
+        )
+        notificationChannel.setMethodCallHandler { call, result ->
+            when (call.method) {
+                "handleNotificationClick" -> {
+                    // This will be called from Flutter when notification is clicked
+                    // The actual navigation is handled in Flutter via GoRouter
+                    result.success(true)
+                }
+                else -> result.notImplemented()
+            }
+        }
+        
+        // Register DownloadServiceChannel for download foreground service
+        val downloadServiceChannel = MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            "com.jabook.app.jabook/download_service"
+        )
+        downloadServiceChannel.setMethodCallHandler(
+            DownloadServiceMethodHandler(this)
+        )
     }
     
     @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
@@ -197,6 +223,37 @@ class MainActivity : FlutterActivity() {
                 directoryPickerResult?.success(null)
             }
             directoryPickerResult = null
+        }
+    }
+    
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        // Handle notification click - open player if requested
+        if (intent.getBooleanExtra("open_player", false)) {
+            // Send message to Flutter to open player
+            // Flutter will handle navigation via GoRouter
+            val messenger = flutterEngine?.dartExecutor?.binaryMessenger
+            if (messenger != null) {
+                val channel = MethodChannel(messenger, "com.jabook.app.jabook/notification")
+                channel.invokeMethod("openPlayer", null)
+            }
+        }
+    }
+    
+    override fun onResume() {
+        super.onResume()
+        // Check if we should open player from notification
+        val intent = intent
+        if (intent != null && intent.getBooleanExtra("open_player", false)) {
+            // Clear the flag to avoid reopening on every resume
+            intent.removeExtra("open_player")
+            // Send message to Flutter to open player
+            val messenger = flutterEngine?.dartExecutor?.binaryMessenger
+            if (messenger != null) {
+                val channel = MethodChannel(messenger, "com.jabook.app.jabook/notification")
+                channel.invokeMethod("openPlayer", null)
+            }
         }
     }
 }

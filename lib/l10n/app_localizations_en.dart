@@ -1375,4 +1375,18 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get noMagnetLinkAvailable => 'No magnet link available';
+
+  @override
+  String get recommended => 'Recommended';
+
+  @override
+  String noResultsForQuery(String query) {
+    return 'Nothing found for query: \"$query\"';
+  }
+
+  @override
+  String get tryDifferentKeywords => 'Try changing keywords';
+
+  @override
+  String get clearSearch => 'Clear search';
 }

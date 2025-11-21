@@ -1921,5 +1921,26 @@
   "noMagnetLinkAvailable": "Magnet-ссылка недоступна",
   "@noMagnetLinkAvailable": {
     "description": "Сообщение когда magnet-ссылка недоступна"
+  },
+  "recommended": "Рекомендуем",
+  "@recommended": {
+    "description": "Заголовок раздела рекомендуемых аудиокниг"
+  },
+  "noResultsForQuery": "Ничего не найдено по запросу: \"{query}\"",
+  "@noResultsForQuery": {
+    "description": "Сообщение когда ничего не найдено по конкретному запросу",
+    "placeholders": {
+      "query": {
+        "type": "String"
+      }
+    }
+  },
+  "tryDifferentKeywords": "Попробуйте изменить ключевые слова",
+  "@tryDifferentKeywords": {
+    "description": "Предложение попробовать другие ключевые слова для поиска"
+  },
+  "clearSearch": "Очистить поиск",
+  "@clearSearch": {
+    "description": "Кнопка для очистки поля поиска"
   }
 }

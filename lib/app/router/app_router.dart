@@ -25,6 +25,7 @@ import 'package:jabook/features/library/presentation/screens/library_screen.dart
 import 'package:jabook/features/mirrors/presentation/screens/mirrors_screen.dart';
 import 'package:jabook/features/player/presentation/screens/local_player_screen.dart';
 import 'package:jabook/features/player/presentation/screens/player_screen.dart';
+import 'package:jabook/features/player/presentation/widgets/mini_player_widget.dart';
 import 'package:jabook/features/search/presentation/screens/search_screen.dart';
 import 'package:jabook/features/settings/presentation/screens/settings_screen.dart';
 import 'package:jabook/features/topic/presentation/screens/topic_screen.dart';
@@ -205,6 +206,9 @@ class _MainNavigationWrapperState
 
     return Scaffold(
       body: widget.child,
+      persistentFooterButtons: const [
+        MiniPlayerWidget(),
+      ],
       bottomNavigationBar: Semantics(
         explicitChildNodes: true,
         child: BottomNavigationBar(

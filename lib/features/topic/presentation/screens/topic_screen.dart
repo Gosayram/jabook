@@ -846,8 +846,9 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
       // Start download through AudiobookTorrentManager
       final downloadDir = await AudiobookTorrentManager.getDownloadDirectory();
 
-      // Get audiobook title for better display in downloads list
+      // Get audiobook title and cover URL for better display in downloads list
       final audiobookTitle = _audiobook?['title'] as String? ?? '';
+      final coverUrl = _audiobook?['coverUrl'] as String?;
 
       // Logging start of download
       final logger = EnvironmentLogger()
@@ -863,6 +864,7 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
           torrentFile.path,
           '$downloadDir/${widget.topicId}',
           title: audiobookTitle.isNotEmpty ? audiobookTitle : null,
+          coverUrl: coverUrl,
         );
       } on TorrentFailure catch (e) {
         logger.e('Failed to start download: $e');
@@ -986,8 +988,9 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
     try {
       final downloadDir = await AudiobookTorrentManager.getDownloadDirectory();
 
-      // Get audiobook title for better display in downloads list
+      // Get audiobook title and cover URL for better display in downloads list
       final audiobookTitle = _audiobook?['title'] as String? ?? '';
+      final coverUrl = _audiobook?['coverUrl'] as String?;
 
       // Logging start of download
       final logger = EnvironmentLogger()
@@ -1002,6 +1005,7 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
           magnetUrl,
           '$downloadDir/${widget.topicId}',
           title: audiobookTitle.isNotEmpty ? audiobookTitle : null,
+          coverUrl: coverUrl,
         );
       } on TorrentFailure catch (e) {
         logger.e('Failed to start download: $e');

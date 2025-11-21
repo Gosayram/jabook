@@ -17,21 +17,25 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:b_encode_decode/b_encode_decode.dart';
+import 'package:dio/dio.dart';
 // ignore: unused_import
 import 'package:dtorrent_common/dtorrent_common.dart'; // PeerSource is used in addPeer call
 import 'package:dtorrent_parser/dtorrent_parser.dart';
 import 'package:dtorrent_task_v2/dtorrent_task_v2.dart';
 import 'package:jabook/core/background/download_background_service.dart';
+import 'package:jabook/core/download/download_foreground_service.dart';
 import 'package:jabook/core/errors/failures.dart';
 import 'package:jabook/core/library/audiobook_library_scanner.dart';
 import 'package:jabook/core/logging/environment_logger.dart';
 import 'package:jabook/core/logging/structured_logger.dart';
+import 'package:jabook/core/net/dio_client.dart';
 import 'package:jabook/core/notifications/download_notification_service.dart';
 import 'package:jabook/core/permissions/permission_service.dart';
 import 'package:jabook/core/utils/network_utils.dart';
 import 'package:jabook/core/utils/safe_async.dart';
 import 'package:jabook/core/utils/storage_path_utils.dart';
 import 'package:jabook/data/db/app_database.dart';
+import 'package:path/path.dart' as path;
 import 'package:sembast/sembast.dart';
 
 /// Represents the progress of a torrent download.
@@ -107,12 +111,31 @@ class AudiobookTorrentManager {
   /// Map of progress timers for active downloads.
   final Map<String, Timer> _progressTimers = {};
 
+  /// Map of retry counts for network errors per download.
+  final Map<String, int> _networkRetryCounts = {};
+
+  /// Map of last error time per download for network error detection.
+  final Map<String, DateTime> _lastNetworkErrorTime = {};
+
+  /// Map of last successful download time per download.
+  final Map<String, DateTime> _lastSuccessfulDownloadTime = {};
+
+  /// Maximum number of retry attempts for network errors.
+  static const int _maxNetworkRetries = 3;
+
+  /// Minimum time without download before considering it a network error (seconds).
+  static const int _networkErrorDetectionTimeSeconds = 120;
+
   /// Database instance for persisting download state.
   Database? _db;
 
   /// Notification service for download progress updates.
   final DownloadNotificationService _notificationService =
       DownloadNotificationService();
+
+  /// Foreground service for keeping downloads alive in background.
+  final DownloadForegroundService _foregroundService =
+      DownloadForegroundService();
 
   /// Initializes the torrent manager with database connection.
   ///
@@ -146,7 +169,7 @@ class AudiobookTorrentManager {
   ///
   /// Throws [TorrentFailure] if the download cannot be started.
   Future<String> downloadSequential(String magnetUrl, String savePath,
-      {String? title}) async {
+      {String? title, String? coverUrl}) async {
     // Check initialization
     final logger = EnvironmentLogger();
     if (!isInitialized) {
@@ -418,6 +441,7 @@ class AudiobookTorrentManager {
         'infoHash': magnet.infoHashString,
         'startedAt': DateTime.now().toIso8601String(),
         if (title != null && title.isNotEmpty) 'title': title,
+        if (coverUrl != null && coverUrl.isNotEmpty) 'coverUrl': coverUrl,
       };
       _downloadMetadata[downloadId] = metadata;
 
@@ -430,6 +454,9 @@ class AudiobookTorrentManager {
 
       // Register background service for monitoring downloads
       safeUnawaited(_registerBackgroundService());
+
+      // Start foreground service to keep downloads alive in background
+      safeUnawaited(_foregroundService.startService());
 
       // Set up event listeners
       // downloadId is guaranteed to be non-null at this point
@@ -483,6 +510,9 @@ class AudiobookTorrentManager {
         _progressControllers.remove(downloadId);
         _activeTasks.remove(downloadId);
 
+        // Check if all downloads are completed and stop foreground service
+        safeUnawaited(_checkAndStopForegroundService());
+
         // Update metadata with completed status instead of removing
         final metadata = _downloadMetadata[finalDownloadId];
         if (metadata != null) {
@@ -512,6 +542,19 @@ class AudiobookTorrentManager {
               finalDownloadId,
               possiblePaths,
             ));
+
+            // Download cover image if available
+            final coverUrl = metadata['coverUrl'] as String?;
+            if (coverUrl != null && coverUrl.isNotEmpty) {
+              // Try all possible paths for cover download
+              for (final checkPath in possiblePaths) {
+                if (checkPath.isNotEmpty) {
+                  safeUnawaited(
+                      _downloadCoverImage(coverUrl, checkPath, torrentName));
+                  break; // Only download once
+                }
+              }
+            }
           }
 
           // Trigger library scan after download completes
@@ -625,14 +668,15 @@ class AudiobookTorrentManager {
   /// Throws [TorrentFailure] if the download cannot be started.
   Future<String> downloadFromTorrentFile(
       String torrentFilePath, String savePath,
-      {String? title}) async {
+      {String? title, String? coverUrl}) async {
     final torrentFile = File(torrentFilePath);
     if (!await torrentFile.exists()) {
       throw const TorrentFailure('Torrent file not found');
     }
 
     final torrentBytes = await torrentFile.readAsBytes();
-    return downloadFromTorrentBytes(torrentBytes, savePath, title: title);
+    return downloadFromTorrentBytes(torrentBytes, savePath,
+        title: title, coverUrl: coverUrl);
   }
 
   /// Starts a sequential torrent download from torrent file bytes.
@@ -650,7 +694,7 @@ class AudiobookTorrentManager {
   /// Throws [TorrentFailure] if the download cannot be started.
   Future<String> downloadFromTorrentBytes(
       List<int> torrentBytes, String savePath,
-      {String? title}) async {
+      {String? title, String? coverUrl}) async {
     // Check initialization
     final logger = EnvironmentLogger();
     if (!isInitialized) {
@@ -867,6 +911,9 @@ class AudiobookTorrentManager {
       if (title != null && title.isNotEmpty) {
         metadata['title'] = title;
       }
+      if (coverUrl != null && coverUrl.isNotEmpty) {
+        metadata['coverUrl'] = coverUrl;
+      }
       _downloadMetadata[downloadId] = metadata;
 
       // Persist to database BEFORE adding to active tasks
@@ -884,6 +931,9 @@ class AudiobookTorrentManager {
 
       // Register background service for monitoring downloads
       safeUnawaited(_registerBackgroundService());
+
+      // Start foreground service to keep downloads alive in background
+      safeUnawaited(_foregroundService.startService());
 
       // Set up event listeners
       final finalDownloadId = downloadId;
@@ -959,6 +1009,19 @@ class AudiobookTorrentManager {
               finalDownloadId,
               possiblePaths,
             ));
+
+            // Download cover image if available
+            final coverUrl = metadata['coverUrl'] as String?;
+            if (coverUrl != null && coverUrl.isNotEmpty) {
+              // Try all possible paths for cover download
+              for (final checkPath in possiblePaths) {
+                if (checkPath.isNotEmpty) {
+                  safeUnawaited(
+                      _downloadCoverImage(coverUrl, checkPath, torrentName));
+                  break; // Only download once
+                }
+              }
+            }
           }
 
           // Trigger library scan after download completes
@@ -1033,6 +1096,141 @@ class AudiobookTorrentManager {
     }
   }
 
+  /// Cleans up retry tracking data for a download.
+  void _cleanupRetryData(String downloadId) {
+    _networkRetryCounts.remove(downloadId);
+    _lastNetworkErrorTime.remove(downloadId);
+    _lastSuccessfulDownloadTime.remove(downloadId);
+  }
+
+  /// Checks if an exception represents a network error.
+  ///
+  /// Returns true if the error is likely a network-related issue
+  /// that could be retried.
+  bool _isNetworkError(Exception e) {
+    final errorString = e.toString().toLowerCase();
+    return errorString.contains('connection') ||
+        errorString.contains('network') ||
+        errorString.contains('timeout') ||
+        errorString.contains('socket') ||
+        errorString.contains('host') ||
+        errorString.contains('dns') ||
+        errorString.contains('unreachable');
+  }
+
+  /// Attempts to retry a download after a network error.
+  ///
+  /// This method will retry the download up to [_maxNetworkRetries] times
+  /// with exponential backoff between attempts.
+  Future<void> _retryDownloadOnNetworkError(String downloadId) async {
+    final retryCount = _networkRetryCounts[downloadId] ?? 0;
+    if (retryCount >= _maxNetworkRetries) {
+      EnvironmentLogger().w(
+        'Download $downloadId: Max retry attempts ($_maxNetworkRetries) reached, giving up',
+      );
+      await StructuredLogger().log(
+        level: 'error',
+        subsystem: 'torrent',
+        message: 'Max network retry attempts reached',
+        extra: {
+          'downloadId': downloadId,
+          'maxRetries': _maxNetworkRetries,
+        },
+      );
+      return;
+    }
+
+    final metadata = _downloadMetadata[downloadId];
+    if (metadata == null) {
+      EnvironmentLogger().w(
+        'Download $downloadId: Cannot retry - metadata not found',
+      );
+      return;
+    }
+
+    // Check if download is paused - don't retry paused downloads
+    if (metadata['pausedAt'] != null) {
+      EnvironmentLogger().d(
+        'Download $downloadId: Skipping retry - download is paused',
+      );
+      return;
+    }
+
+    // Calculate exponential backoff delay
+    final baseDelaySeconds = 5 * (1 << retryCount); // 5, 10, 20 seconds
+    final jitterMs = DateTime.now().microsecondsSinceEpoch % 2000;
+    final delayMs = (baseDelaySeconds * 1000) + jitterMs;
+
+    EnvironmentLogger().i(
+      'Download $downloadId: Retrying after network error (attempt ${retryCount + 1}/$_maxNetworkRetries, delay: ${(delayMs / 1000).toStringAsFixed(1)}s)',
+    );
+
+    await StructuredLogger().log(
+      level: 'warning',
+      subsystem: 'torrent',
+      message: 'Retrying download after network error',
+      extra: {
+        'downloadId': downloadId,
+        'retryAttempt': retryCount + 1,
+        'maxRetries': _maxNetworkRetries,
+        'delayMs': delayMs,
+      },
+    );
+
+    // Wait before retry
+    await Future.delayed(Duration(milliseconds: delayMs));
+
+    // Increment retry count
+    _networkRetryCounts[downloadId] = retryCount + 1;
+
+    try {
+      // Try to resume the download
+      final task = _activeTasks[downloadId];
+      if (task != null) {
+        // Task exists, try to restart it
+        try {
+          await task.stop();
+          await Future.delayed(const Duration(milliseconds: 500));
+          await task.start();
+          EnvironmentLogger().i(
+            'Download $downloadId: Successfully restarted after network error',
+          );
+          // Reset retry count on success
+          _networkRetryCounts.remove(downloadId);
+          _lastNetworkErrorTime.remove(downloadId);
+          _lastSuccessfulDownloadTime[downloadId] = DateTime.now();
+        } on Exception catch (e) {
+          EnvironmentLogger().w(
+            'Download $downloadId: Failed to restart task: $e',
+          );
+          // Will retry again on next error if under limit
+        }
+      } else {
+        // Task doesn't exist, try to restore from metadata
+        try {
+          await resumeRestoredDownload(downloadId);
+          EnvironmentLogger().i(
+            'Download $downloadId: Successfully restored after network error',
+          );
+          // Reset retry count on success
+          _networkRetryCounts.remove(downloadId);
+          _lastNetworkErrorTime.remove(downloadId);
+          _lastSuccessfulDownloadTime[downloadId] = DateTime.now();
+        } on Exception catch (e) {
+          EnvironmentLogger().w(
+            'Download $downloadId: Failed to restore download: $e',
+          );
+          // Will retry again on next error if under limit
+        }
+      }
+    } on Exception catch (e) {
+      EnvironmentLogger().e(
+        'Download $downloadId: Error during retry: $e',
+      );
+      // Will retry again on next error if under limit
+    }
+  }
+
   void _updateProgress(String downloadId, TorrentTask task,
       StreamController<TorrentProgress> progressController) {
     // Track last log time to avoid spamming logs
@@ -1085,6 +1283,13 @@ class AudiobookTorrentManager {
           }
           _progressControllers.remove(downloadId);
           _activeTasks.remove(downloadId);
+
+          // Clean up retry tracking data
+          _cleanupRetryData(downloadId);
+
+          // Check if all downloads are completed and stop foreground service
+          safeUnawaited(_checkAndStopForegroundService());
+
           // Update metadata
           final metadata = _downloadMetadata[downloadId];
           if (metadata != null) {
@@ -1144,6 +1349,13 @@ class AudiobookTorrentManager {
             }
             _progressControllers.remove(downloadId);
             _activeTasks.remove(downloadId);
+
+            // Clean up retry tracking data
+            _cleanupRetryData(downloadId);
+
+            // Check if all downloads are completed and stop foreground service
+            safeUnawaited(_checkAndStopForegroundService());
+
             // Update metadata
             final metadata = _downloadMetadata[downloadId];
             if (metadata != null) {
@@ -1196,6 +1408,13 @@ class AudiobookTorrentManager {
           }
           _progressControllers.remove(downloadId);
           _activeTasks.remove(downloadId);
+
+          // Clean up retry tracking data
+          _cleanupRetryData(downloadId);
+
+          // Check if all downloads are completed and stop foreground service
+          safeUnawaited(_checkAndStopForegroundService());
+
           // Update metadata
           final metadata = _downloadMetadata[downloadId];
           if (metadata != null) {
@@ -1241,6 +1460,70 @@ class AudiobookTorrentManager {
         final rawSpeed = task.currentDownloadSpeed;
         final downloadSpeed = isPaused ? 0.0 : rawSpeed;
 
+        // Get metadata early for network error detection
+        final metadata = _downloadMetadata[downloadId];
+
+        // Track successful downloads for network error detection
+        if (downloadSpeed > 0 && !isPaused) {
+          _lastSuccessfulDownloadTime[downloadId] = now;
+          // Reset retry count on successful download
+          if (_networkRetryCounts.containsKey(downloadId)) {
+            _networkRetryCounts.remove(downloadId);
+            _lastNetworkErrorTime.remove(downloadId);
+          }
+        }
+
+        // Detect network errors by long periods without download
+        // (no speed, no peers, not paused, not completed)
+        if (!isPaused &&
+            downloadSpeed <= 0 &&
+            task.seederNumber == 0 &&
+            task.allPeersNumber == 0 &&
+            currentProgress < 99.0) {
+          final lastSuccess = _lastSuccessfulDownloadTime[downloadId];
+          if (lastSuccess != null) {
+            final timeSinceLastSuccess = now.difference(lastSuccess).inSeconds;
+            if (timeSinceLastSuccess >= _networkErrorDetectionTimeSeconds) {
+              // Potential network error detected
+              final lastErrorTime = _lastNetworkErrorTime[downloadId];
+              if (lastErrorTime == null ||
+                  now.difference(lastErrorTime).inSeconds >=
+                      _networkErrorDetectionTimeSeconds) {
+                EnvironmentLogger().w(
+                  'Download $downloadId: Potential network error detected (no download for ${timeSinceLastSuccess}s, no peers)',
+                );
+                _lastNetworkErrorTime[downloadId] = now;
+                // Trigger retry asynchronously
+                safeUnawaited(_retryDownloadOnNetworkError(downloadId));
+              }
+            }
+          } else {
+            // No successful download yet, but no peers - might be network issue
+            final downloadStartTime = metadata?['startedAt'] as String?;
+            if (downloadStartTime != null) {
+              try {
+                final startTime = DateTime.parse(downloadStartTime);
+                final timeSinceStart = now.difference(startTime).inSeconds;
+                if (timeSinceStart >= _networkErrorDetectionTimeSeconds) {
+                  final lastErrorTime = _lastNetworkErrorTime[downloadId];
+                  if (lastErrorTime == null ||
+                      now.difference(lastErrorTime).inSeconds >=
+                          _networkErrorDetectionTimeSeconds) {
+                    EnvironmentLogger().w(
+                      'Download $downloadId: Potential network error detected (no download for ${timeSinceStart}s since start, no peers)',
+                    );
+                    _lastNetworkErrorTime[downloadId] = now;
+                    // Trigger retry asynchronously
+                    safeUnawaited(_retryDownloadOnNetworkError(downloadId));
+                  }
+                }
+              } on Exception {
+                // Ignore parse errors
+              }
+            }
+          }
+        }
+
         final progress = TorrentProgress(
           progress: task.progress * 100,
           downloadSpeed: downloadSpeed,
@@ -1258,7 +1541,6 @@ class AudiobookTorrentManager {
         }
 
         // Update notification
-        final metadata = _downloadMetadata[downloadId];
         final title = metadata?['title'] as String? ?? task.metaInfo.name;
         safeUnawaited(_notificationService.showDownloadProgress(
           downloadId,
@@ -1266,6 +1548,14 @@ class AudiobookTorrentManager {
           progress.progress,
           progress.downloadSpeed,
           status,
+        ));
+
+        // Update foreground service notification
+        final speedText = _formatSpeed(progress.downloadSpeed);
+        safeUnawaited(_foregroundService.updateProgress(
+          title: title,
+          progress: progress.progress,
+          speed: speedText,
         ));
 
         // Save progress and status to metadata every 5 seconds
@@ -1298,6 +1588,25 @@ class AudiobookTorrentManager {
         // Note: task.progress >= 1.0 check is now handled earlier in the hang detection logic
       } on Exception catch (e) {
         // Task might be disposed or in error state
+        final isNetworkErr = _isNetworkError(e);
+        final retryCount = _networkRetryCounts[downloadId] ?? 0;
+
+        EnvironmentLogger().w(
+          'Download $downloadId: Error in progress update: $e (isNetworkError: $isNetworkErr, retryCount: $retryCount)',
+        );
+
+        await StructuredLogger().log(
+          level: 'warning',
+          subsystem: 'torrent',
+          message: 'Error in download progress update',
+          extra: {
+            'downloadId': downloadId,
+            'error': e.toString(),
+            'isNetworkError': isNetworkErr,
+            'retryCount': retryCount,
+          },
+        );
+
         try {
           final errorProgress = TorrentProgress(
             progress: task.progress * 100,
@@ -1307,7 +1616,9 @@ class AudiobookTorrentManager {
             totalBytes: task.metaInfo.length,
             seeders: 0,
             leechers: 0,
-            status: 'error: ${e.toString()}',
+            status: isNetworkErr && retryCount < _maxNetworkRetries
+                ? 'retrying: ${e.toString()}'
+                : 'error: ${e.toString()}',
           );
           if (!progressController.isClosed) {
             progressController.add(errorProgress);
@@ -1315,8 +1626,18 @@ class AudiobookTorrentManager {
         } on Exception {
           // If we can't even create error progress, task is completely dead
         }
-        timer.cancel();
-        _progressTimers.remove(downloadId);
+
+        // If it's a network error and we haven't exceeded retry limit, try to retry
+        if (isNetworkErr && retryCount < _maxNetworkRetries) {
+          _lastNetworkErrorTime[downloadId] = DateTime.now();
+          // Don't cancel timer immediately - let retry attempt happen
+          // Retry will be handled asynchronously
+          safeUnawaited(_retryDownloadOnNetworkError(downloadId));
+        } else {
+          // Not a network error or max retries reached - cancel timer
+          timer.cancel();
+          _progressTimers.remove(downloadId);
+        }
       }
     });
     // Store timer in Map for proper cleanup
@@ -1495,6 +1816,9 @@ class AudiobookTorrentManager {
       controller = _progressControllers[downloadId];
       _progressControllers.remove(downloadId);
       _downloadMetadata.remove(downloadId);
+
+      // Clean up retry tracking data
+      _cleanupRetryData(downloadId);
     } on Exception catch (e) {
       throw TorrentFailure('Failed to remove download: ${e.toString()}');
     } finally {
@@ -1804,6 +2128,43 @@ class AudiobookTorrentManager {
   }
 
   /// Formats bytes for logging purposes.
+  /// Checks if all downloads are completed and stops foreground service if needed.
+  Future<void> _checkAndStopForegroundService() async {
+    try {
+      // Check if there are any active downloads
+      final hasActiveDownloads = _activeTasks.isNotEmpty;
+
+      if (!hasActiveDownloads) {
+        // All downloads completed, stop foreground service
+        await _foregroundService.stopService();
+        EnvironmentLogger()
+            .i('All downloads completed, stopped foreground service');
+        await StructuredLogger().log(
+          level: 'info',
+          subsystem: 'torrent',
+          message: 'All downloads completed, stopped foreground service',
+        );
+      }
+    } on Exception catch (e) {
+      EnvironmentLogger().w('Failed to check/stop foreground service: $e');
+      await StructuredLogger().log(
+        level: 'warning',
+        subsystem: 'torrent',
+        message: 'Failed to check/stop foreground service',
+        extra: {'error': e.toString()},
+      );
+    }
+  }
+
+  /// Formats download speed for display.
+  String _formatSpeed(double bytesPerSecond) {
+    if (bytesPerSecond < 1024) return '${bytesPerSecond.toInt()} B/s';
+    if (bytesPerSecond < 1024 * 1024) {
+      return '${(bytesPerSecond / 1024).toStringAsFixed(1)} KB/s';
+    }
+    return '${(bytesPerSecond / (1024 * 1024)).toStringAsFixed(1)} MB/s';
+  }
+
   String _formatBytesForLog(int bytes) {
     if (bytes < 1024) return '$bytes B';
     if (bytes < 1024 * 1024) {
@@ -1991,6 +2352,98 @@ class AudiobookTorrentManager {
         message: 'Failed to trigger library scan',
         extra: {
           'savePath': savePath,
+          'error': e.toString(),
+        },
+      );
+    }
+  }
+
+  /// Downloads cover image from URL and saves it to the download directory.
+  ///
+  /// Tries common cover file names (cover.jpg, folder.jpg, etc.)
+  Future<void> _downloadCoverImage(
+    String coverUrl,
+    String directoryPath,
+    String? torrentName,
+  ) async {
+    final logger = EnvironmentLogger();
+    try {
+      // Determine file extension from URL
+      final uri = Uri.tryParse(coverUrl);
+      if (uri == null) {
+        logger.w('Invalid cover URL: $coverUrl');
+        return;
+      }
+
+      final urlPath = uri.path.toLowerCase();
+      var extension = '.jpg'; // Default to jpg
+      if (urlPath.endsWith('.png')) {
+        extension = '.png';
+      } else if (urlPath.endsWith('.gif')) {
+        extension = '.gif';
+      } else if (urlPath.endsWith('.webp')) {
+        extension = '.webp';
+      }
+
+      // Try common cover file names
+      final coverFileNames = ['cover', 'folder', 'album', 'artwork', 'art'];
+      final directory = Directory(directoryPath);
+
+      if (!await directory.exists()) {
+        logger.w('Directory does not exist for cover download: $directoryPath');
+        return;
+      }
+
+      // Download to first available cover name
+      for (final coverName in coverFileNames) {
+        final coverPath = path.join(directoryPath, '$coverName$extension');
+        final coverFile = File(coverPath);
+
+        // Skip if file already exists
+        if (await coverFile.exists()) {
+          logger.d('Cover already exists: $coverPath');
+          continue;
+        }
+
+        try {
+          // Download cover image
+          final dio = await DioClient.instance;
+          final response = await dio.get<Uint8List>(
+            coverUrl,
+            options: Options(responseType: ResponseType.bytes),
+          );
+
+          if (response.data != null && response.data!.isNotEmpty) {
+            await coverFile.writeAsBytes(response.data!);
+            logger.i('Downloaded cover image to: $coverPath');
+            await StructuredLogger().log(
+              level: 'info',
+              subsystem: 'torrent',
+              message: 'Downloaded cover image',
+              extra: {
+                'coverPath': coverPath,
+                'coverUrl': coverUrl,
+              },
+            );
+            return; // Success, exit
+          }
+        } on Exception catch (e) {
+          logger.w('Failed to download cover to $coverPath: $e');
+          // Try next name
+          continue;
+        }
+      }
+
+      logger.w('Failed to download cover image: all attempts failed');
+    } on Exception catch (e) {
+      logger.w('Error downloading cover image: $e');
+      await StructuredLogger().log(
+        level: 'warning',
+        subsystem: 'torrent',
+        message: 'Failed to download cover image',
+        extra: {
+          'coverUrl': coverUrl,
+          'directoryPath': directoryPath,
           'error': e.toString(),
         },
       );

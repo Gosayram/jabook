@@ -701,9 +701,101 @@ class RuTrackerParser {
 
         final authorElement = row.querySelector(_authorSelector);
         final sizeElement = row.querySelector(_sizeSelector);
-        final seedersElement = row.querySelector(_seedersSelector);
-        final leechersElement = row.querySelector(_leechersSelector);
         final magnetElement = row.querySelector(_downloadHrefSelector);
+
+        // Extract seeders with multiple fallback selectors
+        var seeders = 0;
+        var seedersElement = row.querySelector(_seedersSelector);
+        if (seedersElement != null) {
+          final seedersText = seedersElement.text.trim();
+          seeders = int.tryParse(seedersText) ?? 0;
+          EnvironmentLogger().d(
+            'Extracted seeders from _seedersSelector: $seeders (text: "$seedersText")',
+          );
+        } else {
+          // Try alternative selectors
+          seedersElement = row.querySelector('span.seed, span.seed b');
+          if (seedersElement != null) {
+            final seedersText = seedersElement.text.trim();
+            seeders = int.tryParse(seedersText) ?? 0;
+            EnvironmentLogger().d(
+              'Extracted seeders from alternative selector: $seeders (text: "$seedersText")',
+            );
+          } else {
+            // Try to extract from row text using regex
+            final seedersMatch =
+                RegExp(r'[↑↑]\s*(\d+)|[Сс]иды[:\s]*(\d+)').firstMatch(row.text);
+            if (seedersMatch != null) {
+              seeders = int.tryParse(
+                      seedersMatch.group(1) ?? seedersMatch.group(2) ?? '0') ??
+                  0;
+              EnvironmentLogger().d(
+                'Extracted seeders from regex: $seeders',
+              );
+            } else {
+              EnvironmentLogger().d('No seeders found for topic $topicId');
+            }
+          }
+        }
+
+        // Extract leechers with multiple fallback selectors
+        var leechers = 0;
+        var leechersElement = row.querySelector(_leechersSelector);
+        if (leechersElement != null) {
+          final leechersText = leechersElement.text.trim();
+          leechers = int.tryParse(leechersText) ?? 0;
+          EnvironmentLogger().d(
+            'Extracted leechers from _leechersSelector: $leechers (text: "$leechersText")',
+          );
+        } else {
+          // Try alternative selectors
+          leechersElement = row.querySelector('span.leech, span.leech b');
+          if (leechersElement != null) {
+            final leechersText = leechersElement.text.trim();
+            leechers = int.tryParse(leechersText) ?? 0;
+            EnvironmentLogger().d(
+              'Extracted leechers from alternative selector: $leechers (text: "$leechersText")',
+            );
+          } else {
+            // Try to extract from row text using regex
+            final leechersMatch =
+                RegExp(r'[↓↓]\s*(\d+)|[Лл]ичи[:\s]*(\d+)').firstMatch(row.text);
+            if (leechersMatch != null) {
+              leechers = int.tryParse(leechersMatch.group(1) ??
+                      leechersMatch.group(2) ??
+                      '0') ??
+                  0;
+              EnvironmentLogger().d(
+                'Extracted leechers from regex: $leechers',
+              );
+            } else {
+              EnvironmentLogger().d('No leechers found for topic $topicId');
+            }
+          }
+        }
+
+        // Log final values for debugging
+        EnvironmentLogger().d(
+          'Topic $topicId: seeders=$seeders, leechers=$leechers',
+        );
+
+        // Verify values are not swapped (seeders should typically be >= leechers for active torrents)
+        // This is a sanity check - if leechers > seeders by a large margin, might be swapped
+        if (leechers > seeders && seeders > 0 && leechers > 10) {
+          EnvironmentLogger().w(
+            'Possible seeders/leechers swap detected for topic $topicId: '
+            'seeders=$seeders, leechers=$leechers (leechers > seeders)',
+          );
+        }
+
+        // Verify values are not swapped (seeders should typically be >= leechers for active torrents)
+        // This is a sanity check - if leechers > seeders by a large margin, might be swapped
+        if (leechers > seeders && seeders > 0 && leechers > 10) {
+          EnvironmentLogger().w(
+            'Possible seeders/leechers swap detected for topic $topicId: '
+            'seeders=$seeders, leechers=$leechers (leechers > seeders)',
+          );
+        }
 
         // Extract size from multiple possible locations
         var sizeText = '0 MB';
@@ -729,14 +821,24 @@ class RuTrackerParser {
         }
 
         final coverUrl = _extractCoverUrl(row, baseUrl: baseUrl);
+        // Log cover URL extraction for debugging
+        if (coverUrl != null) {
+          EnvironmentLogger().d(
+            'Topic $topicId: extracted cover URL: $coverUrl',
+          );
+        } else {
+          EnvironmentLogger().d(
+            'Topic $topicId: no cover URL found',
+          );
+        }
         final audiobook = Audiobook(
           id: topicId,
           title: titleElement.text.trim(),
           author: authorElement?.text.trim() ?? 'Unknown',
           category: _extractCategoryFromTitle(titleElement.text),
           size: sizeText,
-          seeders: int.tryParse(seedersElement?.text.trim() ?? '0') ?? 0,
-          leechers: int.tryParse(leechersElement?.text.trim() ?? '0') ?? 0,
+          seeders: seeders,
+          leechers: leechers,
           magnetUrl: magnetUrl,
           coverUrl: coverUrl,
           chapters: [],
@@ -1416,6 +1518,69 @@ class RuTrackerParser {
         'Failed to parse topic details: ${e.toString()}',
         e,
       );
+    }
+  }
+
+  /// Parses topic statistics (seeders and leechers) from topic page HTML.
+  ///
+  /// This is a lightweight method that only extracts statistics without
+  /// parsing the full topic details. Used to update statistics for search
+  /// results that don't have them.
+  ///
+  /// The [htmlData] parameter contains the HTML content of the topic page.
+  ///
+  /// Returns a map with 'seeders' and 'leechers' keys, or null if parsing fails.
+  Future<Map<String, int>?> parseTopicStatistics(dynamic htmlData) async {
+    try {
+      String decodedHtml;
+      try {
+        decodedHtml = utf8.decode(htmlData.codeUnits);
+      } on FormatException {
+        decodedHtml = windows1251.decode(htmlData.codeUnits);
+      }
+
+      final document = parser.parse(decodedHtml);
+      final torStats = document.querySelector(_torStatsSelector);
+
+      int? seeders;
+      int? leechers;
+
+      // Extract seeders and leechers from tor-stats table
+      if (torStats != null) {
+        final seedersElement =
+            torStats.querySelector('span.seed b, span.seedmed b');
+        final leechersElement =
+            torStats.querySelector('span.leech b, span.leechmed b');
+        seeders = int.tryParse(seedersElement?.text.trim() ?? '0');
+        leechers = int.tryParse(leechersElement?.text.trim() ?? '0');
+      }
+
+      // Fallback to post body text
+      final postBody = document.querySelector(_postBodySelector);
+      if (postBody != null) {
+        if (seeders == null) {
+          final seedersMatch =
+              RegExp(r'Сиды[:\s]*(\d+)').firstMatch(postBody.text);
+          seeders = int.tryParse(seedersMatch?.group(1) ?? '0') ?? 0;
+        }
+        if (leechers == null) {
+          final leechersMatch =
+              RegExp(r'Личи[:\s]*(\d+)').firstMatch(postBody.text);
+          leechers = int.tryParse(leechersMatch?.group(1) ?? '0') ?? 0;
+        }
+      }
+
+      // Return null if we couldn't extract statistics
+      if (seeders == null || leechers == null) {
+        return null;
+      }
+
+      return {
+        'seeders': seeders,
+        'leechers': leechers,
+      };
+    } on Exception {
+      return null;
     }
   }
 }

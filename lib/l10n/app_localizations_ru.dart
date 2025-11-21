@@ -1375,4 +1375,18 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get noMagnetLinkAvailable => 'Magnet-ссылка недоступна';
+
+  @override
+  String get recommended => 'Рекомендуем';
+
+  @override
+  String noResultsForQuery(String query) {
+    return 'Ничего не найдено по запросу: \"$query\"';
+  }
+
+  @override
+  String get tryDifferentKeywords => 'Попробуйте изменить ключевые слова';
+
+  @override
+  String get clearSearch => 'Очистить поиск';
 }

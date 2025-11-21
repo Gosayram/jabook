@@ -117,6 +117,13 @@
             </intent-filter>
         </service>
 
+        <!-- Download foreground service -->
+        <service
+            android:name=".download.DownloadForegroundService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync">
+        </service>
+
         <!-- Required for Flutter engine -->
         <meta-data
             android:name="flutterEmbedding"

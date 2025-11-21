@@ -26,7 +26,7 @@ import 'package:jabook/core/config/language_provider.dart';
 import 'package:jabook/core/metadata/audiobook_metadata_service.dart';
 import 'package:jabook/core/metadata/metadata_sync_scheduler.dart';
 import 'package:jabook/core/net/dio_client.dart';
-import 'package:jabook/core/permissions/permission_service_v2.dart';
+import 'package:jabook/core/permissions/permission_service.dart';
 import 'package:jabook/core/utils/file_picker_utils.dart' as file_picker_utils;
 import 'package:jabook/core/utils/storage_path_utils.dart';
 import 'package:jabook/data/db/app_database.dart';
@@ -52,10 +52,12 @@ class SettingsScreen extends ConsumerStatefulWidget {
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   final LanguageManager _languageManager = LanguageManager();
-  final PermissionServiceV2 _permissionService = PermissionServiceV2();
+  final PermissionService _permissionService = PermissionService();
   String _selectedLanguage = 'system';
   String? _downloadFolderPath;
   bool _wifiOnlyDownloads = false;
+  // Key for FutureBuilder to force rebuild when permissions change
+  int _permissionStatusKey = 0;
 
   @override
   void initState() {
@@ -886,6 +888,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   Widget _buildPermissionsSection(BuildContext context) =>
       FutureBuilder<Map<String, bool>>(
+        key: ValueKey<int>(_permissionStatusKey),
         future: _getPermissionStatus(),
         builder: (context, snapshot) {
           final permissions = snapshot.data ?? {};
@@ -971,59 +974,206 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     required bool isGranted,
     required VoidCallback onTap,
   }) =>
-      Card(
-        child: ListTile(
-          leading: Icon(
-            icon,
-            color: isGranted ? Colors.green : Colors.orange,
+      AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+        child: Card(
+          child: ListTile(
+            leading: AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeInOut,
+              child: Icon(
+                icon,
+                color: isGranted ? Colors.green : Colors.orange,
+              ),
+            ),
+            title: Text(title),
+            subtitle: Text(description),
+            trailing: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 300),
+              child: isGranted
+                  ? Icon(
+                      Icons.check_circle,
+                      key: const ValueKey('granted'),
+                      color: Colors.green.shade600,
+                    )
+                  : Icon(
+                      Icons.warning,
+                      key: const ValueKey('denied'),
+                      color: Colors.orange.shade600,
+                    ),
+            ),
+            onTap: onTap,
           ),
-          title: Text(title),
-          subtitle: Text(description),
-          trailing: isGranted
-              ? Icon(Icons.check_circle, color: Colors.green.shade600)
-              : Icon(Icons.warning, color: Colors.orange.shade600),
-          onTap: onTap,
         ),
       );
 
   Future<Map<String, bool>> _getPermissionStatus() async {
-    final files = await _permissionService.canAccessFiles();
-    final notifications = await _permissionService.canShowNotifications();
+    final storage = await _permissionService.hasStoragePermission();
+    final notification = await _permissionService.hasNotificationPermission();
     return {
-      'storage': files,
-      'notification': notifications,
+      'storage': storage,
+      'notification': notification,
     };
   }
 
   Future<void> _requestStoragePermission() async {
-    final granted = await _permissionService.canAccessFiles();
-    if (mounted) {
+    if (!mounted) return;
+
+    // Show explanation dialog first
+    final shouldRequest = await _showPermissionExplanationDialog(
+      context,
+      title: AppLocalizations.of(context)?.storagePermissionName ??
+          'Storage Permission',
+      message: AppLocalizations.of(context)?.storagePermissionDescription ??
+          'JaBook needs storage permission to save audiobook files and cache data. '
+              'This allows you to download and play audiobooks offline.',
+    );
+
+    if (!shouldRequest) return;
+
+    // Request permission
+    final granted = await _permissionService.requestStoragePermission();
+
+    if (!mounted) return;
+
+    if (granted) {
       setState(() {});
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(granted
-              ? (AppLocalizations.of(context)?.fileAccessAvailable ??
-                  'File access available')
-              : (AppLocalizations.of(context)?.fileAccessUnavailable ??
-                  'File access unavailable')),
+          content: Text(
+            AppLocalizations.of(context)?.fileAccessAvailable ??
+                'Storage permission granted',
+          ),
+          backgroundColor: Colors.green,
         ),
       );
+    } else {
+      // Show dialog to open settings
+      await _showOpenSettingsDialog(
+        context,
+        title: AppLocalizations.of(context)?.storagePermissionName ??
+            'Storage Permission',
+        message: AppLocalizations.of(context)?.permissionDeniedMessage ??
+            'Storage permission was denied. Please grant it in app settings to use this feature.',
+      );
+      // Force FutureBuilder to rebuild even if denied
+      setState(() {
+        _permissionStatusKey++;
+      });
     }
   }
 
   Future<void> _requestNotificationPermission() async {
-    final granted = await _permissionService.canShowNotifications();
-    if (mounted) {
-      setState(() {});
+    if (!mounted) return;
+
+    // Show explanation dialog first
+    final shouldRequest = await _showPermissionExplanationDialog(
+      context,
+      title: AppLocalizations.of(context)?.notificationsPermissionName ??
+          'Notification Permission',
+      message: AppLocalizations.of(context)
+              ?.notificationsPermissionDescription ??
+          'JaBook needs notification permission to show playback controls and updates. '
+              'This allows you to control playback from the notification panel.',
+    );
+
+    if (!shouldRequest) return;
+
+    // Request permission
+    final granted = await _permissionService.requestNotificationPermission();
+
+    if (!mounted) return;
+
+    if (granted) {
+      // Force FutureBuilder to rebuild by changing key
+      setState(() {
+        _permissionStatusKey++;
+      });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(granted
-              ? (AppLocalizations.of(context)?.notificationsAvailable ??
-                  'Notifications available')
-              : (AppLocalizations.of(context)?.notificationsUnavailable ??
-                  'Notifications unavailable')),
+          content: Text(
+            AppLocalizations.of(context)?.notificationsAvailable ??
+                'Notification permission granted',
+          ),
+          backgroundColor: Colors.green,
         ),
       );
+    } else {
+      // Show dialog to open settings
+      await _showOpenSettingsDialog(
+        context,
+        title: AppLocalizations.of(context)?.notificationsPermissionName ??
+            'Notification Permission',
+        message: AppLocalizations.of(context)?.permissionDeniedMessage ??
+            'Notification permission was denied. Please grant it in app settings to use this feature.',
+      );
+      // Force FutureBuilder to rebuild even if denied
+      setState(() {
+        _permissionStatusKey++;
+      });
+    }
+  }
+
+  /// Shows a dialog explaining why a permission is needed.
+  ///
+  /// Returns `true` if user wants to proceed, `false` otherwise.
+  Future<bool> _showPermissionExplanationDialog(
+    BuildContext context, {
+    required String title,
+    required String message,
+  }) async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(title),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(AppLocalizations.of(context)?.cancel ?? 'Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Allow'),
+          ),
+        ],
+      ),
+    );
+    return result ?? false;
+  }
+
+  /// Shows a dialog prompting user to open app settings.
+  Future<void> _showOpenSettingsDialog(
+    BuildContext context, {
+    required String title,
+    required String message,
+  }) async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(title),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(AppLocalizations.of(context)?.cancel ?? 'Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context, true);
+              _permissionService.openAppSettings();
+            },
+            child: const Text('Open Settings'),
+          ),
+        ],
+      ),
+    );
+
+    if ((result ?? false) && mounted) {
+      // Wait a bit for user to potentially grant permission
+      await Future.delayed(const Duration(seconds: 1));
+      setState(() {});
     }
   }
 

@@ -30,13 +30,16 @@ import 'package:jabook/core/logging/environment_logger.dart';
 import 'package:jabook/core/logging/structured_logger.dart';
 import 'package:jabook/core/metadata/audiobook_metadata_service.dart';
 import 'package:jabook/core/net/dio_client.dart';
+import 'package:jabook/core/parse/category_parser.dart' as category_parser;
 import 'package:jabook/core/parse/rutracker_parser.dart';
 import 'package:jabook/core/search/search_history_service.dart';
 import 'package:jabook/core/services/cookie_service.dart';
 import 'package:jabook/core/utils/safe_async.dart';
 import 'package:jabook/data/db/app_database.dart';
 import 'package:jabook/features/auth/data/providers/auth_provider.dart';
+import 'package:jabook/features/search/presentation/widgets/audiobook_card_skeleton.dart';
 import 'package:jabook/features/search/presentation/widgets/grouped_audiobook_list.dart';
+import 'package:jabook/features/search/presentation/widgets/recommended_audiobooks_widget.dart';
 import 'package:jabook/features/settings/presentation/screens/mirror_settings_screen.dart';
 import 'package:jabook/l10n/app_localizations.dart';
 import 'package:windows1251/windows1251.dart';
@@ -329,8 +332,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       try {
         final localResults = await _metadataService!.searchLocally(query);
         if (localResults.isNotEmpty) {
+          final localResultsMaps = localResults.map(_audiobookToMap).toList();
           setState(() {
-            _searchResults = localResults.map(_audiobookToMap).toList();
+            _searchResults = localResultsMaps;
             _isLoading = false;
             _isFromLocalDb = true;
           });
@@ -339,6 +343,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             await _historyService!.saveSearchQuery(query);
             await _loadSearchHistory();
           }
+
+          // Update statistics for items that don't have them
+          safeUnawaited(_updateMissingStatistics(localResultsMaps));
 
           // Still try to get network results in background for updates
           safeUnawaited(
@@ -366,6 +373,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         _isFromCache = true;
         _cacheExpirationTime = expiration;
       });
+      // Update statistics for items that don't have them
+      safeUnawaited(_updateMissingStatistics(cachedResults));
       return;
     }
 
@@ -1516,6 +1525,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             await _historyService!.saveSearchQuery(query);
             await _loadSearchHistory();
           }
+
+          // Update statistics for items that don't have them
+          safeUnawaited(_updateMissingStatistics(results));
         }
 
         // Success - update active host display (don't change endpoint)
@@ -1984,9 +1996,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 Expanded(
                   child: Semantics(
                     label: AppLocalizations.of(context)?.loading ?? 'Loading',
-                    child: const Center(
-                      child: CircularProgressIndicator(),
-                    ),
+                    child: const AudiobookCardSkeletonList(),
                   ),
                 )
               else if (_hasSearched)
@@ -2081,17 +2091,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 )
               else
                 Expanded(
-                  child: Semantics(
-                    label: AppLocalizations.of(context)?.enterSearchTerm ??
-                        'Enter a search term to begin',
-                    child: Center(
-                      child: Text(
-                        AppLocalizations.of(context)?.enterSearchTerm ??
-                            'Enter a search term to begin',
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  ),
+                  child: _buildEmptyState(context),
                 ),
             ],
           ),
@@ -2103,6 +2103,246 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       return _buildErrorState();
     }
     return _buildSearchResults();
+  }
+
+  /// Builds empty state with recommendations or search prompt.
+  Widget _buildEmptyState(BuildContext context) {
+    // Show recommendations if search field is empty
+    if (_searchController.text.isEmpty) {
+      return FutureBuilder<List<RecommendedAudiobook>>(
+        future: _getRecommendedAudiobooks(),
+        builder: (context, snapshot) {
+          // Show loading state
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const CircularProgressIndicator(),
+                  const SizedBox(height: 16),
+                  Text(
+                    AppLocalizations.of(context)?.loading ?? 'Loading...',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                ],
+              ),
+            );
+          }
+
+          // Show error state (but still show search prompt)
+          if (snapshot.hasError) {
+            // Log error but don't show to user - just show search prompt
+            EnvironmentLogger().w(
+              'Failed to load recommendations: ${snapshot.error}',
+            );
+          }
+
+          final recommendations = snapshot.data ?? [];
+
+          return SingleChildScrollView(
+            child: Column(
+              children: [
+                const SizedBox(height: 16),
+                // Always show recommendations widget, even if empty
+                // Widget handles empty state internally
+                RecommendedAudiobooksWidget(
+                  audiobooks: recommendations,
+                ),
+                const SizedBox(height: 24),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 32),
+                  child: Column(
+                    children: [
+                      Icon(
+                        Icons.search,
+                        size: 64,
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurface
+                            .withValues(alpha: 0.3),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        AppLocalizations.of(context)?.enterSearchTerm ??
+                            'Enter a search term to begin',
+                        style: Theme.of(context).textTheme.bodyLarge,
+                        textAlign: TextAlign.center,
+                      ),
+                      // Show search history if available
+                      if (_searchHistory.isNotEmpty) ...[
+                        const SizedBox(height: 24),
+                        Text(
+                          AppLocalizations.of(context)?.recentSearches ??
+                              'Recent searches:',
+                          style: Theme.of(context).textTheme.titleSmall,
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          alignment: WrapAlignment.center,
+                          children: _searchHistory
+                              .take(5)
+                              .map((query) => ActionChip(
+                                    label: Text(query),
+                                    onPressed: () {
+                                      _searchController.text = query;
+                                      _performSearch();
+                                    },
+                                  ))
+                              .toList(),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+    }
+
+    // Show search prompt if search field has text but no results
+    return Semantics(
+      label: AppLocalizations.of(context)?.enterSearchTerm ??
+          'Enter a search term to begin',
+      child: Center(
+        child: Text(
+          AppLocalizations.of(context)?.enterSearchTerm ??
+              'Enter a search term to begin',
+          textAlign: TextAlign.center,
+        ),
+      ),
+    );
+  }
+
+  /// Returns list of recommended audiobooks.
+  ///
+  /// Gets new books from different categories, sorted by newest first.
+  /// Only returns books from actual category pages, no static fallback.
+  Future<List<RecommendedAudiobook>> _getRecommendedAudiobooks() =>
+      _getCategoryRecommendations();
+
+  /// Gets recommendations from different categories.
+  ///
+  /// Fetches new books from popular categories using viewforum.php.
+  /// Gets the first few books from each category (they are usually newest).
+  Future<List<RecommendedAudiobook>> _getCategoryRecommendations() async {
+    try {
+      final endpointManager = ref.read(endpointManagerProvider);
+      final baseUrl = await endpointManager.buildUrl('');
+      final dio = await DioClient.instance;
+      final categoryParser = category_parser.CategoryParser();
+
+      final recommendations = <RecommendedAudiobook>[];
+      final seenIds = <String>{};
+
+      // Use popular categories from CategoryConstants
+      const categories = CategoryConstants.popularCategoryIds;
+      if (categories.isEmpty) {
+        return [];
+      }
+
+      // Get 5-10 new books from each category (first books are usually newest)
+      // Distribute evenly: if we have 9 categories, get 1-2 from each to reach ~10 total
+      final booksPerCategory = (10 / categories.length).ceil().clamp(1, 3);
+
+      // Fetch from all categories in parallel with timeout
+      final futures = categories.map((categoryId) async {
+        try {
+          return await _fetchNewBooksFromCategory(
+            dio: dio,
+            endpoint: baseUrl,
+            categoryParser: categoryParser,
+            categoryId: categoryId,
+            limit: booksPerCategory,
+          ).timeout(
+            const Duration(seconds: 8),
+            onTimeout: () => <RecommendedAudiobook>[],
+          );
+        } on Exception {
+          return <RecommendedAudiobook>[];
+        }
+      });
+
+      final results = await Future.wait(futures);
+
+      // Combine results from all categories
+      for (final categoryResults in results) {
+        for (final result in categoryResults) {
+          if (seenIds.contains(result.id)) continue;
+          seenIds.add(result.id);
+          recommendations.add(result);
+          if (recommendations.length >= 10) break;
+        }
+        if (recommendations.length >= 10) break;
+      }
+
+      return recommendations;
+    } on Exception {
+      // Return empty list on error - no fallback to static list
+      return [];
+    }
+  }
+
+  /// Fetches new books from a specific category using viewforum.php.
+  ///
+  /// Gets the first few books from the category page (they are usually newest).
+  Future<List<RecommendedAudiobook>> _fetchNewBooksFromCategory({
+    required Dio dio,
+    required String endpoint,
+    required category_parser.CategoryParser categoryParser,
+    required String categoryId,
+    required int limit,
+  }) async {
+    try {
+      // Use viewforum.php to get books from category
+      // First books on the page are usually the newest
+      final forumPath = '/forum/viewforum.php?f=$categoryId';
+      final forumUrl = '$endpoint$forumPath';
+
+      final response = await dio.get(
+        forumUrl,
+        options: Options(
+          responseType: ResponseType.plain,
+          headers: {
+            'Accept': 'text/html,application/xhtml+xml,application/xml',
+            'Accept-Charset': 'windows-1251,utf-8',
+          },
+        ),
+      );
+
+      // Parse topics from category page using CategoryParser
+      final topics = await categoryParser.parseCategoryTopics(
+        response.data.toString(),
+      );
+
+      // Convert to RecommendedAudiobook and limit
+      // First books are usually newest
+      return topics
+          .take(limit)
+          .map((topic) {
+            final topicId = topic['id'] as String? ?? '';
+            final title = topic['title'] as String? ?? 'Unknown Title';
+            final author = topic['author'] as String? ?? 'Unknown Author';
+            final size = topic['size'] as String?;
+            final categoryName =
+                CategoryConstants.categoryNameMap[categoryId] ?? 'Audiobook';
+
+            return RecommendedAudiobook(
+              id: topicId,
+              title: title,
+              author: author,
+              size: size,
+              genre: categoryName,
+            );
+          })
+          .where((book) => book.id.isNotEmpty) // Filter out invalid entries
+          .toList();
+    } on Exception {
+      return [];
+    }
   }
 
   /// Builds category filter chips.
@@ -2304,13 +2544,68 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     }
 
     if (filteredResults.isEmpty) {
+      final query = _searchController.text.trim();
       return Center(
-        child: Semantics(
-          label: localizations?.noResults ?? 'No results found',
-          child: Text(
-            localizations?.noResults ?? 'No results found',
-            style: Theme.of(context).textTheme.bodyLarge,
-            textAlign: TextAlign.center,
+        child: Padding(
+          padding: const EdgeInsets.all(32.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.search_off,
+                size: 64,
+                color: Theme.of(context)
+                    .colorScheme
+                    .onSurface
+                    .withValues(alpha: 0.4),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                localizations?.noResults ?? 'No results found',
+                style: Theme.of(context).textTheme.titleLarge,
+                textAlign: TextAlign.center,
+              ),
+              if (query.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Text(
+                  localizations?.noResultsForQuery(query) ??
+                      'Nothing found for query: "$query"',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurface
+                            .withValues(alpha: 0.6),
+                      ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  localizations?.tryDifferentKeywords ??
+                      'Try changing keywords',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurface
+                            .withValues(alpha: 0.5),
+                      ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+              const SizedBox(height: 24),
+              OutlinedButton.icon(
+                onPressed: () {
+                  _searchController.clear();
+                  setState(() {
+                    _searchResults = [];
+                    _hasSearched = false;
+                  });
+                },
+                icon: const Icon(Icons.clear),
+                label: Text(
+                  localizations?.clearSearch ?? 'Clear search',
+                ),
+              ),
+            ],
           ),
         ),
       );
@@ -2416,10 +2711,13 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           final audiobookMore = _filterAudiobookResults(more);
 
           if (mounted) {
+            final moreResults = audiobookMore.map(_audiobookToMap).toList();
             setState(() {
-              _searchResults.addAll(audiobookMore.map(_audiobookToMap));
+              _searchResults.addAll(moreResults);
               _hasMore = audiobookMore.isNotEmpty;
             });
+            // Update statistics for newly added items that don't have them
+            safeUnawaited(_updateMissingStatistics(moreResults));
           }
         } on ParsingFailure catch (e) {
           await StructuredLogger().log(
@@ -2668,6 +2966,78 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         'chapters': audiobook.chapters.map(_chapterToMap).toList(),
         'addedDate': audiobook.addedDate.toIso8601String(),
       };
+
+  /// Updates statistics (seeders/leechers) for search results that don't have them.
+  ///
+  /// Makes lightweight requests to topic pages to get statistics for items
+  /// where seeders=0 and leechers=0 (likely missing from search results).
+  Future<void> _updateMissingStatistics(
+      List<Map<String, dynamic>> results) async {
+    // Find items that need statistics update
+    final itemsNeedingStats = results.where((item) {
+      final seeders = item['seeders'] as int? ?? 0;
+      final leechers = item['leechers'] as int? ?? 0;
+      return seeders == 0 && leechers == 0;
+    }).toList();
+
+    if (itemsNeedingStats.isEmpty) {
+      return; // No items need statistics update
+    }
+
+    // Limit to first 10 items to avoid too many requests
+    final itemsToUpdate = itemsNeedingStats.take(10).toList();
+
+    try {
+      final endpointManager = ref.read(endpointManagerProvider);
+      final baseUrl = await endpointManager.buildUrl('');
+      final dio = await DioClient.instance;
+
+      // Update statistics for each item in parallel (with limit)
+      final futures = itemsToUpdate.map((item) async {
+        final topicId = item['id'] as String? ?? '';
+        if (topicId.isEmpty) return;
+
+        try {
+          // Make lightweight request to topic page
+          final topicUrl = '$baseUrl/forum/viewtopic.php?t=$topicId';
+          final response = await dio
+              .get(
+                topicUrl,
+                options: Options(
+                  responseType: ResponseType.plain,
+                  headers: {
+                    'Accept': 'text/html,application/xhtml+xml,application/xml',
+                    'Accept-Charset': 'windows-1251,utf-8',
+                  },
+                ),
+              )
+              .timeout(const Duration(seconds: 5));
+
+          // Parse statistics from HTML
+          final stats = await _parser.parseTopicStatistics(response.data);
+          if (stats != null && mounted) {
+            // Update the item in _searchResults
+            final index = _searchResults.indexWhere(
+              (r) => (r['id'] as String? ?? '') == topicId,
+            );
+            if (index >= 0) {
+              setState(() {
+                _searchResults[index]['seeders'] = stats['seeders'];
+                _searchResults[index]['leechers'] = stats['leechers'];
+              });
+            }
+          }
+        } on Exception {
+          // Silently fail for individual items
+          return;
+        }
+      });
+
+      await Future.wait(futures);
+    } on Exception {
+      // Silently fail if batch update fails
+    }
+  }
 }
 
 /// Filters search results to only include audiobooks.

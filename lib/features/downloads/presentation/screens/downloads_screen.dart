@@ -220,11 +220,10 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                 .d('DownloadsScreen: Pop already handled by system');
             return;
           }
-          // Allow navigation back using GoRouter
+          // Try to navigate back - if canPop is false, go to library
           final canPop = context.canPop();
-          final activeDownloadsCount = _downloads.length;
           EnvironmentLogger().d(
-            'DownloadsScreen: onPopInvokedWithResult - canPop: $canPop, activeDownloads: $activeDownloadsCount',
+            'DownloadsScreen: onPopInvokedWithResult - canPop: $canPop',
           );
           if (canPop) {
             try {
@@ -233,14 +232,16 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                   'DownloadsScreen: Successfully popped using context.pop()');
             } on Exception catch (e) {
               EnvironmentLogger().w(
-                'DownloadsScreen: Failed to pop, falling back to go("/")',
+                'DownloadsScreen: Failed to pop, navigating to library',
                 error: e,
               );
+              // Navigate to library as fallback
               context.go('/');
             }
           } else {
-            EnvironmentLogger().d(
-                'DownloadsScreen: Cannot pop, navigating to home using context.go("/")');
+            // Cannot pop (e.g., opened directly), navigate to library
+            EnvironmentLogger()
+                .d('DownloadsScreen: Cannot pop, navigating to library');
             context.go('/');
           }
         },
@@ -248,6 +249,19 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
           appBar: AppBar(
             title: Text(
               AppLocalizations.of(context)?.downloadsTitle ?? 'Downloads',
+            ),
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back),
+              onPressed: () {
+                // Handle back button press
+                if (context.canPop()) {
+                  context.pop();
+                } else {
+                  // Navigate to library if cannot pop
+                  context.go('/');
+                }
+              },
+              tooltip: 'Back',
             ),
             actions: [
               if (AppConfig().debugFeaturesEnabled)

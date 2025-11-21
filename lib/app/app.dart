@@ -13,8 +13,10 @@
 // limitations under the License.
 
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:jabook/app/router/app_router.dart';
@@ -25,6 +27,7 @@ import 'package:jabook/core/cache/rutracker_cache_service.dart';
 import 'package:jabook/core/config/app_config.dart';
 import 'package:jabook/core/config/language_manager.dart';
 import 'package:jabook/core/config/language_provider.dart';
+import 'package:jabook/core/download/download_foreground_service.dart';
 import 'package:jabook/core/endpoints/endpoint_health_scheduler.dart';
 import 'package:jabook/core/endpoints/endpoint_manager.dart';
 import 'package:jabook/core/logging/environment_logger.dart';
@@ -32,6 +35,8 @@ import 'package:jabook/core/logging/structured_logger.dart';
 import 'package:jabook/core/net/dio_client.dart';
 import 'package:jabook/core/notifications/download_notification_service.dart';
 import 'package:jabook/core/permissions/permission_service.dart';
+import 'package:jabook/core/player/player_state_persistence_service.dart';
+import 'package:jabook/core/player/player_state_provider.dart';
 import 'package:jabook/core/session/session_manager.dart';
 import 'package:jabook/core/torrent/audiobook_torrent_manager.dart';
 import 'package:jabook/core/utils/first_launch.dart';
@@ -302,6 +307,7 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
         StoragePathUtils().initializeDefaultPath(),
         _initializeBackgroundService(),
         _initializeNotificationService(),
+        _setupNotificationChannel(),
       ]);
 
       // Request permissions separately after a delay to ensure Activity is ready
@@ -537,7 +543,62 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
       },
     );
 
+    // Restore player state on startup (non-blocking)
+    // This will restore the last played audiobook and show mini player if active
+    safeUnawaited(
+      _restorePlayerState(),
+      onError: (e, stack) {
+        logger.w('Failed to restore player state on startup: $e');
+      },
+    );
+
     logger.i('Database, cache, auth, and endpoints initialized successfully');
+  }
+
+  /// Restores player state on app startup.
+  ///
+  /// This checks for saved player state and restores it if available,
+  /// showing the mini player if there was an active playback session.
+  Future<void> _restorePlayerState() async {
+    try {
+      logger.i('Checking for saved player state to restore');
+
+      // Import here to avoid circular dependencies
+      final playerStatePersistenceService = PlayerStatePersistenceService();
+      final savedState = await playerStatePersistenceService.restoreState();
+
+      if (savedState == null) {
+        logger.i('No saved player state found');
+        return;
+      }
+
+      logger.i(
+        'Found saved player state for group: ${savedState.groupPath}',
+      );
+
+      // Verify that files still exist
+      final allFilesExist = savedState.filePaths.every((path) {
+        try {
+          return File(path).existsSync();
+        } on Object {
+          return false;
+        }
+      });
+
+      if (!allFilesExist) {
+        logger.w(
+          'Some files from saved state no longer exist, clearing saved state',
+        );
+        await playerStatePersistenceService.clearState();
+        return;
+      }
+
+      // State will be restored when user opens the player screen
+      // We just ensure the state is available for restoration
+      logger.i('Player state available for restoration');
+    } on Exception catch (e) {
+      logger.w('Failed to restore player state: $e');
+    }
   }
 
   Future<void> _requestEssentialPermissions() async {
@@ -666,7 +727,7 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
       final backgroundService = DownloadBackgroundService();
       await backgroundService.initialize();
 
-      // Register monitoring task if there are active downloads
+      // Register monitoring task and start foreground service if there are active downloads
       // This will be checked after torrent manager is initialized
       safeUnawaited(
         () async {
@@ -680,6 +741,17 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
                 'Found ${activeDownloads.length} active downloads, registering background monitoring',
               );
               await backgroundService.registerDownloadMonitoring();
+
+              // Start foreground service if there are active downloads
+              // This ensures downloads continue even if app was killed
+              try {
+                final downloadForegroundService = DownloadForegroundService();
+                await downloadForegroundService.startService();
+                logger.i(
+                    'Started download foreground service for active downloads');
+              } on Exception catch (e) {
+                logger.w('Failed to start download foreground service: $e');
+              }
             }
           } on Exception catch (e) {
             logger.w('Failed to register download monitoring: $e');
@@ -707,6 +779,46 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
       logger.w('Failed to initialize notification service: $e');
       // Continue without notification service - downloads will still work
       // but notifications won't be shown
+    }
+  }
+
+  /// Sets up notification channel to handle notification clicks from Android.
+  Future<void> _setupNotificationChannel() async {
+    try {
+      if (!Platform.isAndroid) {
+        return; // Only needed on Android
+      }
+
+      // Import platform channel
+      const platform = MethodChannel('com.jabook.app.jabook/notification');
+
+      // Set up handler for notification clicks
+      // ignore: cascade_invocations
+      platform.setMethodCallHandler((call) async {
+        if (call.method == 'openPlayer') {
+          // Open player screen when notification is clicked
+          if (mounted) {
+            try {
+              final router = ref.read(appRouterProvider);
+              final currentGroup = ref.read(currentAudiobookGroupProvider);
+              if (currentGroup != null) {
+                await router.push('/local-player', extra: currentGroup);
+                logger.i('Opened player from notification click');
+              } else {
+                logger.w('No current group available to open player');
+              }
+            } on Exception catch (e) {
+              logger.w('Failed to open player from notification: $e');
+            }
+          }
+        }
+        return null;
+      });
+
+      logger.i('Notification channel handler set up');
+    } on Exception catch (e) {
+      logger.w('Failed to set up notification channel: $e');
+      // Continue without notification channel - app will still work
     }
   }
 

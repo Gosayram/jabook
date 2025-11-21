@@ -20,6 +20,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:jabook/core/logging/structured_logger.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:permission_handler/permission_handler.dart' as ph
+    show openAppSettings;
 
 /// Service for managing app permissions.
 ///
@@ -367,6 +369,25 @@ class PermissionService {
         message: 'Requesting notification permission',
       );
 
+      // Check current status first
+      final currentStatus = await Permission.notification.status;
+
+      // If permanently denied, open settings
+      if (currentStatus.isPermanentlyDenied) {
+        await _logger.log(
+          level: 'info',
+          subsystem: 'permissions',
+          message:
+              'Notification permission permanently denied, opening settings',
+        );
+        await openAppSettings();
+        // Wait a bit for user to potentially grant permission
+        await Future.delayed(const Duration(seconds: 1));
+        // Check again if user granted permission
+        final newStatus = await Permission.notification.status;
+        return newStatus.isGranted;
+      }
+
       final status = await Permission.notification.request();
 
       await _logger.log(
@@ -374,6 +395,23 @@ class PermissionService {
         subsystem: 'permissions',
         message: 'Notification permission result: ${status.name}',
       );
+
+      // If denied and can be requested again, it's not permanently denied yet
+      // If permanently denied after request, open settings
+      if (status.isPermanentlyDenied) {
+        await _logger.log(
+          level: 'info',
+          subsystem: 'permissions',
+          message:
+              'Notification permission permanently denied after request, opening settings',
+        );
+        await openAppSettings();
+        // Wait a bit for user to potentially grant permission
+        await Future.delayed(const Duration(seconds: 1));
+        // Check again if user granted permission
+        final newStatus = await Permission.notification.status;
+        return newStatus.isGranted;
+      }
 
       return status.isGranted;
     } on Exception catch (e) {
@@ -426,6 +464,84 @@ class PermissionService {
     return hasStorage && hasNotification;
   }
 
+  /// Gets detailed permission status for all permissions.
+  ///
+  /// Returns a map with permission names as keys and their status information.
+  Future<Map<String, Map<String, dynamic>>>
+      getDetailedPermissionStatus() async {
+    final status = <String, Map<String, dynamic>>{};
+
+    try {
+      // Storage permission status
+      if (Platform.isAndroid) {
+        final androidInfo = await DeviceInfoPlugin().androidInfo;
+        final sdkInt = androidInfo.version.sdkInt;
+
+        if (sdkInt >= 33) {
+          final audioStatus = await Permission.audio.status;
+          final photosStatus = await Permission.photos.status;
+          status['storage'] = {
+            'granted': audioStatus.isGranted || photosStatus.isGranted,
+            'audio': {
+              'granted': audioStatus.isGranted,
+              'denied': audioStatus.isDenied,
+              'permanentlyDenied': audioStatus.isPermanentlyDenied,
+            },
+            'photos': {
+              'granted': photosStatus.isGranted,
+              'denied': photosStatus.isDenied,
+              'permanentlyDenied': photosStatus.isPermanentlyDenied,
+            },
+          };
+        } else {
+          final storageStatus = await Permission.storage.status;
+          status['storage'] = {
+            'granted': storageStatus.isGranted,
+            'denied': storageStatus.isDenied,
+            'permanentlyDenied': storageStatus.isPermanentlyDenied,
+          };
+        }
+      } else {
+        status['storage'] = {'granted': true};
+      }
+
+      // Notification permission status
+      final notificationStatus = await Permission.notification.status;
+      status['notification'] = {
+        'granted': notificationStatus.isGranted,
+        'denied': notificationStatus.isDenied,
+        'permanentlyDenied': notificationStatus.isPermanentlyDenied,
+      };
+    } on Exception catch (e) {
+      await _logger.log(
+        level: 'error',
+        subsystem: 'permissions',
+        message: 'Error getting detailed permission status',
+        cause: e.toString(),
+      );
+    }
+
+    return status;
+  }
+
+  /// Checks if a permission is permanently denied.
+  ///
+  /// Returns `true` if the permission is permanently denied, `false` otherwise.
+  Future<bool> isPermissionPermanentlyDenied(Permission permission) async {
+    try {
+      final status = await permission.status;
+      return status.isPermanentlyDenied;
+    } on Exception catch (e) {
+      await _logger.log(
+        level: 'error',
+        subsystem: 'permissions',
+        message: 'Error checking if permission is permanently denied',
+        cause: e.toString(),
+      );
+      return false;
+    }
+  }
+
   /// Requests all required permissions.
   ///
   /// Returns `true` if all permissions were granted, `false` otherwise.
@@ -471,9 +587,12 @@ class PermissionService {
   }
 
   /// Opens app settings so user can manually grant permissions.
+  ///
+  /// Uses permission_handler's openAppSettings to open system app settings.
   Future<void> openAppSettings() async {
     try {
-      await openAppSettings();
+      // Use permission_handler's openAppSettings function
+      await ph.openAppSettings();
       await _logger.log(
         level: 'info',
         subsystem: 'permissions',
@@ -486,6 +605,13 @@ class PermissionService {
         message: 'Error opening app settings',
         cause: e.toString(),
       );
+      // Fallback: try native method channel
+      try {
+        await _permissionChannel
+            .invokeMethod('openManageExternalStorageSettings');
+      } on Exception {
+        // Ignore fallback errors
+      }
     }
   }
 

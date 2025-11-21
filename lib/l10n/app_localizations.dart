@@ -2650,6 +2650,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No magnet link available'**
   String get noMagnetLinkAvailable;
+
+  /// Title for recommended audiobooks section
+  ///
+  /// In en, this message translates to:
+  /// **'Recommended'**
+  String get recommended;
+
+  /// Message when no results found for specific query
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing found for query: \"{query}\"'**
+  String noResultsForQuery(String query);
+
+  /// Suggestion to try different search keywords
+  ///
+  /// In en, this message translates to:
+  /// **'Try changing keywords'**
+  String get tryDifferentKeywords;
+
+  /// Button to clear search field
+  ///
+  /// In en, this message translates to:
+  /// **'Clear search'**
+  String get clearSearch;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

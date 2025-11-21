@@ -28,6 +28,42 @@ import 'package:jabook/core/utils/storage_path_utils.dart';
 import 'package:jabook/data/db/app_database.dart';
 import 'package:jabook/l10n/app_localizations.dart';
 
+/// Options for sorting audiobook groups in the library.
+enum SortOption {
+  /// Sort by name in ascending order (A-Z).
+  nameAsc,
+
+  /// Sort by name in descending order (Z-A).
+  nameDesc,
+
+  /// Sort by size in ascending order (smallest first).
+  sizeAsc,
+
+  /// Sort by size in descending order (largest first).
+  sizeDesc,
+
+  /// Sort by date in ascending order (oldest first).
+  dateAsc,
+
+  /// Sort by date in descending order (newest first).
+  dateDesc,
+
+  /// Sort by number of files in ascending order (fewest first).
+  filesAsc,
+
+  /// Sort by number of files in descending order (most first).
+  filesDesc,
+}
+
+/// Options for grouping audiobook groups in the library.
+enum GroupOption {
+  /// No grouping - show all items in a flat list.
+  none,
+
+  /// Group items by the first letter of their name.
+  firstLetter,
+}
+
 /// Main screen for displaying the user's audiobook library.
 ///
 /// This screen shows the user's collection of downloaded and favorited
@@ -98,55 +134,127 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     }
   }
 
+  SortOption _currentSort = SortOption.nameAsc;
+  GroupOption _currentGroup = GroupOption.none;
+
   void _showFilterDialog(BuildContext context) {
     showDialog(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(
-          AppLocalizations.of(context)?.filterLibraryTooltip ??
-              'Filter Library',
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              AppLocalizations.of(context)?.filterOptionsComingSoon ??
-                  'Filter options will be available soon. You will be able to filter by:',
-              style: Theme.of(context).textTheme.bodyMedium,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text(
+            AppLocalizations.of(context)?.filterLibraryTooltip ??
+                'Filter & Sort Library',
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Sort options
+                Text(
+                  'Sort by:',
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
+                const SizedBox(height: 8),
+                ...SortOption.values.map((option) => ListTile(
+                      leading: Icon(
+                        _currentSort == option
+                            ? Icons.radio_button_checked
+                            : Icons.radio_button_unchecked,
+                        color: _currentSort == option
+                            ? Theme.of(context).primaryColor
+                            : null,
+                      ),
+                      title: Text(_getSortOptionLabel(option, context)),
+                      onTap: () {
+                        setDialogState(() {
+                          _currentSort = option;
+                        });
+                      },
+                    )),
+                const Divider(),
+                // Group options
+                Text(
+                  'Group by:',
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
+                const SizedBox(height: 8),
+                ...GroupOption.values.map((option) => ListTile(
+                      leading: Icon(
+                        _currentGroup == option
+                            ? Icons.radio_button_checked
+                            : Icons.radio_button_unchecked,
+                        color: _currentGroup == option
+                            ? Theme.of(context).primaryColor
+                            : null,
+                      ),
+                      title: Text(_getGroupOptionLabel(option, context)),
+                      onTap: () {
+                        setDialogState(() {
+                          _currentGroup = option;
+                        });
+                      },
+                    )),
+              ],
             ),
-            const SizedBox(height: 16),
-            ListTile(
-              leading: const Icon(Icons.category),
-              title: Text(
-                AppLocalizations.of(context)?.filterByCategory ?? 'Category',
-              ),
-              enabled: false,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                setDialogState(() {
+                  _currentSort = SortOption.nameAsc;
+                  _currentGroup = GroupOption.none;
+                });
+              },
+              child: const Text('Reset'),
             ),
-            ListTile(
-              leading: const Icon(Icons.person),
-              title: Text(
-                AppLocalizations.of(context)?.filterByAuthor ?? 'Author',
-              ),
-              enabled: false,
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: Text(AppLocalizations.of(context)?.close ?? 'Close'),
             ),
-            ListTile(
-              leading: const Icon(Icons.calendar_today),
-              title: Text(
-                AppLocalizations.of(context)?.filterByDate ?? 'Date Added',
-              ),
-              enabled: false,
+            TextButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+                // Notify library content to update
+                setState(() {});
+              },
+              child: const Text('Apply'),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: Text(AppLocalizations.of(context)?.close ?? 'Close'),
-          ),
-        ],
       ),
     );
+  }
+
+  String _getSortOptionLabel(SortOption option, BuildContext context) {
+    switch (option) {
+      case SortOption.nameAsc:
+        return 'Name (A-Z)';
+      case SortOption.nameDesc:
+        return 'Name (Z-A)';
+      case SortOption.sizeAsc:
+        return 'Size (Smallest)';
+      case SortOption.sizeDesc:
+        return 'Size (Largest)';
+      case SortOption.dateAsc:
+        return 'Date (Oldest)';
+      case SortOption.dateDesc:
+        return 'Date (Newest)';
+      case SortOption.filesAsc:
+        return 'Files (Fewest)';
+      case SortOption.filesDesc:
+        return 'Files (Most)';
+    }
+  }
+
+  String _getGroupOptionLabel(GroupOption option, BuildContext context) {
+    switch (option) {
+      case GroupOption.none:
+        return 'None';
+      case GroupOption.firstLetter:
+        return 'First Letter';
+    }
   }
 
   Future<void> _loadFavoritesCount() async {
@@ -260,7 +368,10 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
               ),
             ],
           ),
-          body: const _LibraryContent(),
+          body: _LibraryContent(
+            sortOption: _currentSort,
+            groupOption: _currentGroup,
+          ),
           floatingActionButton: ResponsiveUtils.isDesktop(context)
               ? null // Hide FAB on desktop, use app bar actions instead
               : FloatingActionButton(
@@ -282,7 +393,13 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
 /// including the list of audiobooks and any filtering/sorting options.
 class _LibraryContent extends ConsumerStatefulWidget {
   /// Creates a new _LibraryContent instance.
-  const _LibraryContent();
+  const _LibraryContent({
+    required this.sortOption,
+    required this.groupOption,
+  });
+
+  final SortOption sortOption;
+  final GroupOption groupOption;
 
   @override
   ConsumerState<_LibraryContent> createState() => _LibraryContentState();
@@ -290,6 +407,7 @@ class _LibraryContent extends ConsumerStatefulWidget {
 
 class _LibraryContentState extends ConsumerState<_LibraryContent> {
   List<LocalAudiobookGroup> _audiobookGroups = [];
+  List<LocalAudiobookGroup> _displayedGroups = [];
   bool _isScanning = false;
   final AudiobookLibraryScanner _scanner = AudiobookLibraryScanner();
 
@@ -312,6 +430,7 @@ class _LibraryContentState extends ConsumerState<_LibraryContent> {
           _audiobookGroups = groups;
           _isScanning = false;
         });
+        _applyFilters();
       }
     } on Exception catch (e) {
       if (mounted) {
@@ -323,6 +442,55 @@ class _LibraryContentState extends ConsumerState<_LibraryContent> {
 
   Future<void> _refreshLibrary() async {
     await _loadLocalAudiobooks();
+  }
+
+  void _applyFilters() {
+    final filtered = List<LocalAudiobookGroup>.from(_audiobookGroups);
+
+    // Apply sorting
+    switch (widget.sortOption) {
+      case SortOption.nameAsc:
+        filtered.sort((a, b) => a.groupName.compareTo(b.groupName));
+        break;
+      case SortOption.nameDesc:
+        filtered.sort((a, b) => b.groupName.compareTo(a.groupName));
+        break;
+      case SortOption.sizeAsc:
+        filtered.sort((a, b) => a.totalSize.compareTo(b.totalSize));
+        break;
+      case SortOption.sizeDesc:
+        filtered.sort((a, b) => b.totalSize.compareTo(a.totalSize));
+        break;
+      case SortOption.dateAsc:
+        filtered.sort((a, b) {
+          final aDate = a.scannedAt ?? DateTime(1970);
+          final bDate = b.scannedAt ?? DateTime(1970);
+          return aDate.compareTo(bDate);
+        });
+        break;
+      case SortOption.dateDesc:
+        filtered.sort((a, b) {
+          final aDate = a.scannedAt ?? DateTime(1970);
+          final bDate = b.scannedAt ?? DateTime(1970);
+          return bDate.compareTo(aDate);
+        });
+        break;
+      case SortOption.filesAsc:
+        filtered.sort((a, b) => a.fileCount.compareTo(b.fileCount));
+        break;
+      case SortOption.filesDesc:
+        filtered.sort((a, b) => b.fileCount.compareTo(a.fileCount));
+        break;
+    }
+
+    // Apply grouping
+    if (widget.groupOption == GroupOption.firstLetter) {
+      // Grouping will be handled in the UI
+    }
+
+    setState(() {
+      _displayedGroups = filtered;
+    });
   }
 
   @override
@@ -353,21 +521,75 @@ class _LibraryContentState extends ConsumerState<_LibraryContent> {
     }
 
     // Show list of audiobook groups if found
-    if (_audiobookGroups.isNotEmpty) {
-      return ResponsiveUtils.responsiveContainer(
-        context,
-        RefreshIndicator(
-          onRefresh: _refreshLibrary,
-          child: ListView.builder(
-            itemCount: _audiobookGroups.length,
-            itemBuilder: (context, index) {
-              final group = _audiobookGroups[index];
-              return _buildAudiobookGroupTile(context, group);
-            },
+    if (_displayedGroups.isNotEmpty || _audiobookGroups.isNotEmpty) {
+      final groupsToShow =
+          _displayedGroups.isNotEmpty ? _displayedGroups : _audiobookGroups;
+
+      if (widget.groupOption == GroupOption.firstLetter) {
+        // Group by first letter
+        final grouped = <String, List<LocalAudiobookGroup>>{};
+        for (final group in groupsToShow) {
+          final firstLetter = group.groupName.isNotEmpty
+              ? group.groupName[0].toUpperCase()
+              : '#';
+          if (!grouped.containsKey(firstLetter)) {
+            grouped[firstLetter] = [];
+          }
+          grouped[firstLetter]!.add(group);
+        }
+
+        final sortedKeys = grouped.keys.toList()..sort();
+
+        return ResponsiveUtils.responsiveContainer(
+          context,
+          RefreshIndicator(
+            onRefresh: _refreshLibrary,
+            child: ListView.builder(
+              itemCount: sortedKeys.length,
+              itemBuilder: (context, index) {
+                final letter = sortedKeys[index];
+                final groups = grouped[letter]!;
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
+                      child: Text(
+                        letter,
+                        style:
+                            Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                      ),
+                    ),
+                    ...groups.map(
+                        (group) => _buildAudiobookGroupTile(context, group)),
+                  ],
+                );
+              },
+            ),
           ),
-        ),
-        padding: padding,
-      );
+          padding: padding,
+        );
+      } else {
+        return ResponsiveUtils.responsiveContainer(
+          context,
+          RefreshIndicator(
+            onRefresh: _refreshLibrary,
+            child: ListView.builder(
+              itemCount: groupsToShow.length,
+              itemBuilder: (context, index) {
+                final group = groupsToShow[index];
+                return _buildAudiobookGroupTile(context, group);
+              },
+            ),
+          ),
+          padding: padding,
+        );
+      }
     }
 
     // Show empty state with action buttons

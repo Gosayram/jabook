@@ -18,9 +18,12 @@ import android.app.Service
 import android.content.Intent
 import android.net.Uri
 import android.os.IBinder
+import androidx.media3.common.AudioAttributes
+import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.common.util.UnstableApi
 
 /**
@@ -70,13 +73,45 @@ class AudioPlayerService : Service() {
     }
     
     /**
-     * Initializes ExoPlayer instance.
+     * Initializes ExoPlayer instance with proper configuration for audiobooks.
+     * 
+     * Note: For local files, caching is not needed as files are already on disk.
+     * For future network streaming support, CacheDataSource with SimpleCache
+     * can be added here for offline playback and reduced network usage.
      */
     private fun initializePlayer() {
         try {
-            exoPlayer = ExoPlayer.Builder(this).build().apply {
-                addListener(playerListener)
-            }
+            // Configure LoadControl for increased buffer (30-60 seconds)
+            val loadControl = DefaultLoadControl.Builder()
+                .setBufferDurationsMs(
+                    30_000,  // minBufferMs
+                    60_000,  // maxBufferMs
+                    2_500,   // bufferForPlaybackMs
+                    5_000    // bufferForPlaybackAfterRebufferMs
+                )
+                .build()
+            
+            // Build ExoPlayer with custom LoadControl
+            exoPlayer = ExoPlayer.Builder(this)
+                .setLoadControl(loadControl)
+                .build()
+                .apply {
+                    addListener(playerListener)
+                    
+                    // Configure AudioAttributes for audiobooks
+                    val audioAttributes = AudioAttributes.Builder()
+                        .setContentType(C.AUDIO_CONTENT_TYPE_SPEECH) // for audiobooks
+                        .setUsage(C.USAGE_MEDIA)
+                        .build()
+                    setAudioAttributes(audioAttributes, true)
+                    
+                    // Configure WakeMode for background playback
+                    setWakeMode(C.WAKE_MODE_LOCAL)
+                    
+                    // Handle audio becoming noisy (e.g., headphones unplugged)
+                    setHandleAudioBecomingNoisy(true)
+                }
+            
             android.util.Log.d("AudioPlayerService", "ExoPlayer initialized successfully")
         } catch (e: Exception) {
             android.util.Log.e("AudioPlayerService", "Failed to initialize ExoPlayer", e)
@@ -276,8 +311,35 @@ class AudioPlayerService : Service() {
         }
         
         override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
-            android.util.Log.e("AudioPlayerService", "Player error: ${error.message}", error)
+            // Get user-friendly error message
+            val errorMessage = when (error.errorCode) {
+                androidx.media3.common.PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED,
+                androidx.media3.common.PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT,
+                androidx.media3.common.PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS -> {
+                    "Network error: Unable to load audio. Please check your internet connection."
+                }
+                androidx.media3.common.PlaybackException.ERROR_CODE_IO_FILE_NOT_FOUND,
+                androidx.media3.common.PlaybackException.ERROR_CODE_IO_NO_PERMISSION -> {
+                    "File error: Audio file not found or access denied."
+                }
+                androidx.media3.common.PlaybackException.ERROR_CODE_PARSING_CONTAINER_MALFORMED,
+                androidx.media3.common.PlaybackException.ERROR_CODE_PARSING_MANIFEST_MALFORMED -> {
+                    "Format error: Audio file is corrupted or unsupported format."
+                }
+                androidx.media3.common.PlaybackException.ERROR_CODE_DECODER_INIT_FAILED,
+                androidx.media3.common.PlaybackException.ERROR_CODE_DECODER_QUERY_FAILED -> {
+                    "Decoder error: Unable to decode audio. Format may not be supported."
+                }
+                else -> {
+                    "Playback error: ${error.message ?: "Unknown error occurred"}"
+                }
+            }
+            
+            android.util.Log.e("AudioPlayerService", "Player error: $errorMessage", error)
             notificationManager?.updateNotification()
+            
+            // Store error for retrieval via MethodChannel if needed
+            // Error will be automatically propagated through state stream
         }
         
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {

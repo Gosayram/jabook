@@ -207,6 +207,16 @@ class CategoryParser {
         if (row.classes.any((c) => c.contains('banner') || c.contains('ads'))) {
           continue;
         }
+
+        // Skip announcements and sticky topics
+        // Check icon to determine if it's an announcement or sticky topic
+        final iconElement = row.querySelector('img.topic_icon');
+        final iconSrc = iconElement?.attributes['src'] ?? '';
+        if (iconSrc.contains('folder_announce') ||
+            iconSrc.contains('folder_sticky')) {
+          continue; // Skip announcements and sticky topics
+        }
+
         final topicLink = row.querySelector(_topicTitleSelector);
         final authorLink = row.querySelector(_topicAuthorSelector);
         final sizeElement = row.querySelector(_topicSizeSelector);
@@ -214,7 +224,12 @@ class CategoryParser {
         final leechersElement = row.querySelector(_leechersSelector);
         final downloadsElement = row.querySelector(_downloadsSelector);
 
-        if (topicLink != null) {
+        // Only include topics that have torrent data (size, seeders/leechers)
+        // This filters out non-torrent topics
+        if (topicLink != null &&
+            (sizeElement != null ||
+                seedersElement != null ||
+                leechersElement != null)) {
           final topicId = row.attributes['data-topic_id'] ??
               _extractTopicId(topicLink.attributes['href'] ?? '');
 

@@ -72,12 +72,12 @@ class DownloadBackgroundService {
     }
 
     try {
-      // Register periodic task that runs every 15 minutes
+      // Register periodic task that runs every 5 minutes
       // This ensures downloads are monitored even when app is closed
       await Workmanager().registerPeriodicTask(
         downloadTaskName,
         downloadTaskName,
-        frequency: const Duration(minutes: 15),
+        frequency: const Duration(minutes: 5),
         constraints: Constraints(
           networkType: NetworkType.connected,
         ),
