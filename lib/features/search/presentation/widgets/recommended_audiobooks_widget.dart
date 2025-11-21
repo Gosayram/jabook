@@ -62,41 +62,54 @@ class RecommendedAudiobooksWidget extends StatelessWidget {
   final List<RecommendedAudiobook> audiobooks;
 
   @override
-  Widget build(BuildContext context) {
-    if (audiobooks.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          child: Text(
-            AppLocalizations.of(context)?.recommended ?? 'Recommended',
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
+  Widget build(BuildContext context) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Text(
+              AppLocalizations.of(context)?.recommended ?? 'Recommended',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+            ),
+          ),
+          if (audiobooks.isEmpty)
+            SizedBox(
+              height: 200,
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Text(
+                    AppLocalizations.of(context)?.loading ?? 'Loading...',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .onSurface
+                              .withValues(alpha: 0.6),
+                        ),
+                  ),
                 ),
-          ),
-        ),
-        SizedBox(
-          height: 200,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            itemCount: audiobooks.length,
-            itemBuilder: (context, index) {
-              final audiobook = audiobooks[index];
-              return _RecommendedAudiobookCard(
-                audiobook: audiobook,
-                onTap: () => context.push('/topic/${audiobook.id}'),
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
+              ),
+            )
+          else
+            SizedBox(
+              height: 200,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                itemCount: audiobooks.length,
+                itemBuilder: (context, index) {
+                  final audiobook = audiobooks[index];
+                  return _RecommendedAudiobookCard(
+                    audiobook: audiobook,
+                    onTap: () => context.push('/topic/${audiobook.id}'),
+                  );
+                },
+              ),
+            ),
+        ],
+      );
 }
 
 /// Card widget for a single recommended audiobook.
@@ -122,38 +135,35 @@ class _RecommendedAudiobookCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Cover image
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Stack(
-                  children: [
-                    _buildCover(context),
-                    // Size badge overlay
-                    if (audiobook.size != null)
-                      Positioned(
-                        bottom: 8,
-                        right: 8,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.7),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            audiobook.size!,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w500,
-                            ),
+              // Cover image with size badge overlay
+              Stack(
+                children: [
+                  _buildCover(context),
+                  // Size badge overlay
+                  if (audiobook.size != null)
+                    Positioned(
+                      bottom: 8,
+                      right: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.7),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          audiobook.size!,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
                       ),
-                  ],
-                ),
+                    ),
+                ],
               ),
               const SizedBox(height: 8),
               // Title
@@ -183,39 +193,45 @@ class _RecommendedAudiobookCard extends StatelessWidget {
         ),
       );
 
-  Widget _buildCover(BuildContext context) {
+  Widget _buildCover(BuildContext context) => AspectRatio(
+        aspectRatio: 2 / 3, // Standard book cover ratio
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: _buildCoverImage(context),
+        ),
+      );
+
+  Widget _buildCoverImage(BuildContext context) {
     if (audiobook.coverUrl != null && audiobook.coverUrl!.isNotEmpty) {
       final uri = Uri.tryParse(audiobook.coverUrl!);
       if (uri != null && uri.hasScheme && uri.hasAuthority) {
         return CachedNetworkImage(
           imageUrl: audiobook.coverUrl!,
-          width: 140,
-          height: 200,
           fit: BoxFit.cover,
-          memCacheWidth: 280, // 2x for retina displays
-          memCacheHeight: 400,
+          // Optimize memory cache for list view (2x for retina displays)
+          memCacheWidth: 280, // 140 * 2
+          memCacheHeight: 420, // 210 * 2
+          // Limit disk cache size to prevent excessive storage usage
+          maxWidthDiskCache: 280,
+          maxHeightDiskCache: 420,
           placeholder: (context, url) => _buildPlaceholder(context),
           errorWidget: (context, url, error) => _buildPlaceholder(context),
+          fadeInDuration: const Duration(milliseconds: 200),
+          fadeOutDuration: const Duration(milliseconds: 100),
         );
       }
     }
     return _buildPlaceholder(context);
   }
 
-  Widget _buildPlaceholder(BuildContext context) => Container(
-        width: 140,
-        height: 200,
+  Widget _buildPlaceholder(BuildContext context) => DecoratedBox(
         decoration: BoxDecoration(
           color: Theme.of(context).colorScheme.primaryContainer,
-          borderRadius: BorderRadius.circular(12),
         ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(12),
+        child: Center(
           child: Image.asset(
             'assets/icons/app_icon.png',
-            width: 140,
-            height: 200,
-            fit: BoxFit.cover,
+            fit: BoxFit.contain,
             errorBuilder: (context, error, stackTrace) => Icon(
               Icons.audiotrack,
               color: Theme.of(context).colorScheme.onPrimaryContainer,

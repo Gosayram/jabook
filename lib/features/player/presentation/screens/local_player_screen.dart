@@ -100,7 +100,34 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
   Future<void> _initializePlayer() async {
     try {
       final playerNotifier = ref.read(playerStateProvider.notifier);
+      final currentState = ref.read(playerStateProvider);
 
+      // Check if player is already initialized and playing the same group
+      // If yes, skip reinitialization to avoid interrupting playback
+      if (currentState.currentGroupPath == widget.group.groupPath &&
+          currentState.playbackState != 0) {
+        // Player is already playing this group - just mark as initialized
+        // No need to reload or restore position, player is already at correct position
+        await _logger.log(
+          level: 'info',
+          subsystem: 'audio',
+          message:
+              'Player already initialized for this group, skipping reinitialization',
+          extra: {
+            'group_path': widget.group.groupPath,
+            'current_position': currentState.currentPosition,
+            'current_track': currentState.currentIndex,
+          },
+        );
+        setState(() {
+          _isInitialized = true;
+          _hasError = false;
+          _errorMessage = null;
+        });
+        return;
+      }
+
+      // Player is not initialized or playing different group - full initialization needed
       // Stop any existing playback first to avoid conflicts
       try {
         await playerNotifier.stop();
@@ -123,6 +150,7 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
       await _waitForPlayerReady();
 
       // Restore position if available - automatically continue from saved position
+      // Only restore if we actually loaded new sources (not if player was already playing)
       if (savedPosition != null && mounted) {
         final trackIndex = savedPosition['trackIndex']!;
         final positionMs = savedPosition['positionMs']!;
@@ -149,16 +177,21 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
                 Duration(milliseconds: positionMs),
               );
 
-              // Automatically start playback from restored position
-              await playerNotifier.play();
+              // Check if player is already playing - if not, start playback
+              final currentState = ref.read(playerStateProvider);
+              if (!currentState.isPlaying) {
+                // Automatically start playback from restored position
+                await playerNotifier.play();
+              }
 
               await _logger.log(
                 level: 'info',
                 subsystem: 'audio',
-                message: 'Restored and resumed playback position',
+                message: 'Restored playback position',
                 extra: {
                   'track_index': trackIndex,
                   'position_ms': positionMs,
+                  'was_playing': currentState.isPlaying,
                 },
               );
             } on Exception catch (e) {
@@ -206,6 +239,8 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
         }
       }
 
+      // Clear any previous errors before marking as initialized
+      // This ensures error state is reset on successful initialization
       setState(() {
         _isInitialized = true;
         _hasError = false;
@@ -418,7 +453,9 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
     final playerState = ref.watch(playerStateProvider);
     final isLoading =
         !_isInitialized || playerState.playbackState == 1; // 1 = buffering
-    final hasError = _hasError || playerState.error != null;
+    // Only show error if initialization is complete and not loading
+    // This prevents showing error messages during initial loading
+    final hasError = !isLoading && (_hasError || playerState.error != null);
     final errorMessage = _errorMessage ?? playerState.error;
 
     return Scaffold(

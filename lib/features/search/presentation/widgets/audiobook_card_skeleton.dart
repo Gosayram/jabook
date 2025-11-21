@@ -56,14 +56,14 @@ class _AudiobookCardSkeletonState extends State<AudiobookCardSkeleton>
           borderRadius: BorderRadius.circular(12),
         ),
         child: Padding(
-          padding: const EdgeInsets.all(14.0),
+          padding: const EdgeInsets.all(12.0),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Cover image placeholder
+              // Cover image placeholder - fixed size
               _ShimmerContainer(
-                width: 68,
-                height: 68,
+                width: 72,
+                height: 72,
                 borderRadius: BorderRadius.circular(10),
                 animation: _animation,
               ),

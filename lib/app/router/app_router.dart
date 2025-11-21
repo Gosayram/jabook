@@ -17,6 +17,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:jabook/core/config/app_config.dart';
 import 'package:jabook/core/library/local_audiobook.dart';
+import 'package:jabook/core/logging/environment_logger.dart';
 import 'package:jabook/features/auth/presentation/screens/auth_screen.dart';
 import 'package:jabook/features/debug/presentation/screens/debug_screen.dart';
 import 'package:jabook/features/downloads/presentation/screens/downloads_screen.dart';
@@ -46,7 +47,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         ),
         GoRoute(
           path: '/search',
-          builder: (context, state) => const SearchScreen(),
+          builder: (context, state) {
+            EnvironmentLogger().d('GoRouter building SearchScreen at /search');
+            return const SearchScreen();
+          },
         ),
         GoRoute(
           path: '/settings',
@@ -215,8 +219,15 @@ class _MainNavigationWrapperState
           currentIndex: _selectedIndex,
           onTap: (index) {
             final route = navigationItems[index].route;
+            EnvironmentLogger().d(
+              'BottomNavigationBar onTap: index=$index, route=$route, currentLocation=$currentLocation',
+            );
             if (route != currentLocation) {
+              EnvironmentLogger().d('Navigating to route: $route');
               context.go(route);
+            } else {
+              EnvironmentLogger()
+                  .d('Already on route $route, skipping navigation');
             }
           },
           type: BottomNavigationBarType.fixed,

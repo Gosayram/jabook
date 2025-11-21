@@ -61,10 +61,15 @@ class MediaSessionManager(
      * 
      * Audio focus is managed automatically by ExoPlayer through AudioAttributes
      * configured with handleAudioFocus=true in AudioPlayerService.
+     * 
+     * Note: MediaSession automatically extracts and displays artwork from MediaMetadata
+     * set in MediaItem (via setArtworkData() in AudioPlayerService.setPlaylist()).
+     * No custom BitmapLoader is needed - Media3 handles artwork automatically.
      */
     private fun initializeMediaSession() {
         // MediaSession.Builder with Player automatically handles all commands
-        // No custom callback needed - Player handles everything
+        // Artwork is automatically extracted from MediaMetadata in MediaItem
+        // (set via setArtworkData() in AudioPlayerService.setPlaylist())
         mediaSession = MediaSession.Builder(context, player).build()
     }
     

@@ -16,6 +16,8 @@ package com.jabook.app.jabook.audio
 
 import android.app.Service
 import android.content.Intent
+import android.graphics.BitmapFactory
+import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.os.IBinder
 import androidx.media3.common.AudioAttributes
@@ -25,6 +27,7 @@ import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.common.util.UnstableApi
+import java.io.File
 
 /**
  * Native audio player service using Media3 ExoPlayer.
@@ -99,11 +102,15 @@ class AudioPlayerService : Service() {
                     addListener(playerListener)
                     
                     // Configure AudioAttributes for audiobooks
+                    // handleAudioFocus=true means ExoPlayer will automatically:
+                    // - Pause when audio focus is lost (incoming calls, other apps)
+                    // - Resume when audio focus is regained (call ends)
+                    // - Duck volume when temporary focus loss (notifications, navigation)
                     val audioAttributes = AudioAttributes.Builder()
                         .setContentType(C.AUDIO_CONTENT_TYPE_SPEECH) // for audiobooks
                         .setUsage(C.USAGE_MEDIA)
                         .build()
-                    setAudioAttributes(audioAttributes, true)
+                    setAudioAttributes(audioAttributes, true) // handleAudioFocus=true enables automatic focus management
                     
                     // Configure WakeMode for background playback
                     setWakeMode(C.WAKE_MODE_LOCAL)
@@ -130,23 +137,50 @@ class AudioPlayerService : Service() {
             currentMetadata = metadata
             android.util.Log.d("AudioPlayerService", "Setting playlist with ${filePaths.size} files")
             
-            val mediaItems = filePaths.mapIndexed { _, path ->
+            val mediaItems = filePaths.mapIndexed { index, path ->
                 try {
-                    val uri = Uri.parse("file://$path")
-                    MediaItem.Builder()
-                        .setUri(uri)
-                        .apply {
-                            metadata?.let { meta ->
-                                setMediaMetadata(
-                                    androidx.media3.common.MediaMetadata.Builder()
-                                        .setTitle(meta["title"] ?: "")
-                                        .setArtist(meta["artist"] ?: "")
-                                        .setAlbumTitle(meta["album"] ?: "")
-                                        .build()
-                                )
-                            }
+                    // Use Uri.fromFile() for proper local file handling
+                    // This ensures ExoPlayer can properly extract metadata from the file
+                    val file = File(path)
+                    if (!file.exists()) {
+                        android.util.Log.w("AudioPlayerService", "File does not exist: $path")
+                    }
+                    val uri = Uri.fromFile(file)
+                    
+                    android.util.Log.d("AudioPlayerService", "Creating MediaItem $index: $path (uri: $uri)")
+                    
+                    // Try to extract embedded artwork using MediaMetadataRetriever as fallback
+                    // ExoPlayer should extract it automatically, but we can help it
+                    var artworkData: ByteArray? = null
+                    try {
+                        val retriever = MediaMetadataRetriever()
+                        retriever.setDataSource(path)
+                        artworkData = retriever.embeddedPicture
+                        retriever.release()
+                        
+                        if (artworkData != null) {
+                            android.util.Log.d("AudioPlayerService", "Found embedded artwork in file $index: ${artworkData.size} bytes")
+                        } else {
+                            android.util.Log.d("AudioPlayerService", "No embedded artwork found in file $index")
                         }
-                        .build()
+                    } catch (e: Exception) {
+                        android.util.Log.w("AudioPlayerService", "Failed to extract artwork from file $index: ${e.message}")
+                    }
+                    
+                    // Build MediaItem - ExoPlayer will extract metadata, but we can help with artwork
+                    val builder = MediaItem.Builder().setUri(uri)
+                    
+                    // If we found artwork, set it in metadata
+                    if (artworkData != null && artworkData.isNotEmpty()) {
+                        builder.setMediaMetadata(
+                            androidx.media3.common.MediaMetadata.Builder()
+                                .setArtworkData(artworkData, androidx.media3.common.MediaMetadata.PICTURE_TYPE_FRONT_COVER)
+                                .build()
+                        )
+                        android.util.Log.d("AudioPlayerService", "Set artwork in MediaItem $index")
+                    }
+                    
+                    builder.build()
                 } catch (e: Exception) {
                     android.util.Log.e("AudioPlayerService", "Failed to create MediaItem for path: $path", e)
                     throw e
@@ -195,10 +229,14 @@ class AudioPlayerService : Service() {
     /**
      * Updates metadata for current track.
      *
-     * @param metadata Metadata map (title, artist, album, coverPath)
+     * @param metadata Metadata map (title, artist, album)
+     * Note: Artwork is automatically extracted from audio file metadata by ExoPlayer
+     * We don't update MediaItem here to preserve embedded artwork extracted by ExoPlayer
      */
     fun updateMetadata(metadata: Map<String, String>) {
         currentMetadata = metadata
+        // Just update notification - ExoPlayer already has the embedded artwork in MediaItem
+        // Don't replace MediaItem to avoid losing embedded artwork
         notificationManager?.updateMetadata(metadata)
         mediaSessionManager?.updateMetadata()
     }
@@ -388,9 +426,37 @@ class AudioPlayerService : Service() {
         }
         
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
-            // Track changed
+            // Track changed - update notification to show new track's embedded artwork
             mediaSessionManager?.updateMetadata()
             notificationManager?.updateNotification()
+        }
+        
+        override fun onMediaMetadataChanged(mediaMetadata: androidx.media3.common.MediaMetadata) {
+            // Metadata (including embedded artwork) was extracted from audio file
+            // Media3 1.8: artworkData and artworkUri are NOT deprecated - use them directly
+            val title = mediaMetadata.title?.toString() ?: "Unknown"
+            val artist = mediaMetadata.artist?.toString() ?: "Unknown"
+            
+            // Access artworkData directly (not deprecated in Media3 1.8)
+            val artworkData = mediaMetadata.artworkData
+            val hasArtworkData = artworkData != null && artworkData.isNotEmpty()
+            val hasArtworkUri = mediaMetadata.artworkUri != null
+            
+            android.util.Log.d("AudioPlayerService", "Media metadata changed:")
+            android.util.Log.d("AudioPlayerService", "  Title: $title")
+            android.util.Log.d("AudioPlayerService", "  Artist: $artist")
+            android.util.Log.d("AudioPlayerService", "  Has artworkData: $hasArtworkData (${artworkData?.size ?: 0} bytes)")
+            android.util.Log.d("AudioPlayerService", "  Has artworkUri: $hasArtworkUri (${mediaMetadata.artworkUri})")
+            
+            if (hasArtworkData || hasArtworkUri) {
+                android.util.Log.i("AudioPlayerService", "Artwork found! Updating notification...")
+            } else {
+                android.util.Log.w("AudioPlayerService", "No artwork found in metadata")
+            }
+            
+            // Update notification and media session to show artwork
+            notificationManager?.updateNotification()
+            mediaSessionManager?.updateMetadata()
         }
     }
     

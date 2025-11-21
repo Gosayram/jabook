@@ -166,13 +166,14 @@ class RuTrackerParser {
       'a.torTopic, a.torTopic.tt-text, a[href*="viewtopic.php?t="]';
   static const String _authorSelector =
       'a.pmed, .topicAuthor a, a[href*="profile.php"]';
-  static const String _sizeSelector = 'span.small, a.f-dl.dl-stub';
+  static const String _sizeSelector =
+      'span.small, a.f-dl.dl-stub, td.small, .small';
   // Use all possible seeders classes: seed and seedmed (both with and without b tag)
   static const String _seedersSelector =
-      'span.seed, span.seed b, span.seedmed, span.seedmed b';
+      'span.seed, span.seed b, span.seedmed, span.seedmed b, .seed, .seedmed';
   // Use all possible leechers classes: leech and leechmed (both with and without b tag)
   static const String _leechersSelector =
-      'span.leech, span.leech b, span.leechmed, span.leechmed b';
+      'span.leech, span.leech b, span.leechmed, span.leechmed b, .leech, .leechmed';
   static const String _downloadHrefSelector = 'a[href^="dl.php?t="]';
   static const String _magnetLinkSelector = 'a.magnet-link, a[href^="magnet:"]';
   static const String _postBodySelector = '.post_body, .post-body';
@@ -883,37 +884,54 @@ class RuTrackerParser {
 
         // Extract size from multiple possible locations
         // First, try to find size in tor column (vf-col-tor) which contains size info
-        var sizeText = '0 MB';
+        var sizeText = '';
         if (torColumn != null) {
           // Look for size within the tor column first (most reliable for search results)
           final torSizeElement = torColumn.querySelector(_sizeSelector);
           if (torSizeElement != null) {
-            sizeText = torSizeElement.text.trim();
-            EnvironmentLogger().d(
-              'Topic $topicId: Extracted size from tor column: $sizeText',
-            );
+            final extractedSize = torSizeElement.text.trim();
+            // Validate that it looks like a size (contains numbers and size units)
+            if (RegExp(r'[\d.,]+\s*[KMGT]?B', caseSensitive: false)
+                .hasMatch(extractedSize)) {
+              sizeText = extractedSize;
+              EnvironmentLogger().d(
+                'Topic $topicId: Extracted size from tor column: $sizeText',
+              );
+            }
           }
         }
 
         // Fallback to original sizeElement if not found in tor column
-        if (sizeText == '0 MB' && sizeElement != null) {
-          sizeText = sizeElement.text.trim();
-          EnvironmentLogger().d(
-            'Topic $topicId: Extracted size from row: $sizeText',
-          );
-        } else if (sizeText == '0 MB') {
-          // Try to extract from row text using regex
+        if (sizeText.isEmpty && sizeElement != null) {
+          final extractedSize = sizeElement.text.trim();
+          // Validate that it looks like a size
+          if (RegExp(r'[\d.,]+\s*[KMGT]?B', caseSensitive: false)
+              .hasMatch(extractedSize)) {
+            sizeText = extractedSize;
+            EnvironmentLogger().d(
+              'Topic $topicId: Extracted size from row: $sizeText',
+            );
+          }
+        }
+
+        // Try to extract from row text using regex if still not found
+        if (sizeText.isEmpty) {
           final sizeMatch =
               RegExp(r'([\d.,]+\s*[KMGT]?B)', caseSensitive: false)
                   .firstMatch(row.text);
           if (sizeMatch != null) {
-            sizeText = sizeMatch.group(1)?.trim() ?? '0 MB';
+            sizeText = sizeMatch.group(1)?.trim() ?? '';
             EnvironmentLogger().d(
               'Topic $topicId: Extracted size from regex: $sizeText',
             );
-          } else {
-            EnvironmentLogger().w('Topic $topicId: No size found');
           }
+        }
+
+        // Final fallback if no size found - use empty string instead of "Unknown"
+        if (sizeText.isEmpty) {
+          sizeText = '';
+          EnvironmentLogger()
+              .w('Topic $topicId: No size found, using empty string');
         }
 
         // Extract magnet URL from download link
@@ -928,31 +946,118 @@ class RuTrackerParser {
         // Extract cover URL - try tor column first, then entire row
         String? coverUrl;
         if (torColumn != null) {
-          coverUrl = _extractCoverUrl(torColumn, baseUrl: baseUrl);
-          if (coverUrl != null) {
+          await logger.log(
+            level: 'debug',
+            subsystem: 'parser',
+            message: 'Attempting to extract cover URL from tor column',
+            context: 'parse_search_results',
+            extra: {
+              'topic_id': topicId,
+              'base_url': baseUrl,
+              'tor_column_html_length': torColumn.outerHtml.length,
+            },
+          );
+          coverUrl = await _extractCoverUrl(torColumn, baseUrl: baseUrl);
+          if (coverUrl != null && coverUrl.isNotEmpty) {
             EnvironmentLogger().d(
               'Topic $topicId: extracted cover URL from tor column: $coverUrl',
             );
+            await logger.log(
+              level: 'info',
+              subsystem: 'parser',
+              message: 'Cover URL extracted from tor column',
+              context: 'parse_search_results',
+              extra: {
+                'topic_id': topicId,
+                'cover_url': coverUrl,
+                'source': 'tor_column',
+                'base_url': baseUrl,
+              },
+            );
+          } else {
+            EnvironmentLogger().d(
+              'Topic $topicId: no cover URL found in tor column',
+            );
+            await logger.log(
+              level: 'debug',
+              subsystem: 'parser',
+              message: 'No cover URL found in tor column',
+              context: 'parse_search_results',
+              extra: {
+                'topic_id': topicId,
+                'base_url': baseUrl,
+              },
+            );
           }
+        } else {
+          await logger.log(
+            level: 'debug',
+            subsystem: 'parser',
+            message: 'No tor column found, will search in entire row',
+            context: 'parse_search_results',
+            extra: {'topic_id': topicId},
+          );
         }
 
         // Fallback to searching in entire row
         if (coverUrl == null || coverUrl.isEmpty) {
-          coverUrl = _extractCoverUrl(row, baseUrl: baseUrl);
-          if (coverUrl != null) {
+          await logger.log(
+            level: 'debug',
+            subsystem: 'parser',
+            message: 'Attempting to extract cover URL from entire row',
+            context: 'parse_search_results',
+            extra: {
+              'topic_id': topicId,
+              'base_url': baseUrl,
+              'row_html_length': row.outerHtml.length,
+            },
+          );
+          coverUrl = await _extractCoverUrl(row, baseUrl: baseUrl);
+          if (coverUrl != null && coverUrl.isNotEmpty) {
             EnvironmentLogger().d(
               'Topic $topicId: extracted cover URL from row: $coverUrl',
             );
+            await logger.log(
+              level: 'info',
+              subsystem: 'parser',
+              message: 'Cover URL extracted from row',
+              context: 'parse_search_results',
+              extra: {
+                'topic_id': topicId,
+                'cover_url': coverUrl,
+                'source': 'row',
+                'base_url': baseUrl,
+              },
+            );
           } else {
             EnvironmentLogger().d(
-              'Topic $topicId: no cover URL found',
+              'Topic $topicId: no cover URL found in row (baseUrl: $baseUrl)',
+            );
+            // Log when cover is not found for debugging
+            await logger.log(
+              level: 'debug',
+              subsystem: 'parser',
+              message: 'No cover URL found for topic after all attempts',
+              context: 'parse_search_results',
+              extra: {
+                'topic_id': topicId,
+                'base_url': baseUrl,
+                'has_tor_column': torColumn != null,
+                'row_has_images': row.querySelectorAll('img').isNotEmpty,
+                'row_image_count': row.querySelectorAll('img').length,
+              },
             );
           }
         }
+        // Extract author, use empty string if not found instead of "Unknown"
+        final authorText = authorElement?.text.trim();
+        final author =
+            (authorText != null && authorText.isNotEmpty) ? authorText : '';
+
         final audiobook = Audiobook(
           id: topicId,
           title: titleElement.text.trim(),
-          author: authorElement?.text.trim() ?? 'Unknown',
+          author: author,
           category: _extractCategoryFromTitle(titleElement.text),
           size: sizeText,
           seeders: seeders,
@@ -981,6 +1086,20 @@ class RuTrackerParser {
       envLogger
         ..i('Parsed ${results.length} search results')
         ..i('Cover URLs found: $coverUrlCount, empty: $emptyCoverUrlCount');
+
+      // Also log via StructuredLogger for better visibility
+      await logger.log(
+        level: 'info',
+        subsystem: 'parser',
+        message: 'Search results parsing completed',
+        context: 'parse_search_results',
+        extra: {
+          'total_results': results.length,
+          'cover_urls_found': coverUrlCount,
+          'cover_urls_empty': emptyCoverUrlCount,
+          'base_url': baseUrl,
+        },
+      );
 
       return results;
     } on ParsingFailure {
@@ -1848,25 +1967,84 @@ String _extractCategoryFromTitle(String title) {
 ///
 /// Tries multiple selectors in priority order to find cover image.
 /// Returns normalized absolute URL or null if not found.
-String? _extractCoverUrl(Element row, {String? baseUrl}) {
-  final logger = EnvironmentLogger()
-    ..d('Extracting cover URL from search result row');
+Future<String?> _extractCoverUrl(Element row, {String? baseUrl}) async {
+  final envLogger = EnvironmentLogger()
+    ..d('Extracting cover URL from search result row (baseUrl: $baseUrl)');
+  final structuredLogger = StructuredLogger();
+
+  await structuredLogger.log(
+    level: 'debug',
+    subsystem: 'parser',
+    message: 'Starting cover URL extraction',
+    context: 'extract_cover_url',
+    extra: {
+      'base_url': baseUrl,
+      'row_html_length': row.outerHtml.length,
+    },
+  );
 
   // Priority 1: var.postImg.postImgAligned.img-right with title attribute (main cover image)
   // This is the most reliable selector for cover images in RuTracker
   final postImgCover =
       row.querySelector('var.postImg.postImgAligned.img-right[title], '
-          'var.postImg.postImgAligned[title].img-right');
+          'var.postImg.postImgAligned[title].img-right, '
+          'var.postImg.img-right[title]');
   if (postImgCover != null) {
     final title = postImgCover.attributes['title'];
     if (title != null && title.isNotEmpty) {
-      final normalizedUrl = _normalizeCoverUrl(title, baseUrl: baseUrl);
+      await structuredLogger.log(
+        level: 'debug',
+        subsystem: 'parser',
+        message: 'Found postImg element with title (Priority 1)',
+        context: 'extract_cover_url',
+        extra: {
+          'raw_title': title,
+          'base_url': baseUrl,
+        },
+      );
+      final normalizedUrl = await _normalizeCoverUrl(title, baseUrl: baseUrl);
       if (normalizedUrl != null) {
-        logger.d(
+        envLogger.d(
             'Cover URL extracted (Priority 1 - postImg.postImgAligned.img-right): $normalizedUrl');
+        await structuredLogger.log(
+          level: 'info',
+          subsystem: 'parser',
+          message: 'Cover URL extracted successfully (Priority 1)',
+          context: 'extract_cover_url',
+          extra: {
+            'normalized_url': normalizedUrl,
+            'raw_url': title,
+            'priority': 1,
+          },
+        );
         return normalizedUrl;
+      } else {
+        await structuredLogger.log(
+          level: 'debug',
+          subsystem: 'parser',
+          message: 'Failed to normalize URL from Priority 1',
+          context: 'extract_cover_url',
+          extra: {
+            'raw_url': title,
+            'base_url': baseUrl,
+          },
+        );
       }
+    } else {
+      await structuredLogger.log(
+        level: 'debug',
+        subsystem: 'parser',
+        message: 'postImg element found but title is empty (Priority 1)',
+        context: 'extract_cover_url',
+      );
     }
+  } else {
+    await structuredLogger.log(
+      level: 'debug',
+      subsystem: 'parser',
+      message: 'No postImg element found (Priority 1)',
+      context: 'extract_cover_url',
+    );
   }
 
   // Priority 2: var.postImg with title attribute (contains full URL)
@@ -1875,9 +2053,27 @@ String? _extractCoverUrl(Element row, {String? baseUrl}) {
   if (postImgVar != null) {
     final title = postImgVar.attributes['title'];
     if (title != null && title.isNotEmpty) {
-      final normalizedUrl = _normalizeCoverUrl(title, baseUrl: baseUrl);
+      await structuredLogger.log(
+        level: 'debug',
+        subsystem: 'parser',
+        message: 'Found postImg element with title (Priority 2)',
+        context: 'extract_cover_url',
+        extra: {'raw_title': title},
+      );
+      final normalizedUrl = await _normalizeCoverUrl(title, baseUrl: baseUrl);
       if (normalizedUrl != null) {
-        logger.d('Cover URL extracted (Priority 2): $normalizedUrl');
+        envLogger.d('Cover URL extracted (Priority 2): $normalizedUrl');
+        await structuredLogger.log(
+          level: 'info',
+          subsystem: 'parser',
+          message: 'Cover URL extracted successfully (Priority 2)',
+          context: 'extract_cover_url',
+          extra: {
+            'normalized_url': normalizedUrl,
+            'raw_url': title,
+            'priority': 2,
+          },
+        );
         return normalizedUrl;
       }
     }
@@ -1890,24 +2086,97 @@ String? _extractCoverUrl(Element row, {String? baseUrl}) {
   if (postImgFastpic != null) {
     final title = postImgFastpic.attributes['title'];
     if (title != null && title.isNotEmpty) {
-      final normalizedUrl = _normalizeCoverUrl(title);
+      await structuredLogger.log(
+        level: 'debug',
+        subsystem: 'parser',
+        message: 'Found postImg with fastpic/rutracker (Priority 3)',
+        context: 'extract_cover_url',
+        extra: {'raw_title': title},
+      );
+      final normalizedUrl = await _normalizeCoverUrl(title, baseUrl: baseUrl);
       if (normalizedUrl != null) {
-        logger.d('Cover URL extracted (Priority 3): $normalizedUrl');
+        envLogger.d('Cover URL extracted (Priority 3): $normalizedUrl');
+        await structuredLogger.log(
+          level: 'info',
+          subsystem: 'parser',
+          message: 'Cover URL extracted successfully (Priority 3)',
+          context: 'extract_cover_url',
+          extra: {
+            'normalized_url': normalizedUrl,
+            'raw_url': title,
+            'priority': 3,
+          },
+        );
         return normalizedUrl;
       }
     }
   }
 
   // Priority 4: img with src containing static.rutracker or fastpic
+  // Also check for images in tor column or post content
   final imgElement = row.querySelector(
-      'img[src*="static.rutracker"], img[src*="fastpic"], img.postimg');
+      'img[src*="static.rutracker"], img[src*="fastpic"], img.postimg, '
+      'img[src*="rutracker"], img[src*="i.piccy.info"], '
+      'td.vf-col-tor img, .post_body img, .post-body img');
   if (imgElement != null) {
-    final src = imgElement.attributes['src'];
+    // Try src first
+    var src = imgElement.attributes['src'];
+    var srcAttribute = 'src';
+    if (src == null || src.isEmpty) {
+      // Try data-src for lazy loading
+      src = imgElement.attributes['data-src'];
+      srcAttribute = 'data-src';
+    }
+    if (src == null || src.isEmpty) {
+      // Try data-lazy-src for other lazy loading implementations
+      src = imgElement.attributes['data-lazy-src'];
+      srcAttribute = 'data-lazy-src';
+    }
     if (src != null && src.isNotEmpty) {
-      final normalizedUrl = _normalizeCoverUrl(src, baseUrl: baseUrl);
-      if (normalizedUrl != null) {
-        logger.d('Cover URL extracted (Priority 4): $normalizedUrl');
-        return normalizedUrl;
+      await structuredLogger.log(
+        level: 'debug',
+        subsystem: 'parser',
+        message: 'Found img element (Priority 4)',
+        context: 'extract_cover_url',
+        extra: {
+          'src_attribute': srcAttribute,
+          'raw_src': src,
+          'img_classes': imgElement.classes.join(', '),
+        },
+      );
+      // Filter out small icons and avatars - we want cover images
+      if (!src.contains('avatar') &&
+          !src.contains('icon') &&
+          !src.contains('smile') &&
+          (src.contains('static.rutracker') ||
+              src.contains('fastpic') ||
+              src.contains('piccy.info') ||
+              src.contains('rutracker'))) {
+        final normalizedUrl = await _normalizeCoverUrl(src, baseUrl: baseUrl);
+        if (normalizedUrl != null) {
+          envLogger.d('Cover URL extracted (Priority 4): $normalizedUrl');
+          await structuredLogger.log(
+            level: 'info',
+            subsystem: 'parser',
+            message: 'Cover URL extracted successfully (Priority 4)',
+            context: 'extract_cover_url',
+            extra: {
+              'normalized_url': normalizedUrl,
+              'raw_url': src,
+              'priority': 4,
+              'src_attribute': srcAttribute,
+            },
+          );
+          return normalizedUrl;
+        }
+      } else {
+        await structuredLogger.log(
+          level: 'debug',
+          subsystem: 'parser',
+          message: 'Img element filtered out (avatar/icon/smile)',
+          context: 'extract_cover_url',
+          extra: {'raw_src': src},
+        );
       }
     }
   }
@@ -1917,9 +2186,27 @@ String? _extractCoverUrl(Element row, {String? baseUrl}) {
   if (imgLazy != null) {
     final dataSrc = imgLazy.attributes['data-src'];
     if (dataSrc != null && dataSrc.isNotEmpty) {
-      final normalizedUrl = _normalizeCoverUrl(dataSrc, baseUrl: baseUrl);
+      await structuredLogger.log(
+        level: 'debug',
+        subsystem: 'parser',
+        message: 'Found img with data-src (Priority 5)',
+        context: 'extract_cover_url',
+        extra: {'raw_data_src': dataSrc},
+      );
+      final normalizedUrl = await _normalizeCoverUrl(dataSrc, baseUrl: baseUrl);
       if (normalizedUrl != null) {
-        logger.d('Cover URL extracted (Priority 6): $normalizedUrl');
+        envLogger.d('Cover URL extracted (Priority 5): $normalizedUrl');
+        await structuredLogger.log(
+          level: 'info',
+          subsystem: 'parser',
+          message: 'Cover URL extracted successfully (Priority 5)',
+          context: 'extract_cover_url',
+          extra: {
+            'normalized_url': normalizedUrl,
+            'raw_url': dataSrc,
+            'priority': 5,
+          },
+        );
         return normalizedUrl;
       }
     }
@@ -1933,34 +2220,138 @@ String? _extractCoverUrl(Element row, {String? baseUrl}) {
       // Extract first URL from srcset
       final firstUrl = srcset.split(',').first.trim().split(' ').first;
       if (firstUrl.isNotEmpty) {
-        final normalizedUrl = _normalizeCoverUrl(firstUrl, baseUrl: baseUrl);
+        await structuredLogger.log(
+          level: 'debug',
+          subsystem: 'parser',
+          message: 'Found img with srcset (Priority 6)',
+          context: 'extract_cover_url',
+          extra: {'raw_srcset': srcset, 'extracted_url': firstUrl},
+        );
+        final normalizedUrl =
+            await _normalizeCoverUrl(firstUrl, baseUrl: baseUrl);
         if (normalizedUrl != null) {
-          logger.d('Cover URL extracted (Priority 5): $normalizedUrl');
+          envLogger.d('Cover URL extracted (Priority 6): $normalizedUrl');
+          await structuredLogger.log(
+            level: 'info',
+            subsystem: 'parser',
+            message: 'Cover URL extracted successfully (Priority 6)',
+            context: 'extract_cover_url',
+            extra: {
+              'normalized_url': normalizedUrl,
+              'raw_url': firstUrl,
+              'priority': 6,
+            },
+          );
           return normalizedUrl;
         }
       }
     }
   }
 
-  logger.d('Cover URL not found in search result row');
+  // Priority 7: Try to find any image in the row that looks like a cover
+  // This is a fallback for cases where standard selectors don't work
+  final allImages = row.querySelectorAll('img');
+  await structuredLogger.log(
+    level: 'debug',
+    subsystem: 'parser',
+    message: 'Trying fallback: searching all images (Priority 7)',
+    context: 'extract_cover_url',
+    extra: {'total_images': allImages.length},
+  );
+  for (final img in allImages) {
+    final src = img.attributes['src'] ??
+        img.attributes['data-src'] ??
+        img.attributes['data-lazy-src'];
+    if (src != null &&
+        src.isNotEmpty &&
+        (src.contains('static.rutracker') ||
+            src.contains('fastpic') ||
+            src.contains('piccy.info'))) {
+      // Skip small images (likely icons)
+      if (!src.contains('avatar') &&
+          !src.contains('icon') &&
+          !src.contains('smile')) {
+        final normalizedUrl = await _normalizeCoverUrl(src, baseUrl: baseUrl);
+        if (normalizedUrl != null) {
+          envLogger
+              .d('Cover URL extracted (Priority 7 - fallback): $normalizedUrl');
+          await structuredLogger.log(
+            level: 'info',
+            subsystem: 'parser',
+            message: 'Cover URL extracted successfully (Priority 7 - fallback)',
+            context: 'extract_cover_url',
+            extra: {
+              'normalized_url': normalizedUrl,
+              'raw_url': src,
+              'priority': 7,
+            },
+          );
+          return normalizedUrl;
+        }
+      }
+    }
+  }
+
+  envLogger.d('Cover URL not found in search result row');
+  await structuredLogger.log(
+    level: 'debug',
+    subsystem: 'parser',
+    message: 'Cover URL not found after trying all priorities',
+    context: 'extract_cover_url',
+    extra: {
+      'base_url': baseUrl,
+      'total_images_checked': allImages.length,
+    },
+  );
   return null;
 }
 
 /// Normalizes cover URL to absolute URL.
 ///
 /// Converts relative URLs to absolute URLs using provided baseUrl or rutracker.org as fallback.
-String? _normalizeCoverUrl(String? url, {String? baseUrl}) {
+Future<String?> _normalizeCoverUrl(String? url, {String? baseUrl}) async {
+  final structuredLogger = StructuredLogger();
+
   if (url == null || url.isEmpty) {
     EnvironmentLogger().d('_normalizeCoverUrl: URL is null or empty');
+    await structuredLogger.log(
+      level: 'debug',
+      subsystem: 'parser',
+      message: 'Cover URL normalization skipped: URL is null or empty',
+      context: 'normalize_cover_url',
+    );
     return null;
   }
 
-  final logger = EnvironmentLogger()
+  final envLogger = EnvironmentLogger()
     ..d('_normalizeCoverUrl: Normalizing URL: $url (baseUrl: $baseUrl)');
+
+  await structuredLogger.log(
+    level: 'debug',
+    subsystem: 'parser',
+    message: 'Starting cover URL normalization',
+    context: 'normalize_cover_url',
+    extra: {
+      'raw_url': url,
+      'base_url': baseUrl,
+      'url_length': url.length,
+    },
+  );
 
   // If URL already absolute, return as is
   if (url.startsWith('http://') || url.startsWith('https://')) {
-    logger.d('_normalizeCoverUrl: URL is already absolute: $url');
+    envLogger.d('_normalizeCoverUrl: URL is already absolute: $url');
+    await structuredLogger.log(
+      level: 'debug',
+      subsystem: 'parser',
+      message: 'Cover URL is already absolute, returning as-is',
+      context: 'normalize_cover_url',
+      extra: {
+        'normalized_url': url,
+        'is_http': url.startsWith('http://'),
+        'is_https': url.startsWith('https://'),
+      },
+    );
     return url;
   }
 
@@ -1976,35 +2367,127 @@ String? _normalizeCoverUrl(String? url, {String? baseUrl}) {
         !effectiveBaseUrl.startsWith('https://')) {
       effectiveBaseUrl = 'https://$effectiveBaseUrl';
     }
+    await structuredLogger.log(
+      level: 'debug',
+      subsystem: 'parser',
+      message: 'Using provided baseUrl',
+      context: 'normalize_cover_url',
+      extra: {
+        'original_base_url': baseUrl,
+        'effective_base_url': effectiveBaseUrl,
+      },
+    );
   } else {
     // Fallback to rutracker.org
     effectiveBaseUrl = 'https://rutracker.org';
+    await structuredLogger.log(
+      level: 'debug',
+      subsystem: 'parser',
+      message: 'Using fallback baseUrl (rutracker.org)',
+      context: 'normalize_cover_url',
+      extra: {'effective_base_url': effectiveBaseUrl},
+    );
   }
 
   // If URL relative (starts with /), convert to absolute
   if (url.startsWith('/')) {
     final normalized = '$effectiveBaseUrl$url';
-    logger.d('_normalizeCoverUrl: Normalized relative URL: $normalized');
+    envLogger.d('_normalizeCoverUrl: Normalized relative URL: $normalized');
+    await structuredLogger.log(
+      level: 'info',
+      subsystem: 'parser',
+      message: 'Cover URL normalized (relative path)',
+      context: 'normalize_cover_url',
+      extra: {
+        'raw_url': url,
+        'normalized_url': normalized,
+        'normalization_type': 'relative_path',
+      },
+    );
     return normalized;
   }
 
   // If URL starts with //, add https:
   if (url.startsWith('//')) {
     final normalized = 'https:$url';
-    logger
+    envLogger
         .d('_normalizeCoverUrl: Normalized protocol-relative URL: $normalized');
+    await structuredLogger.log(
+      level: 'info',
+      subsystem: 'parser',
+      message: 'Cover URL normalized (protocol-relative)',
+      context: 'normalize_cover_url',
+      extra: {
+        'raw_url': url,
+        'normalized_url': normalized,
+        'normalization_type': 'protocol_relative',
+      },
+    );
     return normalized;
   }
 
   // If URL doesn't start with /, possibly already full path
   // Try to add base URL
   if (!url.contains('://')) {
-    final normalized = '$effectiveBaseUrl/$url';
-    logger.d('_normalizeCoverUrl: Normalized path URL: $normalized');
+    // Remove leading slash from url if present to avoid double slashes
+    final cleanUrl = url.startsWith('/') ? url.substring(1) : url;
+    final normalized = '$effectiveBaseUrl/$cleanUrl';
+    envLogger.d('_normalizeCoverUrl: Normalized path URL: $normalized');
+    await structuredLogger.log(
+      level: 'info',
+      subsystem: 'parser',
+      message: 'Cover URL normalized (path)',
+      context: 'normalize_cover_url',
+      extra: {
+        'raw_url': url,
+        'normalized_url': normalized,
+        'normalization_type': 'path',
+      },
+    );
     return normalized;
   }
 
-  logger.w('_normalizeCoverUrl: Could not normalize URL: $url');
+  // If URL contains :// but doesn't start with http, might be malformed
+  // Try to fix it
+  if (url.contains('://') &&
+      !url.startsWith('http://') &&
+      !url.startsWith('https://')) {
+    final protocolIndex = url.indexOf('://');
+    if (protocolIndex > 0) {
+      // Extract everything after ://
+      final afterProtocol = url.substring(protocolIndex + 3);
+      final normalized = 'https://$afterProtocol';
+      envLogger
+          .d('_normalizeCoverUrl: Fixed malformed protocol URL: $normalized');
+      await structuredLogger.log(
+        level: 'info',
+        subsystem: 'parser',
+        message: 'Cover URL normalized (fixed malformed protocol)',
+        context: 'normalize_cover_url',
+        extra: {
+          'raw_url': url,
+          'normalized_url': normalized,
+          'normalization_type': 'fix_malformed',
+        },
+      );
+      return normalized;
+    }
+  }
+
+  envLogger.w(
+      '_normalizeCoverUrl: Could not normalize URL: $url (baseUrl: $baseUrl)');
+  await structuredLogger.log(
+    level: 'warning',
+    subsystem: 'parser',
+    message: 'Could not normalize cover URL, returning original',
+    context: 'normalize_cover_url',
+    extra: {
+      'raw_url': url,
+      'base_url': baseUrl,
+      'effective_base_url': effectiveBaseUrl,
+    },
+  );
+  // Return original URL as fallback - might still work
   return url;
 }
 
