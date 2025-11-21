@@ -237,6 +237,9 @@ class AudiobookCard extends StatelessWidget {
           fit: BoxFit.cover,
           // Images from RuTracker are typically up to 500x500, usually smaller
           // Use appropriate cache size for display (68x68 in card, 2x for retina)
+          // Limit max dimensions to prevent memory issues with large images
+          maxWidthDiskCache: 200,
+          maxHeightDiskCache: 200,
           memCacheWidth: 136,
           memCacheHeight: 136,
           // Add headers to ensure proper loading
@@ -280,10 +283,19 @@ class AudiobookCard extends StatelessWidget {
           color: Theme.of(context).colorScheme.primaryContainer,
           borderRadius: BorderRadius.circular(10),
         ),
-        child: Icon(
-          Icons.audiotrack,
-          color: Theme.of(context).colorScheme.onPrimaryContainer,
-          size: 32,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(10),
+          child: Image.asset(
+            'assets/icons/app_icon.png',
+            width: 68,
+            height: 68,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) => Icon(
+              Icons.audiotrack,
+              color: Theme.of(context).colorScheme.onPrimaryContainer,
+              size: 32,
+            ),
+          ),
         ),
       );
 }

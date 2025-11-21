@@ -194,6 +194,8 @@ class Media3PlayerService {
   Future<void> seek(Duration position) async {
     try {
       await _player.seek(position);
+      // Save position immediately after seek
+      await _saveCurrentPosition();
     } on AudioFailure {
       rethrow;
     } on Exception catch (e) {
@@ -224,6 +226,8 @@ class Media3PlayerService {
   Future<void> next() async {
     try {
       await _player.next();
+      // Save position immediately after track change
+      await _saveCurrentPosition();
     } on AudioFailure {
       rethrow;
     } on Exception catch (e) {
@@ -237,6 +241,8 @@ class Media3PlayerService {
   Future<void> previous() async {
     try {
       await _player.previous();
+      // Save position immediately after track change
+      await _saveCurrentPosition();
     } on AudioFailure {
       rethrow;
     } on Exception catch (e) {
@@ -252,6 +258,8 @@ class Media3PlayerService {
   Future<void> seekToTrack(int index) async {
     try {
       await _player.seekToTrack(index);
+      // Save position immediately after track change
+      await _saveCurrentPosition();
     } on AudioFailure {
       rethrow;
     } on Exception catch (e) {
@@ -268,6 +276,8 @@ class Media3PlayerService {
   Future<void> seekToTrackAndPosition(int trackIndex, Duration position) async {
     try {
       await _player.seekToTrackAndPosition(trackIndex, position);
+      // Save position immediately after seek
+      await _saveCurrentPosition();
     } on AudioFailure {
       rethrow;
     } on Exception catch (e) {
@@ -337,6 +347,14 @@ class Media3PlayerService {
     } on Exception {
       // Ignore errors - position saving is not critical
     }
+  }
+
+  /// Saves current playback position (public method for lifecycle events).
+  ///
+  /// This method can be called from app lifecycle handlers to ensure
+  /// position is saved when app is paused or closed.
+  Future<void> saveCurrentPosition() async {
+    await _saveCurrentPosition();
   }
 
   /// Saves full player state including playlist, position, speed, etc.

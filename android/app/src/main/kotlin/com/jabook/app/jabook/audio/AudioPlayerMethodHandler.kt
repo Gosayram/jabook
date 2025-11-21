@@ -146,13 +146,29 @@ class AudioPlayerMethodHandler(
                     )
                 }
                 "seek" -> {
-                    val positionMs = call.argument<Long>("positionMs") ?: 0L
+                    // Handle both Int and Long types from Flutter MethodChannel
+                    val positionMsArg = call.argument<Any>("positionMs")
+                    val positionMs: Long = when (positionMsArg) {
+                        is Long -> positionMsArg
+                        is Int -> positionMsArg.toLong()
+                        is Number -> positionMsArg.toLong()
+                        null -> {
+                            result.error("INVALID_ARGUMENT", "positionMs is required", null)
+                            return
+                        }
+                        else -> {
+                            result.error("INVALID_ARGUMENT", "positionMs must be a number", null)
+                            return
+                        }
+                    }
+                    
                     executeWithRetry(
                         action = {
                             getService()?.seekTo(positionMs)
                             result.success(true)
                         },
                         onError = { e ->
+                            android.util.Log.e("AudioPlayerMethodHandler", "Failed to seek: positionMs=$positionMs", e)
                             result.error("EXCEPTION", e.message ?: "Failed to seek", null)
                         }
                     )
@@ -233,13 +249,30 @@ class AudioPlayerMethodHandler(
                 }
                 "seekToTrackAndPosition" -> {
                     val trackIndex = call.argument<Int>("trackIndex") ?: 0
-                    val positionMs = call.argument<Long>("positionMs") ?: 0L
+                    
+                    // Handle both Int and Long types from Flutter MethodChannel
+                    val positionMsArg = call.argument<Any>("positionMs")
+                    val positionMs: Long = when (positionMsArg) {
+                        is Long -> positionMsArg
+                        is Int -> positionMsArg.toLong()
+                        is Number -> positionMsArg.toLong()
+                        null -> {
+                            result.error("INVALID_ARGUMENT", "positionMs is required", null)
+                            return
+                        }
+                        else -> {
+                            result.error("INVALID_ARGUMENT", "positionMs must be a number", null)
+                            return
+                        }
+                    }
+                    
                     executeWithRetry(
                         action = {
                             getService()?.seekToTrackAndPosition(trackIndex, positionMs)
                             result.success(true)
                         },
                         onError = { e ->
+                            android.util.Log.e("AudioPlayerMethodHandler", "Failed to seek to track and position: trackIndex=$trackIndex, positionMs=$positionMs", e)
                             result.error("EXCEPTION", e.message ?: "Failed to seek to track and position", null)
                         }
                     )

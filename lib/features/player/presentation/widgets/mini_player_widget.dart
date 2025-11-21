@@ -64,7 +64,8 @@ class MiniPlayerWidget extends ConsumerWidget {
             _buildCoverImage(context, playerState.currentCoverPath),
             const SizedBox(width: 12),
             // Track info and progress
-            Expanded(
+            Flexible(
+              flex: 2,
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -93,16 +94,35 @@ class MiniPlayerWidget extends ConsumerWidget {
                 ],
               ),
             ),
-            const SizedBox(width: 8),
-            // Play/Pause button
-            IconButton(
-              icon: Icon(
-                playerState.isPlaying ? Icons.pause : Icons.play_arrow,
+            // Player controls - centered and expanding to fill available space
+            Flexible(
+              flex: 3,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Previous track button
+                  IconButton(
+                    icon: const Icon(Icons.skip_previous),
+                    onPressed: () => _skipPrevious(ref),
+                    tooltip: 'Previous track',
+                  ),
+                  // Play/Pause button
+                  IconButton(
+                    icon: Icon(
+                      playerState.isPlaying ? Icons.pause : Icons.play_arrow,
+                    ),
+                    onPressed: () => _togglePlayPause(ref),
+                    tooltip: playerState.isPlaying ? 'Pause' : 'Play',
+                  ),
+                  // Next track button
+                  IconButton(
+                    icon: const Icon(Icons.skip_next),
+                    onPressed: () => _skipNext(ref),
+                    tooltip: 'Next track',
+                  ),
+                ],
               ),
-              onPressed: () => _togglePlayPause(ref),
-              tooltip: playerState.isPlaying ? 'Pause' : 'Play',
             ),
-            const SizedBox(width: 8),
           ],
         ),
       ),
@@ -167,6 +187,14 @@ class MiniPlayerWidget extends ConsumerWidget {
     } else {
       playerNotifier.play();
     }
+  }
+
+  void _skipPrevious(WidgetRef ref) {
+    ref.read(playerStateProvider.notifier).previous();
+  }
+
+  void _skipNext(WidgetRef ref) {
+    ref.read(playerStateProvider.notifier).next();
   }
 
   void _openFullPlayer(

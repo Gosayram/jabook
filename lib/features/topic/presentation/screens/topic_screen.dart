@@ -119,15 +119,18 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
         var audiobook = await _parser.parseTopicDetails(
           response.data,
           contentType: response.headers.value('content-type'),
+          baseUrl: activeEndpoint,
         );
 
-        // If chapters are empty, try to extract from torrent file
-        if (audiobook != null && audiobook.chapters.isEmpty) {
+        // Always try to extract chapters from torrent file if available
+        // This ensures we get properly sorted chapters with durations
+        if (audiobook != null) {
           try {
             final chaptersFromTorrent = await _extractChaptersFromTorrent(
               widget.topicId,
               activeEndpoint,
             );
+            // Use chapters from torrent if we got any, otherwise keep HTML-parsed ones
             if (chaptersFromTorrent.isNotEmpty) {
               // Create new Audiobook with chapters from torrent
               audiobook = Audiobook(
@@ -144,6 +147,10 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
                 genres: audiobook.genres,
                 chapters: chaptersFromTorrent,
                 addedDate: audiobook.addedDate,
+                duration: audiobook.duration,
+                bitrate: audiobook.bitrate,
+                audioCodec: audiobook.audioCodec,
+                relatedAudiobooks: audiobook.relatedAudiobooks,
               );
             }
           } on AuthFailure catch (e) {
@@ -151,10 +158,10 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
             if (mounted) {
               AuthErrorHandler.showAuthErrorSnackBar(context, e);
             }
-            // Continue with HTML-parsed chapters (empty list)
+            // Continue with HTML-parsed chapters (if any)
           } on Exception {
             // Ignore other errors when extracting from torrent
-            // Fallback to HTML-parsed chapters (empty list)
+            // Fallback to HTML-parsed chapters (if any)
           }
         }
 
@@ -406,6 +413,10 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
           SliverToBoxAdapter(
             child: _buildChaptersSection(),
           ),
+        if ((_audiobook!['relatedAudiobooks'] as List?)?.isNotEmpty ?? false)
+          SliverToBoxAdapter(
+            child: _buildRelatedAudiobooksSection(),
+          ),
       ],
     );
   }
@@ -504,6 +515,38 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
                         ),
                       ))
                   .toList(),
+            ),
+          ],
+          // Display duration, bitrate and audio codec if available
+          if ((audiobook['duration'] as String?) != null ||
+              (audiobook['bitrate'] as String?) != null ||
+              (audiobook['audioCodec'] as String?) != null) ...[
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                if ((audiobook['duration'] as String?) != null)
+                  _buildChip(
+                    '⏱ ${audiobook['duration'] as String}',
+                    Theme.of(context).colorScheme.primaryContainer,
+                    labelColor:
+                        Theme.of(context).colorScheme.onPrimaryContainer,
+                  ),
+                if ((audiobook['bitrate'] as String?) != null ||
+                    (audiobook['audioCodec'] as String?) != null)
+                  _buildChip(
+                    '🎵 ${[
+                      if ((audiobook['bitrate'] as String?) != null)
+                        audiobook['bitrate'] as String,
+                      if ((audiobook['audioCodec'] as String?) != null)
+                        audiobook['audioCodec'] as String,
+                    ].join(' / ')}',
+                    Theme.of(context).colorScheme.secondaryContainer,
+                    labelColor:
+                        Theme.of(context).colorScheme.onSecondaryContainer,
+                  ),
+              ],
             ),
           ],
           const SizedBox(height: 16),
@@ -637,6 +680,55 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
     } else {
       return '$minutes:${seconds.toString().padLeft(2, '0')}';
     }
+  }
+
+  Widget _buildRelatedAudiobooksSection() {
+    final audiobook = _audiobook!;
+    final relatedAudiobooks =
+        (audiobook['relatedAudiobooks'] as List<dynamic>?) ?? [];
+
+    if (relatedAudiobooks.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Связанные раздачи',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const SizedBox(height: 8),
+          ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: relatedAudiobooks.length,
+            itemBuilder: (context, index) {
+              final related = relatedAudiobooks[index] as Map<String, dynamic>;
+              final topicId = related['topicId'] as String? ?? '';
+              final title = related['title'] as String? ?? 'Unknown Title';
+              return RepaintBoundary(
+                child: Card(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  child: ListTile(
+                    leading: const Icon(Icons.book),
+                    title: Text(title),
+                    trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                    onTap: () {
+                      if (topicId.isNotEmpty) {
+                        context.push('/topic/$topicId');
+                      }
+                    },
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
   }
 
   void _handleDownloadAction(String action) {
@@ -1426,6 +1518,12 @@ Map<String, dynamic> _audiobookToMap(Audiobook audiobook) => {
       'genres': audiobook.genres,
       'chapters': audiobook.chapters.map(_chapterToMap).toList(),
       'addedDate': audiobook.addedDate.toIso8601String(),
+      'duration': audiobook.duration,
+      'bitrate': audiobook.bitrate,
+      'audioCodec': audiobook.audioCodec,
+      'relatedAudiobooks': audiobook.relatedAudiobooks
+          .map((r) => {'topicId': r.topicId, 'title': r.title})
+          .toList(),
     };
 
 /// Converts a Chapter object to a Map for caching.

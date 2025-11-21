@@ -58,8 +58,12 @@ class CategoryParser {
   static const String _topicAuthorSelector =
       '.topicAuthor, .topicAuthor a, a.pmed';
   static const String _topicSizeSelector = 'a.f-dl.dl-stub, span.small';
-  static const String _seedersSelector = 'span.seedmed b, span.seedmed';
-  static const String _leechersSelector = 'span.leechmed b, span.leechmed';
+  // Use all possible seeders classes: seed and seedmed (both with and without b tag)
+  static const String _seedersSelector =
+      'span.seed, span.seed b, span.seedmed, span.seedmed b';
+  // Use all possible leechers classes: leech and leechmed (both with and without b tag)
+  static const String _leechersSelector =
+      'span.leech, span.leech b, span.leechmed, span.leechmed b';
   static const String _downloadsSelector = 'p.med[title*="Торрент скачан"] b';
 
   /// Parses the main audiobooks categories page from RuTracker.
@@ -233,13 +237,51 @@ class CategoryParser {
           final topicId = row.attributes['data-topic_id'] ??
               _extractTopicId(topicLink.attributes['href'] ?? '');
 
+          // Extract seeders: try <b> tag first, then fallback to span text
+          var seeders = 0;
+          if (seedersElement != null) {
+            final bTag = seedersElement.querySelector('b');
+            if (bTag != null) {
+              seeders = int.tryParse(bTag.text.trim()) ?? 0;
+            } else {
+              var seedersText = seedersElement.text.trim();
+              seedersText =
+                  seedersText.replaceFirst(RegExp(r'^[Сс]иды[:\s]*'), '');
+              seeders = int.tryParse(seedersText) ?? 0;
+            }
+          }
+
+          // Extract leechers: try <b> tag first, then fallback to span text
+          var leechers = 0;
+          if (leechersElement != null) {
+            final bTag = leechersElement.querySelector('b');
+            if (bTag != null) {
+              leechers = int.tryParse(bTag.text.trim()) ?? 0;
+            } else {
+              var leechersText = leechersElement.text.trim();
+              leechersText =
+                  leechersText.replaceFirst(RegExp(r'^[Лл]ичи[:\s]*'), '');
+              leechers = int.tryParse(leechersText) ?? 0;
+            }
+          }
+
+          // Verify values are not swapped (seeders should typically be >= leechers for active torrents)
+          // If leechers > seeders by a large margin, they might be swapped
+          // Auto-fix: swap values if leechers significantly exceeds seeders
+          if (leechers > seeders && seeders > 0 && leechers > seeders * 2) {
+            // Swap values
+            final temp = seeders;
+            seeders = leechers;
+            leechers = temp;
+          }
+
           final topic = {
             'title': topicLink.text.trim(),
             'url': topicLink.attributes['href'] ?? '',
             'author': authorLink?.text.trim() ?? 'Unknown',
             'size': sizeElement?.text.trim() ?? '',
-            'seeders': int.tryParse(seedersElement?.text.trim() ?? '0') ?? 0,
-            'leechers': int.tryParse(leechersElement?.text.trim() ?? '0') ?? 0,
+            'seeders': seeders,
+            'leechers': leechers,
             'downloads':
                 int.tryParse(downloadsElement?.text.trim() ?? '0') ?? 0,
             'id': topicId,

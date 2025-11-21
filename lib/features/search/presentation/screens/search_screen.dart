@@ -2965,6 +2965,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         'genres': audiobook.genres,
         'chapters': audiobook.chapters.map(_chapterToMap).toList(),
         'addedDate': audiobook.addedDate.toIso8601String(),
+        'duration': audiobook.duration,
+        'bitrate': audiobook.bitrate,
+        'audioCodec': audiobook.audioCodec,
       };
 
   /// Updates statistics (seeders/leechers) for search results that don't have them.

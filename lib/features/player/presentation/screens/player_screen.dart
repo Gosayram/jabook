@@ -27,6 +27,7 @@ import 'package:jabook/data/db/app_database.dart';
 import 'package:jabook/l10n/app_localizations.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:rxdart/rxdart.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// Main audiobook player screen.
 ///
@@ -60,6 +61,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   StreamSubscription? _positionSubscription;
   StreamSubscription? _playerStateSubscription;
   int _currentChapterIndex = 0;
+  // Local state for slider during dragging
+  double? _sliderValue;
+  bool _isDragging = false;
+  Timer? _positionSaveTimer;
 
   @override
   void initState() {
@@ -72,6 +77,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   void dispose() {
     _positionSubscription?.cancel();
     _playerStateSubscription?.cancel();
+    _positionSaveTimer?.cancel();
+    _saveCurrentPosition();
     _audioPlayer.dispose();
     _streamServer.stop();
     super.dispose();
@@ -91,6 +98,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
           setState(() {
             _currentPosition = position;
           });
+          // Save position periodically
+          _saveCurrentPosition();
         }
       });
 
@@ -117,9 +126,14 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       // Set total duration
       _audioPlayer.durationStream.listen((duration) async {
         if (!mounted) return;
+        final wasZero = _totalDuration == Duration.zero;
         setState(() {
           _totalDuration = duration ?? Duration.zero;
         });
+        // Restore position when duration becomes available for the first time
+        if (wasZero && duration != null && duration > Duration.zero) {
+          await _restorePosition();
+        }
         // Update system metadata with actual duration when known
         if (_audiobook != null && duration != null) {
           Uri? art;
@@ -143,6 +157,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 
       // Load real audio source via local stream server
       await _loadAudioSource();
+
+      // Position will be restored automatically when duration becomes available
+      // (see durationStream listener above)
 
       setState(() {
         _isLoading = false;
@@ -189,7 +206,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                 ResponseType.plain, // Ensure gzip is automatically decompressed
           ));
       if (response.statusCode == 200) {
-        final parsed = await RuTrackerParser().parseTopicDetails(response.data);
+        final parsed = await RuTrackerParser().parseTopicDetails(
+          response.data,
+          baseUrl: base,
+        );
         if (parsed != null) {
           setState(() => _audiobook = parsed);
         }
@@ -264,11 +284,33 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     }
   }
 
-  void _seekToPosition(double value) {
+  /// Called when user starts dragging the slider.
+  void _onSliderStart(double value) {
+    setState(() {
+      _isDragging = true;
+      _sliderValue = value;
+    });
+  }
+
+  /// Called while user is dragging the slider.
+  void _onSliderChanged(double value) {
+    setState(() {
+      _sliderValue = value.clamp(0.0, 1.0);
+    });
+  }
+
+  /// Called when user finishes dragging the slider.
+  void _onSliderEnd(double value) {
     final position = Duration(
       milliseconds: (value * _totalDuration.inMilliseconds).round(),
     );
     _audioPlayer.seek(position);
+
+    // Reset local state
+    setState(() {
+      _isDragging = false;
+      _sliderValue = null;
+    });
   }
 
   void _seekToChapter(Chapter chapter) {
@@ -467,11 +509,18 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
               ),
               const SizedBox(height: 8),
               Slider(
-                value: _totalDuration.inMilliseconds > 0
-                    ? _currentPosition.inMilliseconds /
-                        _totalDuration.inMilliseconds
-                    : 0.0,
-                onChanged: _seekToPosition,
+                value: _isDragging && _sliderValue != null
+                    ? _sliderValue!.clamp(0.0, 1.0)
+                    : (_totalDuration.inMilliseconds > 0
+                        ? _currentPosition.inMilliseconds /
+                            _totalDuration.inMilliseconds
+                        : 0.0),
+                onChanged:
+                    _totalDuration.inMilliseconds > 0 ? _onSliderChanged : null,
+                onChangeStart:
+                    _totalDuration.inMilliseconds > 0 ? _onSliderStart : null,
+                onChangeEnd:
+                    _totalDuration.inMilliseconds > 0 ? _onSliderEnd : null,
               ),
             ],
           ),
@@ -557,5 +606,63 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
               AppLocalizations.of(context)?.downloadFunctionalityComingSoon ??
                   'Download functionality coming soon!')),
     );
+  }
+
+  /// Saves current playback position to SharedPreferences.
+  Future<void> _saveCurrentPosition() async {
+    if (_audiobook == null || _currentPosition == Duration.zero) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final positionKey = 'pos_${widget.bookId}';
+      final chapterKey = 'chapter_${widget.bookId}';
+      await prefs.setInt(positionKey, _currentPosition.inMilliseconds);
+      await prefs.setInt(chapterKey, _currentChapterIndex);
+    } on Exception {
+      // Ignore errors - position saving is not critical
+    }
+  }
+
+  /// Restores saved playback position from SharedPreferences and starts playback.
+  Future<void> _restorePosition() async {
+    if (_audiobook == null) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final positionKey = 'pos_${widget.bookId}';
+      final chapterKey = 'chapter_${widget.bookId}';
+      final savedPositionMs = prefs.getInt(positionKey) ?? 0;
+      final savedChapterIndex = prefs.getInt(chapterKey) ?? 0;
+
+      if (savedPositionMs > 0 && savedChapterIndex >= 0) {
+        // Wait for player to be ready
+        var attempts = 0;
+        while (attempts < 20 && mounted) {
+          if (_totalDuration.inMilliseconds > 0 &&
+              _audioPlayer.processingState == ProcessingState.ready) {
+            break;
+          }
+          await Future.delayed(const Duration(milliseconds: 100));
+          attempts++;
+        }
+
+        if (mounted && _totalDuration.inMilliseconds > 0) {
+          // Restore chapter if multiple chapters exist
+          if (_audiobook!.chapters.length > 1 &&
+              savedChapterIndex < _audiobook!.chapters.length) {
+            _currentChapterIndex = savedChapterIndex;
+            await _audioPlayer.seek(Duration.zero, index: savedChapterIndex);
+          }
+
+          // Restore position within current chapter
+          final savedPosition = Duration(milliseconds: savedPositionMs);
+          if (savedPosition < _totalDuration) {
+            await _audioPlayer.seek(savedPosition);
+            // Automatically start playback from restored position
+            await _audioPlayer.play();
+          }
+        }
+      }
+    } on Exception {
+      // Ignore errors - position restoration is not critical
+    }
   }
 }

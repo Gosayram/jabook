@@ -278,6 +278,12 @@ class PlayerStateNotifier extends StateNotifier<PlayerStateModel> {
   Future<void> seek(Duration position) async {
     try {
       await _service.seek(position);
+
+      // Update state synchronously with new position for immediate UI feedback
+      final positionMs = position.inMilliseconds.clamp(0, state.duration);
+      state = state.copyWith(
+        currentPosition: positionMs,
+      );
     } on AudioFailure catch (e) {
       state = state.copyWith(error: e.message);
       rethrow;
@@ -360,6 +366,13 @@ class PlayerStateNotifier extends StateNotifier<PlayerStateModel> {
   Future<void> seekToTrackAndPosition(int trackIndex, Duration position) async {
     try {
       await _service.seekToTrackAndPosition(trackIndex, position);
+
+      // Update state synchronously with new track index and position for immediate UI feedback
+      final positionMs = position.inMilliseconds.clamp(0, state.duration);
+      state = state.copyWith(
+        currentIndex: trackIndex,
+        currentPosition: positionMs,
+      );
     } on AudioFailure catch (e) {
       state = state.copyWith(error: e.message);
       rethrow;

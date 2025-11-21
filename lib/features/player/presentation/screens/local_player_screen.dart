@@ -52,6 +52,9 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
   bool _isInitialized = false;
   bool _hasError = false;
   String? _errorMessage;
+  // Local state for slider during dragging
+  double? _sliderValue;
+  bool _isDragging = false;
 
   @override
   void initState() {
@@ -119,20 +122,13 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
       // Wait for player to be ready before enabling controls
       await _waitForPlayerReady();
 
-      // Restore position if available
+      // Restore position if available - automatically continue from saved position
       if (savedPosition != null && mounted) {
         final trackIndex = savedPosition['trackIndex']!;
         final positionMs = savedPosition['positionMs']!;
         if (trackIndex >= 0 &&
             trackIndex < widget.group.files.length &&
             positionMs > 0) {
-          // Show dialog asking if user wants to continue from saved position
-          final shouldContinue = await _showContinueDialog(positionMs);
-          if (!shouldContinue) {
-            // User chose to start from beginning
-            return;
-          }
-
           // Wait for player to be ready (check state)
           var attempts = 0;
           while (attempts < 20 && mounted) {
@@ -153,10 +149,13 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
                 Duration(milliseconds: positionMs),
               );
 
+              // Automatically start playback from restored position
+              await playerNotifier.play();
+
               await _logger.log(
                 level: 'info',
                 subsystem: 'audio',
-                message: 'Restored playback position',
+                message: 'Restored and resumed playback position',
                 extra: {
                   'track_index': trackIndex,
                   'position_ms': positionMs,
@@ -342,14 +341,6 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
     } else {
       playerNotifier.play();
     }
-  }
-
-  void _seekToPosition(double value) {
-    final state = ref.read(playerStateProvider);
-    final position = Duration(
-      milliseconds: (value * state.duration).round(),
-    );
-    ref.read(playerStateProvider.notifier).seek(position);
   }
 
   void _seekToTrack(int index) {
@@ -627,21 +618,56 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
   }
 
   Widget _buildProgressSlider(PlayerStateModel state) {
-    final progress =
-        state.duration > 0 ? state.currentPosition / state.duration : 0.0;
-
-    final isLoading = state.playbackState == 1; // 1 = buffering
-    final isReady = state.playbackState == 2; // 2 = ready
     final hasDuration = state.duration > 0;
     final hasError = state.error != null;
 
-    // Enable seek only when player is ready, has duration, and no errors
-    final canSeek = isReady && hasDuration && !hasError && !isLoading;
+    // Calculate progress - use local slider value if dragging, otherwise use actual position
+    final progress = _isDragging && _sliderValue != null
+        ? _sliderValue!.clamp(0.0, 1.0)
+        : (hasDuration ? state.currentPosition / state.duration : 0.0);
+
+    // Enable seek if we have duration and no errors
+    // Allow seeking even during loading for better UX
+    final canSeek = hasDuration && !hasError;
 
     return Slider(
       value: progress.clamp(0.0, 1.0),
-      onChanged: canSeek ? _seekToPosition : null,
+      onChanged: canSeek ? _onSliderChanged : null,
+      onChangeStart: canSeek ? _onSliderStart : null,
+      onChangeEnd: canSeek ? _onSliderEnd : null,
     );
+  }
+
+  /// Called when user starts dragging the slider.
+  void _onSliderStart(double value) {
+    setState(() {
+      _isDragging = true;
+      _sliderValue = value;
+    });
+  }
+
+  /// Called while user is dragging the slider.
+  void _onSliderChanged(double value) {
+    setState(() {
+      _sliderValue = value.clamp(0.0, 1.0);
+    });
+  }
+
+  /// Called when user finishes dragging the slider.
+  void _onSliderEnd(double value) {
+    final state = ref.read(playerStateProvider);
+    final positionMs =
+        (value * state.duration).round().clamp(0, state.duration);
+    final position = Duration(milliseconds: positionMs);
+
+    // Perform actual seek
+    ref.read(playerStateProvider.notifier).seek(position);
+
+    // Reset local state
+    setState(() {
+      _isDragging = false;
+      _sliderValue = null;
+    });
   }
 
   /// Waits for player to be ready (playbackState == 2).
@@ -804,35 +830,6 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         ),
       );
-
-  /// Shows dialog asking if user wants to continue from saved position.
-  Future<bool> _showContinueDialog(int positionMs) async {
-    final position = Duration(milliseconds: positionMs);
-    final minutes = position.inMinutes;
-    final seconds = position.inSeconds % 60;
-    final positionText =
-        '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
-
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Continue playback?'),
-        content: Text('Continue from $positionText?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Start from beginning'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Continue'),
-          ),
-        ],
-      ),
-    );
-
-    return result ?? false;
-  }
 
   Widget _buildRepeatControl() {
     final settings = ref.watch(playbackSettingsProvider);

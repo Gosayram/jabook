@@ -36,8 +36,9 @@ class RuTrackerCacheService {
   /// Session storage for getting session ID.
   final SessionStorage _sessionStorage = const SessionStorage();
 
-  /// TTL for search results in seconds (1 hour).
-  static const int searchResultsTTL = 3600;
+  /// TTL for search results in seconds (1 minute).
+  /// Reduced to minimize stale data issues with incorrect seeders/leechers.
+  static const int searchResultsTTL = 60;
 
   /// TTL for topic details in seconds (24 hours).
   static const int topicDetailsTTL = 86400;

@@ -209,10 +209,19 @@ class _RecommendedAudiobookCard extends StatelessWidget {
           color: Theme.of(context).colorScheme.primaryContainer,
           borderRadius: BorderRadius.circular(12),
         ),
-        child: Icon(
-          Icons.audiotrack,
-          size: 48,
-          color: Theme.of(context).colorScheme.onPrimaryContainer,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: Image.asset(
+            'assets/icons/app_icon.png',
+            width: 140,
+            height: 200,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) => Icon(
+              Icons.audiotrack,
+              color: Theme.of(context).colorScheme.onPrimaryContainer,
+              size: 48,
+            ),
+          ),
         ),
       );
 }

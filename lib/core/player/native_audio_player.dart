@@ -237,8 +237,19 @@ class NativeAudioPlayer {
   /// Throws [AudioFailure] if seeking fails.
   Future<void> seek(Duration position) async {
     try {
+      // Validate position: must be non-negative
+      if (position.isNegative) {
+        throw const AudioFailure('Position cannot be negative');
+      }
+
+      // Convert to int64 explicitly for proper type handling across platform channel
+      final positionMs = position.inMilliseconds;
+      if (positionMs < 0) {
+        throw const AudioFailure('Position in milliseconds cannot be negative');
+      }
+
       await _channel.invokeMethod('seek', {
-        'positionMs': position.inMilliseconds,
+        'positionMs': positionMs,
       });
     } on PlatformException catch (e) {
       throw AudioFailure('Failed to seek: ${e.message ?? e.code}');
@@ -376,9 +387,25 @@ class NativeAudioPlayer {
   /// Throws [AudioFailure] if seeking fails.
   Future<void> seekToTrackAndPosition(int trackIndex, Duration position) async {
     try {
+      // Validate track index
+      if (trackIndex < 0) {
+        throw const AudioFailure('Track index cannot be negative');
+      }
+
+      // Validate position: must be non-negative
+      if (position.isNegative) {
+        throw const AudioFailure('Position cannot be negative');
+      }
+
+      // Convert to int64 explicitly for proper type handling across platform channel
+      final positionMs = position.inMilliseconds;
+      if (positionMs < 0) {
+        throw const AudioFailure('Position in milliseconds cannot be negative');
+      }
+
       await _channel.invokeMethod('seekToTrackAndPosition', {
         'trackIndex': trackIndex,
-        'positionMs': position.inMilliseconds,
+        'positionMs': positionMs,
       });
     } on PlatformException catch (e) {
       throw AudioFailure(

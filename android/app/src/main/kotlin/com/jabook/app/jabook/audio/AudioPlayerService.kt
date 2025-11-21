@@ -130,7 +130,7 @@ class AudioPlayerService : Service() {
             currentMetadata = metadata
             android.util.Log.d("AudioPlayerService", "Setting playlist with ${filePaths.size} files")
             
-            val mediaItems = filePaths.mapIndexed { index, path ->
+            val mediaItems = filePaths.mapIndexed { _, path ->
                 try {
                     val uri = Uri.parse("file://$path")
                     MediaItem.Builder()
@@ -172,8 +172,23 @@ class AudioPlayerService : Service() {
      */
     fun seekToTrackAndPosition(trackIndex: Int, positionMs: Long) {
         val player = exoPlayer ?: return
-        if (trackIndex >= 0 && trackIndex < player.mediaItemCount) {
+        
+        // Validate track index
+        if (trackIndex < 0 || trackIndex >= player.mediaItemCount) {
+            android.util.Log.w("AudioPlayerService", "Invalid track index: $trackIndex (mediaItemCount: ${player.mediaItemCount})")
+            return
+        }
+        
+        // Validate position: must be non-negative
+        if (positionMs < 0) {
+            android.util.Log.w("AudioPlayerService", "Seek position cannot be negative: $positionMs")
+            return
+        }
+        
+        try {
             player.seekTo(trackIndex, positionMs)
+        } catch (e: Exception) {
+            android.util.Log.e("AudioPlayerService", "Failed to seek to track and position: trackIndex=$trackIndex, positionMs=$positionMs", e)
         }
     }
     
@@ -215,7 +230,37 @@ class AudioPlayerService : Service() {
      * @param positionMs Position in milliseconds
      */
     fun seekTo(positionMs: Long) {
-        exoPlayer?.seekTo(positionMs)
+        val player = exoPlayer ?: return
+        
+        // Validate position: must be non-negative
+        if (positionMs < 0) {
+            android.util.Log.w("AudioPlayerService", "Seek position cannot be negative: $positionMs")
+            return
+        }
+        
+        // Check if player is ready (has media loaded)
+        if (player.mediaItemCount == 0) {
+            android.util.Log.w("AudioPlayerService", "Cannot seek: no media items loaded")
+            return
+        }
+        
+        // Get current media item duration and validate position doesn't exceed it
+        val currentMediaItem = player.currentMediaItem
+        if (currentMediaItem != null) {
+            val duration = player.duration
+            if (duration != C.TIME_UNSET && positionMs > duration) {
+                android.util.Log.w("AudioPlayerService", "Seek position exceeds duration: $positionMs > $duration")
+                // Clamp to duration instead of failing
+                player.seekTo(duration)
+                return
+            }
+        }
+        
+        try {
+            player.seekTo(positionMs)
+        } catch (e: Exception) {
+            android.util.Log.e("AudioPlayerService", "Failed to seek to position: $positionMs", e)
+        }
     }
     
     /**
@@ -282,7 +327,7 @@ class AudioPlayerService : Service() {
             "isPlaying" to player.isPlaying,
             "playbackState" to player.playbackState,
             "currentPosition" to player.currentPosition,
-            "duration" to (player.duration ?: 0L),
+            "duration" to (if (player.duration == C.TIME_UNSET) 0L else player.duration),
             "currentIndex" to (player.currentMediaItemIndex),
             "playbackSpeed" to player.playbackParameters.speed
         )

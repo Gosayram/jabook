@@ -247,13 +247,22 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
 
   /// Handles app pause event.
   ///
-  /// Saves download state to ensure persistence.
+  /// Saves download state and playback position to ensure persistence.
   Future<void> _onAppPaused() async {
     try {
       // Save download state to database
       // Downloads will continue in background if they're active
       // State is already saved via _saveDownloadMetadata during download progress
       logger.i('App paused - download state saved');
+
+      // Save playback position when app goes to background
+      try {
+        final playerService = ref.read(media3PlayerServiceProvider);
+        await playerService.saveCurrentPosition();
+        logger.i('App paused - playback position saved');
+      } on Exception catch (e) {
+        logger.w('Failed to save playback position on pause: $e');
+      }
     } on Exception catch (e) {
       logger.w('Error handling app pause: $e');
     }
@@ -261,13 +270,22 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
 
   /// Handles app detach event.
   ///
-  /// Saves final download state before app termination.
+  /// Saves final download state and playback position before app termination.
   Future<void> _onAppDetached() async {
     try {
       // Final save of download state
       // Note: We don't call shutdown() here as it would stop all downloads
       // Downloads should continue in background if possible
       logger.i('App detached - final state saved');
+
+      // Save playback position when app is being terminated
+      try {
+        final playerService = ref.read(media3PlayerServiceProvider);
+        await playerService.saveCurrentPosition();
+        logger.i('App detached - playback position saved');
+      } on Exception catch (e) {
+        logger.w('Failed to save playback position on detach: $e');
+      }
     } on Exception catch (e) {
       logger.w('Error handling app detach: $e');
     }

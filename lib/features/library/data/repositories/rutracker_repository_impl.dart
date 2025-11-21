@@ -91,6 +91,9 @@ class RuTrackerRepositoryImpl implements RuTrackerRepository {
                         ))
                     .toList(),
                 addedDate: audiobook.addedDate,
+                duration: audiobook.duration,
+                bitrate: audiobook.bitrate,
+                audioCodec: audiobook.audioCodec,
               ))
           .toList();
     } on DioException catch (e) {
@@ -212,9 +215,11 @@ class RuTrackerRepositoryImpl implements RuTrackerRepository {
 
       // Pass response data and headers to parser for proper encoding detection
       // Note: Brotli decompression is handled automatically by DioBrotliTransformer
+      final baseUrl = await _endpointManager.getActiveEndpoint();
       final details = await _parser.parseTopicDetails(
         response.data,
         contentType: response.headers.value('content-type'),
+        baseUrl: baseUrl,
       );
       if (details == null) return null;
 
@@ -238,6 +243,9 @@ class RuTrackerRepositoryImpl implements RuTrackerRepository {
                 ))
             .toList(),
         addedDate: details.addedDate,
+        duration: details.duration,
+        bitrate: details.bitrate,
+        audioCodec: details.audioCodec,
       );
     } on DioException catch (e) {
       throw NetworkFailure('Failed to fetch audiobook details: ${e.message}');
@@ -459,6 +467,9 @@ class RuTrackerRepositoryImpl implements RuTrackerRepository {
                         ))
                     .toList(),
                 addedDate: audiobook.addedDate,
+                duration: audiobook.duration,
+                bitrate: audiobook.bitrate,
+                audioCodec: audiobook.audioCodec,
               ))
           .toList();
     } on DioException catch (e) {

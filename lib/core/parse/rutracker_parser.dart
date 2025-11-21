@@ -13,12 +13,17 @@
 // limitations under the License.
 
 import 'dart:convert';
+import 'dart:io';
 
+import 'package:dio/dio.dart';
 import 'package:html/dom.dart';
 import 'package:html/parser.dart' as parser;
 import 'package:jabook/core/errors/failures.dart';
 import 'package:jabook/core/logging/environment_logger.dart';
 import 'package:jabook/core/logging/structured_logger.dart';
+import 'package:jabook/core/net/dio_client.dart';
+import 'package:jabook/core/torrent/torrent_parser_service.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:windows1251/windows1251.dart';
 
 /// Represents an audiobook with metadata from RuTracker.
@@ -44,6 +49,10 @@ class Audiobook {
     this.genres = const [],
     required this.chapters,
     required this.addedDate,
+    this.duration,
+    this.bitrate,
+    this.audioCodec,
+    this.relatedAudiobooks = const [],
   });
 
   /// Unique identifier for the audiobook.
@@ -84,6 +93,34 @@ class Audiobook {
 
   /// Date when the audiobook was added to RuTracker.
   final DateTime addedDate;
+
+  /// Duration of the audiobook (e.g., "08:05:13").
+  final String? duration;
+
+  /// Bitrate of the audiobook (e.g., "128 kbps").
+  final String? bitrate;
+
+  /// Audio codec of the audiobook (e.g., "MP3", "FLAC", "AAC").
+  final String? audioCodec;
+
+  /// List of related audiobooks from the same series/cycle.
+  /// Each entry contains topicId and title.
+  final List<RelatedAudiobook> relatedAudiobooks;
+}
+
+/// Represents a related audiobook from the same series/cycle.
+class RelatedAudiobook {
+  /// Creates a new RelatedAudiobook instance.
+  RelatedAudiobook({
+    required this.topicId,
+    required this.title,
+  });
+
+  /// Topic ID of the related audiobook.
+  final String topicId;
+
+  /// Title of the related audiobook.
+  final String title;
 }
 
 /// Represents a chapter within an audiobook.
@@ -130,8 +167,12 @@ class RuTrackerParser {
   static const String _authorSelector =
       'a.pmed, .topicAuthor a, a[href*="profile.php"]';
   static const String _sizeSelector = 'span.small, a.f-dl.dl-stub';
-  static const String _seedersSelector = 'span.seedmed, span.seedmed b';
-  static const String _leechersSelector = 'span.leechmed, span.leechmed b';
+  // Use all possible seeders classes: seed and seedmed (both with and without b tag)
+  static const String _seedersSelector =
+      'span.seed, span.seed b, span.seedmed, span.seedmed b';
+  // Use all possible leechers classes: leech and leechmed (both with and without b tag)
+  static const String _leechersSelector =
+      'span.leech, span.leech b, span.leechmed, span.leechmed b';
   static const String _downloadHrefSelector = 'a[href^="dl.php?t="]';
   static const String _magnetLinkSelector = 'a.magnet-link, a[href^="magnet:"]';
   static const String _postBodySelector = '.post_body, .post-body';
@@ -703,111 +744,175 @@ class RuTrackerParser {
         final sizeElement = row.querySelector(_sizeSelector);
         final magnetElement = row.querySelector(_downloadHrefSelector);
 
-        // Extract seeders with multiple fallback selectors
+        // Extract seeders with comprehensive selector (includes seed, seedmed, with and without b tag)
+        // First, try to find the tor column (vf-col-tor) which contains seeders/leechers
         var seeders = 0;
-        var seedersElement = row.querySelector(_seedersSelector);
-        if (seedersElement != null) {
-          final seedersText = seedersElement.text.trim();
-          seeders = int.tryParse(seedersText) ?? 0;
+        final torColumn = row.querySelector('td.vf-col-tor');
+        Element? seedersElement;
+
+        if (torColumn != null) {
+          // Look for seeders within the tor column first (most reliable for search results)
+          seedersElement = torColumn.querySelector(_seedersSelector);
           EnvironmentLogger().d(
-            'Extracted seeders from _seedersSelector: $seeders (text: "$seedersText")',
+            'Topic $topicId: Found tor column, searching for seeders within it',
           );
-        } else {
-          // Try alternative selectors
-          seedersElement = row.querySelector('span.seed, span.seed b');
-          if (seedersElement != null) {
-            final seedersText = seedersElement.text.trim();
+        }
+
+        // Fallback to searching in entire row if not found in tor column
+        if (seedersElement == null) {
+          seedersElement = row.querySelector(_seedersSelector);
+          EnvironmentLogger().d(
+            'Topic $topicId: Searching for seeders in entire row',
+          );
+        }
+
+        if (seedersElement != null) {
+          // Try to extract number from <b> tag first (most reliable)
+          final bTag = seedersElement.querySelector('b');
+          if (bTag != null) {
+            final seedersText = bTag.text.trim();
             seeders = int.tryParse(seedersText) ?? 0;
             EnvironmentLogger().d(
-              'Extracted seeders from alternative selector: $seeders (text: "$seedersText")',
+              'Topic $topicId: Extracted seeders from <b> tag: $seeders (text: "$seedersText")',
             );
           } else {
-            // Try to extract from row text using regex
-            final seedersMatch =
-                RegExp(r'[↑↑]\s*(\d+)|[Сс]иды[:\s]*(\d+)').firstMatch(row.text);
-            if (seedersMatch != null) {
-              seeders = int.tryParse(
-                      seedersMatch.group(1) ?? seedersMatch.group(2) ?? '0') ??
-                  0;
-              EnvironmentLogger().d(
-                'Extracted seeders from regex: $seeders',
-              );
-            } else {
-              EnvironmentLogger().d('No seeders found for topic $topicId');
-            }
+            // Fallback: extract from span text, but remove "Сиды: " prefix if present
+            var seedersText = seedersElement.text.trim();
+            // Remove "Сиды: " or "Сиды:" prefix if present
+            seedersText =
+                seedersText.replaceFirst(RegExp(r'^[Сс]иды[:\s]*'), '');
+            seeders = int.tryParse(seedersText) ?? 0;
+            EnvironmentLogger().d(
+              'Topic $topicId: Extracted seeders from span text: $seeders (text: "$seedersText")',
+            );
+          }
+        } else {
+          // Fallback: try to extract from row text using regex
+          final seedersMatch =
+              RegExp(r'[↑↑]\s*(\d+)|[Сс]иды[:\s]*(\d+)').firstMatch(row.text);
+          if (seedersMatch != null) {
+            seeders = int.tryParse(
+                    seedersMatch.group(1) ?? seedersMatch.group(2) ?? '0') ??
+                0;
+            EnvironmentLogger().d(
+              'Topic $topicId: Extracted seeders from regex: $seeders',
+            );
+          } else {
+            EnvironmentLogger().w('Topic $topicId: No seeders found');
           }
         }
 
-        // Extract leechers with multiple fallback selectors
+        // Extract leechers with comprehensive selector (includes leech, leechmed, with and without b tag)
+        // First, try to find the tor column (vf-col-tor) which contains seeders/leechers
         var leechers = 0;
-        var leechersElement = row.querySelector(_leechersSelector);
-        if (leechersElement != null) {
-          final leechersText = leechersElement.text.trim();
-          leechers = int.tryParse(leechersText) ?? 0;
+        Element? leechersElement;
+
+        if (torColumn != null) {
+          // Look for leechers within the tor column first (most reliable for search results)
+          leechersElement = torColumn.querySelector(_leechersSelector);
           EnvironmentLogger().d(
-            'Extracted leechers from _leechersSelector: $leechers (text: "$leechersText")',
+            'Topic $topicId: Found tor column, searching for leechers within it',
           );
-        } else {
-          // Try alternative selectors
-          leechersElement = row.querySelector('span.leech, span.leech b');
-          if (leechersElement != null) {
-            final leechersText = leechersElement.text.trim();
+        }
+
+        // Fallback to searching in entire row if not found in tor column
+        if (leechersElement == null) {
+          leechersElement = row.querySelector(_leechersSelector);
+          EnvironmentLogger().d(
+            'Topic $topicId: Searching for leechers in entire row',
+          );
+        }
+
+        if (leechersElement != null) {
+          // Try to extract number from <b> tag first (most reliable)
+          final bTag = leechersElement.querySelector('b');
+          if (bTag != null) {
+            final leechersText = bTag.text.trim();
             leechers = int.tryParse(leechersText) ?? 0;
             EnvironmentLogger().d(
-              'Extracted leechers from alternative selector: $leechers (text: "$leechersText")',
+              'Topic $topicId: Extracted leechers from <b> tag: $leechers (text: "$leechersText")',
             );
           } else {
-            // Try to extract from row text using regex
-            final leechersMatch =
-                RegExp(r'[↓↓]\s*(\d+)|[Лл]ичи[:\s]*(\d+)').firstMatch(row.text);
-            if (leechersMatch != null) {
-              leechers = int.tryParse(leechersMatch.group(1) ??
-                      leechersMatch.group(2) ??
-                      '0') ??
-                  0;
-              EnvironmentLogger().d(
-                'Extracted leechers from regex: $leechers',
-              );
-            } else {
-              EnvironmentLogger().d('No leechers found for topic $topicId');
-            }
+            // Fallback: extract from span text, but remove "Личи: " prefix if present
+            var leechersText = leechersElement.text.trim();
+            // Remove "Личи: " or "Личи:" prefix if present
+            leechersText =
+                leechersText.replaceFirst(RegExp(r'^[Лл]ичи[:\s]*'), '');
+            leechers = int.tryParse(leechersText) ?? 0;
+            EnvironmentLogger().d(
+              'Topic $topicId: Extracted leechers from span text: $leechers (text: "$leechersText")',
+            );
+          }
+        } else {
+          // Fallback: try to extract from row text using regex
+          final leechersMatch =
+              RegExp(r'[↓↓]\s*(\d+)|[Лл]ичи[:\s]*(\d+)').firstMatch(row.text);
+          if (leechersMatch != null) {
+            leechers = int.tryParse(
+                    leechersMatch.group(1) ?? leechersMatch.group(2) ?? '0') ??
+                0;
+            EnvironmentLogger().d(
+              'Topic $topicId: Extracted leechers from regex: $leechers',
+            );
+          } else {
+            EnvironmentLogger().w('Topic $topicId: No leechers found');
           }
         }
 
         // Log final values for debugging
         EnvironmentLogger().d(
-          'Topic $topicId: seeders=$seeders, leechers=$leechers',
+          'Topic $topicId: seeders=$seeders, leechers=$leechers (before swap check)',
         );
 
         // Verify values are not swapped (seeders should typically be >= leechers for active torrents)
-        // This is a sanity check - if leechers > seeders by a large margin, might be swapped
-        if (leechers > seeders && seeders > 0 && leechers > 10) {
+        // If leechers > seeders by a large margin, they might be swapped
+        // Auto-fix: swap values if leechers significantly exceeds seeders
+        if (leechers > seeders && seeders > 0 && leechers > seeders * 2) {
           EnvironmentLogger().w(
             'Possible seeders/leechers swap detected for topic $topicId: '
-            'seeders=$seeders, leechers=$leechers (leechers > seeders)',
+            'seeders=$seeders, leechers=$leechers (leechers > seeders). Swapping values.',
           );
-        }
-
-        // Verify values are not swapped (seeders should typically be >= leechers for active torrents)
-        // This is a sanity check - if leechers > seeders by a large margin, might be swapped
-        if (leechers > seeders && seeders > 0 && leechers > 10) {
-          EnvironmentLogger().w(
-            'Possible seeders/leechers swap detected for topic $topicId: '
-            'seeders=$seeders, leechers=$leechers (leechers > seeders)',
+          // Swap values
+          final temp = seeders;
+          seeders = leechers;
+          leechers = temp;
+          EnvironmentLogger().d(
+            'Topic $topicId: after swap - seeders=$seeders, leechers=$leechers',
           );
         }
 
         // Extract size from multiple possible locations
+        // First, try to find size in tor column (vf-col-tor) which contains size info
         var sizeText = '0 MB';
-        if (sizeElement != null) {
+        if (torColumn != null) {
+          // Look for size within the tor column first (most reliable for search results)
+          final torSizeElement = torColumn.querySelector(_sizeSelector);
+          if (torSizeElement != null) {
+            sizeText = torSizeElement.text.trim();
+            EnvironmentLogger().d(
+              'Topic $topicId: Extracted size from tor column: $sizeText',
+            );
+          }
+        }
+
+        // Fallback to original sizeElement if not found in tor column
+        if (sizeText == '0 MB' && sizeElement != null) {
           sizeText = sizeElement.text.trim();
-        } else {
+          EnvironmentLogger().d(
+            'Topic $topicId: Extracted size from row: $sizeText',
+          );
+        } else if (sizeText == '0 MB') {
           // Try to extract from row text using regex
           final sizeMatch =
               RegExp(r'([\d.,]+\s*[KMGT]?B)', caseSensitive: false)
                   .firstMatch(row.text);
           if (sizeMatch != null) {
             sizeText = sizeMatch.group(1)?.trim() ?? '0 MB';
+            EnvironmentLogger().d(
+              'Topic $topicId: Extracted size from regex: $sizeText',
+            );
+          } else {
+            EnvironmentLogger().w('Topic $topicId: No size found');
           }
         }
 
@@ -820,16 +925,29 @@ class RuTrackerParser {
           }
         }
 
-        final coverUrl = _extractCoverUrl(row, baseUrl: baseUrl);
-        // Log cover URL extraction for debugging
-        if (coverUrl != null) {
-          EnvironmentLogger().d(
-            'Topic $topicId: extracted cover URL: $coverUrl',
-          );
-        } else {
-          EnvironmentLogger().d(
-            'Topic $topicId: no cover URL found',
-          );
+        // Extract cover URL - try tor column first, then entire row
+        String? coverUrl;
+        if (torColumn != null) {
+          coverUrl = _extractCoverUrl(torColumn, baseUrl: baseUrl);
+          if (coverUrl != null) {
+            EnvironmentLogger().d(
+              'Topic $topicId: extracted cover URL from tor column: $coverUrl',
+            );
+          }
+        }
+
+        // Fallback to searching in entire row
+        if (coverUrl == null || coverUrl.isEmpty) {
+          coverUrl = _extractCoverUrl(row, baseUrl: baseUrl);
+          if (coverUrl != null) {
+            EnvironmentLogger().d(
+              'Topic $topicId: extracted cover URL from row: $coverUrl',
+            );
+          } else {
+            EnvironmentLogger().d(
+              'Topic $topicId: no cover URL found',
+            );
+          }
         }
         final audiobook = Audiobook(
           id: topicId,
@@ -897,6 +1015,7 @@ class RuTrackerParser {
   Future<Audiobook?> parseTopicDetails(
     dynamic htmlData, {
     String? contentType,
+    String? baseUrl,
   }) async {
     final logger = StructuredLogger();
     try {
@@ -1350,13 +1469,37 @@ class RuTrackerParser {
 
       // Extract seeders and leechers from tor-stats table (reuse cached selector)
       if (torStats != null) {
-        // Extract seeders and leechers with improved selectors
-        final seedersElement =
-            torStats.querySelector('span.seed b, span.seedmed b');
-        final leechersElement =
-            torStats.querySelector('span.leech b, span.leechmed b');
-        seeders = int.tryParse(seedersElement?.text.trim() ?? '0');
-        leechers = int.tryParse(leechersElement?.text.trim() ?? '0');
+        // Extract seeders and leechers with comprehensive selectors (all variants)
+        final seedersElement = torStats.querySelector(
+            'span.seed, span.seed b, span.seedmed, span.seedmed b');
+        final leechersElement = torStats.querySelector(
+            'span.leech, span.leech b, span.leechmed, span.leechmed b');
+
+        // Extract seeders: try <b> tag first, then fallback to span text
+        if (seedersElement != null) {
+          final bTag = seedersElement.querySelector('b');
+          if (bTag != null) {
+            seeders = int.tryParse(bTag.text.trim()) ?? 0;
+          } else {
+            var seedersText = seedersElement.text.trim();
+            seedersText =
+                seedersText.replaceFirst(RegExp(r'^[Сс]иды[:\s]*'), '');
+            seeders = int.tryParse(seedersText) ?? 0;
+          }
+        }
+
+        // Extract leechers: try <b> tag first, then fallback to span text
+        if (leechersElement != null) {
+          final bTag = leechersElement.querySelector('b');
+          if (bTag != null) {
+            leechers = int.tryParse(bTag.text.trim()) ?? 0;
+          } else {
+            var leechersText = leechersElement.text.trim();
+            leechersText =
+                leechersText.replaceFirst(RegExp(r'^[Лл]ичи[:\s]*'), '');
+            leechers = int.tryParse(leechersText) ?? 0;
+          }
+        }
       }
       // Fallback to post body text
       if (seeders == null) {
@@ -1400,6 +1543,39 @@ class RuTrackerParser {
       // Extract cover image with improved logic
       final coverUrl =
           _extractCoverUrlImproved(postBody, document.documentElement!);
+
+      // Extract topic ID from multiple possible sources (improved)
+      // Need to extract topicId early for torrent file fallback
+      var topicId = '';
+      // Try from post body data attribute (most reliable)
+      final dataAttr = postBody.attributes['data-ext_link_data'];
+      if (dataAttr != null) {
+        final topicMatch = RegExp(r'"t":(\d+)').firstMatch(dataAttr);
+        topicId = topicMatch?.group(1) ?? '';
+      }
+      // Try from URL in title link
+      if (topicId.isEmpty) {
+        final titleLink =
+            titleElement.querySelector('a[href*="viewtopic.php?t="]');
+        if (titleLink != null) {
+          topicId = _extractTopicIdFromUrl(titleLink.attributes['href'] ?? '');
+        }
+      }
+      // Try from magnet link data-topic_id attribute
+      if (topicId.isEmpty) {
+        final magnetElement = document.querySelector(_magnetLinkSelector);
+        if (magnetElement != null) {
+          final dataTopicId = magnetElement.attributes['data-topic_id'];
+          if (dataTopicId != null && dataTopicId.isNotEmpty) {
+            topicId = dataTopicId;
+          }
+        }
+      }
+      // Fallback to extracting from document
+      if (topicId.isEmpty) {
+        topicId =
+            _extractTopicIdFromUrl(document.documentElement?.outerHtml ?? '');
+      }
 
       final chapters = <Chapter>[];
       // Try to parse chapters from description with improved flexible patterns
@@ -1449,36 +1625,33 @@ class RuTrackerParser {
         }
       }
 
-      // Extract topic ID from multiple possible sources (improved)
-      var topicId = '';
-      // Try from post body data attribute (most reliable)
-      final dataAttr = postBody.attributes['data-ext_link_data'];
-      if (dataAttr != null) {
-        final topicMatch = RegExp(r'"t":(\d+)').firstMatch(dataAttr);
-        topicId = topicMatch?.group(1) ?? '';
-      }
-      // Try from URL in title link
-      if (topicId.isEmpty) {
-        final titleLink =
-            titleElement.querySelector('a[href*="viewtopic.php?t="]');
-        if (titleLink != null) {
-          topicId = _extractTopicIdFromUrl(titleLink.attributes['href'] ?? '');
-        }
-      }
-      // Try from magnet link data-topic_id attribute
-      if (topicId.isEmpty) {
-        final magnetElement = document.querySelector(_magnetLinkSelector);
-        if (magnetElement != null) {
-          final dataTopicId = magnetElement.attributes['data-topic_id'];
-          if (dataTopicId != null && dataTopicId.isNotEmpty) {
-            topicId = dataTopicId;
+      // Fallback: If chapters are still empty and baseUrl is provided,
+      // try to extract chapters from torrent file
+      if (chapters.isEmpty && baseUrl != null && topicId.isNotEmpty) {
+        EnvironmentLogger().d(
+          'Topic $topicId: No chapters found in description, trying to extract from torrent file',
+        );
+        try {
+          final chaptersFromTorrent = await _extractChaptersFromTorrentFile(
+            topicId,
+            baseUrl,
+          );
+          if (chaptersFromTorrent.isNotEmpty) {
+            chapters.addAll(chaptersFromTorrent);
+            EnvironmentLogger().i(
+              'Topic $topicId: Extracted ${chapters.length} chapters from torrent file',
+            );
+          } else {
+            EnvironmentLogger().d(
+              'Topic $topicId: No chapters found in torrent file either',
+            );
           }
+        } on Exception catch (e) {
+          EnvironmentLogger().w(
+            'Topic $topicId: Failed to extract chapters from torrent file: $e',
+          );
+          // Continue without chapters - this is a fallback, so errors are non-critical
         }
-      }
-      // Fallback to extracting from document
-      if (topicId.isEmpty) {
-        topicId =
-            _extractTopicIdFromUrl(document.documentElement?.outerHtml ?? '');
       }
 
       // Extract category from breadcrumb navigation (preferred) or post body metadata or title
@@ -1489,6 +1662,18 @@ class RuTrackerParser {
       if (category.isEmpty) {
         category = _extractCategoryFromTitle(titleElement.text);
       }
+
+      // Extract duration (Время звучания) from metadata
+      final duration = metadata['Время звучания']?.trim();
+
+      // Extract bitrate (Битрейт) from metadata
+      final bitrate = metadata['Битрейт']?.trim();
+
+      // Extract audio codec (Аудиокодек) from metadata
+      final audioCodec = metadata['Аудиокодек']?.trim();
+
+      // Extract related audiobooks from series/cycle (sp-body)
+      final relatedAudiobooks = _extractRelatedAudiobooks(postBody);
 
       return Audiobook(
         id: topicId,
@@ -1504,6 +1689,10 @@ class RuTrackerParser {
         genres: genres,
         chapters: chapters,
         addedDate: registeredDate ?? _extractDateFromPost(postBody),
+        duration: duration,
+        bitrate: bitrate,
+        audioCodec: audioCodec,
+        relatedAudiobooks: relatedAudiobooks,
       );
     } on ParsingFailure {
       // Re-throw parsing failures as-is
@@ -1547,12 +1736,37 @@ class RuTrackerParser {
 
       // Extract seeders and leechers from tor-stats table
       if (torStats != null) {
-        final seedersElement =
-            torStats.querySelector('span.seed b, span.seedmed b');
-        final leechersElement =
-            torStats.querySelector('span.leech b, span.leechmed b');
-        seeders = int.tryParse(seedersElement?.text.trim() ?? '0');
-        leechers = int.tryParse(leechersElement?.text.trim() ?? '0');
+        // Use comprehensive selectors (all variants: seed/seedmed, with/without b tag)
+        final seedersElement = torStats.querySelector(
+            'span.seed, span.seed b, span.seedmed, span.seedmed b');
+        final leechersElement = torStats.querySelector(
+            'span.leech, span.leech b, span.leechmed, span.leechmed b');
+
+        // Extract seeders: try <b> tag first, then fallback to span text
+        if (seedersElement != null) {
+          final bTag = seedersElement.querySelector('b');
+          if (bTag != null) {
+            seeders = int.tryParse(bTag.text.trim()) ?? 0;
+          } else {
+            var seedersText = seedersElement.text.trim();
+            seedersText =
+                seedersText.replaceFirst(RegExp(r'^[Сс]иды[:\s]*'), '');
+            seeders = int.tryParse(seedersText) ?? 0;
+          }
+        }
+
+        // Extract leechers: try <b> tag first, then fallback to span text
+        if (leechersElement != null) {
+          final bTag = leechersElement.querySelector('b');
+          if (bTag != null) {
+            leechers = int.tryParse(bTag.text.trim()) ?? 0;
+          } else {
+            var leechersText = leechersElement.text.trim();
+            leechersText =
+                leechersText.replaceFirst(RegExp(r'^[Лл]ичи[:\s]*'), '');
+            leechers = int.tryParse(leechersText) ?? 0;
+          }
+        }
       }
 
       // Fallback to post body text
@@ -1638,7 +1852,24 @@ String? _extractCoverUrl(Element row, {String? baseUrl}) {
   final logger = EnvironmentLogger()
     ..d('Extracting cover URL from search result row');
 
-  // Priority 1: var.postImg with title attribute (contains full URL)
+  // Priority 1: var.postImg.postImgAligned.img-right with title attribute (main cover image)
+  // This is the most reliable selector for cover images in RuTracker
+  final postImgCover =
+      row.querySelector('var.postImg.postImgAligned.img-right[title], '
+          'var.postImg.postImgAligned[title].img-right');
+  if (postImgCover != null) {
+    final title = postImgCover.attributes['title'];
+    if (title != null && title.isNotEmpty) {
+      final normalizedUrl = _normalizeCoverUrl(title, baseUrl: baseUrl);
+      if (normalizedUrl != null) {
+        logger.d(
+            'Cover URL extracted (Priority 1 - postImg.postImgAligned.img-right): $normalizedUrl');
+        return normalizedUrl;
+      }
+    }
+  }
+
+  // Priority 2: var.postImg with title attribute (contains full URL)
   final postImgVar =
       row.querySelector('var.postImg[title], var.postImgAligned[title]');
   if (postImgVar != null) {
@@ -1646,13 +1877,13 @@ String? _extractCoverUrl(Element row, {String? baseUrl}) {
     if (title != null && title.isNotEmpty) {
       final normalizedUrl = _normalizeCoverUrl(title, baseUrl: baseUrl);
       if (normalizedUrl != null) {
-        logger.d('Cover URL extracted (Priority 1): $normalizedUrl');
+        logger.d('Cover URL extracted (Priority 2): $normalizedUrl');
         return normalizedUrl;
       }
     }
   }
 
-  // Priority 2: var.postImg with title containing fastpic or rutracker
+  // Priority 3: var.postImg with title containing fastpic or rutracker
   final postImgFastpic = row.querySelector(
       'var.postImg[title*="fastpic"], var.postImg[title*="rutracker"], '
       'var.postImgAligned[title*="fastpic"], var.postImgAligned[title*="rutracker"]');
@@ -1661,13 +1892,13 @@ String? _extractCoverUrl(Element row, {String? baseUrl}) {
     if (title != null && title.isNotEmpty) {
       final normalizedUrl = _normalizeCoverUrl(title);
       if (normalizedUrl != null) {
-        logger.d('Cover URL extracted (Priority 2): $normalizedUrl');
+        logger.d('Cover URL extracted (Priority 3): $normalizedUrl');
         return normalizedUrl;
       }
     }
   }
 
-  // Priority 3: img with src containing static.rutracker or fastpic
+  // Priority 4: img with src containing static.rutracker or fastpic
   final imgElement = row.querySelector(
       'img[src*="static.rutracker"], img[src*="fastpic"], img.postimg');
   if (imgElement != null) {
@@ -1675,26 +1906,26 @@ String? _extractCoverUrl(Element row, {String? baseUrl}) {
     if (src != null && src.isNotEmpty) {
       final normalizedUrl = _normalizeCoverUrl(src, baseUrl: baseUrl);
       if (normalizedUrl != null) {
-        logger.d('Cover URL extracted (Priority 3): $normalizedUrl');
-        return normalizedUrl;
-      }
-    }
-  }
-
-  // Priority 4: img with data-src (lazy loading)
-  final imgLazy = row.querySelector('img[data-src]');
-  if (imgLazy != null) {
-    final dataSrc = imgLazy.attributes['data-src'];
-    if (dataSrc != null && dataSrc.isNotEmpty) {
-      final normalizedUrl = _normalizeCoverUrl(dataSrc, baseUrl: baseUrl);
-      if (normalizedUrl != null) {
         logger.d('Cover URL extracted (Priority 4): $normalizedUrl');
         return normalizedUrl;
       }
     }
   }
 
-  // Priority 5: img with srcset
+  // Priority 5: img with data-src (lazy loading)
+  final imgLazy = row.querySelector('img[data-src]');
+  if (imgLazy != null) {
+    final dataSrc = imgLazy.attributes['data-src'];
+    if (dataSrc != null && dataSrc.isNotEmpty) {
+      final normalizedUrl = _normalizeCoverUrl(dataSrc, baseUrl: baseUrl);
+      if (normalizedUrl != null) {
+        logger.d('Cover URL extracted (Priority 6): $normalizedUrl');
+        return normalizedUrl;
+      }
+    }
+  }
+
+  // Priority 6: img with srcset
   final imgSrcset = row.querySelector('img[srcset]');
   if (imgSrcset != null) {
     final srcset = imgSrcset.attributes['srcset'];
@@ -1962,6 +2193,127 @@ int _monthToNumber(String month) {
   return months[month.toLowerCase()] ?? 1;
 }
 
+/// Extracts chapters from torrent file as fallback when chapters are not in description.
+///
+/// The [topicId] parameter is the topic identifier.
+/// The [baseUrl] parameter is the base URL for downloading the torrent file.
+/// Returns a list of [Chapter] objects extracted from torrent file names.
+Future<List<Chapter>> _extractChaptersFromTorrentFile(
+  String topicId,
+  String baseUrl,
+) async {
+  try {
+    // Get DioClient instance
+    final dio = await DioClient.instance;
+
+    // Download torrent file to temporary directory
+    final tempDir = await getTemporaryDirectory();
+    final torrentFile = File('${tempDir.path}/torrent_$topicId.torrent');
+
+    try {
+      // Download torrent file
+      final torrentUrl = '$baseUrl/forum/dl.php?t=$topicId';
+      await dio.download(torrentUrl, torrentFile.path);
+    } on DioException catch (e) {
+      EnvironmentLogger().w(
+        'Topic $topicId: Failed to download torrent file: ${e.message}',
+      );
+      // Delete temporary file if it exists
+      try {
+        if (await torrentFile.exists()) {
+          await torrentFile.delete();
+        }
+      } on Exception {
+        // Ignore deletion errors
+      }
+      // Check if error is authentication-related
+      if (e.response?.statusCode == 401 ||
+          e.response?.statusCode == 403 ||
+          (e.message?.toLowerCase().contains('authentication') ?? false) ||
+          (e.response?.realUri.toString().contains('login.php') ?? false)) {
+        EnvironmentLogger().w(
+          'Topic $topicId: Authentication required to download torrent file',
+        );
+      }
+      return [];
+    } on Exception catch (e) {
+      EnvironmentLogger().w(
+        'Topic $topicId: Failed to download torrent file: $e',
+      );
+      // Delete temporary file if it exists
+      try {
+        if (await torrentFile.exists()) {
+          await torrentFile.delete();
+        }
+      } on Exception {
+        // Ignore deletion errors
+      }
+      return [];
+    }
+
+    // Check if downloaded file is actually a torrent file
+    final torrentBytes = await torrentFile.readAsBytes();
+
+    // Check if file is too small (likely not a torrent) or starts with HTML
+    if (torrentBytes.length < 100) {
+      try {
+        if (await torrentFile.exists()) {
+          await torrentFile.delete();
+        }
+      } on Exception {
+        // Ignore deletion errors
+      }
+      EnvironmentLogger().w(
+        'Topic $topicId: Downloaded file is too small, may require authentication',
+      );
+      return [];
+    }
+
+    // Check if file starts with HTML (likely login page)
+    final fileStart = String.fromCharCodes(
+      torrentBytes.take(100),
+    ).toLowerCase();
+    if (fileStart.contains('<!doctype') ||
+        fileStart.contains('<html') ||
+        fileStart.contains('login.php') ||
+        fileStart.contains('авторизация')) {
+      try {
+        if (await torrentFile.exists()) {
+          await torrentFile.delete();
+        }
+      } on Exception {
+        // Ignore deletion errors
+      }
+      EnvironmentLogger().w(
+        'Topic $topicId: Downloaded file is HTML (login page), authentication may be required',
+      );
+      return [];
+    }
+
+    // Parse chapters from torrent using TorrentParserService
+    final parserService = TorrentParserService();
+    final chapters = await parserService.extractChaptersFromTorrent(
+      torrentBytes,
+    );
+
+    // Delete temporary torrent file
+    try {
+      if (await torrentFile.exists()) {
+        await torrentFile.delete();
+      }
+    } on Exception {
+      // Ignore deletion errors
+    }
+
+    return chapters;
+  } on Exception catch (e) {
+    EnvironmentLogger().w(
+      'Topic $topicId: Error extracting chapters from torrent file: $e',
+    );
+    return [];
+  }
+}
+
 /// Extracts all structured metadata from span.post-b elements.
 ///
 /// This method iterates through all span.post-b elements in the post body
@@ -1987,10 +2339,24 @@ Map<String, String> _extractAllMetadata(Element postBody) {
     final parentText = parent.text;
 
     // Pattern 1: "Ключ: Значение" or "Ключ Значение" on the same line
-    final match1 =
-        RegExp('${RegExp.escape(key)}[:\\s]+([^\\n<]+)').firstMatch(parentText);
+    // Stop before hr tags, "Описание", or newlines
+    // Use non-greedy match to stop at first occurrence of separator
+    final match1 = RegExp(
+            '${RegExp.escape(key)}[:\\s]+([^\\n<]+?)(?=<hr|<span\\s+class=[\'"]post-b|Описание|\\n|\$)',
+            caseSensitive: false)
+        .firstMatch(parentText);
     if (match1 != null) {
-      final value = match1.group(1)?.trim() ?? '';
+      var value = match1.group(1)?.trim() ?? '';
+      // Remove any trailing "Описание" text if it got captured
+      final descMatch =
+          RegExp(r'Описание[:\s]*', caseSensitive: false).firstMatch(value);
+      if (descMatch != null) {
+        value = value.substring(0, descMatch.start).trim();
+      }
+      // Remove hr tags if they somehow got included
+      value = value
+          .replaceAll(RegExp(r'<hr[^>]*>', caseSensitive: false), ' ')
+          .trim();
       if (value.isNotEmpty && !value.contains(key)) {
         metadata[key] = value;
         continue;
@@ -2000,7 +2366,13 @@ Map<String, String> _extractAllMetadata(Element postBody) {
     // Pattern 2: Look for value in the next sibling element
     final nextSibling = element.nextElementSibling;
     if (nextSibling != null) {
-      final siblingText = nextSibling.text.trim();
+      var siblingText = nextSibling.text.trim();
+      // Stop at "Описание" if it appears in sibling text
+      final descMatch = RegExp(r'Описание[:\s]*', caseSensitive: false)
+          .firstMatch(siblingText);
+      if (descMatch != null) {
+        siblingText = siblingText.substring(0, descMatch.start).trim();
+      }
       if (siblingText.isNotEmpty && !siblingText.contains(key)) {
         metadata[key] = siblingText;
         continue;
@@ -2008,15 +2380,89 @@ Map<String, String> _extractAllMetadata(Element postBody) {
     }
 
     // Pattern 3: Look for value after the key in parent's innerHTML
+    // Stop before next span.post-b, span.post-br, hr tags, or "Описание" field
     final parentHtml = parent.innerHtml;
-    final match2 =
-        RegExp('${RegExp.escape(key)}[:\\s]*([^<\\n]+)').firstMatch(parentHtml);
-    if (match2 != null) {
-      final value = match2.group(1)?.trim() ?? '';
-      // Remove HTML tags from value
-      final cleanValue = value.replaceAll(RegExp(r'<[^>]+>'), '').trim();
-      if (cleanValue.isNotEmpty && !cleanValue.contains(key)) {
-        metadata[key] = cleanValue;
+    final escapedKey = RegExp.escape(key);
+    // Use a simpler approach: match until we see the pattern that indicates next field
+    final nextFieldPattern = RegExp('<span\\s+class=[\'"]post-b');
+    final nextBrPattern = RegExp('<span\\s+class=[\'"]post-br');
+    // Pattern for hr tags (horizontal rules used as separators)
+    final hrPattern = RegExp('<hr[^>]*>', caseSensitive: false);
+    // Pattern for "Описание" field (description field that marks end of metadata)
+    final descriptionPattern = RegExp(
+        '<span\\s+class=[\'"]post-b[^>]*>\\s*Описание[:s]*</span>',
+        caseSensitive: false);
+
+    // Find the position of the key in HTML
+    final keyPattern = RegExp('$escapedKey[:\\s]*');
+    final keyMatch = keyPattern.firstMatch(parentHtml);
+    if (keyMatch != null) {
+      final startPos = keyMatch.end;
+      // Find the end position - either next span.post-b, span.post-br, hr tag, description, or end of string
+      var endPos = parentHtml.length;
+
+      // Check for next field (span.post-b)
+      final nextFieldMatch =
+          nextFieldPattern.firstMatch(parentHtml.substring(startPos));
+      if (nextFieldMatch != null) {
+        final candidateEnd = startPos + nextFieldMatch.start;
+        if (candidateEnd < endPos) {
+          endPos = candidateEnd;
+        }
+      }
+
+      // Check for span.post-br
+      final nextBrMatch =
+          nextBrPattern.firstMatch(parentHtml.substring(startPos));
+      if (nextBrMatch != null) {
+        final candidateEnd = startPos + nextBrMatch.start;
+        if (candidateEnd < endPos) {
+          endPos = candidateEnd;
+        }
+      }
+
+      // Check for hr tags (horizontal rules - often used as separators before description)
+      final hrMatch = hrPattern.firstMatch(parentHtml.substring(startPos));
+      if (hrMatch != null) {
+        final candidateEnd = startPos + hrMatch.start;
+        if (candidateEnd < endPos) {
+          endPos = candidateEnd;
+        }
+      }
+
+      // Check for "Описание" field (description field marks end of metadata section)
+      final descMatch =
+          descriptionPattern.firstMatch(parentHtml.substring(startPos));
+      if (descMatch != null) {
+        final candidateEnd = startPos + descMatch.start;
+        if (candidateEnd < endPos) {
+          endPos = candidateEnd;
+        }
+      }
+
+      // Extract value substring
+      final valueHtml = parentHtml.substring(startPos, endPos);
+      var value = valueHtml.trim();
+
+      // Remove HTML tags from value (but preserve text content)
+      // First, remove hr tags completely if they somehow got included
+      value = value.replaceAll(hrPattern, ' ').trim();
+      // Remove other HTML tags
+      value = value.replaceAll(RegExp(r'<[^>]+>'), '').trim();
+      // Remove HTML entities like &#10; and &nbsp;
+      value = value.replaceAll(RegExp(r'&[#\w]+;'), ' ').trim();
+      // Clean up multiple spaces
+      value = value.replaceAll(RegExp(r'\s+'), ' ').trim();
+
+      // Additional check: if value contains "Описание" or description-like text, truncate it
+      final descTextMatch =
+          RegExp(r'Описание[:\s]*', caseSensitive: false).firstMatch(value);
+      if (descTextMatch != null) {
+        value = value.substring(0, descTextMatch.start).trim();
+      }
+
+      if (value.isNotEmpty && !value.contains(key)) {
+        metadata[key] = value;
       }
     }
   }
@@ -2031,7 +2477,19 @@ Map<String, String> _extractAllMetadata(Element postBody) {
 /// 2. var.postImgAligned with title attribute
 /// 3. img elements with src containing static.rutracker or fastpic
 String? _extractCoverUrlImproved(Element postBody, Element document) {
-  // Priority 1: var.postImg with title attribute (contains full URL)
+  // Priority 1: var.postImg.postImgAligned.img-right with title attribute (main cover image)
+  // This is the most reliable selector for cover images in RuTracker
+  final postImgCover =
+      postBody.querySelector('var.postImg.postImgAligned.img-right[title], '
+          'var.postImg.postImgAligned[title].img-right');
+  if (postImgCover != null) {
+    final title = postImgCover.attributes['title'];
+    if (title != null && title.isNotEmpty) {
+      return title;
+    }
+  }
+
+  // Priority 2: var.postImg with title attribute (contains full URL)
   final postImgVar =
       postBody.querySelector('var.postImg[title], var.postImgAligned[title]');
   if (postImgVar != null) {
@@ -2041,7 +2499,7 @@ String? _extractCoverUrlImproved(Element postBody, Element document) {
     }
   }
 
-  // Priority 2: var.postImg with title containing fastpic or rutracker
+  // Priority 3: var.postImg with title containing fastpic or rutracker
   final postImgFastpic = postBody.querySelector(
       'var.postImg[title*="fastpic"], var.postImg[title*="rutracker"], '
       'var.postImgAligned[title*="fastpic"], var.postImgAligned[title*="rutracker"]');
@@ -2052,7 +2510,7 @@ String? _extractCoverUrlImproved(Element postBody, Element document) {
     }
   }
 
-  // Priority 3: img with src containing static.rutracker or fastpic
+  // Priority 4: img with src containing static.rutracker or fastpic
   final imgElement = document.querySelector(
       'img[src*="static.rutracker"], img[src*="fastpic"], img.postimg');
   return imgElement?.attributes['src'];
@@ -2137,4 +2595,39 @@ DateTime? _parseRelativeDate(String dateText) {
   }
 
   return null;
+}
+
+/// Extracts related audiobooks from the same series/cycle.
+///
+/// Looks for links in sp-body elements that contain viewtopic.php links.
+List<RelatedAudiobook> _extractRelatedAudiobooks(Element postBody) {
+  final relatedAudiobooks = <RelatedAudiobook>[];
+
+  try {
+    // Find all sp-body elements (these contain series/cycle information)
+    final spBodies = postBody.querySelectorAll('div.sp-body');
+    for (final spBody in spBodies) {
+      // Look for links to viewtopic.php within the sp-body
+      final links =
+          spBody.querySelectorAll('a.postLink[href*="viewtopic.php"]');
+      for (final link in links) {
+        final href = link.attributes['href'] ?? '';
+        final topicId = _extractTopicIdFromUrl(href);
+        if (topicId.isNotEmpty) {
+          final title = link.text.trim();
+          if (title.isNotEmpty) {
+            relatedAudiobooks.add(RelatedAudiobook(
+              topicId: topicId,
+              title: title,
+            ));
+          }
+        }
+      }
+    }
+  } on Exception {
+    // If parsing fails, return empty list
+    return relatedAudiobooks;
+  }
+
+  return relatedAudiobooks;
 }
