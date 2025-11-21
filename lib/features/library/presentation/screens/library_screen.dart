@@ -20,12 +20,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:jabook/core/favorites/favorites_service.dart';
+import 'package:jabook/core/library/audiobook_library_scanner.dart';
+import 'package:jabook/core/library/local_audiobook.dart';
 import 'package:jabook/core/utils/file_picker_utils.dart' as file_picker_utils;
 import 'package:jabook/core/utils/responsive_utils.dart';
 import 'package:jabook/core/utils/storage_path_utils.dart';
 import 'package:jabook/data/db/app_database.dart';
 import 'package:jabook/l10n/app_localizations.dart';
-import 'package:path/path.dart' as path;
 
 /// Main screen for displaying the user's audiobook library.
 ///
@@ -279,16 +280,97 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
 ///
 /// This widget contains the actual content of the library screen,
 /// including the list of audiobooks and any filtering/sorting options.
-class _LibraryContent extends ConsumerWidget {
+class _LibraryContent extends ConsumerStatefulWidget {
   /// Creates a new _LibraryContent instance.
   const _LibraryContent();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_LibraryContent> createState() => _LibraryContentState();
+}
+
+class _LibraryContentState extends ConsumerState<_LibraryContent> {
+  List<LocalAudiobookGroup> _audiobookGroups = [];
+  bool _isScanning = false;
+  final AudiobookLibraryScanner _scanner = AudiobookLibraryScanner();
+
+  @override
+  void initState() {
+    super.initState();
+    // Load audiobooks on screen init
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadLocalAudiobooks();
+    });
+  }
+
+  Future<void> _loadLocalAudiobooks() async {
+    if (_isScanning) return;
+    setState(() => _isScanning = true);
+    try {
+      final groups = await _scanner.scanDefaultDirectoryGrouped();
+      if (mounted) {
+        setState(() {
+          _audiobookGroups = groups;
+          _isScanning = false;
+        });
+      }
+    } on Exception catch (e) {
+      if (mounted) {
+        setState(() => _isScanning = false);
+        debugPrint('Failed to load local audiobooks: $e');
+      }
+    }
+  }
+
+  Future<void> _refreshLibrary() async {
+    await _loadLocalAudiobooks();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final padding = ResponsiveUtils.getResponsivePadding(context);
     final iconSize = ResponsiveUtils.getIconSize(context, baseSize: 64);
     final spacing = ResponsiveUtils.getSpacing(context, baseSpacing: 16);
 
+    // Show loading indicator while scanning
+    if (_isScanning && _audiobookGroups.isEmpty) {
+      return ResponsiveUtils.responsiveContainer(
+        context,
+        Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const CircularProgressIndicator(),
+              SizedBox(height: spacing),
+              Text(
+                'Scanning library...',
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+            ],
+          ),
+        ),
+        padding: padding,
+      );
+    }
+
+    // Show list of audiobook groups if found
+    if (_audiobookGroups.isNotEmpty) {
+      return ResponsiveUtils.responsiveContainer(
+        context,
+        RefreshIndicator(
+          onRefresh: _refreshLibrary,
+          child: ListView.builder(
+            itemCount: _audiobookGroups.length,
+            itemBuilder: (context, index) {
+              final group = _audiobookGroups[index];
+              return _buildAudiobookGroupTile(context, group);
+            },
+          ),
+        ),
+        padding: padding,
+      );
+    }
+
+    // Show empty state with action buttons
     return ResponsiveUtils.responsiveContainer(
       context,
       Center(
@@ -380,6 +462,51 @@ class _LibraryContent extends ConsumerWidget {
     );
   }
 
+  void _showImportDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(AppLocalizations.of(context)?.importAudiobooksTitle ??
+            'Import Audiobooks'),
+        content: Text(AppLocalizations.of(context)?.selectFilesMessage ??
+            'Select audiobook files from your device to add to your library'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(AppLocalizations.of(context)?.cancel ?? 'Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => _importAudiobookFiles(context),
+            child: Text(
+                AppLocalizations.of(context)?.importButtonText ?? 'Import'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showScanDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+            AppLocalizations.of(context)?.scanFolderTitle ?? 'Scan Folder'),
+        content: Text(AppLocalizations.of(context)?.scanFolderMessage ??
+            'Scan a folder on your device for audiobook files'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(AppLocalizations.of(context)?.cancel ?? 'Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => _scanFolderForAudiobooks(context),
+            child: Text(AppLocalizations.of(context)?.scanButtonText ?? 'Scan'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildActionButton(
     BuildContext context, {
     required IconData icon,
@@ -414,33 +541,11 @@ class _LibraryContent extends ConsumerWidget {
     );
   }
 
-  // Removed unused method
-
-  void _showImportDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(AppLocalizations.of(context)?.importAudiobooksTitle ??
-            'Import Audiobooks'),
-        content: Text(AppLocalizations.of(context)?.selectFilesMessage ??
-            'Select audiobook files from your device to add to your library'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(AppLocalizations.of(context)?.cancel ?? 'Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => _importAudiobookFiles(context),
-            child: Text(
-                AppLocalizations.of(context)?.importButtonText ?? 'Import'),
-          ),
-        ],
-      ),
-    );
-  }
-
   Future<void> _importAudiobookFiles(BuildContext context) async {
     Navigator.pop(context);
+    // Save context-dependent objects before async operations
+    final messenger = ScaffoldMessenger.of(context);
+    final localizations = AppLocalizations.of(context);
 
     try {
       final result = await FilePicker.platform.pickFiles(
@@ -453,156 +558,138 @@ class _LibraryContent extends ConsumerWidget {
         final files = result.files;
         final importedCount = await _copyAudioFilesToLibrary(files);
 
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(AppLocalizations.of(context)
-                      ?.importedSuccess(importedCount) ??
-                  'Imported $importedCount audiobook(s)'),
-            ),
-          );
-        }
+        if (!mounted) return;
+        // Reload library after import to show new groups
+        await _loadLocalAudiobooks();
+        if (!mounted) return;
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(localizations?.importedSuccess(importedCount) ??
+                'Imported $importedCount audiobook(s)'),
+          ),
+        );
       } else {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-                content: Text(
-                    AppLocalizations.of(context)?.noFilesSelectedMessage ??
-                        'No files selected')),
-          );
-        }
+        if (!mounted) return;
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(
+                localizations?.noFilesSelectedMessage ?? 'No files selected'),
+          ),
+        );
       }
     } on Exception catch (e) {
       // Handle "already_active" error gracefully
       if (e.toString().contains('already_active')) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content:
-                  Text('File picker is already open. Please close it first.'),
-            ),
-          );
-        }
+        if (!mounted) return;
+        messenger.showSnackBar(
+          const SnackBar(
+            content:
+                Text('File picker is already open. Please close it first.'),
+          ),
+        );
         return;
       }
 
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(AppLocalizations.of(context)
-                    ?.importFailedMessage(e.toString()) ??
-                'Import failed: ${e.toString()}'),
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            'Import failed: ${e.toString()}',
           ),
-        );
-      }
+        ),
+      );
     }
-  }
-
-  void _showScanDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(
-            AppLocalizations.of(context)?.scanFolderTitle ?? 'Scan Folder'),
-        content: Text(AppLocalizations.of(context)?.scanFolderMessage ??
-            'Scan a folder on your device for audiobook files'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(AppLocalizations.of(context)?.cancel ?? 'Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => _scanFolderForAudiobooks(context),
-            child: Text(AppLocalizations.of(context)?.scanButtonText ?? 'Scan'),
-          ),
-        ],
-      ),
-    );
   }
 
   Future<void> _scanFolderForAudiobooks(BuildContext context) async {
     Navigator.pop(context);
+    // Save context-dependent objects before async operations
+    final messenger = ScaffoldMessenger.of(context);
+    final localizations = AppLocalizations.of(context);
 
     try {
       // Use the utility function which has better error handling
       final directory = await file_picker_utils.pickDirectory();
 
       if (directory != null) {
-        final dir = Directory(directory);
-        // Remove the torrent manager reference
+        setState(() => _isScanning = true);
+        try {
+          // Scan recursively for audio files
+          final audiobooks = await _scanner.scanDirectory(
+            directory,
+            recursive: true,
+          );
 
-        // Scan for audio files
-        final audioFiles = await dir
-            .list()
-            .where((entity) => entity is File)
-            .map((entity) => entity as File)
-            .where((file) => _isAudioFile(file.path))
-            .toList();
+          if (!mounted) return;
+          // For now, reload all groups after scan
+          // TODO: Implement smarter merging logic
+          await _loadLocalAudiobooks();
+          if (!mounted) return;
+          setState(() {
+            _isScanning = false;
+          });
 
-        if (audioFiles.isNotEmpty) {
-          final importedCount = await _copyAudioFilesToLibrary(audioFiles
-              .map((file) => PlatformFile(
-                    name: path.basename(file.path),
-                    path: file.path,
-                    size: file.lengthSync(),
-                  ))
-              .toList());
-
-          if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
+          if (!mounted) return;
+          if (audiobooks.isNotEmpty) {
+            messenger.showSnackBar(
               SnackBar(
-                content: Text(AppLocalizations.of(context)
-                        ?.scanSuccessMessage(importedCount) ??
-                    'Scanned and imported $importedCount audiobook(s)'),
+                content: Text(
+                    localizations?.scanSuccessMessage(audiobooks.length) ??
+                        'Scanned and found ${audiobooks.length} audiobook(s)'),
+              ),
+            );
+          } else {
+            messenger.showSnackBar(
+              SnackBar(
+                content: Text(localizations?.noAudiobooksFoundMessage ??
+                    'No audiobook files found in selected folder'),
               ),
             );
           }
-        } else {
-          if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                  content: Text(
-                      AppLocalizations.of(context)?.noAudiobooksFoundMessage ??
-                          'No audiobook files found in selected folder')),
-            );
-          }
-        }
-      } else {
-        // Directory is null - user may have cancelled or there was an issue
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
+        } on Exception catch (e) {
+          if (!mounted) return;
+          setState(() => _isScanning = false);
+          messenger.showSnackBar(
             SnackBar(
-              content: Text(AppLocalizations.of(context)
-                      ?.noFolderSelectedMessage ??
-                  'No folder selected. Please try again or check app permissions.'),
-              duration: const Duration(seconds: 3),
-            ),
-          );
-        }
-      }
-    } on Exception catch (e) {
-      // Handle "already_active" error gracefully
-      if (e.toString().contains('already_active')) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content:
-                  Text('File picker is already open. Please close it first.'),
+              content: Text(
+                'Scan failed: ${e.toString()}',
+              ),
             ),
           );
         }
         return;
       }
 
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-                AppLocalizations.of(context)?.scanFailedMessage(e.toString()) ??
-                    'Scan failed: ${e.toString()}'),
+      // Directory is null - user may have cancelled or there was an issue
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(localizations?.noFolderSelectedMessage ??
+              'No folder selected. Please try again or check app permissions.'),
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    } on Exception catch (e) {
+      // Handle "already_active" error gracefully
+      if (e.toString().contains('already_active')) {
+        if (!mounted) return;
+        messenger.showSnackBar(
+          const SnackBar(
+            content:
+                Text('File picker is already open. Please close it first.'),
           ),
         );
+        return;
       }
+
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            'Scan failed: ${e.toString()}',
+          ),
+        ),
+      );
     }
   }
 
@@ -638,5 +725,66 @@ class _LibraryContent extends ConsumerWidget {
     }
 
     return importedCount;
+  }
+
+  Widget _buildAudiobookGroupTile(
+    BuildContext context,
+    LocalAudiobookGroup group,
+  ) {
+    // Build cover widget with caching optimization
+    Widget coverWidget;
+    if (group.coverPath != null) {
+      final coverFile = File(group.coverPath!);
+      if (coverFile.existsSync()) {
+        coverWidget = RepaintBoundary(
+          child: Image.file(
+            coverFile,
+            width: 56,
+            height: 56,
+            fit: BoxFit.cover,
+            cacheWidth: 112, // 2x for retina displays
+            errorBuilder: (context, error, stackTrace) =>
+                const Icon(Icons.audiotrack, size: 56),
+          ),
+        );
+      } else {
+        coverWidget = const Icon(Icons.audiotrack, size: 56);
+      }
+    } else {
+      coverWidget = const Icon(Icons.audiotrack, size: 56);
+    }
+
+    return ListTile(
+      leading: ClipRRect(
+        borderRadius: BorderRadius.circular(4),
+        child: coverWidget,
+      ),
+      title: Text(group.groupName),
+      subtitle: Text(
+        '${group.fileCount} ${group.fileCount == 1 ? 'file' : 'files'} • ${group.formattedTotalSize}',
+      ),
+      trailing: _isScanning
+          ? const SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : IconButton(
+              icon: const Icon(Icons.play_arrow),
+              onPressed: () {
+                _playAudiobookGroup(context, group);
+              },
+              tooltip: 'Play',
+            ),
+      onTap: () {
+        // TODO: Navigate to player or show details
+        _playAudiobookGroup(context, group);
+      },
+    );
+  }
+
+  void _playAudiobookGroup(BuildContext context, LocalAudiobookGroup group) {
+    // Navigate to local player screen
+    context.push('/local-player', extra: group);
   }
 }

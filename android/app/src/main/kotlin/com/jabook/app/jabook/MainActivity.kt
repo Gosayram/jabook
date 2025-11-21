@@ -3,8 +3,11 @@ package com.jabook.app.jabook
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
+import android.os.Environment
+import android.provider.Settings
 import android.webkit.CookieManager
 import androidx.annotation.RequiresApi
+import com.jabook.app.jabook.audio.AudioPlayerMethodHandler
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -91,6 +94,57 @@ class MainActivity : FlutterActivity() {
                 }
             }
         }
+        
+        // Register PermissionChannel for managing storage permissions
+        val permissionChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "permission_channel")
+        
+        permissionChannel.setMethodCallHandler { call, result ->
+            when (call.method) {
+                "openManageExternalStorageSettings" -> {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                        try {
+                            val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
+                                data = Uri.parse("package:$packageName")
+                            }
+                            startActivity(intent)
+                            result.success(true)
+                        } catch (e: Exception) {
+                            // Fallback to general storage settings if specific intent is not available
+                            try {
+                                val intent = Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
+                                startActivity(intent)
+                                result.success(true)
+                            } catch (e2: Exception) {
+                                result.error("OPEN_SETTINGS_ERROR", "Failed to open settings: ${e2.message}", null)
+                            }
+                        }
+                    } else {
+                        result.error("UNSUPPORTED", "MANAGE_EXTERNAL_STORAGE requires Android 11+", null)
+                    }
+                }
+                "hasManageExternalStoragePermission" -> {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                        val hasPermission = Environment.isExternalStorageManager()
+                        result.success(hasPermission)
+                    } else {
+                        // For Android 10 and below, always return true (permission not needed)
+                        result.success(true)
+                    }
+                }
+                else -> {
+                    result.notImplemented()
+                }
+            }
+        }
+        
+        // Register AudioPlayerChannel for native audio playback
+        val audioPlayerChannel = MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            "com.jabook.app.jabook/audio_player"
+        )
+        audioPlayerChannel.setMethodCallHandler(
+            AudioPlayerMethodHandler(this)
+        )
     }
     
     @RequiresApi(Build.VERSION_CODES.LOLLIPOP)

@@ -16,12 +16,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:jabook/core/config/app_config.dart';
+import 'package:jabook/core/library/local_audiobook.dart';
 import 'package:jabook/features/auth/presentation/screens/auth_screen.dart';
 import 'package:jabook/features/debug/presentation/screens/debug_screen.dart';
 import 'package:jabook/features/downloads/presentation/screens/downloads_screen.dart';
 import 'package:jabook/features/library/presentation/screens/favorites_screen.dart';
 import 'package:jabook/features/library/presentation/screens/library_screen.dart';
 import 'package:jabook/features/mirrors/presentation/screens/mirrors_screen.dart';
+import 'package:jabook/features/player/presentation/screens/local_player_screen.dart';
 import 'package:jabook/features/player/presentation/screens/player_screen.dart';
 import 'package:jabook/features/search/presentation/screens/search_screen.dart';
 import 'package:jabook/features/settings/presentation/screens/settings_screen.dart';
@@ -72,6 +74,20 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       builder: (context, state) => PlayerScreen(
         bookId: state.pathParameters['bookId'] ?? '',
       ),
+    ),
+    GoRoute(
+      path: '/local-player',
+      builder: (context, state) {
+        final group = state.extra as LocalAudiobookGroup?;
+        if (group == null) {
+          // Fallback if group is not provided
+          return Scaffold(
+            appBar: AppBar(title: const Text('Error')),
+            body: const Center(child: Text('No audiobook group provided')),
+          );
+        }
+        return LocalPlayerScreen(group: group);
+      },
     ),
     GoRoute(
       path: '/mirrors',

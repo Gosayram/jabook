@@ -292,7 +292,6 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
           DateTime.now().difference(dbInitStart).inMilliseconds;
 
       // Initialize configuration based on flavor (lightweight, can run in parallel)
-      // Request essential permissions (can be deferred, but better to do early)
       // Initialize default storage path
       // Initialize background service for downloads
       // Initialize notification service
@@ -300,11 +299,16 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
       final envInitStart = DateTime.now();
       await Future.wait([
         _initializeEnvironment(),
-        _requestEssentialPermissions(),
         StoragePathUtils().initializeDefaultPath(),
         _initializeBackgroundService(),
         _initializeNotificationService(),
       ]);
+
+      // Request permissions separately after a delay to ensure Activity is ready
+      // This prevents "Activity not available" errors and permission request conflicts
+      await Future.delayed(const Duration(milliseconds: 300));
+      await _requestEssentialPermissions();
+
       final envInitDuration =
           DateTime.now().difference(envInitStart).inMilliseconds;
 

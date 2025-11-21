@@ -174,8 +174,13 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
     return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
   }
 
-  String _formatSpeed(double bytesPerSecond) =>
-      '${_formatBytes(bytesPerSecond.toInt())}/s';
+  String _formatSpeed(double bytesPerSecond) {
+    if (bytesPerSecond < 1024) return '${bytesPerSecond.toInt()} B/s';
+    if (bytesPerSecond < 1024 * 1024) {
+      return '${(bytesPerSecond / 1024).toStringAsFixed(1)} KB/s';
+    }
+    return '${(bytesPerSecond / (1024 * 1024)).toStringAsFixed(1)} MB/s';
+  }
 
   String _formatTimeRemaining(TorrentProgress progress) {
     if (progress.downloadSpeed <= 0 || progress.progress >= 100) {
@@ -211,22 +216,32 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
   Widget build(BuildContext context) => PopScope(
         onPopInvokedWithResult: (didPop, result) {
           if (didPop) {
-            EnvironmentLogger().d('DownloadsScreen: Pop already handled');
+            EnvironmentLogger()
+                .d('DownloadsScreen: Pop already handled by system');
             return;
           }
           // Allow navigation back using GoRouter
           final canPop = context.canPop();
+          final activeDownloadsCount = _downloads.length;
           EnvironmentLogger().d(
-            'DownloadsScreen: onPopInvokedWithResult - canPop: $canPop',
+            'DownloadsScreen: onPopInvokedWithResult - canPop: $canPop, activeDownloads: $activeDownloadsCount',
           );
           if (canPop) {
-            context.pop();
-            EnvironmentLogger()
-                .d('DownloadsScreen: Popped using context.pop()');
+            try {
+              context.pop();
+              EnvironmentLogger().d(
+                  'DownloadsScreen: Successfully popped using context.pop()');
+            } on Exception catch (e) {
+              EnvironmentLogger().w(
+                'DownloadsScreen: Failed to pop, falling back to go("/")',
+                error: e,
+              );
+              context.go('/');
+            }
           } else {
+            EnvironmentLogger().d(
+                'DownloadsScreen: Cannot pop, navigating to home using context.go("/")');
             context.go('/');
-            EnvironmentLogger()
-                .d('DownloadsScreen: Navigated to home using context.go()');
           }
         },
         child: Scaffold(

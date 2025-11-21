@@ -20,7 +20,7 @@ help:
 	@echo "  make install                       - Install dependencies"
 	@echo "  make clean                         - Clean build artifacts"
 	@echo "  make run                           - Run built APK (build/app/outputs/apk/release/app-arm64-v8a-release.apk)"
-	@echo "  make run-profile                   - Activate devtools and run app with profiling (output to startup_profile.log)"
+	@echo "  make run-profile                   - Run app with profiling (output to startup_profile.log)"
 	@echo "  make setup-android                 - Setup Android project configuration"
 	@echo "  make setup-ios                     - Setup iOS project configuration"
 	@echo "  make setup                         - Setup both Android and iOS projects"
@@ -92,9 +92,8 @@ run:
 
 .PHONY: run-profile
 run-profile:
-	@echo "Activating Flutter DevTools..."
-	flutter pub global activate devtools
 	@echo "Running app with profiling (output saved to startup_profile.log)..."
+	@echo "Note: DevTools can be accessed via 'flutter pub global run devtools' if needed"
 	flutter run --verbose --trace-startup --profile > startup_profile.log 2>&1
 	@echo "Profile run complete. Check startup_profile.log for details."
 

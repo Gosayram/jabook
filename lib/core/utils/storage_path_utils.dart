@@ -15,13 +15,15 @@
 import 'dart:io';
 
 import 'package:jabook/core/logging/environment_logger.dart';
+import 'package:jabook/core/permissions/permission_service.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Utility class for managing default storage paths for audiobooks.
 ///
 /// This class provides methods to get and set the default download path
-/// for audiobooks, with a default value of /storage/emulated/0/JabookAudio.
+/// for audiobooks. On Android 11+ (API 30+), uses app-specific directory
+/// which works WITHOUT permissions.
 class StoragePathUtils {
   /// Private constructor for singleton pattern.
   StoragePathUtils._();
@@ -32,6 +34,9 @@ class StoragePathUtils {
   static final StoragePathUtils _instance = StoragePathUtils._();
 
   /// Default path for audiobooks storage.
+  /// This is the user-accessible directory that requires MANAGE_EXTERNAL_STORAGE
+  /// permission on Android 11+ (API 30+).
+  /// User explicitly requested this path with all necessary permissions.
   static const String defaultAudiobookPath = '/storage/emulated/0/JabookAudio';
 
   /// Key for storing the download folder path in SharedPreferences.
@@ -49,17 +54,30 @@ class StoragePathUtils {
       final savedPath = prefs.getString(downloadFolderPathKey);
 
       if (savedPath != null && savedPath.isNotEmpty) {
-        // Validate that the saved path exists
-        final dir = Directory(savedPath);
-        if (await dir.exists()) {
-          EnvironmentLogger().d(
-            'StoragePathUtils: Using saved path: $savedPath',
-          );
-          return savedPath;
-        } else {
+        // Check if saved path is app-specific directory (old path that user can't access)
+        // If it is, clear it and use default path instead
+        if (PermissionService.isAppSpecificDirectory(savedPath)) {
           EnvironmentLogger().w(
-            'StoragePathUtils: Saved path does not exist: $savedPath, falling back to default',
+            'StoragePathUtils: Saved path is app-specific directory (user cannot access): $savedPath. Clearing and using default path.',
           );
+          // Clear the old app-specific path from preferences
+          await prefs.remove(downloadFolderPathKey);
+          // Continue to use default path below
+        } else {
+          // Validate that the saved path exists
+          final dir = Directory(savedPath);
+          if (await dir.exists()) {
+            EnvironmentLogger().d(
+              'StoragePathUtils: Using saved path: $savedPath',
+            );
+            return savedPath;
+          } else {
+            EnvironmentLogger().w(
+              'StoragePathUtils: Saved path does not exist: $savedPath, falling back to default',
+            );
+            // Clear invalid path from preferences
+            await prefs.remove(downloadFolderPathKey);
+          }
         }
       }
 
@@ -75,13 +93,56 @@ class StoragePathUtils {
           EnvironmentLogger().d(
             'StoragePathUtils: Created directory: $defaultPath',
           );
+          // Verify we can write to the directory
+          try {
+            final testFile = File('${dir.path}/.test_write');
+            await testFile.writeAsString('test');
+            await testFile.delete();
+            EnvironmentLogger().d(
+              'StoragePathUtils: Verified write access to directory: $defaultPath',
+            );
+          } on Exception catch (e) {
+            EnvironmentLogger().w(
+              'StoragePathUtils: Cannot write to directory: $defaultPath',
+              error: e,
+            );
+            // Don't rethrow - directory exists, but may not have write access
+            // This will be caught when trying to download
+          }
         } on Exception catch (e) {
           EnvironmentLogger().e(
             'StoragePathUtils: Failed to create directory: $defaultPath',
             error: e,
           );
+          // Check if error is related to permissions
+          final errorStr = e.toString().toLowerCase();
+          if (errorStr.contains('permission') ||
+              errorStr.contains('access') ||
+              errorStr.contains('denied')) {
+            EnvironmentLogger().w(
+              'StoragePathUtils: Permission denied when creating directory. '
+              'User may need to grant storage permission in app settings.',
+            );
+          }
           // Re-throw to be handled by outer catch
           rethrow;
+        }
+      } else {
+        // Verify we can write to existing directory
+        try {
+          final testFile = File('${dir.path}/.test_write');
+          await testFile.writeAsString('test');
+          await testFile.delete();
+          EnvironmentLogger().d(
+            'StoragePathUtils: Verified write access to existing directory: $defaultPath',
+          );
+        } on Exception catch (e) {
+          EnvironmentLogger().w(
+            'StoragePathUtils: Cannot write to existing directory: $defaultPath',
+            error: e,
+          );
+          // Don't rethrow - directory exists, but may not have write access
+          // This will be caught when trying to download
         }
       }
 
@@ -100,30 +161,27 @@ class StoragePathUtils {
         error: e,
       );
       // Fallback to default path if anything fails
+      // This path requires MANAGE_EXTERNAL_STORAGE permission on Android 11+
+      EnvironmentLogger().w(
+        'StoragePathUtils: Using default path (requires MANAGE_EXTERNAL_STORAGE on Android 11+)',
+      );
       return defaultAudiobookPath;
     }
   }
 
   /// Gets the default path based on platform.
   ///
-  /// For Android, tries to get external storage directory.
-  /// Falls back to hardcoded path if needed.
+  /// For Android, uses user-accessible directory: /storage/emulated/0/JabookAudio
+  /// This requires MANAGE_EXTERNAL_STORAGE permission on Android 11+ (API 30+).
+  /// Falls back to app documents directory if needed.
   Future<String> _getDefaultPath() async {
     if (Platform.isAndroid) {
-      try {
-        // Try to get external storage directory
-        final externalDir = await getExternalStorageDirectory();
-        if (externalDir != null) {
-          // Get parent directory (usually /storage/emulated/0)
-          final parent = externalDir.parent;
-          final audiobookDir = Directory('${parent.path}/JabookAudio');
-          return audiobookDir.path;
-        }
-      } on Exception {
-        // Fallback to hardcoded path
-      }
-
-      // Fallback to hardcoded path
+      // Use user-accessible directory: /storage/emulated/0/JabookAudio
+      // This requires MANAGE_EXTERNAL_STORAGE permission on Android 11+
+      // User explicitly requested this path with all necessary permissions
+      EnvironmentLogger().d(
+        'StoragePathUtils: Using user-accessible default path: $defaultAudiobookPath',
+      );
       return defaultAudiobookPath;
     }
 

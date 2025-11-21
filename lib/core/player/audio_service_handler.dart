@@ -12,9 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:io';
+
 import 'package:audio_service/audio_service.dart';
 import 'package:audio_session/audio_session.dart';
+import 'package:flutter/services.dart';
 import 'package:jabook/core/errors/failures.dart';
+import 'package:jabook/core/logging/structured_logger.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -45,8 +49,27 @@ class AudioServiceHandler {
   ///
   /// Throws [AudioFailure] if the service cannot be started.
   Future<void> startService() async {
+    final logger = StructuredLogger();
+    final operationId =
+        'start_service_${DateTime.now().millisecondsSinceEpoch}';
+
     try {
+      await logger.log(
+        level: 'info',
+        subsystem: 'audio',
+        message: 'Starting audio service',
+        operationId: operationId,
+      );
+
       // Initialize audio service with basic configuration
+      // AudioService.init() will handle the case if service is already running
+      await logger.log(
+        level: 'debug',
+        subsystem: 'audio',
+        message: 'Initializing AudioService',
+        operationId: operationId,
+      );
+
       final handler = await AudioService.init(
         builder: () => AudioPlayerHandler(_audioPlayer),
         config: const AudioServiceConfig(
@@ -56,15 +79,61 @@ class AudioServiceHandler {
           androidNotificationOngoing: true,
         ),
       );
+
       _playerHandler = handler;
+
+      await logger.log(
+        level: 'info',
+        subsystem: 'audio',
+        message: 'AudioService initialized successfully',
+        operationId: operationId,
+      );
 
       // Set up audio player event listener
       _setupAudioPlayer();
 
+      await logger.log(
+        level: 'debug',
+        subsystem: 'audio',
+        message: 'Setting up audio focus',
+        operationId: operationId,
+      );
+
       // Handle audio focus policies
       await _setupAudioFocus();
-    } on Exception {
-      throw const AudioFailure('Failed to start audio service');
+
+      await logger.log(
+        level: 'info',
+        subsystem: 'audio',
+        message: 'Audio service started successfully',
+        operationId: operationId,
+      );
+    } on PlatformException catch (e) {
+      await logger.log(
+        level: 'error',
+        subsystem: 'audio',
+        message: 'Platform error during audio service initialization',
+        operationId: operationId,
+        cause: e.toString(),
+        extra: {
+          'code': e.code,
+          'message': e.message,
+          'details': e.details?.toString(),
+        },
+      );
+      throw AudioFailure(
+        'Failed to start audio service: ${e.message ?? e.code}',
+      );
+    } on Exception catch (e) {
+      await logger.log(
+        level: 'error',
+        subsystem: 'audio',
+        message: 'Failed to start audio service',
+        operationId: operationId,
+        cause: e.toString(),
+        extra: {'error_type': e.runtimeType.toString()},
+      );
+      throw AudioFailure('Failed to start audio service: ${e.toString()}');
     }
   }
 
@@ -198,6 +267,114 @@ class AudioServiceHandler {
     }
   }
 
+  /// Starts playback for a playlist of local file paths.
+  ///
+  /// The [filePaths] parameter is a list of local file paths to play.
+  /// The [metadata] parameter is optional metadata for the first track.
+  ///
+  /// Throws [AudioFailure] if playback cannot be started.
+  Future<void> playLocalPlaylist(
+    List<String> filePaths, {
+    MediaItem? metadata,
+  }) async {
+    final logger = StructuredLogger();
+    final operationId = 'play_local_${DateTime.now().millisecondsSinceEpoch}';
+
+    try {
+      if (filePaths.isEmpty) {
+        await logger.log(
+          level: 'error',
+          subsystem: 'audio',
+          message: 'No files to play',
+          operationId: operationId,
+        );
+        throw const AudioFailure('No files to play');
+      }
+
+      // Create audio sources with proper error handling
+      final audioSources = await _createAudioSources(filePaths, operationId);
+
+      if (audioSources.isEmpty) {
+        await logger.log(
+          level: 'error',
+          subsystem: 'audio',
+          message: 'No valid audio sources created',
+          operationId: operationId,
+          extra: {'file_count': filePaths.length},
+        );
+        throw const AudioFailure('No valid audio files found');
+      }
+
+      await logger.log(
+        level: 'info',
+        subsystem: 'audio',
+        message: 'Setting audio sources',
+        operationId: operationId,
+        extra: {'sources_count': audioSources.length},
+      );
+
+      // Set the playlist
+      await _audioPlayer.setAudioSources(audioSources);
+
+      if (metadata != null) {
+        _playerHandler?.setNowPlayingItem(metadata);
+        _currentMediaId = metadata.id;
+        // Try restore last position
+        await _restorePosition();
+      }
+
+      // Wait for player to be ready
+      await _waitForPlayerReady(operationId);
+
+      await logger.log(
+        level: 'info',
+        subsystem: 'audio',
+        message: 'Starting playback',
+        operationId: operationId,
+      );
+
+      // Start playback
+      await _audioPlayer.play();
+
+      await logger.log(
+        level: 'info',
+        subsystem: 'audio',
+        message: 'Playback started successfully',
+        operationId: operationId,
+      );
+    } on PlatformException catch (e) {
+      await logger.log(
+        level: 'error',
+        subsystem: 'audio',
+        message: 'Platform error during playback',
+        operationId: operationId,
+        cause: e.toString(),
+        extra: {
+          'code': e.code,
+          'message': e.message,
+          'details': e.details?.toString(),
+        },
+      );
+      throw AudioFailure('Platform error: ${e.message ?? e.code}');
+    } on AudioFailure {
+      rethrow;
+    } on Exception catch (e) {
+      await logger.log(
+        level: 'error',
+        subsystem: 'audio',
+        message: 'Failed to play local playlist',
+        operationId: operationId,
+        cause: e.toString(),
+      );
+      throw AudioFailure('Failed to play audio: ${e.toString()}');
+    }
+  }
+
+  /// Gets the current audio player instance.
+  ///
+  /// This is exposed for advanced use cases where direct access to the player is needed.
+  AudioPlayer get audioPlayer => _audioPlayer;
+
   /// Pauses the current playback.
   ///
   /// Throws [AudioFailure] if pausing fails.
@@ -285,6 +462,162 @@ class AudioServiceHandler {
     } on Object {
       // ignore
     }
+  }
+
+  /// Validates and normalizes a file path.
+  ///
+  /// Throws [ArgumentError] if the path is invalid.
+  String _validateAndNormalizePath(String path) {
+    if (path.isEmpty) {
+      throw ArgumentError('File path cannot be empty');
+    }
+
+    // Normalize path (remove duplicate slashes)
+    final normalized = path.replaceAll(RegExp(r'/+'), '/');
+
+    // Check if path is absolute (on Android)
+    if (Platform.isAndroid && !normalized.startsWith('/')) {
+      throw ArgumentError('File path must be absolute on Android: $path');
+    }
+
+    return normalized;
+  }
+
+  /// Creates audio sources from file paths with validation and error handling.
+  ///
+  /// Validates paths, checks file existence and accessibility, and creates
+  /// AudioSource instances using Uri.file() for reliable ExoPlayer integration.
+  Future<List<AudioSource>> _createAudioSources(
+    List<String> filePaths,
+    String operationId,
+  ) async {
+    final audioSources = <AudioSource>[];
+    final logger = StructuredLogger();
+
+    for (final filePath in filePaths) {
+      try {
+        // Validate and normalize path
+        final normalizedPath = _validateAndNormalizePath(filePath);
+
+        final file = File(normalizedPath);
+
+        // Check if file exists
+        if (!await file.exists()) {
+          await logger.log(
+            level: 'warning',
+            subsystem: 'audio',
+            message: 'Audio file does not exist',
+            operationId: operationId,
+            extra: {'path': normalizedPath},
+          );
+          continue;
+        }
+
+        // Check if path is a file (not directory)
+        final stat = await file.stat();
+        if (stat.type != FileSystemEntityType.file) {
+          await logger.log(
+            level: 'warning',
+            subsystem: 'audio',
+            message: 'Path is not a file',
+            operationId: operationId,
+            extra: {'path': normalizedPath},
+          );
+          continue;
+        }
+
+        // Check if file size is valid (not empty)
+        if (stat.size == 0) {
+          await logger.log(
+            level: 'warning',
+            subsystem: 'audio',
+            message: 'Audio file is empty',
+            operationId: operationId,
+            extra: {'path': normalizedPath},
+          );
+          continue;
+        }
+
+        // Use Uri.file() for reliable ExoPlayer integration
+        audioSources.add(AudioSource.uri(Uri.file(normalizedPath)));
+
+        await logger.log(
+          level: 'debug',
+          subsystem: 'audio',
+          message: 'Created audio source from local file',
+          operationId: operationId,
+          extra: {'path': normalizedPath, 'size': stat.size},
+        );
+      } on ArgumentError catch (e) {
+        await logger.log(
+          level: 'error',
+          subsystem: 'audio',
+          message: 'Invalid file path',
+          operationId: operationId,
+          cause: e.toString(),
+          extra: {'path': filePath},
+        );
+      } on Exception catch (e) {
+        await logger.log(
+          level: 'error',
+          subsystem: 'audio',
+          message: 'Failed to create audio source',
+          operationId: operationId,
+          cause: e.toString(),
+          extra: {'path': filePath},
+        );
+      }
+    }
+
+    return audioSources;
+  }
+
+  /// Waits for the audio player to be ready for playback.
+  ///
+  /// Throws [AudioFailure] if the player doesn't become ready within the timeout.
+  Future<void> _waitForPlayerReady(String operationId) async {
+    final logger = StructuredLogger();
+    var attempts = 0;
+    const maxAttempts = 50; // 5 seconds max
+
+    while (_audioPlayer.processingState != ProcessingState.ready &&
+        attempts < maxAttempts) {
+      await Future.delayed(const Duration(milliseconds: 100));
+      attempts++;
+
+      // Check for errors
+      if (_audioPlayer.processingState == ProcessingState.idle) {
+        await logger.log(
+          level: 'warning',
+          subsystem: 'audio',
+          message: 'Player is idle, waiting for ready state',
+          operationId: operationId,
+          extra: {'attempt': attempts},
+        );
+      }
+    }
+
+    if (_audioPlayer.processingState != ProcessingState.ready) {
+      await logger.log(
+        level: 'error',
+        subsystem: 'audio',
+        message: 'Player failed to become ready',
+        operationId: operationId,
+        extra: {
+          'final_state': _audioPlayer.processingState.toString(),
+          'attempts': attempts,
+        },
+      );
+      throw const AudioFailure('Player failed to initialize');
+    }
+
+    await logger.log(
+      level: 'debug',
+      subsystem: 'audio',
+      message: 'Player is ready',
+      operationId: operationId,
+      extra: {'attempts': attempts},
+    );
   }
 
   /// Releases resources held by this handler.

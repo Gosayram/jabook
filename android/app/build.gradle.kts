@@ -65,4 +65,13 @@ flutter {
 dependencies {
     // Desugaring for flutter_local_notifications
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+    
+    // Media3 - Native audio player
+    implementation("androidx.media3:media3-exoplayer:1.8.0")
+    implementation("androidx.media3:media3-ui:1.8.0")
+    implementation("androidx.media3:media3-session:1.8.0")
+    implementation("androidx.media3:media3-common:1.8.0")
+    
+    // Media library for MediaStyle notification
+    implementation("androidx.media:media:1.7.0")
 }
