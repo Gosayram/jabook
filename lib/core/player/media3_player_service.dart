@@ -54,6 +54,7 @@ class Media3PlayerService {
   /// Initializes the player service.
   ///
   /// Throws [AudioFailure] if initialization fails.
+  /// Includes timeout to prevent blocking initialization.
   Future<void> initialize() async {
     if (_isInitialized) return;
 
@@ -64,31 +65,61 @@ class Media3PlayerService {
         message: 'Initializing Media3PlayerService',
       );
 
-      await _player.initialize();
+      final initStart = DateTime.now();
+
+      // Add timeout to prevent blocking initialization (10 seconds)
+      await _player.initialize().timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          throw TimeoutException(
+            'Player initialization timed out after 10 seconds',
+            const Duration(seconds: 10),
+          );
+        },
+      );
+
+      final initDuration = DateTime.now().difference(initStart).inMilliseconds;
       _isInitialized = true;
 
       await _logger.log(
         level: 'info',
         subsystem: 'audio',
         message: 'Media3PlayerService initialized successfully',
+        durationMs: initDuration,
+        extra: {'init_duration_ms': initDuration},
       );
+    } on TimeoutException catch (e) {
+      await _logger.log(
+        level: 'warning',
+        subsystem: 'audio',
+        message:
+            'Player initialization timed out - will initialize on first use',
+        cause: e.toString(),
+        durationMs: 10000,
+      );
+      // Don't set _isInitialized = true, so it will retry on first use
+      throw AudioFailure('Player initialization timed out: ${e.message}');
     } on AudioFailure {
+      // Re-throw AudioFailure as-is (already logged in native_audio_player)
       rethrow;
     } on Exception catch (e) {
       await _logger.log(
-        level: 'error',
+        level: 'warning',
         subsystem: 'audio',
-        message: 'Failed to initialize Media3PlayerService',
+        message:
+            'Failed to initialize Media3PlayerService - will initialize on first use',
         cause: e.toString(),
       );
+      // Don't set _isInitialized = true, so it will retry on first use
       throw AudioFailure('Failed to initialize: ${e.toString()}');
     }
   }
 
   /// Sets playlist and starts position saving.
   ///
-  /// [filePaths] is a list of absolute file paths to audio files.
-  /// [metadata] is optional metadata (title, artist, album).
+  /// [filePaths] is a list of absolute file paths or HTTP(S) URLs to audio files.
+  /// Supports both local files and network streaming.
+  /// [metadata] is optional metadata (title, artist, album, artworkUri).
   /// [groupPath] is the unique path for saving playback positions.
   ///
   /// Throws [AudioFailure] if setting playlist fails.
@@ -329,14 +360,14 @@ class Media3PlayerService {
   /// This balances between position accuracy and battery/performance.
   void _startPositionSaving() {
     _positionSaveTimer?.cancel();
-    
+
     // Use adaptive interval based on position in track
     _positionSaveTimer = Timer.periodic(
       const Duration(seconds: 5), // Check every 5 seconds
       (_) => _saveCurrentPositionAdaptive(),
     );
   }
-  
+
   /// Saves position with adaptive interval logic.
   ///
   /// Saves more frequently (every 5s) when near start/end of track,
@@ -348,44 +379,44 @@ class Media3PlayerService {
       final state = await _player.getState();
       final position = state.currentPosition;
       final duration = state.duration;
-      
+
       if (duration <= 0) {
         // Duration unknown, save anyway
         await _saveCurrentPosition();
         return;
       }
-      
+
       // Calculate position ratio (0.0 to 1.0)
       final positionRatio = position / duration;
-      
+
       // Define "near start" and "near end" thresholds
       // Save frequently if within first 10% or last 10% of track
       const nearStartThreshold = 0.1; // 10% from start
       const nearEndThreshold = 0.9; // 10% from end
-      
+
       final isNearStart = positionRatio < nearStartThreshold;
       final isNearEnd = positionRatio > nearEndThreshold;
-      
+
       // Track last save time to implement adaptive intervals
       final now = DateTime.now();
       final lastSaveTime = _lastPositionSaveTime;
       _lastPositionSaveTime = now;
-      
+
       if (lastSaveTime == null) {
         // First save, always save
         await _saveCurrentPosition();
         return;
       }
-      
+
       final timeSinceLastSave = now.difference(lastSaveTime);
-      
+
       // Save if:
       // - Near start/end and 5+ seconds passed (frequent saves)
       // - In middle and 30+ seconds passed (less frequent saves)
-      final shouldSave = (isNearStart || isNearEnd) 
+      final shouldSave = (isNearStart || isNearEnd)
           ? timeSinceLastSave.inSeconds >= 5
           : timeSinceLastSave.inSeconds >= 30;
-      
+
       if (shouldSave) {
         await _saveCurrentPosition();
       }
@@ -393,7 +424,7 @@ class Media3PlayerService {
       // Ignore errors - position saving is not critical
     }
   }
-  
+
   /// Timestamp of last position save for adaptive interval calculation.
   DateTime? _lastPositionSaveTime;
 

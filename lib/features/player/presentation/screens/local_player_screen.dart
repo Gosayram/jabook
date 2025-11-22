@@ -204,6 +204,60 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
               // Ignore seek errors, continue playback from start
             }
           }
+        } else {
+          // Invalid saved position, start playback from beginning
+          if (mounted) {
+            await _logger.log(
+              level: 'info',
+              subsystem: 'audio',
+              message:
+                  'No valid saved position, starting playback from beginning',
+            );
+            // Wait a bit for player to be ready
+            await Future.delayed(const Duration(milliseconds: 200));
+            final currentState = ref.read(playerStateProvider);
+            if (!currentState.isPlaying && mounted) {
+              await playerNotifier.play();
+            }
+          }
+        }
+      } else {
+        // No saved position, start playback from beginning
+        if (mounted) {
+          await _logger.log(
+            level: 'info',
+            subsystem: 'audio',
+            message: 'No saved position, starting playback from beginning',
+          );
+          // Wait a bit for player to be ready
+          await Future.delayed(const Duration(milliseconds: 200));
+          final currentState = ref.read(playerStateProvider);
+          if (!currentState.isPlaying && mounted) {
+            await _logger.log(
+              level: 'info',
+              subsystem: 'audio',
+              message: 'Calling play() to start playback',
+              extra: {
+                'playbackState': currentState.playbackState,
+                'isPlaying': currentState.isPlaying,
+              },
+            );
+            try {
+              await playerNotifier.play();
+              await _logger.log(
+                level: 'info',
+                subsystem: 'audio',
+                message: 'play() call completed',
+              );
+            } on Exception catch (e) {
+              await _logger.log(
+                level: 'error',
+                subsystem: 'audio',
+                message: 'Failed to call play()',
+                cause: e.toString(),
+              );
+            }
+          }
         }
       }
 

@@ -118,32 +118,39 @@ class NativeAudioPlayer {
         message: 'Native audio player initialized successfully',
       );
     } on PlatformException catch (e) {
+      // Log as warning instead of error - player will initialize on first use
       await _logger.log(
-        level: 'error',
+        level: 'warning',
         subsystem: 'audio',
-        message: 'Platform error during initialization',
+        message:
+            'Platform error during initialization - will initialize on first use',
         cause: e.toString(),
         extra: {
           'code': e.code,
           'message': e.message,
         },
       );
+      // Don't set _isInitialized = true, so it will retry on first use
       throw AudioFailure('Failed to initialize: ${e.message ?? e.code}');
     } on Exception catch (e) {
+      // Log as warning instead of error - player will initialize on first use
       await _logger.log(
-        level: 'error',
+        level: 'warning',
         subsystem: 'audio',
-        message: 'Failed to initialize native audio player',
+        message:
+            'Failed to initialize native audio player - will initialize on first use',
         cause: e.toString(),
       );
+      // Don't set _isInitialized = true, so it will retry on first use
       throw AudioFailure('Failed to initialize: ${e.toString()}');
     }
   }
 
-  /// Sets playlist from file paths.
+  /// Sets playlist from file paths or URLs.
   ///
-  /// [filePaths] is a list of absolute file paths to audio files.
-  /// [metadata] is optional metadata (title, artist, album).
+  /// [filePaths] is a list of absolute file paths or HTTP(S) URLs to audio files.
+  /// Supports both local files and network streaming.
+  /// [metadata] is optional metadata (title, artist, album, artworkUri).
   ///
   /// Throws [AudioFailure] if setting playlist fails.
   Future<void> setPlaylist(
@@ -167,11 +174,38 @@ class NativeAudioPlayer {
         'metadata': metadata,
       });
 
-      await _logger.log(
-        level: 'info',
-        subsystem: 'audio',
-        message: 'Playlist set successfully',
-      );
+      // Get player state after setting playlist to log details
+      try {
+        final stateMap =
+            await _channel.invokeMethod<Map<dynamic, dynamic>>('getState');
+        if (stateMap != null) {
+          await _logger.log(
+            level: 'info',
+            subsystem: 'audio',
+            message: 'Playlist set successfully',
+            extra: {
+              'playbackState': stateMap['playbackState'],
+              'playWhenReady': stateMap['playWhenReady'],
+              'isPlaying': stateMap['isPlaying'],
+              'mediaItemCount': stateMap['mediaItemCount'],
+              'currentIndex': stateMap['currentIndex'],
+            },
+          );
+        } else {
+          await _logger.log(
+            level: 'info',
+            subsystem: 'audio',
+            message: 'Playlist set successfully',
+          );
+        }
+      } on Exception {
+        // If getState fails, just log success without details
+        await _logger.log(
+          level: 'info',
+          subsystem: 'audio',
+          message: 'Playlist set successfully',
+        );
+      }
     } on PlatformException catch (e) {
       await _logger.log(
         level: 'error',
@@ -196,10 +230,33 @@ class NativeAudioPlayer {
   /// Throws [AudioFailure] if playback fails.
   Future<void> play() async {
     try {
+      await _logger.log(
+        level: 'info',
+        subsystem: 'audio',
+        message: 'Invoking play() method on native side',
+      );
       await _channel.invokeMethod('play');
+      await _logger.log(
+        level: 'info',
+        subsystem: 'audio',
+        message: 'play() method invocation completed',
+      );
     } on PlatformException catch (e) {
+      await _logger.log(
+        level: 'error',
+        subsystem: 'audio',
+        message: 'Platform error calling play()',
+        cause: e.toString(),
+        extra: {'code': e.code, 'message': e.message},
+      );
       throw AudioFailure('Failed to play: ${e.message ?? e.code}');
     } on Exception catch (e) {
+      await _logger.log(
+        level: 'error',
+        subsystem: 'audio',
+        message: 'Exception calling play()',
+        cause: e.toString(),
+      );
       throw AudioFailure('Failed to play: ${e.toString()}');
     }
   }

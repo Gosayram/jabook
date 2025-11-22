@@ -21,13 +21,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:jabook/core/endpoints/endpoint_manager.dart';
 import 'package:jabook/core/net/dio_client.dart';
 import 'package:jabook/core/parse/rutracker_parser.dart';
-import 'package:jabook/core/player/audio_service_handler.dart';
+import 'package:jabook/core/player/player_state_provider.dart';
 import 'package:jabook/core/stream/local_stream_server.dart';
 import 'package:jabook/data/db/app_database.dart';
 import 'package:jabook/l10n/app_localizations.dart';
-import 'package:just_audio/just_audio.dart';
-import 'package:rxdart/rxdart.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 /// Main audiobook player screen.
 ///
@@ -48,148 +45,162 @@ class PlayerScreen extends ConsumerStatefulWidget {
 }
 
 class _PlayerScreenState extends ConsumerState<PlayerScreen> {
-  final AudioPlayer _audioPlayer = AudioPlayer();
   final LocalStreamServer _streamServer = LocalStreamServer();
-  final AudioServiceHandler _audioService = AudioServiceHandler();
 
   Audiobook? _audiobook;
-  Duration _currentPosition = Duration.zero;
-  Duration _totalDuration = Duration.zero;
-  bool _isPlaying = false;
-  bool _isLoading = true;
+  bool _isInitialized = false;
   bool _hasError = false;
-  StreamSubscription? _positionSubscription;
-  StreamSubscription? _playerStateSubscription;
-  int _currentChapterIndex = 0;
+  String? _errorMessage;
   // Local state for slider during dragging
   double? _sliderValue;
   bool _isDragging = false;
-  Timer? _positionSaveTimer;
 
   @override
   void initState() {
     super.initState();
-    _initializePlayer();
+    // Start stream server first (non-blocking)
     _startStreamServer();
+    // Initialize player asynchronously
+    _initializePlayer();
   }
 
   @override
   void dispose() {
-    _positionSubscription?.cancel();
-    _playerStateSubscription?.cancel();
-    _positionSaveTimer?.cancel();
-    _saveCurrentPosition();
-    _audioPlayer.dispose();
     _streamServer.stop();
     super.dispose();
   }
 
   Future<void> _initializePlayer() async {
     try {
-      await _audioService.startService();
-      await _loadAudiobookFromRutracker();
+      final playerNotifier = ref.read(playerStateProvider.notifier);
+      final currentState = ref.read(playerStateProvider);
 
-      // Set up audio player listeners
-      // Throttle position updates to avoid excessive rebuilds (update every 200ms)
-      _positionSubscription = _audioPlayer.positionStream
-          .throttleTime(const Duration(milliseconds: 200))
-          .listen((position) {
-        if (mounted) {
-          setState(() {
-            _currentPosition = position;
-          });
-          // Save position periodically
-          _saveCurrentPosition();
-        }
-      });
-
-      _playerStateSubscription = _audioPlayer.playerStateStream.listen((state) {
-        if (!mounted) return;
+      // Check if player is already initialized and playing the same book
+      // If yes, skip reinitialization to avoid interrupting playback
+      if (currentState.currentGroupPath == widget.bookId &&
+          currentState.playbackState != 0) {
+        // Player is already playing this book - just mark as initialized
         setState(() {
-          _isPlaying = state.playing;
-          _isLoading = state.processingState == ProcessingState.loading;
+          _isInitialized = true;
+          _hasError = false;
+          _errorMessage = null;
         });
+        // Load audiobook data for UI (non-blocking)
+        unawaited(_loadAudiobookFromRutracker());
+        return;
+      }
 
-        // Update current chapter index for playlist
-        if (state.processingState == ProcessingState.ready &&
-            _audiobook != null &&
-            _audiobook!.chapters.length > 1) {
-          final currentIndex = _audioPlayer.currentIndex ?? 0;
-          if (currentIndex != _currentChapterIndex && mounted) {
-            setState(() {
-              _currentChapterIndex = currentIndex;
-            });
-          }
-        }
+      // Mark as loading immediately to show UI
+      setState(() {
+        _isInitialized = false;
+        _hasError = false;
+        _errorMessage = null;
       });
 
-      // Set total duration
-      _audioPlayer.durationStream.listen((duration) async {
-        if (!mounted) return;
-        final wasZero = _totalDuration == Duration.zero;
-        setState(() {
-          _totalDuration = duration ?? Duration.zero;
-        });
-        // Restore position when duration becomes available for the first time
-        if (wasZero && duration != null && duration > Duration.zero) {
-          await _restorePosition();
-        }
-        // Update system metadata with actual duration when known
-        if (_audiobook != null && duration != null) {
-          Uri? art;
-          try {
-            // ignore: deprecated_member_use_from_same_package
-            final coverUrl = (_audiobook as dynamic).coverUrl as String?;
-            if (coverUrl != null && coverUrl.isNotEmpty) {
-              art = Uri.parse(coverUrl);
-            }
-          } on Exception catch (_) {}
-          await _audioService.setNowPlayingMetadata(
-            id: _audiobook!.id,
-            title: _audiobook!.title,
-            artist: _audiobook!.author,
-            artUri: art,
-            album: _audiobook!.category,
-            duration: duration,
-          );
-        }
-      });
+      // Initialize player service (only if not already initialized)
+      if (currentState.playbackState == 0) {
+        await playerNotifier.initialize();
+      }
 
-      // Load real audio source via local stream server
+      // Load audiobook from RuTracker and restore position in parallel
+      final results = await Future.wait([
+        _loadAudiobookFromRutracker(),
+        playerNotifier.restorePosition(widget.bookId),
+      ]);
+      final savedPosition = results[1] as Map<String, int>?;
+
+      // Ensure audiobook was loaded
+      if (_audiobook == null) {
+        throw Exception('Failed to load audiobook data');
+      }
+
+      // Ensure stream server is running before loading audio
+      if (!_streamServer.isRunning) {
+        await _streamServer.start();
+      }
+
+      // Load audio sources
       await _loadAudioSource();
 
-      // Position will be restored automatically when duration becomes available
-      // (see durationStream listener above)
+      // Update metadata immediately (non-blocking for UI)
+      _updateMetadata();
 
+      // Mark as initialized to show UI
       setState(() {
-        _isLoading = false;
+        _isInitialized = true;
         _hasError = false;
+        _errorMessage = null;
       });
 
-      // Update now-playing metadata for system notification/lockscreen
-      if (_audiobook != null) {
-        Uri? art;
-        // In real flow, use parsed coverUrl from RuTracker topic if available
-        try {
-          // ignore: deprecated_member_use_from_same_package
-          final coverUrl = (_audiobook as dynamic).coverUrl as String?;
-          if (coverUrl != null && coverUrl.isNotEmpty) {
-            art = Uri.parse(coverUrl);
-          }
-        } on Exception catch (_) {}
-        await _audioService.setNowPlayingMetadata(
-          id: _audiobook!.id,
-          title: _audiobook!.title,
-          artist: _audiobook!.author,
-          artUri: art,
-          album: _audiobook!.category,
+      // Restore position and start playback in background (non-blocking)
+      if (savedPosition != null && mounted) {
+        unawaited(_restorePositionAndPlay(savedPosition));
+      } else {
+        // If no saved position, start playback from beginning
+        unawaited(
+          Future.delayed(const Duration(milliseconds: 300), () {
+            if (mounted) {
+              playerNotifier.play();
+            }
+          }),
         );
       }
-    } on Exception catch (_) {
+    } on Exception catch (e) {
       setState(() {
-        _isLoading = false;
+        _isInitialized = true;
         _hasError = true;
+        _errorMessage = e.toString();
       });
+    }
+  }
+
+  /// Restores position and starts playback asynchronously (non-blocking).
+  Future<void> _restorePositionAndPlay(Map<String, int> savedPosition) async {
+    if (!mounted) return;
+
+    final playerNotifier = ref.read(playerStateProvider.notifier);
+    final trackIndex = savedPosition['trackIndex']!;
+    final positionMs = savedPosition['positionMs']!;
+
+    if (trackIndex >= 0 &&
+        trackIndex < (_audiobook?.chapters.length ?? 0) &&
+        positionMs > 0) {
+      // Wait for player to be ready (with timeout)
+      var attempts = 0;
+      while (attempts < 30 && mounted) {
+        final state = ref.read(playerStateProvider);
+        if (state.playbackState == 2) {
+          // 2 = ready
+          break;
+        }
+        await Future.delayed(const Duration(milliseconds: 100));
+        attempts++;
+      }
+
+      if (mounted) {
+        try {
+          await playerNotifier.seekToTrackAndPosition(
+            trackIndex,
+            Duration(milliseconds: positionMs),
+          );
+
+          // Start playback automatically
+          final currentState = ref.read(playerStateProvider);
+          if (!currentState.isPlaying) {
+            await playerNotifier.play();
+          }
+        } on Exception {
+          // If restore fails, start from beginning
+          if (mounted) {
+            unawaited(playerNotifier.play());
+          }
+        }
+      }
+    } else {
+      // Invalid saved position, start from beginning
+      if (mounted) {
+        unawaited(playerNotifier.play());
+      }
     }
   }
 
@@ -222,49 +233,65 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   Future<void> _loadAudioSource() async {
     if (_audiobook == null || _audiobook!.chapters.isEmpty) {
       // Fallback to demo audio if no chapters available
-      await _audioPlayer.setUrl(
-          'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3');
+      final playerNotifier = ref.read(playerStateProvider.notifier);
+      await playerNotifier.setPlaylist(
+        ['https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3'],
+        metadata: {
+          'title': 'Demo Audio',
+          'artist': 'SoundHelix',
+        },
+        groupPath: widget.bookId,
+      );
       return;
     }
 
     try {
-      // Start local stream server
-      await _streamServer.start();
-
-      // For now, use first chapter as single file
-      // TODO: Implement playlist for multi-file audiobooks
-      final firstChapter = _audiobook!.chapters.first;
-      final streamUrl =
-          _streamServer.getStreamUrl(widget.bookId, firstChapter.fileIndex);
-
-      await _audioPlayer.setUrl(streamUrl);
-
-      // Set up playlist if multiple chapters exist
-      if (_audiobook!.chapters.length > 1) {
-        await _setupPlaylist();
+      // Ensure stream server is running
+      if (!_streamServer.isRunning) {
+        await _streamServer.start();
       }
-    } on Exception catch (_) {
-      // Fallback to demo audio on error
-      await _audioPlayer.setUrl(
-          'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3');
-    }
-  }
 
-  Future<void> _setupPlaylist() async {
-    if (_audiobook == null || _audiobook!.chapters.length <= 1) return;
-
-    try {
-      // Create playlist from chapters
-      final audioSources = _audiobook!.chapters
-          .map((chapter) => AudioSource.uri(
-                Uri.parse(_streamServer.getStreamUrl(
-                    widget.bookId, chapter.fileIndex)),
-              ))
+      // Create URLs for all chapters
+      final streamUrls = _audiobook!.chapters
+          .map((chapter) =>
+              _streamServer.getStreamUrl(widget.bookId, chapter.fileIndex))
           .toList();
 
-      await _audioPlayer.setAudioSources(audioSources);
+      // Prepare metadata
+      Uri? art;
+      try {
+        // ignore: deprecated_member_use_from_same_package
+        final coverUrl = (_audiobook as dynamic).coverUrl as String?;
+        if (coverUrl != null && coverUrl.isNotEmpty) {
+          art = Uri.parse(coverUrl);
+        }
+      } on Exception catch (_) {}
+
+      final metadata = <String, String>{
+        'title': _audiobook!.title,
+        'artist': _audiobook!.author,
+        'album': _audiobook!.category,
+        if (art != null) 'artworkUri': art.toString(),
+      };
+
+      // Set playlist with all chapters
+      final playerNotifier = ref.read(playerStateProvider.notifier);
+      await playerNotifier.setPlaylist(
+        streamUrls,
+        metadata: metadata,
+        groupPath: widget.bookId,
+      );
     } on Exception catch (_) {
-      // Keep single file if playlist setup fails
+      // Fallback to demo audio on error
+      final playerNotifier = ref.read(playerStateProvider.notifier);
+      await playerNotifier.setPlaylist(
+        ['https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3'],
+        metadata: {
+          'title': 'Demo Audio',
+          'artist': 'SoundHelix',
+        },
+        groupPath: widget.bookId,
+      );
     }
   }
 
@@ -277,10 +304,12 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   }
 
   void _playPause() {
-    if (_isPlaying) {
-      _audioPlayer.pause();
+    final playerNotifier = ref.read(playerStateProvider.notifier);
+    final state = ref.read(playerStateProvider);
+    if (state.isPlaying) {
+      playerNotifier.pause();
     } else {
-      _audioPlayer.play();
+      playerNotifier.play();
     }
   }
 
@@ -301,10 +330,12 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 
   /// Called when user finishes dragging the slider.
   void _onSliderEnd(double value) {
-    final position = Duration(
-      milliseconds: (value * _totalDuration.inMilliseconds).round(),
-    );
-    _audioPlayer.seek(position);
+    final state = ref.read(playerStateProvider);
+    final positionMs =
+        (value * state.duration).round().clamp(0, state.duration);
+    final position = Duration(milliseconds: positionMs);
+
+    ref.read(playerStateProvider.notifier).seek(position);
 
     // Reset local state
     setState(() {
@@ -316,21 +347,24 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   void _seekToChapter(Chapter chapter) {
     if (_audiobook == null) return;
 
+    final playerNotifier = ref.read(playerStateProvider.notifier);
+
     // For playlist: seek to chapter index
     if (_audiobook!.chapters.length > 1) {
       final chapterIndex = _audiobook!.chapters.indexOf(chapter);
       if (chapterIndex >= 0) {
-        _audioPlayer.seek(Duration.zero, index: chapterIndex);
-        _currentChapterIndex = chapterIndex;
+        playerNotifier
+          ..seekToTrack(chapterIndex)
+          ..seek(Duration.zero);
       }
     } else {
       // For single file: seek to chapter start position
       final target = Duration(
           milliseconds: chapter.startByte > 0 ? 0 : (chapter.durationMs ~/ 2));
-      _audioPlayer.seek(target);
+      playerNotifier.seek(target);
     }
 
-    // Update now-playing metadata with chapter info
+    // Update metadata with chapter info
     Uri? art;
     try {
       // ignore: deprecated_member_use_from_same_package
@@ -340,29 +374,25 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       }
     } on Exception catch (_) {}
 
-    _audioService.setNowPlayingMetadata(
-      id: _audiobook!.id,
-      title: '${_audiobook!.title} — ${chapter.title}',
-      artist: _audiobook!.author,
-      artUri: art,
-      album: _audiobook!.category,
-      duration: Duration(milliseconds: chapter.durationMs),
-    );
+    playerNotifier.updateMetadata({
+      'title': '${_audiobook!.title} — ${chapter.title}',
+      'artist': _audiobook!.author,
+      'album': _audiobook!.category,
+      if (art != null) 'artworkUri': art.toString(),
+    });
   }
 
   void _prevChapter() {
-    if (_audiobook == null || _audiobook!.chapters.isEmpty) return;
-    if (_currentChapterIndex > 0) {
-      _currentChapterIndex--;
-      _seekToChapter(_audiobook!.chapters[_currentChapterIndex]);
+    final state = ref.read(playerStateProvider);
+    if (state.currentIndex > 0) {
+      ref.read(playerStateProvider.notifier).previous();
     }
   }
 
   void _nextChapter() {
-    if (_audiobook == null || _audiobook!.chapters.isEmpty) return;
-    if (_currentChapterIndex < _audiobook!.chapters.length - 1) {
-      _currentChapterIndex++;
-      _seekToChapter(_audiobook!.chapters[_currentChapterIndex]);
+    final state = ref.read(playerStateProvider);
+    if (state.currentIndex < (_audiobook?.chapters.length ?? 0) - 1) {
+      ref.read(playerStateProvider.notifier).next();
     }
   }
 
@@ -382,19 +412,33 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       );
 
   Widget _buildBody() {
-    if (_isLoading) {
+    final playerState = ref.watch(playerStateProvider);
+    final isLoading =
+        !_isInitialized || playerState.playbackState == 1; // 1 = buffering
+    final hasError = !isLoading && (_hasError || playerState.error != null);
+    final errorMessage = _errorMessage ?? playerState.error;
+
+    if (isLoading) {
       return const Center(
         child: CircularProgressIndicator(),
       );
     }
 
-    if (_hasError || _audiobook == null) {
+    if (hasError || _audiobook == null) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(AppLocalizations.of(context)?.failedToLoadAudio ??
                 'Failed to load audiobook'),
+            if (errorMessage != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                errorMessage,
+                style: Theme.of(context).textTheme.bodyMedium,
+                textAlign: TextAlign.center,
+              ),
+            ],
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: _initializePlayer,
@@ -503,24 +547,22 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(_formatDuration(_currentPosition)),
-                  Text(_formatDuration(_totalDuration)),
+                  Text(_formatDuration(
+                      Duration(milliseconds: playerState.currentPosition))),
+                  Text(_formatDuration(
+                      Duration(milliseconds: playerState.duration))),
                 ],
               ),
               const SizedBox(height: 8),
               Slider(
                 value: _isDragging && _sliderValue != null
                     ? _sliderValue!.clamp(0.0, 1.0)
-                    : (_totalDuration.inMilliseconds > 0
-                        ? _currentPosition.inMilliseconds /
-                            _totalDuration.inMilliseconds
+                    : (playerState.duration > 0
+                        ? playerState.currentPosition / playerState.duration
                         : 0.0),
-                onChanged:
-                    _totalDuration.inMilliseconds > 0 ? _onSliderChanged : null,
-                onChangeStart:
-                    _totalDuration.inMilliseconds > 0 ? _onSliderStart : null,
-                onChangeEnd:
-                    _totalDuration.inMilliseconds > 0 ? _onSliderEnd : null,
+                onChanged: playerState.duration > 0 ? _onSliderChanged : null,
+                onChangeStart: playerState.duration > 0 ? _onSliderStart : null,
+                onChangeEnd: playerState.duration > 0 ? _onSliderEnd : null,
               ),
             ],
           ),
@@ -539,7 +581,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
               ),
               const SizedBox(width: 32),
               IconButton(
-                icon: Icon(_isPlaying ? Icons.pause : Icons.play_arrow),
+                icon: Icon(
+                    playerState.isPlaying ? Icons.pause : Icons.play_arrow),
                 onPressed: _playPause,
                 iconSize: 64,
               ),
@@ -608,61 +651,26 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     );
   }
 
-  /// Saves current playback position to SharedPreferences.
-  Future<void> _saveCurrentPosition() async {
-    if (_audiobook == null || _currentPosition == Duration.zero) return;
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final positionKey = 'pos_${widget.bookId}';
-      final chapterKey = 'chapter_${widget.bookId}';
-      await prefs.setInt(positionKey, _currentPosition.inMilliseconds);
-      await prefs.setInt(chapterKey, _currentChapterIndex);
-    } on Exception {
-      // Ignore errors - position saving is not critical
-    }
-  }
-
-  /// Restores saved playback position from SharedPreferences and starts playback.
-  Future<void> _restorePosition() async {
+  /// Updates metadata for current track.
+  void _updateMetadata() {
     if (_audiobook == null) return;
+
+    Uri? art;
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final positionKey = 'pos_${widget.bookId}';
-      final chapterKey = 'chapter_${widget.bookId}';
-      final savedPositionMs = prefs.getInt(positionKey) ?? 0;
-      final savedChapterIndex = prefs.getInt(chapterKey) ?? 0;
-
-      if (savedPositionMs > 0 && savedChapterIndex >= 0) {
-        // Wait for player to be ready
-        var attempts = 0;
-        while (attempts < 20 && mounted) {
-          if (_totalDuration.inMilliseconds > 0 &&
-              _audioPlayer.processingState == ProcessingState.ready) {
-            break;
-          }
-          await Future.delayed(const Duration(milliseconds: 100));
-          attempts++;
-        }
-
-        if (mounted && _totalDuration.inMilliseconds > 0) {
-          // Restore chapter if multiple chapters exist
-          if (_audiobook!.chapters.length > 1 &&
-              savedChapterIndex < _audiobook!.chapters.length) {
-            _currentChapterIndex = savedChapterIndex;
-            await _audioPlayer.seek(Duration.zero, index: savedChapterIndex);
-          }
-
-          // Restore position within current chapter
-          final savedPosition = Duration(milliseconds: savedPositionMs);
-          if (savedPosition < _totalDuration) {
-            await _audioPlayer.seek(savedPosition);
-            // Automatically start playback from restored position
-            await _audioPlayer.play();
-          }
-        }
+      // ignore: deprecated_member_use_from_same_package
+      final coverUrl = (_audiobook as dynamic).coverUrl as String?;
+      if (coverUrl != null && coverUrl.isNotEmpty) {
+        art = Uri.parse(coverUrl);
       }
-    } on Exception {
-      // Ignore errors - position restoration is not critical
-    }
+    } on Exception catch (_) {}
+
+    final metadata = <String, String>{
+      'title': _audiobook!.title,
+      'artist': _audiobook!.author,
+      'album': _audiobook!.category,
+      if (art != null) 'artworkUri': art.toString(),
+    };
+
+    ref.read(playerStateProvider.notifier).updateMetadata(metadata);
   }
 }

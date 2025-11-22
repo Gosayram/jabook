@@ -66,7 +66,7 @@
 
     <application
         android:label="jabook"
-        android:name="${applicationName}"
+        android:name=".JabookApplication"
         android:icon="@mipmap/ic_launcher"
         android:usesCleartextTraffic="true"
         android:networkSecurityConfig="@xml/network_security_config">
@@ -96,16 +96,6 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-
-        <!-- Background audio playback service (legacy - will be removed) -->
-        <service
-            android:name="com.ryanheise.audioservice.AudioService"
-            android:exported="false"
-            android:foregroundServiceType="mediaPlayback">
-            <intent-filter>
-                <action android:name="android.media.browse.MediaBrowserService" />
-            </intent-filter>
-        </service>
 
         <!-- Native Media3 audio player service -->
         <service

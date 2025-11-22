@@ -66,8 +66,18 @@ class PermissionService {
       final androidInfo = await DeviceInfoPlugin().androidInfo;
       final sdkInt = androidInfo.version.sdkInt;
 
-      // Android 13+ (API 33+): Use audio permission for audio files
-      if (sdkInt >= 33) {
+      // Android 14+ (API 34+): Need MANAGE_EXTERNAL_STORAGE for scanning folders
+      // This is required for library scanner to work properly
+      if (sdkInt >= 34) {
+        final hasManageStorage = await _hasManageExternalStoragePermission();
+        if (hasManageStorage) return true;
+        // Fallback to audio permission (limited access)
+        final audioStatus = await Permission.audio.status;
+        return audioStatus.isGranted;
+      }
+
+      // Android 13 (API 33): Use audio permission for audio files
+      if (sdkInt == 33) {
         final audioStatus = await Permission.audio.status;
         if (audioStatus.isGranted) return true;
         // Fallback to photos permission for broader access
@@ -119,43 +129,45 @@ class PermissionService {
       final androidInfo = await DeviceInfoPlugin().androidInfo;
       final sdkInt = androidInfo.version.sdkInt;
 
-      // Android 13+ (API 33+): For default path /storage/emulated/0/JabookAudio,
-      // we still need MANAGE_EXTERNAL_STORAGE, not just audio permission.
-      // Audio permission is only for app-specific directories.
-      // So we check MANAGE_EXTERNAL_STORAGE first, then fallback to audio permission.
-      if (sdkInt >= 33) {
+      // Android 14+ (API 34+): Request MANAGE_EXTERNAL_STORAGE for scanning folders
+      // This is REQUIRED for library scanner to work properly on Android 14+
+      // Without it, folder scanning will be very slow or fail
+      if (sdkInt >= 34) {
         await _logger.log(
           level: 'info',
           subsystem: 'permissions',
           message:
-              'Android 13+ detected, checking MANAGE_EXTERNAL_STORAGE for default path',
+              'Android 14+ detected, requesting MANAGE_EXTERNAL_STORAGE for folder scanning',
           extra: {'sdk_int': sdkInt},
         );
+
         // Check if MANAGE_EXTERNAL_STORAGE is already granted
         final hasManageStorage = await _hasManageExternalStoragePermission();
         await _logger.log(
           level: 'info',
           subsystem: 'permissions',
           message:
-              'MANAGE_EXTERNAL_STORAGE permission check result (Android 13+)',
+              'MANAGE_EXTERNAL_STORAGE permission check result (Android 14+)',
           extra: {'has_permission': hasManageStorage},
         );
+
         if (hasManageStorage) {
           await _logger.log(
             level: 'info',
             subsystem: 'permissions',
             message:
-                'MANAGE_EXTERNAL_STORAGE permission already granted (Android 13+)',
+                'MANAGE_EXTERNAL_STORAGE permission already granted (Android 14+)',
           );
           return true;
         }
 
         // Open system settings for MANAGE_EXTERNAL_STORAGE
+        // This is required because permission_handler doesn't properly handle this permission
         await _logger.log(
           level: 'info',
           subsystem: 'permissions',
           message:
-              'Opening system settings for MANAGE_EXTERNAL_STORAGE (Android 13+)',
+              'Opening system settings for MANAGE_EXTERNAL_STORAGE (Android 14+)',
         );
         try {
           await _permissionChannel
@@ -175,32 +187,101 @@ class PermissionService {
               level: 'info',
               subsystem: 'permissions',
               message:
-                  'MANAGE_EXTERNAL_STORAGE permission granted after opening settings (Android 13+)',
+                  'MANAGE_EXTERNAL_STORAGE permission granted after opening settings (Android 14+)',
             );
             return true;
           }
           // Return false - user needs to grant permission in settings
+          await _logger.log(
+            level: 'warning',
+            subsystem: 'permissions',
+            message:
+                'MANAGE_EXTERNAL_STORAGE not granted. Folder scanning will be slow or fail.',
+          );
           return false;
         } on PlatformException catch (e) {
           await _logger.log(
             level: 'error',
             subsystem: 'permissions',
             message:
-                'Failed to open system settings for MANAGE_EXTERNAL_STORAGE (Android 13+)',
+                'Failed to open system settings for MANAGE_EXTERNAL_STORAGE (Android 14+)',
             cause: e.toString(),
           );
-          // Fallback to audio permission (for app-specific directories only)
+          // Fallback to audio permission (limited access, won't work for folder scanning)
           final audioStatus = await Permission.audio.request();
           if (audioStatus.isGranted) {
             await _logger.log(
               level: 'warning',
               subsystem: 'permissions',
               message:
-                  'Audio permission granted (Android 13+), but MANAGE_EXTERNAL_STORAGE is still required for default path',
+                  'Audio permission granted (Android 14+), but MANAGE_EXTERNAL_STORAGE is required for folder scanning',
             );
           }
           return false; // Return false because MANAGE_EXTERNAL_STORAGE is required
         }
+      }
+
+      // Android 13 (API 33): Request READ_MEDIA_AUDIO for reading audio files
+      if (sdkInt == 33) {
+        await _logger.log(
+          level: 'info',
+          subsystem: 'permissions',
+          message:
+              'Android 13 detected, requesting READ_MEDIA_AUDIO permission',
+          extra: {'sdk_int': sdkInt},
+        );
+
+        // Request READ_MEDIA_AUDIO (this is what we need for reading audio files on Android 13)
+        final audioStatus = await Permission.audio.request();
+        await _logger.log(
+          level: 'info',
+          subsystem: 'permissions',
+          message:
+              'READ_MEDIA_AUDIO permission result (Android 13): ${audioStatus.name}',
+        );
+
+        if (audioStatus.isGranted) {
+          await _logger.log(
+            level: 'info',
+            subsystem: 'permissions',
+            message: 'READ_MEDIA_AUDIO permission granted (Android 13)',
+          );
+          return true;
+        }
+
+        // If audio permission is permanently denied, try photos permission as fallback
+        if (audioStatus.isPermanentlyDenied) {
+          await _logger.log(
+            level: 'info',
+            subsystem: 'permissions',
+            message:
+                'READ_MEDIA_AUDIO permanently denied, trying photos permission as fallback',
+          );
+          final photosStatus = await Permission.photos.request();
+          await _logger.log(
+            level: 'info',
+            subsystem: 'permissions',
+            message:
+                'Photos permission result (fallback): ${photosStatus.name}',
+          );
+          if (photosStatus.isGranted) {
+            await _logger.log(
+              level: 'info',
+              subsystem: 'permissions',
+              message: 'Photos permission granted (Android 13, fallback)',
+            );
+            return true;
+          }
+        }
+
+        // If both audio and photos permissions are not granted, return false
+        await _logger.log(
+          level: 'warning',
+          subsystem: 'permissions',
+          message:
+              'Neither READ_MEDIA_AUDIO nor photos permission granted (Android 13)',
+        );
+        return false;
       }
 
       // Android 12 (API 32): Request storage permission (still required)
@@ -477,7 +558,23 @@ class PermissionService {
         final androidInfo = await DeviceInfoPlugin().androidInfo;
         final sdkInt = androidInfo.version.sdkInt;
 
-        if (sdkInt >= 33) {
+        if (sdkInt >= 34) {
+          // Android 14+: Check MANAGE_EXTERNAL_STORAGE
+          final hasManageStorage = await _hasManageExternalStoragePermission();
+          final audioStatus = await Permission.audio.status;
+          status['storage'] = {
+            'granted': hasManageStorage || audioStatus.isGranted,
+            'manageExternalStorage': {
+              'granted': hasManageStorage,
+            },
+            'audio': {
+              'granted': audioStatus.isGranted,
+              'denied': audioStatus.isDenied,
+              'permanentlyDenied': audioStatus.isPermanentlyDenied,
+            },
+          };
+        } else if (sdkInt == 33) {
+          // Android 13: Check audio/photos permissions
           final audioStatus = await Permission.audio.status;
           final photosStatus = await Permission.photos.status;
           status['storage'] = {
@@ -710,10 +807,21 @@ class PermissionService {
         message: 'Requesting essential permissions',
       );
 
-      // Request storage permission (only if needed - not for login)
+      // Request storage permission (critical for reading audio files)
       // Skip if Activity is not available
       try {
+        await _logger.log(
+          level: 'info',
+          subsystem: 'permissions',
+          message: 'Requesting storage permission (step 1/4)',
+        );
         results['storage'] = await requestStoragePermission();
+        await _logger.log(
+          level: 'info',
+          subsystem: 'permissions',
+          message: 'Storage permission request completed',
+          extra: {'granted': results['storage']},
+        );
       } on Exception catch (e) {
         final errorStr = e.toString();
         if (errorStr.contains('Unable to detect current Android Activity')) {
@@ -725,13 +833,30 @@ class PermissionService {
           );
           results['storage'] = false;
         } else {
-          rethrow;
+          await _logger.log(
+            level: 'error',
+            subsystem: 'permissions',
+            message: 'Error requesting storage permission',
+            cause: e.toString(),
+          );
+          results['storage'] = false;
         }
       }
 
-      // Request notification permission
+      // Request notification permission (for playback controls)
       try {
+        await _logger.log(
+          level: 'info',
+          subsystem: 'permissions',
+          message: 'Requesting notification permission (step 2/4)',
+        );
         results['notification'] = await requestNotificationPermission();
+        await _logger.log(
+          level: 'info',
+          subsystem: 'permissions',
+          message: 'Notification permission request completed',
+          extra: {'granted': results['notification']},
+        );
       } on Exception catch (e) {
         final errorStr = e.toString();
         if (errorStr.contains('Unable to detect current Android Activity')) {
@@ -743,7 +868,13 @@ class PermissionService {
           );
           results['notification'] = false;
         } else {
-          rethrow;
+          await _logger.log(
+            level: 'error',
+            subsystem: 'permissions',
+            message: 'Error requesting notification permission',
+            cause: e.toString(),
+          );
+          results['notification'] = false;
         }
       }
 

@@ -261,6 +261,12 @@ class PlayerStateNotifier extends StateNotifier<PlayerStateModel> {
   Future<void> stop() async {
     try {
       await _service.stop();
+      // Update state immediately to hide mini player
+      // State stream will update playbackState to IDLE (0) shortly
+      state = state.copyWith(
+        isPlaying: false,
+        playbackState: 0, // IDLE state to hide mini player
+      );
     } on AudioFailure catch (e) {
       state = state.copyWith(error: e.message);
       rethrow;

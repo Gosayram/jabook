@@ -5,6 +5,8 @@ plugins {
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+    id("com.google.dagger.hilt.android")
+    id("kotlin-kapt")
 }
 
 android {
@@ -65,6 +67,10 @@ flutter {
 dependencies {
     // Desugaring for flutter_local_notifications
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+    
+    // Dagger Hilt - Dependency Injection (version 2.57.2, same as lissen-android)
+    implementation("com.google.dagger:hilt-android:2.57.2")
+    kapt("com.google.dagger:hilt-android-compiler:2.57.2")
     
     // Media3 - Native audio player (using 1.8.0 version, same as lissen-android)
     implementation("androidx.media3:media3-exoplayer:1.8.0")

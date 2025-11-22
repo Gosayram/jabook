@@ -88,6 +88,11 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
   DateTime? _appStartTime;
   bool _isInitialized = false;
 
+  // Player initialization tracking
+  bool _playerInitializationAttempted = false;
+  int _playerInitRetryCount = 0;
+  static const int _maxPlayerInitRetries = 3;
+
   @override
   void initState() {
     super.initState();
@@ -318,6 +323,8 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
       // Initialize default storage path
       // Initialize background service for downloads
       // Initialize notification service
+      // NOTE: _initializePlayerService() removed from Future.wait() to prevent blocking startup
+      // Player will be initialized after UI render via addPostFrameCallback
       // Run these in parallel to speed up startup
       final envInitStart = DateTime.now();
       await Future.wait([
@@ -326,6 +333,7 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
         _initializeBackgroundService(),
         _initializeNotificationService(),
         _setupNotificationChannel(),
+        // _initializePlayerService() - REMOVED: will be initialized after UI render
       ]);
 
       // Request permissions separately after a delay to ensure Activity is ready
@@ -455,6 +463,10 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
     // AuthRepository will be initialized in build method when context is available
 
     // Initialize EndpointManager with default endpoints and health checks
+    // Add small delay to ensure database is fully ready for writes
+    // This prevents "read only" errors during health checks
+    await Future.delayed(const Duration(milliseconds: 100));
+
     final endpointStartTime = DateTime.now();
     final endpointManager = EndpointManager(db);
     await endpointManager
@@ -629,6 +641,10 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
       final hasAllPermissions =
           await permissionService.hasAllEssentialPermissions();
 
+      logger.i(
+        'Essential permissions check result: ${hasAllPermissions ? "all granted" : "some missing"}',
+      );
+
       if (!hasAllPermissions) {
         logger.i('Some permissions are missing, requesting...');
 
@@ -797,6 +813,89 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
       logger.w('Failed to initialize notification service: $e');
       // Continue without notification service - downloads will still work
       // but notifications won't be shown
+    }
+  }
+
+  /// Initializes the audio player service to pre-warm it for faster playback start.
+  ///
+  /// This initializes the native AudioPlayerService in the background,
+  /// so it's ready when the user wants to play audio, reducing startup delay.
+  /// Initializes the player service with automatic retry on failure.
+  ///
+  /// Uses exponential backoff for retry attempts (1s, 2s, 4s).
+  /// If all attempts fail, the player will be initialized on first use.
+  ///
+  /// This method is called after UI render to ensure Activity is fully ready.
+  Future<void> _initializePlayerServiceWithRetry() async {
+    // Prevent multiple attempts
+    if (_playerInitializationAttempted) {
+      return;
+    }
+    _playerInitializationAttempted = true;
+
+    while (_playerInitRetryCount < _maxPlayerInitRetries) {
+      try {
+        // Exponential backoff: 1s, 2s, 4s
+        if (_playerInitRetryCount > 0) {
+          final delayMs = 1000 * (1 << (_playerInitRetryCount - 1));
+          logger.i(
+            'Retrying player initialization (attempt ${_playerInitRetryCount + 1}/$_maxPlayerInitRetries) after ${delayMs}ms delay',
+          );
+          await Future.delayed(Duration(milliseconds: delayMs));
+        }
+
+        logger.i(
+          'Pre-initializing audio player service (attempt ${_playerInitRetryCount + 1}/$_maxPlayerInitRetries)...',
+        );
+        final playerInitStart = DateTime.now();
+
+        final playerService = ref.read(media3PlayerServiceProvider);
+
+        // Timeout for initialization (5 seconds)
+        await playerService.initialize().timeout(
+          const Duration(seconds: 5),
+          onTimeout: () {
+            logger.w('Player service initialization timed out after 5 seconds');
+            throw TimeoutException('Player initialization timeout');
+          },
+        );
+
+        final playerInitDuration =
+            DateTime.now().difference(playerInitStart).inMilliseconds;
+
+        logger.i(
+          'Audio player service pre-initialized successfully (${playerInitDuration}ms) on attempt ${_playerInitRetryCount + 1}',
+        );
+
+        // Successfully initialized - exit
+        return;
+      } on TimeoutException catch (e) {
+        _playerInitRetryCount++;
+        logger.w(
+          'Player service initialization timed out (attempt $_playerInitRetryCount/$_maxPlayerInitRetries): $e',
+        );
+
+        if (_playerInitRetryCount >= _maxPlayerInitRetries) {
+          logger.w(
+            'Player service initialization failed after $_maxPlayerInitRetries attempts. Will initialize on first use.',
+          );
+          return;
+        }
+        // Continue loop for retry
+      } on Exception catch (e) {
+        _playerInitRetryCount++;
+        logger.w(
+          'Failed to pre-initialize audio player service (attempt $_playerInitRetryCount/$_maxPlayerInitRetries): $e',
+        );
+
+        if (_playerInitRetryCount >= _maxPlayerInitRetries) {
+          logger.w(
+            'Player service initialization failed after $_maxPlayerInitRetries attempts. Will initialize on first use.',
+          );
+          return;
+        }
+        // Continue loop for retry
+      }
     }
   }
 
@@ -988,9 +1087,11 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
                 builder: (context, child) {
                   // Set router for notification service
                   DownloadNotificationService().setRouter(router);
-                  // Track first frame render time
+                  // Track first frame render time and initialize player after UI render
                   final appStartTime = _appStartTime;
-                  if (!_firstFrameTracked && appStartTime != null) {
+                  if (!_firstFrameTracked &&
+                      appStartTime != null &&
+                      _isInitialized) {
                     WidgetsBinding.instance.addPostFrameCallback((_) {
                       if (!_firstFrameTracked) {
                         _firstFrameTracked = true;
@@ -1013,6 +1114,17 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
                         );
                         logger.i(
                             'First UI frame rendered in ${timeToFirstFrame}ms');
+
+                        // Initialize player service after UI render (non-blocking)
+                        // This ensures Activity is fully ready for MediaSessionService
+                        safeUnawaited(
+                          _initializePlayerServiceWithRetry(),
+                          onError: (e, stack) {
+                            logger.w(
+                              'Failed to initialize player service after UI render: $e',
+                            );
+                          },
+                        );
                       }
                     });
                   }
