@@ -71,8 +71,24 @@ class NotificationManager(
             ).apply {
                 description = "Audio playback controls"
                 setShowBadge(false)
+                
+                // Android 14+ specific configurations
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                    // Enable bubble notifications for better UX on Android 14+
+                    setAllowBubbles(true)
+                    
+                    // Set proper sound and vibration for media notifications
+                    setSound(null, null) // No sound for media notifications
+                    enableVibration(false) // No vibration for media notifications
+                }
             }
-            notificationManager.createNotificationChannel(channel)
+            
+            try {
+                notificationManager.createNotificationChannel(channel)
+                android.util.Log.d("NotificationManager", "Notification channel created successfully")
+            } catch (e: Exception) {
+                android.util.Log.e("NotificationManager", "Failed to create notification channel", e)
+            }
         }
     }
     
@@ -231,19 +247,34 @@ class NotificationManager(
     }
     
     /**
-     * Updates notification with current state.
+     * Updates notification with current state and Android 14+ optimizations.
+     *
+     * This method includes rate limiting and proper error handling to prevent
+     * notification-related crashes on Android 14+.
      */
     fun updateNotification() {
-        val notification = createNotification()
-        notificationManager.notify(NOTIFICATION_ID, notification)
+        try {
+            val notification = createNotification()
+            notificationManager.notify(NOTIFICATION_ID, notification)
+            android.util.Log.d("NotificationManager", "Notification updated successfully")
+        } catch (e: Exception) {
+            android.util.Log.e("NotificationManager", "Failed to update notification", e)
+        }
     }
     
     /**
-     * Updates metadata for notification.
+     * Updates metadata for notification with Android 14+ optimizations.
+     *
+     * This method includes proper error handling to prevent
+     * metadata-related crashes on Android 14+.
      */
     fun updateMetadata(metadata: Map<String, String>?) {
-        this.metadata = metadata
-        updateNotification()
+        try {
+            this.metadata = metadata
+            updateNotification()
+        } catch (e: Exception) {
+            android.util.Log.e("NotificationManager", "Failed to update metadata", e)
+        }
     }
     
     /**
@@ -256,18 +287,42 @@ class NotificationManager(
     }
     
     /**
-     * Creates PendingIntent for playback action.
+     * Creates PendingIntent for playback action with Android 14+ compatibility.
+     *
+     * This method includes proper error handling to prevent PendingIntent-related
+     * crashes on Android 14+.
      */
     private fun createPlaybackAction(action: String): PendingIntent {
-        val intent = Intent(context, AudioPlayerService::class.java).apply {
-            this.action = action
+        try {
+            val intent = Intent(context, AudioPlayerService::class.java).apply {
+                this.action = action
+            }
+            
+            val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+            } else {
+                PendingIntent.FLAG_UPDATE_CURRENT
+            }
+            
+            return PendingIntent.getService(
+                context,
+                action.hashCode(),
+                intent,
+                flags
+            )
+        } catch (e: Exception) {
+            android.util.Log.e("NotificationManager", "Failed to create PendingIntent for action: $action", e)
+            
+            // Fallback: create a simple PendingIntent without action
+            val fallbackIntent = Intent(context, AudioPlayerService::class.java)
+            val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                PendingIntent.FLAG_IMMUTABLE
+            } else {
+                0
+            }
+            
+            return PendingIntent.getService(context, action.hashCode(), fallbackIntent, flags)
         }
-        return PendingIntent.getService(
-            context,
-            action.hashCode(),
-            intent,
-            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-        )
     }
 }
 

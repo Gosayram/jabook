@@ -92,6 +92,12 @@ class AudioPlayerService : MediaSessionService() {
         android.util.Log.d("AudioPlayerService", "onCreate started")
         
         try {
+            // Validate Android 14+ requirements before initialization
+            if (!ErrorHandler.validateAndroid14Requirements(this)) {
+                android.util.Log.e("AudioPlayerService", "Android 14+ requirements validation failed")
+                throw IllegalStateException("Android 14+ requirements not met")
+            }
+            
             // Inspired by lissen-android: minimize synchronous operations in onCreate()
             // Hilt dependencies (ExoPlayer and Cache) are injected automatically
             // They are created lazily on first access, not in onCreate()
@@ -158,11 +164,7 @@ class AudioPlayerService : MediaSessionService() {
                 "Service onCreate completed successfully (${totalDuration}ms total), fully initialized: $_isFullyInitialized"
             )
         } catch (e: Exception) {
-            android.util.Log.e(
-                "AudioPlayerService",
-                "Error during onCreate: ${e.message}",
-                e
-            )
+            ErrorHandler.handleGeneralError("AudioPlayerService", e, "Service initialization failed")
             _isFullyInitialized = false
             throw e
         }
@@ -557,9 +559,9 @@ class AudioPlayerService : MediaSessionService() {
                 }
             }
         } catch (e: Exception) {
-            android.util.Log.e("AudioPlayerService", "Error in play() method", e)
+            ErrorHandler.handleGeneralError("AudioPlayerService", e, "Play method execution")
             // Don't rethrow - log and return gracefully
-            // This prevents crashes on Android 16
+            // This prevents crashes on Android 14+
         }
     }
     
@@ -577,7 +579,7 @@ class AudioPlayerService : MediaSessionService() {
             // Inspired by lissen-android: use playWhenReady instead of pause()
             player.playWhenReady = false
         } catch (e: Exception) {
-            android.util.Log.e("AudioPlayerService", "Error in pause() method", e)
+            ErrorHandler.handleGeneralError("AudioPlayerService", e, "Pause method execution")
             // Don't rethrow - log and return gracefully to prevent crashes
         }
     }
@@ -597,7 +599,7 @@ class AudioPlayerService : MediaSessionService() {
             // Reset pending play flag when stopping
             pendingPlay = false
         } catch (e: Exception) {
-            android.util.Log.e("AudioPlayerService", "Error in stop() method", e)
+            ErrorHandler.handleGeneralError("AudioPlayerService", e, "Stop method execution")
             // Reset flag even on error
             pendingPlay = false
             // Don't rethrow - log and return gracefully to prevent crashes
@@ -1083,12 +1085,9 @@ class AudioPlayerService : MediaSessionService() {
          * @param error The playback error that occurred
          */
         private fun handlePlayerError(error: androidx.media3.common.PlaybackException) {
+            ErrorHandler.handlePlaybackError("AudioPlayerService", error, "Player error during playback")
+            
             val errorCode = error.errorCode
-            val errorMessage = error.message ?: "Unknown error"
-            
-            // Log detailed error information for debugging
-            android.util.Log.e("AudioPlayerService", "Player error occurred: code=$errorCode, message=$errorMessage", error)
-            
             val userFriendlyMessage = when (errorCode) {
                 androidx.media3.common.PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED -> {
                     // Network errors - try to retry automatically
@@ -1145,6 +1144,7 @@ class AudioPlayerService : MediaSessionService() {
                     "Audio error: Failed to write audio data. Please try again."
                 }
                 else -> {
+                    val errorMessage = error.message ?: "Unknown error"
                     "Playback error: $errorMessage (code: $errorCode)"
                 }
             }

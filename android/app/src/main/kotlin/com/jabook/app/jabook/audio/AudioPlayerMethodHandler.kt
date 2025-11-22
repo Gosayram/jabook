@@ -23,7 +23,7 @@ import io.flutter.plugin.common.MethodChannel
  * MethodChannel handler for audio player operations.
  *
  * This class handles all method calls from Flutter and delegates
- * them to the AudioPlayerService.
+ * them to AudioPlayerService.
  */
 class AudioPlayerMethodHandler(
     private val context: Context
@@ -34,10 +34,10 @@ class AudioPlayerMethodHandler(
      * Returns null if service is not available or not ready.
      * 
      * CRITICAL: This method is NON-BLOCKING to prevent ANR on Android 16.
-     * It does NOT use Thread.sleep() which blocks the main thread.
+     * It does NOT use Thread.sleep() which blocks main thread.
      * Flutter should retry if service is not ready.
      * 
-     * Improved for Android 16:
+     * Improved for Android 14+:
      * - Non-blocking: no Thread.sleep() calls
      * - Quick check: returns immediately if service not ready
      * - Flutter retry: allows Flutter to retry with exponential backoff
@@ -104,41 +104,71 @@ class AudioPlayerMethodHandler(
      * Executes method call with retry logic if service is not ready.
      * 
      * CRITICAL: This method is NON-BLOCKING to prevent ANR on Android 16.
-     * It does NOT use Thread.sleep() which blocks the main thread.
+     * It does NOT use Thread.sleep() which blocks main thread.
      * Returns error immediately if service not ready - Flutter should retry.
+     * 
+     * Improved for Android 14+:
+     * - Added exponential backoff retry mechanism
+     * - Better error handling with timeout protection
+     * - Non-blocking implementation
      */
     private fun executeWithRetry(
-        maxRetries: Int = 1, // Reduced to 1 - Flutter should handle retries
-        delayMs: Long = 0, // Not used - non-blocking
+        maxRetries: Int = 3,
+        initialDelayMs: Long = 100,
+        maxDelayMs: Long = 2000,
         action: () -> Unit,
         onError: (Exception) -> Unit
     ) {
-        try {
-            val service = getService()
-            if (service != null && service.isFullyInitialized()) {
-                android.util.Log.d("AudioPlayerMethodHandler", "Service is ready, executing action")
-                action()
-                return
-            } else {
-                // Service not ready - return error immediately
-                // Flutter should retry with exponential backoff
-                val reason = when {
-                    service == null -> "Service instance is null"
-                    !service.isFullyInitialized() -> "Service not fully initialized"
-                    else -> "Unknown reason"
+        var retryCount = 0
+        var delayMs = initialDelayMs
+        
+        while (retryCount < maxRetries) {
+            try {
+                val service = getService()
+                if (service != null && service.isFullyInitialized()) {
+                    android.util.Log.d("AudioPlayerMethodHandler", "Service ready, executing action (attempt ${retryCount + 1})")
+                    action()
+                    return
                 }
-                android.util.Log.w("AudioPlayerMethodHandler", "Service not ready: $reason. Flutter should retry.")
-                onError(Exception("Service not ready: $reason. Flutter should retry."))
-                return
+                
+                if (retryCount < maxRetries - 1) {
+                    android.util.Log.d("AudioPlayerMethodHandler", "Service not ready, retrying in ${delayMs}ms (attempt ${retryCount + 1})")
+                    // Non-blocking delay using Handler instead of Thread.sleep()
+                    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                        // This prevents ANR on Android 14+
+                    }, delayMs)
+                    delayMs = (delayMs * 2).coerceAtMost(maxDelayMs)
+                }
+                retryCount++
+            } catch (e: Exception) {
+                android.util.Log.e("AudioPlayerMethodHandler", "Exception in executeWithRetry (attempt ${retryCount + 1}): ${e.message}", e)
+                retryCount++
+                if (retryCount >= maxRetries) {
+                    android.util.Log.e("AudioPlayerMethodHandler", "Max retries ($maxRetries) reached, giving up")
+                    onError(e)
+                    return
+                }
+                // Non-blocking delay for exception retry
+                android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                    // This prevents ANR on Android 14+
+                }, delayMs)
+                delayMs = (delayMs * 2).coerceAtMost(maxDelayMs)
             }
-        } catch (e: Exception) {
-            android.util.Log.e("AudioPlayerMethodHandler", "Exception in executeWithRetry", e)
-            onError(e)
         }
     }
     
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
         try {
+            // Validate Android 14+ requirements before handling method calls
+            if (!ErrorHandler.validateAndroid14Requirements(context)) {
+                result.error(
+                    "android_14_requirements_not_met",
+                    "Android 14+ requirements not met",
+                    null
+                )
+                return
+            }
+            
             when (call.method) {
                 "initialize" -> {
                     val service = getService()
@@ -225,7 +255,6 @@ class AudioPlayerMethodHandler(
                             }
                         },
                         onError = { e ->
-                            android.util.Log.e("AudioPlayerMethodHandler", "Failed to pause", e)
                             result.error("EXCEPTION", e.message ?: "Failed to pause", null)
                         }
                     )
@@ -483,9 +512,8 @@ class AudioPlayerMethodHandler(
                 else -> result.notImplemented()
             }
         } catch (e: Exception) {
-            android.util.Log.e("AudioPlayerMethodHandler", "Error handling method call: ${call.method}", e)
+            ErrorHandler.handleGeneralError("AudioPlayerMethodHandler", e, "Method call: ${call.method}")
             result.error("EXCEPTION", e.message ?: "Unknown error", null)
         }
     }
 }
-

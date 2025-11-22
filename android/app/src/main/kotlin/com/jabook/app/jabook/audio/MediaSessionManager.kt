@@ -119,14 +119,15 @@ class MediaSessionManager(
      * No custom BitmapLoader is needed - Media3 handles artwork automatically.
      */
     private fun initializeMediaSession() {
-        val sessionActivityPendingIntent = PendingIntent.getActivity(
-            context,
-            0,
-            Intent(context, MainActivity::class.java),
-            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-        )
-        
-        mediaSession = MediaSession.Builder(context, player)
+        try {
+            val sessionActivityPendingIntent = PendingIntent.getActivity(
+                context,
+                0,
+                Intent(context, MainActivity::class.java),
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+            )
+            
+            mediaSession = MediaSession.Builder(context, player)
             .setCallback(object : MediaSession.Callback {
                 override fun onMediaButtonEvent(
                     session: MediaSession,
@@ -217,6 +218,12 @@ class MediaSessionManager(
             })
             .setSessionActivity(sessionActivityPendingIntent)
             .build()
+            
+            android.util.Log.d("MediaSessionManager", "MediaSession initialized successfully")
+        } catch (e: Exception) {
+            android.util.Log.e("MediaSessionManager", "Failed to initialize MediaSession", e)
+            throw e
+        }
     }
     
     /**
@@ -263,7 +270,12 @@ class MediaSessionManager(
      * Releases MediaSession resources.
      */
     fun release() {
-        mediaSession?.release()
-        mediaSession = null
+        try {
+            mediaSession?.release()
+            mediaSession = null
+            android.util.Log.d("MediaSessionManager", "MediaSession released successfully")
+        } catch (e: Exception) {
+            android.util.Log.e("MediaSessionManager", "Failed to release MediaSession", e)
+        }
     }
 }

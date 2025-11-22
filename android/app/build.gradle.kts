@@ -34,6 +34,13 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        
+        // Android 14+ specific configurations
+        // Ensure proper foreground service type for media playback
+        manifestPlaceholders["foregroundServiceType"] = "mediaPlayback"
+        
+        // Enable explicit intent handling for Android 14+
+        manifestPlaceholders["enableExplicitIntentHandling"] = "true"
     }
 
     signingConfigs {
@@ -81,6 +88,17 @@ dependencies {
     implementation("androidx.media3:media3-database:1.8.0")
     // Media3 datasource for network streaming (OkHttp support)
     implementation("androidx.media3:media3-datasource-okhttp:1.8.0")
+    
+    // Android 14+ specific dependencies
+    // Add support for Android 14+ foreground service types
+    implementation("androidx.work:work-runtime:2.9.0")
+    
+    // Add coroutines support for proper async handling
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
+    
+    // Note: Media3 1.8.0 is the current stable version with full Android 14+ support
+    // Previous alpha/beta versions (1.3.0, 1.4.0) had compatibility issues
+    // Version 1.8.0 includes all Android 14+ fixes and is production-ready
     
     // Media library for MediaStyle notification (required for MediaStyle class)
     // MediaStyle is part of androidx.media, not androidx.core
