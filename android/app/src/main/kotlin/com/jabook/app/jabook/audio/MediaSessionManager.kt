@@ -14,11 +14,25 @@
 
 package com.jabook.app.jabook.audio
 
+import android.app.PendingIntent
 import android.content.Context
+import android.content.Intent
+import android.os.Build
+import android.os.Bundle
+import android.view.KeyEvent
+import android.view.KeyEvent.KEYCODE_MEDIA_NEXT
+import android.view.KeyEvent.KEYCODE_MEDIA_PREVIOUS
+import androidx.annotation.OptIn
+import androidx.media3.common.C
 import androidx.media3.common.Player
-import androidx.media3.session.MediaSession
-import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.session.CommandButton
+import androidx.media3.session.MediaSession
+import androidx.media3.session.SessionCommand
+import androidx.media3.session.SessionResult
+import androidx.media3.exoplayer.ExoPlayer
+import com.google.common.util.concurrent.ListenableFuture
+import com.jabook.app.jabook.MainActivity
 
 /**
  * Manages MediaSession for system integration.
@@ -34,30 +48,68 @@ import androidx.media3.common.util.UnstableApi
  * - Seek operations
  * - Playback speed changes
  * 
+ * Custom commands (rewind/forward) are added for better control.
+ * 
  * The Player's AudioAttributes configuration (with handleAudioFocus=true)
  * automatically handles audio focus management:
  * - Ducking when other apps need temporary focus (navigation, notifications)
  * - Pausing when audio focus is lost (incoming calls)
  * - Resuming when audio focus is regained
  * - Auto-pause on AUDIO_BECOMING_NOISY (headphones unplugged)
+ * 
+ * Inspired by lissen-android implementation for custom commands.
  */
-@UnstableApi
+@OptIn(UnstableApi::class)
 class MediaSessionManager(
     private val context: Context,
     private val player: ExoPlayer
 ) {
     private var mediaSession: MediaSession? = null
+    private var rewindCallback: (() -> Unit)? = null
+    private var forwardCallback: (() -> Unit)? = null
+    
+    companion object {
+        private const val REWIND_COMMAND = "com.jabook.app.jabook.audio.REWIND"
+        private const val FORWARD_COMMAND = "com.jabook.app.jabook.audio.FORWARD"
+        private const val REWIND_SECONDS = 15L
+        private const val FORWARD_SECONDS = 30L
+        
+        /**
+         * Provides rewind command icon.
+         * Inspired by lissen-android implementation.
+         */
+        private fun provideRewindCommand() = CommandButton.ICON_SKIP_BACK
+        
+        /**
+         * Provides forward command icon.
+         * Inspired by lissen-android implementation.
+         */
+        private fun provideForwardCommand() = CommandButton.ICON_SKIP_FORWARD
+    }
     
     init {
         initializeMediaSession()
     }
     
     /**
-     * Initializes MediaSession.
+     * Sets callbacks for rewind and forward actions.
+     * 
+     * @param rewindCallback Callback for rewind action (default: -15 seconds)
+     * @param forwardCallback Callback for forward action (default: +30 seconds)
+     */
+    fun setCallbacks(
+        rewindCallback: (() -> Unit)? = null,
+        forwardCallback: (() -> Unit)? = null
+    ) {
+        this.rewindCallback = rewindCallback
+        this.forwardCallback = forwardCallback
+    }
+    
+    /**
+     * Initializes MediaSession with custom commands.
      * 
      * MediaSession.Builder with Player automatically handles all commands.
-     * Headset button clicks (single/double/triple) are handled by the system
-     * and routed through MediaSession to the Player.
+     * Custom commands (rewind/forward) are added for better control.
      * 
      * Audio focus is managed automatically by ExoPlayer through AudioAttributes
      * configured with handleAudioFocus=true in AudioPlayerService.
@@ -67,16 +119,137 @@ class MediaSessionManager(
      * No custom BitmapLoader is needed - Media3 handles artwork automatically.
      */
     private fun initializeMediaSession() {
-        // MediaSession.Builder with Player automatically handles all commands
-        // Artwork is automatically extracted from MediaMetadata in MediaItem
-        // (set via setArtworkData() in AudioPlayerService.setPlaylist())
-        mediaSession = MediaSession.Builder(context, player).build()
+        val sessionActivityPendingIntent = PendingIntent.getActivity(
+            context,
+            0,
+            Intent(context, MainActivity::class.java),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+        
+        mediaSession = MediaSession.Builder(context, player)
+            .setCallback(object : MediaSession.Callback {
+                override fun onMediaButtonEvent(
+                    session: MediaSession,
+                    controllerInfo: MediaSession.ControllerInfo,
+                    intent: Intent
+                ): Boolean {
+                    android.util.Log.d("MediaSessionManager", "Executing media button event from: $controllerInfo")
+                    
+                    // Use non-deprecated method for getting KeyEvent (Android API 33+)
+                    val keyEvent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        intent.getParcelableExtra(Intent.EXTRA_KEY_EVENT, KeyEvent::class.java)
+                    } else {
+                        @Suppress("DEPRECATION")
+                        intent.getParcelableExtra<KeyEvent>(Intent.EXTRA_KEY_EVENT)
+                    } ?: return super.onMediaButtonEvent(session, controllerInfo, intent)
+                    
+                    android.util.Log.d("MediaSessionManager", "Got media key event: $keyEvent")
+                    
+                    if (keyEvent.action != KeyEvent.ACTION_DOWN) {
+                        return super.onMediaButtonEvent(session, controllerInfo, intent)
+                    }
+                    
+                    when (keyEvent.keyCode) {
+                        KEYCODE_MEDIA_NEXT -> {
+                            forwardCallback?.invoke() ?: defaultForward()
+                            return true
+                        }
+                        KEYCODE_MEDIA_PREVIOUS -> {
+                            rewindCallback?.invoke() ?: defaultRewind()
+                            return true
+                        }
+                        else -> return super.onMediaButtonEvent(session, controllerInfo, intent)
+                    }
+                }
+                
+                @OptIn(UnstableApi::class)
+                override fun onConnect(
+                    session: MediaSession,
+                    controller: MediaSession.ControllerInfo
+                ): MediaSession.ConnectionResult {
+                    val rewindCommand = SessionCommand(REWIND_COMMAND, Bundle.EMPTY)
+                    val forwardCommand = SessionCommand(FORWARD_COMMAND, Bundle.EMPTY)
+                    
+                    val sessionCommands = MediaSession.ConnectionResult.DEFAULT_SESSION_COMMANDS
+                        .buildUpon()
+                        .add(rewindCommand)
+                        .add(forwardCommand)
+                        .build()
+                    
+                    // Use helper methods for icons (inspired by lissen-android)
+                    val rewindButton = CommandButton.Builder(provideRewindCommand())
+                        .setSessionCommand(rewindCommand)
+                        .setDisplayName("Rewind ${REWIND_SECONDS}s")
+                        .setEnabled(true)
+                        .build()
+                    
+                    val forwardButton = CommandButton.Builder(provideForwardCommand())
+                        .setSessionCommand(forwardCommand)
+                        .setDisplayName("Forward ${FORWARD_SECONDS}s")
+                        .setEnabled(true)
+                        .build()
+                    
+                    return MediaSession.ConnectionResult.AcceptedResultBuilder(session)
+                        .setAvailableSessionCommands(sessionCommands)
+                        .setCustomLayout(listOf(rewindButton, forwardButton))
+                        .build()
+                }
+                
+                override fun onCustomCommand(
+                    session: MediaSession,
+                    controller: MediaSession.ControllerInfo,
+                    customCommand: SessionCommand,
+                    args: Bundle
+                ): ListenableFuture<SessionResult> {
+                    android.util.Log.d("MediaSessionManager", "Executing: ${customCommand.customAction}")
+                    
+                    when (customCommand.customAction) {
+                        FORWARD_COMMAND -> {
+                            forwardCallback?.invoke() ?: defaultForward()
+                        }
+                        REWIND_COMMAND -> {
+                            rewindCallback?.invoke() ?: defaultRewind()
+                        }
+                    }
+                    
+                    return super.onCustomCommand(session, controller, customCommand, args)
+                }
+            })
+            .setSessionActivity(sessionActivityPendingIntent)
+            .build()
+    }
+    
+    /**
+     * Default rewind action: seek back 15 seconds.
+     */
+    private fun defaultRewind() {
+        val currentPosition = player.currentPosition
+        val newPosition = (currentPosition - REWIND_SECONDS * 1000).coerceAtLeast(0L)
+        player.seekTo(newPosition)
+        android.util.Log.d("MediaSessionManager", "Rewind: ${REWIND_SECONDS}s")
+    }
+    
+    /**
+     * Default forward action: seek forward 30 seconds.
+     */
+    private fun defaultForward() {
+        val currentPosition = player.currentPosition
+        val duration = player.duration
+        if (duration != C.TIME_UNSET) {
+            val newPosition = (currentPosition + FORWARD_SECONDS * 1000).coerceAtMost(duration)
+            player.seekTo(newPosition)
+            android.util.Log.d("MediaSessionManager", "Forward: ${FORWARD_SECONDS}s")
+        }
     }
     
     /**
      * Gets MediaSession instance.
+     * 
+     * @return MediaSession instance (never null after initialization)
      */
-    fun getMediaSession(): androidx.media3.session.MediaSession? = mediaSession
+    fun getMediaSession(): androidx.media3.session.MediaSession {
+        return mediaSession ?: throw IllegalStateException("MediaSession not initialized")
+    }
     
     /**
      * Updates media metadata.

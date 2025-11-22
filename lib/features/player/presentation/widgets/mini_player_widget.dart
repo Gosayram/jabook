@@ -46,6 +46,18 @@ class MiniPlayerWidget extends ConsumerWidget {
           _openFullPlayer(context, ref, playerState);
         }
       },
+      onHorizontalDragEnd: (details) {
+        // Swipe left for next track, swipe right for previous track
+        if (details.primaryVelocity != null) {
+          if (details.primaryVelocity! < -500) {
+            // Swipe left - next track
+            _skipNext(ref);
+          } else if (details.primaryVelocity! > 500) {
+            // Swipe right - previous track
+            _skipPrevious(ref);
+          }
+        }
+      },
       child: Container(
         height: 64,
         decoration: BoxDecoration(

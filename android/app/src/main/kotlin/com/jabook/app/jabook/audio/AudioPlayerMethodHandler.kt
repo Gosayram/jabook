@@ -185,6 +185,46 @@ class AudioPlayerMethodHandler(
                         }
                     )
                 }
+                "setRepeatMode" -> {
+                    val repeatMode = call.argument<Int>("repeatMode") ?: 0
+                    executeWithRetry(
+                        action = {
+                            getService()?.setRepeatMode(repeatMode)
+                            result.success(true)
+                        },
+                        onError = { e ->
+                            result.error("EXCEPTION", e.message ?: "Failed to set repeat mode", null)
+                        }
+                    )
+                }
+                "getRepeatMode" -> {
+                    val repeatMode = getService()?.getRepeatMode() ?: 0
+                    result.success(repeatMode)
+                }
+                "setShuffleModeEnabled" -> {
+                    val enabled = call.argument<Boolean>("enabled") ?: false
+                    executeWithRetry(
+                        action = {
+                            getService()?.setShuffleModeEnabled(enabled)
+                            result.success(true)
+                        },
+                        onError = { e ->
+                            result.error("EXCEPTION", e.message ?: "Failed to set shuffle mode", null)
+                        }
+                    )
+                }
+                "getShuffleModeEnabled" -> {
+                    val enabled = getService()?.getShuffleModeEnabled() ?: false
+                    result.success(enabled)
+                }
+                "getCurrentMediaItemInfo" -> {
+                    val info = getService()?.getCurrentMediaItemInfo() ?: emptyMap()
+                    result.success(info)
+                }
+                "getPlaylistInfo" -> {
+                    val info = getService()?.getPlaylistInfo() ?: emptyMap()
+                    result.success(info)
+                }
                 "getPosition" -> {
                     val position = getService()?.getCurrentPosition() ?: 0L
                     result.success(position)
@@ -274,6 +314,68 @@ class AudioPlayerMethodHandler(
                         onError = { e ->
                             android.util.Log.e("AudioPlayerMethodHandler", "Failed to seek to track and position: trackIndex=$trackIndex, positionMs=$positionMs", e)
                             result.error("EXCEPTION", e.message ?: "Failed to seek to track and position", null)
+                        }
+                    )
+                }
+                "rewind" -> {
+                    val seconds = call.argument<Int>("seconds") ?: 15
+                    executeWithRetry(
+                        action = {
+                            getService()?.rewind(seconds)
+                            result.success(true)
+                        },
+                        onError = { e ->
+                            result.error("EXCEPTION", e.message ?: "Failed to rewind", null)
+                        }
+                    )
+                }
+                "forward" -> {
+                    val seconds = call.argument<Int>("seconds") ?: 30
+                    executeWithRetry(
+                        action = {
+                            getService()?.forward(seconds)
+                            result.success(true)
+                        },
+                        onError = { e ->
+                            result.error("EXCEPTION", e.message ?: "Failed to forward", null)
+                        }
+                    )
+                }
+                "setPlaybackProgress" -> {
+                    val filePaths = call.argument<List<String>>("filePaths") ?: emptyList()
+                    val progressSeconds = call.argument<Double>("progressSeconds")
+                    
+                    executeWithRetry(
+                        action = {
+                            getService()?.setPlaybackProgress(filePaths, progressSeconds)
+                            result.success(true)
+                        },
+                        onError = { e ->
+                            result.error("EXCEPTION", e.message ?: "Failed to set playback progress", null)
+                        }
+                    )
+                }
+                "startTimer" -> {
+                    val delayInSeconds = call.argument<Double>("delayInSeconds") ?: 0.0
+                    val option = call.argument<Int>("option") ?: 0
+                    executeWithRetry(
+                        action = {
+                            getService()?.startTimer(delayInSeconds, option)
+                            result.success(true)
+                        },
+                        onError = { e ->
+                            result.error("EXCEPTION", e.message ?: "Failed to start timer", null)
+                        }
+                    )
+                }
+                "stopTimer" -> {
+                    executeWithRetry(
+                        action = {
+                            getService()?.stopTimer()
+                            result.success(true)
+                        },
+                        onError = { e ->
+                            result.error("EXCEPTION", e.message ?: "Failed to stop timer", null)
                         }
                     )
                 }

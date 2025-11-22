@@ -322,14 +322,80 @@ class Media3PlayerService {
   Future<Map<String, int>?> restorePosition(String groupPath) async =>
       _positionService.restorePosition(groupPath);
 
-  /// Starts periodic position saving.
+  /// Starts periodic position saving with adaptive intervals.
+  ///
+  /// Inspired by lissen-android: saves more frequently near start/end of track
+  /// (every 5 seconds) and less frequently in the middle (every 30 seconds).
+  /// This balances between position accuracy and battery/performance.
   void _startPositionSaving() {
     _positionSaveTimer?.cancel();
+    
+    // Use adaptive interval based on position in track
     _positionSaveTimer = Timer.periodic(
-      const Duration(seconds: 5),
-      (_) => _saveCurrentPosition(),
+      const Duration(seconds: 5), // Check every 5 seconds
+      (_) => _saveCurrentPositionAdaptive(),
     );
   }
+  
+  /// Saves position with adaptive interval logic.
+  ///
+  /// Saves more frequently (every 5s) when near start/end of track,
+  /// less frequently (every 30s) in the middle.
+  Future<void> _saveCurrentPositionAdaptive() async {
+    if (_currentGroupPath == null) return;
+
+    try {
+      final state = await _player.getState();
+      final position = state.currentPosition;
+      final duration = state.duration;
+      
+      if (duration <= 0) {
+        // Duration unknown, save anyway
+        await _saveCurrentPosition();
+        return;
+      }
+      
+      // Calculate position ratio (0.0 to 1.0)
+      final positionRatio = position / duration;
+      
+      // Define "near start" and "near end" thresholds
+      // Save frequently if within first 10% or last 10% of track
+      const nearStartThreshold = 0.1; // 10% from start
+      const nearEndThreshold = 0.9; // 10% from end
+      
+      final isNearStart = positionRatio < nearStartThreshold;
+      final isNearEnd = positionRatio > nearEndThreshold;
+      
+      // Track last save time to implement adaptive intervals
+      final now = DateTime.now();
+      final lastSaveTime = _lastPositionSaveTime;
+      _lastPositionSaveTime = now;
+      
+      if (lastSaveTime == null) {
+        // First save, always save
+        await _saveCurrentPosition();
+        return;
+      }
+      
+      final timeSinceLastSave = now.difference(lastSaveTime);
+      
+      // Save if:
+      // - Near start/end and 5+ seconds passed (frequent saves)
+      // - In middle and 30+ seconds passed (less frequent saves)
+      final shouldSave = (isNearStart || isNearEnd) 
+          ? timeSinceLastSave.inSeconds >= 5
+          : timeSinceLastSave.inSeconds >= 30;
+      
+      if (shouldSave) {
+        await _saveCurrentPosition();
+      }
+    } on Exception {
+      // Ignore errors - position saving is not critical
+    }
+  }
+  
+  /// Timestamp of last position save for adaptive interval calculation.
+  DateTime? _lastPositionSaveTime;
 
   /// Saves current playback position.
   Future<void> _saveCurrentPosition() async {
