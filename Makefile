@@ -36,7 +36,7 @@ help:
 	@echo "  make build-ios-dev                 - Build iOS dev variant"
 	@echo "  make build-ios-stage               - Build iOS stage variant"
 	@echo "  make build-ios-prod                - Build iOS production variant"
-	@echo "  make build-android-signed-apk      - Build signed universal APK for all architectures"
+	@echo "  make build-android-signed-apk      - Build signed APKs (split per architecture + universal)"
 	@echo ""
 	@echo "Testing Commands:"
 	@echo "  make test                          - Run all tests"
@@ -200,15 +200,22 @@ build-android-signed: use-existing-android-cert patch-gradle-signing patch-gradl
 .PHONY: build-android-signed-apk
 build-android-signed-apk: use-existing-android-cert patch-gradle-signing patch-gradle-minsdk
 	@echo "Building signed optimized APK (without obfuscation for easier debugging)..."
+	@echo "Building split APKs per architecture..."
 	flutter build apk --target lib/main.dart --release \
 		--split-per-abi \
 		--tree-shake-icons
-	@echo "Signed optimized APK built at: build/app/outputs/apk/"
+	@echo "Building universal APK (all architectures)..."
+	flutter build apk --target lib/main.dart --release \
+		--tree-shake-icons
+	@echo "✅ Signed optimized APKs built at: build/app/outputs/apk/"
+	@echo "   - Split APKs: app-*-release.apk (per architecture)"
+	@echo "   - Universal APK: app-release.apk (all architectures)"
 
 .PHONY: copy-apk
 copy-apk:
 	@echo "Copying APK files with version $(FULL_VERSION)..."
 	@mkdir -p $(APK_DEST_DIR)
+	@echo "Copying split APKs (per architecture)..."
 	@if [ -f "build/app/outputs/flutter-apk/app-x86_64-release.apk" ]; then \
 		cp -f build/app/outputs/flutter-apk/app-x86_64-release.apk $(APK_DEST_DIR)/Jabook_$(FULL_VERSION)_x86_64.apk && \
 		echo "✅ Copied: Jabook_$(FULL_VERSION)_x86_64.apk"; \
@@ -235,6 +242,16 @@ copy-apk:
 		echo "✅ Copied: Jabook_$(FULL_VERSION)_v7a.apk"; \
 	else \
 		echo "⚠️  Warning: app-armeabi-v7a-release.apk not found"; \
+	fi
+	@echo "Copying universal APK (all architectures)..."
+	@if [ -f "build/app/outputs/flutter-apk/app-release.apk" ]; then \
+		cp -f build/app/outputs/flutter-apk/app-release.apk $(APK_DEST_DIR)/Jabook_$(FULL_VERSION)_universal.apk && \
+		echo "✅ Copied: Jabook_$(FULL_VERSION)_universal.apk"; \
+	elif [ -f "build/app/outputs/apk/release/app-release.apk" ]; then \
+		cp -f build/app/outputs/apk/release/app-release.apk $(APK_DEST_DIR)/Jabook_$(FULL_VERSION)_universal.apk && \
+		echo "✅ Copied: Jabook_$(FULL_VERSION)_universal.apk"; \
+	else \
+		echo "⚠️  Warning: app-release.apk (universal) not found"; \
 	fi
 	@echo "✅ APK files copied to $(APK_DEST_DIR)/"
 
