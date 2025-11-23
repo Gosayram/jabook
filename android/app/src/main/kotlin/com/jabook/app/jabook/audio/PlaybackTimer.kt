@@ -16,7 +16,6 @@ package com.jabook.app.jabook.audio
 
 import android.content.Context
 import android.content.Intent
-import android.os.CountDownTimer
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 
@@ -25,14 +24,14 @@ import androidx.media3.exoplayer.ExoPlayer
  *
  * Inspired by lissen-android implementation for sleep timer functionality.
  * Supports timer options: fixed duration or "until end of current track".
+ * Uses SuspendableCountDownTimer for proper pause/resume support.
  */
 class PlaybackTimer(
     private val context: Context,
     private val player: ExoPlayer
 ) {
-    private var timer: CountDownTimer? = null
+    private var timer: SuspendableCountDownTimer? = null
     private var timerOption: TimerOption = TimerOption.FIXED_DURATION
-    private var isPaused = false
     
     enum class TimerOption {
         FIXED_DURATION,      // Timer counts down regardless of playback
@@ -47,14 +46,13 @@ class PlaybackTimer(
     
     private val playerListener = object : Player.Listener {
         override fun onIsPlayingChanged(isPlaying: Boolean) {
+            val currentTimer = timer ?: return
+
             // For CURRENT_TRACK option, pause/resume timer with playback
             if (timerOption == TimerOption.CURRENT_TRACK) {
-                if (isPlaying && isPaused) {
-                    // Resume timer if it was paused
-                    resumeTimer()
-                } else if (!isPlaying && timer != null && !isPaused) {
-                    // Pause timer if playback paused
-                    pauseTimer()
+                when (isPlaying) {
+                    true -> timer = currentTimer.resume()
+                    false -> currentTimer.pause()
                 }
             }
         }
@@ -80,33 +78,26 @@ class PlaybackTimer(
         }
         
         timerOption = option
-        isPaused = false
         
         android.util.Log.d("PlaybackTimer", "Starting timer: ${delayInSeconds}s, option=$option")
         
         // Broadcast initial remaining time
         broadcastRemaining(delayInSeconds.toLong())
         
-        timer = object : CountDownTimer(totalMillis, 500L) {
-            override fun onTick(millisUntilFinished: Long) {
-                if (!isPaused) {
-                    val remainingSeconds = (millisUntilFinished / 1000).toLong()
-                    broadcastRemaining(remainingSeconds)
-                }
-            }
-            
-            override fun onFinish() {
+        timer = SuspendableCountDownTimer(
+            totalMillis = totalMillis,
+            intervalMillis = 500L,
+            onTickSeconds = { seconds -> broadcastRemaining(seconds) },
+            onFinished = {
                 android.util.Log.d("PlaybackTimer", "Timer expired")
                 broadcastTimerExpired()
                 stopTimer()
             }
-        }
+        ).also { it.start() }
         
-        // Start timer only if playing (for CURRENT_TRACK option)
+        // For CURRENT_TRACK option, pause timer if not playing
         if (timerOption == TimerOption.CURRENT_TRACK && !player.isPlaying) {
-            isPaused = true
-        } else {
-            timer?.start()
+            timer?.pause()
         }
     }
     
@@ -116,32 +107,7 @@ class PlaybackTimer(
     fun stopTimer() {
         timer?.cancel()
         timer = null
-        isPaused = false
         android.util.Log.d("PlaybackTimer", "Timer stopped")
-    }
-    
-    /**
-     * Pauses timer (for CURRENT_TRACK option).
-     */
-    private fun pauseTimer() {
-        if (timer != null && !isPaused) {
-            // Note: CountDownTimer doesn't support pause/resume natively
-            // We'll track pause state and skip onTick updates
-            isPaused = true
-            android.util.Log.d("PlaybackTimer", "Timer paused")
-        }
-    }
-    
-    /**
-     * Resumes timer (for CURRENT_TRACK option).
-     */
-    private fun resumeTimer() {
-        if (timer != null && isPaused) {
-            // Note: CountDownTimer doesn't support pause/resume natively
-            // We'll track pause state and resume onTick updates
-            isPaused = false
-            android.util.Log.d("PlaybackTimer", "Timer resumed")
-        }
     }
     
     /**
@@ -161,9 +127,9 @@ class PlaybackTimer(
         val intent = Intent(ACTION_TIMER_EXPIRED)
         context.sendBroadcast(intent)
         
-        // Auto-pause playback when timer expires
+        // Auto-pause playback when timer expires (inspired by lissen-android)
         if (player.isPlaying) {
-            player.pause()
+            player.playWhenReady = false
             android.util.Log.d("PlaybackTimer", "Auto-paused playback due to timer expiration")
         }
     }

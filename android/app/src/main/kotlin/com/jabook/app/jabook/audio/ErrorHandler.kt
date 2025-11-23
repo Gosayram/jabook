@@ -218,4 +218,62 @@ object ErrorHandler {
     private fun hasPermission(context: android.content.Context, permission: String): Boolean {
         return context.checkSelfPermission(permission) == android.content.pm.PackageManager.PERMISSION_GRANTED
     }
+    
+    /**
+     * Checks if device is running Color OS (Oppo/OnePlus/Realme).
+     * Color OS has additional restrictions on background services and requires special handling.
+     * 
+     * @return true if device is running Color OS, false otherwise
+     */
+    fun isColorOS(): Boolean {
+        val manufacturer = android.os.Build.MANUFACTURER.lowercase()
+        val brand = android.os.Build.BRAND.lowercase()
+        
+        return manufacturer == "oppo" || 
+               manufacturer == "oneplus" || 
+               brand == "realme" ||
+               brand == "oppo" ||
+               brand == "oneplus"
+    }
+    
+    /**
+     * Validates Color OS specific requirements.
+     * Color OS has stricter requirements for foreground services.
+     * 
+     * @param context Application context
+     * @return true if Color OS requirements are met, false otherwise
+     */
+    fun validateColorOSRequirements(context: android.content.Context): Boolean {
+        if (!isColorOS()) {
+            return true // Not Color OS, no special requirements
+        }
+        
+        android.util.Log.d("ErrorHandler", "Validating Color OS specific requirements")
+        
+        // Color OS requires explicit notification permission
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val notificationManager = context.getSystemService(android.content.Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+            if (!notificationManager.areNotificationsEnabled()) {
+                android.util.Log.e("ErrorHandler", "Color OS: Notifications are disabled")
+                return false
+            }
+        }
+        
+        // Color OS requires foreground service permission
+        if (!hasPermission(context, android.Manifest.permission.FOREGROUND_SERVICE)) {
+            android.util.Log.e("ErrorHandler", "Color OS: Missing FOREGROUND_SERVICE permission")
+            return false
+        }
+        
+        // Color OS 13+ requires media playback foreground service permission
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            if (!hasPermission(context, android.Manifest.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK)) {
+                android.util.Log.e("ErrorHandler", "Color OS: Missing FOREGROUND_SERVICE_MEDIA_PLAYBACK permission")
+                return false
+            }
+        }
+        
+        android.util.Log.d("ErrorHandler", "Color OS requirements validated successfully")
+        return true
+    }
 }

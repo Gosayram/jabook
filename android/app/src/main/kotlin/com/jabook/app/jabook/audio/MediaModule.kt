@@ -23,7 +23,6 @@ import androidx.media3.database.StandaloneDatabaseProvider
 import androidx.media3.datasource.cache.Cache
 import androidx.media3.datasource.cache.LeastRecentlyUsedCacheEvictor
 import androidx.media3.datasource.cache.SimpleCache
-import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
 import dagger.Module
 import dagger.Provides
@@ -110,29 +109,18 @@ object MediaModule {
         
         android.util.Log.d("MediaModule", "Creating ExoPlayer singleton...")
         
-        // Configure LoadControl for audiobooks (optimized buffer settings)
-        val loadControl = DefaultLoadControl.Builder()
-            .setBufferDurationsMs(
-                /* minBufferMs = */ 10_000,    // 10 seconds
-                /* maxBufferMs = */ 60_000,    // 60 seconds
-                /* bufferForPlaybackMs = */ 1_000,
-                /* bufferForPlaybackAfterRebufferMs = */ 2_000
-            )
-            .setBackBuffer(5_000, /* retainBackBufferFromKeyframe= */ true)
-            .build()
-
+        // Match lissen-android configuration exactly
         val player = try {
             ExoPlayer
                 .Builder(context)
-                .setLoadControl(loadControl)
                 .setHandleAudioBecomingNoisy(true)
                 .setAudioAttributes(
                     AudioAttributes
                         .Builder()
                         .setUsage(C.USAGE_MEDIA)
-                        .setContentType(C.AUDIO_CONTENT_TYPE_SPEECH) // for audiobooks
+                        .setContentType(C.AUDIO_CONTENT_TYPE_SPEECH) // Match lissen-android exactly
                         .build(),
-                    true, // handleAudioFocus=true enables automatic focus management
+                    true, // handleAudioFocus=true - ExoPlayer manages AudioFocus automatically
                 )
                 .build()
         } catch (e: Exception) {

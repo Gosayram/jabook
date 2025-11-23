@@ -30,7 +30,7 @@ class AudioPlayerMethodHandler(
 ) : MethodChannel.MethodCallHandler {
     
     /**
-     * Gets AudioPlayerService instance, ensuring service is started.
+     * Gets AudioPlayerService instance, ensuring service is started and fully initialized.
      * Returns null if service is not available or not ready.
      * 
      * CRITICAL: This method is NON-BLOCKING to prevent ANR on Android 16.
@@ -41,6 +41,7 @@ class AudioPlayerMethodHandler(
      * - Non-blocking: no Thread.sleep() calls
      * - Quick check: returns immediately if service not ready
      * - Flutter retry: allows Flutter to retry with exponential backoff
+     * - Explicit check: verifies isFullyInitialized() before returning
      */
     private fun getService(): AudioPlayerService? {
         var service = AudioPlayerService.getInstance()
@@ -76,6 +77,7 @@ class AudioPlayerMethodHandler(
                         "AudioPlayerMethodHandler",
                         "Service not available after IllegalStateException"
                     )
+                    return null
                 }
             } catch (e: Exception) {
                 android.util.Log.e(
@@ -83,18 +85,22 @@ class AudioPlayerMethodHandler(
                     "Failed to start service: ${e.message}",
                     e
                 )
+                return null
             }
         }
         
-        // Quick check if service is ready (non-blocking)
-        if (service != null && !service.isFullyInitialized()) {
-            android.util.Log.d(
+        // CRITICAL: Check if service is fully initialized before returning
+        // This prevents using service before it's ready (race condition fix)
+        if (service == null) {
+            return null
+        }
+        
+        if (!service.isFullyInitialized()) {
+            android.util.Log.w(
                 "AudioPlayerMethodHandler",
-                "Service exists but not fully initialized yet. Flutter should retry."
+                "Service exists but not fully initialized yet. initialized=${service.isFullyInitialized()}. Flutter should retry."
             )
-            // Return null to allow Flutter to retry, or return service if caller can handle it
-            // For now, return service but log warning - caller should check isFullyInitialized()
-            return service
+            return null // Return null to force Flutter to retry
         }
         
         return service
@@ -199,45 +205,35 @@ class AudioPlayerMethodHandler(
                         result.error("INVALID_ARGUMENT", "File paths list cannot be empty", null)
                         return
                     }
-                    executeWithRetry(
-                        action = {
-                            getService()?.setPlaylist(filePaths, metadata)
+                    
+                    val service = getService()
+                    if (service == null) {
+                        result.error("SERVICE_UNAVAILABLE", "Audio service is not available", null)
+                        return
+                    }
+                    
+                    service.setPlaylist(filePaths, metadata) { success, exception ->
+                        if (success) {
+                            android.util.Log.d("AudioPlayerMethodHandler", "Playlist set successfully via callback")
                             result.success(true)
-                        },
-                        onError = { e ->
-                            result.error("EXCEPTION", e.message ?: "Failed to set playlist", null)
+                        } else {
+                            val errorMessage = exception?.message ?: "Failed to set playlist"
+                            android.util.Log.e("AudioPlayerMethodHandler", "Failed to set playlist: $errorMessage", exception)
+                            result.error("EXCEPTION", errorMessage, null)
                         }
-                    )
+                    }
                 }
                 "play" -> {
                     android.util.Log.d("AudioPlayerMethodHandler", "play() called from Flutter")
-                    try {
-                        executeWithRetry(
-                            action = {
-                                val service = getService()
-                                if (service != null) {
-                                    android.util.Log.d("AudioPlayerMethodHandler", "Calling service.play()")
-                                    try {
-                                        service.play()
-                                        android.util.Log.d("AudioPlayerMethodHandler", "service.play() completed successfully")
-                                        result.success(true)
-                                    } catch (e: Exception) {
-                                        android.util.Log.e("AudioPlayerMethodHandler", "Exception in service.play()", e)
-                                        result.error("EXCEPTION", e.message ?: "Failed to play", null)
-                                    }
-                                } else {
-                                    android.util.Log.e("AudioPlayerMethodHandler", "Service is null in action, cannot play")
-                                    result.error("SERVICE_UNAVAILABLE", "Audio service is not available", null)
-                                }
-                            },
-                            onError = { e ->
-                                android.util.Log.e("AudioPlayerMethodHandler", "Failed to play (executeWithRetry error)", e)
-                                result.error("EXCEPTION", e.message ?: "Failed to play", null)
-                            }
-                        )
-                    } catch (e: Exception) {
-                        android.util.Log.e("AudioPlayerMethodHandler", "Exception in play() method handler", e)
-                        result.error("EXCEPTION", e.message ?: "Failed to play", null)
+                    val service = getService()
+                    if (service != null) {
+                        android.util.Log.d("AudioPlayerMethodHandler", "Service found, calling service.play()")
+                        service.play()
+                        android.util.Log.d("AudioPlayerMethodHandler", "service.play() called, returning success")
+                        result.success(true)
+                    } else {
+                        android.util.Log.e("AudioPlayerMethodHandler", "Service is null, cannot play")
+                        result.error("SERVICE_UNAVAILABLE", "Audio service is not available", null)
                     }
                 }
                 "pause" -> {

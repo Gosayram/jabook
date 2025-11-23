@@ -91,9 +91,113 @@ class NativeAudioPlayer {
   /// Whether player is initialized.
   bool _isInitialized = false;
 
-  /// Initializes the native audio player.
+  /// Maximum number of retry attempts for initialization.
+  static const int _maxInitRetries = 3;
+
+  /// Base delay for exponential backoff retry (in milliseconds).
+  static const int _baseRetryDelayMs = 500;
+
+  /// Checks if error is retryable (SERVICE_UNAVAILABLE or similar).
+  bool _isRetryableError(PlatformException e) => e.code == 'SERVICE_UNAVAILABLE' ||
+        (e.message?.contains('not ready') ?? false) ||
+        (e.message?.contains('not initialized') ?? false);
+
+  /// Executes a method with retry logic for SERVICE_UNAVAILABLE errors.
   ///
-  /// Throws [AudioFailure] if initialization fails.
+  /// Uses exponential backoff: 500ms, 1000ms, 2000ms.
+  Future<T> _invokeWithRetry<T>(
+    String method, {
+    dynamic arguments,
+    int maxRetries = _maxInitRetries,
+  }) async {
+    var attempt = 0;
+    Exception? lastException;
+
+    while (attempt < maxRetries) {
+      try {
+        T? result;
+        if (arguments != null) {
+          result = await _channel.invokeMethod<T>(method, arguments);
+        } else {
+          result = await _channel.invokeMethod<T>(method);
+        }
+
+        // For void methods, result can be null - that's OK
+        // For non-void methods, check if result is not null
+        if (result != null) {
+          return result;
+        }
+
+        // If we expect a non-null result but got null, check if it's a void method
+        // For void methods (like setPlaylist, play), null is acceptable
+        // For bool methods (like initialize), null means failure
+        if (T == bool) {
+          // For bool methods, null means false
+          return false as T;
+        }
+
+        // For void methods, return null as T (which will be cast to void)
+        return result as T;
+      } on PlatformException catch (e) {
+        lastException = e;
+
+        // Check if error is retryable
+        if (!_isRetryableError(e)) {
+          // Not retryable, throw immediately
+          rethrow;
+        }
+
+        attempt++;
+        if (attempt >= maxRetries) {
+          // Max retries reached
+          await _logger.log(
+            level: 'warning',
+            subsystem: 'audio',
+            message: 'Max retries reached for $method',
+            cause: e.toString(),
+            extra: {
+              'code': e.code,
+              'message': e.message,
+              'attempts': attempt,
+            },
+          );
+          rethrow;
+        }
+
+        // Calculate exponential backoff delay
+        final delayMs = _baseRetryDelayMs * (1 << (attempt - 1));
+        await _logger.log(
+          level: 'info',
+          subsystem: 'audio',
+          message: 'Retrying $method after SERVICE_UNAVAILABLE error',
+          extra: {
+            'code': e.code,
+            'message': e.message,
+            'attempt': attempt,
+            'max_retries': maxRetries,
+            'delay_ms': delayMs,
+          },
+        );
+
+        // Wait before retry
+        await Future.delayed(Duration(milliseconds: delayMs));
+      } on Exception catch (e) {
+        // Non-PlatformException errors are not retryable
+        lastException = e;
+        rethrow;
+      }
+    }
+
+    // Should not reach here, but handle just in case
+    throw AudioFailure(
+      'Failed after $maxRetries attempts: ${lastException?.toString() ?? 'Unknown error'}',
+    );
+  }
+
+  /// Initializes the native audio player with retry logic.
+  ///
+  /// Uses exponential backoff retry for SERVICE_UNAVAILABLE errors.
+  /// Throws [AudioFailure] if initialization fails after all retries.
   Future<void> initialize() async {
     if (_isInitialized) return;
 
@@ -104,7 +208,19 @@ class NativeAudioPlayer {
         message: 'Initializing native audio player',
       );
 
-      final result = await _channel.invokeMethod<bool>('initialize');
+      // Use retry mechanism for initialization
+      final result = await _invokeWithRetry<bool>(
+        'initialize',
+      ).timeout(
+        const Duration(seconds: 15),
+        onTimeout: () {
+          throw TimeoutException(
+            'Player initialization timed out after 15 seconds',
+            const Duration(seconds: 15),
+          );
+        },
+      );
+
       if (result != true) {
         throw const AudioFailure('Failed to initialize native audio player');
       }
@@ -117,6 +233,15 @@ class NativeAudioPlayer {
         subsystem: 'audio',
         message: 'Native audio player initialized successfully',
       );
+    } on TimeoutException catch (e) {
+      await _logger.log(
+        level: 'warning',
+        subsystem: 'audio',
+        message:
+            'Player initialization timed out - will initialize on first use',
+        cause: e.toString(),
+      );
+      throw AudioFailure('Initialization timed out: ${e.message}');
     } on PlatformException catch (e) {
       // Log as warning instead of error - player will initialize on first use
       await _logger.log(
@@ -153,6 +278,7 @@ class NativeAudioPlayer {
   /// [metadata] is optional metadata (title, artist, album, artworkUri).
   ///
   /// Throws [AudioFailure] if setting playlist fails.
+  /// Uses retry logic for SERVICE_UNAVAILABLE errors.
   Future<void> setPlaylist(
     List<String> filePaths, {
     Map<String, String>? metadata,
@@ -169,10 +295,23 @@ class NativeAudioPlayer {
         extra: {'file_count': filePaths.length},
       );
 
-      await _channel.invokeMethod('setPlaylist', {
-        'filePaths': filePaths,
-        'metadata': metadata,
-      });
+      // Use retry mechanism for setPlaylist
+      await _invokeWithRetry<void>(
+        'setPlaylist',
+        arguments: {
+          'filePaths': filePaths,
+          'metadata': metadata,
+        },
+        maxRetries: 2, // Fewer retries for setPlaylist
+      ).timeout(
+        const Duration(seconds: 30),
+        onTimeout: () {
+          throw TimeoutException(
+            'setPlaylist timed out after 30 seconds',
+            const Duration(seconds: 30),
+          );
+        },
+      );
 
       // Get player state after setting playlist to log details
       try {
@@ -206,12 +345,24 @@ class NativeAudioPlayer {
           message: 'Playlist set successfully',
         );
       }
+    } on TimeoutException catch (e) {
+      await _logger.log(
+        level: 'error',
+        subsystem: 'audio',
+        message: 'setPlaylist timed out',
+        cause: e.toString(),
+      );
+      throw AudioFailure('setPlaylist timed out: ${e.message}');
     } on PlatformException catch (e) {
       await _logger.log(
         level: 'error',
         subsystem: 'audio',
         message: 'Platform error setting playlist',
         cause: e.toString(),
+        extra: {
+          'code': e.code,
+          'message': e.message,
+        },
       );
       throw AudioFailure('Failed to set playlist: ${e.message ?? e.code}');
     } on Exception catch (e) {
