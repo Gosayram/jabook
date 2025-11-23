@@ -50,7 +50,7 @@ Modern audiobook player for Android devices with RuTracker.net integration. Buil
 
 - Flutter SDK 3.35.3 or higher
 - Dart SDK 3.2.0 or higher
-- Android SDK (API 21+) for Android development
+- Android SDK (API 24+) for Android development
 - Xcode (for iOS development, optional)
 
 ### Quick Install
@@ -243,9 +243,9 @@ lib/
 
 ### Supported Platforms
 
-- **Android**: API 21+ (Android 5.0 Lollipop and higher)
+- **Android**: API 24+ (Android 7.0 Nougat and higher)
 - **iOS**: Not currently configured (Android-focused project)
-- **Minimum SDK**: Android 5.0 (API 21) for broad device compatibility
+- **Minimum SDK**: Android 7.0 (API 24) for broad device compatibility
 - **Target SDK**: Latest Android version
 
 ## Contributing
