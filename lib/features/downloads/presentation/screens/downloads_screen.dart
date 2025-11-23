@@ -81,7 +81,7 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
 
   Future<void> _loadDownloads() async {
     try {
-      EnvironmentLogger().d('DownloadsScreen: Starting to load downloads');
+      EnvironmentLogger().i('DownloadsScreen: Starting to load downloads');
       final downloads = await _torrentManager.getActiveDownloads();
 
       EnvironmentLogger().d(
@@ -355,8 +355,15 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                               try {
                                 progressStream = _torrentManager
                                     .getProgressStream(downloadId);
-                              } on Exception {
+                                EnvironmentLogger().d(
+                                  'DownloadsScreen: Successfully obtained progress stream for download $downloadId',
+                                );
+                              } on Exception catch (e) {
                                 // Download might be completed or removed
+                                EnvironmentLogger().w(
+                                  'DownloadsScreen: Failed to get progress stream for download $downloadId',
+                                  error: e,
+                                );
                                 progressStream = null;
                               }
                             }
@@ -429,61 +436,83 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                                       ],
                                     ],
                                   ),
-                                  trailing: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      IconButton(
-                                        icon: const Icon(Icons.play_arrow),
-                                        onPressed: () async {
-                                          final messenger =
-                                              ScaffoldMessenger.of(context);
-                                          try {
-                                            await _torrentManager
-                                                .resumeRestoredDownload(
-                                                    downloadId);
-                                            await _loadDownloads();
-                                          } on Exception catch (e) {
-                                            if (!mounted) return;
-                                            final errorMsg =
-                                                _getUserFriendlyErrorMessage(e);
-                                            messenger.showSnackBar(
-                                              SnackBar(
-                                                content: Text(errorMsg),
-                                                backgroundColor: Colors.orange,
-                                                duration:
-                                                    const Duration(seconds: 3),
-                                              ),
-                                            );
-                                          }
-                                        },
-                                        tooltip: 'Resume',
+                                  trailing: PopupMenuButton<String>(
+                                    onSelected: (value) async {
+                                      final messenger =
+                                          ScaffoldMessenger.of(context);
+                                      try {
+                                        if (value == 'resume') {
+                                          await _torrentManager
+                                              .resumeRestoredDownload(
+                                                  downloadId);
+                                        } else if (value == 'restart') {
+                                          await _torrentManager
+                                              .restartDownload(downloadId);
+                                        } else if (value == 'redownload') {
+                                          await _torrentManager
+                                              .redownload(downloadId);
+                                        } else if (value == 'remove') {
+                                          await _torrentManager
+                                              .removeDownload(downloadId);
+                                        }
+                                        await _loadDownloads();
+                                      } on Exception catch (e) {
+                                        if (!mounted) return;
+                                        final errorMsg =
+                                            _getUserFriendlyErrorMessage(e);
+                                        messenger.showSnackBar(
+                                          SnackBar(
+                                            content: Text(errorMsg),
+                                            backgroundColor: Colors.orange,
+                                            duration:
+                                                const Duration(seconds: 3),
+                                          ),
+                                        );
+                                      }
+                                    },
+                                    itemBuilder: (context) => [
+                                      const PopupMenuItem(
+                                        value: 'resume',
+                                        child: Row(
+                                          children: [
+                                            Icon(Icons.play_arrow),
+                                            SizedBox(width: 8),
+                                            Text('Resume'),
+                                          ],
+                                        ),
                                       ),
-                                      IconButton(
-                                        icon: const Icon(Icons.close),
-                                        onPressed: () async {
-                                          final messenger =
-                                              ScaffoldMessenger.of(context);
-                                          try {
-                                            await _torrentManager
-                                                .removeDownload(downloadId);
-                                            await _loadDownloads();
-                                          } on Exception catch (e) {
-                                            if (!mounted) return;
-                                            final errorMsg =
-                                                _getUserFriendlyErrorMessage(e);
-                                            messenger.showSnackBar(
-                                              SnackBar(
-                                                content: Text(errorMsg),
-                                                backgroundColor: Colors.orange,
-                                                duration:
-                                                    const Duration(seconds: 3),
-                                              ),
-                                            );
-                                          }
-                                        },
-                                        tooltip: 'Cancel',
+                                      const PopupMenuItem(
+                                        value: 'restart',
+                                        child: Row(
+                                          children: [
+                                            Icon(Icons.refresh),
+                                            SizedBox(width: 8),
+                                            Text('Restart'),
+                                          ],
+                                        ),
+                                      ),
+                                      const PopupMenuItem(
+                                        value: 'redownload',
+                                        child: Row(
+                                          children: [
+                                            Icon(Icons.download),
+                                            SizedBox(width: 8),
+                                            Text('Redownload'),
+                                          ],
+                                        ),
+                                      ),
+                                      const PopupMenuItem(
+                                        value: 'remove',
+                                        child: Row(
+                                          children: [
+                                            Icon(Icons.delete),
+                                            SizedBox(width: 8),
+                                            Text('Remove'),
+                                          ],
+                                        ),
                                       ),
                                     ],
+                                    child: const Icon(Icons.more_vert),
                                   ),
                                 ),
                               );
@@ -495,6 +524,7 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                               final staticProgress =
                                   download['progress'] as double? ?? 0.0;
                               final isCompleted = staticProgress >= 100.0;
+                              final isError = status.contains('error');
                               return Card(
                                 margin: const EdgeInsets.symmetric(
                                     horizontal: 8, vertical: 4),
@@ -502,16 +532,86 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                                   leading: Icon(
                                     isCompleted
                                         ? Icons.check_circle
-                                        : Icons.download,
+                                        : isError
+                                            ? Icons.error
+                                            : Icons.download,
                                     color: isCompleted
                                         ? Colors.green
-                                        : Theme.of(context).colorScheme.primary,
+                                        : isError
+                                            ? Colors.red
+                                            : Theme.of(context)
+                                                .colorScheme
+                                                .primary,
                                   ),
                                   title: Text(title,
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis),
                                   subtitle: Text(
                                       '${staticProgress.toStringAsFixed(1)}%'),
+                                  trailing: PopupMenuButton<String>(
+                                    onSelected: (value) async {
+                                      final messenger =
+                                          ScaffoldMessenger.of(context);
+                                      try {
+                                        if (value == 'restart') {
+                                          await _torrentManager
+                                              .restartDownload(downloadId);
+                                        } else if (value == 'redownload') {
+                                          await _torrentManager
+                                              .redownload(downloadId);
+                                        } else if (value == 'remove') {
+                                          await _torrentManager
+                                              .removeDownload(downloadId);
+                                        }
+                                        await _loadDownloads();
+                                      } on Exception catch (e) {
+                                        if (!mounted) return;
+                                        final errorMsg =
+                                            _getUserFriendlyErrorMessage(e);
+                                        messenger.showSnackBar(
+                                          SnackBar(
+                                            content: Text(errorMsg),
+                                            backgroundColor: Colors.orange,
+                                            duration:
+                                                const Duration(seconds: 3),
+                                          ),
+                                        );
+                                      }
+                                    },
+                                    itemBuilder: (context) => [
+                                      if (isError || isCompleted)
+                                        const PopupMenuItem(
+                                          value: 'restart',
+                                          child: Row(
+                                            children: [
+                                              Icon(Icons.refresh),
+                                              SizedBox(width: 8),
+                                              Text('Restart'),
+                                            ],
+                                          ),
+                                        ),
+                                      const PopupMenuItem(
+                                        value: 'redownload',
+                                        child: Row(
+                                          children: [
+                                            Icon(Icons.download),
+                                            SizedBox(width: 8),
+                                            Text('Redownload'),
+                                          ],
+                                        ),
+                                      ),
+                                      const PopupMenuItem(
+                                        value: 'remove',
+                                        child: Row(
+                                          children: [
+                                            Icon(Icons.delete),
+                                            SizedBox(width: 8),
+                                            Text('Remove'),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               );
                             }
@@ -722,14 +822,23 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                                             tooltip:
                                                 isPaused ? 'Resume' : 'Pause',
                                           ),
-                                        IconButton(
-                                          icon: const Icon(Icons.close),
-                                          onPressed: () async {
+                                        PopupMenuButton<String>(
+                                          onSelected: (value) async {
                                             final messenger =
                                                 ScaffoldMessenger.of(context);
                                             try {
-                                              await _torrentManager
-                                                  .removeDownload(downloadId);
+                                              if (value == 'restart') {
+                                                await _torrentManager
+                                                    .restartDownload(
+                                                        downloadId);
+                                              } else if (value ==
+                                                  'redownload') {
+                                                await _torrentManager
+                                                    .redownload(downloadId);
+                                              } else if (value == 'remove') {
+                                                await _torrentManager
+                                                    .removeDownload(downloadId);
+                                              }
                                               await _loadDownloads();
                                             } on Exception catch (e) {
                                               if (!mounted) return;
@@ -747,7 +856,40 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                                               );
                                             }
                                           },
-                                          tooltip: 'Cancel',
+                                          itemBuilder: (context) => [
+                                            if (isError)
+                                              const PopupMenuItem(
+                                                value: 'restart',
+                                                child: Row(
+                                                  children: [
+                                                    Icon(Icons.refresh),
+                                                    SizedBox(width: 8),
+                                                    Text('Restart'),
+                                                  ],
+                                                ),
+                                              ),
+                                            const PopupMenuItem(
+                                              value: 'redownload',
+                                              child: Row(
+                                                children: [
+                                                  Icon(Icons.download),
+                                                  SizedBox(width: 8),
+                                                  Text('Redownload'),
+                                                ],
+                                              ),
+                                            ),
+                                            const PopupMenuItem(
+                                              value: 'remove',
+                                              child: Row(
+                                                children: [
+                                                  Icon(Icons.delete),
+                                                  SizedBox(width: 8),
+                                                  Text('Remove'),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
+                                          child: const Icon(Icons.more_vert),
                                         ),
                                       ],
                                     ),

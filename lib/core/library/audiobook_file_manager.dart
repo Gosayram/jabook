@@ -327,27 +327,30 @@ class AudiobookFileManager {
       }
 
       // Delete directory if required
+      // After deleting all audio files, delete the group directory recursively
+      // even if it's not empty (there may be service files like .m3u, .bt.state, etc.)
       if (deleteDirectory) {
         try {
           final dir = Directory(group.groupPath);
           if (await dir.exists()) {
-            // Check if directory is empty (all files deleted)
-            final isEmpty = await _isDirectoryEmpty(dir);
-            if (isEmpty) {
-              await dir.delete(recursive: true);
-              await _logger.log(
-                level: 'info',
-                subsystem: 'file_manager',
-                message: 'Directory deleted',
-                extra: {'groupPath': group.groupPath},
-              );
-            } else {
-              await _logger.log(
-                level: 'warning',
-                subsystem: 'file_manager',
-                message: 'Directory not empty, skipping deletion',
-                extra: {'groupPath': group.groupPath},
-              );
+            // Delete directory recursively - all audio files are already deleted,
+            // remaining files are service files that should be removed too
+            await dir.delete(recursive: true);
+            await _logger.log(
+              level: 'info',
+              subsystem: 'file_manager',
+              message: 'Directory deleted recursively',
+              extra: {'groupPath': group.groupPath},
+            );
+
+            // If group has torrentId, also delete parent torrent folder if no other groups
+            if (group.torrentId != null) {
+              await _deleteTorrentIdFolderIfEmpty(group);
+            }
+          } else {
+            // Directory doesn't exist, but still try to delete torrentId folder if applicable
+            if (group.torrentId != null) {
+              await _deleteTorrentIdFolderIfEmpty(group);
             }
           }
         } on Exception catch (e) {
@@ -590,18 +593,182 @@ class AudiobookFileManager {
     }
   }
 
-  /// Checks if a directory is empty.
+  /// Deletes the parent torrent ID folder if it's empty after group deletion.
   ///
-  /// The [dir] parameter is the directory to check.
+  /// This method finds the parent folder with torrentId and deletes it
+  /// recursively if it's empty or contains only service files.
   ///
-  /// Returns true if the directory is empty, false otherwise.
-  Future<bool> _isDirectoryEmpty(Directory dir) async {
+  /// The [group] parameter is the audiobook group that was deleted.
+  Future<void> _deleteTorrentIdFolderIfEmpty(
+    LocalAudiobookGroup group,
+  ) async {
+    if (group.torrentId == null) {
+      return;
+    }
+
     try {
-      final entries = dir.listSync();
-      return entries.isEmpty;
-    } on Exception {
-      // If we can't check, assume directory is not empty
+      // Find parent directory containing torrentId
+      // groupPath format: basePath/{torrentId}/groupName or basePath/{torrentId}
+      final normalizedGroupPath = path.normalize(group.groupPath);
+      final pathParts = path.split(normalizedGroupPath);
+
+      // Find index of torrentId in path
+      int? torrentIdIndex;
+      for (var i = 0; i < pathParts.length; i++) {
+        if (pathParts[i] == group.torrentId) {
+          torrentIdIndex = i;
+          break;
+        }
+      }
+
+      if (torrentIdIndex == null) {
+        // TorrentId not found in path - skip deletion
+        await _logger.log(
+          level: 'warning',
+          subsystem: 'file_manager',
+          message: 'TorrentId not found in group path',
+          extra: {
+            'groupPath': group.groupPath,
+            'torrentId': group.torrentId,
+          },
+        );
+        return;
+      }
+
+      // Build path to torrentId folder
+      final torrentIdPathParts = pathParts.sublist(0, torrentIdIndex + 1);
+      final torrentIdDir = Directory(path.joinAll(torrentIdPathParts));
+
+      // Check if groupPath is the same as torrentIdDir path
+      // If so, the torrentId folder was already deleted when we deleted groupPath
+      final normalizedTorrentIdPath = path.normalize(torrentIdDir.path);
+      if (normalizedGroupPath == normalizedTorrentIdPath) {
+        // GroupPath is the torrentId folder itself - already deleted
+        await _logger.log(
+          level: 'info',
+          subsystem: 'file_manager',
+          message: 'TorrentId folder was already deleted with groupPath',
+          extra: {
+            'torrentIdPath': torrentIdDir.path,
+            'torrentId': group.torrentId,
+            'groupPath': group.groupPath,
+          },
+        );
+        return;
+      }
+
+      if (!await torrentIdDir.exists()) {
+        // Directory doesn't exist - nothing to delete
+        await _logger.log(
+          level: 'info',
+          subsystem: 'file_manager',
+          message: 'TorrentId folder does not exist',
+          extra: {
+            'torrentIdPath': torrentIdDir.path,
+            'torrentId': group.torrentId,
+            'groupPath': group.groupPath,
+          },
+        );
+        return;
+      }
+
+      // Check if there are other directories (other groups) in torrentId folder
+      // If no other directories exist, we can safely delete the entire torrentId folder
+      final hasOtherGroups = await _hasOtherGroupsInTorrentIdFolder(
+        torrentIdDir,
+        normalizedGroupPath,
+      );
+      if (!hasOtherGroups) {
+        // No other groups found - delete the entire torrentId folder recursively
+        await torrentIdDir.delete(recursive: true);
+        await _logger.log(
+          level: 'info',
+          subsystem: 'file_manager',
+          message: 'TorrentId folder deleted recursively',
+          extra: {
+            'torrentIdPath': torrentIdDir.path,
+            'torrentId': group.torrentId,
+            'groupPath': group.groupPath,
+          },
+        );
+      } else {
+        await _logger.log(
+          level: 'info',
+          subsystem: 'file_manager',
+          message: 'TorrentId folder contains other groups, skipping deletion',
+          extra: {
+            'torrentIdPath': torrentIdDir.path,
+            'torrentId': group.torrentId,
+            'groupPath': group.groupPath,
+          },
+        );
+      }
+    } on Exception catch (e) {
+      await _logger.log(
+        level: 'warning',
+        subsystem: 'file_manager',
+        message: 'Failed to delete torrentId folder',
+        extra: {
+          'groupPath': group.groupPath,
+          'torrentId': group.torrentId,
+          'error': e.toString(),
+        },
+      );
+    }
+  }
+
+  /// Checks if torrentId folder contains other groups (directories) besides the deleted one.
+  ///
+  /// The [torrentIdDir] parameter is the torrentId directory to check.
+  /// The [deletedGroupPath] parameter is the path of the group that was deleted.
+  ///
+  /// Returns true if there are other groups (directories) in the torrentId folder,
+  /// false if the folder only contains files or is empty.
+  Future<bool> _hasOtherGroupsInTorrentIdFolder(
+    Directory torrentIdDir,
+    String deletedGroupPath,
+  ) async {
+    try {
+      final entries = await torrentIdDir.list().toList();
+      if (entries.isEmpty) {
+        return false; // No other groups
+      }
+
+      // Check if there are any directories (other groups) besides the deleted one
+      for (final entry in entries) {
+        if (entry is Directory) {
+          final entryPath = path.normalize(entry.path);
+          // If this directory is not the deleted group path, it's another group
+          if (entryPath != deletedGroupPath) {
+            await _logger.log(
+              level: 'info',
+              subsystem: 'file_manager',
+              message: 'Found other group in torrentId folder',
+              extra: {
+                'torrentIdPath': torrentIdDir.path,
+                'otherGroupPath': entryPath,
+                'deletedGroupPath': deletedGroupPath,
+              },
+            );
+            return true; // Found another group
+          }
+        }
+      }
+
+      // No other directories found - only files remain, safe to delete
       return false;
+    } on Exception catch (e) {
+      await _logger.log(
+        level: 'warning',
+        subsystem: 'file_manager',
+        message: 'Failed to check for other groups in torrentId folder',
+        extra: {
+          'dirPath': torrentIdDir.path,
+          'error': e.toString(),
+        },
+      );
+      // If we can't check, assume there are other groups to be safe
+      return true;
     }
   }
 }

@@ -183,10 +183,14 @@ class AudiobookTorrentManager {
       // Note: Downloads can still work, but state won't be persisted
       // However, we should still try to initialize if possible
     }
-
-    // Log download start with structured logging
-    logger.i(
-        'Starting download - save path: $savePath, isAppSpecific: ${PermissionService.isAppSpecificDirectory(savePath)}');
+    logger
+      ..i('=== downloadSequential CALLED ===')
+      ..i('magnetUrl: ${magnetUrl.substring(0, magnetUrl.length > 50 ? 50 : magnetUrl.length)}...')
+      ..i('savePath: $savePath')
+      ..i('title: $title')
+      ..i(
+        'Starting download - save path: $savePath, isAppSpecific: ${PermissionService.isAppSpecificDirectory(savePath)}',
+      );
     await StructuredLogger().log(
       level: 'info',
       subsystem: 'torrent',
@@ -215,6 +219,22 @@ class AudiobookTorrentManager {
       // Create progress controller for this download
       final progressController = StreamController<TorrentProgress>.broadcast();
       _progressControllers[downloadId] = progressController;
+
+      // Emit initial progress immediately so UI can show the download right away
+      // This must be done before any long-running operations
+      final initialProgress = TorrentProgress(
+        progress: 0.0,
+        downloadSpeed: 0.0,
+        uploadSpeed: 0.0,
+        downloadedBytes: 0,
+        totalBytes: 0, // Will be updated after metadata download
+        seeders: 0,
+        leechers: 0,
+        status: 'downloading_metadata',
+      );
+      if (!progressController.isClosed) {
+        progressController.add(initialProgress);
+      }
 
       // Parse magnet link
       final magnet = MagnetParser.parse(magnetUrl);
@@ -414,6 +434,25 @@ class AudiobookTorrentManager {
         throw const TorrentFailure('Failed to parse torrent from metadata');
       }
 
+      // Store metadata IMMEDIATELY so it appears in downloads list right away
+      // This must be done BEFORE creating the task to ensure it's available when getActiveDownloads() is called
+      final metadata = {
+        'magnetUrl': magnetUrl,
+        'savePath': savePath,
+        'infoHash': magnet.infoHashString,
+        'startedAt': DateTime.now().toIso8601String(),
+        'status': 'downloading_metadata', // Initial status
+        'progress': 0.0,
+        'downloadedBytes': 0,
+        'totalBytes': 0,
+        if (title != null && title.isNotEmpty) 'title': title,
+        if (coverUrl != null && coverUrl.isNotEmpty) 'coverUrl': coverUrl,
+      };
+      _downloadMetadata[downloadId] = metadata;
+      logger.i(
+        'downloadSequential: Saved metadata to _downloadMetadata for downloadId: $downloadId, metadata keys: ${metadata.keys.toList()}',
+      );
+
       // Create torrent task with web seeds and acceptable sources from magnet link
       final task = TorrentTask.newTask(
         torrentModel,
@@ -437,42 +476,12 @@ class AudiobookTorrentManager {
         task.applySelectedFiles(magnet.selectedFileIndices!);
       }
 
-      // Store metadata IMMEDIATELY so it appears in downloads list right away
-      final metadata = {
-        'magnetUrl': magnetUrl,
-        'savePath': savePath,
-        'infoHash': magnet.infoHashString,
-        'startedAt': DateTime.now().toIso8601String(),
-        'status': 'downloading_metadata', // Initial status
-        'progress': 0.0,
-        'downloadedBytes': 0,
-        'totalBytes': 0,
-        if (title != null && title.isNotEmpty) 'title': title,
-        if (coverUrl != null && coverUrl.isNotEmpty) 'coverUrl': coverUrl,
-      };
-      _downloadMetadata[downloadId] = metadata;
-
       // Persist to database BEFORE adding to active tasks
       // This ensures metadata is saved even if something goes wrong
       await _saveDownloadMetadata(downloadId, metadata);
       logger.d(
         'Saved download metadata to database for downloadId: $downloadId',
       );
-
-      // Emit initial progress so UI can show the download immediately
-      final initialProgress = TorrentProgress(
-        progress: 0.0,
-        downloadSpeed: 0.0,
-        uploadSpeed: 0.0,
-        downloadedBytes: 0,
-        totalBytes: 0,
-        seeders: 0,
-        leechers: 0,
-        status: 'downloading_metadata',
-      );
-      if (!progressController.isClosed) {
-        progressController.add(initialProgress);
-      }
 
       // Show initial notification
       final displayTitle = title ?? 'Download';
@@ -844,6 +853,22 @@ class AudiobookTorrentManager {
         throw const TorrentFailure('Failed to parse torrent file');
       }
 
+      // Emit initial progress immediately so UI can show the download right away
+      // This must be done before any long-running operations
+      final initialProgress = TorrentProgress(
+        progress: 0.0,
+        downloadSpeed: 0.0,
+        uploadSpeed: 0.0,
+        downloadedBytes: 0,
+        totalBytes: torrentModel.length,
+        seeders: 0,
+        leechers: 0,
+        status: 'downloading',
+      );
+      if (!progressController.isClosed) {
+        progressController.add(initialProgress);
+      }
+
       // Check if path is app-specific directory (no permission needed on Android 11+)
       final isAppSpecific = PermissionService.isAppSpecificDirectory(savePath);
       if (isAppSpecific) {
@@ -989,6 +1014,28 @@ class AudiobookTorrentManager {
         }
       }
 
+      // Store metadata IMMEDIATELY so it appears in downloads list right away
+      // This must be done BEFORE creating the task to ensure it's available when getActiveDownloads() is called
+      final metadata = <String, dynamic>{
+        'savePath': savePath,
+        'startedAt': DateTime.now().toIso8601String(),
+        'torrentBytes': torrentBytes, // Store torrent bytes for restoration
+        'status': 'downloading', // Initial status
+        'progress': 0.0,
+        'downloadedBytes': 0,
+        'totalBytes': torrentModel.length,
+      };
+      if (title != null && title.isNotEmpty) {
+        metadata['title'] = title;
+      }
+      if (coverUrl != null && coverUrl.isNotEmpty) {
+        metadata['coverUrl'] = coverUrl;
+      }
+      _downloadMetadata[downloadId] = metadata;
+      logger.i(
+        'downloadFromTorrentBytes: Saved metadata to _downloadMetadata for downloadId: $downloadId, metadata keys: ${metadata.keys.toList()}',
+      );
+
       // Create torrent task with sequential download
       final task = TorrentTask.newTask(
         torrentModel,
@@ -1016,45 +1063,12 @@ class AudiobookTorrentManager {
         }, // Don't include savePath in extra to avoid redaction
       );
 
-      // Store metadata IMMEDIATELY so it appears in downloads list right away
-      final metadata = <String, dynamic>{
-        'savePath': savePath,
-        'startedAt': DateTime.now().toIso8601String(),
-        'torrentBytes': torrentBytes, // Store torrent bytes for restoration
-        'status': 'downloading', // Initial status
-        'progress': 0.0,
-        'downloadedBytes': 0,
-        'totalBytes': torrentModel.length,
-      };
-      if (title != null && title.isNotEmpty) {
-        metadata['title'] = title;
-      }
-      if (coverUrl != null && coverUrl.isNotEmpty) {
-        metadata['coverUrl'] = coverUrl;
-      }
-      _downloadMetadata[downloadId] = metadata;
-
       // Persist to database BEFORE adding to active tasks
       // This ensures metadata is saved even if something goes wrong
       await _saveDownloadMetadata(downloadId, metadata);
       logger.d(
         'Saved download metadata to database for downloadId: $downloadId',
       );
-
-      // Emit initial progress so UI can show the download immediately
-      final initialProgress = TorrentProgress(
-        progress: 0.0,
-        downloadSpeed: 0.0,
-        uploadSpeed: 0.0,
-        downloadedBytes: 0,
-        totalBytes: torrentModel.length,
-        seeders: 0,
-        leechers: 0,
-        status: 'downloading',
-      );
-      if (!progressController.isClosed) {
-        progressController.add(initialProgress);
-      }
 
       // Show initial notification
       final displayTitle = title ?? torrentModel.name;
@@ -2043,6 +2057,157 @@ class AudiobookTorrentManager {
     }
   }
 
+  /// Restarts a download that has stopped or failed.
+  ///
+  /// This method stops the current download task (if active) and restarts it.
+  /// For active downloads, it stops and starts the task again.
+  /// For inactive downloads, it uses resumeRestoredDownload.
+  ///
+  /// The [downloadId] parameter is the unique identifier of the download to restart.
+  ///
+  /// Throws [TorrentFailure] if the download cannot be restarted.
+  Future<void> restartDownload(String downloadId) async {
+    final logger = EnvironmentLogger();
+    try {
+      final task = _activeTasks[downloadId];
+      if (task != null) {
+        // Active download: stop and start again
+        try {
+          await task.stop();
+          await Future.delayed(const Duration(milliseconds: 500));
+          await task.start();
+
+          // Update progress status to downloading
+          final downloadSpeedBps = task.currentDownloadSpeed * 1024;
+          final controller = _progressControllers[downloadId];
+          if (controller != null && !controller.isClosed) {
+            final progress = TorrentProgress(
+              progress: task.progress * 100,
+              downloadSpeed: downloadSpeedBps,
+              uploadSpeed: task.uploadSpeed,
+              downloadedBytes: task.downloaded ?? 0,
+              totalBytes: task.metaInfo.length,
+              seeders: task.seederNumber,
+              leechers: task.allPeersNumber - task.seederNumber,
+              status: 'downloading',
+            );
+            controller.add(progress);
+          }
+
+          // Update notification
+          final metadata = _downloadMetadata[downloadId];
+          final displayTitle =
+              metadata?['title'] as String? ?? task.metaInfo.name;
+          safeUnawaited(_notificationService.showDownloadProgress(
+            downloadId,
+            displayTitle,
+            task.progress * 100,
+            downloadSpeedBps,
+            'downloading',
+          ));
+
+          logger.i('Download $downloadId restarted (active task)');
+          await StructuredLogger().log(
+            level: 'info',
+            subsystem: 'torrent',
+            message: 'Download restarted (active task)',
+            extra: {'downloadId': downloadId},
+          );
+        } on Exception catch (e) {
+          logger.w('Error restarting active task: $e');
+          throw TorrentFailure(
+              'Failed to restart active download: ${e.toString()}');
+        }
+      } else {
+        // Inactive download: use resumeRestoredDownload
+        await resumeRestoredDownload(downloadId);
+        logger.i('Download $downloadId restarted (restored)');
+        await StructuredLogger().log(
+          level: 'info',
+          subsystem: 'torrent',
+          message: 'Download restarted (restored)',
+          extra: {'downloadId': downloadId},
+        );
+      }
+    } on Exception catch (e) {
+      if (e is TorrentFailure) {
+        rethrow;
+      }
+      throw TorrentFailure('Failed to restart download: ${e.toString()}');
+    }
+  }
+
+  /// Removes a download and starts it again from the beginning.
+  ///
+  /// This method removes the current download (including metadata) and starts
+  /// a new download with the same parameters. A new download ID will be generated.
+  ///
+  /// The [downloadId] parameter is the unique identifier of the download to redownload.
+  ///
+  /// Returns the new download ID.
+  ///
+  /// Throws [TorrentFailure] if the download cannot be redownloaded.
+  Future<String> redownload(String downloadId) async {
+    final logger = EnvironmentLogger();
+    try {
+      final metadata = _downloadMetadata[downloadId];
+      if (metadata == null) {
+        throw const TorrentFailure('Download not found');
+      }
+
+      // Get save path and source before removing
+      final savePath = metadata['savePath'] as String?;
+      if (savePath == null) {
+        throw const TorrentFailure('Save path not found');
+      }
+
+      final magnetUrl = metadata['magnetUrl'] as String?;
+      final torrentBytes = metadata['torrentBytes'] as List<int>?;
+      final title = metadata['title'] as String?;
+      final coverUrl = metadata['coverUrl'] as String?;
+
+      // Remove the old download
+      await removeDownload(downloadId);
+
+      // Start new download
+      String newDownloadId;
+      if (magnetUrl != null && magnetUrl.isNotEmpty) {
+        newDownloadId = await downloadSequential(
+          magnetUrl,
+          savePath,
+          title: title,
+          coverUrl: coverUrl,
+        );
+      } else if (torrentBytes != null) {
+        newDownloadId = await downloadFromTorrentBytes(
+          torrentBytes,
+          savePath,
+          title: title,
+          coverUrl: coverUrl,
+        );
+      } else {
+        throw const TorrentFailure(
+          'Cannot redownload: no magnet URL or torrent file found',
+        );
+      }
+
+      logger.i('Download $downloadId redownloaded as $newDownloadId');
+      await StructuredLogger().log(
+        level: 'info',
+        subsystem: 'torrent',
+        message: 'Download redownloaded',
+        extra: {
+          'oldDownloadId': downloadId,
+          'newDownloadId': newDownloadId,
+        },
+      );
+
+      return newDownloadId;
+    } on Exception catch (e) {
+      throw TorrentFailure('Failed to redownload: ${e.toString()}');
+    }
+  }
+
   /// Removes a torrent download from the manager.
   ///
   /// This method stops the download and removes it from the active downloads list.
@@ -2129,9 +2294,16 @@ class AudiobookTorrentManager {
     try {
       final downloads = <Map<String, dynamic>>[];
 
-      logger.d(
-        'getActiveDownloads: Starting - active tasks: ${_activeTasks.length}, metadata entries: ${_downloadMetadata.length}',
-      );
+      logger
+        ..i(
+          'getActiveDownloads: Starting - active tasks: ${_activeTasks.length}, metadata entries: ${_downloadMetadata.length}',
+        )
+        ..i(
+          'getActiveDownloads: Active task IDs: ${_activeTasks.keys.toList()}',
+        )
+        ..i(
+          'getActiveDownloads: Metadata IDs: ${_downloadMetadata.keys.toList()}',
+        );
 
       // Add active tasks
       for (final entry in _activeTasks.entries) {
