@@ -49,7 +49,7 @@ help:
 	@echo "  make fmt                           - Format code"
 	@echo "  make lint                          - Run linting"
 	@echo "  make l10n                          - Generate localization files (flutter gen-l10n)"
-	@echo "  make check-l10n-duplicates         - Check for duplicate keys in ARB files"
+	@echo "  make check-l10n         			- Check for duplicate keys in ARB files"
 	@echo "  make analyze-size                  - Analyze APK size with detailed breakdown"
 	@echo ""
 	@echo "Maintenance Commands:"
