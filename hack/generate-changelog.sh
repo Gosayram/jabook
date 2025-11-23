@@ -294,9 +294,9 @@ format_version_section() {
 }
 
 # Get all tags sorted by version (newest first)
-# Tags should be in format vX.Y.Z or X.Y.Z
+# Tags should be in format vX.Y.Z or X.Y.Z, optionally with build number: vX.Y.Z+BUILD or X.Y.Z+BUILD
 get_tags() {
-    git tag -l | grep -E '^v?[0-9]+\.[0-9]+\.[0-9]+$' | sort -V -r || true
+    git tag -l | grep -E '^v?[0-9]+\.[0-9]+\.[0-9]+(\+[0-9]+)?$' | sort -V -r || true
 }
 
 # Get date for a tag (or current date if no tag) in UTC
