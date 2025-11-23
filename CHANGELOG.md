@@ -14,20 +14,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
-## [Unreleased]
+## [1.1.4+9] - 2025-11-23
 
 ### Added
 - ADD - Add CI workflow for GitHub Actions
 - Add CI workflow for GitHub Actions
+- Add RuTracker availability checker, improve logging and settings UI: - Add RuTrackerAvailabilityChecker: periodic background check (every 5 min) and manual check from settings. - Integrate checker with MainActivity lifecycle and RuTrackerSettingsScreen (manual button). - Refactor RuTrackerSettingsScreen and ViewModel: all UI strings moved to resources, improved localization. - Add/replace strings in strings.xml for all new UI and error messages. - Improve debug log export, SAF folder selection, and error handling in settings. - Update DI modules, repository, and core network logic for new checker and guest mode. - Minor: update DebugLogger, file_paths.xml, and related UI/UX polish
 - Add comprehensive file management and torrent system
 - Add downloads management and enhanced metadata support (#15)
-- Add local audiobook playback support
-- Add RuTracker availability checker, improve logging and settings UI: - Add RuTrackerAvailabilityChecker: periodic background check (every 5 min) and manual check from settings. - Integrate checker with MainActivity lifecycle and RuTrackerSettingsScreen (manual button). - Refactor RuTrackerSettingsScreen and ViewModel: all UI strings moved to resources, improved localization. - Add/replace strings in strings.xml for all new UI and error messages. - Improve debug log export, SAF folder selection, and error handling in settings. - Update DI modules, repository, and core network logic for new checker and guest mode. - Minor: update DebugLogger, file_paths.xml, and related UI/UX polish
 - FEATURE - Add RuTracker and torrent system architecture
 - Implement Clean Architecture foundation with modular structure
-- Implement phase 2 core player functionality
 - Implement Phase 4 advanced features: background playback + performance optimization
 - Implement Phase 5 UI/UX improvements with comprehensive animation system
+- Implement phase 2 core player functionality
 - Improve cache and cookie handling; (#13)
 - Initial commit
 - Initialize Android Kotlin project with Jetpack Compose
@@ -49,11 +48,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix builds
 - Fix compilation errors and detekt warnings, improve code structure: - Fix Hilt dependency injection conflicts: remove duplicate bindings from NetworkModule,   move RuTracker dependencies to RuTrackerModule with proper @Binds annotations - Resolve MediaType deprecation: replace MediaType.get() with toMediaType() extension - Fix compilation errors in RuTrackerApiService: add missing imports and @Inject constructor - Refactor complex UI components to reduce function count and improve maintainability:   * Split RuTrackerSettingsScreen into ModeToggleCard, LoginCard, StatusMessageCard   * Break down AudiobookSearchResultCard into AudiobookCover, AudiobookInfo,     ActionButtons, MetadataRow, AdditionalInfo components   * Extract SleepTimerDelegate from PlayerManagerImpl to reduce function count - Fix import conflicts and trailing spaces: resolve weight() modifier issues,   remove unused imports, fix import ordering - Improve code organization: use data classes for component parameters,   add proper trailing commas, fix modifier usage - All detekt warnings resolved: no more compilation errors, clean build passes
 - Gitignore for compiler
-- Improve player UX and RuTracker parser accuracy
-- Local testing params for usb connected device
 - Lots of updates and fixes
-- Optimize image loading and player initialization
-- Refactor player architecture and improve UI components
+- Refactoring/perf (#20)
 - Remove deprecated Android API usage, unify compatibility for minSdk 23+; cleanup suppressions: - Remove all usages of deprecated Android platform APIs (audio focus, getColor, getParcelableExtra, network info); - Unify compatibility logic for Android 6.0+ (minSdk 23): explicit version checks, no suppressions; - Refactor AudioFocusManager, PlayerService, Extensions, ViewFallbacks for clarity and maintainability
 - Remove unused private property in DebugLogger.kt
 - Removed and fixed unused params; bump logical structure
@@ -69,16 +65,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add automatic download resumption and improve settings UX (#19)
 - Adding super.onStartCommand(intent, flags, startId) at the beginning of the onStartCommand method
 - Api version for deprecated libs
-- Base fixes
 - BUGFIX - Fix RuTracker integration and compilation issues
-- Change duration time via external libs
+- Base fixes
 - CI settings
+- Change duration time via external libs
 - Compiler version
 - Download mechanism; states and Download status; fix old errors with playerListener
 - Exclude additional files
+- Fix CI via ignore wrapper jar
 - Fix app version and sdk; fix theme names
 - Fix base params and editor configs
-- Fix CI via ignore wrapper jar
 - Fix deprecated libs
 - Fix formats
 - Fix imports and minor bugs
@@ -141,4 +137,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Security params
 
 
-[Unreleased]: https://github.com/Gosayram/jabook/compare/d267d15...HEAD
+[Unreleased]: https://github.com/Gosayram/jabook/compare/1.1.4+9...HEAD
+[1.1.4+9]: https://github.com/Gosayram/jabook/compare/d267d15fb5c474143256670074da461cd315af74...1.1.4+9
