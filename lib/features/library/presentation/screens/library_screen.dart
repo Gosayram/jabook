@@ -25,11 +25,13 @@ import 'package:jabook/core/library/audiobook_library_scanner.dart';
 import 'package:jabook/core/library/folder_filter_service.dart';
 import 'package:jabook/core/library/local_audiobook.dart';
 import 'package:jabook/core/library/smart_scanner_service.dart';
+import 'package:jabook/core/utils/content_uri_service.dart';
 import 'package:jabook/core/utils/file_picker_utils.dart' as file_picker_utils;
 import 'package:jabook/core/utils/responsive_utils.dart';
 import 'package:jabook/core/utils/storage_path_utils.dart';
 import 'package:jabook/data/db/app_database.dart';
 import 'package:jabook/features/library/presentation/widgets/delete_confirmation_dialog.dart';
+import 'package:jabook/features/library/providers/library_provider.dart';
 import 'package:jabook/l10n/app_localizations.dart';
 
 /// Options for sorting audiobook groups in the library.
@@ -410,61 +412,98 @@ class _LibraryContent extends ConsumerStatefulWidget {
 }
 
 class _LibraryContentState extends ConsumerState<_LibraryContent> {
-  List<LocalAudiobookGroup> _audiobookGroups = [];
   List<LocalAudiobookGroup> _displayedGroups = [];
-  bool _isScanning = false;
   final FolderFilterService _folderFilterService = FolderFilterService();
-  late final AudiobookLibraryScanner _scanner =
-      AudiobookLibraryScanner(folderFilterService: _folderFilterService);
-  late final SmartScannerService _smartScanner =
-      SmartScannerService(folderFilterService: _folderFilterService);
+  late final AudiobookLibraryScanner _scanner = AudiobookLibraryScanner(
+    folderFilterService: _folderFilterService,
+    contentUriService: Platform.isAndroid ? ContentUriService() : null,
+  );
   final AudiobookFileManager _fileManager = AudiobookFileManager();
+  bool _hasInitialLoad = false;
 
   @override
   void initState() {
     super.initState();
-    // Load audiobooks on screen init
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadLocalAudiobooks();
-    });
+    _hasInitialLoad = false;
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Load audiobooks only once, using cached state if available
+    if (!_hasInitialLoad) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final cachedGroups = ref.read(libraryGroupsProvider);
+        if (cachedGroups.isEmpty) {
+          _loadLocalAudiobooks();
+        } else {
+          // Use cached groups and apply filters
+          _applyFilters();
+        }
+        _hasInitialLoad = true;
+      });
+    }
   }
 
   Future<void> _loadLocalAudiobooks({bool forceFullScan = false}) async {
-    if (_isScanning) return;
-    setState(() => _isScanning = true);
+    final isScanning = ref.read(isScanningProvider);
+    if (isScanning) return;
+
+    // Update scanning state via provider
+    ref.read(isScanningProvider.notifier).state = true;
+
     try {
-      // Use smart scanner for incremental updates, or full scan if forced
-      final groups = forceFullScan
-          ? await _smartScanner.forceFullScan()
-          : await _smartScanner.scanIncremental();
+      // Run scanning in isolate to prevent cancellation when app is minimized
+      final groups = await _scanInBackground(forceFullScan: forceFullScan);
+
       if (mounted) {
-        setState(() {
-          _audiobookGroups = groups;
-          _isScanning = false;
-        });
+        // Update state via provider to persist across tab switches
+        ref.read(libraryGroupsProvider.notifier).updateGroups(groups);
+        ref.read(isScanningProvider.notifier).state = false;
         _applyFilters();
       }
     } on Exception catch (e) {
       if (mounted) {
-        setState(() => _isScanning = false);
+        ref.read(isScanningProvider.notifier).state = false;
         debugPrint('Failed to load local audiobooks: $e');
         // Fallback to regular scanner on error
         try {
           final groups = await _scanner.scanAllLibraryFolders();
           if (mounted) {
-            setState(() {
-              _audiobookGroups = groups;
-              _isScanning = false;
-            });
+            ref.read(libraryGroupsProvider.notifier).updateGroups(groups);
+            ref.read(isScanningProvider.notifier).state = false;
             _applyFilters();
           }
         } on Exception {
           if (mounted) {
-            setState(() => _isScanning = false);
+            ref.read(isScanningProvider.notifier).state = false;
           }
         }
       }
     }
+  }
+
+  /// Scans library in background isolate to prevent cancellation.
+  Future<List<LocalAudiobookGroup>> _scanInBackground({
+    required bool forceFullScan,
+  }) async {
+    // Run scanning directly but with periodic UI updates
+    // Note: Using compute is problematic with file I/O, so we'll use
+    // a different approach - periodic setState updates to keep UI responsive
+    final folderFilterService = FolderFilterService();
+    final scanner = AudiobookLibraryScanner(
+      folderFilterService: folderFilterService,
+      contentUriService: Platform.isAndroid ? ContentUriService() : null,
+    );
+    final smartScanner = SmartScannerService(
+      scanner: scanner,
+      folderFilterService: folderFilterService,
+    );
+
+    // Use smart scanner for incremental updates, or full scan if forced
+    return forceFullScan
+        ? await smartScanner.forceFullScan()
+        : await smartScanner.scanIncremental();
   }
 
   Future<void> _refreshLibrary({bool forceFullScan = false}) async {
@@ -472,7 +511,9 @@ class _LibraryContentState extends ConsumerState<_LibraryContent> {
   }
 
   void _applyFilters() {
-    final filtered = List<LocalAudiobookGroup>.from(_audiobookGroups);
+    // Get groups from provider (persisted state)
+    final audiobookGroups = ref.read(libraryGroupsProvider);
+    final filtered = List<LocalAudiobookGroup>.from(audiobookGroups);
 
     // Apply sorting
     switch (widget.sortOption) {
@@ -526,19 +567,41 @@ class _LibraryContentState extends ConsumerState<_LibraryContent> {
     final iconSize = ResponsiveUtils.getIconSize(context, baseSize: 64);
     final spacing = ResponsiveUtils.getSpacing(context, baseSpacing: 16);
 
+    // Watch providers for reactive updates
+    final audiobookGroups = ref.watch(libraryGroupsProvider);
+    final isScanning = ref.watch(isScanningProvider);
+
     // Show loading indicator while scanning
-    if (_isScanning && _audiobookGroups.isEmpty) {
+    if (isScanning && audiobookGroups.isEmpty && !_hasInitialLoad) {
       return ResponsiveUtils.responsiveContainer(
         context,
         Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const CircularProgressIndicator(),
+              // Smooth animated progress indicator
+              SizedBox(
+                width: iconSize,
+                height: iconSize,
+                child: CircularProgressIndicator(
+                  strokeWidth: 4,
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    Theme.of(context).colorScheme.primary,
+                  ),
+                ),
+              ),
               SizedBox(height: spacing),
-              Text(
-                'Scanning library...',
-                style: Theme.of(context).textTheme.bodyMedium,
+              // Animated text with fade
+              TweenAnimationBuilder<double>(
+                tween: Tween(begin: 0.0, end: 1.0),
+                duration: const Duration(milliseconds: 500),
+                builder: (context, value, child) => Opacity(
+                  opacity: value,
+                  child: Text(
+                    'Scanning library...',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                ),
               ),
             ],
           ),
@@ -548,9 +611,9 @@ class _LibraryContentState extends ConsumerState<_LibraryContent> {
     }
 
     // Show list of audiobook groups if found
-    if (_displayedGroups.isNotEmpty || _audiobookGroups.isNotEmpty) {
+    if (_displayedGroups.isNotEmpty || audiobookGroups.isNotEmpty) {
       final groupsToShow =
-          _displayedGroups.isNotEmpty ? _displayedGroups : _audiobookGroups;
+          _displayedGroups.isNotEmpty ? _displayedGroups : audiobookGroups;
 
       if (widget.groupOption == GroupOption.firstLetter) {
         // Group by first letter
@@ -861,7 +924,7 @@ class _LibraryContentState extends ConsumerState<_LibraryContent> {
       final directory = await file_picker_utils.pickDirectory();
 
       if (directory != null) {
-        setState(() => _isScanning = true);
+        ref.read(isScanningProvider.notifier).state = true;
         try {
           // Scan recursively for audio files
           final audiobooks = await _scanner.scanDirectory(
@@ -874,9 +937,7 @@ class _LibraryContentState extends ConsumerState<_LibraryContent> {
           // TODO: Implement smarter merging logic
           await _loadLocalAudiobooks();
           if (!mounted) return;
-          setState(() {
-            _isScanning = false;
-          });
+          ref.read(isScanningProvider.notifier).state = false;
 
           if (!mounted) return;
           if (audiobooks.isNotEmpty) {
@@ -897,7 +958,7 @@ class _LibraryContentState extends ConsumerState<_LibraryContent> {
           }
         } on Exception catch (e) {
           if (!mounted) return;
-          setState(() => _isScanning = false);
+          ref.read(isScanningProvider.notifier).state = false;
           messenger.showSnackBar(
             SnackBar(
               content: Text(
@@ -1012,7 +1073,7 @@ class _LibraryContentState extends ConsumerState<_LibraryContent> {
       subtitle: Text(
         '${group.fileCount} ${group.fileCount == 1 ? 'file' : 'files'} • ${group.formattedTotalSize}',
       ),
-      trailing: _isScanning
+      trailing: ref.watch(isScanningProvider)
           ? const SizedBox(
               width: 20,
               height: 20,

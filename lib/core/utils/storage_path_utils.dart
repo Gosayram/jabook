@@ -268,24 +268,18 @@ class StoragePathUtils {
       final savedPath = prefs.getString(libraryFolderPathKey);
 
       if (savedPath != null && savedPath.isNotEmpty) {
-        // Convert content URI to file path if needed
-        var actualPath = savedPath;
+        // For content URIs, keep them as-is (don't convert)
+        // ContentResolver will handle them directly
         if (isContentUri(savedPath)) {
-          final convertedPath = convertUriToPath(savedPath);
-          if (convertedPath != null) {
-            actualPath = convertedPath;
-            EnvironmentLogger().d(
-              'StoragePathUtils: Converted content URI to file path: $savedPath -> $actualPath',
-            );
-            // Save converted path for future use
-            await prefs.setString(libraryFolderPathKey, actualPath);
-          } else {
-            EnvironmentLogger().w(
-              'StoragePathUtils: Cannot convert content URI to file path: $savedPath',
-            );
-            await prefs.remove(libraryFolderPathKey);
-          }
+          EnvironmentLogger().d(
+            'StoragePathUtils: Using content URI directly: $savedPath',
+          );
+          // Return content URI as-is - scanner will use ContentResolver
+          return savedPath;
         }
+
+        // Convert content URI to file path if needed (fallback for old saved paths)
+        final actualPath = savedPath;
 
         // Check if saved path is app-specific directory (old path that user can't access)
         if (PermissionService.isAppSpecificDirectory(actualPath)) {
@@ -360,19 +354,12 @@ class StoragePathUtils {
           for (final folder in decoded) {
             final trimmed = folder.trim();
             if (trimmed.isNotEmpty) {
-              // Convert content URI to file path if needed
+              // Keep content URIs as-is - scanner will use ContentResolver
               if (isContentUri(trimmed)) {
-                final convertedPath = convertUriToPath(trimmed);
-                if (convertedPath != null) {
-                  folders.add(convertedPath);
-                  EnvironmentLogger().d(
-                    'StoragePathUtils: Converted content URI to file path: $trimmed -> $convertedPath',
-                  );
-                } else {
-                  EnvironmentLogger().w(
-                    'StoragePathUtils: Cannot convert content URI to file path: $trimmed',
-                  );
-                }
+                folders.add(trimmed);
+                EnvironmentLogger().d(
+                  'StoragePathUtils: Keeping content URI as-is: $trimmed',
+                );
               } else {
                 folders.add(trimmed);
               }
