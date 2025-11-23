@@ -30,13 +30,17 @@ import 'package:jabook/core/logging/environment_logger.dart';
 import 'package:jabook/core/logging/structured_logger.dart';
 import 'package:jabook/core/metadata/audiobook_metadata_service.dart';
 import 'package:jabook/core/net/dio_client.dart';
+import 'package:jabook/core/parse/category_parser.dart' as category_parser;
 import 'package:jabook/core/parse/rutracker_parser.dart';
 import 'package:jabook/core/search/search_history_service.dart';
 import 'package:jabook/core/services/cookie_service.dart';
 import 'package:jabook/core/utils/safe_async.dart';
 import 'package:jabook/data/db/app_database.dart';
 import 'package:jabook/features/auth/data/providers/auth_provider.dart';
+import 'package:jabook/features/auth/domain/entities/auth_status.dart';
+import 'package:jabook/features/search/presentation/widgets/audiobook_card_skeleton.dart';
 import 'package:jabook/features/search/presentation/widgets/grouped_audiobook_list.dart';
+import 'package:jabook/features/search/presentation/widgets/recommended_audiobooks_widget.dart';
 import 'package:jabook/features/settings/presentation/screens/mirror_settings_screen.dart';
 import 'package:jabook/l10n/app_localizations.dart';
 import 'package:windows1251/windows1251.dart';
@@ -84,6 +88,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   final ScrollController _scrollController = ScrollController();
   final Set<String> _selectedCategories = <String>{};
   final FocusNode _searchFocusNode = FocusNode();
+  // Cache for recommended audiobooks to avoid reloading on every build
+  Future<List<RecommendedAudiobook>>? _recommendedAudiobooksFuture;
 
   @override
   void dispose() {
@@ -98,12 +104,128 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   @override
   void initState() {
     super.initState();
+    EnvironmentLogger().d('SearchScreen.initState called');
     _initializeCache();
     _initializeMetadataService();
     _loadActiveHost();
     _scrollController.addListener(_onScroll);
     _searchFocusNode.addListener(_onSearchFocusChange);
     _searchController.addListener(_onSearchTextChange);
+
+    // Test: Try to load recommendations immediately in initState
+    Future.microtask(() async {
+      EnvironmentLogger().d('Testing recommendation loading in initState');
+      try {
+        final authStatus = ref.read(authStatusProvider);
+        final isAuthenticated = authStatus.value?.isAuthenticated ?? false;
+        EnvironmentLogger().d(
+          'initState: isAuthenticated=$isAuthenticated, authStatus=${authStatus.value}',
+        );
+
+        if (isAuthenticated) {
+          EnvironmentLogger()
+              .d('User is authenticated, testing recommendation loading');
+          // Test the recommendation loading mechanism directly
+          final testResult = await _getCategoryRecommendations();
+          EnvironmentLogger().i(
+            'Test recommendation loading completed: ${testResult.length} recommendations',
+          );
+        } else {
+          EnvironmentLogger()
+              .w('User not authenticated in initState, skipping test');
+        }
+      } on Exception catch (e, stackTrace) {
+        EnvironmentLogger().e(
+          'Error testing recommendation loading in initState: $e',
+          error: e,
+          stackTrace: stackTrace,
+        );
+      }
+    });
+
+    // Listen to auth status changes and reload recommendations when user logs in
+    Future.microtask(() {
+      final structuredLogger = StructuredLogger();
+      safeUnawaited(structuredLogger.log(
+        level: 'debug',
+        subsystem: 'recommendations',
+        message: 'Setting up auth status listener in initState',
+        context: 'auth_listener_setup',
+      ));
+      ref.listen<AsyncValue<AuthStatus>>(
+        authStatusProvider,
+        (previous, next) {
+          safeUnawaited(structuredLogger.log(
+            level: 'info',
+            subsystem: 'recommendations',
+            message: 'Auth status changed',
+            context: 'auth_status_change',
+            extra: {
+              'previous_value': previous?.value?.toString() ?? 'null',
+              'next_value': next.value?.toString() ?? 'null',
+              'next_has_value': next.hasValue,
+              'next_is_loading': next.isLoading,
+              'next_has_error': next.hasError,
+            },
+          ));
+          next.whenData((status) {
+            // If user just authenticated, reload recommendations
+            final wasAuthenticated = previous?.value?.isAuthenticated ?? false;
+            safeUnawaited(structuredLogger.log(
+              level: 'info',
+              subsystem: 'recommendations',
+              message: 'Processing auth status change',
+              context: 'auth_status_change',
+              extra: {
+                'was_authenticated': wasAuthenticated,
+                'is_authenticated': status.isAuthenticated,
+                'status_changed': status.isAuthenticated != wasAuthenticated,
+              },
+            ));
+            if (status.isAuthenticated && !wasAuthenticated) {
+              safeUnawaited(structuredLogger.log(
+                level: 'info',
+                subsystem: 'recommendations',
+                message: 'User authenticated, reloading recommendations',
+                context: 'auth_status_change',
+              ));
+              if (mounted) {
+                setState(() {
+                  _recommendedAudiobooksFuture = _getRecommendedAudiobooks();
+                });
+              } else {
+                safeUnawaited(structuredLogger.log(
+                  level: 'warning',
+                  subsystem: 'recommendations',
+                  message: 'Widget not mounted, cannot reload recommendations',
+                  context: 'auth_status_change',
+                ));
+              }
+            }
+          });
+          // Also handle loading and error states
+          if (next.isLoading) {
+            safeUnawaited(structuredLogger.log(
+              level: 'debug',
+              subsystem: 'recommendations',
+              message: 'Auth status is loading',
+              context: 'auth_status_change',
+            ));
+          }
+          if (next.hasError) {
+            safeUnawaited(structuredLogger.log(
+              level: 'warning',
+              subsystem: 'recommendations',
+              message: 'Auth status has error',
+              context: 'auth_status_change',
+              extra: {
+                'error': next.error.toString(),
+              },
+            ));
+          }
+        },
+      );
+    });
   }
 
   void _onSearchFocusChange() {
@@ -269,6 +391,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
       // If login was successful, refresh and perform search
       if (result == true && mounted) {
+        // Explicitly refresh auth status to update the provider
+        await ref.read(authRepositoryProvider).refreshAuthStatus();
+
         // Validate cookies after returning from auth screen
         final isValid = await DioClient.validateCookies();
         if (isValid) {
@@ -329,8 +454,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       try {
         final localResults = await _metadataService!.searchLocally(query);
         if (localResults.isNotEmpty) {
+          final localResultsMaps = localResults.map(_audiobookToMap).toList();
           setState(() {
-            _searchResults = localResults.map(_audiobookToMap).toList();
+            _searchResults = localResultsMaps;
             _isLoading = false;
             _isFromLocalDb = true;
           });
@@ -339,6 +465,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             await _historyService!.saveSearchQuery(query);
             await _loadSearchHistory();
           }
+
+          // Update statistics for items that don't have them
+          safeUnawaited(_updateMissingStatistics(localResultsMaps));
 
           // Still try to get network results in background for updates
           safeUnawaited(
@@ -366,6 +495,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         _isFromCache = true;
         _cacheExpirationTime = expiration;
       });
+      // Update statistics for items that don't have them
+      safeUnawaited(_updateMissingStatistics(cachedResults));
       return;
     }
 
@@ -1516,6 +1647,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             await _historyService!.saveSearchQuery(query);
             await _loadSearchHistory();
           }
+
+          // Update statistics for items that don't have them
+          safeUnawaited(_updateMissingStatistics(results));
         }
 
         // Success - update active host display (don't change endpoint)
@@ -1758,351 +1892,1107 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(
-          title: Text(AppLocalizations.of(context)?.searchAudiobooks ??
-              'Search Audiobooks'),
-          actions: [
-            if (_activeHost != null)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                child: Center(
-                  child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade200,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(_activeHost!,
-                        style: const TextStyle(fontSize: 12)),
-                  ),
-                ),
-              ),
-            IconButton(
-              tooltip: AppLocalizations.of(context)?.rutrackerLoginTooltip ??
-                  'RuTracker Login',
-              icon: const Icon(Icons.vpn_key),
-              onPressed: _handleLogin,
-            ),
-            IconButton(
-              tooltip:
-                  AppLocalizations.of(context)?.mirrorsTooltip ?? 'Mirrors',
-              icon: const Icon(Icons.dns),
-              onPressed: () {
-                unawaited(Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) => const MirrorSettingsScreen()),
-                ).then((_) => _loadActiveHost()));
-              },
-            ),
-            PopupMenuButton<String>(
-              onSelected: (value) async {
-                final messenger = ScaffoldMessenger.of(context);
-                final localizations = AppLocalizations.of(context);
-                switch (value) {
-                  case 'refresh':
-                    await _forceRefreshSearch();
-                    break;
-                  case 'clear_search_cache':
-                    await _cacheService.clearSearchResultsCache();
-                    if (!mounted) break;
-                    messenger.showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          localizations?.cacheCleared ?? 'Cache cleared',
-                        ),
-                      ),
-                    );
-                    break;
-                  case 'clear_all_cache':
-                    await _cacheService.clearAllTopicDetailsCache();
-                    await _cacheService.clearSearchResultsCache();
-                    if (!mounted) break;
-                    messenger.showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          localizations?.allCacheCleared ?? 'All cache cleared',
-                        ),
-                      ),
-                    );
-                    break;
-                }
-              },
-              itemBuilder: (context) => [
-                PopupMenuItem(
-                  value: 'refresh',
-                  child: ListTile(
-                    leading: const Icon(Icons.refresh),
-                    title: Text(
-                      AppLocalizations.of(context)?.refreshCurrentSearch ??
-                          'Refresh current search',
-                    ),
-                    contentPadding: EdgeInsets.zero,
-                  ),
-                ),
-                PopupMenuItem(
-                  value: 'clear_search_cache',
-                  child: ListTile(
-                    leading: const Icon(Icons.clear_all),
-                    title: Text(
-                      AppLocalizations.of(context)?.clearSearchCache ??
-                          'Clear search cache',
-                    ),
-                    contentPadding: EdgeInsets.zero,
-                  ),
-                ),
-                PopupMenuItem(
-                  value: 'clear_all_cache',
-                  child: ListTile(
-                    leading: const Icon(Icons.delete_sweep),
-                    title: Text(
-                      AppLocalizations.of(context)?.clearAllCache ??
-                          'Clear all cache',
-                    ),
-                    contentPadding: EdgeInsets.zero,
-                  ),
-                ),
-              ],
-            ),
-            IconButton(
-              icon: const Icon(Icons.search),
-              onPressed: _performSearch,
-            ),
-          ],
-        ),
-        body: GestureDetector(
-          onTap: () {
-            _searchFocusNode.unfocus();
-            setState(() {
-              _showHistory = false;
-            });
-          },
-          child: Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: TextField(
-                  controller: _searchController,
-                  focusNode: _searchFocusNode,
-                  decoration: InputDecoration(
-                    labelText:
-                        AppLocalizations.of(context)?.searchPlaceholder ??
-                            'Enter title, author, or keywords',
-                    hintText: AppLocalizations.of(context)?.searchPlaceholder ??
-                        'Enter title, author, or keywords',
-                    suffixIcon: _searchController.text.isNotEmpty
-                        ? IconButton(
-                            icon: const Icon(Icons.clear),
-                            onPressed: () {
-                              _searchController.clear();
-                              setState(() {
-                                _searchResults = [];
-                                _hasSearched = false;
-                                _showHistory = _searchFocusNode.hasFocus &&
-                                    _searchHistory.isNotEmpty;
-                              });
-                            },
-                          )
-                        : null,
-                    border: const OutlineInputBorder(),
-                  ),
-                  onChanged: (value) {
-                    setState(() {
-                      _showHistory = _searchFocusNode.hasFocus &&
-                          value.isEmpty &&
-                          _searchHistory.isNotEmpty;
-                    });
-                    _debounce?.cancel();
-                    _debounce = Timer(
-                        const Duration(milliseconds: 500), _performSearch);
-                  },
-                  onSubmitted: (_) {
-                    _performSearch();
-                    _searchFocusNode.unfocus();
-                  },
-                  onTap: () {
-                    setState(() {
-                      _showHistory = _searchController.text.isEmpty &&
-                          _searchHistory.isNotEmpty;
-                    });
-                  },
-                ),
-              ),
-              if (_showHistory && _searchHistory.isNotEmpty)
-                _buildSearchHistory(),
-              if (_hasSearched && _errorKind == 'auth')
-                Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 16.0),
-                  padding: const EdgeInsets.all(12.0),
+  Widget build(BuildContext context) {
+    EnvironmentLogger().d(
+      'SearchScreen.build called: _hasSearched=$_hasSearched, searchText="${_searchController.text}"',
+    );
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(AppLocalizations.of(context)?.searchAudiobooks ??
+            'Search Audiobooks'),
+        actions: [
+          if (_activeHost != null)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8.0),
+              child: Center(
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: Colors.orange.shade50,
-                    borderRadius: BorderRadius.circular(8),
+                    color: Colors.grey.shade200,
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.lock_outline, color: Colors.orange.shade700),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          AppLocalizations.of(context)
-                                  ?.loginRequiredForSearch ??
-                              'Login required to search RuTracker',
-                          style: TextStyle(color: Colors.orange.shade800),
-                        ),
-                      ),
-                      TextButton(
-                        onPressed: () async {
-                          // Open auth screen for login
-                          final result = await context.push('/auth');
-                          if (!mounted) return;
-
-                          // If login was successful, validate cookies
-                          if (result == true) {
-                            final isValid = await DioClient.validateCookies();
-                            if (!isValid) {
-                              return; // Login failed, don't clear error
-                            }
-                          } else {
-                            return; // User cancelled, don't clear error
-                          }
-
-                          setState(() {
-                            _errorKind = null;
-                            _errorMessage = null;
-                          });
-                          await _performSearch();
-                        },
-                        child: Text(
-                            AppLocalizations.of(context)?.login ?? 'Login'),
-                      ),
-                    ],
-                  ),
+                  child:
+                      Text(_activeHost!, style: const TextStyle(fontSize: 12)),
                 ),
-              if (_isLoading)
-                Expanded(
-                  child: Semantics(
-                    label: AppLocalizations.of(context)?.loading ?? 'Loading',
-                    child: const Center(
-                      child: CircularProgressIndicator(),
-                    ),
-                  ),
-                )
-              else if (_hasSearched)
-                Expanded(
-                  child: Column(
-                    children: [
-                      if (_isFromCache)
-                        Container(
-                          padding: const EdgeInsets.all(8.0),
-                          color: Colors.blue[50],
-                          child: Row(
-                            children: [
-                              Icon(Icons.cached,
-                                  size: 16, color: Colors.blue[700]),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      AppLocalizations.of(context)
-                                              ?.resultsFromCache ??
-                                          'Results from cache',
-                                      style: TextStyle(
-                                        color: Colors.blue[700],
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                    if (_cacheExpirationTime != null)
-                                      Text(
-                                        '${AppLocalizations.of(context)?.cacheExpires ?? 'Expires'}: ${_formatCacheExpiration(_cacheExpirationTime!)}',
-                                        style: TextStyle(
-                                          fontSize: 10,
-                                          color: Colors.blue[600],
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                              ),
-                              TextButton.icon(
-                                icon: const Icon(Icons.refresh, size: 16),
-                                label: Text(
-                                    AppLocalizations.of(context)?.refresh ??
-                                        'Refresh'),
-                                onPressed: _forceRefreshSearch,
-                                style: TextButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 8, vertical: 4),
-                                  minimumSize: Size.zero,
-                                  tapTargetSize:
-                                      MaterialTapTargetSize.shrinkWrap,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      if (_isFromLocalDb)
-                        Container(
-                          padding: const EdgeInsets.all(8.0),
-                          color: Colors.amber[50],
-                          child: Row(
-                            children: [
-                              Icon(Icons.storage,
-                                  size: 16, color: Colors.amber[700]),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  AppLocalizations.of(context)
-                                          ?.resultsFromLocalDb ??
-                                      'Results from local database',
-                                  style: TextStyle(
-                                    color: Colors.amber[700],
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      if (_hasSearched && _searchResults.isNotEmpty)
-                        _buildCategoryFilters(),
-                      Expanded(
-                        child: RefreshIndicator(
-                          onRefresh: () async {
-                            await _forceRefreshSearch();
-                          },
-                          child: _buildBodyState(),
-                        ),
-                      ),
-                    ],
-                  ),
-                )
-              else
-                Expanded(
-                  child: Semantics(
-                    label: AppLocalizations.of(context)?.enterSearchTerm ??
-                        'Enter a search term to begin',
-                    child: Center(
-                      child: Text(
-                        AppLocalizations.of(context)?.enterSearchTerm ??
-                            'Enter a search term to begin',
-                        textAlign: TextAlign.center,
+              ),
+            ),
+          IconButton(
+            tooltip: AppLocalizations.of(context)?.rutrackerLoginTooltip ??
+                'RuTracker Login',
+            icon: const Icon(Icons.vpn_key),
+            onPressed: _handleLogin,
+          ),
+          IconButton(
+            tooltip: AppLocalizations.of(context)?.mirrorsTooltip ?? 'Mirrors',
+            icon: const Icon(Icons.dns),
+            onPressed: () {
+              unawaited(Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const MirrorSettingsScreen()),
+              ).then((_) => _loadActiveHost()));
+            },
+          ),
+          PopupMenuButton<String>(
+            onSelected: (value) async {
+              final messenger = ScaffoldMessenger.of(context);
+              final localizations = AppLocalizations.of(context);
+              switch (value) {
+                case 'refresh':
+                  await _forceRefreshSearch();
+                  break;
+                case 'clear_search_cache':
+                  await _cacheService.clearSearchResultsCache();
+                  if (!mounted) break;
+                  messenger.showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        localizations?.cacheCleared ?? 'Cache cleared',
                       ),
                     ),
+                  );
+                  break;
+                case 'clear_all_cache':
+                  await _cacheService.clearAllTopicDetailsCache();
+                  await _cacheService.clearSearchResultsCache();
+                  if (!mounted) break;
+                  messenger.showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        localizations?.allCacheCleared ?? 'All cache cleared',
+                      ),
+                    ),
+                  );
+                  break;
+              }
+            },
+            itemBuilder: (context) => [
+              PopupMenuItem(
+                value: 'refresh',
+                child: ListTile(
+                  leading: const Icon(Icons.refresh),
+                  title: Text(
+                    AppLocalizations.of(context)?.refreshCurrentSearch ??
+                        'Refresh current search',
                   ),
+                  contentPadding: EdgeInsets.zero,
                 ),
+              ),
+              PopupMenuItem(
+                value: 'clear_search_cache',
+                child: ListTile(
+                  leading: const Icon(Icons.clear_all),
+                  title: Text(
+                    AppLocalizations.of(context)?.clearSearchCache ??
+                        'Clear search cache',
+                  ),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+              PopupMenuItem(
+                value: 'clear_all_cache',
+                child: ListTile(
+                  leading: const Icon(Icons.delete_sweep),
+                  title: Text(
+                    AppLocalizations.of(context)?.clearAllCache ??
+                        'Clear all cache',
+                  ),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
             ],
           ),
+          IconButton(
+            icon: const Icon(Icons.search),
+            onPressed: _performSearch,
+          ),
+        ],
+      ),
+      body: GestureDetector(
+        onTap: () {
+          _searchFocusNode.unfocus();
+          setState(() {
+            _showHistory = false;
+          });
+        },
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: TextField(
+                controller: _searchController,
+                focusNode: _searchFocusNode,
+                decoration: InputDecoration(
+                  labelText: AppLocalizations.of(context)?.searchPlaceholder ??
+                      'Enter title, author, or keywords',
+                  hintText: AppLocalizations.of(context)?.searchPlaceholder ??
+                      'Enter title, author, or keywords',
+                  suffixIcon: _searchController.text.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear),
+                          onPressed: () {
+                            _searchController.clear();
+                            // Keep focus after clearing
+                            _searchFocusNode.requestFocus();
+                            setState(() {
+                              _searchResults = [];
+                              _hasSearched = false;
+                              _showHistory = _searchFocusNode.hasFocus &&
+                                  _searchHistory.isNotEmpty;
+                            });
+                          },
+                        )
+                      : null,
+                  border: const OutlineInputBorder(),
+                ),
+                onChanged: (value) {
+                  setState(() {
+                    _showHistory = _searchFocusNode.hasFocus &&
+                        value.isEmpty &&
+                        _searchHistory.isNotEmpty;
+                  });
+                  _debounce?.cancel();
+                  // Debounce search with 300ms delay
+                  _debounce =
+                      Timer(const Duration(milliseconds: 300), _performSearch);
+                },
+                onSubmitted: (_) {
+                  _performSearch();
+                  _searchFocusNode.unfocus();
+                },
+                onTap: () {
+                  setState(() {
+                    _showHistory = _searchController.text.isEmpty &&
+                        _searchHistory.isNotEmpty;
+                  });
+                },
+              ),
+            ),
+            if (_showHistory && _searchHistory.isNotEmpty)
+              _buildSearchHistory(),
+            if (_hasSearched && _errorKind == 'auth')
+              Container(
+                margin: const EdgeInsets.symmetric(horizontal: 16.0),
+                padding: const EdgeInsets.all(12.0),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.lock_outline, color: Colors.orange.shade700),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        AppLocalizations.of(context)?.loginRequiredForSearch ??
+                            'Login required to search RuTracker',
+                        style: TextStyle(color: Colors.orange.shade800),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () async {
+                        // Open auth screen for login
+                        final result = await context.push('/auth');
+                        if (!mounted) return;
+
+                        // If login was successful, validate cookies
+                        if (result == true) {
+                          final isValid = await DioClient.validateCookies();
+                          if (!isValid) {
+                            return; // Login failed, don't clear error
+                          }
+                        } else {
+                          return; // User cancelled, don't clear error
+                        }
+
+                        setState(() {
+                          _errorKind = null;
+                          _errorMessage = null;
+                        });
+                        await _performSearch();
+                      },
+                      child:
+                          Text(AppLocalizations.of(context)?.login ?? 'Login'),
+                    ),
+                  ],
+                ),
+              ),
+            if (_isLoading)
+              Expanded(
+                child: Semantics(
+                  label: AppLocalizations.of(context)?.loading ?? 'Loading',
+                  child: const AudiobookCardSkeletonList(),
+                ),
+              )
+            // Show search results only if user has searched AND search field is not empty
+            // Otherwise show empty state with recommendations
+            else if (_hasSearched && _searchController.text.isNotEmpty)
+              Expanded(
+                child: Column(
+                  children: [
+                    if (_isFromCache)
+                      Container(
+                        padding: const EdgeInsets.all(8.0),
+                        color: Colors.blue[50],
+                        child: Row(
+                          children: [
+                            Icon(Icons.cached,
+                                size: 16, color: Colors.blue[700]),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    AppLocalizations.of(context)
+                                            ?.resultsFromCache ??
+                                        'Results from cache',
+                                    style: TextStyle(
+                                      color: Colors.blue[700],
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                  if (_cacheExpirationTime != null)
+                                    Text(
+                                      '${AppLocalizations.of(context)?.cacheExpires ?? 'Expires'}: ${_formatCacheExpiration(_cacheExpirationTime!)}',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        color: Colors.blue[600],
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                            TextButton.icon(
+                              icon: const Icon(Icons.refresh, size: 16),
+                              label: Text(
+                                  AppLocalizations.of(context)?.refresh ??
+                                      'Refresh'),
+                              onPressed: _forceRefreshSearch,
+                              style: TextButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 4),
+                                minimumSize: Size.zero,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    if (_isFromLocalDb)
+                      Container(
+                        padding: const EdgeInsets.all(8.0),
+                        color: Colors.amber[50],
+                        child: Row(
+                          children: [
+                            Icon(Icons.storage,
+                                size: 16, color: Colors.amber[700]),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                AppLocalizations.of(context)
+                                        ?.resultsFromLocalDb ??
+                                    'Results from local database',
+                                style: TextStyle(
+                                  color: Colors.amber[700],
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    if (_hasSearched && _searchResults.isNotEmpty)
+                      _buildCategoryFilters(),
+                    Expanded(
+                      child: RefreshIndicator(
+                        onRefresh: () async {
+                          await _forceRefreshSearch();
+                        },
+                        child: _buildBodyState(),
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else
+              // Show empty state with recommendations when search field is empty
+              // This happens both when user hasn't searched yet AND when user clears the search field
+              Expanded(
+                child: RefreshIndicator(
+                  onRefresh: () async {
+                    // Reload recommendations when user pulls to refresh
+                    EnvironmentLogger()
+                        .d('RefreshIndicator: reloading recommendations');
+                    _recommendedAudiobooksFuture = _getRecommendedAudiobooks();
+                    setState(() {});
+                    // Wait a bit for the future to complete
+                    await Future.delayed(const Duration(milliseconds: 100));
+                  },
+                  child: _buildEmptyState(context),
+                ),
+              ),
+          ],
         ),
-      );
+      ),
+    );
+  }
 
   Widget _buildBodyState() {
     if (_errorKind != null) {
       return _buildErrorState();
     }
     return _buildSearchResults();
+  }
+
+  /// Builds empty state with recommendations or search prompt.
+  Widget _buildEmptyState(BuildContext context) {
+    final structuredLogger = StructuredLogger();
+    safeUnawaited(structuredLogger.log(
+      level: 'debug',
+      subsystem: 'recommendations',
+      message: '_buildEmptyState called',
+      context: 'recommendations_ui',
+      extra: {
+        'search_text': _searchController.text,
+        'search_text_empty': _searchController.text.isEmpty,
+      },
+    ));
+
+    // Show recommendations if search field is empty
+    if (_searchController.text.isEmpty) {
+      // Check current auth status
+      final authStatus = ref.watch(authStatusProvider);
+      final isAuthenticated = authStatus.value?.isAuthenticated ?? false;
+
+      safeUnawaited(structuredLogger.log(
+        level: 'debug',
+        subsystem: 'recommendations',
+        message: 'Checking authentication status in _buildEmptyState',
+        context: 'recommendations_ui',
+        extra: {
+          'is_authenticated': isAuthenticated,
+          'future_exists': _recommendedAudiobooksFuture != null,
+        },
+      ));
+
+      // Always recreate future if user is authenticated to ensure fresh data
+      // This handles both initial load and auth status changes
+      // Also check if auth status is loading (might be updating after login)
+      if (isAuthenticated || authStatus.isLoading) {
+        // Always recreate future when authenticated or when auth status is loading
+        // This ensures that if user just authenticated, we load recommendations
+        // even if provider hasn't updated yet
+        safeUnawaited(structuredLogger.log(
+          level: 'info',
+          subsystem: 'recommendations',
+          message:
+              'User authenticated or auth loading, (re)initializing recommendations future',
+          context: 'recommendations_ui',
+          extra: {
+            'is_authenticated': isAuthenticated,
+            'is_loading': authStatus.isLoading,
+            'future_exists': _recommendedAudiobooksFuture != null,
+          },
+        ));
+        _recommendedAudiobooksFuture = _getRecommendedAudiobooks();
+      } else {
+        // User not authenticated - create future only if it doesn't exist
+        // The future will return empty list after checking auth
+        if (_recommendedAudiobooksFuture == null) {
+          safeUnawaited(structuredLogger.log(
+            level: 'debug',
+            subsystem: 'recommendations',
+            message:
+                'User not authenticated, initializing recommendations future (will return empty)',
+            context: 'recommendations_ui',
+          ));
+          _recommendedAudiobooksFuture = _getRecommendedAudiobooks();
+        }
+      }
+
+      return FutureBuilder<List<RecommendedAudiobook>>(
+        future: _recommendedAudiobooksFuture,
+        builder: (context, snapshot) {
+          // Show loading state
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const CircularProgressIndicator(),
+                  const SizedBox(height: 16),
+                  Text(
+                    AppLocalizations.of(context)?.loading ?? 'Loading...',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                ],
+              ),
+            );
+          }
+
+          // Show error state (but still show search prompt)
+          if (snapshot.hasError) {
+            // Log error for debugging
+            safeUnawaited(structuredLogger.log(
+              level: 'error',
+              subsystem: 'recommendations',
+              message: 'Failed to load recommendations',
+              context: 'recommendations_ui',
+              extra: {
+                'error': snapshot.error.toString(),
+                'stack_trace': snapshot.stackTrace?.toString() ?? '',
+              },
+            ));
+          }
+
+          final recommendations = snapshot.data ?? [];
+
+          // Log recommendations count for debugging
+          if (recommendations.isNotEmpty) {
+            safeUnawaited(structuredLogger.log(
+              level: 'info',
+              subsystem: 'recommendations',
+              message: 'Successfully displaying recommended audiobooks',
+              context: 'recommendations_ui',
+              extra: {
+                'recommendations_count': recommendations.length,
+              },
+            ));
+          } else if (snapshot.connectionState == ConnectionState.done) {
+            safeUnawaited(structuredLogger.log(
+              level: 'warning',
+              subsystem: 'recommendations',
+              message: 'No recommended audiobooks loaded (empty result)',
+              context: 'recommendations_ui',
+              extra: {
+                'note': 'This may indicate a parsing or network issue',
+              },
+            ));
+          }
+
+          return SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Show search history prominently if available
+                if (_searchHistory.isNotEmpty) ...[
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.history,
+                          size: 20,
+                          color: Theme.of(context)
+                              .colorScheme
+                              .onSurface
+                              .withValues(alpha: 0.7),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          AppLocalizations.of(context)?.recentSearches ??
+                              'Recent searches',
+                          style:
+                              Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  SizedBox(
+                    height: 50,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      itemCount: _searchHistory.length > 10
+                          ? 10
+                          : _searchHistory.length,
+                      itemBuilder: (context, index) {
+                        final query = _searchHistory[index];
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          child: ActionChip(
+                            label: Text(query),
+                            onPressed: () {
+                              _searchController.text = query;
+                              _searchFocusNode.unfocus();
+                              _performSearch();
+                            },
+                            avatar: const Icon(Icons.history, size: 16),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                ],
+                const SizedBox(height: 8),
+                // Always show recommendations widget, even if empty
+                // Widget handles empty state internally
+                RecommendedAudiobooksWidget(
+                  audiobooks: recommendations,
+                ),
+                const SizedBox(height: 24),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 32),
+                  child: Column(
+                    children: [
+                      Icon(
+                        Icons.search,
+                        size: 64,
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurface
+                            .withValues(alpha: 0.3),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        AppLocalizations.of(context)?.enterSearchTerm ??
+                            'Enter a search term to begin',
+                        style: Theme.of(context).textTheme.bodyLarge,
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+    }
+
+    // Show search prompt if search field has text but no results
+    return Semantics(
+      label: AppLocalizations.of(context)?.enterSearchTerm ??
+          'Enter a search term to begin',
+      child: Center(
+        child: Text(
+          AppLocalizations.of(context)?.enterSearchTerm ??
+              'Enter a search term to begin',
+          textAlign: TextAlign.center,
+        ),
+      ),
+    );
+  }
+
+  /// Returns list of recommended audiobooks.
+  ///
+  /// Gets new books from different categories, sorted by newest first.
+  /// Only returns books from actual category pages, no static fallback.
+  Future<List<RecommendedAudiobook>> _getRecommendedAudiobooks() async {
+    final structuredLogger = StructuredLogger();
+    await structuredLogger.log(
+      level: 'debug',
+      subsystem: 'recommendations',
+      message: '_getRecommendedAudiobooks called',
+      context: 'recommendations_load',
+    );
+    return _getCategoryRecommendations();
+  }
+
+  /// Gets recommendations from different categories.
+  ///
+  /// Fetches new books from popular categories using viewforum.php.
+  /// Gets the first few books from each category (they are usually newest).
+  Future<List<RecommendedAudiobook>> _getCategoryRecommendations() async {
+    final structuredLogger = StructuredLogger();
+    try {
+      await structuredLogger.log(
+        level: 'info',
+        subsystem: 'recommendations',
+        message: 'Starting to load category recommendations',
+        context: 'recommendations_load',
+      );
+
+      // Check if user is authenticated before making requests
+      // Use authStatusProvider which tracks auth status in real-time
+      var authStatus = ref.read(authStatusProvider);
+      var isAuthenticated = authStatus.value?.isAuthenticated ?? false;
+
+      // If provider shows not authenticated but is loading, wait a bit for update
+      // This handles the case when auth just completed but provider hasn't updated yet
+      if (!isAuthenticated && authStatus.isLoading) {
+        await structuredLogger.log(
+          level: 'debug',
+          subsystem: 'recommendations',
+          message: 'Auth status is loading, waiting for update',
+          context: 'recommendations_load',
+        );
+        // Wait a bit for provider to update (max 1 second)
+        await Future.delayed(const Duration(milliseconds: 500));
+        authStatus = ref.read(authStatusProvider);
+        isAuthenticated = authStatus.value?.isAuthenticated ?? false;
+      }
+
+      // If still not authenticated, try to refresh auth status
+      // This handles the case when auth completed but provider hasn't updated
+      if (!isAuthenticated && !authStatus.isLoading) {
+        await structuredLogger.log(
+          level: 'debug',
+          subsystem: 'recommendations',
+          message: 'Auth status not authenticated, trying to refresh',
+          context: 'recommendations_load',
+        );
+        try {
+          await ref.read(authRepositoryProvider).refreshAuthStatus();
+          // After refresh, check status directly via isLoggedIn() instead of waiting for provider
+          // This is more reliable as provider might not update immediately
+          final loggedIn = await ref.read(authRepositoryProvider).isLoggedIn();
+          if (loggedIn) {
+            isAuthenticated = true;
+            await structuredLogger.log(
+              level: 'info',
+              subsystem: 'recommendations',
+              message:
+                  'Auth status refreshed - user is authenticated (checked directly)',
+              context: 'recommendations_load',
+            );
+          } else {
+            // Wait a bit for provider to update after refresh
+            await Future.delayed(const Duration(milliseconds: 300));
+            authStatus = ref.read(authStatusProvider);
+            isAuthenticated = authStatus.value?.isAuthenticated ?? false;
+          }
+        } on Exception catch (e) {
+          await structuredLogger.log(
+            level: 'warning',
+            subsystem: 'recommendations',
+            message: 'Failed to refresh auth status',
+            context: 'recommendations_load',
+            extra: {
+              'error': e.toString(),
+            },
+          );
+        }
+      }
+
+      await structuredLogger.log(
+        level: 'debug',
+        subsystem: 'recommendations',
+        message: 'Checking authentication status',
+        context: 'recommendations_load',
+        extra: {
+          'is_authenticated': isAuthenticated,
+          'auth_status_value': authStatus.value?.toString() ?? 'null',
+          'auth_status_loading': authStatus.isLoading,
+        },
+      );
+
+      if (!isAuthenticated) {
+        await structuredLogger.log(
+          level: 'warning',
+          subsystem: 'recommendations',
+          message: 'User not authenticated, skipping category recommendations',
+          context: 'recommendations_load',
+        );
+        return [];
+      }
+
+      await structuredLogger.log(
+        level: 'info',
+        subsystem: 'recommendations',
+        message:
+            'User is authenticated, proceeding with category recommendations',
+        context: 'recommendations_load',
+      );
+
+      final endpointManager = ref.read(endpointManagerProvider);
+      final baseUrl = await endpointManager.getActiveEndpoint();
+      final dio = await DioClient.instance;
+      final categoryParser = category_parser.CategoryParser();
+
+      await structuredLogger.log(
+        level: 'debug',
+        subsystem: 'recommendations',
+        message: 'Initialized services for recommendations',
+        context: 'recommendations_load',
+        extra: {
+          'base_url': baseUrl,
+        },
+      );
+
+      final recommendations = <RecommendedAudiobook>[];
+      final seenIds = <String>{};
+
+      // Use popular categories from CategoryConstants
+      const categories = CategoryConstants.popularCategoryIds;
+      if (categories.isEmpty) {
+        await structuredLogger.log(
+          level: 'warning',
+          subsystem: 'recommendations',
+          message: 'No popular categories found in CategoryConstants',
+          context: 'recommendations_load',
+        );
+        return [];
+      }
+
+      await structuredLogger.log(
+        level: 'info',
+        subsystem: 'recommendations',
+        message: 'Loading recommendations from categories',
+        context: 'recommendations_load',
+        extra: {
+          'categories_count': categories.length,
+          'category_ids': categories,
+        },
+      );
+
+      // Get 5-10 new books from each category (first books are usually newest)
+      // Distribute evenly: if we have 9 categories, get 1-2 from each to reach ~10 total
+      final booksPerCategory = (10 / categories.length).ceil().clamp(1, 3);
+      await structuredLogger.log(
+        level: 'debug',
+        subsystem: 'recommendations',
+        message: 'Calculated books per category',
+        context: 'recommendations_load',
+        extra: {
+          'books_per_category': booksPerCategory,
+        },
+      );
+
+      // Fetch from all categories in parallel with timeout
+      final futures = categories.map((categoryId) async {
+        try {
+          final result = await _fetchNewBooksFromCategory(
+            dio: dio,
+            endpoint: baseUrl,
+            categoryParser: categoryParser,
+            categoryId: categoryId,
+            limit: booksPerCategory,
+          ).timeout(
+            const Duration(seconds: 8),
+            onTimeout: () async {
+              await structuredLogger.log(
+                level: 'warning',
+                subsystem: 'recommendations',
+                message: 'Timeout loading category',
+                context: 'recommendations_load',
+                extra: {
+                  'category_id': categoryId,
+                },
+              );
+              return <RecommendedAudiobook>[];
+            },
+          );
+          await structuredLogger.log(
+            level: 'info',
+            subsystem: 'recommendations',
+            message: 'Loaded books from category',
+            context: 'recommendations_load',
+            extra: {
+              'category_id': categoryId,
+              'books_count': result.length,
+            },
+          );
+          return result;
+        } on Exception catch (e) {
+          await structuredLogger.log(
+            level: 'warning',
+            subsystem: 'recommendations',
+            message: 'Error loading category',
+            context: 'recommendations_load',
+            extra: {
+              'category_id': categoryId,
+              'error': e.toString(),
+            },
+          );
+          return <RecommendedAudiobook>[];
+        }
+      });
+
+      final results = await Future.wait(futures);
+
+      // Combine results from all categories
+      for (final categoryResults in results) {
+        for (final result in categoryResults) {
+          if (seenIds.contains(result.id)) continue;
+          seenIds.add(result.id);
+          recommendations.add(result);
+          if (recommendations.length >= 10) break;
+        }
+        if (recommendations.length >= 10) break;
+      }
+
+      await structuredLogger.log(
+        level: 'info',
+        subsystem: 'recommendations',
+        message: 'Successfully loaded recommended audiobooks',
+        context: 'recommendations_load',
+        extra: {
+          'total_recommendations': recommendations.length,
+          'unique_ids_count': seenIds.length,
+        },
+      );
+      return recommendations;
+    } on Exception catch (e, stackTrace) {
+      await structuredLogger.log(
+        level: 'error',
+        subsystem: 'recommendations',
+        message: 'Failed to load category recommendations',
+        context: 'recommendations_load',
+        extra: {
+          'error': e.toString(),
+          'stack_trace': stackTrace.toString(),
+        },
+      );
+      // Return empty list on error - no fallback to static list
+      return [];
+    }
+  }
+
+  /// Fetches new books from a specific category using viewforum.php.
+  ///
+  /// Gets the first few books from the category page (they are usually newest).
+  Future<List<RecommendedAudiobook>> _fetchNewBooksFromCategory({
+    required Dio dio,
+    required String endpoint,
+    required category_parser.CategoryParser categoryParser,
+    required String categoryId,
+    required int limit,
+  }) async {
+    final structuredLogger = StructuredLogger();
+    try {
+      // Use viewforum.php to get books from category
+      // First books on the page are usually the newest
+      // Build URL properly to avoid double slashes
+      final baseUrl = endpoint.endsWith('/')
+          ? endpoint.substring(0, endpoint.length - 1)
+          : endpoint;
+      final forumUrl = '$baseUrl/forum/viewforum.php?f=$categoryId';
+
+      await structuredLogger.log(
+        level: 'debug',
+        subsystem: 'recommendations',
+        message: 'Fetching books from category',
+        context: 'category_fetch',
+        extra: {
+          'category_id': categoryId,
+          'forum_url': forumUrl,
+          'limit': limit,
+        },
+      );
+
+      final response = await dio.get(
+        forumUrl,
+        options: Options(
+          responseType: ResponseType.plain,
+          headers: {
+            'Accept': 'text/html,application/xhtml+xml,application/xml',
+            'Accept-Charset': 'windows-1251,utf-8',
+          },
+        ),
+      );
+
+      await structuredLogger.log(
+        level: 'info',
+        subsystem: 'recommendations',
+        message: 'HTTP response received for category',
+        context: 'category_fetch',
+        extra: {
+          'category_id': categoryId,
+          'status_code': response.statusCode,
+          'response_url': response.realUri.toString(),
+          'response_size_bytes': response.data?.toString().length ?? 0,
+        },
+      );
+
+      // Check if we got redirected to login page
+      // Dio follows redirects by default, so check the final URL
+      final responseUrl = response.realUri.toString();
+      if (responseUrl.contains('login.php')) {
+        await structuredLogger.log(
+          level: 'warning',
+          subsystem: 'recommendations',
+          message: 'Category requires authentication (redirected to login)',
+          context: 'category_fetch',
+          extra: {
+            'category_id': categoryId,
+            'response_url': responseUrl,
+          },
+        );
+        return [];
+      }
+
+      if (response.statusCode != 200) {
+        await structuredLogger.log(
+          level: 'warning',
+          subsystem: 'recommendations',
+          message: 'Failed to fetch category',
+          context: 'category_fetch',
+          extra: {
+            'category_id': categoryId,
+            'status_code': response.statusCode,
+          },
+        );
+        return [];
+      }
+
+      // Check if response contains login page content
+      final responseText = response.data.toString();
+      if (responseText.contains('login.php') ||
+          responseText.contains('Вход в систему') ||
+          responseText.contains('Имя пользователя') ||
+          responseText.contains('Пароль')) {
+        await structuredLogger.log(
+          level: 'warning',
+          subsystem: 'recommendations',
+          message: 'Category returned login page instead of topics',
+          context: 'category_fetch',
+          extra: {
+            'category_id': categoryId,
+          },
+        );
+        return [];
+      }
+
+      // Parse topics from category page using CategoryParser
+      await structuredLogger.log(
+        level: 'debug',
+        subsystem: 'recommendations',
+        message: 'Parsing topics from category page',
+        context: 'category_fetch',
+        extra: {
+          'category_id': categoryId,
+          'response_text_length': responseText.length,
+        },
+      );
+
+      final topics = await categoryParser.parseCategoryTopics(
+        responseText,
+      );
+
+      await structuredLogger.log(
+        level: 'info',
+        subsystem: 'recommendations',
+        message: 'Parsed topics from category',
+        context: 'category_fetch',
+        extra: {
+          'category_id': categoryId,
+          'topics_count': topics.length,
+        },
+      );
+
+      // Convert to RecommendedAudiobook
+      // Topics are already sorted by last_post_date (newest first) from parser
+      // Try to get recent topics (within last 180 days), but if there are not enough,
+      // fall back to just taking the newest topics regardless of date
+      final now = DateTime.now();
+      final oneHundredEightyDaysAgo = now.subtract(const Duration(days: 180));
+
+      await structuredLogger.log(
+        level: 'debug',
+        subsystem: 'recommendations',
+        message: 'Filtering topics by date',
+        context: 'category_fetch',
+        extra: {
+          'category_id': categoryId,
+          'topics_before_filter': topics.length,
+          'cutoff_date': oneHundredEightyDaysAgo.toIso8601String(),
+        },
+      );
+
+      // Filter topics by date and collect stats
+      var topicsWithoutDate = 0;
+      var topicsTooOld = 0;
+      final recentTopics = topics.where((topic) {
+        // Filter by date - prefer topics with last post within last 180 days
+        final lastPostDate = topic['last_post_date'] as DateTime?;
+        if (lastPostDate == null) {
+          topicsWithoutDate++;
+          return false;
+        }
+        final isRecent = lastPostDate.isAfter(oneHundredEightyDaysAgo);
+        if (!isRecent) {
+          topicsTooOld++;
+        }
+        return isRecent;
+      }).toList();
+
+      await structuredLogger.log(
+        level: 'debug',
+        subsystem: 'recommendations',
+        message: 'Date filtering results',
+        context: 'category_fetch',
+        extra: {
+          'category_id': categoryId,
+          'topics_before_filter': topics.length,
+          'recent_topics_count': recentTopics.length,
+          'topics_without_date': topicsWithoutDate,
+          'topics_too_old': topicsTooOld,
+        },
+      );
+
+      // Use recent topics if we have enough, otherwise fall back to all topics
+      // This ensures we always get recommendations even if fresh releases are rare
+      final topicsToUse = recentTopics.length >= limit ? recentTopics : topics;
+
+      await structuredLogger.log(
+        level: 'info',
+        subsystem: 'recommendations',
+        message: 'Selected topics for recommendations',
+        context: 'category_fetch',
+        extra: {
+          'category_id': categoryId,
+          'using_recent_only': recentTopics.length >= limit,
+          'topics_selected': topicsToUse.length,
+        },
+      );
+
+      final books = topicsToUse
+          .take(limit)
+          .map((topic) {
+            final topicId = topic['id'] as String? ?? '';
+            final title = topic['title'] as String? ?? 'Unknown Title';
+            final author = topic['author'] as String? ?? 'Unknown Author';
+            final size = topic['size'] as String?;
+            final coverUrl = topic['coverUrl'] as String?;
+            final categoryName =
+                CategoryConstants.categoryNameMap[categoryId] ?? 'Audiobook';
+
+            return RecommendedAudiobook(
+              id: topicId,
+              title: title,
+              author: author,
+              size: size,
+              coverUrl: coverUrl,
+              genre: categoryName,
+            );
+          })
+          .where((book) => book.id.isNotEmpty) // Filter out invalid entries
+          .toList();
+
+      await structuredLogger.log(
+        level: 'info',
+        subsystem: 'recommendations',
+        message: 'Converted valid books from category',
+        context: 'category_fetch',
+        extra: {
+          'category_id': categoryId,
+          'valid_books_count': books.length,
+          'topics_parsed': topics.length,
+        },
+      );
+      return books;
+    } on Exception catch (e, stackTrace) {
+      await structuredLogger.log(
+        level: 'error',
+        subsystem: 'recommendations',
+        message: 'Exception fetching category',
+        context: 'category_fetch',
+        extra: {
+          'category_id': categoryId,
+          'error': e.toString(),
+          'stack_trace': stackTrace.toString(),
+        },
+      );
+      return [];
+    }
   }
 
   /// Builds category filter chips.
@@ -2119,17 +3009,27 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             children: [
               Text(
                 AppLocalizations.of(context)?.filtersLabel ?? 'Filters:',
-                style: Theme.of(context).textTheme.labelMedium,
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
               ),
               if (_selectedCategories.isNotEmpty) ...[
                 const SizedBox(width: 8),
-                TextButton(
+                OutlinedButton.icon(
                   onPressed: () {
-                    _selectedCategories.clear();
-                    setState(() {});
+                    setState(_selectedCategories.clear);
                   },
-                  child: Text(
+                  icon: const Icon(Icons.clear, size: 16),
+                  label: Text(
                       AppLocalizations.of(context)?.resetButton ?? 'Reset'),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
                 ),
               ],
             ],
@@ -2141,8 +3041,17 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             children: categories.map((category) {
               final isSelected = _selectedCategories.contains(category);
               return FilterChip(
-                label: Text(category),
+                label: Text(
+                  category,
+                  style: TextStyle(
+                    fontWeight:
+                        isSelected ? FontWeight.w600 : FontWeight.normal,
+                  ),
+                ),
                 selected: isSelected,
+                selectedColor: Theme.of(context).colorScheme.primaryContainer,
+                checkmarkColor:
+                    Theme.of(context).colorScheme.onPrimaryContainer,
                 onSelected: (selected) {
                   setState(() {
                     if (selected) {
@@ -2304,13 +3213,68 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     }
 
     if (filteredResults.isEmpty) {
+      final query = _searchController.text.trim();
       return Center(
-        child: Semantics(
-          label: localizations?.noResults ?? 'No results found',
-          child: Text(
-            localizations?.noResults ?? 'No results found',
-            style: Theme.of(context).textTheme.bodyLarge,
-            textAlign: TextAlign.center,
+        child: Padding(
+          padding: const EdgeInsets.all(32.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.search_off,
+                size: 64,
+                color: Theme.of(context)
+                    .colorScheme
+                    .onSurface
+                    .withValues(alpha: 0.4),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                localizations?.noResults ?? 'No results found',
+                style: Theme.of(context).textTheme.titleLarge,
+                textAlign: TextAlign.center,
+              ),
+              if (query.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Text(
+                  localizations?.noResultsForQuery(query) ??
+                      'Nothing found for query: "$query"',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurface
+                            .withValues(alpha: 0.6),
+                      ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  localizations?.tryDifferentKeywords ??
+                      'Try changing keywords',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurface
+                            .withValues(alpha: 0.5),
+                      ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+              const SizedBox(height: 24),
+              OutlinedButton.icon(
+                onPressed: () {
+                  _searchController.clear();
+                  setState(() {
+                    _searchResults = [];
+                    _hasSearched = false;
+                  });
+                },
+                icon: const Icon(Icons.clear),
+                label: Text(
+                  localizations?.clearSearch ?? 'Clear search',
+                ),
+              ),
+            ],
           ),
         ),
       );
@@ -2416,10 +3380,13 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           final audiobookMore = _filterAudiobookResults(more);
 
           if (mounted) {
+            final moreResults = audiobookMore.map(_audiobookToMap).toList();
             setState(() {
-              _searchResults.addAll(audiobookMore.map(_audiobookToMap));
+              _searchResults.addAll(moreResults);
               _hasMore = audiobookMore.isNotEmpty;
             });
+            // Update statistics for newly added items that don't have them
+            safeUnawaited(_updateMissingStatistics(moreResults));
           }
         } on ParsingFailure catch (e) {
           await StructuredLogger().log(
@@ -2653,21 +3620,117 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     }
   }
 
-  Map<String, dynamic> _audiobookToMap(Audiobook audiobook) => {
-        'id': audiobook.id,
+  Map<String, dynamic> _audiobookToMap(Audiobook audiobook) {
+    final structuredLogger = StructuredLogger();
+    safeUnawaited(structuredLogger.log(
+      level: 'debug',
+      subsystem: 'search',
+      message: 'Converting Audiobook to Map for display',
+      context: 'audiobook_to_map',
+      extra: {
+        'audiobook_id': audiobook.id,
         'title': audiobook.title,
-        'author': audiobook.author,
-        'category': audiobook.category,
+        'has_cover_url':
+            audiobook.coverUrl != null && audiobook.coverUrl!.isNotEmpty,
+        'cover_url': audiobook.coverUrl ?? 'null',
+        'cover_url_length': audiobook.coverUrl?.length ?? 0,
         'size': audiobook.size,
         'seeders': audiobook.seeders,
         'leechers': audiobook.leechers,
-        'magnetUrl': audiobook.magnetUrl,
-        'coverUrl': audiobook.coverUrl,
-        'performer': audiobook.performer,
-        'genres': audiobook.genres,
-        'chapters': audiobook.chapters.map(_chapterToMap).toList(),
-        'addedDate': audiobook.addedDate.toIso8601String(),
-      };
+      },
+    ));
+
+    return {
+      'id': audiobook.id,
+      'title': audiobook.title,
+      'author': audiobook.author,
+      'category': audiobook.category,
+      'size': audiobook.size,
+      'seeders': audiobook.seeders,
+      'leechers': audiobook.leechers,
+      'magnetUrl': audiobook.magnetUrl,
+      'coverUrl': audiobook.coverUrl,
+      'performer': audiobook.performer,
+      'genres': audiobook.genres,
+      'chapters': audiobook.chapters.map(_chapterToMap).toList(),
+      'addedDate': audiobook.addedDate.toIso8601String(),
+      'duration': audiobook.duration,
+      'bitrate': audiobook.bitrate,
+      'audioCodec': audiobook.audioCodec,
+    };
+  }
+
+  /// Updates statistics (seeders/leechers) for search results that don't have them.
+  ///
+  /// Makes lightweight requests to topic pages to get statistics for items
+  /// where seeders=0 and leechers=0 (likely missing from search results).
+  Future<void> _updateMissingStatistics(
+      List<Map<String, dynamic>> results) async {
+    // Find items that need statistics update
+    final itemsNeedingStats = results.where((item) {
+      final seeders = item['seeders'] as int? ?? 0;
+      final leechers = item['leechers'] as int? ?? 0;
+      return seeders == 0 && leechers == 0;
+    }).toList();
+
+    if (itemsNeedingStats.isEmpty) {
+      return; // No items need statistics update
+    }
+
+    // Limit to first 10 items to avoid too many requests
+    final itemsToUpdate = itemsNeedingStats.take(10).toList();
+
+    try {
+      final endpointManager = ref.read(endpointManagerProvider);
+      final baseUrl = await endpointManager.buildUrl('');
+      final dio = await DioClient.instance;
+
+      // Update statistics for each item in parallel (with limit)
+      final futures = itemsToUpdate.map((item) async {
+        final topicId = item['id'] as String? ?? '';
+        if (topicId.isEmpty) return;
+
+        try {
+          // Make lightweight request to topic page
+          final topicUrl = '$baseUrl/forum/viewtopic.php?t=$topicId';
+          final response = await dio
+              .get(
+                topicUrl,
+                options: Options(
+                  responseType: ResponseType.plain,
+                  headers: {
+                    'Accept': 'text/html,application/xhtml+xml,application/xml',
+                    'Accept-Charset': 'windows-1251,utf-8',
+                  },
+                ),
+              )
+              .timeout(const Duration(seconds: 5));
+
+          // Parse statistics from HTML
+          final stats = await _parser.parseTopicStatistics(response.data);
+          if (stats != null && mounted) {
+            // Update the item in _searchResults
+            final index = _searchResults.indexWhere(
+              (r) => (r['id'] as String? ?? '') == topicId,
+            );
+            if (index >= 0) {
+              setState(() {
+                _searchResults[index]['seeders'] = stats['seeders'];
+                _searchResults[index]['leechers'] = stats['leechers'];
+              });
+            }
+          }
+        } on Exception {
+          // Silently fail for individual items
+          return;
+        }
+      });
+
+      await Future.wait(futures);
+    } on Exception {
+      // Silently fail if batch update fails
+    }
+  }
 }
 
 /// Filters search results to only include audiobooks.

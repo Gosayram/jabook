@@ -17,18 +17,25 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:b_encode_decode/b_encode_decode.dart';
+import 'package:dio/dio.dart';
 // ignore: unused_import
 import 'package:dtorrent_common/dtorrent_common.dart'; // PeerSource is used in addPeer call
 import 'package:dtorrent_parser/dtorrent_parser.dart';
 import 'package:dtorrent_task_v2/dtorrent_task_v2.dart';
 import 'package:jabook/core/background/download_background_service.dart';
+import 'package:jabook/core/download/download_foreground_service.dart';
 import 'package:jabook/core/errors/failures.dart';
+import 'package:jabook/core/library/audiobook_library_scanner.dart';
 import 'package:jabook/core/logging/environment_logger.dart';
+import 'package:jabook/core/logging/structured_logger.dart';
+import 'package:jabook/core/net/dio_client.dart';
 import 'package:jabook/core/notifications/download_notification_service.dart';
+import 'package:jabook/core/permissions/permission_service.dart';
 import 'package:jabook/core/utils/network_utils.dart';
 import 'package:jabook/core/utils/safe_async.dart';
 import 'package:jabook/core/utils/storage_path_utils.dart';
 import 'package:jabook/data/db/app_database.dart';
+import 'package:path/path.dart' as path;
 import 'package:sembast/sembast.dart';
 
 /// Represents the progress of a torrent download.
@@ -101,12 +108,34 @@ class AudiobookTorrentManager {
   /// Map of metadata downloaders for active downloads.
   final Map<String, MetadataDownloader> _metadataDownloaders = {};
 
+  /// Map of progress timers for active downloads.
+  final Map<String, Timer> _progressTimers = {};
+
+  /// Map of retry counts for network errors per download.
+  final Map<String, int> _networkRetryCounts = {};
+
+  /// Map of last error time per download for network error detection.
+  final Map<String, DateTime> _lastNetworkErrorTime = {};
+
+  /// Map of last successful download time per download.
+  final Map<String, DateTime> _lastSuccessfulDownloadTime = {};
+
+  /// Maximum number of retry attempts for network errors.
+  static const int _maxNetworkRetries = 3;
+
+  /// Minimum time without download before considering it a network error (seconds).
+  static const int _networkErrorDetectionTimeSeconds = 120;
+
   /// Database instance for persisting download state.
   Database? _db;
 
   /// Notification service for download progress updates.
   final DownloadNotificationService _notificationService =
       DownloadNotificationService();
+
+  /// Foreground service for keeping downloads alive in background.
+  final DownloadForegroundService _foregroundService =
+      DownloadForegroundService();
 
   /// Initializes the torrent manager with database connection.
   ///
@@ -120,6 +149,11 @@ class AudiobookTorrentManager {
     // Initialize notification service
     await _notificationService.initialize();
   }
+
+  /// Checks if the torrent manager is initialized with database.
+  ///
+  /// Returns true if database is initialized, false otherwise.
+  bool get isInitialized => _db != null;
 
   /// Starts a sequential torrent download for an audiobook.
   ///
@@ -135,13 +169,30 @@ class AudiobookTorrentManager {
   ///
   /// Throws [TorrentFailure] if the download cannot be started.
   Future<String> downloadSequential(String magnetUrl, String savePath,
-      {String? title}) async {
+      {String? title, String? coverUrl}) async {
     // Check initialization
     final logger = EnvironmentLogger();
-    if (_db == null) {
-      logger.w('AudiobookTorrentManager not initialized with database');
+    if (!isInitialized) {
+      logger
+        ..w('AudiobookTorrentManager not initialized with database')
+        ..d('Attempting to continue download without database persistence');
       // Continue without persistence, but log warning
+      // Note: Downloads can still work, but state won't be persisted
+      // However, we should still try to initialize if possible
     }
+
+    // Log download start with structured logging
+    logger.i(
+        'Starting download - save path: $savePath, isAppSpecific: ${PermissionService.isAppSpecificDirectory(savePath)}');
+    await StructuredLogger().log(
+      level: 'info',
+      subsystem: 'torrent',
+      message: 'Starting download',
+      extra: {
+        'isAppSpecific': PermissionService.isAppSpecificDirectory(savePath),
+        'title': title,
+      }, // Don't include savePath and magnetUrl in extra to avoid redaction
+    );
 
     // Check Wi-Fi only setting
     final networkUtils = NetworkUtils();
@@ -168,6 +219,60 @@ class AudiobookTorrentManager {
         throw const TorrentFailure('Invalid magnet URL: failed to parse');
       }
 
+      // Early permission check before creating directory
+      final isAppSpecific = PermissionService.isAppSpecificDirectory(savePath);
+      if (!isAppSpecific) {
+        // For user-selected directory (SAF), check permissions early
+        logger.i(
+            'Checking storage permission for non-app-specific directory: $savePath');
+        await StructuredLogger().log(
+          level: 'info',
+          subsystem: 'torrent',
+          message: 'Checking storage permission for non-app-specific directory',
+        );
+
+        final permissionService = PermissionService();
+        final canWrite = await permissionService.canWriteToStorage();
+        if (!canWrite) {
+          logger.w(
+              'Cannot write to storage, requesting permission for: $savePath');
+          await StructuredLogger().log(
+            level: 'warning',
+            subsystem: 'torrent',
+            message: 'Cannot write to storage, requesting permission',
+          );
+          final granted = await permissionService.requestStoragePermission();
+          if (!granted) {
+            // Check again after opening settings (user might have granted permission)
+            final canWriteAfterRequest =
+                await permissionService.canWriteToStorage();
+            if (!canWriteAfterRequest) {
+              logger.e(
+                  'Cannot write to selected directory - permission denied: $savePath');
+              await StructuredLogger().log(
+                level: 'error',
+                subsystem: 'torrent',
+                message:
+                    'Cannot write to selected directory - permission denied',
+              );
+              throw const TorrentFailure(
+                'Permission denied: Cannot write to download directory. '
+                'Please grant "Allow access to manage all files" permission in system settings '
+                '(Settings > Apps > Jabook > Permissions > Files and media > Allow access to manage all files).',
+              );
+            }
+          }
+        }
+      } else {
+        logger.i(
+            'Using app-specific directory, no permission check needed: $savePath');
+        await StructuredLogger().log(
+          level: 'info',
+          subsystem: 'torrent',
+          message: 'Using app-specific directory, no permission check needed',
+        );
+      }
+
       // Create download directory if it doesn't exist
       final downloadDir = Directory(savePath);
       if (!await downloadDir.exists()) {
@@ -180,12 +285,60 @@ class AudiobookTorrentManager {
             'Failed to create download directory: $savePath',
             error: e,
           );
+          // Check if error is related to permissions
+          final errorStr = e.toString().toLowerCase();
+          if (errorStr.contains('permission') ||
+              errorStr.contains('access') ||
+              errorStr.contains('denied')) {
+            if (isAppSpecific) {
+              throw TorrentFailure(
+                'Cannot create download directory: ${e.toString()}. '
+                'This may be a system-level issue. Please try restarting the app.',
+              );
+            } else {
+              throw const TorrentFailure(
+                'Permission denied: Cannot create download directory. '
+                'Please grant storage permission in app settings or select a different folder.',
+              );
+            }
+          }
           throw TorrentFailure(
             'Failed to create download directory: ${e.toString()}',
           );
         }
       } else {
         logger.d('Download directory already exists: $savePath');
+        // Verify we can write to the directory
+        try {
+          final testFile = File('${downloadDir.path}/.test_write');
+          await testFile.writeAsString('test');
+          await testFile.delete();
+        } on Exception catch (e) {
+          logger.e(
+            'Cannot write to download directory: $savePath',
+            error: e,
+          );
+          final errorStr = e.toString().toLowerCase();
+          if (errorStr.contains('permission') ||
+              errorStr.contains('access') ||
+              errorStr.contains('denied')) {
+            if (isAppSpecific) {
+              throw TorrentFailure(
+                'Cannot write to download directory: ${e.toString()}. '
+                'This may be a system-level issue. Please try restarting the app.',
+              );
+            } else {
+              throw const TorrentFailure(
+                'Permission denied: Cannot write to download directory. '
+                'Please grant MANAGE_EXTERNAL_STORAGE permission in app settings '
+                '(Android 11+) or storage permission (Android 10 and below).',
+              );
+            }
+          }
+          throw TorrentFailure(
+            'Cannot write to download directory: ${e.toString()}',
+          );
+        }
       }
 
       // Check metadata cache first
@@ -218,7 +371,9 @@ class AudiobookTorrentManager {
               leechers: 0,
               status: 'downloading_metadata',
             );
-            progressController.add(progress);
+            if (!progressController.isClosed) {
+              progressController.add(progress);
+            }
           })
           ..on<MetaDataDownloadComplete>((event) {
             if (!metadataCompleter.isCompleted) {
@@ -286,14 +441,22 @@ class AudiobookTorrentManager {
         'infoHash': magnet.infoHashString,
         'startedAt': DateTime.now().toIso8601String(),
         if (title != null && title.isNotEmpty) 'title': title,
+        if (coverUrl != null && coverUrl.isNotEmpty) 'coverUrl': coverUrl,
       };
       _downloadMetadata[downloadId] = metadata;
 
-      // Persist to database
+      // Persist to database BEFORE adding to active tasks
+      // This ensures metadata is saved even if something goes wrong
       await _saveDownloadMetadata(downloadId, metadata);
+      logger.d(
+        'Saved download metadata to database for downloadId: $downloadId',
+      );
 
       // Register background service for monitoring downloads
       safeUnawaited(_registerBackgroundService());
+
+      // Start foreground service to keep downloads alive in background
+      safeUnawaited(_foregroundService.startService());
 
       // Set up event listeners
       // downloadId is guaranteed to be non-null at this point
@@ -302,11 +465,33 @@ class AudiobookTorrentManager {
         logger
           ..i('Task started for download $finalDownloadId')
           ..i('Connecting to peers...');
+
+        // Log the actual save path that TorrentTask is using
+        final metadata = _downloadMetadata[finalDownloadId];
+        if (metadata != null) {
+          final savePath = metadata['savePath'] as String?;
+          if (savePath != null) {
+            // Use EnvironmentLogger for paths (not StructuredLogger) to avoid redaction
+            logger
+              ..i('Torrent task save path: $savePath')
+              ..i('Torrent task save path (absolute): ${Directory(savePath).absolute.path}');
+
+            // Verify the directory exists and is accessible
+            safeUnawaited(_verifySaveDirectory(finalDownloadId, savePath));
+          }
+        }
+
         _updateProgress(finalDownloadId, task, progressController);
       });
 
       task.events.on<AllComplete>((event) {
         logger.i('Download completed for download $finalDownloadId');
+        // Cancel progress timer
+        final timer = _progressTimers[finalDownloadId];
+        if (timer != null) {
+          timer.cancel();
+          _progressTimers.remove(finalDownloadId);
+        }
         final progress = TorrentProgress(
           progress: 100.0,
           downloadSpeed: 0.0,
@@ -317,15 +502,82 @@ class AudiobookTorrentManager {
           leechers: task.allPeersNumber - task.seederNumber,
           status: 'completed',
         );
-        progressController
-          ..add(progress)
-          ..close();
+        if (!progressController.isClosed) {
+          progressController
+            ..add(progress)
+            ..close();
+        }
         _progressControllers.remove(downloadId);
         _activeTasks.remove(downloadId);
-        _downloadMetadata.remove(downloadId);
 
-        // Remove from database when completed
-        safeUnawaited(_removeDownloadMetadata(finalDownloadId));
+        // Check if all downloads are completed and stop foreground service
+        safeUnawaited(_checkAndStopForegroundService());
+
+        // Update metadata with completed status instead of removing
+        final metadata = _downloadMetadata[finalDownloadId];
+        if (metadata != null) {
+          metadata['status'] = 'completed';
+          metadata['progress'] = 100.0;
+          metadata['completedAt'] = DateTime.now().toIso8601String();
+
+          // Verify that files were actually saved
+          final savePath = metadata['savePath'] as String?;
+          if (savePath != null) {
+            // TorrentTask may save files in a subdirectory with torrent name
+            // Check multiple possible locations
+            final torrentName = task.metaInfo.name;
+            final possiblePaths = [
+              savePath, // Original path
+              '$savePath/$torrentName', // Subdirectory with torrent name
+              Directory(savePath).parent.path, // Parent directory
+            ];
+
+            logger.i('Checking for downloaded files in multiple locations:');
+            for (final checkPath in possiblePaths) {
+              logger.i('  - $checkPath');
+            }
+
+            // Check all possible paths
+            safeUnawaited(_verifyDownloadedFilesInMultiplePaths(
+              finalDownloadId,
+              possiblePaths,
+            ));
+
+            // Download cover image if available
+            final coverUrl = metadata['coverUrl'] as String?;
+            if (coverUrl != null && coverUrl.isNotEmpty) {
+              // Try all possible paths for cover download
+              for (final checkPath in possiblePaths) {
+                if (checkPath.isNotEmpty) {
+                  safeUnawaited(
+                      _downloadCoverImage(coverUrl, checkPath, torrentName));
+                  break; // Only download once
+                }
+              }
+            }
+          }
+
+          // Trigger library scan after download completes
+          safeUnawaited(_triggerLibraryScan(metadata['savePath'] as String?));
+
+          // Save updated metadata to database
+          safeUnawaited(_saveDownloadMetadata(finalDownloadId, metadata));
+          logger.d(
+            'Updated download metadata to completed status for downloadId: $finalDownloadId',
+          );
+          // Remove from memory after a delay to allow UI to update
+          Future.delayed(const Duration(seconds: 30), () {
+            _downloadMetadata.remove(finalDownloadId);
+            // Remove from database after delay
+            safeUnawaited(_removeDownloadMetadata(finalDownloadId));
+            logger.d(
+              'Removed completed download metadata after delay for downloadId: $finalDownloadId',
+            );
+          });
+        } else {
+          // If metadata is missing, just remove from database
+          safeUnawaited(_removeDownloadMetadata(finalDownloadId));
+        }
       });
 
       // Error handling is done in _updateProgress and try-catch blocks
@@ -368,22 +620,34 @@ class AudiobookTorrentManager {
     } on Exception catch (e) {
       // Clean up on error
       if (downloadId != null) {
-        final controller = _progressControllers[downloadId];
-        if (controller != null) {
-          safeUnawaited(controller.close());
+        try {
+          // Cancel progress timer if exists
+          final timer = _progressTimers[downloadId];
+          if (timer != null) {
+            timer.cancel();
+            _progressTimers.remove(downloadId);
+          }
+          // Close progress controller safely
+          final controller = _progressControllers[downloadId];
+          if (controller != null && !controller.isClosed) {
+            safeUnawaited(controller.close());
+          }
+          _progressControllers.remove(downloadId);
+          final task = _activeTasks[downloadId];
+          if (task != null) {
+            safeUnawaited(task.dispose());
+          }
+          _activeTasks.remove(downloadId);
+          final metadata = _metadataDownloaders[downloadId];
+          if (metadata != null) {
+            safeUnawaited(metadata.stop());
+          }
+          _metadataDownloaders.remove(downloadId);
+          _downloadMetadata.remove(downloadId);
+        } on Exception catch (cleanupError) {
+          // Log cleanup error but don't throw - original error is more important
+          EnvironmentLogger().w('Error during cleanup: $cleanupError');
         }
-        _progressControllers.remove(downloadId);
-        final task = _activeTasks[downloadId];
-        if (task != null) {
-          safeUnawaited(task.dispose());
-        }
-        _activeTasks.remove(downloadId);
-        final metadata = _metadataDownloaders[downloadId];
-        if (metadata != null) {
-          safeUnawaited(metadata.stop());
-        }
-        _metadataDownloaders.remove(downloadId);
-        _downloadMetadata.remove(downloadId);
       }
       throw TorrentFailure('Failed to start download: ${e.toString()}');
     }
@@ -404,14 +668,15 @@ class AudiobookTorrentManager {
   /// Throws [TorrentFailure] if the download cannot be started.
   Future<String> downloadFromTorrentFile(
       String torrentFilePath, String savePath,
-      {String? title}) async {
+      {String? title, String? coverUrl}) async {
     final torrentFile = File(torrentFilePath);
     if (!await torrentFile.exists()) {
       throw const TorrentFailure('Torrent file not found');
     }
 
     final torrentBytes = await torrentFile.readAsBytes();
-    return downloadFromTorrentBytes(torrentBytes, savePath, title: title);
+    return downloadFromTorrentBytes(torrentBytes, savePath,
+        title: title, coverUrl: coverUrl);
   }
 
   /// Starts a sequential torrent download from torrent file bytes.
@@ -429,12 +694,13 @@ class AudiobookTorrentManager {
   /// Throws [TorrentFailure] if the download cannot be started.
   Future<String> downloadFromTorrentBytes(
       List<int> torrentBytes, String savePath,
-      {String? title}) async {
+      {String? title, String? coverUrl}) async {
     // Check initialization
     final logger = EnvironmentLogger();
-    if (_db == null) {
+    if (!isInitialized) {
       logger.w('AudiobookTorrentManager not initialized with database');
       // Continue without persistence, but log warning
+      // Note: Downloads can still work, but state won't be persisted
     }
 
     // Check Wi-Fi only setting
@@ -464,24 +730,149 @@ class AudiobookTorrentManager {
         throw const TorrentFailure('Failed to parse torrent file');
       }
 
+      // Check if path is app-specific directory (no permission needed on Android 11+)
+      final isAppSpecific = PermissionService.isAppSpecificDirectory(savePath);
+      if (isAppSpecific) {
+        logger.d(
+          'Using app-specific directory: $savePath (no permission needed on Android 11+)',
+        );
+      } else {
+        // For user-selected directory (SAF), check permissions
+        final permissionService = PermissionService();
+        final canWrite = await permissionService.canWriteToStorage();
+        if (!canWrite) {
+          logger.w(
+            'Cannot write to storage, requesting permission before creating directory',
+          );
+          final granted = await permissionService.requestStoragePermission();
+          if (!granted) {
+            throw const TorrentFailure(
+              'Storage permission is required to download files. '
+              'Please grant storage permission in app settings.',
+            );
+          }
+        }
+      }
+
       // Create download directory if it doesn't exist
+      logger.i(
+          'Creating download directory: $savePath (downloadId: $downloadId)');
+      await StructuredLogger().log(
+        level: 'info',
+        subsystem: 'torrent',
+        message: 'Creating download directory',
+        extra: {
+          'downloadId': downloadId
+        }, // Don't include path in extra to avoid redaction
+      );
+
       final downloadDir = Directory(savePath);
       if (!await downloadDir.exists()) {
         try {
           logger.d('Creating download directory: $savePath');
           await downloadDir.create(recursive: true);
-          logger.d('Successfully created download directory: $savePath');
+          logger
+            ..d('Successfully created download directory: $savePath')
+            ..i('Successfully created download directory: $savePath (downloadId: $downloadId)');
+          await StructuredLogger().log(
+            level: 'info',
+            subsystem: 'torrent',
+            message: 'Successfully created download directory',
+            extra: {
+              'downloadId': downloadId
+            }, // Don't include path in extra to avoid redaction
+          );
         } on Exception catch (e) {
           logger.e(
             'Failed to create download directory: $savePath',
             error: e,
           );
+          await StructuredLogger().log(
+            level: 'error',
+            subsystem: 'torrent',
+            message: 'Failed to create download directory',
+            extra: {
+              'path': savePath,
+              'downloadId': downloadId,
+              'error': e.toString(),
+            },
+          );
+          // Check if error is related to permissions
+          final errorStr = e.toString().toLowerCase();
+          if (errorStr.contains('permission') ||
+              errorStr.contains('access') ||
+              errorStr.contains('denied')) {
+            if (isAppSpecific) {
+              throw TorrentFailure(
+                'Cannot create download directory: ${e.toString()}. '
+                'This may be a system-level issue. Please try restarting the app.',
+              );
+            } else {
+              throw const TorrentFailure(
+                'Permission denied: Cannot create download directory. '
+                'Please grant storage permission in app settings or select a different folder.',
+              );
+            }
+          }
           throw TorrentFailure(
             'Failed to create download directory: ${e.toString()}',
           );
         }
       } else {
-        logger.d('Download directory already exists: $savePath');
+        logger
+          ..d('Download directory already exists: $savePath')
+          ..i('Download directory already exists: $savePath (downloadId: $downloadId)');
+        await StructuredLogger().log(
+          level: 'info',
+          subsystem: 'torrent',
+          message: 'Download directory already exists',
+          extra: {
+            'downloadId': downloadId
+          }, // Don't include path in extra to avoid redaction
+        );
+        // Verify we can write to the directory
+        try {
+          final testFile = File('${downloadDir.path}/.test_write');
+          await testFile.writeAsString('test');
+          await testFile.delete();
+        } on Exception catch (e) {
+          logger
+            ..e(
+              'Cannot write to download directory: $savePath',
+              error: e,
+            )
+            ..e('Cannot write to download directory: $savePath (downloadId: $downloadId)',
+                error: e);
+          await StructuredLogger().log(
+            level: 'error',
+            subsystem: 'torrent',
+            message: 'Cannot write to download directory',
+            extra: {
+              'downloadId': downloadId,
+              'error': e.toString(),
+            }, // Don't include path in extra to avoid redaction
+          );
+          final errorStr = e.toString().toLowerCase();
+          if (errorStr.contains('permission') ||
+              errorStr.contains('access') ||
+              errorStr.contains('denied')) {
+            if (isAppSpecific) {
+              throw TorrentFailure(
+                'Cannot write to download directory: ${e.toString()}. '
+                'This may be a system-level issue. Please try restarting the app.',
+              );
+            } else {
+              throw const TorrentFailure(
+                'Permission denied: Cannot write to download directory. '
+                'Please grant MANAGE_EXTERNAL_STORAGE permission in app settings '
+                '(Android 11+) or storage permission (Android 10 and below).',
+              );
+            }
+          }
+          throw TorrentFailure(
+            'Cannot write to download directory: ${e.toString()}',
+          );
+        }
       }
 
       // Create torrent task with sequential download
@@ -499,6 +890,18 @@ class AudiobookTorrentManager {
         ..i('Torrent size: ${torrentModel.length} bytes')
         ..i('Save path: $savePath');
 
+      logger.i('Created TorrentTask - save path: $savePath');
+      await StructuredLogger().log(
+        level: 'info',
+        subsystem: 'torrent',
+        message: 'Created TorrentTask',
+        extra: {
+          'downloadId': downloadId,
+          'torrentName': torrentModel.name,
+          'torrentSize': torrentModel.length,
+        }, // Don't include savePath in extra to avoid redaction
+      );
+
       // Store metadata
       final metadata = <String, dynamic>{
         'savePath': savePath,
@@ -508,23 +911,57 @@ class AudiobookTorrentManager {
       if (title != null && title.isNotEmpty) {
         metadata['title'] = title;
       }
+      if (coverUrl != null && coverUrl.isNotEmpty) {
+        metadata['coverUrl'] = coverUrl;
+      }
       _downloadMetadata[downloadId] = metadata;
 
-      // Persist to database
+      // Persist to database BEFORE adding to active tasks
+      // This ensures metadata is saved even if something goes wrong
       await _saveDownloadMetadata(downloadId, metadata);
+      logger.d(
+        'Saved download metadata to database for downloadId: $downloadId',
+      );
+      await StructuredLogger().log(
+        level: 'info',
+        subsystem: 'torrent',
+        message: 'Saved download metadata to database',
+        extra: {'downloadId': downloadId},
+      );
 
       // Register background service for monitoring downloads
       safeUnawaited(_registerBackgroundService());
+
+      // Start foreground service to keep downloads alive in background
+      safeUnawaited(_foregroundService.startService());
 
       // Set up event listeners
       final finalDownloadId = downloadId;
       task.events.on<TaskStarted>((event) {
         logger.i('Task started for download $finalDownloadId');
+        safeUnawaited(StructuredLogger().log(
+          level: 'info',
+          subsystem: 'torrent',
+          message: 'Torrent task started',
+          extra: {'downloadId': finalDownloadId},
+        ));
         _updateProgress(finalDownloadId, task, progressController);
       });
 
       task.events.on<AllComplete>((event) {
         logger.i('Download completed for download $finalDownloadId');
+        safeUnawaited(StructuredLogger().log(
+          level: 'info',
+          subsystem: 'torrent',
+          message: 'Download completed',
+          extra: {'downloadId': finalDownloadId},
+        ));
+        // Cancel progress timer
+        final timer = _progressTimers[finalDownloadId];
+        if (timer != null) {
+          timer.cancel();
+          _progressTimers.remove(finalDownloadId);
+        }
         final progress = TorrentProgress(
           progress: 100.0,
           downloadSpeed: 0.0,
@@ -535,39 +972,262 @@ class AudiobookTorrentManager {
           leechers: task.allPeersNumber - task.seederNumber,
           status: 'completed',
         );
-        progressController
-          ..add(progress)
-          ..close();
+        if (!progressController.isClosed) {
+          progressController
+            ..add(progress)
+            ..close();
+        }
         _progressControllers.remove(downloadId);
         _activeTasks.remove(downloadId);
-        _downloadMetadata.remove(downloadId);
 
-        // Remove from database when completed
-        safeUnawaited(_removeDownloadMetadata(finalDownloadId));
+        // Update metadata with completed status instead of removing
+        final metadata = _downloadMetadata[finalDownloadId];
+        if (metadata != null) {
+          metadata['status'] = 'completed';
+          metadata['progress'] = 100.0;
+          metadata['completedAt'] = DateTime.now().toIso8601String();
+
+          // Verify that files were actually saved
+          final savePath = metadata['savePath'] as String?;
+          if (savePath != null) {
+            // TorrentTask may save files in a subdirectory with torrent name
+            // Check multiple possible locations
+            final torrentName = task.metaInfo.name;
+            final possiblePaths = [
+              savePath, // Original path
+              '$savePath/$torrentName', // Subdirectory with torrent name
+              Directory(savePath).parent.path, // Parent directory
+            ];
+
+            logger.i('Checking for downloaded files in multiple locations:');
+            for (final checkPath in possiblePaths) {
+              logger.i('  - $checkPath');
+            }
+
+            // Check all possible paths
+            safeUnawaited(_verifyDownloadedFilesInMultiplePaths(
+              finalDownloadId,
+              possiblePaths,
+            ));
+
+            // Download cover image if available
+            final coverUrl = metadata['coverUrl'] as String?;
+            if (coverUrl != null && coverUrl.isNotEmpty) {
+              // Try all possible paths for cover download
+              for (final checkPath in possiblePaths) {
+                if (checkPath.isNotEmpty) {
+                  safeUnawaited(
+                      _downloadCoverImage(coverUrl, checkPath, torrentName));
+                  break; // Only download once
+                }
+              }
+            }
+          }
+
+          // Trigger library scan after download completes
+          safeUnawaited(_triggerLibraryScan(metadata['savePath'] as String?));
+
+          // Save updated metadata to database
+          safeUnawaited(_saveDownloadMetadata(finalDownloadId, metadata));
+          logger.d(
+            'Updated download metadata to completed status for downloadId: $finalDownloadId',
+          );
+          // Remove from memory after a delay to allow UI to update
+          Future.delayed(const Duration(seconds: 30), () {
+            _downloadMetadata.remove(finalDownloadId);
+            // Remove from database after delay
+            safeUnawaited(_removeDownloadMetadata(finalDownloadId));
+            logger.d(
+              'Removed completed download metadata after delay for downloadId: $finalDownloadId',
+            );
+          });
+        } else {
+          // If metadata is missing, just remove from database
+          safeUnawaited(_removeDownloadMetadata(finalDownloadId));
+        }
       });
 
       // Error handling is done in _updateProgress and try-catch blocks
 
       // Start the download
+      logger.i('Starting torrent download - save path: $savePath');
+      await StructuredLogger().log(
+        level: 'info',
+        subsystem: 'torrent',
+        message: 'Starting torrent download',
+        extra: {
+          'downloadId': downloadId,
+          'torrentName': torrentModel.name,
+          'torrentSize': torrentModel.length,
+        }, // Don't include savePath in extra to avoid redaction
+      );
+
       await task.start();
 
       return downloadId;
     } on Exception catch (e) {
       // Clean up on error
       if (downloadId != null) {
-        final controller = _progressControllers[downloadId];
-        if (controller != null) {
-          safeUnawaited(controller.close());
+        try {
+          // Cancel progress timer if exists
+          final timer = _progressTimers[downloadId];
+          if (timer != null) {
+            timer.cancel();
+            _progressTimers.remove(downloadId);
+          }
+          // Close progress controller safely
+          final controller = _progressControllers[downloadId];
+          if (controller != null && !controller.isClosed) {
+            safeUnawaited(controller.close());
+          }
+          _progressControllers.remove(downloadId);
+          final task = _activeTasks[downloadId];
+          if (task != null) {
+            safeUnawaited(task.dispose());
+          }
+          _activeTasks.remove(downloadId);
+          _downloadMetadata.remove(downloadId);
+        } on Exception catch (cleanupError) {
+          // Log cleanup error but don't throw - original error is more important
+          EnvironmentLogger().w('Error during cleanup: $cleanupError');
         }
-        _progressControllers.remove(downloadId);
-        final task = _activeTasks[downloadId];
-        if (task != null) {
-          safeUnawaited(task.dispose());
-        }
-        _activeTasks.remove(downloadId);
-        _downloadMetadata.remove(downloadId);
       }
       throw TorrentFailure('Failed to start download: ${e.toString()}');
+    }
+  }
+
+  /// Cleans up retry tracking data for a download.
+  void _cleanupRetryData(String downloadId) {
+    _networkRetryCounts.remove(downloadId);
+    _lastNetworkErrorTime.remove(downloadId);
+    _lastSuccessfulDownloadTime.remove(downloadId);
+  }
+
+  /// Checks if an exception represents a network error.
+  ///
+  /// Returns true if the error is likely a network-related issue
+  /// that could be retried.
+  bool _isNetworkError(Exception e) {
+    final errorString = e.toString().toLowerCase();
+    return errorString.contains('connection') ||
+        errorString.contains('network') ||
+        errorString.contains('timeout') ||
+        errorString.contains('socket') ||
+        errorString.contains('host') ||
+        errorString.contains('dns') ||
+        errorString.contains('unreachable');
+  }
+
+  /// Attempts to retry a download after a network error.
+  ///
+  /// This method will retry the download up to [_maxNetworkRetries] times
+  /// with exponential backoff between attempts.
+  Future<void> _retryDownloadOnNetworkError(String downloadId) async {
+    final retryCount = _networkRetryCounts[downloadId] ?? 0;
+    if (retryCount >= _maxNetworkRetries) {
+      EnvironmentLogger().w(
+        'Download $downloadId: Max retry attempts ($_maxNetworkRetries) reached, giving up',
+      );
+      await StructuredLogger().log(
+        level: 'error',
+        subsystem: 'torrent',
+        message: 'Max network retry attempts reached',
+        extra: {
+          'downloadId': downloadId,
+          'maxRetries': _maxNetworkRetries,
+        },
+      );
+      return;
+    }
+
+    final metadata = _downloadMetadata[downloadId];
+    if (metadata == null) {
+      EnvironmentLogger().w(
+        'Download $downloadId: Cannot retry - metadata not found',
+      );
+      return;
+    }
+
+    // Check if download is paused - don't retry paused downloads
+    if (metadata['pausedAt'] != null) {
+      EnvironmentLogger().d(
+        'Download $downloadId: Skipping retry - download is paused',
+      );
+      return;
+    }
+
+    // Calculate exponential backoff delay
+    final baseDelaySeconds = 5 * (1 << retryCount); // 5, 10, 20 seconds
+    final jitterMs = DateTime.now().microsecondsSinceEpoch % 2000;
+    final delayMs = (baseDelaySeconds * 1000) + jitterMs;
+
+    EnvironmentLogger().i(
+      'Download $downloadId: Retrying after network error (attempt ${retryCount + 1}/$_maxNetworkRetries, delay: ${(delayMs / 1000).toStringAsFixed(1)}s)',
+    );
+
+    await StructuredLogger().log(
+      level: 'warning',
+      subsystem: 'torrent',
+      message: 'Retrying download after network error',
+      extra: {
+        'downloadId': downloadId,
+        'retryAttempt': retryCount + 1,
+        'maxRetries': _maxNetworkRetries,
+        'delayMs': delayMs,
+      },
+    );
+
+    // Wait before retry
+    await Future.delayed(Duration(milliseconds: delayMs));
+
+    // Increment retry count
+    _networkRetryCounts[downloadId] = retryCount + 1;
+
+    try {
+      // Try to resume the download
+      final task = _activeTasks[downloadId];
+      if (task != null) {
+        // Task exists, try to restart it
+        try {
+          await task.stop();
+          await Future.delayed(const Duration(milliseconds: 500));
+          await task.start();
+          EnvironmentLogger().i(
+            'Download $downloadId: Successfully restarted after network error',
+          );
+          // Reset retry count on success
+          _networkRetryCounts.remove(downloadId);
+          _lastNetworkErrorTime.remove(downloadId);
+          _lastSuccessfulDownloadTime[downloadId] = DateTime.now();
+        } on Exception catch (e) {
+          EnvironmentLogger().w(
+            'Download $downloadId: Failed to restart task: $e',
+          );
+          // Will retry again on next error if under limit
+        }
+      } else {
+        // Task doesn't exist, try to restore from metadata
+        try {
+          await resumeRestoredDownload(downloadId);
+          EnvironmentLogger().i(
+            'Download $downloadId: Successfully restored after network error',
+          );
+          // Reset retry count on success
+          _networkRetryCounts.remove(downloadId);
+          _lastNetworkErrorTime.remove(downloadId);
+          _lastSuccessfulDownloadTime[downloadId] = DateTime.now();
+        } on Exception catch (e) {
+          EnvironmentLogger().w(
+            'Download $downloadId: Failed to restore download: $e',
+          );
+          // Will retry again on next error if under limit
+        }
+      }
+    } on Exception catch (e) {
+      EnvironmentLogger().e(
+        'Download $downloadId: Error during retry: $e',
+      );
+      // Will retry again on next error if under limit
     }
   }
 
@@ -577,17 +1237,199 @@ class AudiobookTorrentManager {
     DateTime? lastLogTime;
     // Track last save time to avoid spamming database
     DateTime? lastSaveTime;
+    // Track progress for hang detection (99% hang)
+    double? lastProgress;
+    DateTime? lastProgressChangeTime;
+    DateTime? hangDetectionStartTime;
 
     // Update progress periodically
-    Timer.periodic(const Duration(seconds: 1), (timer) async {
+    final timer = Timer.periodic(const Duration(seconds: 1), (timer) async {
       if (!_activeTasks.containsKey(downloadId)) {
         timer.cancel();
+        _progressTimers.remove(downloadId);
         return;
       }
 
       try {
         // Check if task is stopped (paused)
         final isPaused = _downloadMetadata[downloadId]?['pausedAt'] != null;
+
+        // Check for hang at 99% (progress >= 99.0% and not changing for 20 seconds)
+        // Also check if download speed is 0 and progress is high
+        final currentProgress = task.progress * 100;
+        final currentSpeed = task.currentDownloadSpeed;
+        final now = DateTime.now();
+
+        // Check if download is actually completed (task.progress >= 1.0)
+        if (task.progress >= 1.0) {
+          logger.i(
+            'Download $downloadId completed (task.progress >= 1.0)',
+          );
+          timer.cancel();
+          _progressTimers.remove(downloadId);
+          if (!progressController.isClosed) {
+            final completedProgress = TorrentProgress(
+              progress: 100.0,
+              downloadSpeed: 0.0,
+              uploadSpeed: 0.0,
+              downloadedBytes: task.downloaded ?? task.metaInfo.length,
+              totalBytes: task.metaInfo.length,
+              seeders: task.seederNumber,
+              leechers: task.allPeersNumber - task.seederNumber,
+              status: 'completed',
+            );
+            progressController.add(completedProgress);
+            safeUnawaited(progressController.close());
+          }
+          _progressControllers.remove(downloadId);
+          _activeTasks.remove(downloadId);
+
+          // Clean up retry tracking data
+          _cleanupRetryData(downloadId);
+
+          // Check if all downloads are completed and stop foreground service
+          safeUnawaited(_checkAndStopForegroundService());
+
+          // Update metadata
+          final metadata = _downloadMetadata[downloadId];
+          if (metadata != null) {
+            metadata['status'] = 'completed';
+            metadata['progress'] = 100.0;
+            metadata['completedAt'] = now.toIso8601String();
+            safeUnawaited(_saveDownloadMetadata(downloadId, metadata));
+            // Remove after delay
+            Future.delayed(const Duration(seconds: 30), () {
+              _downloadMetadata.remove(downloadId);
+              safeUnawaited(_removeDownloadMetadata(downloadId));
+            });
+          }
+          return;
+        }
+
+        // Check for hang at 99%+ (progress >= 99.0% and not changing for 20 seconds)
+        // Also consider it hung if speed is 0 and progress is >= 99%
+        final isHighProgress =
+            currentProgress >= 99.0 && currentProgress < 100.0;
+        final isNoSpeed = currentSpeed <= 0.0;
+        final isStuck = isHighProgress &&
+            (isNoSpeed ||
+                (lastProgress != null &&
+                    (currentProgress - lastProgress!).abs() < 0.1));
+
+        if (isStuck) {
+          // Progress is stuck at 99%+ with no speed or no change
+          if (lastProgressChangeTime == null) {
+            lastProgressChangeTime = now;
+            hangDetectionStartTime = now;
+            logger.d(
+              'Download $downloadId detected as stuck at ${currentProgress.toStringAsFixed(1)}% (speed: ${currentSpeed.toStringAsFixed(1)} B/s)',
+            );
+          } else if (now.difference(lastProgressChangeTime!) >=
+              const Duration(seconds: 20)) {
+            // Progress stuck at 99%+ for 20 seconds - consider it completed
+            logger.w(
+              'Download $downloadId stuck at ${currentProgress.toStringAsFixed(1)}% for 20+ seconds (speed: ${currentSpeed.toStringAsFixed(1)} B/s), marking as completed',
+            );
+            // Force completion
+            timer.cancel();
+            _progressTimers.remove(downloadId);
+            if (!progressController.isClosed) {
+              final completedProgress = TorrentProgress(
+                progress: 100.0,
+                downloadSpeed: 0.0,
+                uploadSpeed: 0.0,
+                downloadedBytes: task.downloaded ?? task.metaInfo.length,
+                totalBytes: task.metaInfo.length,
+                seeders: task.seederNumber,
+                leechers: task.allPeersNumber - task.seederNumber,
+                status: 'completed',
+              );
+              progressController.add(completedProgress);
+              safeUnawaited(progressController.close());
+            }
+            _progressControllers.remove(downloadId);
+            _activeTasks.remove(downloadId);
+
+            // Clean up retry tracking data
+            _cleanupRetryData(downloadId);
+
+            // Check if all downloads are completed and stop foreground service
+            safeUnawaited(_checkAndStopForegroundService());
+
+            // Update metadata
+            final metadata = _downloadMetadata[downloadId];
+            if (metadata != null) {
+              metadata['status'] = 'completed';
+              metadata['progress'] = 100.0;
+              metadata['completedAt'] = now.toIso8601String();
+              safeUnawaited(_saveDownloadMetadata(downloadId, metadata));
+              // Remove after delay
+              Future.delayed(const Duration(seconds: 30), () {
+                _downloadMetadata.remove(downloadId);
+                safeUnawaited(_removeDownloadMetadata(downloadId));
+              });
+            }
+            return;
+          }
+        } else {
+          // Progress changed or speed is non-zero, reset hang detection
+          if (lastProgressChangeTime != null) {
+            logger.d(
+              'Download $downloadId progress changed or speed resumed, resetting hang detection',
+            );
+          }
+          lastProgressChangeTime = null;
+          hangDetectionStartTime = null;
+        }
+        lastProgress = currentProgress;
+
+        // Check for timeout: if progress >= 99% and stuck for 3 minutes, force completion
+        if (hangDetectionStartTime != null &&
+            now.difference(hangDetectionStartTime!) >=
+                const Duration(minutes: 3)) {
+          logger.w(
+            'Download $downloadId stuck at 99%+ for 3 minutes, forcing completion',
+          );
+          timer.cancel();
+          _progressTimers.remove(downloadId);
+          if (!progressController.isClosed) {
+            final completedProgress = TorrentProgress(
+              progress: 100.0,
+              downloadSpeed: 0.0,
+              uploadSpeed: 0.0,
+              downloadedBytes: task.downloaded ?? task.metaInfo.length,
+              totalBytes: task.metaInfo.length,
+              seeders: task.seederNumber,
+              leechers: task.allPeersNumber - task.seederNumber,
+              status: 'completed',
+            );
+            progressController.add(completedProgress);
+            safeUnawaited(progressController.close());
+          }
+          _progressControllers.remove(downloadId);
+          _activeTasks.remove(downloadId);
+
+          // Clean up retry tracking data
+          _cleanupRetryData(downloadId);
+
+          // Check if all downloads are completed and stop foreground service
+          safeUnawaited(_checkAndStopForegroundService());
+
+          // Update metadata
+          final metadata = _downloadMetadata[downloadId];
+          if (metadata != null) {
+            metadata['status'] = 'completed';
+            metadata['progress'] = 100.0;
+            metadata['completedAt'] = now.toIso8601String();
+            safeUnawaited(_saveDownloadMetadata(downloadId, metadata));
+            // Remove after delay
+            Future.delayed(const Duration(seconds: 30), () {
+              _downloadMetadata.remove(downloadId);
+              safeUnawaited(_removeDownloadMetadata(downloadId));
+            });
+          }
+          return;
+        }
 
         String status;
         if (task.progress >= 1.0) {
@@ -598,9 +1440,93 @@ class AudiobookTorrentManager {
           status = 'downloading';
         }
 
+        // Log raw speed value for debugging (first time only)
+        if (lastLogTime == null) {
+          logger.d(
+            'Raw download speed from TorrentTask: ${task.currentDownloadSpeed} (type: ${task.currentDownloadSpeed.runtimeType})',
+          );
+          // Check if speed might be in KB/s instead of B/s
+          // If speed is > 1000 but < 10000, it's likely in KB/s
+          if (task.currentDownloadSpeed > 1000 &&
+              task.currentDownloadSpeed < 10000) {
+            logger.w(
+              'Download speed might be in KB/s instead of B/s. Raw value: ${task.currentDownloadSpeed}',
+            );
+          }
+        }
+
+        // Use raw speed - TorrentTask should return bytes per second
+        // If it returns KB/s, we'll need to multiply by 1024
+        final rawSpeed = task.currentDownloadSpeed;
+        final downloadSpeed = isPaused ? 0.0 : rawSpeed;
+
+        // Get metadata early for network error detection
+        final metadata = _downloadMetadata[downloadId];
+
+        // Track successful downloads for network error detection
+        if (downloadSpeed > 0 && !isPaused) {
+          _lastSuccessfulDownloadTime[downloadId] = now;
+          // Reset retry count on successful download
+          if (_networkRetryCounts.containsKey(downloadId)) {
+            _networkRetryCounts.remove(downloadId);
+            _lastNetworkErrorTime.remove(downloadId);
+          }
+        }
+
+        // Detect network errors by long periods without download
+        // (no speed, no peers, not paused, not completed)
+        if (!isPaused &&
+            downloadSpeed <= 0 &&
+            task.seederNumber == 0 &&
+            task.allPeersNumber == 0 &&
+            currentProgress < 99.0) {
+          final lastSuccess = _lastSuccessfulDownloadTime[downloadId];
+          if (lastSuccess != null) {
+            final timeSinceLastSuccess = now.difference(lastSuccess).inSeconds;
+            if (timeSinceLastSuccess >= _networkErrorDetectionTimeSeconds) {
+              // Potential network error detected
+              final lastErrorTime = _lastNetworkErrorTime[downloadId];
+              if (lastErrorTime == null ||
+                  now.difference(lastErrorTime).inSeconds >=
+                      _networkErrorDetectionTimeSeconds) {
+                EnvironmentLogger().w(
+                  'Download $downloadId: Potential network error detected (no download for ${timeSinceLastSuccess}s, no peers)',
+                );
+                _lastNetworkErrorTime[downloadId] = now;
+                // Trigger retry asynchronously
+                safeUnawaited(_retryDownloadOnNetworkError(downloadId));
+              }
+            }
+          } else {
+            // No successful download yet, but no peers - might be network issue
+            final downloadStartTime = metadata?['startedAt'] as String?;
+            if (downloadStartTime != null) {
+              try {
+                final startTime = DateTime.parse(downloadStartTime);
+                final timeSinceStart = now.difference(startTime).inSeconds;
+                if (timeSinceStart >= _networkErrorDetectionTimeSeconds) {
+                  final lastErrorTime = _lastNetworkErrorTime[downloadId];
+                  if (lastErrorTime == null ||
+                      now.difference(lastErrorTime).inSeconds >=
+                          _networkErrorDetectionTimeSeconds) {
+                    EnvironmentLogger().w(
+                      'Download $downloadId: Potential network error detected (no download for ${timeSinceStart}s since start, no peers)',
+                    );
+                    _lastNetworkErrorTime[downloadId] = now;
+                    // Trigger retry asynchronously
+                    safeUnawaited(_retryDownloadOnNetworkError(downloadId));
+                  }
+                }
+              } on Exception {
+                // Ignore parse errors
+              }
+            }
+          }
+        }
+
         final progress = TorrentProgress(
           progress: task.progress * 100,
-          downloadSpeed: isPaused ? 0.0 : task.currentDownloadSpeed,
+          downloadSpeed: downloadSpeed,
           uploadSpeed: isPaused ? 0.0 : task.uploadSpeed,
           downloadedBytes: task.downloaded ?? 0,
           totalBytes: task.metaInfo.length,
@@ -609,10 +1535,12 @@ class AudiobookTorrentManager {
           status: status,
         );
 
-        progressController.add(progress);
+        // Check if controller is closed before adding
+        if (!progressController.isClosed) {
+          progressController.add(progress);
+        }
 
         // Update notification
-        final metadata = _downloadMetadata[downloadId];
         final title = metadata?['title'] as String? ?? task.metaInfo.name;
         safeUnawaited(_notificationService.showDownloadProgress(
           downloadId,
@@ -622,8 +1550,15 @@ class AudiobookTorrentManager {
           status,
         ));
 
+        // Update foreground service notification
+        final speedText = _formatSpeed(progress.downloadSpeed);
+        safeUnawaited(_foregroundService.updateProgress(
+          title: title,
+          progress: progress.progress,
+          speed: speedText,
+        ));
+
         // Save progress and status to metadata every 5 seconds
-        final now = DateTime.now();
         if (lastSaveTime == null ||
             now.difference(lastSaveTime!) >= const Duration(seconds: 5)) {
           if (metadata != null) {
@@ -650,31 +1585,28 @@ class AudiobookTorrentManager {
           lastLogTime = now;
         }
 
-        if (task.progress >= 1.0) {
-          timer.cancel();
-          await progressController.close();
-          // Show completion notification before removing metadata
-          final metadata = _downloadMetadata[downloadId];
-          _progressControllers.remove(downloadId);
-          _activeTasks.remove(downloadId);
-          _downloadMetadata.remove(downloadId);
-          // Show completion notification and cancel after delay
-          final title = metadata?['title'] as String? ?? task.metaInfo.name;
-          safeUnawaited(_notificationService.showDownloadProgress(
-            downloadId,
-            title,
-            100.0,
-            0.0,
-            'completed',
-          ));
-          // Cancel notification after 3 seconds
-          Future.delayed(const Duration(seconds: 3), () {
-            safeUnawaited(
-                _notificationService.cancelDownloadNotification(downloadId));
-          });
-        }
+        // Note: task.progress >= 1.0 check is now handled earlier in the hang detection logic
       } on Exception catch (e) {
         // Task might be disposed or in error state
+        final isNetworkErr = _isNetworkError(e);
+        final retryCount = _networkRetryCounts[downloadId] ?? 0;
+
+        EnvironmentLogger().w(
+          'Download $downloadId: Error in progress update: $e (isNetworkError: $isNetworkErr, retryCount: $retryCount)',
+        );
+
+        await StructuredLogger().log(
+          level: 'warning',
+          subsystem: 'torrent',
+          message: 'Error in download progress update',
+          extra: {
+            'downloadId': downloadId,
+            'error': e.toString(),
+            'isNetworkError': isNetworkErr,
+            'retryCount': retryCount,
+          },
+        );
+
         try {
           final errorProgress = TorrentProgress(
             progress: task.progress * 100,
@@ -684,15 +1616,32 @@ class AudiobookTorrentManager {
             totalBytes: task.metaInfo.length,
             seeders: 0,
             leechers: 0,
-            status: 'error: ${e.toString()}',
+            status: isNetworkErr && retryCount < _maxNetworkRetries
+                ? 'retrying: ${e.toString()}'
+                : 'error: ${e.toString()}',
           );
-          progressController.add(errorProgress);
+          if (!progressController.isClosed) {
+            progressController.add(errorProgress);
+          }
         } on Exception {
           // If we can't even create error progress, task is completely dead
         }
-        timer.cancel();
+
+        // If it's a network error and we haven't exceeded retry limit, try to retry
+        if (isNetworkErr && retryCount < _maxNetworkRetries) {
+          _lastNetworkErrorTime[downloadId] = DateTime.now();
+          // Don't cancel timer immediately - let retry attempt happen
+          // Retry will be handled asynchronously
+          safeUnawaited(_retryDownloadOnNetworkError(downloadId));
+        } else {
+          // Not a network error or max retries reached - cancel timer
+          timer.cancel();
+          _progressTimers.remove(downloadId);
+        }
       }
     });
+    // Store timer in Map for proper cleanup
+    _progressTimers[downloadId] = timer;
   }
 
   /// Pauses an active torrent download.
@@ -710,6 +1659,8 @@ class AudiobookTorrentManager {
         throw const TorrentFailure('Download not found');
       }
 
+      // Timer will continue running but will show paused status
+      // We don't cancel it here to allow progress updates even when paused
       await task.stop();
       _downloadMetadata[downloadId]?['pausedAt'] =
           DateTime.now().toIso8601String();
@@ -837,7 +1788,15 @@ class AudiobookTorrentManager {
   ///
   /// Throws [TorrentFailure] if the download cannot be removed.
   Future<void> removeDownload(String downloadId) async {
+    StreamController<TorrentProgress>? controller;
     try {
+      // Cancel progress timer first
+      final timer = _progressTimers[downloadId];
+      if (timer != null) {
+        timer.cancel();
+        _progressTimers.remove(downloadId);
+      }
+
       final task = _activeTasks[downloadId];
       if (task != null) {
         await task.dispose();
@@ -853,11 +1812,25 @@ class AudiobookTorrentManager {
         _metadataDownloaders.remove(downloadId);
       }
 
-      await _progressControllers[downloadId]?.close();
+      // Store controller reference for finally block
+      controller = _progressControllers[downloadId];
       _progressControllers.remove(downloadId);
       _downloadMetadata.remove(downloadId);
+
+      // Clean up retry tracking data
+      _cleanupRetryData(downloadId);
     } on Exception catch (e) {
       throw TorrentFailure('Failed to remove download: ${e.toString()}');
+    } finally {
+      // Always close controller in finally block to prevent leaks
+      if (controller != null && !controller.isClosed) {
+        try {
+          await controller.close();
+        } on Exception catch (e) {
+          EnvironmentLogger()
+              .w('Error closing controller in removeDownload: $e');
+        }
+      }
     }
   }
 
@@ -1012,6 +1985,12 @@ class AudiobookTorrentManager {
   /// Throws [TorrentFailure] if shutdown fails.
   Future<void> shutdown() async {
     try {
+      // Cancel all progress timers
+      for (final timer in _progressTimers.values) {
+        timer.cancel();
+      }
+      _progressTimers.clear();
+
       // Stop all metadata downloaders
       await Future.wait(_metadataDownloaders.values.map((metadata) async {
         try {
@@ -1022,9 +2001,16 @@ class AudiobookTorrentManager {
       }));
       _metadataDownloaders.clear();
 
-      // Close all progress controllers
-      await Future.wait(
-          _progressControllers.values.map((controller) => controller.close()));
+      // Close all progress controllers safely
+      await Future.wait(_progressControllers.values.map((controller) async {
+        try {
+          if (!controller.isClosed) {
+            await controller.close();
+          }
+        } on Exception {
+          // Ignore errors during shutdown
+        }
+      }));
       _progressControllers.clear();
 
       // Dispose all active torrent tasks
@@ -1042,13 +2028,22 @@ class AudiobookTorrentManager {
   /// Saves download metadata to database.
   Future<void> _saveDownloadMetadata(
       String downloadId, Map<String, dynamic> metadata) async {
-    if (_db == null) return;
+    if (_db == null) {
+      logger.d(
+          '_saveDownloadMetadata: Database not initialized, skipping save for downloadId: $downloadId');
+      return;
+    }
 
     try {
       final store = AppDatabase().downloadsStore;
       await store.record(downloadId).put(_db!, metadata);
-    } on Exception {
-      // Ignore errors - persistence is optional
+      logger.d(
+          '_saveDownloadMetadata: Successfully saved metadata for downloadId: $downloadId');
+    } on Exception catch (e) {
+      // Log error but don't throw - persistence is optional
+      logger.w(
+          '_saveDownloadMetadata: Failed to save metadata for downloadId: $downloadId',
+          error: e);
     }
   }
 
@@ -1133,6 +2128,43 @@ class AudiobookTorrentManager {
   }
 
   /// Formats bytes for logging purposes.
+  /// Checks if all downloads are completed and stops foreground service if needed.
+  Future<void> _checkAndStopForegroundService() async {
+    try {
+      // Check if there are any active downloads
+      final hasActiveDownloads = _activeTasks.isNotEmpty;
+
+      if (!hasActiveDownloads) {
+        // All downloads completed, stop foreground service
+        await _foregroundService.stopService();
+        EnvironmentLogger()
+            .i('All downloads completed, stopped foreground service');
+        await StructuredLogger().log(
+          level: 'info',
+          subsystem: 'torrent',
+          message: 'All downloads completed, stopped foreground service',
+        );
+      }
+    } on Exception catch (e) {
+      EnvironmentLogger().w('Failed to check/stop foreground service: $e');
+      await StructuredLogger().log(
+        level: 'warning',
+        subsystem: 'torrent',
+        message: 'Failed to check/stop foreground service',
+        extra: {'error': e.toString()},
+      );
+    }
+  }
+
+  /// Formats download speed for display.
+  String _formatSpeed(double bytesPerSecond) {
+    if (bytesPerSecond < 1024) return '${bytesPerSecond.toInt()} B/s';
+    if (bytesPerSecond < 1024 * 1024) {
+      return '${(bytesPerSecond / 1024).toStringAsFixed(1)} KB/s';
+    }
+    return '${(bytesPerSecond / (1024 * 1024)).toStringAsFixed(1)} MB/s';
+  }
+
   String _formatBytesForLog(int bytes) {
     if (bytes < 1024) return '$bytes B';
     if (bytes < 1024 * 1024) {
@@ -1154,6 +2186,267 @@ class AudiobookTorrentManager {
     } on Exception catch (e) {
       EnvironmentLogger().w('Failed to register background service: $e');
       // Continue without background service - downloads will still work
+    }
+  }
+
+  /// Verifies that the save directory exists and is accessible before download starts.
+  ///
+  /// This method checks that the directory exists and can be listed.
+  Future<void> _verifySaveDirectory(String downloadId, String savePath) async {
+    final logger = EnvironmentLogger();
+    try {
+      final saveDir = Directory(savePath);
+      final exists = await saveDir.exists();
+
+      await StructuredLogger().log(
+        level: exists ? 'info' : 'warning',
+        subsystem: 'torrent',
+        message: 'Save directory verification',
+        extra: {
+          'downloadId': downloadId,
+          'savePath': savePath,
+          'exists': exists,
+        },
+      );
+
+      if (exists) {
+        try {
+          await saveDir.list().first;
+          logger.d('Save directory is accessible: $savePath');
+        } on Exception catch (e) {
+          logger.w('Save directory exists but may not be accessible: $savePath',
+              error: e);
+        }
+      } else {
+        logger.w('Save directory does not exist yet: $savePath');
+      }
+    } on Exception catch (e) {
+      logger.e('Error verifying save directory: $savePath', error: e);
+      await StructuredLogger().log(
+        level: 'error',
+        subsystem: 'torrent',
+        message: 'Error verifying save directory',
+        extra: {
+          'downloadId': downloadId,
+          'savePath': savePath,
+          'error': e.toString(),
+        },
+      );
+    }
+  }
+
+  /// Verifies that downloaded files exist after download completion.
+  ///
+  /// Verifies downloaded files in multiple possible paths.
+  ///
+  /// TorrentTask may save files in different locations than expected,
+  /// so we check multiple possible paths.
+  Future<void> _verifyDownloadedFilesInMultiplePaths(
+    String downloadId,
+    List<String> possiblePaths,
+  ) async {
+    final logger = EnvironmentLogger();
+    var foundFiles = false;
+
+    for (final checkPath in possiblePaths) {
+      if (checkPath.isEmpty) continue;
+
+      try {
+        final checkDir = Directory(checkPath);
+        if (!await checkDir.exists()) {
+          logger.d('Path does not exist: $checkPath');
+          continue;
+        }
+
+        final entities = await checkDir.list().toList();
+        final files = entities.whereType<File>().toList();
+
+        // Filter out .bt.state files - we're looking for actual content files
+        final contentFiles = files
+            .where((f) =>
+                !f.path.endsWith('.bt.state') && !f.path.endsWith('.torrent'))
+            .toList();
+
+        if (contentFiles.isNotEmpty) {
+          foundFiles = true;
+          logger.i('Found ${contentFiles.length} content files in: $checkPath');
+
+          var totalSize = 0;
+          for (final file in contentFiles.take(10)) {
+            try {
+              final size = await file.length();
+              totalSize += size;
+              logger
+                  .i('  File: ${file.path}, size: ${_formatBytesForLog(size)}');
+            } on Exception catch (e) {
+              logger.w('Cannot get size for file: ${file.path}', error: e);
+            }
+          }
+
+          logger
+              .i('Total content files size: ${_formatBytesForLog(totalSize)}');
+
+          await StructuredLogger().log(
+            level: 'info',
+            subsystem: 'torrent',
+            message: 'Download files found in alternative path',
+            extra: {
+              'downloadId': downloadId,
+              'foundPath': checkPath,
+              'fileCount': contentFiles.length,
+              'totalSize': totalSize,
+            },
+          );
+          break; // Found files, no need to check other paths
+        } else {
+          logger.d(
+              'No content files found in: $checkPath (found ${files.length} total files)');
+        }
+      } on Exception catch (e) {
+        logger.d('Cannot check path: $checkPath', error: e);
+      }
+    }
+
+    if (!foundFiles) {
+      logger.w('No content files found in any of the checked paths');
+      await StructuredLogger().log(
+        level: 'warning',
+        subsystem: 'torrent',
+        message: 'No content files found in any checked path',
+        extra: {
+          'downloadId': downloadId,
+          'checkedPaths': possiblePaths,
+        },
+      );
+    }
+  }
+
+  /// Triggers library scan after download completion.
+  ///
+  /// Scans the directory where files were saved, or the default directory
+  /// if savePath is not available.
+  Future<void> _triggerLibraryScan(String? savePath) async {
+    final logger = EnvironmentLogger();
+    try {
+      final scanner = AudiobookLibraryScanner();
+      if (savePath != null) {
+        // Scan specific directory where files were saved
+        logger.i('Triggering library scan for download directory: $savePath');
+        await scanner.scanDirectory(savePath, recursive: true);
+      } else {
+        // Scan default directory
+        logger.i('Triggering library scan for default directory');
+        await scanner.scanDefaultDirectory();
+      }
+      await StructuredLogger().log(
+        level: 'info',
+        subsystem: 'torrent',
+        message: 'Library scan triggered after download completion',
+        extra: {'savePath': savePath},
+      );
+    } on Exception catch (e) {
+      logger.w('Failed to trigger library scan: $e');
+      await StructuredLogger().log(
+        level: 'warning',
+        subsystem: 'torrent',
+        message: 'Failed to trigger library scan',
+        extra: {
+          'savePath': savePath,
+          'error': e.toString(),
+        },
+      );
+    }
+  }
+
+  /// Downloads cover image from URL and saves it to the download directory.
+  ///
+  /// Tries common cover file names (cover.jpg, folder.jpg, etc.)
+  Future<void> _downloadCoverImage(
+    String coverUrl,
+    String directoryPath,
+    String? torrentName,
+  ) async {
+    final logger = EnvironmentLogger();
+    try {
+      // Determine file extension from URL
+      final uri = Uri.tryParse(coverUrl);
+      if (uri == null) {
+        logger.w('Invalid cover URL: $coverUrl');
+        return;
+      }
+
+      final urlPath = uri.path.toLowerCase();
+      var extension = '.jpg'; // Default to jpg
+      if (urlPath.endsWith('.png')) {
+        extension = '.png';
+      } else if (urlPath.endsWith('.gif')) {
+        extension = '.gif';
+      } else if (urlPath.endsWith('.webp')) {
+        extension = '.webp';
+      }
+
+      // Try common cover file names
+      final coverFileNames = ['cover', 'folder', 'album', 'artwork', 'art'];
+      final directory = Directory(directoryPath);
+
+      if (!await directory.exists()) {
+        logger.w('Directory does not exist for cover download: $directoryPath');
+        return;
+      }
+
+      // Download to first available cover name
+      for (final coverName in coverFileNames) {
+        final coverPath = path.join(directoryPath, '$coverName$extension');
+        final coverFile = File(coverPath);
+
+        // Skip if file already exists
+        if (await coverFile.exists()) {
+          logger.d('Cover already exists: $coverPath');
+          continue;
+        }
+
+        try {
+          // Download cover image
+          final dio = await DioClient.instance;
+          final response = await dio.get<Uint8List>(
+            coverUrl,
+            options: Options(responseType: ResponseType.bytes),
+          );
+
+          if (response.data != null && response.data!.isNotEmpty) {
+            await coverFile.writeAsBytes(response.data!);
+            logger.i('Downloaded cover image to: $coverPath');
+            await StructuredLogger().log(
+              level: 'info',
+              subsystem: 'torrent',
+              message: 'Downloaded cover image',
+              extra: {
+                'coverPath': coverPath,
+                'coverUrl': coverUrl,
+              },
+            );
+            return; // Success, exit
+          }
+        } on Exception catch (e) {
+          logger.w('Failed to download cover to $coverPath: $e');
+          // Try next name
+          continue;
+        }
+      }
+
+      logger.w('Failed to download cover image: all attempts failed');
+    } on Exception catch (e) {
+      logger.w('Error downloading cover image: $e');
+      await StructuredLogger().log(
+        level: 'warning',
+        subsystem: 'torrent',
+        message: 'Failed to download cover image',
+        extra: {
+          'coverUrl': coverUrl,
+          'directoryPath': directoryPath,
+          'error': e.toString(),
+        },
+      );
     }
   }
 }

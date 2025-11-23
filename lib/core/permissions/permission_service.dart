@@ -12,20 +12,31 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:async';
+import 'dart:io';
+
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:jabook/core/logging/structured_logger.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:permission_handler/permission_handler.dart' as ph
+    show openAppSettings;
 
 /// Service for managing app permissions.
 ///
 /// This service handles requesting and checking various permissions
 /// required for the app to function properly.
 class PermissionService {
+  /// Factory constructor to get the singleton instance.
+  factory PermissionService() => _instance;
+
   /// Private constructor for singleton pattern.
   PermissionService._();
 
-  /// Factory constructor to get the singleton instance.
-  factory PermissionService() => _instance;
+  /// Method channel for native permission operations
+  static const MethodChannel _permissionChannel =
+      MethodChannel('permission_channel');
 
   /// Singleton instance of the PermissionService.
   static final PermissionService _instance = PermissionService._();
@@ -33,16 +44,54 @@ class PermissionService {
   /// Logger instance for structured logging.
   final StructuredLogger _logger = StructuredLogger();
 
+  /// Completer for synchronizing permission requests.
+  /// Prevents multiple simultaneous permission requests.
+  Completer<Map<String, bool>>? _permissionRequestCompleter;
+
   /// Checks if storage permission is granted.
+  ///
+  /// This method is primarily used for READING files from shared storage.
+  /// For WRITING files, use [canWriteToStorage()] instead, which correctly
+  /// handles app-specific directories that don't require permissions on Android 11+.
   ///
   /// Returns `true` if storage permission is granted, `false` otherwise.
   Future<bool> hasStoragePermission() async {
     try {
-      // For Android 13+, we need to use photos instead of storage
-      final status = await Permission.photos.status;
-      if (status.isGranted) return true;
+      if (!Platform.isAndroid) {
+        // For non-Android platforms, return true (permissions handled differently)
+        return true;
+      }
 
-      // For older Android versions
+      // Get Android version
+      final androidInfo = await DeviceInfoPlugin().androidInfo;
+      final sdkInt = androidInfo.version.sdkInt;
+
+      // Android 14+ (API 34+): Need MANAGE_EXTERNAL_STORAGE for scanning folders
+      // This is required for library scanner to work properly
+      if (sdkInt >= 34) {
+        final hasManageStorage = await _hasManageExternalStoragePermission();
+        if (hasManageStorage) return true;
+        // Fallback to audio permission (limited access)
+        final audioStatus = await Permission.audio.status;
+        return audioStatus.isGranted;
+      }
+
+      // Android 13 (API 33): Use audio permission for audio files
+      if (sdkInt == 33) {
+        final audioStatus = await Permission.audio.status;
+        if (audioStatus.isGranted) return true;
+        // Fallback to photos permission for broader access
+        final photosStatus = await Permission.photos.status;
+        return photosStatus.isGranted;
+      }
+
+      // Android 12 (API 32): Use storage permission (still required)
+      if (sdkInt == 32) {
+        final storageStatus = await Permission.storage.status;
+        return storageStatus.isGranted;
+      }
+
+      // Android 11 and below (API 30-31): Use storage permission
       final storageStatus = await Permission.storage.status;
       return storageStatus.isGranted;
     } on Exception catch (e) {
@@ -58,29 +107,277 @@ class PermissionService {
 
   /// Requests storage permission.
   ///
+  /// This method is primarily used for READING files from shared storage.
+  /// For WRITING files, use [canWriteToStorage()] instead, which correctly
+  /// handles app-specific directories that don't require permissions on Android 11+.
+  ///
   /// Returns `true` if permission was granted, `false` otherwise.
   Future<bool> requestStoragePermission() async {
     try {
+      if (!Platform.isAndroid) {
+        // For non-Android platforms, return true (permissions handled differently)
+        return true;
+      }
+
       await _logger.log(
         level: 'info',
         subsystem: 'permissions',
         message: 'Requesting storage permission',
       );
 
-      // For Android 13+, request photos permission
-      final photosStatus = await Permission.photos.request();
-      if (photosStatus.isGranted) {
+      // Get Android version
+      final androidInfo = await DeviceInfoPlugin().androidInfo;
+      final sdkInt = androidInfo.version.sdkInt;
+
+      // Android 14+ (API 34+): Request MANAGE_EXTERNAL_STORAGE for scanning folders
+      // This is REQUIRED for library scanner to work properly on Android 14+
+      // Without it, folder scanning will be very slow or fail
+      if (sdkInt >= 34) {
         await _logger.log(
           level: 'info',
           subsystem: 'permissions',
-          message: 'Photos permission granted',
+          message:
+              'Android 14+ detected, requesting MANAGE_EXTERNAL_STORAGE for folder scanning',
+          extra: {'sdk_int': sdkInt},
         );
-        return true;
+
+        // Check if MANAGE_EXTERNAL_STORAGE is already granted
+        final hasManageStorage = await _hasManageExternalStoragePermission();
+        await _logger.log(
+          level: 'info',
+          subsystem: 'permissions',
+          message:
+              'MANAGE_EXTERNAL_STORAGE permission check result (Android 14+)',
+          extra: {'has_permission': hasManageStorage},
+        );
+
+        if (hasManageStorage) {
+          await _logger.log(
+            level: 'info',
+            subsystem: 'permissions',
+            message:
+                'MANAGE_EXTERNAL_STORAGE permission already granted (Android 14+)',
+          );
+          return true;
+        }
+
+        // Open system settings for MANAGE_EXTERNAL_STORAGE
+        // This is required because permission_handler doesn't properly handle this permission
+        await _logger.log(
+          level: 'info',
+          subsystem: 'permissions',
+          message:
+              'Opening system settings for MANAGE_EXTERNAL_STORAGE (Android 14+)',
+        );
+        try {
+          await _permissionChannel
+              .invokeMethod('openManageExternalStorageSettings');
+          await _logger.log(
+            level: 'info',
+            subsystem: 'permissions',
+            message:
+                'System settings opened for MANAGE_EXTERNAL_STORAGE. User needs to grant permission manually.',
+          );
+          // Wait a bit for user to potentially grant permission
+          await Future.delayed(const Duration(seconds: 1));
+          // Check again if user granted permission
+          final hasPermission = await _hasManageExternalStoragePermission();
+          if (hasPermission) {
+            await _logger.log(
+              level: 'info',
+              subsystem: 'permissions',
+              message:
+                  'MANAGE_EXTERNAL_STORAGE permission granted after opening settings (Android 14+)',
+            );
+            return true;
+          }
+          // Return false - user needs to grant permission in settings
+          await _logger.log(
+            level: 'warning',
+            subsystem: 'permissions',
+            message:
+                'MANAGE_EXTERNAL_STORAGE not granted. Folder scanning will be slow or fail.',
+          );
+          return false;
+        } on PlatformException catch (e) {
+          await _logger.log(
+            level: 'error',
+            subsystem: 'permissions',
+            message:
+                'Failed to open system settings for MANAGE_EXTERNAL_STORAGE (Android 14+)',
+            cause: e.toString(),
+          );
+          // Fallback to audio permission (limited access, won't work for folder scanning)
+          final audioStatus = await Permission.audio.request();
+          if (audioStatus.isGranted) {
+            await _logger.log(
+              level: 'warning',
+              subsystem: 'permissions',
+              message:
+                  'Audio permission granted (Android 14+), but MANAGE_EXTERNAL_STORAGE is required for folder scanning',
+            );
+          }
+          return false; // Return false because MANAGE_EXTERNAL_STORAGE is required
+        }
       }
 
-      // For older Android versions, request storage permission
-      final storageStatus = await Permission.storage.request();
+      // Android 13 (API 33): Request READ_MEDIA_AUDIO for reading audio files
+      if (sdkInt == 33) {
+        await _logger.log(
+          level: 'info',
+          subsystem: 'permissions',
+          message:
+              'Android 13 detected, requesting READ_MEDIA_AUDIO permission',
+          extra: {'sdk_int': sdkInt},
+        );
 
+        // Request READ_MEDIA_AUDIO (this is what we need for reading audio files on Android 13)
+        final audioStatus = await Permission.audio.request();
+        await _logger.log(
+          level: 'info',
+          subsystem: 'permissions',
+          message:
+              'READ_MEDIA_AUDIO permission result (Android 13): ${audioStatus.name}',
+        );
+
+        if (audioStatus.isGranted) {
+          await _logger.log(
+            level: 'info',
+            subsystem: 'permissions',
+            message: 'READ_MEDIA_AUDIO permission granted (Android 13)',
+          );
+          return true;
+        }
+
+        // If audio permission is permanently denied, try photos permission as fallback
+        if (audioStatus.isPermanentlyDenied) {
+          await _logger.log(
+            level: 'info',
+            subsystem: 'permissions',
+            message:
+                'READ_MEDIA_AUDIO permanently denied, trying photos permission as fallback',
+          );
+          final photosStatus = await Permission.photos.request();
+          await _logger.log(
+            level: 'info',
+            subsystem: 'permissions',
+            message:
+                'Photos permission result (fallback): ${photosStatus.name}',
+          );
+          if (photosStatus.isGranted) {
+            await _logger.log(
+              level: 'info',
+              subsystem: 'permissions',
+              message: 'Photos permission granted (Android 13, fallback)',
+            );
+            return true;
+          }
+        }
+
+        // If both audio and photos permissions are not granted, return false
+        await _logger.log(
+          level: 'warning',
+          subsystem: 'permissions',
+          message:
+              'Neither READ_MEDIA_AUDIO nor photos permission granted (Android 13)',
+        );
+        return false;
+      }
+
+      // Android 12 (API 32): Request storage permission (still required)
+      if (sdkInt == 32) {
+        final storageStatus = await Permission.storage.request();
+        await _logger.log(
+          level: 'info',
+          subsystem: 'permissions',
+          message:
+              'Storage permission result (Android 12): ${storageStatus.name}',
+        );
+        return storageStatus.isGranted;
+      }
+
+      // Android 11+ (API 30+): Request MANAGE_EXTERNAL_STORAGE first, then storage as fallback
+      if (sdkInt >= 30) {
+        await _logger.log(
+          level: 'info',
+          subsystem: 'permissions',
+          message:
+              'Android 11+ detected, checking MANAGE_EXTERNAL_STORAGE permission',
+          extra: {'sdk_int': sdkInt},
+        );
+        // Check if MANAGE_EXTERNAL_STORAGE is already granted
+        final hasManageStorage = await _hasManageExternalStoragePermission();
+        await _logger.log(
+          level: 'info',
+          subsystem: 'permissions',
+          message: 'MANAGE_EXTERNAL_STORAGE permission check result',
+          extra: {'has_permission': hasManageStorage},
+        );
+        if (hasManageStorage) {
+          await _logger.log(
+            level: 'info',
+            subsystem: 'permissions',
+            message:
+                'MANAGE_EXTERNAL_STORAGE permission already granted (Android 11+)',
+          );
+          return true;
+        }
+
+        // Open system settings for MANAGE_EXTERNAL_STORAGE
+        // This is required because permission_handler doesn't properly handle this permission
+        await _logger.log(
+          level: 'info',
+          subsystem: 'permissions',
+          message:
+              'Opening system settings for MANAGE_EXTERNAL_STORAGE (Android 11+)',
+        );
+        try {
+          await _permissionChannel
+              .invokeMethod('openManageExternalStorageSettings');
+          await _logger.log(
+            level: 'info',
+            subsystem: 'permissions',
+            message:
+                'System settings opened for MANAGE_EXTERNAL_STORAGE. User needs to grant permission manually.',
+          );
+          // Wait a bit for user to potentially grant permission
+          await Future.delayed(const Duration(seconds: 1));
+          // Check again if user granted permission
+          final hasPermission = await _hasManageExternalStoragePermission();
+          if (hasPermission) {
+            await _logger.log(
+              level: 'info',
+              subsystem: 'permissions',
+              message:
+                  'MANAGE_EXTERNAL_STORAGE permission granted after opening settings',
+            );
+            return true;
+          }
+          // Return false - user needs to grant permission in settings
+          // The app will check again when trying to write
+          return false;
+        } on PlatformException catch (e) {
+          await _logger.log(
+            level: 'error',
+            subsystem: 'permissions',
+            message:
+                'Failed to open system settings for MANAGE_EXTERNAL_STORAGE',
+            cause: e.toString(),
+          );
+          // Fallback to storage permission
+          final storageStatus = await Permission.storage.request();
+          await _logger.log(
+            level: 'info',
+            subsystem: 'permissions',
+            message:
+                'Storage permission result (fallback): ${storageStatus.name}',
+          );
+          return storageStatus.isGranted;
+        }
+      }
+
+      // Android 10 and below: Request storage permission
+      final storageStatus = await Permission.storage.request();
       await _logger.log(
         level: 'info',
         subsystem: 'permissions',
@@ -89,8 +386,23 @@ class PermissionService {
 
       return storageStatus.isGranted;
     } on Exception catch (e) {
-      // Check if error is about missing Activity
       final errorStr = e.toString();
+
+      // Handle "permission request already running" error
+      if (errorStr.contains('already running') ||
+          errorStr.contains('wait for it to finish')) {
+        await _logger.log(
+          level: 'warning',
+          subsystem: 'permissions',
+          message: 'Permission request already in progress, waiting...',
+          cause: e.toString(),
+        );
+        // Wait a bit and retry
+        await Future.delayed(const Duration(milliseconds: 500));
+        return requestStoragePermission();
+      }
+
+      // Check if error is about missing Activity
       if (errorStr.contains('Unable to detect current Android Activity') ||
           errorStr.contains('Activity')) {
         // This is expected during early app initialization - log as debug, not warning
@@ -138,6 +450,25 @@ class PermissionService {
         message: 'Requesting notification permission',
       );
 
+      // Check current status first
+      final currentStatus = await Permission.notification.status;
+
+      // If permanently denied, open settings
+      if (currentStatus.isPermanentlyDenied) {
+        await _logger.log(
+          level: 'info',
+          subsystem: 'permissions',
+          message:
+              'Notification permission permanently denied, opening settings',
+        );
+        await openAppSettings();
+        // Wait a bit for user to potentially grant permission
+        await Future.delayed(const Duration(seconds: 1));
+        // Check again if user granted permission
+        final newStatus = await Permission.notification.status;
+        return newStatus.isGranted;
+      }
+
       final status = await Permission.notification.request();
 
       await _logger.log(
@@ -146,10 +477,42 @@ class PermissionService {
         message: 'Notification permission result: ${status.name}',
       );
 
+      // If denied and can be requested again, it's not permanently denied yet
+      // If permanently denied after request, open settings
+      if (status.isPermanentlyDenied) {
+        await _logger.log(
+          level: 'info',
+          subsystem: 'permissions',
+          message:
+              'Notification permission permanently denied after request, opening settings',
+        );
+        await openAppSettings();
+        // Wait a bit for user to potentially grant permission
+        await Future.delayed(const Duration(seconds: 1));
+        // Check again if user granted permission
+        final newStatus = await Permission.notification.status;
+        return newStatus.isGranted;
+      }
+
       return status.isGranted;
     } on Exception catch (e) {
-      // Check if error is about missing Activity
       final errorStr = e.toString();
+
+      // Handle "permission request already running" error
+      if (errorStr.contains('already running') ||
+          errorStr.contains('wait for it to finish')) {
+        await _logger.log(
+          level: 'warning',
+          subsystem: 'permissions',
+          message: 'Permission request already in progress, waiting...',
+          cause: e.toString(),
+        );
+        // Wait a bit and retry
+        await Future.delayed(const Duration(milliseconds: 500));
+        return requestNotificationPermission();
+      }
+
+      // Check if error is about missing Activity
       if (errorStr.contains('Unable to detect current Android Activity') ||
           errorStr.contains('Activity')) {
         // This is expected during early app initialization - log as debug, not warning
@@ -180,6 +543,100 @@ class PermissionService {
     final hasNotification = await hasNotificationPermission();
 
     return hasStorage && hasNotification;
+  }
+
+  /// Gets detailed permission status for all permissions.
+  ///
+  /// Returns a map with permission names as keys and their status information.
+  Future<Map<String, Map<String, dynamic>>>
+      getDetailedPermissionStatus() async {
+    final status = <String, Map<String, dynamic>>{};
+
+    try {
+      // Storage permission status
+      if (Platform.isAndroid) {
+        final androidInfo = await DeviceInfoPlugin().androidInfo;
+        final sdkInt = androidInfo.version.sdkInt;
+
+        if (sdkInt >= 34) {
+          // Android 14+: Check MANAGE_EXTERNAL_STORAGE
+          final hasManageStorage = await _hasManageExternalStoragePermission();
+          final audioStatus = await Permission.audio.status;
+          status['storage'] = {
+            'granted': hasManageStorage || audioStatus.isGranted,
+            'manageExternalStorage': {
+              'granted': hasManageStorage,
+            },
+            'audio': {
+              'granted': audioStatus.isGranted,
+              'denied': audioStatus.isDenied,
+              'permanentlyDenied': audioStatus.isPermanentlyDenied,
+            },
+          };
+        } else if (sdkInt == 33) {
+          // Android 13: Check audio/photos permissions
+          final audioStatus = await Permission.audio.status;
+          final photosStatus = await Permission.photos.status;
+          status['storage'] = {
+            'granted': audioStatus.isGranted || photosStatus.isGranted,
+            'audio': {
+              'granted': audioStatus.isGranted,
+              'denied': audioStatus.isDenied,
+              'permanentlyDenied': audioStatus.isPermanentlyDenied,
+            },
+            'photos': {
+              'granted': photosStatus.isGranted,
+              'denied': photosStatus.isDenied,
+              'permanentlyDenied': photosStatus.isPermanentlyDenied,
+            },
+          };
+        } else {
+          final storageStatus = await Permission.storage.status;
+          status['storage'] = {
+            'granted': storageStatus.isGranted,
+            'denied': storageStatus.isDenied,
+            'permanentlyDenied': storageStatus.isPermanentlyDenied,
+          };
+        }
+      } else {
+        status['storage'] = {'granted': true};
+      }
+
+      // Notification permission status
+      final notificationStatus = await Permission.notification.status;
+      status['notification'] = {
+        'granted': notificationStatus.isGranted,
+        'denied': notificationStatus.isDenied,
+        'permanentlyDenied': notificationStatus.isPermanentlyDenied,
+      };
+    } on Exception catch (e) {
+      await _logger.log(
+        level: 'error',
+        subsystem: 'permissions',
+        message: 'Error getting detailed permission status',
+        cause: e.toString(),
+      );
+    }
+
+    return status;
+  }
+
+  /// Checks if a permission is permanently denied.
+  ///
+  /// Returns `true` if the permission is permanently denied, `false` otherwise.
+  Future<bool> isPermissionPermanentlyDenied(Permission permission) async {
+    try {
+      final status = await permission.status;
+      return status.isPermanentlyDenied;
+    } on Exception catch (e) {
+      await _logger.log(
+        level: 'error',
+        subsystem: 'permissions',
+        message: 'Error checking if permission is permanently denied',
+        cause: e.toString(),
+      );
+      return false;
+    }
   }
 
   /// Requests all required permissions.
@@ -227,9 +684,12 @@ class PermissionService {
   }
 
   /// Opens app settings so user can manually grant permissions.
+  ///
+  /// Uses permission_handler's openAppSettings to open system app settings.
   Future<void> openAppSettings() async {
     try {
-      await openAppSettings();
+      // Use permission_handler's openAppSettings function
+      await ph.openAppSettings();
       await _logger.log(
         level: 'info',
         subsystem: 'permissions',
@@ -242,6 +702,13 @@ class PermissionService {
         message: 'Error opening app settings',
         cause: e.toString(),
       );
+      // Fallback: try native method channel
+      try {
+        await _permissionChannel
+            .invokeMethod('openManageExternalStorageSettings');
+      } on Exception {
+        // Ignore fallback errors
+      }
     }
   }
 
@@ -302,7 +769,35 @@ class PermissionService {
   ///
   /// Note: Only requests permissions that are actually needed.
   /// Does not request camera or file picker permissions as they are not essential.
+  ///
+  /// This method is synchronized to prevent multiple simultaneous permission requests.
   Future<Map<String, bool>> requestEssentialPermissions() async {
+    // If a request is already in progress, wait for it
+    if (_permissionRequestCompleter != null) {
+      await _logger.log(
+        level: 'debug',
+        subsystem: 'permissions',
+        message:
+            'Permission request already in progress, waiting for completion',
+      );
+      return _permissionRequestCompleter!.future;
+    }
+
+    _permissionRequestCompleter = Completer<Map<String, bool>>();
+    try {
+      final results = await _doRequestEssentialPermissions();
+      _permissionRequestCompleter!.complete(results);
+      return results;
+    } catch (e) {
+      _permissionRequestCompleter!.completeError(e);
+      rethrow;
+    } finally {
+      _permissionRequestCompleter = null;
+    }
+  }
+
+  /// Internal method that performs the actual permission requests.
+  Future<Map<String, bool>> _doRequestEssentialPermissions() async {
     final results = <String, bool>{};
 
     try {
@@ -312,10 +807,21 @@ class PermissionService {
         message: 'Requesting essential permissions',
       );
 
-      // Request storage permission (only if needed - not for login)
+      // Request storage permission (critical for reading audio files)
       // Skip if Activity is not available
       try {
+        await _logger.log(
+          level: 'info',
+          subsystem: 'permissions',
+          message: 'Requesting storage permission (step 1/4)',
+        );
         results['storage'] = await requestStoragePermission();
+        await _logger.log(
+          level: 'info',
+          subsystem: 'permissions',
+          message: 'Storage permission request completed',
+          extra: {'granted': results['storage']},
+        );
       } on Exception catch (e) {
         final errorStr = e.toString();
         if (errorStr.contains('Unable to detect current Android Activity')) {
@@ -327,13 +833,30 @@ class PermissionService {
           );
           results['storage'] = false;
         } else {
-          rethrow;
+          await _logger.log(
+            level: 'error',
+            subsystem: 'permissions',
+            message: 'Error requesting storage permission',
+            cause: e.toString(),
+          );
+          results['storage'] = false;
         }
       }
 
-      // Request notification permission
+      // Request notification permission (for playback controls)
       try {
+        await _logger.log(
+          level: 'info',
+          subsystem: 'permissions',
+          message: 'Requesting notification permission (step 2/4)',
+        );
         results['notification'] = await requestNotificationPermission();
+        await _logger.log(
+          level: 'info',
+          subsystem: 'permissions',
+          message: 'Notification permission request completed',
+          extra: {'granted': results['notification']},
+        );
       } on Exception catch (e) {
         final errorStr = e.toString();
         if (errorStr.contains('Unable to detect current Android Activity')) {
@@ -345,7 +868,13 @@ class PermissionService {
           );
           results['notification'] = false;
         } else {
-          rethrow;
+          await _logger.log(
+            level: 'error',
+            subsystem: 'permissions',
+            message: 'Error requesting notification permission',
+            cause: e.toString(),
+          );
+          results['notification'] = false;
         }
       }
 
@@ -449,4 +978,118 @@ class PermissionService {
   /// Checks if network permissions are granted.
   bool _hasNetworkPermissions() =>
       true; // Internet permission is usually granted by default
+
+  /// Checks if we can write to storage.
+  ///
+  /// For app-specific directory on Android 11+ (API 30+), no permission is needed.
+  /// For default path /storage/emulated/0/JabookAudio on Android 11+, requires
+  /// MANAGE_EXTERNAL_STORAGE permission.
+  /// For older Android versions or user-selected directories, checks storage permission.
+  ///
+  /// Returns `true` if we can write to storage, `false` otherwise.
+  Future<bool> canWriteToStorage() async {
+    try {
+      if (!Platform.isAndroid) {
+        // For non-Android platforms, return true (permissions handled differently)
+        return true;
+      }
+
+      // Get Android version
+      final androidInfo = await DeviceInfoPlugin().androidInfo;
+      final sdkInt = androidInfo.version.sdkInt;
+
+      // Android 11+ (API 30+): Check MANAGE_EXTERNAL_STORAGE for default path
+      if (sdkInt >= 30) {
+        // Check MANAGE_EXTERNAL_STORAGE permission using native method
+        // (required for /storage/emulated/0/JabookAudio)
+        final hasManageStorage = await _hasManageExternalStoragePermission();
+        if (hasManageStorage) {
+          await _logger.log(
+            level: 'debug',
+            subsystem: 'permissions',
+            message: 'MANAGE_EXTERNAL_STORAGE permission granted',
+          );
+          return true;
+        }
+        // Also check storage permission as fallback
+        final storageStatus = await Permission.storage.status;
+        if (storageStatus.isGranted) {
+          await _logger.log(
+            level: 'debug',
+            subsystem: 'permissions',
+            message: 'Storage permission granted (fallback)',
+          );
+          return true;
+        }
+        await _logger.log(
+          level: 'warning',
+          subsystem: 'permissions',
+          message: 'No storage write permission granted (Android 11+)',
+        );
+        return false;
+      }
+
+      // Android 10 and below: Check storage permission
+      final storageStatus = await Permission.storage.status;
+      return storageStatus.isGranted;
+    } on Exception catch (e) {
+      await _logger.log(
+        level: 'error',
+        subsystem: 'permissions',
+        message: 'Error checking write permission',
+        cause: e.toString(),
+      );
+      return false;
+    }
+  }
+
+  /// Checks if MANAGE_EXTERNAL_STORAGE permission is granted using native method.
+  ///
+  /// This is more reliable than permission_handler for Android 11+.
+  Future<bool> _hasManageExternalStoragePermission() async {
+    if (!Platform.isAndroid) return true;
+
+    try {
+      final androidInfo = await DeviceInfoPlugin().androidInfo;
+      if (androidInfo.version.sdkInt < 30) {
+        // Android 10 and below don't need this permission
+        return true;
+      }
+
+      // Use native method to check permission
+      final result = await _permissionChannel.invokeMethod<bool>(
+        'hasManageExternalStoragePermission',
+      );
+      return result ?? false;
+    } on PlatformException catch (e) {
+      await _logger.log(
+        level: 'error',
+        subsystem: 'permissions',
+        message: 'Error checking MANAGE_EXTERNAL_STORAGE permission',
+        cause: e.toString(),
+      );
+      // Fallback to permission_handler
+      try {
+        final status = await Permission.manageExternalStorage.status;
+        return status.isGranted;
+      } on Exception {
+        return false;
+      }
+    }
+  }
+
+  /// Checks if a path is an app-specific directory.
+  ///
+  /// App-specific directories work WITHOUT permissions on Android 11+ (API 30+).
+  /// The default path /storage/emulated/0/JabookAudio is NOT app-specific and
+  /// requires MANAGE_EXTERNAL_STORAGE permission on Android 11+.
+  /// Returns `true` if the path is an app-specific directory, `false` otherwise.
+  static bool isAppSpecificDirectory(String path) {
+    if (!Platform.isAndroid) return false;
+    // App-specific directory patterns:
+    // - /storage/emulated/0/Android/data/package/files
+    // - /storage/emulated/0/Android/media/package
+    // Default path /storage/emulated/0/JabookAudio is NOT app-specific
+    return path.contains('/Android/data/') || path.contains('/Android/media/');
+  }
 }

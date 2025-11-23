@@ -487,6 +487,9 @@ class BackupService {
       addedDate: map['addedDate'] != null
           ? DateTime.parse(map['addedDate'] as String)
           : DateTime.now(),
+      duration: map['duration'] as String?,
+      bitrate: map['bitrate'] as String?,
+      audioCodec: map['audioCodec'] as String?,
     );
   }
 }

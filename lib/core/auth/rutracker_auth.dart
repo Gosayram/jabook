@@ -23,7 +23,6 @@ import 'package:jabook/core/auth/credential_manager.dart';
 import 'package:jabook/core/auth/direct_auth_service.dart';
 import 'package:jabook/core/auth/simple_cookie_manager.dart';
 import 'package:jabook/core/endpoints/endpoint_manager.dart';
-import 'package:jabook/core/endpoints/url_constants.dart';
 import 'package:jabook/core/errors/failures.dart';
 import 'package:jabook/core/logging/structured_logger.dart';
 import 'package:jabook/core/net/dio_client.dart';
@@ -776,9 +775,30 @@ class RuTrackerAuth {
   ///
   /// Returns `true` if authenticated, `false` otherwise.
   Future<bool> get isLoggedIn async {
+    final logger = StructuredLogger();
+    final operationId = 'is_logged_in_${DateTime.now().millisecondsSinceEpoch}';
+
     try {
+      // Use active endpoint instead of static URL
+      final db = AppDatabase().database;
+      final endpointManager = EndpointManager(db);
+      final activeEndpoint = await endpointManager.getActiveEndpoint();
+      final profileUrl = '$activeEndpoint/forum/profile.php';
+
+      await logger.log(
+        level: 'debug',
+        subsystem: 'auth',
+        message: 'Checking login status',
+        operationId: operationId,
+        context: 'is_logged_in',
+        extra: {
+          'profile_url': profileUrl,
+          'active_endpoint': activeEndpoint,
+        },
+      );
+
       final response = await (await DioClient.instance).get(
-        RuTrackerUrls.profile,
+        profileUrl,
         options: Options(
           receiveTimeout: const Duration(seconds: 5),
           validateStatus: (status) => status != null && status < 500,
@@ -786,36 +806,161 @@ class RuTrackerAuth {
         ),
       );
 
-      // Comprehensive authentication check:
-      // 1. Check HTTP status is 200
-      // 2. Verify we're not redirected to login page
-      // 3. Check for authenticator indicators in HTML content
-      final responseData = response.data.toString();
       final responseUri = response.realUri.toString();
+      final locationHeader = response.headers.value('location') ?? '';
+      final statusCode = response.statusCode ?? 0;
 
-      final isAuthenticated = response.statusCode == 200 &&
-          !responseUri.contains('login.php') &&
-          // Check for profile-specific elements that indicate successful auth
-          (responseData.contains('profile') ||
-              responseData.contains('личный кабинет') ||
-              responseData.contains('private') ||
-              responseData.contains('username') ||
-              responseData.contains('user_id'));
+      await logger.log(
+        level: 'debug',
+        subsystem: 'auth',
+        message: 'Login status check response received',
+        operationId: operationId,
+        context: 'is_logged_in',
+        extra: {
+          'status_code': statusCode,
+          'response_uri': responseUri,
+          'location_header': locationHeader,
+        },
+      );
 
-      return isAuthenticated;
-    } on DioException catch (e) {
-      if (e.response?.realUri.toString().contains('login.php') ?? false) {
-        return false; // Redirected to login - not authenticated
+      // Check if redirected to login page - this means not authenticated
+      if (responseUri.contains('login.php') ||
+          locationHeader.contains('login.php')) {
+        await logger.log(
+          level: 'debug',
+          subsystem: 'auth',
+          message: 'Redirected to login page - not authenticated',
+          operationId: operationId,
+          context: 'is_logged_in',
+        );
+        return false;
       }
 
+      // If status is 200, check for profile-specific elements
+      if (statusCode == 200) {
+        final responseData = response.data.toString();
+        final isAuthenticated = !responseUri.contains('login.php') &&
+            // Check for profile-specific elements that indicate successful auth
+            (responseData.contains('profile') ||
+                responseData.contains('личный кабинет') ||
+                responseData.contains('private') ||
+                responseData.contains('username') ||
+                responseData.contains('user_id'));
+        await logger.log(
+          level: isAuthenticated ? 'info' : 'debug',
+          subsystem: 'auth',
+          message: 'Login status check completed (200)',
+          operationId: operationId,
+          context: 'is_logged_in',
+          extra: {
+            'is_authenticated': isAuthenticated,
+          },
+        );
+        return isAuthenticated;
+      }
+
+      // If status is 302 (redirect) and NOT to login.php, user is authenticated
+      // RuTracker redirects authenticated users from profile.php to index.php
+      if (statusCode == 302) {
+        // If redirect is NOT to login.php, user is authenticated
+        final isAuthenticated = !locationHeader.contains('login.php') &&
+            !responseUri.contains('login.php');
+        await logger.log(
+          level: isAuthenticated ? 'info' : 'debug',
+          subsystem: 'auth',
+          message: 'Login status check completed (302)',
+          operationId: operationId,
+          context: 'is_logged_in',
+          extra: {
+            'is_authenticated': isAuthenticated,
+            'location_header': locationHeader,
+          },
+        );
+        return isAuthenticated;
+      }
+
+      // Other status codes - not authenticated
+      await logger.log(
+        level: 'debug',
+        subsystem: 'auth',
+        message: 'Login status check completed (other status)',
+        operationId: operationId,
+        context: 'is_logged_in',
+        extra: {
+          'is_authenticated': false,
+          'status_code': statusCode,
+        },
+      );
       return false;
-    } on Exception {
+    } on DioException catch (e) {
+      final errorUri = e.response?.realUri.toString() ?? '';
+      final isLoginRedirect = errorUri.contains('login.php');
+      await logger.log(
+        level: 'warning',
+        subsystem: 'auth',
+        message: 'Login status check failed (DioException)',
+        operationId: operationId,
+        context: 'is_logged_in',
+        extra: {
+          'error': e.toString(),
+          'is_login_redirect': isLoginRedirect,
+          'error_uri': errorUri,
+        },
+      );
+      if (isLoginRedirect) {
+        return false; // Redirected to login - not authenticated
+      }
+      return false;
+    } on Exception catch (e) {
+      await logger.log(
+        level: 'warning',
+        subsystem: 'auth',
+        message: 'Login status check failed (Exception)',
+        operationId: operationId,
+        context: 'is_logged_in',
+        extra: {
+          'error': e.toString(),
+        },
+      );
       return false;
     }
   }
 
   /// Stream of authentication status changes
   Stream<bool> get authStatusChanges => _authStatusController.stream;
+
+  /// Refreshes the authentication status by checking login state
+  /// and updating the status stream if it changed.
+  Future<void> refreshAuthStatus() async {
+    final logger = StructuredLogger();
+    final operationId =
+        'refresh_auth_status_${DateTime.now().millisecondsSinceEpoch}';
+
+    await logger.log(
+      level: 'debug',
+      subsystem: 'auth',
+      message: 'Refreshing authentication status',
+      operationId: operationId,
+      context: 'refresh_auth_status',
+    );
+
+    final isAuthenticated = await isLoggedIn;
+
+    await logger.log(
+      level: isAuthenticated ? 'info' : 'debug',
+      subsystem: 'auth',
+      message: 'Authentication status refreshed',
+      operationId: operationId,
+      context: 'refresh_auth_status',
+      extra: {
+        'is_authenticated': isAuthenticated,
+      },
+    );
+
+    // Trigger update in stream to ensure all listeners are notified
+    // This is important when status might have changed but stream didn't emit
+    _authStatusController.add(isAuthenticated);
+  }
 
   /// Disposes the auth status controller.
   ///

@@ -9,6 +9,8 @@ IOS_BUILD_VARIANTS = $(addprefix $(PROJECT_NAME)-, $(FLAVORS))
 SIGNING_SCRIPT = scripts/signing.sh
 PUBSPEC_FILE = pubspec.yaml
 VERSION = $(shell grep "^version:" $(PUBSPEC_FILE) | sed 's/version:[[:space:]]*//' | cut -d+ -f1)
+FULL_VERSION = $(shell grep "^version:" $(PUBSPEC_FILE) | sed 's/version:[[:space:]]*//')
+APK_DEST_DIR = ~/Downloads/Jabook
 
 # Default target
 .PHONY: help
@@ -20,6 +22,7 @@ help:
 	@echo "  make install                       - Install dependencies"
 	@echo "  make clean                         - Clean build artifacts"
 	@echo "  make run                           - Run built APK (build/app/outputs/apk/release/app-arm64-v8a-release.apk)"
+	@echo "  make run-profile                   - Run app with profiling (output to startup_profile.log)"
 	@echo "  make setup-android                 - Setup Android project configuration"
 	@echo "  make setup-ios                     - Setup iOS project configuration"
 	@echo "  make setup                         - Setup both Android and iOS projects"
@@ -33,7 +36,7 @@ help:
 	@echo "  make build-ios-dev                 - Build iOS dev variant"
 	@echo "  make build-ios-stage               - Build iOS stage variant"
 	@echo "  make build-ios-prod                - Build iOS production variant"
-	@echo "  make build-android-signed-apk      - Build signed universal APK for all architectures"
+	@echo "  make build-android-signed-apk      - Build signed APKs (split per architecture + universal)"
 	@echo ""
 	@echo "Testing Commands:"
 	@echo "  make test                          - Run all tests"
@@ -62,6 +65,8 @@ help:
 	@echo "  make release-android               - Build all signed Android release variants"
 	@echo "  make release-ios                   - Build all iOS release variants"
 	@echo "  make release                       - Build all release variants"
+	@echo "  make copy-apk                      - Copy APK files to ~/Downloads/Jabook with version in filename"
+	@echo "  make build-android-signed-apk-copy - Build signed APK and copy to ~/Downloads/Jabook with version"
 
 # Development commands
 .PHONY: install
@@ -88,6 +93,13 @@ run:
 		--profile \
 		--trace-startup \
 		--device-timeout=30
+
+.PHONY: run-profile
+run-profile:
+	@echo "Running app with profiling (output saved to startup_profile.log)..."
+	@echo "Note: DevTools can be accessed via 'flutter pub global run devtools' if needed"
+	flutter run --verbose --trace-startup --profile > startup_profile.log 2>&1
+	@echo "Profile run complete. Check startup_profile.log for details."
 
 # Android build commands
 .PHONY: build-android-dev
@@ -188,10 +200,64 @@ build-android-signed: use-existing-android-cert patch-gradle-signing patch-gradl
 .PHONY: build-android-signed-apk
 build-android-signed-apk: use-existing-android-cert patch-gradle-signing patch-gradle-minsdk
 	@echo "Building signed optimized APK (without obfuscation for easier debugging)..."
+	@echo "Building split APKs per architecture..."
 	flutter build apk --target lib/main.dart --release \
 		--split-per-abi \
 		--tree-shake-icons
-	@echo "Signed optimized APK built at: build/app/outputs/apk/"
+	@echo "Building universal APK (all architectures)..."
+	flutter build apk --target lib/main.dart --release \
+		--tree-shake-icons
+	@echo "✅ Signed optimized APKs built at: build/app/outputs/apk/"
+	@echo "   - Split APKs: app-*-release.apk (per architecture)"
+	@echo "   - Universal APK: app-release.apk (all architectures)"
+
+.PHONY: copy-apk
+copy-apk:
+	@echo "Copying APK files with version $(FULL_VERSION)..."
+	@mkdir -p $(APK_DEST_DIR)
+	@echo "Copying split APKs (per architecture)..."
+	@if [ -f "build/app/outputs/flutter-apk/app-x86_64-release.apk" ]; then \
+		cp -f build/app/outputs/flutter-apk/app-x86_64-release.apk $(APK_DEST_DIR)/Jabook_$(FULL_VERSION)_x86_64.apk && \
+		echo "✅ Copied: Jabook_$(FULL_VERSION)_x86_64.apk"; \
+	elif [ -f "build/app/outputs/apk/release/app-x86_64-release.apk" ]; then \
+		cp -f build/app/outputs/apk/release/app-x86_64-release.apk $(APK_DEST_DIR)/Jabook_$(FULL_VERSION)_x86_64.apk && \
+		echo "✅ Copied: Jabook_$(FULL_VERSION)_x86_64.apk"; \
+	else \
+		echo "⚠️  Warning: app-x86_64-release.apk not found"; \
+	fi
+	@if [ -f "build/app/outputs/flutter-apk/app-arm64-v8a-release.apk" ]; then \
+		cp -f build/app/outputs/flutter-apk/app-arm64-v8a-release.apk $(APK_DEST_DIR)/Jabook_$(FULL_VERSION)_v8a.apk && \
+		echo "✅ Copied: Jabook_$(FULL_VERSION)_v8a.apk"; \
+	elif [ -f "build/app/outputs/apk/release/app-arm64-v8a-release.apk" ]; then \
+		cp -f build/app/outputs/apk/release/app-arm64-v8a-release.apk $(APK_DEST_DIR)/Jabook_$(FULL_VERSION)_v8a.apk && \
+		echo "✅ Copied: Jabook_$(FULL_VERSION)_v8a.apk"; \
+	else \
+		echo "⚠️  Warning: app-arm64-v8a-release.apk not found"; \
+	fi
+	@if [ -f "build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk" ]; then \
+		cp -f build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk $(APK_DEST_DIR)/Jabook_$(FULL_VERSION)_v7a.apk && \
+		echo "✅ Copied: Jabook_$(FULL_VERSION)_v7a.apk"; \
+	elif [ -f "build/app/outputs/apk/release/app-armeabi-v7a-release.apk" ]; then \
+		cp -f build/app/outputs/apk/release/app-armeabi-v7a-release.apk $(APK_DEST_DIR)/Jabook_$(FULL_VERSION)_v7a.apk && \
+		echo "✅ Copied: Jabook_$(FULL_VERSION)_v7a.apk"; \
+	else \
+		echo "⚠️  Warning: app-armeabi-v7a-release.apk not found"; \
+	fi
+	@echo "Copying universal APK (all architectures)..."
+	@if [ -f "build/app/outputs/flutter-apk/app-release.apk" ]; then \
+		cp -f build/app/outputs/flutter-apk/app-release.apk $(APK_DEST_DIR)/Jabook_$(FULL_VERSION)_universal.apk && \
+		echo "✅ Copied: Jabook_$(FULL_VERSION)_universal.apk"; \
+	elif [ -f "build/app/outputs/apk/release/app-release.apk" ]; then \
+		cp -f build/app/outputs/apk/release/app-release.apk $(APK_DEST_DIR)/Jabook_$(FULL_VERSION)_universal.apk && \
+		echo "✅ Copied: Jabook_$(FULL_VERSION)_universal.apk"; \
+	else \
+		echo "⚠️  Warning: app-release.apk (universal) not found"; \
+	fi
+	@echo "✅ APK files copied to $(APK_DEST_DIR)/"
+
+.PHONY: build-android-signed-apk-copy
+build-android-signed-apk-copy: build-android-signed-apk copy-apk
+	@echo "✅ Build and copy complete!"
 
 .PHONY: build-android-debug-apk
 build-android-debug-apk: use-existing-android-cert patch-gradle-signing patch-gradle-minsdk

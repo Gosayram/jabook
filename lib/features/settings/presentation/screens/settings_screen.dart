@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:async';
 import 'dart:io';
 
 import 'package:device_info_plus/device_info_plus.dart';
@@ -23,10 +24,11 @@ import 'package:jabook/core/backup/backup_service.dart';
 import 'package:jabook/core/cache/rutracker_cache_service.dart';
 import 'package:jabook/core/config/language_manager.dart';
 import 'package:jabook/core/config/language_provider.dart';
+import 'package:jabook/core/library/library_migration_service.dart';
 import 'package:jabook/core/metadata/audiobook_metadata_service.dart';
 import 'package:jabook/core/metadata/metadata_sync_scheduler.dart';
 import 'package:jabook/core/net/dio_client.dart';
-import 'package:jabook/core/permissions/permission_service_v2.dart';
+import 'package:jabook/core/permissions/permission_service.dart';
 import 'package:jabook/core/utils/file_picker_utils.dart' as file_picker_utils;
 import 'package:jabook/core/utils/storage_path_utils.dart';
 import 'package:jabook/data/db/app_database.dart';
@@ -52,16 +54,21 @@ class SettingsScreen extends ConsumerStatefulWidget {
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   final LanguageManager _languageManager = LanguageManager();
-  final PermissionServiceV2 _permissionService = PermissionServiceV2();
+  final PermissionService _permissionService = PermissionService();
   String _selectedLanguage = 'system';
   String? _downloadFolderPath;
+  String? _libraryFolderPath;
+  List<String> _libraryFolders = [];
   bool _wifiOnlyDownloads = false;
+  // Key for FutureBuilder to force rebuild when permissions change
+  int _permissionStatusKey = 0;
 
   @override
   void initState() {
     super.initState();
     _loadLanguagePreference();
     _loadDownloadFolder();
+    _loadLibraryFolders();
     _loadWifiOnlySetting();
   }
 
@@ -79,6 +86,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     if (mounted) {
       setState(() {
         _downloadFolderPath = path;
+      });
+    }
+  }
+
+  Future<void> _loadLibraryFolders() async {
+    final storageUtils = StoragePathUtils();
+    final path = await storageUtils.getLibraryFolderPath();
+    final folders = await storageUtils.getLibraryFolders();
+    if (mounted) {
+      setState(() {
+        _libraryFolderPath = path;
+        _libraryFolders = folders;
       });
     }
   }
@@ -194,6 +213,45 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             container: true,
             label: 'Download settings',
             child: _buildDownloadSection(context),
+          ),
+
+          const SizedBox(height: 24),
+
+          // Library Folder Settings Section
+          Semantics(
+            container: true,
+            label: 'Library folder settings',
+            child: _buildLibraryFolderSection(context),
+          ),
+
+          const SizedBox(height: 24),
+
+          // Storage Management Section
+          Semantics(
+            container: true,
+            label: 'Storage management',
+            child: ExpansionTile(
+              leading: const Icon(Icons.storage),
+              title: Text(
+                localizations?.storageManagementTitle ?? 'Storage Management',
+              ),
+              subtitle: Text(
+                localizations?.storageManagementDescription ??
+                    'Manage library size, cache, and files',
+              ),
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.storage),
+                  title: Text(
+                    localizations?.openStorageManagementButton ??
+                        'Open Storage Management',
+                  ),
+                  onTap: () async {
+                    await context.push('/storage-management');
+                  },
+                ),
+              ],
+            ),
           ),
 
           const SizedBox(height: 24),
@@ -886,6 +944,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   Widget _buildPermissionsSection(BuildContext context) =>
       FutureBuilder<Map<String, bool>>(
+        key: ValueKey<int>(_permissionStatusKey),
         future: _getPermissionStatus(),
         builder: (context, snapshot) {
           final permissions = snapshot.data ?? {};
@@ -971,59 +1030,206 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     required bool isGranted,
     required VoidCallback onTap,
   }) =>
-      Card(
-        child: ListTile(
-          leading: Icon(
-            icon,
-            color: isGranted ? Colors.green : Colors.orange,
+      AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+        child: Card(
+          child: ListTile(
+            leading: AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeInOut,
+              child: Icon(
+                icon,
+                color: isGranted ? Colors.green : Colors.orange,
+              ),
+            ),
+            title: Text(title),
+            subtitle: Text(description),
+            trailing: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 300),
+              child: isGranted
+                  ? Icon(
+                      Icons.check_circle,
+                      key: const ValueKey('granted'),
+                      color: Colors.green.shade600,
+                    )
+                  : Icon(
+                      Icons.warning,
+                      key: const ValueKey('denied'),
+                      color: Colors.orange.shade600,
+                    ),
+            ),
+            onTap: onTap,
           ),
-          title: Text(title),
-          subtitle: Text(description),
-          trailing: isGranted
-              ? Icon(Icons.check_circle, color: Colors.green.shade600)
-              : Icon(Icons.warning, color: Colors.orange.shade600),
-          onTap: onTap,
         ),
       );
 
   Future<Map<String, bool>> _getPermissionStatus() async {
-    final files = await _permissionService.canAccessFiles();
-    final notifications = await _permissionService.canShowNotifications();
+    final storage = await _permissionService.hasStoragePermission();
+    final notification = await _permissionService.hasNotificationPermission();
     return {
-      'storage': files,
-      'notification': notifications,
+      'storage': storage,
+      'notification': notification,
     };
   }
 
   Future<void> _requestStoragePermission() async {
-    final granted = await _permissionService.canAccessFiles();
-    if (mounted) {
+    if (!mounted) return;
+
+    // Show explanation dialog first
+    final shouldRequest = await _showPermissionExplanationDialog(
+      context,
+      title: AppLocalizations.of(context)?.storagePermissionName ??
+          'Storage Permission',
+      message: AppLocalizations.of(context)?.storagePermissionDescription ??
+          'JaBook needs storage permission to save audiobook files and cache data. '
+              'This allows you to download and play audiobooks offline.',
+    );
+
+    if (!shouldRequest) return;
+
+    // Request permission
+    final granted = await _permissionService.requestStoragePermission();
+
+    if (!mounted) return;
+
+    if (granted) {
       setState(() {});
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(granted
-              ? (AppLocalizations.of(context)?.fileAccessAvailable ??
-                  'File access available')
-              : (AppLocalizations.of(context)?.fileAccessUnavailable ??
-                  'File access unavailable')),
+          content: Text(
+            AppLocalizations.of(context)?.fileAccessAvailable ??
+                'Storage permission granted',
+          ),
+          backgroundColor: Colors.green,
         ),
       );
+    } else {
+      // Show dialog to open settings
+      await _showOpenSettingsDialog(
+        context,
+        title: AppLocalizations.of(context)?.storagePermissionName ??
+            'Storage Permission',
+        message: AppLocalizations.of(context)?.permissionDeniedMessage ??
+            'Storage permission was denied. Please grant it in app settings to use this feature.',
+      );
+      // Force FutureBuilder to rebuild even if denied
+      setState(() {
+        _permissionStatusKey++;
+      });
     }
   }
 
   Future<void> _requestNotificationPermission() async {
-    final granted = await _permissionService.canShowNotifications();
-    if (mounted) {
-      setState(() {});
+    if (!mounted) return;
+
+    // Show explanation dialog first
+    final shouldRequest = await _showPermissionExplanationDialog(
+      context,
+      title: AppLocalizations.of(context)?.notificationsPermissionName ??
+          'Notification Permission',
+      message: AppLocalizations.of(context)
+              ?.notificationsPermissionDescription ??
+          'JaBook needs notification permission to show playback controls and updates. '
+              'This allows you to control playback from the notification panel.',
+    );
+
+    if (!shouldRequest) return;
+
+    // Request permission
+    final granted = await _permissionService.requestNotificationPermission();
+
+    if (!mounted) return;
+
+    if (granted) {
+      // Force FutureBuilder to rebuild by changing key
+      setState(() {
+        _permissionStatusKey++;
+      });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(granted
-              ? (AppLocalizations.of(context)?.notificationsAvailable ??
-                  'Notifications available')
-              : (AppLocalizations.of(context)?.notificationsUnavailable ??
-                  'Notifications unavailable')),
+          content: Text(
+            AppLocalizations.of(context)?.notificationsAvailable ??
+                'Notification permission granted',
+          ),
+          backgroundColor: Colors.green,
         ),
       );
+    } else {
+      // Show dialog to open settings
+      await _showOpenSettingsDialog(
+        context,
+        title: AppLocalizations.of(context)?.notificationsPermissionName ??
+            'Notification Permission',
+        message: AppLocalizations.of(context)?.permissionDeniedMessage ??
+            'Notification permission was denied. Please grant it in app settings to use this feature.',
+      );
+      // Force FutureBuilder to rebuild even if denied
+      setState(() {
+        _permissionStatusKey++;
+      });
+    }
+  }
+
+  /// Shows a dialog explaining why a permission is needed.
+  ///
+  /// Returns `true` if user wants to proceed, `false` otherwise.
+  Future<bool> _showPermissionExplanationDialog(
+    BuildContext context, {
+    required String title,
+    required String message,
+  }) async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(title),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(AppLocalizations.of(context)?.cancel ?? 'Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Allow'),
+          ),
+        ],
+      ),
+    );
+    return result ?? false;
+  }
+
+  /// Shows a dialog prompting user to open app settings.
+  Future<void> _showOpenSettingsDialog(
+    BuildContext context, {
+    required String title,
+    required String message,
+  }) async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(title),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(AppLocalizations.of(context)?.cancel ?? 'Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context, true);
+              _permissionService.openAppSettings();
+            },
+            child: const Text('Open Settings'),
+          ),
+        ],
+      ),
+    );
+
+    if ((result ?? false) && mounted) {
+      // Wait a bit for user to potentially grant permission
+      await Future.delayed(const Duration(seconds: 1));
+      setState(() {});
     }
   }
 
@@ -1429,6 +1635,601 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
         );
       }
+    }
+  }
+
+  Widget _buildLibraryFolderSection(BuildContext context) {
+    final localizations = AppLocalizations.of(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          localizations?.libraryFolderTitle ?? 'Library Folders',
+          style: Theme.of(context).textTheme.titleLarge,
+        ),
+        const SizedBox(height: 8),
+        Text(
+          localizations?.libraryFolderDescription ??
+              'Select folders where your audiobooks are stored',
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+        const SizedBox(height: 16),
+        // Current library folder
+        Semantics(
+          label: 'Library folder location',
+          child: ListTile(
+            leading: const Icon(Icons.folder),
+            title: Text(localizations?.libraryFolderTitle ?? 'Library Folder'),
+            subtitle: _libraryFolderPath != null
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.folder_outlined,
+                            size: 16,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurface
+                                .withValues(alpha: 0.6),
+                          ),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              _libraryFolderPath!,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurface
+                                        .withValues(alpha: 0.6),
+                                  ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  )
+                : Text(
+                    localizations?.defaultLibraryFolder ?? 'Default folder',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .onSurface
+                              .withValues(alpha: 0.6),
+                        ),
+                  ),
+            trailing: Semantics(
+              button: true,
+              label: 'Change library folder',
+              child: IconButton(
+                icon: const Icon(Icons.edit),
+                onPressed: () => _selectLibraryFolder(context),
+                tooltip: 'Change folder',
+              ),
+            ),
+          ),
+        ),
+        // Add library folder button
+        ListTile(
+          leading: const Icon(Icons.add),
+          title: Text(
+              localizations?.addLibraryFolderTitle ?? 'Add Library Folder'),
+          subtitle: Text(
+            localizations?.addLibraryFolderSubtitle ??
+                'Add an additional folder to scan for audiobooks',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context)
+                      .colorScheme
+                      .onSurface
+                      .withValues(alpha: 0.6),
+                ),
+          ),
+          trailing: const Icon(Icons.arrow_forward_ios),
+          onTap: () => _addLibraryFolder(context),
+        ),
+        // List of all library folders
+        if (_libraryFolders.length > 1)
+          ExpansionTile(
+            leading: const Icon(Icons.folder),
+            title: Text(
+              localizations?.allLibraryFoldersTitle ??
+                  'All Library Folders (${_libraryFolders.length})',
+            ),
+            children: _libraryFolders.map((folder) {
+              final isPrimary = folder == _libraryFolderPath;
+              return ListTile(
+                leading: Icon(
+                  isPrimary ? Icons.folder : Icons.folder_outlined,
+                  color:
+                      isPrimary ? Theme.of(context).colorScheme.primary : null,
+                ),
+                title: Text(
+                  folder,
+                  style: TextStyle(
+                    fontWeight: isPrimary ? FontWeight.bold : FontWeight.normal,
+                  ),
+                ),
+                subtitle: isPrimary
+                    ? Text(
+                        localizations?.primaryLibraryFolder ?? 'Primary folder',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      )
+                    : null,
+                trailing: isPrimary
+                    ? null
+                    : IconButton(
+                        icon: const Icon(Icons.delete),
+                        onPressed: () => _removeLibraryFolder(context, folder),
+                        tooltip: 'Remove folder',
+                      ),
+              );
+            }).toList(),
+          ),
+      ],
+    );
+  }
+
+  Future<void> _selectLibraryFolder(BuildContext context) async {
+    if (!mounted) return;
+
+    final savedContext = context;
+    final localizations = AppLocalizations.of(savedContext);
+    final messenger = ScaffoldMessenger.of(savedContext);
+
+    // Check Android version to show instruction dialog for Android 13+
+    if (Platform.isAndroid) {
+      final androidInfo = await DeviceInfoPlugin().androidInfo;
+      final sdkInt = androidInfo.version.sdkInt;
+
+      if (sdkInt >= 33) {
+        if (!mounted) return;
+        final dialogContext = context;
+        final shouldProceed = await showDialog<bool>(
+          // ignore: use_build_context_synchronously
+          context: dialogContext,
+          builder: (dialogContext) => AlertDialog(
+            title: Row(
+              children: [
+                Icon(
+                  Icons.info_outline,
+                  color: Theme.of(dialogContext).colorScheme.primary,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    localizations?.selectLibraryFolderDialogTitle ??
+                        'Select Library Folder',
+                  ),
+                ),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: Text(
+                localizations?.selectLibraryFolderDialogMessage ??
+                    'To select a library folder:\n\n'
+                        '1. Navigate to the desired folder in the file manager\n'
+                        '2. Tap "Use this folder" button in the top right corner\n\n'
+                        'The selected folder will be used to scan for audiobooks.',
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(false),
+                child: Text(localizations?.cancel ?? 'Cancel'),
+              ),
+              ElevatedButton.icon(
+                onPressed: () => Navigator.of(dialogContext).pop(true),
+                icon: const Icon(Icons.folder_open),
+                label: const Text('Select Folder'),
+              ),
+            ],
+          ),
+        );
+
+        if (!mounted) return;
+        if (shouldProceed != true) {
+          return; // User cancelled
+        }
+      }
+    }
+
+    // Open folder picker
+    try {
+      final selectedPath = await file_picker_utils.pickDirectory();
+
+      if (selectedPath != null) {
+        // Validate folder accessibility
+        try {
+          final dir = Directory(selectedPath);
+          if (!await dir.exists()) {
+            if (mounted) {
+              messenger.showSnackBar(
+                const SnackBar(
+                  content: Text(
+                    'Selected folder is not accessible. Please try again.',
+                  ),
+                  backgroundColor: Colors.orange,
+                  duration: Duration(seconds: 3),
+                ),
+              );
+            }
+            return;
+          }
+        } on Exception {
+          // If we can't check, still try to save - might be SAF URI
+        }
+
+        // Check if we should migrate files
+        final oldPath = _libraryFolderPath;
+        if (oldPath != null && oldPath != selectedPath) {
+          if (!mounted) return;
+          final dialogContext = context;
+          final shouldMigrate = await showDialog<bool>(
+            // ignore: use_build_context_synchronously
+            context: dialogContext,
+            builder: (dialogContext) => AlertDialog(
+              title: Text(
+                localizations?.migrateLibraryFolderTitle ?? 'Migrate Files?',
+              ),
+              content: Text(
+                localizations?.migrateLibraryFolderMessage ??
+                    'Do you want to move your existing audiobooks from the old folder to the new folder?',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(false),
+                  child: Text(localizations?.cancel ?? 'Cancel'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(false),
+                  child: Text(localizations?.no ?? 'No'),
+                ),
+                ElevatedButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(true),
+                  child: Text(localizations?.yes ?? 'Yes'),
+                ),
+              ],
+            ),
+          );
+
+          if (!mounted) return;
+          if (shouldMigrate ?? false) {
+            // Perform migration
+            final migrationContext = context;
+            await _migrateLibraryFolder(
+                // ignore: use_build_context_synchronously
+                migrationContext,
+                oldPath,
+                selectedPath);
+          }
+        }
+
+        // Save selected path
+        final storageUtils = StoragePathUtils();
+        await storageUtils.setLibraryFolderPath(selectedPath);
+        await _loadLibraryFolders();
+
+        if (mounted) {
+          messenger.showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.check_circle, color: Colors.white),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          localizations?.libraryFolderSelectedSuccessMessage ??
+                              'Library folder selected successfully',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          selectedPath,
+                          style: const TextStyle(fontSize: 12),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } else {
+        // User cancelled folder selection
+        if (mounted) {
+          messenger.showSnackBar(
+            SnackBar(
+              content: Text(localizations?.folderSelectionCancelledMessage ??
+                  'Folder selection cancelled'),
+              duration: const Duration(seconds: 1),
+            ),
+          );
+        }
+      }
+    } on Exception catch (e) {
+      if (mounted) {
+        messenger.showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.error, color: Colors.white),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Error selecting folder: ${e.toString()}',
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _addLibraryFolder(BuildContext context) async {
+    if (!mounted) return;
+
+    final savedContext = context;
+    final localizations = AppLocalizations.of(savedContext);
+    final messenger = ScaffoldMessenger.of(savedContext);
+
+    try {
+      final selectedPath = await file_picker_utils.pickDirectory();
+
+      if (selectedPath != null) {
+        // Validate folder accessibility
+        try {
+          final dir = Directory(selectedPath);
+          if (!await dir.exists()) {
+            if (mounted) {
+              messenger.showSnackBar(
+                const SnackBar(
+                  content: Text(
+                    'Selected folder is not accessible. Please try again.',
+                  ),
+                  backgroundColor: Colors.orange,
+                  duration: Duration(seconds: 3),
+                ),
+              );
+            }
+            return;
+          }
+        } on Exception {
+          // If we can't check, still try to save - might be SAF URI
+        }
+
+        // Check if folder already exists
+        if (_libraryFolders.contains(selectedPath)) {
+          if (mounted) {
+            messenger.showSnackBar(
+              SnackBar(
+                content: Text(
+                  localizations?.libraryFolderAlreadyExistsMessage ??
+                      'This folder is already in the library folders list',
+                ),
+                backgroundColor: Colors.orange,
+                duration: const Duration(seconds: 2),
+              ),
+            );
+          }
+          return;
+        }
+
+        // Add folder
+        final storageUtils = StoragePathUtils();
+        final added = await storageUtils.addLibraryFolder(selectedPath);
+        await _loadLibraryFolders();
+
+        if (mounted) {
+          if (added) {
+            messenger.showSnackBar(
+              SnackBar(
+                content: Text(
+                  localizations?.libraryFolderAddedSuccessMessage ??
+                      'Library folder added successfully',
+                ),
+                backgroundColor: Colors.green,
+              ),
+            );
+          } else {
+            messenger.showSnackBar(
+              SnackBar(
+                content: Text(
+                  localizations?.libraryFolderAlreadyExistsMessage ??
+                      'This folder is already in the library folders list',
+                ),
+                backgroundColor: Colors.orange,
+              ),
+            );
+          }
+        }
+      }
+    } on Exception catch (e) {
+      if (mounted) {
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text('Error adding folder: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _removeLibraryFolder(BuildContext context, String folder) async {
+    if (!mounted) return;
+
+    final localizations = AppLocalizations.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+
+    // Confirm removal
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(
+          localizations?.removeLibraryFolderTitle ?? 'Remove Folder?',
+        ),
+        content: Text(
+          localizations?.removeLibraryFolderMessage ??
+              'Are you sure you want to remove this folder from the library? '
+                  'This will not delete the files, only stop scanning this folder.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(localizations?.cancel ?? 'Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: Text(localizations?.remove ?? 'Remove'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    // Remove folder
+    final storageUtils = StoragePathUtils();
+    final removed = await storageUtils.removeLibraryFolder(folder);
+    await _loadLibraryFolders();
+
+    if (mounted) {
+      if (removed) {
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(
+              localizations?.libraryFolderRemovedSuccessMessage ??
+                  'Library folder removed successfully',
+            ),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else {
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(
+              localizations?.libraryFolderRemoveFailedMessage ??
+                  'Failed to remove library folder',
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _migrateLibraryFolder(
+    BuildContext context,
+    String oldPath,
+    String newPath,
+  ) async {
+    if (!mounted) return;
+
+    final localizations = AppLocalizations.of(context);
+
+    // Show progress dialog
+    if (!mounted) return;
+    final dialogContext = context;
+    final progressDialog = showDialog(
+      context: dialogContext,
+      barrierDismissible: false,
+      builder: (dialogBuilderContext) => AlertDialog(
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const CircularProgressIndicator(),
+            const SizedBox(height: 16),
+            Text(
+              localizations?.migratingLibraryFolderMessage ??
+                  'Migrating files...',
+            ),
+          ],
+        ),
+      ),
+    );
+    unawaited(progressDialog);
+
+    try {
+      final migrationService = LibraryMigrationService();
+      final result = await migrationService.migrateLibrary(
+        oldPath: oldPath,
+        newPath: newPath,
+      );
+
+      if (!mounted) return;
+      final navContext = context;
+      // ignore: use_build_context_synchronously
+      Navigator.of(navContext).pop(); // Close progress dialog
+
+      if (!mounted) return;
+      final messengerContext = context;
+      if (result.success) {
+        // ignore: use_build_context_synchronously
+        ScaffoldMessenger.of(messengerContext).showSnackBar(
+          SnackBar(
+            content: Text(
+              localizations?.migrationCompletedSuccessMessage ??
+                  'Migration completed successfully. ${result.filesMoved} files moved.',
+            ),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      } else {
+        if (!mounted) return;
+        final messengerContextForError = context;
+        // ignore: use_build_context_synchronously
+        ScaffoldMessenger.of(messengerContextForError).showSnackBar(
+          SnackBar(
+            content: Text(
+              localizations?.migrationFailedMessage ??
+                  'Migration failed: ${result.error ?? "Unknown error"}',
+            ),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } on Exception catch (e) {
+      if (!mounted) return;
+      final navContextForError = context;
+      // ignore: use_build_context_synchronously
+      Navigator.of(navContextForError).pop(); // Close progress dialog
+      if (!mounted) return;
+      final messengerContextForException = context;
+      // ignore: use_build_context_synchronously
+      ScaffoldMessenger.of(messengerContextForException).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Migration error: ${e.toString()}',
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 }

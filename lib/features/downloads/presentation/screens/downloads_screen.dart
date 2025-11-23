@@ -174,8 +174,13 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
     return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
   }
 
-  String _formatSpeed(double bytesPerSecond) =>
-      '${_formatBytes(bytesPerSecond.toInt())}/s';
+  String _formatSpeed(double bytesPerSecond) {
+    if (bytesPerSecond < 1024) return '${bytesPerSecond.toInt()} B/s';
+    if (bytesPerSecond < 1024 * 1024) {
+      return '${(bytesPerSecond / 1024).toStringAsFixed(1)} KB/s';
+    }
+    return '${(bytesPerSecond / (1024 * 1024)).toStringAsFixed(1)} MB/s';
+  }
 
   String _formatTimeRemaining(TorrentProgress progress) {
     if (progress.downloadSpeed <= 0 || progress.progress >= 100) {
@@ -211,28 +216,52 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
   Widget build(BuildContext context) => PopScope(
         onPopInvokedWithResult: (didPop, result) {
           if (didPop) {
-            EnvironmentLogger().d('DownloadsScreen: Pop already handled');
+            EnvironmentLogger()
+                .d('DownloadsScreen: Pop already handled by system');
             return;
           }
-          // Allow navigation back using GoRouter
+          // Try to navigate back - if canPop is false, go to library
           final canPop = context.canPop();
           EnvironmentLogger().d(
             'DownloadsScreen: onPopInvokedWithResult - canPop: $canPop',
           );
           if (canPop) {
-            context.pop();
-            EnvironmentLogger()
-                .d('DownloadsScreen: Popped using context.pop()');
+            try {
+              context.pop();
+              EnvironmentLogger().d(
+                  'DownloadsScreen: Successfully popped using context.pop()');
+            } on Exception catch (e) {
+              EnvironmentLogger().w(
+                'DownloadsScreen: Failed to pop, navigating to library',
+                error: e,
+              );
+              // Navigate to library as fallback
+              context.go('/');
+            }
           } else {
-            context.go('/');
+            // Cannot pop (e.g., opened directly), navigate to library
             EnvironmentLogger()
-                .d('DownloadsScreen: Navigated to home using context.go()');
+                .d('DownloadsScreen: Cannot pop, navigating to library');
+            context.go('/');
           }
         },
         child: Scaffold(
           appBar: AppBar(
             title: Text(
               AppLocalizations.of(context)?.downloadsTitle ?? 'Downloads',
+            ),
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back),
+              onPressed: () {
+                // Handle back button press
+                if (context.canPop()) {
+                  context.pop();
+                } else {
+                  // Navigate to library if cannot pop
+                  context.go('/');
+                }
+              },
+              tooltip: 'Back',
             ),
             actions: [
               if (AppConfig().debugFeaturesEnabled)

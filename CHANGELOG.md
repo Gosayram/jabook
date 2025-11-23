@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add CI workflow for GitHub Actions
 - Add comprehensive file management and torrent system
 - Add downloads management and enhanced metadata support (#15)
+- Add local audiobook playback support
 - Add RuTracker availability checker, improve logging and settings UI: - Add RuTrackerAvailabilityChecker: periodic background check (every 5 min) and manual check from settings. - Integrate checker with MainActivity lifecycle and RuTrackerSettingsScreen (manual button). - Refactor RuTrackerSettingsScreen and ViewModel: all UI strings moved to resources, improved localization. - Add/replace strings in strings.xml for all new UI and error messages. - Improve debug log export, SAF folder selection, and error handling in settings. - Update DI modules, repository, and core network logic for new checker and guest mode. - Minor: update DebugLogger, file_paths.xml, and related UI/UX polish
 - FEATURE - Add RuTracker and torrent system architecture
 - Implement Clean Architecture foundation with modular structure
@@ -33,6 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - 1.1.2; (#12)
+- Add comprehensive logging and error handling for downloads synchronization (#17)
 - Added signed release
 - Bump actions/checkout from 5.0.0 to 5.0.1 (#14)
 - Bump docs
@@ -47,7 +49,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix builds
 - Fix compilation errors and detekt warnings, improve code structure: - Fix Hilt dependency injection conflicts: remove duplicate bindings from NetworkModule,   move RuTracker dependencies to RuTrackerModule with proper @Binds annotations - Resolve MediaType deprecation: replace MediaType.get() with toMediaType() extension - Fix compilation errors in RuTrackerApiService: add missing imports and @Inject constructor - Refactor complex UI components to reduce function count and improve maintainability:   * Split RuTrackerSettingsScreen into ModeToggleCard, LoginCard, StatusMessageCard   * Break down AudiobookSearchResultCard into AudiobookCover, AudiobookInfo,     ActionButtons, MetadataRow, AdditionalInfo components   * Extract SleepTimerDelegate from PlayerManagerImpl to reduce function count - Fix import conflicts and trailing spaces: resolve weight() modifier issues,   remove unused imports, fix import ordering - Improve code organization: use data classes for component parameters,   add proper trailing commas, fix modifier usage - All detekt warnings resolved: no more compilation errors, clean build passes
 - Gitignore for compiler
+- Improve player UX and RuTracker parser accuracy
+- Local testing params for usb connected device
 - Lots of updates and fixes
+- Optimize image loading and player initialization
+- Refactor player architecture and improve UI components
 - Remove deprecated Android API usage, unify compatibility for minSdk 23+; cleanup suppressions: - Remove all usages of deprecated Android platform APIs (audio focus, getColor, getParcelableExtra, network info); - Unify compatibility logic for Android 6.0+ (minSdk 23): explicit version checks, no suppressions; - Refactor AudioFocusManager, PlayerService, Extensions, ViewFallbacks for clarity and maintainability
 - Remove unused private property in DebugLogger.kt
 - Removed and fixed unused params; bump logical structure
@@ -60,6 +66,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - V1.1.1; (#1)
 
 ### Fixed
+- Add automatic download resumption and improve settings UX (#19)
 - Adding super.onStartCommand(intent, flags, startId) at the beginning of the onStartCommand method
 - Api version for deprecated libs
 - Base fixes
@@ -87,6 +94,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix java path
 - Fix limits
 - Fix package versions
+- Fix pop_up (#16)
+- Fix/notify (#18)
 - Fixed build errors: -  Hilt binding issues - Fixed proper dependency injection for File and CacheConfig; - ExperimentalCoilApi dependency - Corrected import path for Coil 3; - Kotlin language version conflicts - Resolved API version compatibility issue
 - Fixed formats
 - Fixes format issues

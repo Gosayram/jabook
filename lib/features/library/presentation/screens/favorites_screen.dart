@@ -147,6 +147,9 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                   'endByte': c.endByte,
                 })
             .toList(),
+        'duration': audiobook.duration,
+        'bitrate': audiobook.bitrate,
+        'audioCodec': audiobook.audioCodec,
       };
 
   @override

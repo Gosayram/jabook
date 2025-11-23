@@ -19,6 +19,7 @@ import 'package:go_router/go_router.dart';
 import 'package:jabook/core/logging/environment_logger.dart';
 import 'package:jabook/core/permissions/permission_service.dart';
 import 'package:jabook/core/torrent/audiobook_torrent_manager.dart';
+import 'package:jabook/core/utils/safe_async.dart';
 
 /// Service for managing download notifications on Android.
 ///
@@ -80,19 +81,72 @@ class DownloadNotificationService {
       // Create notification channel for downloads
       await _createDownloadChannel();
 
-      _initialized = true;
-      EnvironmentLogger().i('DownloadNotificationService initialized');
+      // Request notification permission (non-blocking)
+      try {
+        final permissionService = PermissionService();
+        final hasPermission =
+            await permissionService.hasNotificationPermission();
+        if (!hasPermission) {
+          EnvironmentLogger().d(
+            'DownloadNotificationService: Notification permission not granted, requesting...',
+          );
+          // Request permission asynchronously (non-blocking)
+          safeUnawaited(
+              permissionService.requestNotificationPermission().then((granted) {
+            if (granted) {
+              EnvironmentLogger().i(
+                'DownloadNotificationService: Notification permission granted',
+              );
+            } else {
+              EnvironmentLogger().w(
+                'DownloadNotificationService: Notification permission denied by user',
+              );
+            }
+          }));
+        } else {
+          EnvironmentLogger().d(
+            'DownloadNotificationService: Notification permission already granted',
+          );
+        }
+      } on Exception catch (e) {
+        EnvironmentLogger().w(
+          'DownloadNotificationService: Error requesting notification permission: $e',
+        );
+        // Continue - permission might not be available on older Android versions
+      }
+
+      // Verify initialization was successful
+      if (_notifications != null) {
+        _initialized = true;
+        EnvironmentLogger()
+            .i('DownloadNotificationService initialized successfully');
+      } else {
+        EnvironmentLogger().e(
+            'DownloadNotificationService: Initialization failed - notifications plugin is null');
+        _initialized = false;
+      }
     } on Exception catch (e) {
       EnvironmentLogger()
           .e('Failed to initialize DownloadNotificationService: $e');
+      _initialized = false;
+      _notifications = null;
+      // Don't set _initialized to true on error - allow retry
     }
   }
 
   /// Creates a notification channel for downloads on Android.
   Future<void> _createDownloadChannel() async {
-    if (!Platform.isAndroid || _notifications == null) return;
+    if (!Platform.isAndroid || _notifications == null) {
+      EnvironmentLogger().d(
+        'DownloadNotificationService: Skipping channel creation - not Android or notifications not initialized',
+      );
+      return;
+    }
 
     try {
+      EnvironmentLogger().d(
+        'DownloadNotificationService: Creating notification channel "downloads"',
+      );
       const androidChannel = AndroidNotificationChannel(
         'downloads',
         'Downloads',
@@ -138,8 +192,21 @@ class DownloadNotificationService {
     String status,
   ) async {
     if (!_initialized || _notifications == null) {
-      await initialize();
-      if (!_initialized || _notifications == null) return;
+      // Try to initialize if not already initialized
+      try {
+        await initialize();
+      } on Exception catch (e) {
+        EnvironmentLogger().e(
+          'DownloadNotificationService: Failed to initialize during showDownloadProgress: $e',
+        );
+      }
+      // Check again after initialization attempt
+      if (!_initialized || _notifications == null) {
+        EnvironmentLogger().w(
+          'DownloadNotificationService: Cannot show notification - service not initialized',
+        );
+        return;
+      }
     }
 
     if (!Platform.isAndroid) return;
@@ -263,6 +330,8 @@ class DownloadNotificationService {
   static void _onBackgroundNotificationTapped(NotificationResponse response) {
     // Background handler - navigation will be handled when app is in foreground
     EnvironmentLogger().d('Background notification tapped: ${response.id}');
+    // Store the notification response to handle navigation when app opens
+    // The navigation will be handled in _handleNotificationResponse when app is in foreground
   }
 
   /// Handles notification response (tap or action).
@@ -301,32 +370,55 @@ class DownloadNotificationService {
   ///
   /// If [downloadId] is provided, navigates to the specific download.
   void _navigateToDownloads({String? downloadId}) {
-    if (_router == null) {
-      EnvironmentLogger().w(
-        'DownloadNotificationService: Router not set, cannot navigate. Setting up delayed navigation.',
-      );
-      // Try to navigate after a short delay to allow router to be set
-      Future.delayed(const Duration(milliseconds: 500), () {
-        _navigateToDownloads(downloadId: downloadId);
-      });
-      return;
+    // Try multiple times if router is not set yet (app might be starting)
+    void attemptNavigation({int retryCount = 0}) {
+      if (_router == null) {
+        if (retryCount < 5) {
+          EnvironmentLogger().d(
+            'DownloadNotificationService: Router not set yet, retrying in 200ms (attempt ${retryCount + 1}/5)',
+          );
+          // Try to navigate after a short delay to allow router to be set
+          Future.delayed(const Duration(milliseconds: 200), () {
+            attemptNavigation(retryCount: retryCount + 1);
+          });
+        } else {
+          EnvironmentLogger().w(
+            'DownloadNotificationService: Router not set after 5 attempts, cannot navigate',
+          );
+        }
+        return;
+      }
+
+      try {
+        // Use GoRouter for navigation with downloadId if provided
+        final route = downloadId != null
+            ? '/downloads?downloadId=$downloadId'
+            : '/downloads';
+        _router!.go(route);
+        EnvironmentLogger().d(
+          'DownloadNotificationService: Successfully navigated to downloads screen from notification${downloadId != null ? ' (downloadId: $downloadId)' : ''}',
+        );
+      } on Exception catch (e) {
+        EnvironmentLogger().e(
+          'DownloadNotificationService: Failed to navigate to downloads',
+          error: e,
+        );
+        // Try to navigate to home as fallback
+        try {
+          _router!.go('/');
+          EnvironmentLogger().d(
+            'DownloadNotificationService: Navigated to home as fallback',
+          );
+        } on Exception catch (e2) {
+          EnvironmentLogger().e(
+            'DownloadNotificationService: Failed to navigate to home as fallback',
+            error: e2,
+          );
+        }
+      }
     }
 
-    try {
-      // Use GoRouter for navigation with downloadId if provided
-      final route = downloadId != null
-          ? '/downloads?downloadId=$downloadId'
-          : '/downloads';
-      _router!.go(route);
-      EnvironmentLogger().d(
-        'DownloadNotificationService: Navigated to downloads screen from notification${downloadId != null ? ' (downloadId: $downloadId)' : ''}',
-      );
-    } on Exception catch (e) {
-      EnvironmentLogger().e(
-        'DownloadNotificationService: Failed to navigate to downloads',
-        error: e,
-      );
-    }
+    attemptNavigation();
   }
 
   /// Resumes a download.

@@ -29,6 +29,9 @@ class Audiobook {
     this.genres = const [],
     required this.chapters,
     required this.addedDate,
+    this.duration,
+    this.bitrate,
+    this.audioCodec,
   });
 
   /// Unique identifier of the audiobook (topic ID)
@@ -70,6 +73,15 @@ class Audiobook {
   /// Date when the audiobook was added to RuTracker
   final DateTime addedDate;
 
+  /// Duration of the audiobook (e.g., "08:05:13").
+  final String? duration;
+
+  /// Bitrate of the audiobook (e.g., "128 kbps").
+  final String? bitrate;
+
+  /// Audio codec of the audiobook (e.g., "MP3", "FLAC", "AAC").
+  final String? audioCodec;
+
   /// Creates a copy of this audiobook with updated values.
   Audiobook copyWith({
     String? id,
@@ -85,6 +97,9 @@ class Audiobook {
     List<String>? genres,
     List<Chapter>? chapters,
     DateTime? addedDate,
+    String? duration,
+    String? bitrate,
+    String? audioCodec,
   }) =>
       Audiobook(
         id: id ?? this.id,
@@ -100,6 +115,9 @@ class Audiobook {
         genres: genres ?? this.genres,
         chapters: chapters ?? this.chapters,
         addedDate: addedDate ?? this.addedDate,
+        duration: duration ?? this.duration,
+        bitrate: bitrate ?? this.bitrate,
+        audioCodec: audioCodec ?? this.audioCodec,
       );
 
   @override

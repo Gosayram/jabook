@@ -1936,5 +1936,359 @@
   "noMagnetLinkAvailable": "No magnet link available",
   "@noMagnetLinkAvailable": {
     "description": "Message when magnet link is not available"
+  },
+  "recommended": "Recommended",
+  "@recommended": {
+    "description": "Title for recommended audiobooks section"
+  },
+  "noResultsForQuery": "Nothing found for query: \"{query}\"",
+  "@noResultsForQuery": {
+    "description": "Message when no results found for specific query",
+    "placeholders": {
+      "query": {
+        "type": "String"
+      }
+    }
+  },
+  "tryDifferentKeywords": "Try changing keywords",
+  "@tryDifferentKeywords": {
+    "description": "Suggestion to try different search keywords"
+  },
+  "clearSearch": "Clear search",
+  "@clearSearch": {
+    "description": "Button to clear search field"
+  },
+  "libraryFolderTitle": "Library Folders",
+  "@libraryFolderTitle": {
+    "description": "Title for library folders section"
+  },
+  "libraryFolderDescription": "Select folders where your audiobooks are stored",
+  "@libraryFolderDescription": {
+    "description": "Description for library folders section"
+  },
+  "defaultLibraryFolder": "Default folder",
+  "@defaultLibraryFolder": {
+    "description": "Default library folder text"
+  },
+  "addLibraryFolderTitle": "Add Library Folder",
+  "@addLibraryFolderTitle": {
+    "description": "Title for add library folder button"
+  },
+  "addLibraryFolderSubtitle": "Add an additional folder to scan for audiobooks",
+  "@addLibraryFolderSubtitle": {
+    "description": "Subtitle for add library folder button"
+  },
+  "allLibraryFoldersTitle": "All Library Folders",
+  "@allLibraryFoldersTitle": {
+    "description": "Title for all library folders expansion tile"
+  },
+  "primaryLibraryFolder": "Primary folder",
+  "@primaryLibraryFolder": {
+    "description": "Text indicating primary library folder"
+  },
+  "selectLibraryFolderDialogTitle": "Select Library Folder",
+  "@selectLibraryFolderDialogTitle": {
+    "description": "Title for select library folder dialog"
+  },
+  "selectLibraryFolderDialogMessage": "To select a library folder:\n\n1. Navigate to the desired folder in the file manager\n2. Tap \"Use this folder\" button in the top right corner\n\nThe selected folder will be used to scan for audiobooks.",
+  "@selectLibraryFolderDialogMessage": {
+    "description": "Message for select library folder dialog"
+  },
+  "migrateLibraryFolderTitle": "Migrate Files?",
+  "@migrateLibraryFolderTitle": {
+    "description": "Title for migrate library folder dialog"
+  },
+  "migrateLibraryFolderMessage": "Do you want to move your existing audiobooks from the old folder to the new folder?",
+  "@migrateLibraryFolderMessage": {
+    "description": "Message for migrate library folder dialog"
+  },
+  "yes": "Yes",
+  "@yes": {
+    "description": "Yes button text"
+  },
+  "no": "No",
+  "@no": {
+    "description": "No button text"
+  },
+  "libraryFolderSelectedSuccessMessage": "Library folder selected successfully",
+  "@libraryFolderSelectedSuccessMessage": {
+    "description": "Success message when library folder is selected"
+  },
+  "libraryFolderAlreadyExistsMessage": "This folder is already in the library folders list",
+  "@libraryFolderAlreadyExistsMessage": {
+    "description": "Message when library folder already exists"
+  },
+  "libraryFolderAddedSuccessMessage": "Library folder added successfully",
+  "@libraryFolderAddedSuccessMessage": {
+    "description": "Success message when library folder is added"
+  },
+  "removeLibraryFolderTitle": "Remove Folder?",
+  "@removeLibraryFolderTitle": {
+    "description": "Title for remove library folder dialog"
+  },
+  "removeLibraryFolderMessage": "Are you sure you want to remove this folder from the library? This will not delete the files, only stop scanning this folder.",
+  "@removeLibraryFolderMessage": {
+    "description": "Message for remove library folder dialog"
+  },
+  "remove": "Remove",
+  "@remove": {
+    "description": "Remove button text"
+  },
+  "libraryFolderRemovedSuccessMessage": "Library folder removed successfully",
+  "@libraryFolderRemovedSuccessMessage": {
+    "description": "Success message when library folder is removed"
+  },
+  "libraryFolderRemoveFailedMessage": "Failed to remove library folder",
+  "@libraryFolderRemoveFailedMessage": {
+    "description": "Error message when library folder removal fails"
+  },
+  "migratingLibraryFolderMessage": "Migrating files...",
+  "@migratingLibraryFolderMessage": {
+    "description": "Message shown during library folder migration"
+  },
+  "migrationCompletedSuccessMessage": "Migration completed successfully",
+  "@migrationCompletedSuccessMessage": {
+    "description": "Success message when migration is completed"
+  },
+  "migrationFailedMessage": "Migration failed",
+  "@migrationFailedMessage": {
+    "description": "Error message when migration fails"
+  },
+  "deleteConfirmationTitle": "Delete Audiobook?",
+  "@deleteConfirmationTitle": {
+    "description": "Title for delete confirmation dialog"
+  },
+  "deleteConfirmationMessage": "Are you sure you want to delete this audiobook?",
+  "@deleteConfirmationMessage": {
+    "description": "Message for delete confirmation dialog"
+  },
+  "deleteWarningMessage": "Files will be permanently deleted and cannot be recovered.",
+  "@deleteWarningMessage": {
+    "description": "Warning message about permanent deletion"
+  },
+  "deleteFilesButton": "Delete Files",
+  "@deleteFilesButton": {
+    "description": "Button to delete files physically"
+  },
+  "removeFromLibraryButton": "Remove from Library",
+  "@removeFromLibraryButton": {
+    "description": "Button to remove from library (logical deletion)"
+  },
+  "removeFromLibraryTitle": "Remove from Library?",
+  "@removeFromLibraryTitle": {
+    "description": "Title for remove from library dialog"
+  },
+  "removeFromLibraryMessage": "This will remove the audiobook from your library but will not delete the files. You can add it back by rescanning.",
+  "@removeFromLibraryMessage": {
+    "description": "Message for remove from library dialog"
+  },
+  "removingFromLibraryMessage": "Removing...",
+  "@removingFromLibraryMessage": {
+    "description": "Message shown while removing from library"
+  },
+  "removedFromLibrarySuccessMessage": "Removed from library successfully",
+  "@removedFromLibrarySuccessMessage": {
+    "description": "Success message when removed from library"
+  },
+  "removeFromLibraryFailedMessage": "Failed to remove from library",
+  "@removeFromLibraryFailedMessage": {
+    "description": "Error message when removal from library fails"
+  },
+  "deletingMessage": "Deleting...",
+  "@deletingMessage": {
+    "description": "Message shown while deleting files"
+  },
+  "deletedSuccessMessage": "Files deleted successfully",
+  "@deletedSuccessMessage": {
+    "description": "Success message when files are deleted"
+  },
+  "deleteFailedMessage": "Failed to delete files",
+  "@deleteFailedMessage": {
+    "description": "Error message when deletion fails"
+  },
+  "fileInUseMessage": "Cannot delete: File is currently being played",
+  "@fileInUseMessage": {
+    "description": "Error message when trying to delete a file that is playing"
+  },
+  "showInfoButton": "Show Info",
+  "@showInfoButton": {
+    "description": "Button to show information about audiobook"
+  },
+  "path": "Path",
+  "@path": {
+    "description": "Label for file path"
+  },
+  "fileCount": "Files",
+  "@fileCount": {
+    "description": "Label for file count"
+  },
+  "totalSize": "Total Size",
+  "@totalSize": {
+    "description": "Label for total size"
+  },
+  "audiobookGroupName": "Group",
+  "@audiobookGroupName": {
+    "description": "Label for audiobook group name"
+  },
+  "storageManagementTitle": "Storage Management",
+  "@storageManagementTitle": {
+    "description": "Title for storage management screen"
+  },
+  "deleteSelectedButton": "Delete Selected",
+  "@deleteSelectedButton": {
+    "description": "Button to delete selected items"
+  },
+  "storageSummaryTitle": "Storage Summary",
+  "@storageSummaryTitle": {
+    "description": "Title for storage summary section"
+  },
+  "totalLibrarySize": "Total Library Size",
+  "@totalLibrarySize": {
+    "description": "Label for total library size"
+  },
+  "audiobookGroupsCount": "Audiobook Groups",
+  "@audiobookGroupsCount": {
+    "description": "Label for audiobook groups count"
+  },
+  "cacheSize": "Cache Size",
+  "@cacheSize": {
+    "description": "Label for cache size"
+  },
+  "libraryFoldersTitle": "Library Folders",
+  "@libraryFoldersTitle": {
+    "description": "Title for library folders section"
+  },
+  "cacheSectionTitle": "Cache",
+  "@cacheSectionTitle": {
+    "description": "Title for cache section"
+  },
+  "totalCacheSize": "Total Cache",
+  "@totalCacheSize": {
+    "description": "Label for total cache size"
+  },
+  "clearPlaybackCacheButton": "Clear Playback Cache",
+  "@clearPlaybackCacheButton": {
+    "description": "Button to clear playback cache"
+  },
+  "audiobookGroupsTitle": "Audiobook Groups",
+  "@audiobookGroupsTitle": {
+    "description": "Title for audiobook groups section"
+  },
+  "deselectAllButton": "Deselect All",
+  "@deselectAllButton": {
+    "description": "Button to deselect all items"
+  },
+  "selectAllButton": "Select All",
+  "@selectAllButton": {
+    "description": "Button to select all items"
+  },
+  "noAudiobooksMessage": "No audiobooks found",
+  "@noAudiobooksMessage": {
+    "description": "Message when no audiobooks are found"
+  },
+  "deleteSelectedTitle": "Delete Selected?",
+  "@deleteSelectedTitle": {
+    "description": "Title for delete selected dialog"
+  },
+  "deleteSelectedMessage": "Are you sure you want to delete {count} selected audiobook(s)?",
+  "@deleteSelectedMessage": {
+    "description": "Message for delete selected dialog",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "deleteSelectedResultMessage": "Deleted: {success}, Failed: {failed}",
+  "@deleteSelectedResultMessage": {
+    "description": "Result message after deleting selected items",
+    "placeholders": {
+      "success": {
+        "type": "int"
+      },
+      "failed": {
+        "type": "int"
+      }
+    }
+  },
+  "clearPlaybackCacheTitle": "Clear Playback Cache?",
+  "@clearPlaybackCacheTitle": {
+    "description": "Title for clear playback cache dialog"
+  },
+  "clearPlaybackCacheMessage": "This will clear the playback cache. Playback may be slower until cache is rebuilt.",
+  "@clearPlaybackCacheMessage": {
+    "description": "Message for clear playback cache dialog"
+  },
+  "clearingCacheMessage": "Clearing cache...",
+  "@clearingCacheMessage": {
+    "description": "Message shown while clearing cache"
+  },
+  "cacheClearedSuccessMessage": "Cache cleared successfully",
+  "@cacheClearedSuccessMessage": {
+    "description": "Success message when cache is cleared"
+  },
+  "clearAllCacheTitle": "Clear All Cache?",
+  "@clearAllCacheTitle": {
+    "description": "Title for clear all cache dialog"
+  },
+  "clearAllCacheMessage": "This will clear all cache including playback cache, temporary files, and old logs.",
+  "@clearAllCacheMessage": {
+    "description": "Message for clear all cache dialog"
+  },
+  "clearButton": "Clear",
+  "@clearButton": {
+    "description": "Button to clear"
+  },
+  "storageManagementDescription": "Manage library size, cache, and files",
+  "@storageManagementDescription": {
+    "description": "Description for storage management section"
+  },
+  "openStorageManagementButton": "Open Storage Management",
+  "@openStorageManagementButton": {
+    "description": "Button to open storage management screen"
+  },
+  "partialDeletionSuccessMessage": "Partially deleted: {deleted}/{total} files",
+  "@partialDeletionSuccessMessage": {
+    "description": "Message when some files were deleted successfully",
+    "placeholders": {
+      "deleted": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "showDetailsButton": "Details",
+  "@showDetailsButton": {
+    "description": "Button to show details"
+  },
+  "permissionDeniedMessage": "Permission denied: Cannot delete file",
+  "@permissionDeniedMessage": {
+    "description": "Error message when permission is denied"
+  },
+  "deletionDetailsTitle": "Deletion Details",
+  "@deletionDetailsTitle": {
+    "description": "Title for deletion details dialog"
+  },
+  "deletionSummaryMessage": "Deleted: {deleted}/{total} files",
+  "@deletionSummaryMessage": {
+    "description": "Summary message for deletion details",
+    "placeholders": {
+      "deleted": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "errorsTitle": "Errors:",
+  "@errorsTitle": {
+    "description": "Title for errors section"
+  },
+  "retryButton": "Retry",
+  "@retryButton": {
+    "description": "Button to retry an operation"
   }
 }

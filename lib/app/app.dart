@@ -13,8 +13,10 @@
 // limitations under the License.
 
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:jabook/app/router/app_router.dart';
@@ -25,6 +27,7 @@ import 'package:jabook/core/cache/rutracker_cache_service.dart';
 import 'package:jabook/core/config/app_config.dart';
 import 'package:jabook/core/config/language_manager.dart';
 import 'package:jabook/core/config/language_provider.dart';
+import 'package:jabook/core/download/download_foreground_service.dart';
 import 'package:jabook/core/endpoints/endpoint_health_scheduler.dart';
 import 'package:jabook/core/endpoints/endpoint_manager.dart';
 import 'package:jabook/core/logging/environment_logger.dart';
@@ -32,6 +35,8 @@ import 'package:jabook/core/logging/structured_logger.dart';
 import 'package:jabook/core/net/dio_client.dart';
 import 'package:jabook/core/notifications/download_notification_service.dart';
 import 'package:jabook/core/permissions/permission_service.dart';
+import 'package:jabook/core/player/player_state_persistence_service.dart';
+import 'package:jabook/core/player/player_state_provider.dart';
 import 'package:jabook/core/session/session_manager.dart';
 import 'package:jabook/core/torrent/audiobook_torrent_manager.dart';
 import 'package:jabook/core/utils/first_launch.dart';
@@ -82,6 +87,11 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
   bool _firstFrameTracked = false;
   DateTime? _appStartTime;
   bool _isInitialized = false;
+
+  // Player initialization tracking
+  bool _playerInitializationAttempted = false;
+  int _playerInitRetryCount = 0;
+  static const int _maxPlayerInitRetries = 3;
 
   @override
   void initState() {
@@ -242,13 +252,22 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
 
   /// Handles app pause event.
   ///
-  /// Saves download state to ensure persistence.
+  /// Saves download state and playback position to ensure persistence.
   Future<void> _onAppPaused() async {
     try {
       // Save download state to database
       // Downloads will continue in background if they're active
       // State is already saved via _saveDownloadMetadata during download progress
       logger.i('App paused - download state saved');
+
+      // Save playback position when app goes to background
+      try {
+        final playerService = ref.read(media3PlayerServiceProvider);
+        await playerService.saveCurrentPosition();
+        logger.i('App paused - playback position saved');
+      } on Exception catch (e) {
+        logger.w('Failed to save playback position on pause: $e');
+      }
     } on Exception catch (e) {
       logger.w('Error handling app pause: $e');
     }
@@ -256,13 +275,22 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
 
   /// Handles app detach event.
   ///
-  /// Saves final download state before app termination.
+  /// Saves final download state and playback position before app termination.
   Future<void> _onAppDetached() async {
     try {
       // Final save of download state
       // Note: We don't call shutdown() here as it would stop all downloads
       // Downloads should continue in background if possible
       logger.i('App detached - final state saved');
+
+      // Save playback position when app is being terminated
+      try {
+        final playerService = ref.read(media3PlayerServiceProvider);
+        await playerService.saveCurrentPosition();
+        logger.i('App detached - playback position saved');
+      } on Exception catch (e) {
+        logger.w('Failed to save playback position on detach: $e');
+      }
     } on Exception catch (e) {
       logger.w('Error handling app detach: $e');
     }
@@ -292,19 +320,27 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
           DateTime.now().difference(dbInitStart).inMilliseconds;
 
       // Initialize configuration based on flavor (lightweight, can run in parallel)
-      // Request essential permissions (can be deferred, but better to do early)
       // Initialize default storage path
       // Initialize background service for downloads
       // Initialize notification service
+      // NOTE: _initializePlayerService() removed from Future.wait() to prevent blocking startup
+      // Player will be initialized after UI render via addPostFrameCallback
       // Run these in parallel to speed up startup
       final envInitStart = DateTime.now();
       await Future.wait([
         _initializeEnvironment(),
-        _requestEssentialPermissions(),
         StoragePathUtils().initializeDefaultPath(),
         _initializeBackgroundService(),
         _initializeNotificationService(),
+        _setupNotificationChannel(),
+        // _initializePlayerService() - REMOVED: will be initialized after UI render
       ]);
+
+      // Request permissions separately after a delay to ensure Activity is ready
+      // This prevents "Activity not available" errors and permission request conflicts
+      await Future.delayed(const Duration(milliseconds: 300));
+      await _requestEssentialPermissions();
+
       final envInitDuration =
           DateTime.now().difference(envInitStart).inMilliseconds;
 
@@ -427,6 +463,10 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
     // AuthRepository will be initialized in build method when context is available
 
     // Initialize EndpointManager with default endpoints and health checks
+    // Add small delay to ensure database is fully ready for writes
+    // This prevents "read only" errors during health checks
+    await Future.delayed(const Duration(milliseconds: 100));
+
     final endpointStartTime = DateTime.now();
     final endpointManager = EndpointManager(db);
     await endpointManager
@@ -533,7 +573,62 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
       },
     );
 
+    // Restore player state on startup (non-blocking)
+    // This will restore the last played audiobook and show mini player if active
+    safeUnawaited(
+      _restorePlayerState(),
+      onError: (e, stack) {
+        logger.w('Failed to restore player state on startup: $e');
+      },
+    );
+
     logger.i('Database, cache, auth, and endpoints initialized successfully');
+  }
+
+  /// Restores player state on app startup.
+  ///
+  /// This checks for saved player state and restores it if available,
+  /// showing the mini player if there was an active playback session.
+  Future<void> _restorePlayerState() async {
+    try {
+      logger.i('Checking for saved player state to restore');
+
+      // Import here to avoid circular dependencies
+      final playerStatePersistenceService = PlayerStatePersistenceService();
+      final savedState = await playerStatePersistenceService.restoreState();
+
+      if (savedState == null) {
+        logger.i('No saved player state found');
+        return;
+      }
+
+      logger.i(
+        'Found saved player state for group: ${savedState.groupPath}',
+      );
+
+      // Verify that files still exist
+      final allFilesExist = savedState.filePaths.every((path) {
+        try {
+          return File(path).existsSync();
+        } on Object {
+          return false;
+        }
+      });
+
+      if (!allFilesExist) {
+        logger.w(
+          'Some files from saved state no longer exist, clearing saved state',
+        );
+        await playerStatePersistenceService.clearState();
+        return;
+      }
+
+      // State will be restored when user opens the player screen
+      // We just ensure the state is available for restoration
+      logger.i('Player state available for restoration');
+    } on Exception catch (e) {
+      logger.w('Failed to restore player state: $e');
+    }
   }
 
   Future<void> _requestEssentialPermissions() async {
@@ -545,6 +640,10 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
       // Check if permissions are already granted
       final hasAllPermissions =
           await permissionService.hasAllEssentialPermissions();
+
+      logger.i(
+        'Essential permissions check result: ${hasAllPermissions ? "all granted" : "some missing"}',
+      );
 
       if (!hasAllPermissions) {
         logger.i('Some permissions are missing, requesting...');
@@ -662,7 +761,7 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
       final backgroundService = DownloadBackgroundService();
       await backgroundService.initialize();
 
-      // Register monitoring task if there are active downloads
+      // Register monitoring task and start foreground service if there are active downloads
       // This will be checked after torrent manager is initialized
       safeUnawaited(
         () async {
@@ -676,6 +775,17 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
                 'Found ${activeDownloads.length} active downloads, registering background monitoring',
               );
               await backgroundService.registerDownloadMonitoring();
+
+              // Start foreground service if there are active downloads
+              // This ensures downloads continue even if app was killed
+              try {
+                final downloadForegroundService = DownloadForegroundService();
+                await downloadForegroundService.startService();
+                logger.i(
+                    'Started download foreground service for active downloads');
+              } on Exception catch (e) {
+                logger.w('Failed to start download foreground service: $e');
+              }
             }
           } on Exception catch (e) {
             logger.w('Failed to register download monitoring: $e');
@@ -703,6 +813,129 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
       logger.w('Failed to initialize notification service: $e');
       // Continue without notification service - downloads will still work
       // but notifications won't be shown
+    }
+  }
+
+  /// Initializes the audio player service to pre-warm it for faster playback start.
+  ///
+  /// This initializes the native AudioPlayerService in the background,
+  /// so it's ready when the user wants to play audio, reducing startup delay.
+  /// Initializes the player service with automatic retry on failure.
+  ///
+  /// Uses exponential backoff for retry attempts (1s, 2s, 4s).
+  /// If all attempts fail, the player will be initialized on first use.
+  ///
+  /// This method is called after UI render to ensure Activity is fully ready.
+  Future<void> _initializePlayerServiceWithRetry() async {
+    // Prevent multiple attempts
+    if (_playerInitializationAttempted) {
+      return;
+    }
+    _playerInitializationAttempted = true;
+
+    while (_playerInitRetryCount < _maxPlayerInitRetries) {
+      try {
+        // Exponential backoff: 1s, 2s, 4s
+        if (_playerInitRetryCount > 0) {
+          final delayMs = 1000 * (1 << (_playerInitRetryCount - 1));
+          logger.i(
+            'Retrying player initialization (attempt ${_playerInitRetryCount + 1}/$_maxPlayerInitRetries) after ${delayMs}ms delay',
+          );
+          await Future.delayed(Duration(milliseconds: delayMs));
+        }
+
+        logger.i(
+          'Pre-initializing audio player service (attempt ${_playerInitRetryCount + 1}/$_maxPlayerInitRetries)...',
+        );
+        final playerInitStart = DateTime.now();
+
+        final playerService = ref.read(media3PlayerServiceProvider);
+
+        // Timeout for initialization (5 seconds)
+        await playerService.initialize().timeout(
+          const Duration(seconds: 5),
+          onTimeout: () {
+            logger.w('Player service initialization timed out after 5 seconds');
+            throw TimeoutException('Player initialization timeout');
+          },
+        );
+
+        final playerInitDuration =
+            DateTime.now().difference(playerInitStart).inMilliseconds;
+
+        logger.i(
+          'Audio player service pre-initialized successfully (${playerInitDuration}ms) on attempt ${_playerInitRetryCount + 1}',
+        );
+
+        // Successfully initialized - exit
+        return;
+      } on TimeoutException catch (e) {
+        _playerInitRetryCount++;
+        logger.w(
+          'Player service initialization timed out (attempt $_playerInitRetryCount/$_maxPlayerInitRetries): $e',
+        );
+
+        if (_playerInitRetryCount >= _maxPlayerInitRetries) {
+          logger.w(
+            'Player service initialization failed after $_maxPlayerInitRetries attempts. Will initialize on first use.',
+          );
+          return;
+        }
+        // Continue loop for retry
+      } on Exception catch (e) {
+        _playerInitRetryCount++;
+        logger.w(
+          'Failed to pre-initialize audio player service (attempt $_playerInitRetryCount/$_maxPlayerInitRetries): $e',
+        );
+
+        if (_playerInitRetryCount >= _maxPlayerInitRetries) {
+          logger.w(
+            'Player service initialization failed after $_maxPlayerInitRetries attempts. Will initialize on first use.',
+          );
+          return;
+        }
+        // Continue loop for retry
+      }
+    }
+  }
+
+  /// Sets up notification channel to handle notification clicks from Android.
+  Future<void> _setupNotificationChannel() async {
+    try {
+      if (!Platform.isAndroid) {
+        return; // Only needed on Android
+      }
+
+      // Import platform channel
+      const platform = MethodChannel('com.jabook.app.jabook/notification');
+
+      // Set up handler for notification clicks
+      // ignore: cascade_invocations
+      platform.setMethodCallHandler((call) async {
+        if (call.method == 'openPlayer') {
+          // Open player screen when notification is clicked
+          if (mounted) {
+            try {
+              final router = ref.read(appRouterProvider);
+              final currentGroup = ref.read(currentAudiobookGroupProvider);
+              if (currentGroup != null) {
+                await router.push('/local-player', extra: currentGroup);
+                logger.i('Opened player from notification click');
+              } else {
+                logger.w('No current group available to open player');
+              }
+            } on Exception catch (e) {
+              logger.w('Failed to open player from notification: $e');
+            }
+          }
+        }
+        return null;
+      });
+
+      logger.i('Notification channel handler set up');
+    } on Exception catch (e) {
+      logger.w('Failed to set up notification channel: $e');
+      // Continue without notification channel - app will still work
     }
   }
 
@@ -854,9 +1087,11 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
                 builder: (context, child) {
                   // Set router for notification service
                   DownloadNotificationService().setRouter(router);
-                  // Track first frame render time
+                  // Track first frame render time and initialize player after UI render
                   final appStartTime = _appStartTime;
-                  if (!_firstFrameTracked && appStartTime != null) {
+                  if (!_firstFrameTracked &&
+                      appStartTime != null &&
+                      _isInitialized) {
                     WidgetsBinding.instance.addPostFrameCallback((_) {
                       if (!_firstFrameTracked) {
                         _firstFrameTracked = true;
@@ -879,6 +1114,17 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
                         );
                         logger.i(
                             'First UI frame rendered in ${timeToFirstFrame}ms');
+
+                        // Initialize player service after UI render (non-blocking)
+                        // This ensures Activity is fully ready for MediaSessionService
+                        safeUnawaited(
+                          _initializePlayerServiceWithRetry(),
+                          onError: (e, stack) {
+                            logger.w(
+                              'Failed to initialize player service after UI render: $e',
+                            );
+                          },
+                        );
                       }
                     });
                   }

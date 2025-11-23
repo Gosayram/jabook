@@ -13,12 +13,17 @@
 // limitations under the License.
 
 import 'dart:convert';
+import 'dart:io';
 
+import 'package:dio/dio.dart';
 import 'package:html/dom.dart';
 import 'package:html/parser.dart' as parser;
 import 'package:jabook/core/errors/failures.dart';
 import 'package:jabook/core/logging/environment_logger.dart';
 import 'package:jabook/core/logging/structured_logger.dart';
+import 'package:jabook/core/net/dio_client.dart';
+import 'package:jabook/core/torrent/torrent_parser_service.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:windows1251/windows1251.dart';
 
 /// Represents an audiobook with metadata from RuTracker.
@@ -44,6 +49,10 @@ class Audiobook {
     this.genres = const [],
     required this.chapters,
     required this.addedDate,
+    this.duration,
+    this.bitrate,
+    this.audioCodec,
+    this.relatedAudiobooks = const [],
   });
 
   /// Unique identifier for the audiobook.
@@ -84,6 +93,34 @@ class Audiobook {
 
   /// Date when the audiobook was added to RuTracker.
   final DateTime addedDate;
+
+  /// Duration of the audiobook (e.g., "08:05:13").
+  final String? duration;
+
+  /// Bitrate of the audiobook (e.g., "128 kbps").
+  final String? bitrate;
+
+  /// Audio codec of the audiobook (e.g., "MP3", "FLAC", "AAC").
+  final String? audioCodec;
+
+  /// List of related audiobooks from the same series/cycle.
+  /// Each entry contains topicId and title.
+  final List<RelatedAudiobook> relatedAudiobooks;
+}
+
+/// Represents a related audiobook from the same series/cycle.
+class RelatedAudiobook {
+  /// Creates a new RelatedAudiobook instance.
+  RelatedAudiobook({
+    required this.topicId,
+    required this.title,
+  });
+
+  /// Topic ID of the related audiobook.
+  final String topicId;
+
+  /// Title of the related audiobook.
+  final String title;
 }
 
 /// Represents a chapter within an audiobook.
@@ -129,9 +166,14 @@ class RuTrackerParser {
       'a.torTopic, a.torTopic.tt-text, a[href*="viewtopic.php?t="]';
   static const String _authorSelector =
       'a.pmed, .topicAuthor a, a[href*="profile.php"]';
-  static const String _sizeSelector = 'span.small, a.f-dl.dl-stub';
-  static const String _seedersSelector = 'span.seedmed, span.seedmed b';
-  static const String _leechersSelector = 'span.leechmed, span.leechmed b';
+  static const String _sizeSelector =
+      'span.small, a.f-dl.dl-stub, td.small, .small';
+  // Use all possible seeders classes: seed and seedmed (both with and without b tag)
+  static const String _seedersSelector =
+      'span.seed, span.seed b, span.seedmed, span.seedmed b, .seed, .seedmed';
+  // Use all possible leechers classes: leech and leechmed (both with and without b tag)
+  static const String _leechersSelector =
+      'span.leech, span.leech b, span.leechmed, span.leechmed b, .leech, .leechmed';
   static const String _downloadHrefSelector = 'a[href^="dl.php?t="]';
   static const String _magnetLinkSelector = 'a.magnet-link, a[href^="magnet:"]';
   static const String _postBodySelector = '.post_body, .post-body';
@@ -701,22 +743,195 @@ class RuTrackerParser {
 
         final authorElement = row.querySelector(_authorSelector);
         final sizeElement = row.querySelector(_sizeSelector);
-        final seedersElement = row.querySelector(_seedersSelector);
-        final leechersElement = row.querySelector(_leechersSelector);
         final magnetElement = row.querySelector(_downloadHrefSelector);
 
-        // Extract size from multiple possible locations
-        var sizeText = '0 MB';
-        if (sizeElement != null) {
-          sizeText = sizeElement.text.trim();
+        // Extract seeders with comprehensive selector (includes seed, seedmed, with and without b tag)
+        // First, try to find the tor column (vf-col-tor) which contains seeders/leechers
+        var seeders = 0;
+        final torColumn = row.querySelector('td.vf-col-tor');
+        Element? seedersElement;
+
+        if (torColumn != null) {
+          // Look for seeders within the tor column first (most reliable for search results)
+          seedersElement = torColumn.querySelector(_seedersSelector);
+          EnvironmentLogger().d(
+            'Topic $topicId: Found tor column, searching for seeders within it',
+          );
+        }
+
+        // Fallback to searching in entire row if not found in tor column
+        if (seedersElement == null) {
+          seedersElement = row.querySelector(_seedersSelector);
+          EnvironmentLogger().d(
+            'Topic $topicId: Searching for seeders in entire row',
+          );
+        }
+
+        if (seedersElement != null) {
+          // Try to extract number from <b> tag first (most reliable)
+          final bTag = seedersElement.querySelector('b');
+          if (bTag != null) {
+            final seedersText = bTag.text.trim();
+            seeders = int.tryParse(seedersText) ?? 0;
+            EnvironmentLogger().d(
+              'Topic $topicId: Extracted seeders from <b> tag: $seeders (text: "$seedersText")',
+            );
+          } else {
+            // Fallback: extract from span text, but remove "Сиды: " prefix if present
+            var seedersText = seedersElement.text.trim();
+            // Remove "Сиды: " or "Сиды:" prefix if present
+            seedersText =
+                seedersText.replaceFirst(RegExp(r'^[Сс]иды[:\s]*'), '');
+            seeders = int.tryParse(seedersText) ?? 0;
+            EnvironmentLogger().d(
+              'Topic $topicId: Extracted seeders from span text: $seeders (text: "$seedersText")',
+            );
+          }
         } else {
-          // Try to extract from row text using regex
+          // Fallback: try to extract from row text using regex
+          final seedersMatch =
+              RegExp(r'[↑↑]\s*(\d+)|[Сс]иды[:\s]*(\d+)').firstMatch(row.text);
+          if (seedersMatch != null) {
+            seeders = int.tryParse(
+                    seedersMatch.group(1) ?? seedersMatch.group(2) ?? '0') ??
+                0;
+            EnvironmentLogger().d(
+              'Topic $topicId: Extracted seeders from regex: $seeders',
+            );
+          } else {
+            EnvironmentLogger().w('Topic $topicId: No seeders found');
+          }
+        }
+
+        // Extract leechers with comprehensive selector (includes leech, leechmed, with and without b tag)
+        // First, try to find the tor column (vf-col-tor) which contains seeders/leechers
+        var leechers = 0;
+        Element? leechersElement;
+
+        if (torColumn != null) {
+          // Look for leechers within the tor column first (most reliable for search results)
+          leechersElement = torColumn.querySelector(_leechersSelector);
+          EnvironmentLogger().d(
+            'Topic $topicId: Found tor column, searching for leechers within it',
+          );
+        }
+
+        // Fallback to searching in entire row if not found in tor column
+        if (leechersElement == null) {
+          leechersElement = row.querySelector(_leechersSelector);
+          EnvironmentLogger().d(
+            'Topic $topicId: Searching for leechers in entire row',
+          );
+        }
+
+        if (leechersElement != null) {
+          // Try to extract number from <b> tag first (most reliable)
+          final bTag = leechersElement.querySelector('b');
+          if (bTag != null) {
+            final leechersText = bTag.text.trim();
+            leechers = int.tryParse(leechersText) ?? 0;
+            EnvironmentLogger().d(
+              'Topic $topicId: Extracted leechers from <b> tag: $leechers (text: "$leechersText")',
+            );
+          } else {
+            // Fallback: extract from span text, but remove "Личи: " prefix if present
+            var leechersText = leechersElement.text.trim();
+            // Remove "Личи: " or "Личи:" prefix if present
+            leechersText =
+                leechersText.replaceFirst(RegExp(r'^[Лл]ичи[:\s]*'), '');
+            leechers = int.tryParse(leechersText) ?? 0;
+            EnvironmentLogger().d(
+              'Topic $topicId: Extracted leechers from span text: $leechers (text: "$leechersText")',
+            );
+          }
+        } else {
+          // Fallback: try to extract from row text using regex
+          final leechersMatch =
+              RegExp(r'[↓↓]\s*(\d+)|[Лл]ичи[:\s]*(\d+)').firstMatch(row.text);
+          if (leechersMatch != null) {
+            leechers = int.tryParse(
+                    leechersMatch.group(1) ?? leechersMatch.group(2) ?? '0') ??
+                0;
+            EnvironmentLogger().d(
+              'Topic $topicId: Extracted leechers from regex: $leechers',
+            );
+          } else {
+            EnvironmentLogger().w('Topic $topicId: No leechers found');
+          }
+        }
+
+        // Log final values for debugging
+        EnvironmentLogger().d(
+          'Topic $topicId: seeders=$seeders, leechers=$leechers (before swap check)',
+        );
+
+        // Verify values are not swapped (seeders should typically be >= leechers for active torrents)
+        // If leechers > seeders by a large margin, they might be swapped
+        // Auto-fix: swap values if leechers significantly exceeds seeders
+        if (leechers > seeders && seeders > 0 && leechers > seeders * 2) {
+          EnvironmentLogger().w(
+            'Possible seeders/leechers swap detected for topic $topicId: '
+            'seeders=$seeders, leechers=$leechers (leechers > seeders). Swapping values.',
+          );
+          // Swap values
+          final temp = seeders;
+          seeders = leechers;
+          leechers = temp;
+          EnvironmentLogger().d(
+            'Topic $topicId: after swap - seeders=$seeders, leechers=$leechers',
+          );
+        }
+
+        // Extract size from multiple possible locations
+        // First, try to find size in tor column (vf-col-tor) which contains size info
+        var sizeText = '';
+        if (torColumn != null) {
+          // Look for size within the tor column first (most reliable for search results)
+          final torSizeElement = torColumn.querySelector(_sizeSelector);
+          if (torSizeElement != null) {
+            final extractedSize = torSizeElement.text.trim();
+            // Validate that it looks like a size (contains numbers and size units)
+            if (RegExp(r'[\d.,]+\s*[KMGT]?B', caseSensitive: false)
+                .hasMatch(extractedSize)) {
+              sizeText = extractedSize;
+              EnvironmentLogger().d(
+                'Topic $topicId: Extracted size from tor column: $sizeText',
+              );
+            }
+          }
+        }
+
+        // Fallback to original sizeElement if not found in tor column
+        if (sizeText.isEmpty && sizeElement != null) {
+          final extractedSize = sizeElement.text.trim();
+          // Validate that it looks like a size
+          if (RegExp(r'[\d.,]+\s*[KMGT]?B', caseSensitive: false)
+              .hasMatch(extractedSize)) {
+            sizeText = extractedSize;
+            EnvironmentLogger().d(
+              'Topic $topicId: Extracted size from row: $sizeText',
+            );
+          }
+        }
+
+        // Try to extract from row text using regex if still not found
+        if (sizeText.isEmpty) {
           final sizeMatch =
               RegExp(r'([\d.,]+\s*[KMGT]?B)', caseSensitive: false)
                   .firstMatch(row.text);
           if (sizeMatch != null) {
-            sizeText = sizeMatch.group(1)?.trim() ?? '0 MB';
+            sizeText = sizeMatch.group(1)?.trim() ?? '';
+            EnvironmentLogger().d(
+              'Topic $topicId: Extracted size from regex: $sizeText',
+            );
           }
+        }
+
+        // Final fallback if no size found - use empty string instead of "Unknown"
+        if (sizeText.isEmpty) {
+          sizeText = '';
+          EnvironmentLogger()
+              .w('Topic $topicId: No size found, using empty string');
         }
 
         // Extract magnet URL from download link
@@ -728,15 +943,125 @@ class RuTrackerParser {
           }
         }
 
-        final coverUrl = _extractCoverUrl(row, baseUrl: baseUrl);
+        // Extract cover URL - try tor column first, then entire row
+        String? coverUrl;
+        if (torColumn != null) {
+          await logger.log(
+            level: 'debug',
+            subsystem: 'parser',
+            message: 'Attempting to extract cover URL from tor column',
+            context: 'parse_search_results',
+            extra: {
+              'topic_id': topicId,
+              'base_url': baseUrl,
+              'tor_column_html_length': torColumn.outerHtml.length,
+            },
+          );
+          coverUrl = await _extractCoverUrl(torColumn, baseUrl: baseUrl);
+          if (coverUrl != null && coverUrl.isNotEmpty) {
+            EnvironmentLogger().d(
+              'Topic $topicId: extracted cover URL from tor column: $coverUrl',
+            );
+            await logger.log(
+              level: 'info',
+              subsystem: 'parser',
+              message: 'Cover URL extracted from tor column',
+              context: 'parse_search_results',
+              extra: {
+                'topic_id': topicId,
+                'cover_url': coverUrl,
+                'source': 'tor_column',
+                'base_url': baseUrl,
+              },
+            );
+          } else {
+            EnvironmentLogger().d(
+              'Topic $topicId: no cover URL found in tor column',
+            );
+            await logger.log(
+              level: 'debug',
+              subsystem: 'parser',
+              message: 'No cover URL found in tor column',
+              context: 'parse_search_results',
+              extra: {
+                'topic_id': topicId,
+                'base_url': baseUrl,
+              },
+            );
+          }
+        } else {
+          await logger.log(
+            level: 'debug',
+            subsystem: 'parser',
+            message: 'No tor column found, will search in entire row',
+            context: 'parse_search_results',
+            extra: {'topic_id': topicId},
+          );
+        }
+
+        // Fallback to searching in entire row
+        if (coverUrl == null || coverUrl.isEmpty) {
+          await logger.log(
+            level: 'debug',
+            subsystem: 'parser',
+            message: 'Attempting to extract cover URL from entire row',
+            context: 'parse_search_results',
+            extra: {
+              'topic_id': topicId,
+              'base_url': baseUrl,
+              'row_html_length': row.outerHtml.length,
+            },
+          );
+          coverUrl = await _extractCoverUrl(row, baseUrl: baseUrl);
+          if (coverUrl != null && coverUrl.isNotEmpty) {
+            EnvironmentLogger().d(
+              'Topic $topicId: extracted cover URL from row: $coverUrl',
+            );
+            await logger.log(
+              level: 'info',
+              subsystem: 'parser',
+              message: 'Cover URL extracted from row',
+              context: 'parse_search_results',
+              extra: {
+                'topic_id': topicId,
+                'cover_url': coverUrl,
+                'source': 'row',
+                'base_url': baseUrl,
+              },
+            );
+          } else {
+            EnvironmentLogger().d(
+              'Topic $topicId: no cover URL found in row (baseUrl: $baseUrl)',
+            );
+            // Log when cover is not found for debugging
+            await logger.log(
+              level: 'debug',
+              subsystem: 'parser',
+              message: 'No cover URL found for topic after all attempts',
+              context: 'parse_search_results',
+              extra: {
+                'topic_id': topicId,
+                'base_url': baseUrl,
+                'has_tor_column': torColumn != null,
+                'row_has_images': row.querySelectorAll('img').isNotEmpty,
+                'row_image_count': row.querySelectorAll('img').length,
+              },
+            );
+          }
+        }
+        // Extract author, use empty string if not found instead of "Unknown"
+        final authorText = authorElement?.text.trim();
+        final author =
+            (authorText != null && authorText.isNotEmpty) ? authorText : '';
+
         final audiobook = Audiobook(
           id: topicId,
           title: titleElement.text.trim(),
-          author: authorElement?.text.trim() ?? 'Unknown',
+          author: author,
           category: _extractCategoryFromTitle(titleElement.text),
           size: sizeText,
-          seeders: int.tryParse(seedersElement?.text.trim() ?? '0') ?? 0,
-          leechers: int.tryParse(leechersElement?.text.trim() ?? '0') ?? 0,
+          seeders: seeders,
+          leechers: leechers,
           magnetUrl: magnetUrl,
           coverUrl: coverUrl,
           chapters: [],
@@ -761,6 +1086,20 @@ class RuTrackerParser {
       envLogger
         ..i('Parsed ${results.length} search results')
         ..i('Cover URLs found: $coverUrlCount, empty: $emptyCoverUrlCount');
+
+      // Also log via StructuredLogger for better visibility
+      await logger.log(
+        level: 'info',
+        subsystem: 'parser',
+        message: 'Search results parsing completed',
+        context: 'parse_search_results',
+        extra: {
+          'total_results': results.length,
+          'cover_urls_found': coverUrlCount,
+          'cover_urls_empty': emptyCoverUrlCount,
+          'base_url': baseUrl,
+        },
+      );
 
       return results;
     } on ParsingFailure {
@@ -795,6 +1134,7 @@ class RuTrackerParser {
   Future<Audiobook?> parseTopicDetails(
     dynamic htmlData, {
     String? contentType,
+    String? baseUrl,
   }) async {
     final logger = StructuredLogger();
     try {
@@ -1248,13 +1588,37 @@ class RuTrackerParser {
 
       // Extract seeders and leechers from tor-stats table (reuse cached selector)
       if (torStats != null) {
-        // Extract seeders and leechers with improved selectors
-        final seedersElement =
-            torStats.querySelector('span.seed b, span.seedmed b');
-        final leechersElement =
-            torStats.querySelector('span.leech b, span.leechmed b');
-        seeders = int.tryParse(seedersElement?.text.trim() ?? '0');
-        leechers = int.tryParse(leechersElement?.text.trim() ?? '0');
+        // Extract seeders and leechers with comprehensive selectors (all variants)
+        final seedersElement = torStats.querySelector(
+            'span.seed, span.seed b, span.seedmed, span.seedmed b');
+        final leechersElement = torStats.querySelector(
+            'span.leech, span.leech b, span.leechmed, span.leechmed b');
+
+        // Extract seeders: try <b> tag first, then fallback to span text
+        if (seedersElement != null) {
+          final bTag = seedersElement.querySelector('b');
+          if (bTag != null) {
+            seeders = int.tryParse(bTag.text.trim()) ?? 0;
+          } else {
+            var seedersText = seedersElement.text.trim();
+            seedersText =
+                seedersText.replaceFirst(RegExp(r'^[Сс]иды[:\s]*'), '');
+            seeders = int.tryParse(seedersText) ?? 0;
+          }
+        }
+
+        // Extract leechers: try <b> tag first, then fallback to span text
+        if (leechersElement != null) {
+          final bTag = leechersElement.querySelector('b');
+          if (bTag != null) {
+            leechers = int.tryParse(bTag.text.trim()) ?? 0;
+          } else {
+            var leechersText = leechersElement.text.trim();
+            leechersText =
+                leechersText.replaceFirst(RegExp(r'^[Лл]ичи[:\s]*'), '');
+            leechers = int.tryParse(leechersText) ?? 0;
+          }
+        }
       }
       // Fallback to post body text
       if (seeders == null) {
@@ -1298,6 +1662,39 @@ class RuTrackerParser {
       // Extract cover image with improved logic
       final coverUrl =
           _extractCoverUrlImproved(postBody, document.documentElement!);
+
+      // Extract topic ID from multiple possible sources (improved)
+      // Need to extract topicId early for torrent file fallback
+      var topicId = '';
+      // Try from post body data attribute (most reliable)
+      final dataAttr = postBody.attributes['data-ext_link_data'];
+      if (dataAttr != null) {
+        final topicMatch = RegExp(r'"t":(\d+)').firstMatch(dataAttr);
+        topicId = topicMatch?.group(1) ?? '';
+      }
+      // Try from URL in title link
+      if (topicId.isEmpty) {
+        final titleLink =
+            titleElement.querySelector('a[href*="viewtopic.php?t="]');
+        if (titleLink != null) {
+          topicId = _extractTopicIdFromUrl(titleLink.attributes['href'] ?? '');
+        }
+      }
+      // Try from magnet link data-topic_id attribute
+      if (topicId.isEmpty) {
+        final magnetElement = document.querySelector(_magnetLinkSelector);
+        if (magnetElement != null) {
+          final dataTopicId = magnetElement.attributes['data-topic_id'];
+          if (dataTopicId != null && dataTopicId.isNotEmpty) {
+            topicId = dataTopicId;
+          }
+        }
+      }
+      // Fallback to extracting from document
+      if (topicId.isEmpty) {
+        topicId =
+            _extractTopicIdFromUrl(document.documentElement?.outerHtml ?? '');
+      }
 
       final chapters = <Chapter>[];
       // Try to parse chapters from description with improved flexible patterns
@@ -1347,36 +1744,33 @@ class RuTrackerParser {
         }
       }
 
-      // Extract topic ID from multiple possible sources (improved)
-      var topicId = '';
-      // Try from post body data attribute (most reliable)
-      final dataAttr = postBody.attributes['data-ext_link_data'];
-      if (dataAttr != null) {
-        final topicMatch = RegExp(r'"t":(\d+)').firstMatch(dataAttr);
-        topicId = topicMatch?.group(1) ?? '';
-      }
-      // Try from URL in title link
-      if (topicId.isEmpty) {
-        final titleLink =
-            titleElement.querySelector('a[href*="viewtopic.php?t="]');
-        if (titleLink != null) {
-          topicId = _extractTopicIdFromUrl(titleLink.attributes['href'] ?? '');
-        }
-      }
-      // Try from magnet link data-topic_id attribute
-      if (topicId.isEmpty) {
-        final magnetElement = document.querySelector(_magnetLinkSelector);
-        if (magnetElement != null) {
-          final dataTopicId = magnetElement.attributes['data-topic_id'];
-          if (dataTopicId != null && dataTopicId.isNotEmpty) {
-            topicId = dataTopicId;
+      // Fallback: If chapters are still empty and baseUrl is provided,
+      // try to extract chapters from torrent file
+      if (chapters.isEmpty && baseUrl != null && topicId.isNotEmpty) {
+        EnvironmentLogger().d(
+          'Topic $topicId: No chapters found in description, trying to extract from torrent file',
+        );
+        try {
+          final chaptersFromTorrent = await _extractChaptersFromTorrentFile(
+            topicId,
+            baseUrl,
+          );
+          if (chaptersFromTorrent.isNotEmpty) {
+            chapters.addAll(chaptersFromTorrent);
+            EnvironmentLogger().i(
+              'Topic $topicId: Extracted ${chapters.length} chapters from torrent file',
+            );
+          } else {
+            EnvironmentLogger().d(
+              'Topic $topicId: No chapters found in torrent file either',
+            );
           }
+        } on Exception catch (e) {
+          EnvironmentLogger().w(
+            'Topic $topicId: Failed to extract chapters from torrent file: $e',
+          );
+          // Continue without chapters - this is a fallback, so errors are non-critical
         }
-      }
-      // Fallback to extracting from document
-      if (topicId.isEmpty) {
-        topicId =
-            _extractTopicIdFromUrl(document.documentElement?.outerHtml ?? '');
       }
 
       // Extract category from breadcrumb navigation (preferred) or post body metadata or title
@@ -1387,6 +1781,18 @@ class RuTrackerParser {
       if (category.isEmpty) {
         category = _extractCategoryFromTitle(titleElement.text);
       }
+
+      // Extract duration (Время звучания) from metadata
+      final duration = metadata['Время звучания']?.trim();
+
+      // Extract bitrate (Битрейт) from metadata
+      final bitrate = metadata['Битрейт']?.trim();
+
+      // Extract audio codec (Аудиокодек) from metadata
+      final audioCodec = metadata['Аудиокодек']?.trim();
+
+      // Extract related audiobooks from series/cycle (sp-body)
+      final relatedAudiobooks = _extractRelatedAudiobooks(postBody);
 
       return Audiobook(
         id: topicId,
@@ -1402,6 +1808,10 @@ class RuTrackerParser {
         genres: genres,
         chapters: chapters,
         addedDate: registeredDate ?? _extractDateFromPost(postBody),
+        duration: duration,
+        bitrate: bitrate,
+        audioCodec: audioCodec,
+        relatedAudiobooks: relatedAudiobooks,
       );
     } on ParsingFailure {
       // Re-throw parsing failures as-is
@@ -1416,6 +1826,94 @@ class RuTrackerParser {
         'Failed to parse topic details: ${e.toString()}',
         e,
       );
+    }
+  }
+
+  /// Parses topic statistics (seeders and leechers) from topic page HTML.
+  ///
+  /// This is a lightweight method that only extracts statistics without
+  /// parsing the full topic details. Used to update statistics for search
+  /// results that don't have them.
+  ///
+  /// The [htmlData] parameter contains the HTML content of the topic page.
+  ///
+  /// Returns a map with 'seeders' and 'leechers' keys, or null if parsing fails.
+  Future<Map<String, int>?> parseTopicStatistics(dynamic htmlData) async {
+    try {
+      String decodedHtml;
+      try {
+        decodedHtml = utf8.decode(htmlData.codeUnits);
+      } on FormatException {
+        decodedHtml = windows1251.decode(htmlData.codeUnits);
+      }
+
+      final document = parser.parse(decodedHtml);
+      final torStats = document.querySelector(_torStatsSelector);
+
+      int? seeders;
+      int? leechers;
+
+      // Extract seeders and leechers from tor-stats table
+      if (torStats != null) {
+        // Use comprehensive selectors (all variants: seed/seedmed, with/without b tag)
+        final seedersElement = torStats.querySelector(
+            'span.seed, span.seed b, span.seedmed, span.seedmed b');
+        final leechersElement = torStats.querySelector(
+            'span.leech, span.leech b, span.leechmed, span.leechmed b');
+
+        // Extract seeders: try <b> tag first, then fallback to span text
+        if (seedersElement != null) {
+          final bTag = seedersElement.querySelector('b');
+          if (bTag != null) {
+            seeders = int.tryParse(bTag.text.trim()) ?? 0;
+          } else {
+            var seedersText = seedersElement.text.trim();
+            seedersText =
+                seedersText.replaceFirst(RegExp(r'^[Сс]иды[:\s]*'), '');
+            seeders = int.tryParse(seedersText) ?? 0;
+          }
+        }
+
+        // Extract leechers: try <b> tag first, then fallback to span text
+        if (leechersElement != null) {
+          final bTag = leechersElement.querySelector('b');
+          if (bTag != null) {
+            leechers = int.tryParse(bTag.text.trim()) ?? 0;
+          } else {
+            var leechersText = leechersElement.text.trim();
+            leechersText =
+                leechersText.replaceFirst(RegExp(r'^[Лл]ичи[:\s]*'), '');
+            leechers = int.tryParse(leechersText) ?? 0;
+          }
+        }
+      }
+
+      // Fallback to post body text
+      final postBody = document.querySelector(_postBodySelector);
+      if (postBody != null) {
+        if (seeders == null) {
+          final seedersMatch =
+              RegExp(r'Сиды[:\s]*(\d+)').firstMatch(postBody.text);
+          seeders = int.tryParse(seedersMatch?.group(1) ?? '0') ?? 0;
+        }
+        if (leechers == null) {
+          final leechersMatch =
+              RegExp(r'Личи[:\s]*(\d+)').firstMatch(postBody.text);
+          leechers = int.tryParse(leechersMatch?.group(1) ?? '0') ?? 0;
+        }
+      }
+
+      // Return null if we couldn't extract statistics
+      if (seeders == null || leechers == null) {
+        return null;
+      }
+
+      return {
+        'seeders': seeders,
+        'leechers': leechers,
+      };
+    } on Exception {
+      return null;
     }
   }
 }
@@ -1469,67 +1967,252 @@ String _extractCategoryFromTitle(String title) {
 ///
 /// Tries multiple selectors in priority order to find cover image.
 /// Returns normalized absolute URL or null if not found.
-String? _extractCoverUrl(Element row, {String? baseUrl}) {
-  final logger = EnvironmentLogger()
-    ..d('Extracting cover URL from search result row');
+Future<String?> _extractCoverUrl(Element row, {String? baseUrl}) async {
+  final envLogger = EnvironmentLogger()
+    ..d('Extracting cover URL from search result row (baseUrl: $baseUrl)');
+  final structuredLogger = StructuredLogger();
 
-  // Priority 1: var.postImg with title attribute (contains full URL)
+  await structuredLogger.log(
+    level: 'debug',
+    subsystem: 'parser',
+    message: 'Starting cover URL extraction',
+    context: 'extract_cover_url',
+    extra: {
+      'base_url': baseUrl,
+      'row_html_length': row.outerHtml.length,
+    },
+  );
+
+  // Priority 1: var.postImg.postImgAligned.img-right with title attribute (main cover image)
+  // This is the most reliable selector for cover images in RuTracker
+  final postImgCover =
+      row.querySelector('var.postImg.postImgAligned.img-right[title], '
+          'var.postImg.postImgAligned[title].img-right, '
+          'var.postImg.img-right[title]');
+  if (postImgCover != null) {
+    final title = postImgCover.attributes['title'];
+    if (title != null && title.isNotEmpty) {
+      await structuredLogger.log(
+        level: 'debug',
+        subsystem: 'parser',
+        message: 'Found postImg element with title (Priority 1)',
+        context: 'extract_cover_url',
+        extra: {
+          'raw_title': title,
+          'base_url': baseUrl,
+        },
+      );
+      final normalizedUrl = await _normalizeCoverUrl(title, baseUrl: baseUrl);
+      if (normalizedUrl != null) {
+        envLogger.d(
+            'Cover URL extracted (Priority 1 - postImg.postImgAligned.img-right): $normalizedUrl');
+        await structuredLogger.log(
+          level: 'info',
+          subsystem: 'parser',
+          message: 'Cover URL extracted successfully (Priority 1)',
+          context: 'extract_cover_url',
+          extra: {
+            'normalized_url': normalizedUrl,
+            'raw_url': title,
+            'priority': 1,
+          },
+        );
+        return normalizedUrl;
+      } else {
+        await structuredLogger.log(
+          level: 'debug',
+          subsystem: 'parser',
+          message: 'Failed to normalize URL from Priority 1',
+          context: 'extract_cover_url',
+          extra: {
+            'raw_url': title,
+            'base_url': baseUrl,
+          },
+        );
+      }
+    } else {
+      await structuredLogger.log(
+        level: 'debug',
+        subsystem: 'parser',
+        message: 'postImg element found but title is empty (Priority 1)',
+        context: 'extract_cover_url',
+      );
+    }
+  } else {
+    await structuredLogger.log(
+      level: 'debug',
+      subsystem: 'parser',
+      message: 'No postImg element found (Priority 1)',
+      context: 'extract_cover_url',
+    );
+  }
+
+  // Priority 2: var.postImg with title attribute (contains full URL)
   final postImgVar =
       row.querySelector('var.postImg[title], var.postImgAligned[title]');
   if (postImgVar != null) {
     final title = postImgVar.attributes['title'];
     if (title != null && title.isNotEmpty) {
-      final normalizedUrl = _normalizeCoverUrl(title, baseUrl: baseUrl);
+      await structuredLogger.log(
+        level: 'debug',
+        subsystem: 'parser',
+        message: 'Found postImg element with title (Priority 2)',
+        context: 'extract_cover_url',
+        extra: {'raw_title': title},
+      );
+      final normalizedUrl = await _normalizeCoverUrl(title, baseUrl: baseUrl);
       if (normalizedUrl != null) {
-        logger.d('Cover URL extracted (Priority 1): $normalizedUrl');
+        envLogger.d('Cover URL extracted (Priority 2): $normalizedUrl');
+        await structuredLogger.log(
+          level: 'info',
+          subsystem: 'parser',
+          message: 'Cover URL extracted successfully (Priority 2)',
+          context: 'extract_cover_url',
+          extra: {
+            'normalized_url': normalizedUrl,
+            'raw_url': title,
+            'priority': 2,
+          },
+        );
         return normalizedUrl;
       }
     }
   }
 
-  // Priority 2: var.postImg with title containing fastpic or rutracker
+  // Priority 3: var.postImg with title containing fastpic or rutracker
   final postImgFastpic = row.querySelector(
       'var.postImg[title*="fastpic"], var.postImg[title*="rutracker"], '
       'var.postImgAligned[title*="fastpic"], var.postImgAligned[title*="rutracker"]');
   if (postImgFastpic != null) {
     final title = postImgFastpic.attributes['title'];
     if (title != null && title.isNotEmpty) {
-      final normalizedUrl = _normalizeCoverUrl(title);
+      await structuredLogger.log(
+        level: 'debug',
+        subsystem: 'parser',
+        message: 'Found postImg with fastpic/rutracker (Priority 3)',
+        context: 'extract_cover_url',
+        extra: {'raw_title': title},
+      );
+      final normalizedUrl = await _normalizeCoverUrl(title, baseUrl: baseUrl);
       if (normalizedUrl != null) {
-        logger.d('Cover URL extracted (Priority 2): $normalizedUrl');
+        envLogger.d('Cover URL extracted (Priority 3): $normalizedUrl');
+        await structuredLogger.log(
+          level: 'info',
+          subsystem: 'parser',
+          message: 'Cover URL extracted successfully (Priority 3)',
+          context: 'extract_cover_url',
+          extra: {
+            'normalized_url': normalizedUrl,
+            'raw_url': title,
+            'priority': 3,
+          },
+        );
         return normalizedUrl;
       }
     }
   }
 
-  // Priority 3: img with src containing static.rutracker or fastpic
+  // Priority 4: img with src containing static.rutracker or fastpic
+  // Also check for images in tor column or post content
   final imgElement = row.querySelector(
-      'img[src*="static.rutracker"], img[src*="fastpic"], img.postimg');
+      'img[src*="static.rutracker"], img[src*="fastpic"], img.postimg, '
+      'img[src*="rutracker"], img[src*="i.piccy.info"], '
+      'td.vf-col-tor img, .post_body img, .post-body img');
   if (imgElement != null) {
-    final src = imgElement.attributes['src'];
+    // Try src first
+    var src = imgElement.attributes['src'];
+    var srcAttribute = 'src';
+    if (src == null || src.isEmpty) {
+      // Try data-src for lazy loading
+      src = imgElement.attributes['data-src'];
+      srcAttribute = 'data-src';
+    }
+    if (src == null || src.isEmpty) {
+      // Try data-lazy-src for other lazy loading implementations
+      src = imgElement.attributes['data-lazy-src'];
+      srcAttribute = 'data-lazy-src';
+    }
     if (src != null && src.isNotEmpty) {
-      final normalizedUrl = _normalizeCoverUrl(src, baseUrl: baseUrl);
-      if (normalizedUrl != null) {
-        logger.d('Cover URL extracted (Priority 3): $normalizedUrl');
-        return normalizedUrl;
+      await structuredLogger.log(
+        level: 'debug',
+        subsystem: 'parser',
+        message: 'Found img element (Priority 4)',
+        context: 'extract_cover_url',
+        extra: {
+          'src_attribute': srcAttribute,
+          'raw_src': src,
+          'img_classes': imgElement.classes.join(', '),
+        },
+      );
+      // Filter out small icons and avatars - we want cover images
+      if (!src.contains('avatar') &&
+          !src.contains('icon') &&
+          !src.contains('smile') &&
+          (src.contains('static.rutracker') ||
+              src.contains('fastpic') ||
+              src.contains('piccy.info') ||
+              src.contains('rutracker'))) {
+        final normalizedUrl = await _normalizeCoverUrl(src, baseUrl: baseUrl);
+        if (normalizedUrl != null) {
+          envLogger.d('Cover URL extracted (Priority 4): $normalizedUrl');
+          await structuredLogger.log(
+            level: 'info',
+            subsystem: 'parser',
+            message: 'Cover URL extracted successfully (Priority 4)',
+            context: 'extract_cover_url',
+            extra: {
+              'normalized_url': normalizedUrl,
+              'raw_url': src,
+              'priority': 4,
+              'src_attribute': srcAttribute,
+            },
+          );
+          return normalizedUrl;
+        }
+      } else {
+        await structuredLogger.log(
+          level: 'debug',
+          subsystem: 'parser',
+          message: 'Img element filtered out (avatar/icon/smile)',
+          context: 'extract_cover_url',
+          extra: {'raw_src': src},
+        );
       }
     }
   }
 
-  // Priority 4: img with data-src (lazy loading)
+  // Priority 5: img with data-src (lazy loading)
   final imgLazy = row.querySelector('img[data-src]');
   if (imgLazy != null) {
     final dataSrc = imgLazy.attributes['data-src'];
     if (dataSrc != null && dataSrc.isNotEmpty) {
-      final normalizedUrl = _normalizeCoverUrl(dataSrc, baseUrl: baseUrl);
+      await structuredLogger.log(
+        level: 'debug',
+        subsystem: 'parser',
+        message: 'Found img with data-src (Priority 5)',
+        context: 'extract_cover_url',
+        extra: {'raw_data_src': dataSrc},
+      );
+      final normalizedUrl = await _normalizeCoverUrl(dataSrc, baseUrl: baseUrl);
       if (normalizedUrl != null) {
-        logger.d('Cover URL extracted (Priority 4): $normalizedUrl');
+        envLogger.d('Cover URL extracted (Priority 5): $normalizedUrl');
+        await structuredLogger.log(
+          level: 'info',
+          subsystem: 'parser',
+          message: 'Cover URL extracted successfully (Priority 5)',
+          context: 'extract_cover_url',
+          extra: {
+            'normalized_url': normalizedUrl,
+            'raw_url': dataSrc,
+            'priority': 5,
+          },
+        );
         return normalizedUrl;
       }
     }
   }
 
-  // Priority 5: img with srcset
+  // Priority 6: img with srcset
   final imgSrcset = row.querySelector('img[srcset]');
   if (imgSrcset != null) {
     final srcset = imgSrcset.attributes['srcset'];
@@ -1537,34 +2220,138 @@ String? _extractCoverUrl(Element row, {String? baseUrl}) {
       // Extract first URL from srcset
       final firstUrl = srcset.split(',').first.trim().split(' ').first;
       if (firstUrl.isNotEmpty) {
-        final normalizedUrl = _normalizeCoverUrl(firstUrl, baseUrl: baseUrl);
+        await structuredLogger.log(
+          level: 'debug',
+          subsystem: 'parser',
+          message: 'Found img with srcset (Priority 6)',
+          context: 'extract_cover_url',
+          extra: {'raw_srcset': srcset, 'extracted_url': firstUrl},
+        );
+        final normalizedUrl =
+            await _normalizeCoverUrl(firstUrl, baseUrl: baseUrl);
         if (normalizedUrl != null) {
-          logger.d('Cover URL extracted (Priority 5): $normalizedUrl');
+          envLogger.d('Cover URL extracted (Priority 6): $normalizedUrl');
+          await structuredLogger.log(
+            level: 'info',
+            subsystem: 'parser',
+            message: 'Cover URL extracted successfully (Priority 6)',
+            context: 'extract_cover_url',
+            extra: {
+              'normalized_url': normalizedUrl,
+              'raw_url': firstUrl,
+              'priority': 6,
+            },
+          );
           return normalizedUrl;
         }
       }
     }
   }
 
-  logger.d('Cover URL not found in search result row');
+  // Priority 7: Try to find any image in the row that looks like a cover
+  // This is a fallback for cases where standard selectors don't work
+  final allImages = row.querySelectorAll('img');
+  await structuredLogger.log(
+    level: 'debug',
+    subsystem: 'parser',
+    message: 'Trying fallback: searching all images (Priority 7)',
+    context: 'extract_cover_url',
+    extra: {'total_images': allImages.length},
+  );
+  for (final img in allImages) {
+    final src = img.attributes['src'] ??
+        img.attributes['data-src'] ??
+        img.attributes['data-lazy-src'];
+    if (src != null &&
+        src.isNotEmpty &&
+        (src.contains('static.rutracker') ||
+            src.contains('fastpic') ||
+            src.contains('piccy.info'))) {
+      // Skip small images (likely icons)
+      if (!src.contains('avatar') &&
+          !src.contains('icon') &&
+          !src.contains('smile')) {
+        final normalizedUrl = await _normalizeCoverUrl(src, baseUrl: baseUrl);
+        if (normalizedUrl != null) {
+          envLogger
+              .d('Cover URL extracted (Priority 7 - fallback): $normalizedUrl');
+          await structuredLogger.log(
+            level: 'info',
+            subsystem: 'parser',
+            message: 'Cover URL extracted successfully (Priority 7 - fallback)',
+            context: 'extract_cover_url',
+            extra: {
+              'normalized_url': normalizedUrl,
+              'raw_url': src,
+              'priority': 7,
+            },
+          );
+          return normalizedUrl;
+        }
+      }
+    }
+  }
+
+  envLogger.d('Cover URL not found in search result row');
+  await structuredLogger.log(
+    level: 'debug',
+    subsystem: 'parser',
+    message: 'Cover URL not found after trying all priorities',
+    context: 'extract_cover_url',
+    extra: {
+      'base_url': baseUrl,
+      'total_images_checked': allImages.length,
+    },
+  );
   return null;
 }
 
 /// Normalizes cover URL to absolute URL.
 ///
 /// Converts relative URLs to absolute URLs using provided baseUrl or rutracker.org as fallback.
-String? _normalizeCoverUrl(String? url, {String? baseUrl}) {
+Future<String?> _normalizeCoverUrl(String? url, {String? baseUrl}) async {
+  final structuredLogger = StructuredLogger();
+
   if (url == null || url.isEmpty) {
     EnvironmentLogger().d('_normalizeCoverUrl: URL is null or empty');
+    await structuredLogger.log(
+      level: 'debug',
+      subsystem: 'parser',
+      message: 'Cover URL normalization skipped: URL is null or empty',
+      context: 'normalize_cover_url',
+    );
     return null;
   }
 
-  final logger = EnvironmentLogger()
+  final envLogger = EnvironmentLogger()
     ..d('_normalizeCoverUrl: Normalizing URL: $url (baseUrl: $baseUrl)');
+
+  await structuredLogger.log(
+    level: 'debug',
+    subsystem: 'parser',
+    message: 'Starting cover URL normalization',
+    context: 'normalize_cover_url',
+    extra: {
+      'raw_url': url,
+      'base_url': baseUrl,
+      'url_length': url.length,
+    },
+  );
 
   // If URL already absolute, return as is
   if (url.startsWith('http://') || url.startsWith('https://')) {
-    logger.d('_normalizeCoverUrl: URL is already absolute: $url');
+    envLogger.d('_normalizeCoverUrl: URL is already absolute: $url');
+    await structuredLogger.log(
+      level: 'debug',
+      subsystem: 'parser',
+      message: 'Cover URL is already absolute, returning as-is',
+      context: 'normalize_cover_url',
+      extra: {
+        'normalized_url': url,
+        'is_http': url.startsWith('http://'),
+        'is_https': url.startsWith('https://'),
+      },
+    );
     return url;
   }
 
@@ -1580,35 +2367,127 @@ String? _normalizeCoverUrl(String? url, {String? baseUrl}) {
         !effectiveBaseUrl.startsWith('https://')) {
       effectiveBaseUrl = 'https://$effectiveBaseUrl';
     }
+    await structuredLogger.log(
+      level: 'debug',
+      subsystem: 'parser',
+      message: 'Using provided baseUrl',
+      context: 'normalize_cover_url',
+      extra: {
+        'original_base_url': baseUrl,
+        'effective_base_url': effectiveBaseUrl,
+      },
+    );
   } else {
     // Fallback to rutracker.org
     effectiveBaseUrl = 'https://rutracker.org';
+    await structuredLogger.log(
+      level: 'debug',
+      subsystem: 'parser',
+      message: 'Using fallback baseUrl (rutracker.org)',
+      context: 'normalize_cover_url',
+      extra: {'effective_base_url': effectiveBaseUrl},
+    );
   }
 
   // If URL relative (starts with /), convert to absolute
   if (url.startsWith('/')) {
     final normalized = '$effectiveBaseUrl$url';
-    logger.d('_normalizeCoverUrl: Normalized relative URL: $normalized');
+    envLogger.d('_normalizeCoverUrl: Normalized relative URL: $normalized');
+    await structuredLogger.log(
+      level: 'info',
+      subsystem: 'parser',
+      message: 'Cover URL normalized (relative path)',
+      context: 'normalize_cover_url',
+      extra: {
+        'raw_url': url,
+        'normalized_url': normalized,
+        'normalization_type': 'relative_path',
+      },
+    );
     return normalized;
   }
 
   // If URL starts with //, add https:
   if (url.startsWith('//')) {
     final normalized = 'https:$url';
-    logger
+    envLogger
         .d('_normalizeCoverUrl: Normalized protocol-relative URL: $normalized');
+    await structuredLogger.log(
+      level: 'info',
+      subsystem: 'parser',
+      message: 'Cover URL normalized (protocol-relative)',
+      context: 'normalize_cover_url',
+      extra: {
+        'raw_url': url,
+        'normalized_url': normalized,
+        'normalization_type': 'protocol_relative',
+      },
+    );
     return normalized;
   }
 
   // If URL doesn't start with /, possibly already full path
   // Try to add base URL
   if (!url.contains('://')) {
-    final normalized = '$effectiveBaseUrl/$url';
-    logger.d('_normalizeCoverUrl: Normalized path URL: $normalized');
+    // Remove leading slash from url if present to avoid double slashes
+    final cleanUrl = url.startsWith('/') ? url.substring(1) : url;
+    final normalized = '$effectiveBaseUrl/$cleanUrl';
+    envLogger.d('_normalizeCoverUrl: Normalized path URL: $normalized');
+    await structuredLogger.log(
+      level: 'info',
+      subsystem: 'parser',
+      message: 'Cover URL normalized (path)',
+      context: 'normalize_cover_url',
+      extra: {
+        'raw_url': url,
+        'normalized_url': normalized,
+        'normalization_type': 'path',
+      },
+    );
     return normalized;
   }
 
-  logger.w('_normalizeCoverUrl: Could not normalize URL: $url');
+  // If URL contains :// but doesn't start with http, might be malformed
+  // Try to fix it
+  if (url.contains('://') &&
+      !url.startsWith('http://') &&
+      !url.startsWith('https://')) {
+    final protocolIndex = url.indexOf('://');
+    if (protocolIndex > 0) {
+      // Extract everything after ://
+      final afterProtocol = url.substring(protocolIndex + 3);
+      final normalized = 'https://$afterProtocol';
+      envLogger
+          .d('_normalizeCoverUrl: Fixed malformed protocol URL: $normalized');
+      await structuredLogger.log(
+        level: 'info',
+        subsystem: 'parser',
+        message: 'Cover URL normalized (fixed malformed protocol)',
+        context: 'normalize_cover_url',
+        extra: {
+          'raw_url': url,
+          'normalized_url': normalized,
+          'normalization_type': 'fix_malformed',
+        },
+      );
+      return normalized;
+    }
+  }
+
+  envLogger.w(
+      '_normalizeCoverUrl: Could not normalize URL: $url (baseUrl: $baseUrl)');
+  await structuredLogger.log(
+    level: 'warning',
+    subsystem: 'parser',
+    message: 'Could not normalize cover URL, returning original',
+    context: 'normalize_cover_url',
+    extra: {
+      'raw_url': url,
+      'base_url': baseUrl,
+      'effective_base_url': effectiveBaseUrl,
+    },
+  );
+  // Return original URL as fallback - might still work
   return url;
 }
 
@@ -1797,6 +2676,127 @@ int _monthToNumber(String month) {
   return months[month.toLowerCase()] ?? 1;
 }
 
+/// Extracts chapters from torrent file as fallback when chapters are not in description.
+///
+/// The [topicId] parameter is the topic identifier.
+/// The [baseUrl] parameter is the base URL for downloading the torrent file.
+/// Returns a list of [Chapter] objects extracted from torrent file names.
+Future<List<Chapter>> _extractChaptersFromTorrentFile(
+  String topicId,
+  String baseUrl,
+) async {
+  try {
+    // Get DioClient instance
+    final dio = await DioClient.instance;
+
+    // Download torrent file to temporary directory
+    final tempDir = await getTemporaryDirectory();
+    final torrentFile = File('${tempDir.path}/torrent_$topicId.torrent');
+
+    try {
+      // Download torrent file
+      final torrentUrl = '$baseUrl/forum/dl.php?t=$topicId';
+      await dio.download(torrentUrl, torrentFile.path);
+    } on DioException catch (e) {
+      EnvironmentLogger().w(
+        'Topic $topicId: Failed to download torrent file: ${e.message}',
+      );
+      // Delete temporary file if it exists
+      try {
+        if (await torrentFile.exists()) {
+          await torrentFile.delete();
+        }
+      } on Exception {
+        // Ignore deletion errors
+      }
+      // Check if error is authentication-related
+      if (e.response?.statusCode == 401 ||
+          e.response?.statusCode == 403 ||
+          (e.message?.toLowerCase().contains('authentication') ?? false) ||
+          (e.response?.realUri.toString().contains('login.php') ?? false)) {
+        EnvironmentLogger().w(
+          'Topic $topicId: Authentication required to download torrent file',
+        );
+      }
+      return [];
+    } on Exception catch (e) {
+      EnvironmentLogger().w(
+        'Topic $topicId: Failed to download torrent file: $e',
+      );
+      // Delete temporary file if it exists
+      try {
+        if (await torrentFile.exists()) {
+          await torrentFile.delete();
+        }
+      } on Exception {
+        // Ignore deletion errors
+      }
+      return [];
+    }
+
+    // Check if downloaded file is actually a torrent file
+    final torrentBytes = await torrentFile.readAsBytes();
+
+    // Check if file is too small (likely not a torrent) or starts with HTML
+    if (torrentBytes.length < 100) {
+      try {
+        if (await torrentFile.exists()) {
+          await torrentFile.delete();
+        }
+      } on Exception {
+        // Ignore deletion errors
+      }
+      EnvironmentLogger().w(
+        'Topic $topicId: Downloaded file is too small, may require authentication',
+      );
+      return [];
+    }
+
+    // Check if file starts with HTML (likely login page)
+    final fileStart = String.fromCharCodes(
+      torrentBytes.take(100),
+    ).toLowerCase();
+    if (fileStart.contains('<!doctype') ||
+        fileStart.contains('<html') ||
+        fileStart.contains('login.php') ||
+        fileStart.contains('авторизация')) {
+      try {
+        if (await torrentFile.exists()) {
+          await torrentFile.delete();
+        }
+      } on Exception {
+        // Ignore deletion errors
+      }
+      EnvironmentLogger().w(
+        'Topic $topicId: Downloaded file is HTML (login page), authentication may be required',
+      );
+      return [];
+    }
+
+    // Parse chapters from torrent using TorrentParserService
+    final parserService = TorrentParserService();
+    final chapters = await parserService.extractChaptersFromTorrent(
+      torrentBytes,
+    );
+
+    // Delete temporary torrent file
+    try {
+      if (await torrentFile.exists()) {
+        await torrentFile.delete();
+      }
+    } on Exception {
+      // Ignore deletion errors
+    }
+
+    return chapters;
+  } on Exception catch (e) {
+    EnvironmentLogger().w(
+      'Topic $topicId: Error extracting chapters from torrent file: $e',
+    );
+    return [];
+  }
+}
+
 /// Extracts all structured metadata from span.post-b elements.
 ///
 /// This method iterates through all span.post-b elements in the post body
@@ -1822,10 +2822,24 @@ Map<String, String> _extractAllMetadata(Element postBody) {
     final parentText = parent.text;
 
     // Pattern 1: "Ключ: Значение" or "Ключ Значение" on the same line
-    final match1 =
-        RegExp('${RegExp.escape(key)}[:\\s]+([^\\n<]+)').firstMatch(parentText);
+    // Stop before hr tags, "Описание", or newlines
+    // Use non-greedy match to stop at first occurrence of separator
+    final match1 = RegExp(
+            '${RegExp.escape(key)}[:\\s]+([^\\n<]+?)(?=<hr|<span\\s+class=[\'"]post-b|Описание|\\n|\$)',
+            caseSensitive: false)
+        .firstMatch(parentText);
     if (match1 != null) {
-      final value = match1.group(1)?.trim() ?? '';
+      var value = match1.group(1)?.trim() ?? '';
+      // Remove any trailing "Описание" text if it got captured
+      final descMatch =
+          RegExp(r'Описание[:\s]*', caseSensitive: false).firstMatch(value);
+      if (descMatch != null) {
+        value = value.substring(0, descMatch.start).trim();
+      }
+      // Remove hr tags if they somehow got included
+      value = value
+          .replaceAll(RegExp(r'<hr[^>]*>', caseSensitive: false), ' ')
+          .trim();
       if (value.isNotEmpty && !value.contains(key)) {
         metadata[key] = value;
         continue;
@@ -1835,7 +2849,13 @@ Map<String, String> _extractAllMetadata(Element postBody) {
     // Pattern 2: Look for value in the next sibling element
     final nextSibling = element.nextElementSibling;
     if (nextSibling != null) {
-      final siblingText = nextSibling.text.trim();
+      var siblingText = nextSibling.text.trim();
+      // Stop at "Описание" if it appears in sibling text
+      final descMatch = RegExp(r'Описание[:\s]*', caseSensitive: false)
+          .firstMatch(siblingText);
+      if (descMatch != null) {
+        siblingText = siblingText.substring(0, descMatch.start).trim();
+      }
       if (siblingText.isNotEmpty && !siblingText.contains(key)) {
         metadata[key] = siblingText;
         continue;
@@ -1843,15 +2863,89 @@ Map<String, String> _extractAllMetadata(Element postBody) {
     }
 
     // Pattern 3: Look for value after the key in parent's innerHTML
+    // Stop before next span.post-b, span.post-br, hr tags, or "Описание" field
     final parentHtml = parent.innerHtml;
-    final match2 =
-        RegExp('${RegExp.escape(key)}[:\\s]*([^<\\n]+)').firstMatch(parentHtml);
-    if (match2 != null) {
-      final value = match2.group(1)?.trim() ?? '';
-      // Remove HTML tags from value
-      final cleanValue = value.replaceAll(RegExp(r'<[^>]+>'), '').trim();
-      if (cleanValue.isNotEmpty && !cleanValue.contains(key)) {
-        metadata[key] = cleanValue;
+    final escapedKey = RegExp.escape(key);
+    // Use a simpler approach: match until we see the pattern that indicates next field
+    final nextFieldPattern = RegExp('<span\\s+class=[\'"]post-b');
+    final nextBrPattern = RegExp('<span\\s+class=[\'"]post-br');
+    // Pattern for hr tags (horizontal rules used as separators)
+    final hrPattern = RegExp('<hr[^>]*>', caseSensitive: false);
+    // Pattern for "Описание" field (description field that marks end of metadata)
+    final descriptionPattern = RegExp(
+        '<span\\s+class=[\'"]post-b[^>]*>\\s*Описание[:s]*</span>',
+        caseSensitive: false);
+
+    // Find the position of the key in HTML
+    final keyPattern = RegExp('$escapedKey[:\\s]*');
+    final keyMatch = keyPattern.firstMatch(parentHtml);
+    if (keyMatch != null) {
+      final startPos = keyMatch.end;
+      // Find the end position - either next span.post-b, span.post-br, hr tag, description, or end of string
+      var endPos = parentHtml.length;
+
+      // Check for next field (span.post-b)
+      final nextFieldMatch =
+          nextFieldPattern.firstMatch(parentHtml.substring(startPos));
+      if (nextFieldMatch != null) {
+        final candidateEnd = startPos + nextFieldMatch.start;
+        if (candidateEnd < endPos) {
+          endPos = candidateEnd;
+        }
+      }
+
+      // Check for span.post-br
+      final nextBrMatch =
+          nextBrPattern.firstMatch(parentHtml.substring(startPos));
+      if (nextBrMatch != null) {
+        final candidateEnd = startPos + nextBrMatch.start;
+        if (candidateEnd < endPos) {
+          endPos = candidateEnd;
+        }
+      }
+
+      // Check for hr tags (horizontal rules - often used as separators before description)
+      final hrMatch = hrPattern.firstMatch(parentHtml.substring(startPos));
+      if (hrMatch != null) {
+        final candidateEnd = startPos + hrMatch.start;
+        if (candidateEnd < endPos) {
+          endPos = candidateEnd;
+        }
+      }
+
+      // Check for "Описание" field (description field marks end of metadata section)
+      final descMatch =
+          descriptionPattern.firstMatch(parentHtml.substring(startPos));
+      if (descMatch != null) {
+        final candidateEnd = startPos + descMatch.start;
+        if (candidateEnd < endPos) {
+          endPos = candidateEnd;
+        }
+      }
+
+      // Extract value substring
+      final valueHtml = parentHtml.substring(startPos, endPos);
+      var value = valueHtml.trim();
+
+      // Remove HTML tags from value (but preserve text content)
+      // First, remove hr tags completely if they somehow got included
+      value = value.replaceAll(hrPattern, ' ').trim();
+      // Remove other HTML tags
+      value = value.replaceAll(RegExp(r'<[^>]+>'), '').trim();
+      // Remove HTML entities like &#10; and &nbsp;
+      value = value.replaceAll(RegExp(r'&[#\w]+;'), ' ').trim();
+      // Clean up multiple spaces
+      value = value.replaceAll(RegExp(r'\s+'), ' ').trim();
+
+      // Additional check: if value contains "Описание" or description-like text, truncate it
+      final descTextMatch =
+          RegExp(r'Описание[:\s]*', caseSensitive: false).firstMatch(value);
+      if (descTextMatch != null) {
+        value = value.substring(0, descTextMatch.start).trim();
+      }
+
+      if (value.isNotEmpty && !value.contains(key)) {
+        metadata[key] = value;
       }
     }
   }
@@ -1866,7 +2960,19 @@ Map<String, String> _extractAllMetadata(Element postBody) {
 /// 2. var.postImgAligned with title attribute
 /// 3. img elements with src containing static.rutracker or fastpic
 String? _extractCoverUrlImproved(Element postBody, Element document) {
-  // Priority 1: var.postImg with title attribute (contains full URL)
+  // Priority 1: var.postImg.postImgAligned.img-right with title attribute (main cover image)
+  // This is the most reliable selector for cover images in RuTracker
+  final postImgCover =
+      postBody.querySelector('var.postImg.postImgAligned.img-right[title], '
+          'var.postImg.postImgAligned[title].img-right');
+  if (postImgCover != null) {
+    final title = postImgCover.attributes['title'];
+    if (title != null && title.isNotEmpty) {
+      return title;
+    }
+  }
+
+  // Priority 2: var.postImg with title attribute (contains full URL)
   final postImgVar =
       postBody.querySelector('var.postImg[title], var.postImgAligned[title]');
   if (postImgVar != null) {
@@ -1876,7 +2982,7 @@ String? _extractCoverUrlImproved(Element postBody, Element document) {
     }
   }
 
-  // Priority 2: var.postImg with title containing fastpic or rutracker
+  // Priority 3: var.postImg with title containing fastpic or rutracker
   final postImgFastpic = postBody.querySelector(
       'var.postImg[title*="fastpic"], var.postImg[title*="rutracker"], '
       'var.postImgAligned[title*="fastpic"], var.postImgAligned[title*="rutracker"]');
@@ -1887,7 +2993,7 @@ String? _extractCoverUrlImproved(Element postBody, Element document) {
     }
   }
 
-  // Priority 3: img with src containing static.rutracker or fastpic
+  // Priority 4: img with src containing static.rutracker or fastpic
   final imgElement = document.querySelector(
       'img[src*="static.rutracker"], img[src*="fastpic"], img.postimg');
   return imgElement?.attributes['src'];
@@ -1972,4 +3078,39 @@ DateTime? _parseRelativeDate(String dateText) {
   }
 
   return null;
+}
+
+/// Extracts related audiobooks from the same series/cycle.
+///
+/// Looks for links in sp-body elements that contain viewtopic.php links.
+List<RelatedAudiobook> _extractRelatedAudiobooks(Element postBody) {
+  final relatedAudiobooks = <RelatedAudiobook>[];
+
+  try {
+    // Find all sp-body elements (these contain series/cycle information)
+    final spBodies = postBody.querySelectorAll('div.sp-body');
+    for (final spBody in spBodies) {
+      // Look for links to viewtopic.php within the sp-body
+      final links =
+          spBody.querySelectorAll('a.postLink[href*="viewtopic.php"]');
+      for (final link in links) {
+        final href = link.attributes['href'] ?? '';
+        final topicId = _extractTopicIdFromUrl(href);
+        if (topicId.isNotEmpty) {
+          final title = link.text.trim();
+          if (title.isNotEmpty) {
+            relatedAudiobooks.add(RelatedAudiobook(
+              topicId: topicId,
+              title: title,
+            ));
+          }
+        }
+      }
+    }
+  } on Exception {
+    // If parsing fails, return empty list
+    return relatedAudiobooks;
+  }
+
+  return relatedAudiobooks;
 }
