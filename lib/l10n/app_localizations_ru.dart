@@ -168,7 +168,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get permissionDeniedTitle => 'В разрешении отказано';
 
   @override
-  String get permissionDeniedMessage => 'Для загрузки файлов требуется разрешение на хранение. Пожалуйста, включите его в настройках приложения.';
+  String get permissionDeniedMessage => 'Доступ запрещен: Нельзя удалить файл';
 
   @override
   String get permissionDeniedButton => 'Открыть настройки';
@@ -1375,4 +1375,248 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get noMagnetLinkAvailable => 'Magnet-ссылка недоступна';
+
+  @override
+  String get recommended => 'Рекомендуем';
+
+  @override
+  String noResultsForQuery(String query) {
+    return 'Ничего не найдено по запросу: \"$query\"';
+  }
+
+  @override
+  String get tryDifferentKeywords => 'Попробуйте изменить ключевые слова';
+
+  @override
+  String get clearSearch => 'Очистить поиск';
+
+  @override
+  String get libraryFolderTitle => 'Папки библиотеки';
+
+  @override
+  String get libraryFolderDescription => 'Выберите папки, где хранятся ваши аудиокниги';
+
+  @override
+  String get defaultLibraryFolder => 'Папка по умолчанию';
+
+  @override
+  String get addLibraryFolderTitle => 'Добавить папку библиотеки';
+
+  @override
+  String get addLibraryFolderSubtitle => 'Добавить дополнительную папку для сканирования аудиокниг';
+
+  @override
+  String get allLibraryFoldersTitle => 'Все папки библиотеки';
+
+  @override
+  String get primaryLibraryFolder => 'Основная папка';
+
+  @override
+  String get selectLibraryFolderDialogTitle => 'Выбрать папку библиотеки';
+
+  @override
+  String get selectLibraryFolderDialogMessage => 'Чтобы выбрать папку библиотеки:\n\n1. Перейдите к нужной папке в файловом менеджере\n2. Нажмите кнопку \"Использовать эту папку\" в правом верхнем углу\n\nВыбранная папка будет использоваться для сканирования аудиокниг.';
+
+  @override
+  String get migrateLibraryFolderTitle => 'Перенести файлы?';
+
+  @override
+  String get migrateLibraryFolderMessage => 'Хотите переместить существующие аудиокниги из старой папки в новую?';
+
+  @override
+  String get yes => 'Да';
+
+  @override
+  String get no => 'Нет';
+
+  @override
+  String get libraryFolderSelectedSuccessMessage => 'Папка библиотеки успешно выбрана';
+
+  @override
+  String get libraryFolderAlreadyExistsMessage => 'Эта папка уже есть в списке папок библиотеки';
+
+  @override
+  String get libraryFolderAddedSuccessMessage => 'Папка библиотеки успешно добавлена';
+
+  @override
+  String get removeLibraryFolderTitle => 'Удалить папку?';
+
+  @override
+  String get removeLibraryFolderMessage => 'Вы уверены, что хотите удалить эту папку из библиотеки? Это не удалит файлы, только прекратит сканирование этой папки.';
+
+  @override
+  String get remove => 'Удалить';
+
+  @override
+  String get libraryFolderRemovedSuccessMessage => 'Папка библиотеки успешно удалена';
+
+  @override
+  String get libraryFolderRemoveFailedMessage => 'Не удалось удалить папку библиотеки';
+
+  @override
+  String get migratingLibraryFolderMessage => 'Перенос файлов...';
+
+  @override
+  String get migrationCompletedSuccessMessage => 'Перенос успешно завершен';
+
+  @override
+  String get migrationFailedMessage => 'Перенос не удался';
+
+  @override
+  String get deleteConfirmationTitle => 'Удалить аудиокнигу?';
+
+  @override
+  String get deleteConfirmationMessage => 'Вы уверены, что хотите удалить эту аудиокнигу?';
+
+  @override
+  String get deleteWarningMessage => 'Файлы будут безвозвратно удалены и не могут быть восстановлены.';
+
+  @override
+  String get deleteFilesButton => 'Удалить файлы';
+
+  @override
+  String get removeFromLibraryButton => 'Удалить из библиотеки';
+
+  @override
+  String get removeFromLibraryTitle => 'Удалить из библиотеки?';
+
+  @override
+  String get removeFromLibraryMessage => 'Это удалит аудиокнигу из вашей библиотеки, но не удалит файлы. Вы можете добавить её обратно, выполнив повторное сканирование.';
+
+  @override
+  String get removingFromLibraryMessage => 'Удаление...';
+
+  @override
+  String get removedFromLibrarySuccessMessage => 'Успешно удалено из библиотеки';
+
+  @override
+  String get removeFromLibraryFailedMessage => 'Не удалось удалить из библиотеки';
+
+  @override
+  String get deletingMessage => 'Удаление...';
+
+  @override
+  String get deletedSuccessMessage => 'Файлы успешно удалены';
+
+  @override
+  String get deleteFailedMessage => 'Не удалось удалить файлы';
+
+  @override
+  String get fileInUseMessage => 'Нельзя удалить: файл сейчас воспроизводится';
+
+  @override
+  String get showInfoButton => 'Показать информацию';
+
+  @override
+  String get path => 'Путь';
+
+  @override
+  String get fileCount => 'Файлы';
+
+  @override
+  String get totalSize => 'Общий размер';
+
+  @override
+  String get audiobookGroupName => 'Группа';
+
+  @override
+  String get storageManagementTitle => 'Управление хранилищем';
+
+  @override
+  String get deleteSelectedButton => 'Удалить выбранные';
+
+  @override
+  String get storageSummaryTitle => 'Сводка хранилища';
+
+  @override
+  String get totalLibrarySize => 'Общий размер библиотеки';
+
+  @override
+  String get audiobookGroupsCount => 'Группы аудиокниг';
+
+  @override
+  String get cacheSize => 'Размер кэша';
+
+  @override
+  String get libraryFoldersTitle => 'Папки библиотеки';
+
+  @override
+  String get cacheSectionTitle => 'Кэш';
+
+  @override
+  String get totalCacheSize => 'Общий кэш';
+
+  @override
+  String get clearPlaybackCacheButton => 'Очистить кэш воспроизведения';
+
+  @override
+  String get audiobookGroupsTitle => 'Группы аудиокниг';
+
+  @override
+  String get deselectAllButton => 'Снять выделение';
+
+  @override
+  String get selectAllButton => 'Выбрать все';
+
+  @override
+  String get noAudiobooksMessage => 'Аудиокниги не найдены';
+
+  @override
+  String get deleteSelectedTitle => 'Удалить выбранные?';
+
+  @override
+  String deleteSelectedMessage(int count) {
+    return 'Вы уверены, что хотите удалить $count выбранную(ых) аудиокнигу(и)?';
+  }
+
+  @override
+  String deleteSelectedResultMessage(int success, int failed) {
+    return 'Удалено: $success, Не удалось: $failed';
+  }
+
+  @override
+  String get clearPlaybackCacheTitle => 'Очистить кэш воспроизведения?';
+
+  @override
+  String get clearPlaybackCacheMessage => 'Это очистит кэш воспроизведения. Воспроизведение может быть медленнее, пока кэш не будет восстановлен.';
+
+  @override
+  String get clearingCacheMessage => 'Очистка кэша...';
+
+  @override
+  String get cacheClearedSuccessMessage => 'Кэш успешно очищен';
+
+  @override
+  String get clearAllCacheTitle => 'Очистить весь кэш?';
+
+  @override
+  String get clearAllCacheMessage => 'Это очистит весь кэш, включая кэш воспроизведения, временные файлы и старые логи.';
+
+  @override
+  String get storageManagementDescription => 'Управление размером библиотеки, кэшем и файлами';
+
+  @override
+  String get openStorageManagementButton => 'Открыть управление хранилищем';
+
+  @override
+  String partialDeletionSuccessMessage(int deleted, int total) {
+    return 'Частично удалено: $deleted/$total файлов';
+  }
+
+  @override
+  String get showDetailsButton => 'Детали';
+
+  @override
+  String get deletionDetailsTitle => 'Детали удаления';
+
+  @override
+  String deletionSummaryMessage(int deleted, int total) {
+    return 'Удалено: $deleted/$total файлов';
+  }
+
+  @override
+  String get errorsTitle => 'Ошибки:';
+
+  @override
+  String get retryButton => 'Повторить';
 }

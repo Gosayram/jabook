@@ -63,13 +63,17 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Stream<AuthStatus> get authStatus async* {
-    // Initial status
+    // Initial status - always check current status first
     final loggedIn = await isLoggedIn();
     yield loggedIn ? AuthStatus.authenticated : AuthStatus.unauthenticated;
 
     // Listen for auth status changes
-    await for (final isAuthenticated in _auth.authStatusChanges) {
-      yield isAuthenticated
+    // Always verify current status when we receive a change event
+    // This ensures we have the latest status even if event was sent before subscription
+    await for (final _ in _auth.authStatusChanges) {
+      // Verify current status to ensure we have the latest value
+      final currentStatus = await isLoggedIn();
+      yield currentStatus
           ? AuthStatus.authenticated
           : AuthStatus.unauthenticated;
     }
@@ -77,8 +81,8 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Future<void> refreshAuthStatus() async {
-    // Just check the status - the stream will update automatically
-    // through auth status changes from RuTrackerAuth
-    await isLoggedIn();
+    // Delegate to RuTrackerAuth to check status and update stream
+    // This ensures the authStatusChanges stream emits the current status
+    await _auth.refreshAuthStatus();
   }
 }

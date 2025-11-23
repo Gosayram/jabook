@@ -203,6 +203,9 @@ class FavoritesService {
                   'end_byte': c.endByte,
                 })
             .toList(),
+        'duration': audiobook.duration,
+        'bitrate': audiobook.bitrate,
+        'audio_codec': audiobook.audioCodec,
       };
 
   /// Converts a stored Map back to an Audiobook entity.
@@ -238,6 +241,9 @@ class FavoritesService {
       addedDate: map['added_date'] != null
           ? DateTime.parse(map['added_date'] as String)
           : DateTime.now(),
+      duration: map['duration'] as String?,
+      bitrate: map['bitrate'] as String?,
+      audioCodec: map['audio_codec'] as String?,
     );
   }
 }

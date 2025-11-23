@@ -124,7 +124,7 @@ class EndpointManager {
     // Wait for database to be ready (with timeout)
     final db = AppDatabase();
     var retries = 0;
-    const maxRetries = 10;
+    const maxRetries = 15; // Increased retries for slow devices
     const retryDelay = Duration(milliseconds: 100);
 
     while (!db.isInitialized && retries < maxRetries) {
@@ -147,6 +147,10 @@ class EndpointManager {
       );
       return;
     }
+
+    // Additional delay after database is ready to ensure it's fully writable
+    // This prevents "read only" errors during initialization
+    await Future.delayed(const Duration(milliseconds: 150));
 
     try {
       final record = await _endpointsRef.get(_db);

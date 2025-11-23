@@ -319,6 +319,18 @@ class StructuredLogger {
   // Redacts sensitive tokens, cookies, emails, magnets, and long IDs from strings
   String _scrubSensitiveData(String input) {
     var out = input;
+
+    // Don't redact file paths - they are needed for debugging
+    // Check if string looks like a file path
+    if (out.startsWith('/') ||
+        out.contains('/Android/') ||
+        out.contains('/storage/') ||
+        out.contains('\\') ||
+        out.contains(':/')) {
+      // This looks like a path, don't redact it
+      return out;
+    }
+
     // Cookies
     out = out.replaceAll(
         RegExp(r'(cookie\s*:\s*)([^;\n]+)', caseSensitive: false),
@@ -333,7 +345,7 @@ class StructuredLogger {
         out.replaceAll(RegExp(r'magnet:\?xt=urn:[^\s]+'), 'magnet:<redacted>');
     // Email addresses
     out = out.replaceAll(RegExp(r'[\w\.-]+@[\w\.-]+'), '<redacted-email>');
-    // Long hex/base64-like IDs
+    // Long hex/base64-like IDs (but not if it's part of a path)
     out = out.replaceAll(
         RegExp(r'\b[a-f0-9]{24,}\b', caseSensitive: false), '<redacted-id>');
     out = out.replaceAll(RegExp(r'\b[\w+/=]{32,}\b'), '<redacted-id>');
@@ -344,6 +356,17 @@ class StructuredLogger {
     final result = <String, dynamic>{};
     input.forEach((key, value) {
       final lowerKey = key.toLowerCase();
+
+      // Don't redact paths - they are needed for debugging
+      if (lowerKey.contains('path') ||
+          lowerKey.contains('directory') ||
+          lowerKey.contains('dir') ||
+          lowerKey.contains('savepath') ||
+          lowerKey.contains('downloadpath')) {
+        result[key] = value; // Keep path as-is, don't scrub
+        return;
+      }
+
       final isSensitiveKey = lowerKey.contains('cookie') ||
           lowerKey.contains('authorization') ||
           lowerKey.contains('token') ||

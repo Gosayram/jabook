@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:convert';
+
 import 'package:b_encode_decode/b_encode_decode.dart';
 import 'package:crypto/crypto.dart';
 import 'package:dtorrent_parser/dtorrent_parser.dart';
@@ -52,17 +54,49 @@ class TorrentParserService {
   ///
   /// For large files (>1MB), parsing is performed in an isolate to avoid blocking the UI thread.
   ///
+  /// Chapters are sorted by their original order in the torrent file (fileIndex),
+  /// which preserves the order specified in info.files according to BEP 0003.
+  ///
+  /// Note: This method only extracts chapter information (title, fileIndex, byte ranges).
+  /// Duration is not calculated to avoid unnecessary resource usage.
+  ///
   /// Throws [Exception] if the torrent cannot be parsed.
   Future<List<Chapter>> extractChaptersFromTorrent(List<int> torrentBytes,
       {bool forceRefresh = false}) async {
     try {
+      // Calculate infoHash for caching
+      final torrentMap = decode(Uint8List.fromList(torrentBytes));
+      final infoHash = _calculateInfoHash(torrentMap);
+
+      List<Chapter> sortedChapters;
+
       // For large files, use isolate to avoid blocking UI
       if (torrentBytes.length > isolateThresholdBytes) {
-        return await _extractChaptersInIsolate(torrentBytes, forceRefresh);
+        final chapters =
+            await _extractChaptersInIsolate(torrentBytes, forceRefresh);
+        sortedChapters = _sortChapters(chapters);
+      } else {
+        // For smaller files, parse directly
+        final chapters =
+            await _extractChaptersDirectly(torrentBytes, forceRefresh);
+        sortedChapters = _sortChapters(chapters);
       }
 
-      // For smaller files, parse directly
-      return await _extractChaptersDirectly(torrentBytes, forceRefresh);
+      // Cache sorted chapters
+      if (infoHash.isNotEmpty && sortedChapters.isNotEmpty) {
+        final chaptersMap = sortedChapters
+            .map((c) => {
+                  'title': c.title,
+                  'duration_ms': c.durationMs,
+                  'file_index': c.fileIndex,
+                  'start_byte': c.startByte,
+                  'end_byte': c.endByte,
+                })
+            .toList();
+        await _cacheService.cacheTorrentChapters(infoHash, chaptersMap);
+      }
+
+      return sortedChapters;
     } on Exception {
       return [];
     }
@@ -109,54 +143,93 @@ class TorrentParserService {
       final chapters = <Chapter>[];
 
       // Extract files from torrent
+      // According to BEP 0003, files in info.files are already in correct order
       if (torrentModel.files.isNotEmpty) {
         // Multi-file torrent
-        var fileIndex = 0;
-        for (final file in torrentModel.files) {
-          // Handle path as either List<String> or String
-          final fileName = file.path is List
-              ? (file.path as List).join('/')
-              : file.path.toString();
-          if (_isAudioFile(fileName)) {
-            final chapterTitle = _extractChapterTitle(fileName);
-            chapters.add(Chapter(
-              title: chapterTitle,
-              durationMs: 0, // Duration not available from torrent file
-              fileIndex: fileIndex,
-              startByte: 0,
-              endByte: file.length,
-            ));
-            fileIndex++;
+        // Extract files directly from info dictionary to preserve order
+        final info = torrentMap['info'] as Map<String, dynamic>?;
+        if (info != null && info.containsKey('files')) {
+          final files = info['files'] as List;
+          var fileIndex = 0;
+          for (var i = 0; i < files.length; i++) {
+            final fileInfo = files[i] as Map;
+            final length = fileInfo['length'] as int? ?? 0;
+
+            // Extract path - can be List of bytes or List of strings
+            final pathData = fileInfo['path'];
+            String fileName;
+            if (pathData is List) {
+              // Path is a list - decode each element from bytes if needed
+              final pathParts = <String>[];
+              for (final part in pathData) {
+                if (part is List<int>) {
+                  // Decode bytes to UTF-8 string
+                  pathParts.add(utf8.decode(part));
+                } else if (part is String) {
+                  pathParts.add(part);
+                } else {
+                  pathParts.add(part.toString());
+                }
+              }
+              fileName = pathParts.join('/');
+            } else {
+              fileName = pathData?.toString() ?? '';
+            }
+
+            if (fileName.isNotEmpty && _isAudioFile(fileName)) {
+              final chapterTitle = _extractChapterTitle(fileName);
+              // Store original filename in title temporarily for sorting
+              // Format: "originalFileName|cleanedTitle"
+              chapters.add(Chapter(
+                title: '$fileName|$chapterTitle',
+                durationMs: 0, // Duration not calculated - informational only
+                fileIndex: fileIndex,
+                startByte: 0,
+                endByte: length, // Use length from torrent info
+              ));
+              fileIndex++;
+            }
+          }
+        } else {
+          // Fallback to torrentModel.files if info.files is not available
+          var fileIndex = 0;
+          for (final file in torrentModel.files) {
+            // Handle path as either List<String> or String
+            final fileName = file.path is List
+                ? (file.path as List).join('/')
+                : file.path.toString();
+            if (_isAudioFile(fileName)) {
+              final chapterTitle = _extractChapterTitle(fileName);
+              final fileSize = file.length;
+              chapters.add(Chapter(
+                title: '$fileName|$chapterTitle',
+                durationMs: 0,
+                fileIndex: fileIndex,
+                startByte: 0,
+                endByte: fileSize,
+              ));
+              fileIndex++;
+            }
           }
         }
       } else {
         // Single-file torrent
         final fileName = torrentModel.name;
         if (fileName.isNotEmpty && _isAudioFile(fileName)) {
+          final chapterTitle = _extractChapterTitle(fileName);
+          final fileSize = torrentModel.length;
+          // Store original filename in title temporarily for sorting
           chapters.add(Chapter(
-            title: _extractChapterTitle(fileName),
-            durationMs: 0,
+            title: '$fileName|$chapterTitle',
+            durationMs: 0, // Duration not calculated - informational only
             fileIndex: 0,
             startByte: 0,
-            endByte: torrentModel.length,
+            endByte: fileSize,
           ));
         }
       }
 
-      // Cache the parsed chapters if we have an infoHash
-      if (infoHash.isNotEmpty && chapters.isNotEmpty) {
-        final chaptersMap = chapters
-            .map((c) => {
-                  'title': c.title,
-                  'duration_ms': c.durationMs,
-                  'file_index': c.fileIndex,
-                  'start_byte': c.startByte,
-                  'end_byte': c.endByte,
-                })
-            .toList();
-        await _cacheService.cacheTorrentChapters(infoHash, chaptersMap);
-      }
-
+      // Don't cache here - caching will be done after sorting in extractChaptersFromTorrent
       return chapters;
     } on Exception {
       return [];
@@ -195,21 +268,11 @@ class TorrentParserService {
       // Use compute to run parsing in isolate
       final result = await compute(_parseTorrentInIsolate, torrentBytes);
 
-      // Cache the parsed chapters
-      if (infoHash.isNotEmpty && result.isNotEmpty) {
-        final chaptersMap = result
-            .map((c) => {
-                  'title': c.title,
-                  'duration_ms': c.durationMs,
-                  'file_index': c.fileIndex,
-                  'start_byte': c.startByte,
-                  'end_byte': c.endByte,
-                })
-            .toList();
-        await _cacheService.cacheTorrentChapters(infoHash, chaptersMap);
-      }
+      // Sort chapters after returning from isolate
+      // Don't cache here - caching will be done after sorting in extractChaptersFromTorrent
+      final sortedChapters = _sortChapters(result);
 
-      return result;
+      return sortedChapters;
     } on Exception {
       return [];
     }
@@ -230,33 +293,83 @@ class TorrentParserService {
       final chapters = <Chapter>[];
 
       // Extract files from torrent
+      // According to BEP 0003, files in info.files are already in correct order
       if (torrentModel.files.isNotEmpty) {
         // Multi-file torrent
-        var fileIndex = 0;
-        for (final file in torrentModel.files) {
-          // Handle path as either List<String> or String
-          final fileName = file.path is List
-              ? (file.path as List).join('/')
-              : file.path.toString();
-          if (_isAudioFileStatic(fileName)) {
-            final chapterTitle = _extractChapterTitleStatic(fileName);
-            chapters.add(Chapter(
-              title: chapterTitle,
-              durationMs: 0, // Duration not available from torrent file
-              fileIndex: fileIndex,
-              startByte: 0,
-              endByte: file.length,
-            ));
-            fileIndex++;
+        // Extract files directly from info dictionary to preserve order
+        final info = torrentMap['info'] as Map<String, dynamic>?;
+        if (info != null && info.containsKey('files')) {
+          final files = info['files'] as List;
+          var fileIndex = 0;
+          for (var i = 0; i < files.length; i++) {
+            final fileInfo = files[i] as Map;
+            final length = fileInfo['length'] as int? ?? 0;
+
+            // Extract path - can be List of bytes or List of strings
+            final pathData = fileInfo['path'];
+            String fileName;
+            if (pathData is List) {
+              // Path is a list - decode each element from bytes if needed
+              final pathParts = <String>[];
+              for (final part in pathData) {
+                if (part is List<int>) {
+                  // Decode bytes to UTF-8 string
+                  pathParts.add(utf8.decode(part));
+                } else if (part is String) {
+                  pathParts.add(part);
+                } else {
+                  pathParts.add(part.toString());
+                }
+              }
+              fileName = pathParts.join('/');
+            } else {
+              fileName = pathData?.toString() ?? '';
+            }
+
+            if (fileName.isNotEmpty && _isAudioFileStatic(fileName)) {
+              final chapterTitle = _extractChapterTitleStatic(fileName);
+              // Store original filename in title temporarily for sorting
+              // Format: "originalFileName|cleanedTitle"
+              chapters.add(Chapter(
+                title: '$fileName|$chapterTitle',
+                durationMs: 0, // Duration not calculated - informational only
+                fileIndex: fileIndex,
+                startByte: 0,
+                endByte: length, // Use length from torrent info
+              ));
+              fileIndex++;
+            }
+          }
+        } else {
+          // Fallback to torrentModel.files if info.files is not available
+          var fileIndex = 0;
+          for (final file in torrentModel.files) {
+            // Handle path as either List<String> or String
+            final fileName = file.path is List
+                ? (file.path as List).join('/')
+                : file.path.toString();
+            if (_isAudioFileStatic(fileName)) {
+              final chapterTitle = _extractChapterTitleStatic(fileName);
+              chapters.add(Chapter(
+                title: '$fileName|$chapterTitle',
+                durationMs: 0,
+                fileIndex: fileIndex,
+                startByte: 0,
+                endByte: file.length,
+              ));
+              fileIndex++;
+            }
           }
         }
       } else {
         // Single-file torrent
         final fileName = torrentModel.name;
         if (fileName.isNotEmpty && _isAudioFileStatic(fileName)) {
+          final chapterTitle = _extractChapterTitleStatic(fileName);
+          // Store original filename in title temporarily for sorting
           chapters.add(Chapter(
-            title: _extractChapterTitleStatic(fileName),
-            durationMs: 0,
+            title: '$fileName|$chapterTitle',
+            durationMs: 0, // Duration not calculated - informational only
             fileIndex: 0,
             startByte: 0,
             endByte: torrentModel.length,
@@ -290,19 +403,42 @@ class TorrentParserService {
       }
     }
 
-    // Remove common prefixes
+    // Remove common prefixes and patterns
+    // Pattern 1: "001 - Название" or "01. Название" or "1- Название"
     title = title.replaceFirst(RegExp(r'^\d+[.\s-]+'), '');
-    title = title.replaceFirst(
-        RegExp(r'^Глава\s*\d+[.\s-]+', caseSensitive: false), '');
-    title = title.replaceFirst(
-        RegExp(r'^Часть\s*\d+[.\s-]+', caseSensitive: false), '');
-    title = title.replaceFirst(
-        RegExp(r'^Chapter\s*\d+[.\s-]+', caseSensitive: false), '');
 
-    // Clean up title
+    // Pattern 2: "Глава 1: Название" or "Глава 01. Название"
+    title = title.replaceFirst(
+        RegExp(r'^Глава\s*\d+[.:\s-]+', caseSensitive: false), '');
+
+    // Pattern 3: "Часть 1: Название" or "Часть 01. Название"
+    title = title.replaceFirst(
+        RegExp(r'^Часть\s*\d+[.:\s-]+', caseSensitive: false), '');
+
+    // Pattern 4: "Chapter 1: Название" or "Chapter 01. Название"
+    title = title.replaceFirst(
+        RegExp(r'^Chapter\s*\d+[.:\s-]+', caseSensitive: false), '');
+
+    // Pattern 5: "Книга 1: Название" or "Книга 01. Название"
+    title = title.replaceFirst(
+        RegExp(r'^Книга\s*\d+[.:\s-]+', caseSensitive: false), '');
+
+    // Clean up title - remove leading/trailing spaces, dashes, underscores
     title = title.trim();
+    title = title.replaceFirst(RegExp(r'^[\s\-_]+'), '');
+    title = title.replaceFirst(RegExp(r'[\s\-_]+$'), '');
+
+    // If title is empty after cleaning, use filename without extension
     if (title.isEmpty) {
-      title = fileName.split('/').last;
+      title = parts.last;
+      // Remove extension again
+      for (final ext in audioExtensions) {
+        if (title.toLowerCase().endsWith(ext)) {
+          title = title.substring(0, title.length - ext.length);
+          break;
+        }
+      }
+      title = title.trim();
     }
 
     return title;
@@ -355,21 +491,98 @@ class TorrentParserService {
       }
     }
 
-    // Remove common prefixes
+    // Remove common prefixes and patterns
+    // Pattern 1: "001 - Название" or "01. Название" or "1- Название"
     title = title.replaceFirst(RegExp(r'^\d+[.\s-]+'), '');
-    title = title.replaceFirst(
-        RegExp(r'^Глава\s*\d+[.\s-]+', caseSensitive: false), '');
-    title = title.replaceFirst(
-        RegExp(r'^Часть\s*\d+[.\s-]+', caseSensitive: false), '');
-    title = title.replaceFirst(
-        RegExp(r'^Chapter\s*\d+[.\s-]+', caseSensitive: false), '');
 
-    // Clean up title
+    // Pattern 2: "Глава 1: Название" or "Глава 01. Название"
+    title = title.replaceFirst(
+        RegExp(r'^Глава\s*\d+[.:\s-]+', caseSensitive: false), '');
+
+    // Pattern 3: "Часть 1: Название" or "Часть 01. Название"
+    title = title.replaceFirst(
+        RegExp(r'^Часть\s*\d+[.:\s-]+', caseSensitive: false), '');
+
+    // Pattern 4: "Chapter 1: Название" or "Chapter 01. Название"
+    title = title.replaceFirst(
+        RegExp(r'^Chapter\s*\d+[.:\s-]+', caseSensitive: false), '');
+
+    // Pattern 5: "Книга 1: Название" or "Книга 01. Название"
+    title = title.replaceFirst(
+        RegExp(r'^Книга\s*\d+[.:\s-]+', caseSensitive: false), '');
+
+    // Clean up title - remove leading/trailing spaces, dashes, underscores
     title = title.trim();
+    title = title.replaceFirst(RegExp(r'^[\s\-_]+'), '');
+    title = title.replaceFirst(RegExp(r'[\s\-_]+$'), '');
+
+    // If title is empty after cleaning, use filename without extension
     if (title.isEmpty) {
-      title = fileName.split('/').last;
+      title = parts.last;
+      // Remove extension again
+      for (final ext in audioExtensions) {
+        if (title.toLowerCase().endsWith(ext)) {
+          title = title.substring(0, title.length - ext.length);
+          break;
+        }
+      }
+      title = title.trim();
     }
 
     return title;
+  }
+
+  /// Sorts chapters by their original order in torrent (fileIndex).
+  ///
+  /// Files in torrent info.files are already in correct order according to BEP 0003.
+  /// This method preserves that order and extracts cleaned titles.
+  /// Also extracts cleaned title from temporary format "originalFileName|cleanedTitle".
+  List<Chapter> _sortChapters(List<Chapter> chapters) {
+    // Extract cleaned titles and prepare for sorting
+    final chaptersWithData =
+        <({Chapter chapter, String originalFileName, String cleanedTitle})>[];
+
+    for (var i = 0; i < chapters.length; i++) {
+      final chapter = chapters[i];
+
+      // Extract original filename and cleaned title from temporary format
+      String originalFileName;
+      String cleanedTitle;
+      if (chapter.title.contains('|')) {
+        final parts = chapter.title.split('|');
+        originalFileName = parts[0];
+        cleanedTitle = parts.length > 1 ? parts[1] : originalFileName;
+      } else {
+        // Fallback if format is not as expected
+        originalFileName = chapter.title;
+        cleanedTitle = chapter.title;
+      }
+
+      chaptersWithData.add((
+        chapter: chapter,
+        originalFileName: originalFileName,
+        cleanedTitle: cleanedTitle,
+      ));
+    }
+
+    // Sort by fileIndex to preserve original torrent order
+    // Files in torrent are already in correct order, so we just need to maintain it
+    chaptersWithData
+        .sort((a, b) => a.chapter.fileIndex.compareTo(b.chapter.fileIndex));
+
+    // Restore cleaned titles (duration remains 0 - not calculated)
+    final sortedChapters = chaptersWithData.map((item) {
+      final chapter = item.chapter;
+
+      return Chapter(
+        title: item.cleanedTitle, // Use cleaned title, not temporary format
+        durationMs: chapter.durationMs, // Keep original duration (0)
+        fileIndex: chapter.fileIndex,
+        startByte: chapter.startByte,
+        endByte: chapter.endByte,
+      );
+    }).toList();
+
+    return sortedChapters;
   }
 }

@@ -16,6 +16,7 @@ import 'dart:async';
 
 import 'package:jabook/core/logging/environment_logger.dart';
 import 'package:jabook/core/torrent/audiobook_torrent_manager.dart';
+import 'package:jabook/data/db/app_database.dart';
 import 'package:workmanager/workmanager.dart';
 
 /// Background service for managing torrent downloads.
@@ -71,12 +72,12 @@ class DownloadBackgroundService {
     }
 
     try {
-      // Register periodic task that runs every 15 minutes
+      // Register periodic task that runs every 5 minutes
       // This ensures downloads are monitored even when app is closed
       await Workmanager().registerPeriodicTask(
         downloadTaskName,
         downloadTaskName,
-        frequency: const Duration(minutes: 15),
+        frequency: const Duration(minutes: 5),
         constraints: Constraints(
           networkType: NetworkType.connected,
         ),
@@ -108,8 +109,32 @@ void callbackDispatcher() {
     final logger = EnvironmentLogger()..i('Background task executed: $task');
 
     try {
-      // Get torrent manager instance
+      // Initialize database for background task
+      final appDatabase = AppDatabase();
+      try {
+        await appDatabase.initialize();
+        if (!appDatabase.isInitialized) {
+          logger.w('Database initialization failed in background task');
+          return Future.value(false);
+        }
+        logger.d('Database initialized successfully in background task');
+      } on Exception catch (e) {
+        logger.e('Failed to initialize database in background task: $e');
+        // Continue without database - downloads may still work but state won't be saved
+      }
+
+      // Get torrent manager instance and initialize with database
       final torrentManager = AudiobookTorrentManager();
+      if (appDatabase.isInitialized) {
+        try {
+          await torrentManager.initialize(appDatabase.database);
+          logger
+              .d('TorrentManager initialized with database in background task');
+        } on Exception catch (e) {
+          logger.w('Failed to initialize TorrentManager with database: $e');
+          // Continue without database initialization
+        }
+      }
 
       // Check if there are active downloads
       final activeDownloadsFuture = torrentManager.getActiveDownloads();
@@ -129,11 +154,13 @@ void callbackDispatcher() {
       // Save state for all active downloads
       for (final download in activeDownloads) {
         try {
-          final downloadId = download['downloadId'] as String?;
+          final downloadId = download['id'] as String?;
           if (downloadId != null) {
             // State is already saved via _saveDownloadMetadata during progress updates
             // This is just a safety check
             logger.d('Checking download state for: $downloadId');
+          } else {
+            logger.w('Download entry missing id field: $download');
           }
         } on Exception catch (e) {
           logger.w('Error checking download state: $e');

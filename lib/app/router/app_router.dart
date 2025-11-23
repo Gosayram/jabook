@@ -16,13 +16,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:jabook/core/config/app_config.dart';
+import 'package:jabook/core/library/local_audiobook.dart';
+import 'package:jabook/core/logging/environment_logger.dart';
 import 'package:jabook/features/auth/presentation/screens/auth_screen.dart';
 import 'package:jabook/features/debug/presentation/screens/debug_screen.dart';
 import 'package:jabook/features/downloads/presentation/screens/downloads_screen.dart';
 import 'package:jabook/features/library/presentation/screens/favorites_screen.dart';
 import 'package:jabook/features/library/presentation/screens/library_screen.dart';
+import 'package:jabook/features/library/presentation/screens/storage_management_screen.dart';
+import 'package:jabook/features/library/presentation/screens/trash_screen.dart';
 import 'package:jabook/features/mirrors/presentation/screens/mirrors_screen.dart';
+import 'package:jabook/features/player/presentation/screens/local_player_screen.dart';
 import 'package:jabook/features/player/presentation/screens/player_screen.dart';
+import 'package:jabook/features/player/presentation/widgets/mini_player_widget.dart';
 import 'package:jabook/features/search/presentation/screens/search_screen.dart';
 import 'package:jabook/features/settings/presentation/screens/settings_screen.dart';
 import 'package:jabook/features/topic/presentation/screens/topic_screen.dart';
@@ -43,7 +49,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         ),
         GoRoute(
           path: '/search',
-          builder: (context, state) => const SearchScreen(),
+          builder: (context, state) {
+            EnvironmentLogger().d('GoRouter building SearchScreen at /search');
+            return const SearchScreen();
+          },
+        ),
+        GoRoute(
+          path: '/downloads',
+          builder: (context, state) {
+            // Get downloadId from query parameters if present
+            final downloadId = state.uri.queryParameters['downloadId'];
+            return DownloadsScreen(highlightDownloadId: downloadId);
+          },
         ),
         GoRoute(
           path: '/settings',
@@ -74,6 +91,20 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
     ),
     GoRoute(
+      path: '/local-player',
+      builder: (context, state) {
+        final group = state.extra as LocalAudiobookGroup?;
+        if (group == null) {
+          // Fallback if group is not provided
+          return Scaffold(
+            appBar: AppBar(title: const Text('Error')),
+            body: const Center(child: Text('No audiobook group provided')),
+          );
+        }
+        return LocalPlayerScreen(group: group);
+      },
+    ),
+    GoRoute(
       path: '/mirrors',
       builder: (context, state) => const MirrorsScreen(),
     ),
@@ -82,16 +113,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       builder: (context, state) => const FavoritesScreen(),
     ),
     GoRoute(
-      path: '/downloads',
-      builder: (context, state) {
-        // Get downloadId from query parameters if present
-        final downloadId = state.uri.queryParameters['downloadId'];
-        return DownloadsScreen(highlightDownloadId: downloadId);
-      },
-    ),
-    GoRoute(
       path: '/auth',
       builder: (context, state) => const AuthScreen(),
+    ),
+    GoRoute(
+      path: '/storage-management',
+      builder: (context, state) => const StorageManagementScreen(),
+    ),
+    GoRoute(
+      path: '/trash',
+      builder: (context, state) => const TrashScreen(),
     ),
   ];
 
@@ -147,6 +178,11 @@ class _MainNavigationWrapperState
         route: '/search',
       ),
       NavigationItem(
+        title: localizations?.downloadsTitle ?? 'Downloads',
+        icon: Icons.download,
+        route: '/downloads',
+      ),
+      NavigationItem(
         title: localizations?.navSettings ??
             localizations?.settingsTitle ??
             'Settings',
@@ -189,14 +225,24 @@ class _MainNavigationWrapperState
 
     return Scaffold(
       body: widget.child,
+      persistentFooterButtons: const [
+        MiniPlayerWidget(),
+      ],
       bottomNavigationBar: Semantics(
         explicitChildNodes: true,
         child: BottomNavigationBar(
           currentIndex: _selectedIndex,
           onTap: (index) {
             final route = navigationItems[index].route;
+            EnvironmentLogger().d(
+              'BottomNavigationBar onTap: index=$index, route=$route, currentLocation=$currentLocation',
+            );
             if (route != currentLocation) {
+              EnvironmentLogger().d('Navigating to route: $route');
               context.go(route);
+            } else {
+              EnvironmentLogger()
+                  .d('Already on route $route, skipping navigation');
             }
           },
           type: BottomNavigationBarType.fixed,
