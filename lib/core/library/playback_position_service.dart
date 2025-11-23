@@ -109,6 +109,38 @@ class PlaybackPositionService {
     }
   }
 
+  /// Clears all playback positions for multiple groups.
+  ///
+  /// The [groupPaths] parameter is a list of group paths to clear.
+  Future<void> clearPositions(List<String> groupPaths) async {
+    for (final groupPath in groupPaths) {
+      await clearPosition(groupPath);
+    }
+  }
+
+  /// Removes all track position keys for a group.
+  ///
+  /// This method attempts to remove all track position keys by trying
+  /// common index values (0-999) since we don't track how many tracks exist.
+  ///
+  /// The [groupPath] parameter is the unique path identifying the group.
+  Future<void> clearAllTrackPositions(String groupPath) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final sanitizedPath = _sanitizeKey(groupPath);
+      final trackPositionKeyPrefix = '$_trackPositionPrefix$sanitizedPath';
+
+      // Try to remove track positions for indices 0-999
+      // This is a reasonable upper limit for audiobook tracks
+      for (var i = 0; i < 1000; i++) {
+        final trackPositionKey = '${trackPositionKeyPrefix}_$i';
+        await prefs.remove(trackPositionKey);
+      }
+    } on Exception {
+      // Ignore errors
+    }
+  }
+
   /// Sanitizes a path to be used as a SharedPreferences key.
   ///
   /// SharedPreferences keys have limitations, so we need to sanitize paths.

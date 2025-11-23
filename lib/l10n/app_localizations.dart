@@ -413,10 +413,10 @@ abstract class AppLocalizations {
   /// **'Permission Denied'**
   String get permissionDeniedTitle;
 
-  /// Message for permission denied dialog
+  /// Error message when permission is denied
   ///
   /// In en, this message translates to:
-  /// **'Storage permission is required to download files. Please enable it in app settings.'**
+  /// **'Permission denied: Cannot delete file'**
   String get permissionDeniedMessage;
 
   /// Button text for permission denied action
@@ -1961,7 +1961,7 @@ abstract class AppLocalizations {
   /// **'Search History'**
   String get searchHistoryTitle;
 
-  /// Button to clear history
+  /// Button to clear
   ///
   /// In en, this message translates to:
   /// **'Clear'**
@@ -2674,6 +2674,450 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Clear search'**
   String get clearSearch;
+
+  /// Title for library folders section
+  ///
+  /// In en, this message translates to:
+  /// **'Library Folders'**
+  String get libraryFolderTitle;
+
+  /// Description for library folders section
+  ///
+  /// In en, this message translates to:
+  /// **'Select folders where your audiobooks are stored'**
+  String get libraryFolderDescription;
+
+  /// Default library folder text
+  ///
+  /// In en, this message translates to:
+  /// **'Default folder'**
+  String get defaultLibraryFolder;
+
+  /// Title for add library folder button
+  ///
+  /// In en, this message translates to:
+  /// **'Add Library Folder'**
+  String get addLibraryFolderTitle;
+
+  /// Subtitle for add library folder button
+  ///
+  /// In en, this message translates to:
+  /// **'Add an additional folder to scan for audiobooks'**
+  String get addLibraryFolderSubtitle;
+
+  /// Title for all library folders expansion tile
+  ///
+  /// In en, this message translates to:
+  /// **'All Library Folders'**
+  String get allLibraryFoldersTitle;
+
+  /// Text indicating primary library folder
+  ///
+  /// In en, this message translates to:
+  /// **'Primary folder'**
+  String get primaryLibraryFolder;
+
+  /// Title for select library folder dialog
+  ///
+  /// In en, this message translates to:
+  /// **'Select Library Folder'**
+  String get selectLibraryFolderDialogTitle;
+
+  /// Message for select library folder dialog
+  ///
+  /// In en, this message translates to:
+  /// **'To select a library folder:\n\n1. Navigate to the desired folder in the file manager\n2. Tap \"Use this folder\" button in the top right corner\n\nThe selected folder will be used to scan for audiobooks.'**
+  String get selectLibraryFolderDialogMessage;
+
+  /// Title for migrate library folder dialog
+  ///
+  /// In en, this message translates to:
+  /// **'Migrate Files?'**
+  String get migrateLibraryFolderTitle;
+
+  /// Message for migrate library folder dialog
+  ///
+  /// In en, this message translates to:
+  /// **'Do you want to move your existing audiobooks from the old folder to the new folder?'**
+  String get migrateLibraryFolderMessage;
+
+  /// Yes button text
+  ///
+  /// In en, this message translates to:
+  /// **'Yes'**
+  String get yes;
+
+  /// No button text
+  ///
+  /// In en, this message translates to:
+  /// **'No'**
+  String get no;
+
+  /// Success message when library folder is selected
+  ///
+  /// In en, this message translates to:
+  /// **'Library folder selected successfully'**
+  String get libraryFolderSelectedSuccessMessage;
+
+  /// Message when library folder already exists
+  ///
+  /// In en, this message translates to:
+  /// **'This folder is already in the library folders list'**
+  String get libraryFolderAlreadyExistsMessage;
+
+  /// Success message when library folder is added
+  ///
+  /// In en, this message translates to:
+  /// **'Library folder added successfully'**
+  String get libraryFolderAddedSuccessMessage;
+
+  /// Title for remove library folder dialog
+  ///
+  /// In en, this message translates to:
+  /// **'Remove Folder?'**
+  String get removeLibraryFolderTitle;
+
+  /// Message for remove library folder dialog
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to remove this folder from the library? This will not delete the files, only stop scanning this folder.'**
+  String get removeLibraryFolderMessage;
+
+  /// Remove button text
+  ///
+  /// In en, this message translates to:
+  /// **'Remove'**
+  String get remove;
+
+  /// Success message when library folder is removed
+  ///
+  /// In en, this message translates to:
+  /// **'Library folder removed successfully'**
+  String get libraryFolderRemovedSuccessMessage;
+
+  /// Error message when library folder removal fails
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to remove library folder'**
+  String get libraryFolderRemoveFailedMessage;
+
+  /// Message shown during library folder migration
+  ///
+  /// In en, this message translates to:
+  /// **'Migrating files...'**
+  String get migratingLibraryFolderMessage;
+
+  /// Success message when migration is completed
+  ///
+  /// In en, this message translates to:
+  /// **'Migration completed successfully'**
+  String get migrationCompletedSuccessMessage;
+
+  /// Error message when migration fails
+  ///
+  /// In en, this message translates to:
+  /// **'Migration failed'**
+  String get migrationFailedMessage;
+
+  /// Title for delete confirmation dialog
+  ///
+  /// In en, this message translates to:
+  /// **'Delete Audiobook?'**
+  String get deleteConfirmationTitle;
+
+  /// Message for delete confirmation dialog
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to delete this audiobook?'**
+  String get deleteConfirmationMessage;
+
+  /// Warning message about permanent deletion
+  ///
+  /// In en, this message translates to:
+  /// **'Files will be permanently deleted and cannot be recovered.'**
+  String get deleteWarningMessage;
+
+  /// Button to delete files physically
+  ///
+  /// In en, this message translates to:
+  /// **'Delete Files'**
+  String get deleteFilesButton;
+
+  /// Button to remove from library (logical deletion)
+  ///
+  /// In en, this message translates to:
+  /// **'Remove from Library'**
+  String get removeFromLibraryButton;
+
+  /// Title for remove from library dialog
+  ///
+  /// In en, this message translates to:
+  /// **'Remove from Library?'**
+  String get removeFromLibraryTitle;
+
+  /// Message for remove from library dialog
+  ///
+  /// In en, this message translates to:
+  /// **'This will remove the audiobook from your library but will not delete the files. You can add it back by rescanning.'**
+  String get removeFromLibraryMessage;
+
+  /// Message shown while removing from library
+  ///
+  /// In en, this message translates to:
+  /// **'Removing...'**
+  String get removingFromLibraryMessage;
+
+  /// Success message when removed from library
+  ///
+  /// In en, this message translates to:
+  /// **'Removed from library successfully'**
+  String get removedFromLibrarySuccessMessage;
+
+  /// Error message when removal from library fails
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to remove from library'**
+  String get removeFromLibraryFailedMessage;
+
+  /// Message shown while deleting files
+  ///
+  /// In en, this message translates to:
+  /// **'Deleting...'**
+  String get deletingMessage;
+
+  /// Success message when files are deleted
+  ///
+  /// In en, this message translates to:
+  /// **'Files deleted successfully'**
+  String get deletedSuccessMessage;
+
+  /// Error message when deletion fails
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to delete files'**
+  String get deleteFailedMessage;
+
+  /// Error message when trying to delete a file that is playing
+  ///
+  /// In en, this message translates to:
+  /// **'Cannot delete: File is currently being played'**
+  String get fileInUseMessage;
+
+  /// Button to show information about audiobook
+  ///
+  /// In en, this message translates to:
+  /// **'Show Info'**
+  String get showInfoButton;
+
+  /// Label for file path
+  ///
+  /// In en, this message translates to:
+  /// **'Path'**
+  String get path;
+
+  /// Label for file count
+  ///
+  /// In en, this message translates to:
+  /// **'Files'**
+  String get fileCount;
+
+  /// Label for total size
+  ///
+  /// In en, this message translates to:
+  /// **'Total Size'**
+  String get totalSize;
+
+  /// Label for audiobook group name
+  ///
+  /// In en, this message translates to:
+  /// **'Group'**
+  String get audiobookGroupName;
+
+  /// Title for storage management screen
+  ///
+  /// In en, this message translates to:
+  /// **'Storage Management'**
+  String get storageManagementTitle;
+
+  /// Button to delete selected items
+  ///
+  /// In en, this message translates to:
+  /// **'Delete Selected'**
+  String get deleteSelectedButton;
+
+  /// Title for storage summary section
+  ///
+  /// In en, this message translates to:
+  /// **'Storage Summary'**
+  String get storageSummaryTitle;
+
+  /// Label for total library size
+  ///
+  /// In en, this message translates to:
+  /// **'Total Library Size'**
+  String get totalLibrarySize;
+
+  /// Label for audiobook groups count
+  ///
+  /// In en, this message translates to:
+  /// **'Audiobook Groups'**
+  String get audiobookGroupsCount;
+
+  /// Label for cache size
+  ///
+  /// In en, this message translates to:
+  /// **'Cache Size'**
+  String get cacheSize;
+
+  /// Title for library folders section
+  ///
+  /// In en, this message translates to:
+  /// **'Library Folders'**
+  String get libraryFoldersTitle;
+
+  /// Title for cache section
+  ///
+  /// In en, this message translates to:
+  /// **'Cache'**
+  String get cacheSectionTitle;
+
+  /// Label for total cache size
+  ///
+  /// In en, this message translates to:
+  /// **'Total Cache'**
+  String get totalCacheSize;
+
+  /// Button to clear playback cache
+  ///
+  /// In en, this message translates to:
+  /// **'Clear Playback Cache'**
+  String get clearPlaybackCacheButton;
+
+  /// Title for audiobook groups section
+  ///
+  /// In en, this message translates to:
+  /// **'Audiobook Groups'**
+  String get audiobookGroupsTitle;
+
+  /// Button to deselect all items
+  ///
+  /// In en, this message translates to:
+  /// **'Deselect All'**
+  String get deselectAllButton;
+
+  /// Button to select all items
+  ///
+  /// In en, this message translates to:
+  /// **'Select All'**
+  String get selectAllButton;
+
+  /// Message when no audiobooks are found
+  ///
+  /// In en, this message translates to:
+  /// **'No audiobooks found'**
+  String get noAudiobooksMessage;
+
+  /// Title for delete selected dialog
+  ///
+  /// In en, this message translates to:
+  /// **'Delete Selected?'**
+  String get deleteSelectedTitle;
+
+  /// Message for delete selected dialog
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to delete {count} selected audiobook(s)?'**
+  String deleteSelectedMessage(int count);
+
+  /// Result message after deleting selected items
+  ///
+  /// In en, this message translates to:
+  /// **'Deleted: {success}, Failed: {failed}'**
+  String deleteSelectedResultMessage(int success, int failed);
+
+  /// Title for clear playback cache dialog
+  ///
+  /// In en, this message translates to:
+  /// **'Clear Playback Cache?'**
+  String get clearPlaybackCacheTitle;
+
+  /// Message for clear playback cache dialog
+  ///
+  /// In en, this message translates to:
+  /// **'This will clear the playback cache. Playback may be slower until cache is rebuilt.'**
+  String get clearPlaybackCacheMessage;
+
+  /// Message shown while clearing cache
+  ///
+  /// In en, this message translates to:
+  /// **'Clearing cache...'**
+  String get clearingCacheMessage;
+
+  /// Success message when cache is cleared
+  ///
+  /// In en, this message translates to:
+  /// **'Cache cleared successfully'**
+  String get cacheClearedSuccessMessage;
+
+  /// Title for clear all cache dialog
+  ///
+  /// In en, this message translates to:
+  /// **'Clear All Cache?'**
+  String get clearAllCacheTitle;
+
+  /// Message for clear all cache dialog
+  ///
+  /// In en, this message translates to:
+  /// **'This will clear all cache including playback cache, temporary files, and old logs.'**
+  String get clearAllCacheMessage;
+
+  /// Description for storage management section
+  ///
+  /// In en, this message translates to:
+  /// **'Manage library size, cache, and files'**
+  String get storageManagementDescription;
+
+  /// Button to open storage management screen
+  ///
+  /// In en, this message translates to:
+  /// **'Open Storage Management'**
+  String get openStorageManagementButton;
+
+  /// Message when some files were deleted successfully
+  ///
+  /// In en, this message translates to:
+  /// **'Partially deleted: {deleted}/{total} files'**
+  String partialDeletionSuccessMessage(int deleted, int total);
+
+  /// Button to show details
+  ///
+  /// In en, this message translates to:
+  /// **'Details'**
+  String get showDetailsButton;
+
+  /// Title for deletion details dialog
+  ///
+  /// In en, this message translates to:
+  /// **'Deletion Details'**
+  String get deletionDetailsTitle;
+
+  /// Summary message for deletion details
+  ///
+  /// In en, this message translates to:
+  /// **'Deleted: {deleted}/{total} files'**
+  String deletionSummaryMessage(int deleted, int total);
+
+  /// Title for errors section
+  ///
+  /// In en, this message translates to:
+  /// **'Errors:'**
+  String get errorsTitle;
+
+  /// Button to retry an operation
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get retryButton;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

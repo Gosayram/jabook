@@ -23,6 +23,8 @@ import 'package:jabook/features/debug/presentation/screens/debug_screen.dart';
 import 'package:jabook/features/downloads/presentation/screens/downloads_screen.dart';
 import 'package:jabook/features/library/presentation/screens/favorites_screen.dart';
 import 'package:jabook/features/library/presentation/screens/library_screen.dart';
+import 'package:jabook/features/library/presentation/screens/storage_management_screen.dart';
+import 'package:jabook/features/library/presentation/screens/trash_screen.dart';
 import 'package:jabook/features/mirrors/presentation/screens/mirrors_screen.dart';
 import 'package:jabook/features/player/presentation/screens/local_player_screen.dart';
 import 'package:jabook/features/player/presentation/screens/player_screen.dart';
@@ -113,6 +115,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     GoRoute(
       path: '/auth',
       builder: (context, state) => const AuthScreen(),
+    ),
+    GoRoute(
+      path: '/storage-management',
+      builder: (context, state) => const StorageManagementScreen(),
+    ),
+    GoRoute(
+      path: '/trash',
+      builder: (context, state) => const TrashScreen(),
     ),
   ];
 

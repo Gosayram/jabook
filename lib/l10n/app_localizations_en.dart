@@ -168,7 +168,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get permissionDeniedTitle => 'Permission Denied';
 
   @override
-  String get permissionDeniedMessage => 'Storage permission is required to download files. Please enable it in app settings.';
+  String get permissionDeniedMessage => 'Permission denied: Cannot delete file';
 
   @override
   String get permissionDeniedButton => 'Open Settings';
@@ -1389,4 +1389,234 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get clearSearch => 'Clear search';
+
+  @override
+  String get libraryFolderTitle => 'Library Folders';
+
+  @override
+  String get libraryFolderDescription => 'Select folders where your audiobooks are stored';
+
+  @override
+  String get defaultLibraryFolder => 'Default folder';
+
+  @override
+  String get addLibraryFolderTitle => 'Add Library Folder';
+
+  @override
+  String get addLibraryFolderSubtitle => 'Add an additional folder to scan for audiobooks';
+
+  @override
+  String get allLibraryFoldersTitle => 'All Library Folders';
+
+  @override
+  String get primaryLibraryFolder => 'Primary folder';
+
+  @override
+  String get selectLibraryFolderDialogTitle => 'Select Library Folder';
+
+  @override
+  String get selectLibraryFolderDialogMessage => 'To select a library folder:\n\n1. Navigate to the desired folder in the file manager\n2. Tap \"Use this folder\" button in the top right corner\n\nThe selected folder will be used to scan for audiobooks.';
+
+  @override
+  String get migrateLibraryFolderTitle => 'Migrate Files?';
+
+  @override
+  String get migrateLibraryFolderMessage => 'Do you want to move your existing audiobooks from the old folder to the new folder?';
+
+  @override
+  String get yes => 'Yes';
+
+  @override
+  String get no => 'No';
+
+  @override
+  String get libraryFolderSelectedSuccessMessage => 'Library folder selected successfully';
+
+  @override
+  String get libraryFolderAlreadyExistsMessage => 'This folder is already in the library folders list';
+
+  @override
+  String get libraryFolderAddedSuccessMessage => 'Library folder added successfully';
+
+  @override
+  String get removeLibraryFolderTitle => 'Remove Folder?';
+
+  @override
+  String get removeLibraryFolderMessage => 'Are you sure you want to remove this folder from the library? This will not delete the files, only stop scanning this folder.';
+
+  @override
+  String get remove => 'Remove';
+
+  @override
+  String get libraryFolderRemovedSuccessMessage => 'Library folder removed successfully';
+
+  @override
+  String get libraryFolderRemoveFailedMessage => 'Failed to remove library folder';
+
+  @override
+  String get migratingLibraryFolderMessage => 'Migrating files...';
+
+  @override
+  String get migrationCompletedSuccessMessage => 'Migration completed successfully';
+
+  @override
+  String get migrationFailedMessage => 'Migration failed';
+
+  @override
+  String get deleteConfirmationTitle => 'Delete Audiobook?';
+
+  @override
+  String get deleteConfirmationMessage => 'Are you sure you want to delete this audiobook?';
+
+  @override
+  String get deleteWarningMessage => 'Files will be permanently deleted and cannot be recovered.';
+
+  @override
+  String get deleteFilesButton => 'Delete Files';
+
+  @override
+  String get removeFromLibraryButton => 'Remove from Library';
+
+  @override
+  String get removeFromLibraryTitle => 'Remove from Library?';
+
+  @override
+  String get removeFromLibraryMessage => 'This will remove the audiobook from your library but will not delete the files. You can add it back by rescanning.';
+
+  @override
+  String get removingFromLibraryMessage => 'Removing...';
+
+  @override
+  String get removedFromLibrarySuccessMessage => 'Removed from library successfully';
+
+  @override
+  String get removeFromLibraryFailedMessage => 'Failed to remove from library';
+
+  @override
+  String get deletingMessage => 'Deleting...';
+
+  @override
+  String get deletedSuccessMessage => 'Files deleted successfully';
+
+  @override
+  String get deleteFailedMessage => 'Failed to delete files';
+
+  @override
+  String get fileInUseMessage => 'Cannot delete: File is currently being played';
+
+  @override
+  String get showInfoButton => 'Show Info';
+
+  @override
+  String get path => 'Path';
+
+  @override
+  String get fileCount => 'Files';
+
+  @override
+  String get totalSize => 'Total Size';
+
+  @override
+  String get audiobookGroupName => 'Group';
+
+  @override
+  String get storageManagementTitle => 'Storage Management';
+
+  @override
+  String get deleteSelectedButton => 'Delete Selected';
+
+  @override
+  String get storageSummaryTitle => 'Storage Summary';
+
+  @override
+  String get totalLibrarySize => 'Total Library Size';
+
+  @override
+  String get audiobookGroupsCount => 'Audiobook Groups';
+
+  @override
+  String get cacheSize => 'Cache Size';
+
+  @override
+  String get libraryFoldersTitle => 'Library Folders';
+
+  @override
+  String get cacheSectionTitle => 'Cache';
+
+  @override
+  String get totalCacheSize => 'Total Cache';
+
+  @override
+  String get clearPlaybackCacheButton => 'Clear Playback Cache';
+
+  @override
+  String get audiobookGroupsTitle => 'Audiobook Groups';
+
+  @override
+  String get deselectAllButton => 'Deselect All';
+
+  @override
+  String get selectAllButton => 'Select All';
+
+  @override
+  String get noAudiobooksMessage => 'No audiobooks found';
+
+  @override
+  String get deleteSelectedTitle => 'Delete Selected?';
+
+  @override
+  String deleteSelectedMessage(int count) {
+    return 'Are you sure you want to delete $count selected audiobook(s)?';
+  }
+
+  @override
+  String deleteSelectedResultMessage(int success, int failed) {
+    return 'Deleted: $success, Failed: $failed';
+  }
+
+  @override
+  String get clearPlaybackCacheTitle => 'Clear Playback Cache?';
+
+  @override
+  String get clearPlaybackCacheMessage => 'This will clear the playback cache. Playback may be slower until cache is rebuilt.';
+
+  @override
+  String get clearingCacheMessage => 'Clearing cache...';
+
+  @override
+  String get cacheClearedSuccessMessage => 'Cache cleared successfully';
+
+  @override
+  String get clearAllCacheTitle => 'Clear All Cache?';
+
+  @override
+  String get clearAllCacheMessage => 'This will clear all cache including playback cache, temporary files, and old logs.';
+
+  @override
+  String get storageManagementDescription => 'Manage library size, cache, and files';
+
+  @override
+  String get openStorageManagementButton => 'Open Storage Management';
+
+  @override
+  String partialDeletionSuccessMessage(int deleted, int total) {
+    return 'Partially deleted: $deleted/$total files';
+  }
+
+  @override
+  String get showDetailsButton => 'Details';
+
+  @override
+  String get deletionDetailsTitle => 'Deletion Details';
+
+  @override
+  String deletionSummaryMessage(int deleted, int total) {
+    return 'Deleted: $deleted/$total files';
+  }
+
+  @override
+  String get errorsTitle => 'Errors:';
+
+  @override
+  String get retryButton => 'Retry';
 }

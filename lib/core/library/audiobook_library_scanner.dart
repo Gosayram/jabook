@@ -15,8 +15,10 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:jabook/core/library/folder_filter_service.dart';
 import 'package:jabook/core/library/local_audiobook.dart';
 import 'package:jabook/core/logging/structured_logger.dart';
+import 'package:jabook/core/utils/content_uri_service.dart';
 import 'package:jabook/core/utils/storage_path_utils.dart';
 import 'package:path/path.dart' as path;
 
@@ -26,9 +28,16 @@ import 'package:path/path.dart' as path;
 /// for audio files and create LocalAudiobook instances.
 class AudiobookLibraryScanner {
   /// Creates a new AudiobookLibraryScanner instance.
-  AudiobookLibraryScanner();
+  AudiobookLibraryScanner({
+    FolderFilterService? folderFilterService,
+    ContentUriService? contentUriService,
+  })  : _folderFilterService = folderFilterService,
+        _contentUriService = contentUriService ??
+            (Platform.isAndroid ? ContentUriService() : null);
 
   final StructuredLogger _logger = StructuredLogger();
+  final FolderFilterService? _folderFilterService;
+  final ContentUriService? _contentUriService;
 
   /// Supported audio file extensions.
   static const List<String> _audioExtensions = [
@@ -108,6 +117,136 @@ class AudiobookLibraryScanner {
     }
   }
 
+  /// Scans multiple directories and combines results.
+  ///
+  /// The [directoryPaths] parameter is a list of directory paths to scan.
+  /// The [recursive] parameter determines whether to scan subdirectories.
+  ///
+  /// Returns a list of LocalAudiobookGroup instances found in all directories.
+  Future<List<LocalAudiobookGroup>> scanMultipleDirectories(
+    List<String> directoryPaths, {
+    bool recursive = true,
+  }) async {
+    final allGroups = <LocalAudiobookGroup>[];
+    final groupsByPath = <String, LocalAudiobookGroup>{};
+
+    await _logger.log(
+      level: 'info',
+      subsystem: 'library_scanner',
+      message: 'Scanning multiple directories',
+      extra: {
+        'count': directoryPaths.length,
+        'paths': directoryPaths,
+        'recursive': recursive,
+      },
+    );
+
+    for (final directoryPath in directoryPaths) {
+      try {
+        final groups = await scanDirectoryGrouped(
+          directoryPath,
+          recursive: recursive,
+        );
+
+        // Merge groups by groupPath to avoid duplicates
+        for (final group in groups) {
+          if (groupsByPath.containsKey(group.groupPath)) {
+            // Group already exists, merge files
+            final existingGroup = groupsByPath[group.groupPath]!;
+            final mergedFiles = <LocalAudiobook>[
+              ...existingGroup.files,
+              ...group.files,
+            ]..sort((a, b) => a.fileName.compareTo(b.fileName));
+
+            groupsByPath[group.groupPath] = existingGroup.copyWith(
+              files: mergedFiles,
+            );
+          } else {
+            groupsByPath[group.groupPath] = group;
+          }
+        }
+
+        await _logger.log(
+          level: 'info',
+          subsystem: 'library_scanner',
+          message: 'Scanned directory',
+          extra: {
+            'path': directoryPath,
+            'groupsFound': groups.length,
+          },
+        );
+      } on Exception catch (e) {
+        await _logger.log(
+          level: 'warning',
+          subsystem: 'library_scanner',
+          message: 'Failed to scan directory',
+          extra: {
+            'path': directoryPath,
+            'error': e.toString(),
+          },
+        );
+        // Continue scanning other directories
+      }
+    }
+
+    allGroups.addAll(groupsByPath.values);
+
+    await _logger.log(
+      level: 'info',
+      subsystem: 'library_scanner',
+      message: 'Multiple directory scan completed',
+      extra: {
+        'directoriesScanned': directoryPaths.length,
+        'totalGroupsFound': allGroups.length,
+      },
+    );
+
+    return allGroups;
+  }
+
+  /// Scans all configured library folders.
+  ///
+  /// Returns a list of LocalAudiobookGroup instances found in all library folders.
+  Future<List<LocalAudiobookGroup>> scanAllLibraryFolders() async {
+    try {
+      final storageUtils = StoragePathUtils();
+      var folders = await storageUtils.getLibraryFolders();
+
+      // Apply folder filters if available
+      if (_folderFilterService != null) {
+        folders = await _folderFilterService.filterFolders(folders);
+        await _logger.log(
+          level: 'info',
+          subsystem: 'library_scanner',
+          message: 'Applied folder filters',
+          extra: {
+            'originalCount': folders.length,
+            'filteredCount': folders.length,
+          },
+        );
+      }
+
+      await _logger.log(
+        level: 'info',
+        subsystem: 'library_scanner',
+        message: 'Scanning all library folders',
+        extra: {
+          'folderCount': folders.length,
+          'folders': folders,
+        },
+      );
+      return scanMultipleDirectories(folders);
+    } on Exception catch (e) {
+      await _logger.log(
+        level: 'error',
+        subsystem: 'library_scanner',
+        message: 'Failed to scan all library folders',
+        extra: {'error': e.toString()},
+      );
+      return [];
+    }
+  }
+
   /// Scans a directory for audio files.
   ///
   /// The [directoryPath] parameter is the path to the directory to scan.
@@ -122,13 +261,71 @@ class AudiobookLibraryScanner {
     final scannedAt = DateTime.now();
 
     try {
-      final dir = Directory(directoryPath);
+      // Check if this is a content URI and use ContentResolver if available
+      if (StoragePathUtils.isContentUri(directoryPath) &&
+          Platform.isAndroid &&
+          _contentUriService != null) {
+        // Use ContentResolver for content URIs on Android
+        try {
+          final hasAccess =
+              await _contentUriService.checkUriAccess(directoryPath);
+          if (!hasAccess) {
+            await _logger.log(
+              level: 'error',
+              subsystem: 'library_scanner',
+              message: 'No access to content URI',
+              extra: {'uri': directoryPath},
+            );
+            return audiobooks;
+          }
+
+          // Scan using ContentResolver
+          return await _scanDirectoryViaContentResolver(
+              directoryPath, recursive);
+        } on Exception catch (e) {
+          await _logger.log(
+            level: 'error',
+            subsystem: 'library_scanner',
+            message: 'Failed to scan via ContentResolver, trying file path',
+            extra: {'uri': directoryPath, 'error': e.toString()},
+          );
+          // Fall through to try file path conversion
+        }
+      }
+
+      // Convert content URI to file path if needed (fallback)
+      var actualPath = directoryPath;
+      if (StoragePathUtils.isContentUri(directoryPath)) {
+        final convertedPath = StoragePathUtils.convertUriToPath(directoryPath);
+        if (convertedPath != null) {
+          actualPath = convertedPath;
+          await _logger.log(
+            level: 'info',
+            subsystem: 'library_scanner',
+            message: 'Converted content URI to file path',
+            extra: {
+              'originalUri': directoryPath,
+              'convertedPath': actualPath,
+            },
+          );
+        } else {
+          await _logger.log(
+            level: 'error',
+            subsystem: 'library_scanner',
+            message: 'Cannot convert content URI to file path',
+            extra: {'uri': directoryPath},
+          );
+          return audiobooks;
+        }
+      }
+
+      final dir = Directory(actualPath);
       if (!await dir.exists()) {
         await _logger.log(
           level: 'warning',
           subsystem: 'library_scanner',
           message: 'Directory does not exist',
-          extra: {'path': directoryPath},
+          extra: {'path': actualPath, 'originalPath': directoryPath},
         );
         return audiobooks;
       }
@@ -138,7 +335,8 @@ class AudiobookLibraryScanner {
         subsystem: 'library_scanner',
         message: 'Starting directory scan',
         extra: {
-          'path': directoryPath,
+          'path': actualPath,
+          'originalPath': directoryPath,
           'recursive': recursive,
         },
       );
@@ -182,7 +380,8 @@ class AudiobookLibraryScanner {
         subsystem: 'library_scanner',
         message: 'Directory scan completed',
         extra: {
-          'path': directoryPath,
+          'path': actualPath,
+          'originalPath': directoryPath,
           'audiobooksFound': audiobooks.length,
         },
       );
@@ -193,6 +392,94 @@ class AudiobookLibraryScanner {
         message: 'Failed to scan directory',
         extra: {
           'path': directoryPath,
+          'error': e.toString(),
+        },
+      );
+    }
+
+    return audiobooks;
+  }
+
+  /// Scans a directory using ContentResolver (for content:// URIs on Android).
+  ///
+  /// The [uri] parameter is the content URI to scan.
+  /// The [recursive] parameter determines whether to scan subdirectories.
+  ///
+  /// Returns a list of LocalAudiobook instances found.
+  Future<List<LocalAudiobook>> _scanDirectoryViaContentResolver(
+    String uri,
+    bool recursive,
+  ) async {
+    final audiobooks = <LocalAudiobook>[];
+    final scannedAt = DateTime.now();
+
+    try {
+      if (_contentUriService == null) {
+        await _logger.log(
+          level: 'error',
+          subsystem: 'library_scanner',
+          message: 'ContentUriService is not available',
+          extra: {'uri': uri},
+        );
+        return audiobooks;
+      }
+
+      await _logger.log(
+        level: 'info',
+        subsystem: 'library_scanner',
+        message: 'Scanning directory via ContentResolver',
+        extra: {'uri': uri, 'recursive': recursive},
+      );
+
+      final entries = await _contentUriService.listDirectory(uri);
+
+      for (final entry in entries) {
+        try {
+          if (entry.isDirectory && recursive) {
+            // Recursively scan subdirectories
+            final subAudiobooks =
+                await _scanDirectoryViaContentResolver(entry.uri, recursive);
+            audiobooks.addAll(subAudiobooks);
+          } else if (!entry.isDirectory && _isAudioFile(entry.name)) {
+            // Create LocalAudiobook from entry
+            final audiobook = LocalAudiobook(
+              filePath: entry.uri, // Use URI as path for content:// files
+              fileName: entry.name,
+              fileSize: entry.size,
+              scannedAt: scannedAt,
+            );
+            audiobooks.add(audiobook);
+          }
+        } on Exception catch (e) {
+          await _logger.log(
+            level: 'warning',
+            subsystem: 'library_scanner',
+            message: 'Failed to process entry',
+            extra: {
+              'uri': entry.uri,
+              'name': entry.name,
+              'error': e.toString(),
+            },
+          );
+        }
+      }
+
+      await _logger.log(
+        level: 'info',
+        subsystem: 'library_scanner',
+        message: 'ContentResolver scan completed',
+        extra: {
+          'uri': uri,
+          'audiobooksFound': audiobooks.length,
+        },
+      );
+    } on Exception catch (e) {
+      await _logger.log(
+        level: 'error',
+        subsystem: 'library_scanner',
+        message: 'Failed to scan directory via ContentResolver',
+        extra: {
+          'uri': uri,
           'error': e.toString(),
         },
       );
@@ -221,9 +508,14 @@ class AudiobookLibraryScanner {
               audioFiles.add(entity);
             }
           } else if (entity is Directory && recursive) {
-            // Recursively scan subdirectories
-            final subFiles = await _scanDirectoryRecursive(entity, recursive);
-            audioFiles.addAll(subFiles);
+            // Check if directory should be scanned (folder filter)
+            final shouldScan = _folderFilterService == null ||
+                await _folderFilterService.shouldScanDirectory(entity);
+            if (shouldScan) {
+              // Recursively scan subdirectories
+              final subFiles = await _scanDirectoryRecursive(entity, recursive);
+              audioFiles.addAll(subFiles);
+            }
           }
         } on Exception catch (e) {
           // Log but continue scanning

@@ -1942,5 +1942,338 @@
   "clearSearch": "Очистить поиск",
   "@clearSearch": {
     "description": "Кнопка для очистки поля поиска"
+  },
+  "libraryFolderTitle": "Папки библиотеки",
+  "@libraryFolderTitle": {
+    "description": "Заголовок секции папок библиотеки"
+  },
+  "libraryFolderDescription": "Выберите папки, где хранятся ваши аудиокниги",
+  "@libraryFolderDescription": {
+    "description": "Описание секции папок библиотеки"
+  },
+  "defaultLibraryFolder": "Папка по умолчанию",
+  "@defaultLibraryFolder": {
+    "description": "Текст папки библиотеки по умолчанию"
+  },
+  "addLibraryFolderTitle": "Добавить папку библиотеки",
+  "@addLibraryFolderTitle": {
+    "description": "Заголовок кнопки добавления папки библиотеки"
+  },
+  "addLibraryFolderSubtitle": "Добавить дополнительную папку для сканирования аудиокниг",
+  "@addLibraryFolderSubtitle": {
+    "description": "Подзаголовок кнопки добавления папки библиотеки"
+  },
+  "allLibraryFoldersTitle": "Все папки библиотеки",
+  "@allLibraryFoldersTitle": {
+    "description": "Заголовок раскрывающегося списка всех папок библиотеки"
+  },
+  "primaryLibraryFolder": "Основная папка",
+  "@primaryLibraryFolder": {
+    "description": "Текст, указывающий основную папку библиотеки"
+  },
+  "selectLibraryFolderDialogTitle": "Выбрать папку библиотеки",
+  "@selectLibraryFolderDialogTitle": {
+    "description": "Заголовок диалога выбора папки библиотеки"
+  },
+  "selectLibraryFolderDialogMessage": "Чтобы выбрать папку библиотеки:\n\n1. Перейдите к нужной папке в файловом менеджере\n2. Нажмите кнопку \"Использовать эту папку\" в правом верхнем углу\n\nВыбранная папка будет использоваться для сканирования аудиокниг.",
+  "@selectLibraryFolderDialogMessage": {
+    "description": "Сообщение диалога выбора папки библиотеки"
+  },
+  "migrateLibraryFolderTitle": "Перенести файлы?",
+  "@migrateLibraryFolderTitle": {
+    "description": "Заголовок диалога переноса папки библиотеки"
+  },
+  "migrateLibraryFolderMessage": "Хотите переместить существующие аудиокниги из старой папки в новую?",
+  "@migrateLibraryFolderMessage": {
+    "description": "Сообщение диалога переноса папки библиотеки"
+  },
+  "yes": "Да",
+  "@yes": {
+    "description": "Текст кнопки Да"
+  },
+  "no": "Нет",
+  "@no": {
+    "description": "Текст кнопки Нет"
+  },
+  "libraryFolderSelectedSuccessMessage": "Папка библиотеки успешно выбрана",
+  "@libraryFolderSelectedSuccessMessage": {
+    "description": "Сообщение об успехе при выборе папки библиотеки"
+  },
+  "libraryFolderAlreadyExistsMessage": "Эта папка уже есть в списке папок библиотеки",
+  "@libraryFolderAlreadyExistsMessage": {
+    "description": "Сообщение когда папка библиотеки уже существует"
+  },
+  "libraryFolderAddedSuccessMessage": "Папка библиотеки успешно добавлена",
+  "@libraryFolderAddedSuccessMessage": {
+    "description": "Сообщение об успехе при добавлении папки библиотеки"
+  },
+  "removeLibraryFolderTitle": "Удалить папку?",
+  "@removeLibraryFolderTitle": {
+    "description": "Заголовок диалога удаления папки библиотеки"
+  },
+  "removeLibraryFolderMessage": "Вы уверены, что хотите удалить эту папку из библиотеки? Это не удалит файлы, только прекратит сканирование этой папки.",
+  "@removeLibraryFolderMessage": {
+    "description": "Сообщение диалога удаления папки библиотеки"
+  },
+  "remove": "Удалить",
+  "@remove": {
+    "description": "Текст кнопки Удалить"
+  },
+  "libraryFolderRemovedSuccessMessage": "Папка библиотеки успешно удалена",
+  "@libraryFolderRemovedSuccessMessage": {
+    "description": "Сообщение об успехе при удалении папки библиотеки"
+  },
+  "libraryFolderRemoveFailedMessage": "Не удалось удалить папку библиотеки",
+  "@libraryFolderRemoveFailedMessage": {
+    "description": "Сообщение об ошибке при неудачном удалении папки библиотеки"
+  },
+  "migratingLibraryFolderMessage": "Перенос файлов...",
+  "@migratingLibraryFolderMessage": {
+    "description": "Сообщение, показываемое во время переноса папки библиотеки"
+  },
+  "migrationCompletedSuccessMessage": "Перенос успешно завершен",
+  "@migrationCompletedSuccessMessage": {
+    "description": "Сообщение об успехе при завершении переноса"
+  },
+  "migrationFailedMessage": "Перенос не удался",
+  "@migrationFailedMessage": {
+    "description": "Сообщение об ошибке при неудачном переносе"
+  },
+  "deleteConfirmationTitle": "Удалить аудиокнигу?",
+  "@deleteConfirmationTitle": {
+    "description": "Заголовок диалога подтверждения удаления"
+  },
+  "deleteConfirmationMessage": "Вы уверены, что хотите удалить эту аудиокнигу?",
+  "@deleteConfirmationMessage": {
+    "description": "Сообщение диалога подтверждения удаления"
+  },
+  "deleteWarningMessage": "Файлы будут безвозвратно удалены и не могут быть восстановлены.",
+  "@deleteWarningMessage": {
+    "description": "Предупреждение о безвозвратном удалении"
+  },
+  "deleteFilesButton": "Удалить файлы",
+  "@deleteFilesButton": {
+    "description": "Кнопка для физического удаления файлов"
+  },
+  "removeFromLibraryButton": "Удалить из библиотеки",
+  "@removeFromLibraryButton": {
+    "description": "Кнопка для удаления из библиотеки (логическое удаление)"
+  },
+  "removeFromLibraryTitle": "Удалить из библиотеки?",
+  "@removeFromLibraryTitle": {
+    "description": "Заголовок диалога удаления из библиотеки"
+  },
+  "removeFromLibraryMessage": "Это удалит аудиокнигу из вашей библиотеки, но не удалит файлы. Вы можете добавить её обратно, выполнив повторное сканирование.",
+  "@removeFromLibraryMessage": {
+    "description": "Сообщение диалога удаления из библиотеки"
+  },
+  "removingFromLibraryMessage": "Удаление...",
+  "@removingFromLibraryMessage": {
+    "description": "Сообщение, показываемое при удалении из библиотеки"
+  },
+  "removedFromLibrarySuccessMessage": "Успешно удалено из библиотеки",
+  "@removedFromLibrarySuccessMessage": {
+    "description": "Сообщение об успехе при удалении из библиотеки"
+  },
+  "removeFromLibraryFailedMessage": "Не удалось удалить из библиотеки",
+  "@removeFromLibraryFailedMessage": {
+    "description": "Сообщение об ошибке при неудачном удалении из библиотеки"
+  },
+  "deletingMessage": "Удаление...",
+  "@deletingMessage": {
+    "description": "Сообщение, показываемое при удалении файлов"
+  },
+  "deletedSuccessMessage": "Файлы успешно удалены",
+  "@deletedSuccessMessage": {
+    "description": "Сообщение об успехе при удалении файлов"
+  },
+  "deleteFailedMessage": "Не удалось удалить файлы",
+  "@deleteFailedMessage": {
+    "description": "Сообщение об ошибке при неудачном удалении"
+  },
+  "fileInUseMessage": "Нельзя удалить: файл сейчас воспроизводится",
+  "@fileInUseMessage": {
+    "description": "Сообщение об ошибке при попытке удалить воспроизводимый файл"
+  },
+  "showInfoButton": "Показать информацию",
+  "@showInfoButton": {
+    "description": "Кнопка для показа информации об аудиокниге"
+  },
+  "path": "Путь",
+  "@path": {
+    "description": "Метка для пути к файлу"
+  },
+  "fileCount": "Файлы",
+  "@fileCount": {
+    "description": "Метка для количества файлов"
+  },
+  "totalSize": "Общий размер",
+  "@totalSize": {
+    "description": "Метка для общего размера"
+  },
+  "audiobookGroupName": "Группа",
+  "@audiobookGroupName": {
+    "description": "Метка для названия группы аудиокниг"
+  },
+  "storageManagementTitle": "Управление хранилищем",
+  "@storageManagementTitle": {
+    "description": "Заголовок экрана управления хранилищем"
+  },
+  "deleteSelectedButton": "Удалить выбранные",
+  "@deleteSelectedButton": {
+    "description": "Кнопка для удаления выбранных элементов"
+  },
+  "storageSummaryTitle": "Сводка хранилища",
+  "@storageSummaryTitle": {
+    "description": "Заголовок секции сводки хранилища"
+  },
+  "totalLibrarySize": "Общий размер библиотеки",
+  "@totalLibrarySize": {
+    "description": "Метка для общего размера библиотеки"
+  },
+  "audiobookGroupsCount": "Группы аудиокниг",
+  "@audiobookGroupsCount": {
+    "description": "Метка для количества групп аудиокниг"
+  },
+  "cacheSize": "Размер кэша",
+  "@cacheSize": {
+    "description": "Метка для размера кэша"
+  },
+  "libraryFoldersTitle": "Папки библиотеки",
+  "@libraryFoldersTitle": {
+    "description": "Заголовок секции папок библиотеки"
+  },
+  "cacheSectionTitle": "Кэш",
+  "@cacheSectionTitle": {
+    "description": "Заголовок секции кэша"
+  },
+  "totalCacheSize": "Общий кэш",
+  "@totalCacheSize": {
+    "description": "Метка для общего размера кэша"
+  },
+  "clearPlaybackCacheButton": "Очистить кэш воспроизведения",
+  "@clearPlaybackCacheButton": {
+    "description": "Кнопка для очистки кэша воспроизведения"
+  },
+  "audiobookGroupsTitle": "Группы аудиокниг",
+  "@audiobookGroupsTitle": {
+    "description": "Заголовок секции групп аудиокниг"
+  },
+  "deselectAllButton": "Снять выделение",
+  "@deselectAllButton": {
+    "description": "Кнопка для снятия выделения со всех элементов"
+  },
+  "selectAllButton": "Выбрать все",
+  "@selectAllButton": {
+    "description": "Кнопка для выбора всех элементов"
+  },
+  "noAudiobooksMessage": "Аудиокниги не найдены",
+  "@noAudiobooksMessage": {
+    "description": "Сообщение, когда аудиокниги не найдены"
+  },
+  "deleteSelectedTitle": "Удалить выбранные?",
+  "@deleteSelectedTitle": {
+    "description": "Заголовок диалога удаления выбранных"
+  },
+  "deleteSelectedMessage": "Вы уверены, что хотите удалить {count} выбранную(ых) аудиокнигу(и)?",
+  "@deleteSelectedMessage": {
+    "description": "Сообщение диалога удаления выбранных",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "deleteSelectedResultMessage": "Удалено: {success}, Не удалось: {failed}",
+  "@deleteSelectedResultMessage": {
+    "description": "Сообщение о результате удаления выбранных элементов",
+    "placeholders": {
+      "success": {
+        "type": "int"
+      },
+      "failed": {
+        "type": "int"
+      }
+    }
+  },
+  "clearPlaybackCacheTitle": "Очистить кэш воспроизведения?",
+  "@clearPlaybackCacheTitle": {
+    "description": "Заголовок диалога очистки кэша воспроизведения"
+  },
+  "clearPlaybackCacheMessage": "Это очистит кэш воспроизведения. Воспроизведение может быть медленнее, пока кэш не будет восстановлен.",
+  "@clearPlaybackCacheMessage": {
+    "description": "Сообщение диалога очистки кэша воспроизведения"
+  },
+  "clearingCacheMessage": "Очистка кэша...",
+  "@clearingCacheMessage": {
+    "description": "Сообщение, показываемое при очистке кэша"
+  },
+  "cacheClearedSuccessMessage": "Кэш успешно очищен",
+  "@cacheClearedSuccessMessage": {
+    "description": "Сообщение об успехе при очистке кэша"
+  },
+  "clearAllCacheTitle": "Очистить весь кэш?",
+  "@clearAllCacheTitle": {
+    "description": "Заголовок диалога очистки всего кэша"
+  },
+  "clearAllCacheMessage": "Это очистит весь кэш, включая кэш воспроизведения, временные файлы и старые логи.",
+  "@clearAllCacheMessage": {
+    "description": "Сообщение диалога очистки всего кэша"
+  },
+  "clearButton": "Очистить",
+  "@clearButton": {
+    "description": "Кнопка для очистки"
+  },
+  "storageManagementDescription": "Управление размером библиотеки, кэшем и файлами",
+  "@storageManagementDescription": {
+    "description": "Описание секции управления хранилищем"
+  },
+  "openStorageManagementButton": "Открыть управление хранилищем",
+  "@openStorageManagementButton": {
+    "description": "Кнопка для открытия экрана управления хранилищем"
+  },
+  "partialDeletionSuccessMessage": "Частично удалено: {deleted}/{total} файлов",
+  "@partialDeletionSuccessMessage": {
+    "description": "Сообщение, когда некоторые файлы были успешно удалены",
+    "placeholders": {
+      "deleted": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "showDetailsButton": "Детали",
+  "@showDetailsButton": {
+    "description": "Кнопка для показа деталей"
+  },
+  "permissionDeniedMessage": "Доступ запрещен: Нельзя удалить файл",
+  "@permissionDeniedMessage": {
+    "description": "Сообщение об ошибке при отказе в доступе"
+  },
+  "deletionDetailsTitle": "Детали удаления",
+  "@deletionDetailsTitle": {
+    "description": "Заголовок диалога деталей удаления"
+  },
+  "deletionSummaryMessage": "Удалено: {deleted}/{total} файлов",
+  "@deletionSummaryMessage": {
+    "description": "Сводное сообщение для деталей удаления",
+    "placeholders": {
+      "deleted": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "errorsTitle": "Ошибки:",
+  "@errorsTitle": {
+    "description": "Заголовок секции ошибок"
+  },
+  "retryButton": "Повторить",
+  "@retryButton": {
+    "description": "Кнопка для повтора операции"
   }
 }

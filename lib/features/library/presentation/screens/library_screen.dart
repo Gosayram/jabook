@@ -20,12 +20,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:jabook/core/favorites/favorites_service.dart';
+import 'package:jabook/core/library/audiobook_file_manager.dart';
 import 'package:jabook/core/library/audiobook_library_scanner.dart';
+import 'package:jabook/core/library/folder_filter_service.dart';
 import 'package:jabook/core/library/local_audiobook.dart';
+import 'package:jabook/core/library/smart_scanner_service.dart';
 import 'package:jabook/core/utils/file_picker_utils.dart' as file_picker_utils;
 import 'package:jabook/core/utils/responsive_utils.dart';
 import 'package:jabook/core/utils/storage_path_utils.dart';
 import 'package:jabook/data/db/app_database.dart';
+import 'package:jabook/features/library/presentation/widgets/delete_confirmation_dialog.dart';
 import 'package:jabook/l10n/app_localizations.dart';
 
 /// Options for sorting audiobook groups in the library.
@@ -409,7 +413,12 @@ class _LibraryContentState extends ConsumerState<_LibraryContent> {
   List<LocalAudiobookGroup> _audiobookGroups = [];
   List<LocalAudiobookGroup> _displayedGroups = [];
   bool _isScanning = false;
-  final AudiobookLibraryScanner _scanner = AudiobookLibraryScanner();
+  final FolderFilterService _folderFilterService = FolderFilterService();
+  late final AudiobookLibraryScanner _scanner =
+      AudiobookLibraryScanner(folderFilterService: _folderFilterService);
+  late final SmartScannerService _smartScanner =
+      SmartScannerService(folderFilterService: _folderFilterService);
+  final AudiobookFileManager _fileManager = AudiobookFileManager();
 
   @override
   void initState() {
@@ -420,11 +429,14 @@ class _LibraryContentState extends ConsumerState<_LibraryContent> {
     });
   }
 
-  Future<void> _loadLocalAudiobooks() async {
+  Future<void> _loadLocalAudiobooks({bool forceFullScan = false}) async {
     if (_isScanning) return;
     setState(() => _isScanning = true);
     try {
-      final groups = await _scanner.scanDefaultDirectoryGrouped();
+      // Use smart scanner for incremental updates, or full scan if forced
+      final groups = forceFullScan
+          ? await _smartScanner.forceFullScan()
+          : await _smartScanner.scanIncremental();
       if (mounted) {
         setState(() {
           _audiobookGroups = groups;
@@ -436,12 +448,27 @@ class _LibraryContentState extends ConsumerState<_LibraryContent> {
       if (mounted) {
         setState(() => _isScanning = false);
         debugPrint('Failed to load local audiobooks: $e');
+        // Fallback to regular scanner on error
+        try {
+          final groups = await _scanner.scanAllLibraryFolders();
+          if (mounted) {
+            setState(() {
+              _audiobookGroups = groups;
+              _isScanning = false;
+            });
+            _applyFilters();
+          }
+        } on Exception {
+          if (mounted) {
+            setState(() => _isScanning = false);
+          }
+        }
       }
     }
   }
 
-  Future<void> _refreshLibrary() async {
-    await _loadLocalAudiobooks();
+  Future<void> _refreshLibrary({bool forceFullScan = false}) async {
+    await _loadLocalAudiobooks(forceFullScan: forceFullScan);
   }
 
   void _applyFilters() {
@@ -991,12 +1018,72 @@ class _LibraryContentState extends ConsumerState<_LibraryContent> {
               height: 20,
               child: CircularProgressIndicator(strokeWidth: 2),
             )
-          : IconButton(
-              icon: const Icon(Icons.play_arrow),
-              onPressed: () {
-                _playAudiobookGroup(context, group);
-              },
-              tooltip: 'Play',
+          : Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.play_arrow),
+                  onPressed: () {
+                    _playAudiobookGroup(context, group);
+                  },
+                  tooltip: 'Play',
+                ),
+                PopupMenuButton<String>(
+                  icon: const Icon(Icons.more_vert),
+                  tooltip: 'More options',
+                  onSelected: (value) =>
+                      _handleMenuAction(context, group, value),
+                  itemBuilder: (context) => [
+                    PopupMenuItem(
+                      value: 'info',
+                      child: Row(
+                        children: [
+                          const Icon(Icons.info_outline, size: 20),
+                          const SizedBox(width: 8),
+                          Text(
+                            AppLocalizations.of(context)?.showInfoButton ??
+                                'Show Info',
+                          ),
+                        ],
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: 'remove',
+                      child: Row(
+                        children: [
+                          const Icon(Icons.remove_circle_outline, size: 20),
+                          const SizedBox(width: 8),
+                          Text(
+                            AppLocalizations.of(context)
+                                    ?.removeFromLibraryButton ??
+                                'Remove from Library',
+                          ),
+                        ],
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: 'delete',
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.delete_outline,
+                            size: 20,
+                            color: Theme.of(context).colorScheme.error,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            AppLocalizations.of(context)?.deleteFilesButton ??
+                                'Delete Files',
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.error,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
       onTap: () {
         // TODO: Navigate to player or show details
@@ -1008,5 +1095,401 @@ class _LibraryContentState extends ConsumerState<_LibraryContent> {
   void _playAudiobookGroup(BuildContext context, LocalAudiobookGroup group) {
     // Navigate to local player screen
     context.push('/local-player', extra: group);
+  }
+
+  Future<void> _handleMenuAction(
+    BuildContext context,
+    LocalAudiobookGroup group,
+    String action,
+  ) async {
+    switch (action) {
+      case 'info':
+        _showGroupInfo(context, group);
+        break;
+      case 'remove':
+        await _removeFromLibrary(context, group);
+        break;
+      case 'delete':
+        await _deleteGroup(context, group);
+        break;
+    }
+  }
+
+  void _showGroupInfo(BuildContext context, LocalAudiobookGroup group) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(group.groupName),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildInfoRow(
+                context,
+                Icons.folder,
+                AppLocalizations.of(context)?.path ?? 'Path',
+                group.groupPath,
+              ),
+              const SizedBox(height: 8),
+              _buildInfoRow(
+                context,
+                Icons.audiotrack,
+                AppLocalizations.of(context)?.fileCount ?? 'Files',
+                '${group.fileCount}',
+              ),
+              const SizedBox(height: 8),
+              _buildInfoRow(
+                context,
+                Icons.storage,
+                AppLocalizations.of(context)?.totalSize ?? 'Total Size',
+                group.formattedTotalSize,
+              ),
+              if (group.torrentId != null) ...[
+                const SizedBox(height: 8),
+                _buildInfoRow(
+                  context,
+                  Icons.link,
+                  'Torrent ID',
+                  group.torrentId!,
+                ),
+              ],
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: Text(AppLocalizations.of(context)?.close ?? 'Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoRow(
+    BuildContext context,
+    IconData icon,
+    String label,
+    String value,
+  ) =>
+      Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon,
+                size: 20, color: Theme.of(context).colorScheme.onSurface),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    value,
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+
+  Future<void> _removeFromLibrary(
+    BuildContext context,
+    LocalAudiobookGroup group,
+  ) async {
+    final localizations = AppLocalizations.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+
+    // Show confirmation
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(
+          localizations?.removeFromLibraryTitle ?? 'Remove from Library?',
+        ),
+        content: Text(
+          localizations?.removeFromLibraryMessage ??
+              'This will remove the audiobook from your library but will not delete the files. You can add it back by rescanning.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(localizations?.cancel ?? 'Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(
+              localizations?.removeFromLibraryButton ?? 'Remove',
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    // Show loading
+    if (!mounted) return;
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          localizations?.removingFromLibraryMessage ?? 'Removing...',
+        ),
+        duration: const Duration(seconds: 1),
+      ),
+    );
+
+    try {
+      await _fileManager.removeFromLibrary(group);
+      await _loadLocalAudiobooks();
+
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            localizations?.removedFromLibrarySuccessMessage ??
+                'Removed from library successfully',
+          ),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } on Exception catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            localizations?.removeFromLibraryFailedMessage ??
+                'Failed to remove from library: ${e.toString()}',
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _deleteGroup(
+    BuildContext context,
+    LocalAudiobookGroup group, {
+    bool isRetry = false,
+  }) async {
+    final localizations = AppLocalizations.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+
+    // Calculate total size
+    final totalSize = await _fileManager.calculateGroupSize(group);
+
+    // Show confirmation dialog (skip on retry)
+    DeleteAction? action;
+    if (!isRetry) {
+      if (!mounted) return;
+      final dialogContext = context;
+      action = await DeleteConfirmationDialog.show(
+        // ignore: use_build_context_synchronously
+        dialogContext,
+        group,
+        totalSize: totalSize,
+      );
+
+      if (!mounted || action == null || action == DeleteAction.cancel) {
+        return;
+      }
+    } else {
+      // On retry, use the same action as before (delete files)
+      action = DeleteAction.deleteFiles;
+    }
+
+    // Show loading
+    if (!mounted) return;
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          localizations?.deletingMessage ?? 'Deleting...',
+        ),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+
+    try {
+      if (action == DeleteAction.deleteFiles) {
+        // Physical deletion with detailed result
+        final result = await _fileManager.deleteGroupDetailed(
+          group,
+        );
+        if (!mounted) return;
+
+        if (result.success) {
+          await _loadLocalAudiobooks();
+          if (result.isPartialSuccess) {
+            messenger.showSnackBar(
+              SnackBar(
+                content: Text(
+                  localizations?.partialDeletionSuccessMessage(
+                        result.deletedCount,
+                        result.totalCount,
+                      ) ??
+                      'Partially deleted: ${result.deletedCount}/${result.totalCount} files',
+                ),
+                backgroundColor: Colors.orange,
+                action: SnackBarAction(
+                  label: localizations?.showDetailsButton ?? 'Details',
+                  onPressed: () {
+                    _showDeletionDetails(context, result, group);
+                  },
+                ),
+              ),
+            );
+          } else {
+            messenger.showSnackBar(
+              SnackBar(
+                content: Text(
+                  localizations?.deletedSuccessMessage ??
+                      'Files deleted successfully',
+                ),
+                backgroundColor: Colors.green,
+              ),
+            );
+          }
+        } else {
+          messenger.showSnackBar(
+            SnackBar(
+              content: Text(
+                localizations?.deleteFailedMessage ?? 'Failed to delete files',
+              ),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 6),
+              action: SnackBarAction(
+                label: localizations?.retryButton ?? 'Retry',
+                onPressed: () {
+                  messenger.hideCurrentSnackBar();
+                  _deleteGroup(context, group, isRetry: true);
+                },
+              ),
+            ),
+          );
+        }
+      } else if (action == DeleteAction.removeFromLibrary) {
+        // Logical deletion
+        await _fileManager.removeFromLibrary(group);
+        await _loadLocalAudiobooks();
+
+        if (!mounted) return;
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(
+              localizations?.removedFromLibrarySuccessMessage ??
+                  'Removed from library successfully',
+            ),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } on FileInUseException {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            localizations?.fileInUseMessage ??
+                'Cannot delete: File is currently being played',
+          ),
+          backgroundColor: Colors.orange,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    } on PermissionDeniedException {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            localizations?.permissionDeniedMessage ??
+                'Permission denied: Cannot delete file',
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } on Exception catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            localizations?.deleteFailedMessage ??
+                'Failed to delete: ${e.toString()}',
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  void _showDeletionDetails(
+    BuildContext context,
+    DeletionResult result,
+    LocalAudiobookGroup? group,
+  ) {
+    final localizations = AppLocalizations.of(context);
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(
+          localizations?.deletionDetailsTitle ?? 'Deletion Details',
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                localizations?.deletionSummaryMessage(
+                      result.deletedCount,
+                      result.totalCount,
+                    ) ??
+                    'Deleted: ${result.deletedCount}/${result.totalCount} files',
+                style: Theme.of(context).textTheme.bodyLarge,
+              ),
+              if (result.errors.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                Text(
+                  localizations?.errorsTitle ?? 'Errors:',
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
+                const SizedBox(height: 8),
+                ...result.errors.map(
+                  (error) => Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Text(
+                      '• $error',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        actions: [
+          if (group != null && !result.success)
+            TextButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+                _deleteGroup(context, group, isRetry: true);
+              },
+              child: Text(localizations?.retryButton ?? 'Retry'),
+            ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: Text(localizations?.close ?? 'Close'),
+          ),
+        ],
+      ),
+    );
   }
 }

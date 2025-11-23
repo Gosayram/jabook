@@ -71,6 +71,16 @@ flutter {
     source = "../.."
 }
 
+// Configure kapt for Dagger Hilt
+// Note: Some kapt options may show warnings if not used by processors.
+// This is normal and doesn't affect functionality.
+kapt {
+    correctErrorTypes = true
+    useBuildCache = true
+    // These options are set automatically by Hilt plugin
+    // Warnings about unrecognized options can be safely ignored
+}
+
 dependencies {
     // Desugaring for flutter_local_notifications
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")

@@ -4,6 +4,7 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
+import android.provider.DocumentsContract
 import android.provider.Settings
 import android.webkit.CookieManager
 import androidx.annotation.RequiresApi
@@ -171,6 +172,125 @@ class MainActivity : FlutterActivity() {
         downloadServiceChannel.setMethodCallHandler(
             DownloadServiceMethodHandler(this)
         )
+        
+        // Register ContentUriChannel for accessing files via ContentResolver
+        val contentUriChannel = MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            "content_uri_channel"
+        )
+        contentUriChannel.setMethodCallHandler { call, result ->
+            when (call.method) {
+                "listDirectory" -> {
+                    val uriString = call.argument<String>("uri")
+                    if (uriString != null) {
+                        try {
+                            val uri = Uri.parse(uriString)
+                            val files = listDirectoryViaContentResolver(uri)
+                            result.success(files)
+                        } catch (e: Exception) {
+                            result.error("LIST_ERROR", e.message, null)
+                        }
+                    } else {
+                        result.error("INVALID_ARGUMENT", "URI is required", null)
+                    }
+                }
+                "checkUriAccess" -> {
+                    val uriString = call.argument<String>("uri")
+                    if (uriString != null) {
+                        try {
+                            val uri = Uri.parse(uriString)
+                            val hasAccess = checkUriAccess(uri)
+                            result.success(hasAccess)
+                        } catch (e: Exception) {
+                            result.error("CHECK_ERROR", e.message, null)
+                        }
+                    } else {
+                        result.error("INVALID_ARGUMENT", "URI is required", null)
+                    }
+                }
+                else -> result.notImplemented()
+            }
+        }
+    }
+    
+    /**
+     * Lists files in a directory using ContentResolver.
+     * This is required for content:// URIs on Android 7+ (API 24+).
+     */
+    @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
+    private fun listDirectoryViaContentResolver(uri: Uri): List<Map<String, String>> {
+        val files = mutableListOf<Map<String, String>>()
+        
+        try {
+            val contentResolver = this.contentResolver
+            
+            // Use DocumentsContract for tree URIs
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(
+                    uri,
+                    DocumentsContract.getTreeDocumentId(uri)
+                )
+                
+                val cursor = contentResolver.query(
+                    childrenUri,
+                    arrayOf(
+                        DocumentsContract.Document.COLUMN_DOCUMENT_ID,
+                        DocumentsContract.Document.COLUMN_DISPLAY_NAME,
+                        DocumentsContract.Document.COLUMN_MIME_TYPE,
+                        DocumentsContract.Document.COLUMN_SIZE
+                    ),
+                    null,
+                    null,
+                    null
+                )
+                
+                cursor?.use {
+                    val idColumn = it.getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_DOCUMENT_ID)
+                    val nameColumn = it.getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_DISPLAY_NAME)
+                    val mimeColumn = it.getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_MIME_TYPE)
+                    val sizeColumn = it.getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_SIZE)
+                    
+                    while (it.moveToNext()) {
+                        val documentId = it.getString(idColumn)
+                        val name = it.getString(nameColumn)
+                        val mimeType = it.getString(mimeColumn)
+                        val size = it.getLong(sizeColumn)
+                        
+                        val childUri = DocumentsContract.buildDocumentUriUsingTree(uri, documentId)
+                        
+                        files.add(mapOf(
+                            "uri" to childUri.toString(),
+                            "name" to (name ?: ""),
+                            "mimeType" to (mimeType ?: ""),
+                            "size" to size.toString(),
+                            "isDirectory" to (mimeType == DocumentsContract.Document.MIME_TYPE_DIR).toString()
+                        ))
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("MainActivity", "Error listing directory via ContentResolver", e)
+            throw e
+        }
+        
+        return files
+    }
+    
+    /**
+     * Checks if the app has access to a content URI.
+     */
+    @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
+    private fun checkUriAccess(uri: Uri): Boolean {
+        return try {
+            val contentResolver = this.contentResolver
+            val persistedUriPermissions = contentResolver.persistedUriPermissions
+            
+            // Check if we have persistable permission for this URI
+            persistedUriPermissions.any { it.uri == uri && it.isReadPermission }
+        } catch (e: Exception) {
+            android.util.Log.e("MainActivity", "Error checking URI access", e)
+            false
+        }
     }
     
     @RequiresApi(Build.VERSION_CODES.LOLLIPOP)

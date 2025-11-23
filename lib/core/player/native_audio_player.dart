@@ -588,6 +588,41 @@ class NativeAudioPlayer {
     }
   }
 
+  /// Gets information about current media item.
+  ///
+  /// Returns a map with current media item information, or empty map if no item.
+  Future<Map<String, dynamic>> getCurrentMediaItemInfo() async {
+    try {
+      final infoMap = await _channel.invokeMethod<Map<dynamic, dynamic>>(
+        'getCurrentMediaItemInfo',
+      );
+      if (infoMap == null) {
+        return {};
+      }
+      // Convert Map<dynamic, dynamic> to Map<String, dynamic>
+      return Map<String, dynamic>.from(
+        infoMap.map((key, value) => MapEntry(key.toString(), value)),
+      );
+    } on PlatformException catch (e) {
+      await _logger.log(
+        level: 'warning',
+        subsystem: 'audio',
+        message: 'Failed to get current media item info',
+        cause: e.toString(),
+        extra: {'code': e.code, 'message': e.message},
+      );
+      return {};
+    } on Exception catch (e) {
+      await _logger.log(
+        level: 'warning',
+        subsystem: 'audio',
+        message: 'Failed to get current media item info',
+        cause: e.toString(),
+      );
+      return {};
+    }
+  }
+
   /// Seeks to specific track and position.
   ///
   /// [trackIndex] is the track index in the playlist (0-based).
