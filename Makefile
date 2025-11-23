@@ -9,6 +9,8 @@ IOS_BUILD_VARIANTS = $(addprefix $(PROJECT_NAME)-, $(FLAVORS))
 SIGNING_SCRIPT = scripts/signing.sh
 PUBSPEC_FILE = pubspec.yaml
 VERSION = $(shell grep "^version:" $(PUBSPEC_FILE) | sed 's/version:[[:space:]]*//' | cut -d+ -f1)
+FULL_VERSION = $(shell grep "^version:" $(PUBSPEC_FILE) | sed 's/version:[[:space:]]*//')
+APK_DEST_DIR = ~/Downloads/Jabook
 
 # Default target
 .PHONY: help
@@ -63,6 +65,8 @@ help:
 	@echo "  make release-android               - Build all signed Android release variants"
 	@echo "  make release-ios                   - Build all iOS release variants"
 	@echo "  make release                       - Build all release variants"
+	@echo "  make copy-apk                      - Copy APK files to ~/Downloads/Jabook with version in filename"
+	@echo "  make build-android-signed-apk-copy - Build signed APK and copy to ~/Downloads/Jabook with version"
 
 # Development commands
 .PHONY: install
@@ -200,6 +204,43 @@ build-android-signed-apk: use-existing-android-cert patch-gradle-signing patch-g
 		--split-per-abi \
 		--tree-shake-icons
 	@echo "Signed optimized APK built at: build/app/outputs/apk/"
+
+.PHONY: copy-apk
+copy-apk:
+	@echo "Copying APK files with version $(FULL_VERSION)..."
+	@mkdir -p $(APK_DEST_DIR)
+	@if [ -f "build/app/outputs/flutter-apk/app-x86_64-release.apk" ]; then \
+		cp build/app/outputs/flutter-apk/app-x86_64-release.apk $(APK_DEST_DIR)/Jabook_$(FULL_VERSION)_x86_64.apk && \
+		echo "✅ Copied: Jabook_$(FULL_VERSION)_x86_64.apk"; \
+	elif [ -f "build/app/outputs/apk/release/app-x86_64-release.apk" ]; then \
+		cp build/app/outputs/apk/release/app-x86_64-release.apk $(APK_DEST_DIR)/Jabook_$(FULL_VERSION)_x86_64.apk && \
+		echo "✅ Copied: Jabook_$(FULL_VERSION)_x86_64.apk"; \
+	else \
+		echo "⚠️  Warning: app-x86_64-release.apk not found"; \
+	fi
+	@if [ -f "build/app/outputs/flutter-apk/app-arm64-v8a-release.apk" ]; then \
+		cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk $(APK_DEST_DIR)/Jabook_$(FULL_VERSION)_v8a.apk && \
+		echo "✅ Copied: Jabook_$(FULL_VERSION)_v8a.apk"; \
+	elif [ -f "build/app/outputs/apk/release/app-arm64-v8a-release.apk" ]; then \
+		cp build/app/outputs/apk/release/app-arm64-v8a-release.apk $(APK_DEST_DIR)/Jabook_$(FULL_VERSION)_v8a.apk && \
+		echo "✅ Copied: Jabook_$(FULL_VERSION)_v8a.apk"; \
+	else \
+		echo "⚠️  Warning: app-arm64-v8a-release.apk not found"; \
+	fi
+	@if [ -f "build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk" ]; then \
+		cp build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk $(APK_DEST_DIR)/Jabook_$(FULL_VERSION)_v7a.apk && \
+		echo "✅ Copied: Jabook_$(FULL_VERSION)_v7a.apk"; \
+	elif [ -f "build/app/outputs/apk/release/app-armeabi-v7a-release.apk" ]; then \
+		cp build/app/outputs/apk/release/app-armeabi-v7a-release.apk $(APK_DEST_DIR)/Jabook_$(FULL_VERSION)_v7a.apk && \
+		echo "✅ Copied: Jabook_$(FULL_VERSION)_v7a.apk"; \
+	else \
+		echo "⚠️  Warning: app-armeabi-v7a-release.apk not found"; \
+	fi
+	@echo "✅ APK files copied to $(APK_DEST_DIR)/"
+
+.PHONY: build-android-signed-apk-copy
+build-android-signed-apk-copy: build-android-signed-apk copy-apk
+	@echo "✅ Build and copy complete!"
 
 .PHONY: build-android-debug-apk
 build-android-debug-apk: use-existing-android-cert patch-gradle-signing patch-gradle-minsdk
