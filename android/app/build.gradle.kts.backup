@@ -96,6 +96,10 @@ dependencies {
     // Add coroutines support for proper async handling
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
     
+    // Note: Media3 1.8.0 is the current stable version with full Android 14+ support
+    // Previous alpha/beta versions (1.3.0, 1.4.0) had compatibility issues
+    // Version 1.8.0 includes all Android 14+ fixes and is production-ready
+    
     // Media library for MediaStyle notification (required for MediaStyle class)
     // MediaStyle is part of androidx.media, not androidx.core
     implementation("androidx.media:media:1.7.0")

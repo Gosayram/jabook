@@ -98,9 +98,10 @@ class NativeAudioPlayer {
   static const int _baseRetryDelayMs = 500;
 
   /// Checks if error is retryable (SERVICE_UNAVAILABLE or similar).
-  bool _isRetryableError(PlatformException e) => e.code == 'SERVICE_UNAVAILABLE' ||
-        (e.message?.contains('not ready') ?? false) ||
-        (e.message?.contains('not initialized') ?? false);
+  bool _isRetryableError(PlatformException e) =>
+      e.code == 'SERVICE_UNAVAILABLE' ||
+      (e.message?.contains('not ready') ?? false) ||
+      (e.message?.contains('not initialized') ?? false);
 
   /// Executes a method with retry logic for SERVICE_UNAVAILABLE errors.
   ///

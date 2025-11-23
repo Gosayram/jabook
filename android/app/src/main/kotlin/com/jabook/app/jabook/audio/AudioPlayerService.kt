@@ -885,13 +885,11 @@ class AudioPlayerService : MediaSessionService() {
             }
             else -> {
                 // Calculate which track and position to seek to
-                // Inspired by lissen-android's cumulative duration approach
+                // Use ChapterUtils functions inspired by lissen-android
                 val positionMs = (progressSeconds * 1000).toLong()
                 
                 // Get actual durations from MediaItems (more accurate than estimation)
-                // This approach is similar to lissen-android's seek() method
                 val durationsMs = mutableListOf<Long>()
-                var totalDuration = 0L
                 
                 // Collect actual durations from MediaItems if available
                 for (i in 0 until player.mediaItemCount) {
@@ -908,24 +906,18 @@ class AudioPlayerService : MediaSessionService() {
                         5 * 60 * 1000L
                     }
                     durationsMs.add(itemDuration)
-                    totalDuration += itemDuration
                 }
                 
-                // Calculate cumulative durations (like lissen-android)
-                val cumulativeDurationsMs = durationsMs.runningFold(0L) { acc, duration -> acc + duration }
-                
-                // Find target chapter index (like lissen-android's seek method)
-                val targetChapterIndex = cumulativeDurationsMs.indexOfFirst { it > positionMs }
+                // Use ChapterUtils to calculate target chapter index and position
+                val targetChapterIndex = calculateChapterIndexMs(durationsMs, positionMs)
+                val chapterPositionMs = calculateChapterPositionMs(durationsMs, positionMs)
                 
                 when {
-                    targetChapterIndex - 1 >= 0 -> {
+                    targetChapterIndex >= 0 && targetChapterIndex < player.mediaItemCount -> {
                         // Found valid chapter
-                        val chapterStartTimeMs = cumulativeDurationsMs[targetChapterIndex - 1]
-                        val chapterProgressMs = positionMs - chapterStartTimeMs
-                        val clampedProgress = chapterProgressMs.coerceAtLeast(0L)
-                        
-                        player.seekTo(targetChapterIndex - 1, clampedProgress)
-                        android.util.Log.d("AudioPlayerService", "Restored playback: track=${targetChapterIndex - 1}, position=${clampedProgress}ms (from ${progressSeconds}s)")
+                        val clampedProgress = chapterPositionMs.coerceAtLeast(0L)
+                        player.seekTo(targetChapterIndex, clampedProgress)
+                        android.util.Log.d("AudioPlayerService", "Restored playback: track=$targetChapterIndex, position=${clampedProgress}ms (from ${progressSeconds}s)")
                     }
                     else -> {
                         // Position is beyond all tracks or at the end, seek to last track
