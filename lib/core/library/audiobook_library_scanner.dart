@@ -156,7 +156,16 @@ class AudiobookLibraryScanner {
             final mergedFiles = <LocalAudiobook>[
               ...existingGroup.files,
               ...group.files,
-            ]..sort((a, b) => a.fileName.compareTo(b.fileName));
+            ]..sort((a, b) {
+                // Sort by full file path to preserve folder structure order
+                // This ensures files from different folders (parts of book) are in correct order
+                final pathCompare = a.filePath.compareTo(b.filePath);
+                if (pathCompare != 0) {
+                  return pathCompare;
+                }
+                // If paths are equal (shouldn't happen), fall back to filename
+                return a.fileName.compareTo(b.fileName);
+              });
 
             groupsByPath[group.groupPath] = existingGroup.copyWith(
               files: mergedFiles,
@@ -611,7 +620,16 @@ class AudiobookLibraryScanner {
               final updatedFiles =
                   List<LocalAudiobook>.from(existingGroup.files)
                     ..add(audiobook)
-                    ..sort((a, b) => a.fileName.compareTo(b.fileName));
+                    ..sort((a, b) {
+                      // Sort by full file path to preserve folder structure order
+                      // This ensures files from different folders (parts of book) are in correct order
+                      final pathCompare = a.filePath.compareTo(b.filePath);
+                      if (pathCompare != 0) {
+                        return pathCompare;
+                      }
+                      // If paths are equal (shouldn't happen), fall back to filename
+                      return a.fileName.compareTo(b.fileName);
+                    });
               groups[groupKey] = existingGroup.copyWith(files: updatedFiles);
             } else {
               // Create new group

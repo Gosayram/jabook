@@ -621,8 +621,12 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
                           const SizedBox(height: 24),
                           // Track info
                           Text(
-                            widget.group.files[playerState.currentIndex]
-                                .displayName,
+                            widget.group.hasMultiFolderStructure
+                                ? widget.group.files[playerState.currentIndex]
+                                    .getDisplayNameWithPart(
+                                        widget.group.groupPath)
+                                : widget.group.files[playerState.currentIndex]
+                                    .displayName,
                             style: Theme.of(context).textTheme.titleLarge,
                             textAlign: TextAlign.center,
                           ),
@@ -941,39 +945,46 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
         );
   }
 
-  Widget _buildTrackList(PlayerStateModel state) => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Tracks (${widget.group.files.length})',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-          const SizedBox(height: 8),
-          ListView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: widget.group.files.length,
-            itemBuilder: (context, index) {
-              final file = widget.group.files[index];
-              final isCurrent = index == state.currentIndex;
-              return ListTile(
-                leading: Icon(
-                  isCurrent ? Icons.audiotrack : Icons.music_note,
-                  color: isCurrent ? Theme.of(context).primaryColor : null,
+  Widget _buildTrackList(PlayerStateModel state) {
+    final hasMultiFolder = widget.group.hasMultiFolderStructure;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Tracks (${widget.group.files.length})',
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
+        const SizedBox(height: 8),
+        ListView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: widget.group.files.length,
+          itemBuilder: (context, index) {
+            final file = widget.group.files[index];
+            final isCurrent = index == state.currentIndex;
+            // Use display name with part prefix if multi-folder structure detected
+            final displayName = hasMultiFolder
+                ? file.getDisplayNameWithPart(widget.group.groupPath)
+                : file.displayName;
+            return ListTile(
+              leading: Icon(
+                isCurrent ? Icons.audiotrack : Icons.music_note,
+                color: isCurrent ? Theme.of(context).primaryColor : null,
+              ),
+              title: Text(
+                displayName,
+                style: TextStyle(
+                  fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
                 ),
-                title: Text(
-                  file.displayName,
-                  style: TextStyle(
-                    fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
-                  ),
-                ),
-                subtitle: Text(file.formattedSize),
-                onTap: () => _seekToTrack(index),
-              );
-            },
-          ),
-        ],
-      );
+              ),
+              subtitle: Text(file.formattedSize),
+              onTap: () => _seekToTrack(index),
+            );
+          },
+        ),
+      ],
+    );
+  }
 
   Widget _buildSpeedControl(PlayerStateModel state) => PopupMenuButton<double>(
         tooltip: 'Playback speed',

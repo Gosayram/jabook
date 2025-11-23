@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'package:path/path.dart' as path;
+
 /// Represents a local audiobook file found on the device.
 ///
 /// This class contains information about an audiobook file that was
@@ -76,6 +78,50 @@ class LocalAudiobook {
       return nameWithoutExt.substring(0, lastDot);
     }
     return nameWithoutExt;
+  }
+
+  /// Gets the folder name (part name) for this file relative to groupPath.
+  ///
+  /// Returns null if the file is directly in groupPath (no subfolder).
+  /// Returns the subfolder name if the file is in a subfolder.
+  ///
+  /// The [groupPath] parameter is the base path of the group.
+  String? getPartFolderName(String groupPath) {
+    try {
+      final normalizedFilePath = path.normalize(filePath);
+      final normalizedGroupPath = path.normalize(groupPath);
+
+      if (!normalizedFilePath.startsWith(normalizedGroupPath)) {
+        return null;
+      }
+
+      // Get relative path from groupPath
+      final relativePath =
+          path.relative(normalizedFilePath, from: normalizedGroupPath);
+      final parts = path.split(relativePath);
+
+      // If there's more than just the filename, return the first folder name
+      if (parts.length > 1) {
+        return parts[0];
+      }
+
+      return null;
+    } on Exception {
+      return null;
+    }
+  }
+
+  /// Gets display name with part folder prefix if applicable.
+  ///
+  /// The [groupPath] parameter is the base path of the group.
+  /// Returns display name with part folder prefix if file is in a subfolder,
+  /// otherwise returns just the display name.
+  String getDisplayNameWithPart(String groupPath) {
+    final partName = getPartFolderName(groupPath);
+    if (partName != null && partName.isNotEmpty) {
+      return '$partName — $displayName';
+    }
+    return displayName;
   }
 
   /// Gets formatted file size (e.g., "1.5 MB").
@@ -183,6 +229,39 @@ class LocalAudiobookGroup {
 
   /// Gets the number of files in this group.
   int get fileCount => files.length;
+
+  /// Checks if this group has multi-folder structure (multifoldering).
+  ///
+  /// Returns true if files are located in different subfolders relative to groupPath,
+  /// false if all files are directly in groupPath or in the same subfolder.
+  bool get hasMultiFolderStructure {
+    if (files.isEmpty) {
+      return false;
+    }
+
+    final normalizedGroupPath = path.normalize(groupPath);
+    final folderNames = <String?>{};
+
+    for (final file in files) {
+      final partName = file.getPartFolderName(normalizedGroupPath);
+      folderNames.add(partName);
+    }
+
+    // If we have more than one unique folder name (including null for direct files),
+    // or if we have both null and non-null values, it's multi-folder
+    if (folderNames.length > 1) {
+      return true;
+    }
+
+    // If all files are in the same subfolder (not directly in groupPath),
+    // it's not multi-folder (it's just one subfolder)
+    if (folderNames.length == 1 && folderNames.first != null) {
+      return false;
+    }
+
+    // All files are directly in groupPath
+    return false;
+  }
 
   /// Creates a copy of this LocalAudiobookGroup with updated values.
   LocalAudiobookGroup copyWith({
