@@ -49,6 +49,7 @@ help:
 	@echo "  make fmt                           - Format code"
 	@echo "  make lint                          - Run linting"
 	@echo "  make l10n                          - Generate localization files (flutter gen-l10n)"
+	@echo "  make check-l10n-duplicates         - Check for duplicate keys in ARB files"
 	@echo "  make analyze-size                  - Analyze APK size with detailed breakdown"
 	@echo ""
 	@echo "Maintenance Commands:"
@@ -308,6 +309,15 @@ l10n:
 	@echo "Generating localization files via flutter gen-l10n..."
 	flutter gen-l10n
 	@echo "Localization files generated in lib/l10n/"
+
+.PHONY: check-l10n
+check-l10n:
+	@if [ -f "hack/check-l10n-duplicates.sh" ]; then \
+		hack/check-l10n-duplicates.sh; \
+	else \
+		echo "Error: hack/check-l10n-duplicates.sh not found"; \
+		exit 1; \
+	fi
 
 .PHONY: fmt
 fmt:
