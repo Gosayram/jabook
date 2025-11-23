@@ -26,11 +26,14 @@ import 'package:jabook/core/background/download_background_service.dart';
 import 'package:jabook/core/download/download_foreground_service.dart';
 import 'package:jabook/core/errors/failures.dart';
 import 'package:jabook/core/library/audiobook_library_scanner.dart';
+import 'package:jabook/core/library/folder_filter_service.dart';
+import 'package:jabook/core/library/smart_scanner_service.dart';
 import 'package:jabook/core/logging/environment_logger.dart';
 import 'package:jabook/core/logging/structured_logger.dart';
 import 'package:jabook/core/net/dio_client.dart';
 import 'package:jabook/core/notifications/download_notification_service.dart';
 import 'package:jabook/core/permissions/permission_service.dart';
+import 'package:jabook/core/utils/content_uri_service.dart';
 import 'package:jabook/core/utils/network_utils.dart';
 import 'package:jabook/core/utils/safe_async.dart';
 import 'package:jabook/core/utils/storage_path_utils.dart';
@@ -434,12 +437,16 @@ class AudiobookTorrentManager {
         task.applySelectedFiles(magnet.selectedFileIndices!);
       }
 
-      // Store metadata
+      // Store metadata IMMEDIATELY so it appears in downloads list right away
       final metadata = {
         'magnetUrl': magnetUrl,
         'savePath': savePath,
         'infoHash': magnet.infoHashString,
         'startedAt': DateTime.now().toIso8601String(),
+        'status': 'downloading_metadata', // Initial status
+        'progress': 0.0,
+        'downloadedBytes': 0,
+        'totalBytes': 0,
         if (title != null && title.isNotEmpty) 'title': title,
         if (coverUrl != null && coverUrl.isNotEmpty) 'coverUrl': coverUrl,
       };
@@ -451,6 +458,31 @@ class AudiobookTorrentManager {
       logger.d(
         'Saved download metadata to database for downloadId: $downloadId',
       );
+
+      // Emit initial progress so UI can show the download immediately
+      final initialProgress = TorrentProgress(
+        progress: 0.0,
+        downloadSpeed: 0.0,
+        uploadSpeed: 0.0,
+        downloadedBytes: 0,
+        totalBytes: 0,
+        seeders: 0,
+        leechers: 0,
+        status: 'downloading_metadata',
+      );
+      if (!progressController.isClosed) {
+        progressController.add(initialProgress);
+      }
+
+      // Show initial notification
+      final displayTitle = title ?? 'Download';
+      safeUnawaited(_notificationService.showDownloadProgress(
+        downloadId,
+        displayTitle,
+        0.0,
+        0.0,
+        'downloading_metadata',
+      ));
 
       // Register background service for monitoring downloads
       safeUnawaited(_registerBackgroundService());
@@ -465,6 +497,17 @@ class AudiobookTorrentManager {
         logger
           ..i('Task started for download $finalDownloadId')
           ..i('Connecting to peers...');
+
+        safeUnawaited(StructuredLogger().log(
+          level: 'info',
+          subsystem: 'torrent',
+          message: 'Torrent task started',
+          extra: {
+            'downloadId': finalDownloadId,
+            'torrentName': task.metaInfo.name,
+            'torrentSize': task.metaInfo.length,
+          },
+        ));
 
         // Log the actual save path that TorrentTask is using
         final metadata = _downloadMetadata[finalDownloadId];
@@ -486,6 +529,16 @@ class AudiobookTorrentManager {
 
       task.events.on<AllComplete>((event) {
         logger.i('Download completed for download $finalDownloadId');
+        safeUnawaited(StructuredLogger().log(
+          level: 'info',
+          subsystem: 'torrent',
+          message: 'Download completed',
+          extra: {
+            'downloadId': finalDownloadId,
+            'downloadedBytes': task.downloaded ?? 0,
+            'totalBytes': task.metaInfo.length,
+          },
+        ));
         // Cancel progress timer
         final timer = _progressTimers[finalDownloadId];
         if (timer != null) {
@@ -510,12 +563,40 @@ class AudiobookTorrentManager {
         _progressControllers.remove(downloadId);
         _activeTasks.remove(downloadId);
 
+        // Update notification with completed status
+        final completedNotificationMetadata2 =
+            _downloadMetadata[finalDownloadId];
+        final displayTitle2 =
+            completedNotificationMetadata2?['title'] as String? ??
+                task.metaInfo.name;
+        safeUnawaited(_notificationService.showDownloadProgress(
+          finalDownloadId,
+          displayTitle2,
+          100.0,
+          0.0,
+          'completed',
+        ));
+
+        // Update notification with completed status
+        final completedNotificationMetadata =
+            _downloadMetadata[finalDownloadId];
+        final displayTitle =
+            completedNotificationMetadata?['title'] as String? ??
+                task.metaInfo.name;
+        safeUnawaited(_notificationService.showDownloadProgress(
+          finalDownloadId,
+          displayTitle,
+          100.0,
+          0.0,
+          'completed',
+        ));
+
         // Check if all downloads are completed and stop foreground service
         safeUnawaited(_checkAndStopForegroundService());
 
         // Update metadata with completed status instead of removing
-        final metadata = _downloadMetadata[finalDownloadId];
-        if (metadata != null) {
+        final completedMetadata = _downloadMetadata[finalDownloadId];
+        if (completedMetadata != null) {
           metadata['status'] = 'completed';
           metadata['progress'] = 100.0;
           metadata['completedAt'] = DateTime.now().toIso8601String();
@@ -618,6 +699,19 @@ class AudiobookTorrentManager {
 
       return downloadId;
     } on Exception catch (e) {
+      // Log error with full context
+      logger.e('Failed to start download: ${e.toString()}', error: e);
+      await StructuredLogger().log(
+        level: 'error',
+        subsystem: 'torrent',
+        message: 'Failed to start download',
+        extra: {
+          'downloadId': downloadId,
+          'error': e.toString(),
+          'errorType': e.runtimeType.toString(),
+        },
+      );
+
       // Clean up on error
       if (downloadId != null) {
         try {
@@ -643,6 +737,26 @@ class AudiobookTorrentManager {
             safeUnawaited(metadata.stop());
           }
           _metadataDownloaders.remove(downloadId);
+
+          // Update metadata with error status before removing
+          final errorMetadata = _downloadMetadata[downloadId];
+          if (errorMetadata != null) {
+            errorMetadata['status'] = 'error: ${e.toString()}';
+            errorMetadata['error'] = e.toString();
+            errorMetadata['failedAt'] = DateTime.now().toIso8601String();
+            safeUnawaited(_saveDownloadMetadata(downloadId, errorMetadata));
+
+            // Show error notification
+            final displayTitle =
+                errorMetadata['title'] as String? ?? 'Download';
+            safeUnawaited(_notificationService.showDownloadProgress(
+              downloadId,
+              displayTitle,
+              0.0,
+              0.0,
+              'error: ${e.toString()}',
+            ));
+          }
           _downloadMetadata.remove(downloadId);
         } on Exception catch (cleanupError) {
           // Log cleanup error but don't throw - original error is more important
@@ -902,11 +1016,15 @@ class AudiobookTorrentManager {
         }, // Don't include savePath in extra to avoid redaction
       );
 
-      // Store metadata
+      // Store metadata IMMEDIATELY so it appears in downloads list right away
       final metadata = <String, dynamic>{
         'savePath': savePath,
         'startedAt': DateTime.now().toIso8601String(),
         'torrentBytes': torrentBytes, // Store torrent bytes for restoration
+        'status': 'downloading', // Initial status
+        'progress': 0.0,
+        'downloadedBytes': 0,
+        'totalBytes': torrentModel.length,
       };
       if (title != null && title.isNotEmpty) {
         metadata['title'] = title;
@@ -922,6 +1040,31 @@ class AudiobookTorrentManager {
       logger.d(
         'Saved download metadata to database for downloadId: $downloadId',
       );
+
+      // Emit initial progress so UI can show the download immediately
+      final initialProgress = TorrentProgress(
+        progress: 0.0,
+        downloadSpeed: 0.0,
+        uploadSpeed: 0.0,
+        downloadedBytes: 0,
+        totalBytes: torrentModel.length,
+        seeders: 0,
+        leechers: 0,
+        status: 'downloading',
+      );
+      if (!progressController.isClosed) {
+        progressController.add(initialProgress);
+      }
+
+      // Show initial notification
+      final displayTitle = title ?? torrentModel.name;
+      safeUnawaited(_notificationService.showDownloadProgress(
+        downloadId,
+        displayTitle,
+        0.0,
+        0.0,
+        'downloading',
+      ));
       await StructuredLogger().log(
         level: 'info',
         subsystem: 'torrent',
@@ -979,6 +1122,20 @@ class AudiobookTorrentManager {
         }
         _progressControllers.remove(downloadId);
         _activeTasks.remove(downloadId);
+
+        // Update notification with completed status
+        final completedNotificationMetadata3 =
+            _downloadMetadata[finalDownloadId];
+        final displayTitle3 =
+            completedNotificationMetadata3?['title'] as String? ??
+                task.metaInfo.name;
+        safeUnawaited(_notificationService.showDownloadProgress(
+          finalDownloadId,
+          displayTitle3,
+          100.0,
+          0.0,
+          'completed',
+        ));
 
         // Update metadata with completed status instead of removing
         final metadata = _downloadMetadata[finalDownloadId];
@@ -1257,7 +1414,8 @@ class AudiobookTorrentManager {
         // Check for hang at 99% (progress >= 99.0% and not changing for 20 seconds)
         // Also check if download speed is 0 and progress is high
         final currentProgress = task.progress * 100;
-        final currentSpeed = task.currentDownloadSpeed;
+        // Convert KB/s to B/s for comparison
+        final currentSpeed = task.currentDownloadSpeed * 1024;
         final now = DateTime.now();
 
         // Check if download is actually completed (task.progress >= 1.0)
@@ -1445,20 +1603,13 @@ class AudiobookTorrentManager {
           logger.d(
             'Raw download speed from TorrentTask: ${task.currentDownloadSpeed} (type: ${task.currentDownloadSpeed.runtimeType})',
           );
-          // Check if speed might be in KB/s instead of B/s
-          // If speed is > 1000 but < 10000, it's likely in KB/s
-          if (task.currentDownloadSpeed > 1000 &&
-              task.currentDownloadSpeed < 10000) {
-            logger.w(
-              'Download speed might be in KB/s instead of B/s. Raw value: ${task.currentDownloadSpeed}',
-            );
-          }
         }
 
-        // Use raw speed - TorrentTask should return bytes per second
-        // If it returns KB/s, we'll need to multiply by 1024
+        // TorrentTask returns speed in KB/s, not B/s
+        // Convert to bytes per second for consistent formatting
+        // All speeds from TorrentTask are in KB/s, so always multiply by 1024
         final rawSpeed = task.currentDownloadSpeed;
-        final downloadSpeed = isPaused ? 0.0 : rawSpeed;
+        final downloadSpeed = isPaused ? 0.0 : rawSpeed * 1024;
 
         // Get metadata early for network error detection
         final metadata = _downloadMetadata[downloadId];
@@ -1540,7 +1691,9 @@ class AudiobookTorrentManager {
           progressController.add(progress);
         }
 
-        // Update notification
+        // Update notification - always sync with current status
+        // Use only DownloadNotificationService for individual download notifications
+        // DownloadForegroundService is only used to keep service alive, not for notifications
         final title = metadata?['title'] as String? ?? task.metaInfo.name;
         safeUnawaited(_notificationService.showDownloadProgress(
           downloadId,
@@ -1550,13 +1703,27 @@ class AudiobookTorrentManager {
           status,
         ));
 
-        // Update foreground service notification
-        final speedText = _formatSpeed(progress.downloadSpeed);
-        safeUnawaited(_foregroundService.updateProgress(
-          title: title,
-          progress: progress.progress,
-          speed: speedText,
-        ));
+        // Log status changes for debugging
+        if (lastLogTime == null ||
+            now.difference(lastLogTime!) >= const Duration(seconds: 10)) {
+          await StructuredLogger().log(
+            level: 'debug',
+            subsystem: 'torrent',
+            message: 'Download progress update',
+            extra: {
+              'downloadId': downloadId,
+              'progress': progress.progress,
+              'status': status,
+              'speed': progress.downloadSpeed,
+              'seeders': progress.seeders,
+              'leechers': progress.leechers,
+            },
+          );
+        }
+
+        // Note: Removed foreground service notification update to avoid duplicate notifications
+        // DownloadForegroundService is only used to keep the service alive in background
+        // Individual download notifications are handled by DownloadNotificationService
 
         // Save progress and status to metadata every 5 seconds
         if (lastSaveTime == null ||
@@ -1608,6 +1775,9 @@ class AudiobookTorrentManager {
         );
 
         try {
+          final errorStatus = isNetworkErr && retryCount < _maxNetworkRetries
+              ? 'retrying: ${e.toString()}'
+              : 'error: ${e.toString()}';
           final errorProgress = TorrentProgress(
             progress: task.progress * 100,
             downloadSpeed: 0.0,
@@ -1616,13 +1786,44 @@ class AudiobookTorrentManager {
             totalBytes: task.metaInfo.length,
             seeders: 0,
             leechers: 0,
-            status: isNetworkErr && retryCount < _maxNetworkRetries
-                ? 'retrying: ${e.toString()}'
-                : 'error: ${e.toString()}',
+            status: errorStatus,
           );
           if (!progressController.isClosed) {
             progressController.add(errorProgress);
           }
+
+          // Update notification with error status
+          final metadata = _downloadMetadata[downloadId];
+          final displayTitle =
+              metadata?['title'] as String? ?? task.metaInfo.name;
+          safeUnawaited(_notificationService.showDownloadProgress(
+            downloadId,
+            displayTitle,
+            task.progress * 100,
+            0.0,
+            errorStatus,
+          ));
+
+          // Update metadata with error status
+          if (metadata != null) {
+            metadata['status'] = errorStatus;
+            metadata['error'] = e.toString();
+            metadata['lastUpdated'] = DateTime.now().toIso8601String();
+            safeUnawaited(_saveDownloadMetadata(downloadId, metadata));
+          }
+
+          await StructuredLogger().log(
+            level: 'error',
+            subsystem: 'torrent',
+            message: 'Download error in progress update',
+            extra: {
+              'downloadId': downloadId,
+              'error': e.toString(),
+              'isNetworkError': isNetworkErr,
+              'retryCount': retryCount,
+              'progress': task.progress * 100,
+            },
+          );
         } on Exception {
           // If we can't even create error progress, task is completely dead
         }
@@ -1637,6 +1838,20 @@ class AudiobookTorrentManager {
           // Not a network error or max retries reached - cancel timer
           timer.cancel();
           _progressTimers.remove(downloadId);
+
+          // Final error notification if max retries reached
+          if (isNetworkErr && retryCount >= _maxNetworkRetries) {
+            final metadata = _downloadMetadata[downloadId];
+            final displayTitle =
+                metadata?['title'] as String? ?? task.metaInfo.name;
+            safeUnawaited(_notificationService.showDownloadProgress(
+              downloadId,
+              displayTitle,
+              task.progress * 100,
+              0.0,
+              'error: Max retries reached',
+            ));
+          }
         }
       }
     });
@@ -1683,6 +1898,29 @@ class AudiobookTorrentManager {
         );
         controller.add(progress);
       }
+
+      // Update notification with paused status
+      final metadata = _downloadMetadata[downloadId];
+      final displayTitle = metadata?['title'] as String? ?? task.metaInfo.name;
+      safeUnawaited(_notificationService.showDownloadProgress(
+        downloadId,
+        displayTitle,
+        task.progress * 100,
+        0.0,
+        'paused',
+      ));
+
+      // Log pause action
+      EnvironmentLogger().i('Download $downloadId paused');
+      await StructuredLogger().log(
+        level: 'info',
+        subsystem: 'torrent',
+        message: 'Download paused',
+        extra: {
+          'downloadId': downloadId,
+          'progress': task.progress * 100,
+        },
+      );
     } on Exception catch (e) {
       throw TorrentFailure('Failed to pause download: ${e.toString()}');
     }
@@ -1714,11 +1952,13 @@ class AudiobookTorrentManager {
       await task.start();
 
       // Update progress status to downloading
+      // Convert KB/s to B/s for TorrentProgress
+      final downloadSpeedBps = task.currentDownloadSpeed * 1024;
       final controller = _progressControllers[downloadId];
       if (controller != null && !controller.isClosed) {
         final progress = TorrentProgress(
           progress: task.progress * 100,
-          downloadSpeed: task.currentDownloadSpeed,
+          downloadSpeed: downloadSpeedBps,
           uploadSpeed: task.uploadSpeed,
           downloadedBytes: task.downloaded ?? 0,
           totalBytes: task.metaInfo.length,
@@ -1728,6 +1968,30 @@ class AudiobookTorrentManager {
         );
         controller.add(progress);
       }
+
+      // Update notification with downloading status
+      final resumeMetadata = _downloadMetadata[downloadId];
+      final displayTitle =
+          resumeMetadata?['title'] as String? ?? task.metaInfo.name;
+      safeUnawaited(_notificationService.showDownloadProgress(
+        downloadId,
+        displayTitle,
+        task.progress * 100,
+        downloadSpeedBps,
+        'downloading',
+      ));
+
+      // Log resume action
+      EnvironmentLogger().i('Download $downloadId resumed');
+      await StructuredLogger().log(
+        level: 'info',
+        subsystem: 'torrent',
+        message: 'Download resumed',
+        extra: {
+          'downloadId': downloadId,
+          'progress': task.progress * 100,
+        },
+      );
     } on Exception catch (e) {
       throw TorrentFailure('Failed to resume download: ${e.toString()}');
     }
@@ -1882,12 +2146,14 @@ class AudiobookTorrentManager {
           'getActiveDownloads: Adding active task - id: $downloadId, name: $displayName, progress: ${(task.progress * 100).toStringAsFixed(1)}%',
         );
 
+        // Convert KB/s to B/s for consistency
+        final downloadSpeedBps = task.currentDownloadSpeed * 1024;
         downloads.add({
           'id': downloadId,
           'name': displayName,
           'title': metadata['title'],
           'progress': task.progress * 100,
-          'downloadSpeed': task.currentDownloadSpeed,
+          'downloadSpeed': downloadSpeedBps,
           'uploadSpeed': task.uploadSpeed,
           'downloadedBytes': task.downloaded ?? 0,
           'totalBytes': task.metaInfo.length,
@@ -2156,15 +2422,6 @@ class AudiobookTorrentManager {
     }
   }
 
-  /// Formats download speed for display.
-  String _formatSpeed(double bytesPerSecond) {
-    if (bytesPerSecond < 1024) return '${bytesPerSecond.toInt()} B/s';
-    if (bytesPerSecond < 1024 * 1024) {
-      return '${(bytesPerSecond / 1024).toStringAsFixed(1)} KB/s';
-    }
-    return '${(bytesPerSecond / (1024 * 1024)).toStringAsFixed(1)} MB/s';
-  }
-
   String _formatBytesForLog(int bytes) {
     if (bytes < 1024) return '$bytes B';
     if (bytes < 1024 * 1024) {
@@ -2323,27 +2580,39 @@ class AudiobookTorrentManager {
 
   /// Triggers library scan after download completion.
   ///
-  /// Scans the directory where files were saved, or the default directory
-  /// if savePath is not available.
+  /// Performs a full scan of all library folders to ensure all downloaded files
+  /// are found, including files in subdirectories.
   Future<void> _triggerLibraryScan(String? savePath) async {
     final logger = EnvironmentLogger();
     try {
-      final scanner = AudiobookLibraryScanner();
-      if (savePath != null) {
-        // Scan specific directory where files were saved
-        logger.i('Triggering library scan for download directory: $savePath');
-        await scanner.scanDirectory(savePath, recursive: true);
-      } else {
-        // Scan default directory
-        logger.i('Triggering library scan for default directory');
-        await scanner.scanDefaultDirectory();
-      }
+      // Use SmartScannerService for full scan to ensure all files are found
+      // This is necessary because torrent files may be saved in subdirectories
+      final folderFilterService = FolderFilterService();
+      final scanner = AudiobookLibraryScanner(
+        folderFilterService: folderFilterService,
+        contentUriService: Platform.isAndroid ? ContentUriService() : null,
+      );
+      final smartScanner = SmartScannerService(
+        scanner: scanner,
+        folderFilterService: folderFilterService,
+      );
+
+      logger.i(
+        'Triggering full library scan after download completion (savePath: $savePath)',
+      );
+
+      // Perform full scan to ensure all downloaded files are found
+      // This will scan all library folders recursively
+      await smartScanner.forceFullScan();
+
       await StructuredLogger().log(
         level: 'info',
         subsystem: 'torrent',
-        message: 'Library scan triggered after download completion',
+        message: 'Full library scan completed after download',
         extra: {'savePath': savePath},
       );
+
+      logger.i('Full library scan completed successfully');
     } on Exception catch (e) {
       logger.w('Failed to trigger library scan: $e');
       await StructuredLogger().log(

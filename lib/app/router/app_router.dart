@@ -55,6 +55,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           },
         ),
         GoRoute(
+          path: '/downloads',
+          builder: (context, state) {
+            // Get downloadId from query parameters if present
+            final downloadId = state.uri.queryParameters['downloadId'];
+            return DownloadsScreen(highlightDownloadId: downloadId);
+          },
+        ),
+        GoRoute(
           path: '/settings',
           builder: (context, state) => const SettingsScreen(),
         ),
@@ -103,14 +111,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     GoRoute(
       path: '/favorites',
       builder: (context, state) => const FavoritesScreen(),
-    ),
-    GoRoute(
-      path: '/downloads',
-      builder: (context, state) {
-        // Get downloadId from query parameters if present
-        final downloadId = state.uri.queryParameters['downloadId'];
-        return DownloadsScreen(highlightDownloadId: downloadId);
-      },
     ),
     GoRoute(
       path: '/auth',
@@ -176,6 +176,11 @@ class _MainNavigationWrapperState
         title: localizations?.navSearch ?? 'Search',
         icon: Icons.search,
         route: '/search',
+      ),
+      NavigationItem(
+        title: localizations?.downloadsTitle ?? 'Downloads',
+        icon: Icons.download,
+        route: '/downloads',
       ),
       NavigationItem(
         title: localizations?.navSettings ??

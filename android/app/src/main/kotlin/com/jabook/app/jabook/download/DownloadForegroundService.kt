@@ -68,18 +68,18 @@ class DownloadForegroundService : Service() {
             ACTION_START -> {
                 if (!isServiceRunning) {
                     isServiceRunning = true
-                    startForeground(NOTIFICATION_ID, createNotification("Downloading...", 0.0))
-                    startProgressUpdates()
+                    // Create minimal notification only for foreground service
+                    // Individual download notifications are handled by DownloadNotificationService
+                    val minimalNotification = createMinimalNotification()
+                    startForeground(NOTIFICATION_ID, minimalNotification)
                 }
             }
             ACTION_STOP -> {
                 stopSelf()
             }
             ACTION_UPDATE_PROGRESS -> {
-                val title = intent.getStringExtra("title") ?: "Downloading..."
-                val progress = intent.getDoubleExtra("progress", 0.0)
-                val speed = intent.getStringExtra("speed") ?: ""
-                updateNotification(title, progress, speed)
+                // Don't update notification here - individual notifications are handled by DownloadNotificationService
+                // This service is only used to keep downloads alive in background
             }
         }
         return START_STICKY
@@ -113,9 +113,12 @@ class DownloadForegroundService : Service() {
     }
     
     /**
-     * Creates download notification.
+     * Creates minimal notification for foreground service.
+     * 
+     * This notification is only used to keep the service alive in background.
+     * Individual download notifications are handled by DownloadNotificationService.
      */
-    private fun createNotification(title: String, progress: Double, speed: String = ""): Notification {
+    private fun createMinimalNotification(): Notification {
         val intent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
         }
@@ -126,47 +129,15 @@ class DownloadForegroundService : Service() {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
         
-        val progressText = if (speed.isNotEmpty()) {
-            "${progress.toInt()}% • $speed"
-        } else {
-            "${progress.toInt()}%"
-        }
-        
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.stat_sys_download)
-            .setContentTitle(title)
-            .setContentText(progressText)
+            .setContentTitle("JaBook Downloads")
+            .setContentText("Downloads in progress")
             .setContentIntent(pendingIntent)
-            .setProgress(100, progress.toInt(), false)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
             .build()
-    }
-    
-    /**
-     * Updates notification with current progress.
-     */
-    private fun updateNotification(title: String, progress: Double, speed: String) {
-        val notification = createNotification(title, progress, speed)
-        notificationManager?.notify(NOTIFICATION_ID, notification)
-    }
-    
-    /**
-     * Starts periodic progress updates.
-     * 
-     * This will request progress updates from Flutter every second.
-     */
-    private fun startProgressUpdates() {
-        updateRunnable = object : Runnable {
-            override fun run() {
-                if (isServiceRunning) {
-                    // Request progress update from Flutter via MethodChannel
-                    // The actual update will come through ACTION_UPDATE_PROGRESS intent
-                    updateHandler?.postDelayed(this, 1000)
-                }
-            }
-        }
-        updateHandler?.post(updateRunnable!!)
     }
 }
 

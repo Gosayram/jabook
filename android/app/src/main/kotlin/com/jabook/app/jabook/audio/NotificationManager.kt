@@ -23,7 +23,9 @@ import android.content.Intent
 import android.graphics.BitmapFactory
 import android.os.Build
 import androidx.core.app.NotificationCompat
+import androidx.core.graphics.drawable.IconCompat
 import androidx.media.app.NotificationCompat.MediaStyle
+import androidx.media3.session.MediaSession
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
@@ -40,7 +42,8 @@ class NotificationManager(
     private val context: Context,
     private val player: ExoPlayer,
     private val mediaSession: androidx.media3.session.MediaSession? = null,
-    private var metadata: Map<String, String>? = null
+    private var metadata: Map<String, String>? = null,
+    private var embeddedArtworkPath: String? = null // Path to saved embedded artwork from AudioPlayerService
 ) {
     private val notificationManager: AndroidNotificationManager =
         context.getSystemService(Context.NOTIFICATION_SERVICE) as AndroidNotificationManager
@@ -135,11 +138,35 @@ class NotificationManager(
         var largeIcon: android.graphics.Bitmap? = null
         val mediaMetadata = currentMediaItem?.mediaMetadata
         
+        // Method 0: Try embeddedArtworkPath first (saved by AudioPlayerService from embedded metadata)
+        android.util.Log.d("NotificationManager", "Checking embeddedArtworkPath: $embeddedArtworkPath")
+        if (largeIcon == null && embeddedArtworkPath != null) {
+            try {
+                val artworkFile = java.io.File(embeddedArtworkPath)
+                android.util.Log.d("NotificationManager", "Artwork file exists: ${artworkFile.exists()}, size: ${artworkFile.length()}")
+                if (artworkFile.exists() && artworkFile.length() > 0) {
+                    largeIcon = BitmapFactory.decodeFile(artworkFile.absolutePath)
+                    if (largeIcon != null) {
+                        android.util.Log.i("NotificationManager", "Loaded cover image from embeddedArtworkPath: $embeddedArtworkPath (${largeIcon.width}x${largeIcon.height})")
+                    } else {
+                        android.util.Log.w("NotificationManager", "Failed to decode bitmap from embeddedArtworkPath: $embeddedArtworkPath")
+                    }
+                } else {
+                    android.util.Log.w("NotificationManager", "Artwork file does not exist or is empty: $embeddedArtworkPath")
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("NotificationManager", "Failed to load cover image from embeddedArtworkPath: $embeddedArtworkPath", e)
+            }
+        } else if (embeddedArtworkPath == null) {
+            android.util.Log.d("NotificationManager", "embeddedArtworkPath is null")
+        }
+        
         if (mediaMetadata != null) {
             try {
                 // Inspired by lissen-android: prefer artworkUri over artworkData for better performance
                 // Method 1: Try artworkUri first (external cover file - better performance)
                 // This is set via setArtworkUri(uri) in AudioPlayerService.setPlaylist()
+                if (largeIcon == null) {
                 val artworkUri = mediaMetadata.artworkUri
                 if (artworkUri != null) {
                     try {
@@ -165,6 +192,7 @@ class NotificationManager(
                         }
                     } catch (e: Exception) {
                         android.util.Log.w("NotificationManager", "Failed to load cover image from artworkUri: $artworkUri", e)
+                        }
                     }
                 }
                 
@@ -184,7 +212,7 @@ class NotificationManager(
                 
                 // Log if no artwork found
                 if (largeIcon == null) {
-                    android.util.Log.d("NotificationManager", "No artwork found. artworkData=${mediaMetadata.artworkData != null && mediaMetadata.artworkData!!.isNotEmpty()}, artworkUri=${mediaMetadata.artworkUri}")
+                    android.util.Log.d("NotificationManager", "No artwork found. artworkData=${mediaMetadata.artworkData != null && mediaMetadata.artworkData!!.isNotEmpty()}, artworkUri=${mediaMetadata.artworkUri}, embeddedArtworkPath=$embeddedArtworkPath")
                 }
             } catch (e: Exception) {
                 android.util.Log.w("NotificationManager", "Failed to load embedded cover image", e)
@@ -213,18 +241,191 @@ class NotificationManager(
         // The MediaStyle notification will work with system controls because MediaSession
         // is connected to the Player, which provides the necessary integration
         
-        val notificationBuilder = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.ic_media_play)
+        // Determine small icon - use cover image if available, otherwise use app icon
+        var smallIcon: android.graphics.drawable.Icon? = null
+        var smallIconResId: Int = android.R.drawable.ic_media_play
+        
+        android.util.Log.d("NotificationManager", "Creating small icon. largeIcon is ${if (largeIcon != null) "available (${largeIcon.width}x${largeIcon.height})" else "null"}, Android version: ${Build.VERSION.SDK_INT}")
+        if (largeIcon != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            try {
+                // Create a small icon from the cover image for the status bar
+                // Scale down the large icon to a small icon size (typically 24dp = ~72px on xxxhdpi)
+                val smallIconSize = (24 * context.resources.displayMetrics.density).toInt()
+                android.util.Log.d("NotificationManager", "Scaling bitmap to small icon size: ${smallIconSize}x${smallIconSize}")
+                val smallIconBitmap = android.graphics.Bitmap.createScaledBitmap(
+                    largeIcon,
+                    smallIconSize,
+                    smallIconSize,
+                    true
+                )
+                smallIcon = android.graphics.drawable.Icon.createWithBitmap(smallIconBitmap)
+                android.util.Log.i("NotificationManager", "Successfully created custom Icon from cover image (${smallIconBitmap.width}x${smallIconBitmap.height})")
+            } catch (e: Exception) {
+                android.util.Log.e("NotificationManager", "Failed to create custom icon from cover", e)
+            }
+        } else {
+            if (largeIcon == null) {
+                android.util.Log.d("NotificationManager", "largeIcon is null, cannot create custom small icon")
+            } else {
+                android.util.Log.d("NotificationManager", "Android version ${Build.VERSION.SDK_INT} < 24, cannot use Icon API")
+            }
+        }
+        
+        // Set fallback icon resource ID
+        try {
+            val appIconId = context.applicationInfo.icon
+            if (appIconId != 0) {
+                smallIconResId = appIconId
+            }
+        } catch (e: Exception) {
+            android.util.Log.w("NotificationManager", "Failed to get app icon, using default", e)
+        }
+        
+        // User wants cover image in small icon (logo), not in large icon (body)
+        // Small icon is already set above from largeIcon bitmap
+        // Do NOT set large icon - user wants only small icon (logo) to change
+        
+        // For Android 7.0+ with custom icon, use Notification.Builder directly
+        // For older versions or when no custom icon, use NotificationCompat.Builder
+        val notification = if (smallIcon != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            try {
+                android.util.Log.d("NotificationManager", "Creating notification with Notification.Builder and custom Icon")
+                // Use Notification.Builder which supports Icon directly
+                val builder = Notification.Builder(context, CHANNEL_ID)
+                    .setSmallIcon(smallIcon) // Custom icon from album cover
+                    .setContentTitle(displayTitle)
+                    .setContentText(displayArtist)
+                    .setContentIntent(pendingIntent)
+                    .setVisibility(Notification.VISIBILITY_PUBLIC)
+                    .setOnlyAlertOnce(true)
+                    .setShowWhen(false) // Media notifications typically don't show timestamp
+                // Do NOT set large icon - user wants cover only in small icon (logo)
+                
+                // Add actions using NotificationCompat.Action.Builder (non-deprecated)
+                // Then convert to Notification.Action for Notification.Builder
+                val previousActionCompat = NotificationCompat.Action.Builder(
+                    android.R.drawable.ic_media_previous,
+                    "Previous",
+                    createPlaybackAction(NotificationManager.ACTION_PREVIOUS)
+                ).build()
+                
+                val playPauseActionCompat = NotificationCompat.Action.Builder(
+                    if (player.isPlaying) android.R.drawable.ic_media_pause else android.R.drawable.ic_media_play,
+                    if (player.isPlaying) "Pause" else "Play",
+                    createPlaybackAction(if (player.isPlaying) NotificationManager.ACTION_PAUSE else NotificationManager.ACTION_PLAY)
+                ).build()
+                
+                val nextActionCompat = NotificationCompat.Action.Builder(
+                    android.R.drawable.ic_media_next,
+                    "Next",
+                    createPlaybackAction(NotificationManager.ACTION_NEXT)
+                ).build()
+                
+                // Convert NotificationCompat.Action to Notification.Action using Icon
+                // NotificationCompat.Action.icon is Int (resource ID), convert to Icon
+                val previousIcon = android.graphics.drawable.Icon.createWithResource(context, previousActionCompat.icon)
+                val previousAction = Notification.Action.Builder(
+                    previousIcon,
+                    previousActionCompat.title ?: "Previous",
+                    previousActionCompat.actionIntent ?: createPlaybackAction(NotificationManager.ACTION_PREVIOUS)
+                ).build()
+                
+                val playPauseIcon = android.graphics.drawable.Icon.createWithResource(context, playPauseActionCompat.icon)
+                val playPauseActionNative = Notification.Action.Builder(
+                    playPauseIcon,
+                    playPauseActionCompat.title ?: if (player.isPlaying) "Pause" else "Play",
+                    playPauseActionCompat.actionIntent ?: createPlaybackAction(if (player.isPlaying) NotificationManager.ACTION_PAUSE else NotificationManager.ACTION_PLAY)
+                ).build()
+                
+                val nextIcon = android.graphics.drawable.Icon.createWithResource(context, nextActionCompat.icon)
+                val nextAction = Notification.Action.Builder(
+                    nextIcon,
+                    nextActionCompat.title ?: "Next",
+                    nextActionCompat.actionIntent ?: createPlaybackAction(NotificationManager.ACTION_NEXT)
+                ).build()
+                
+                builder.addAction(previousAction)
+                builder.addAction(playPauseActionNative)
+                builder.addAction(nextAction)
+                
+                // Try to set MediaStyle using reflection for better integration
+                // This is needed for proper small icon display in expanded notification
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP && mediaSession != null) {
+                    try {
+                        android.util.Log.d("NotificationManager", "Attempting to set MediaStyle on Notification.Builder via reflection")
+                        val setStyleMethod = builder.javaClass.getMethod("setStyle", android.app.Notification.Style::class.java)
+                        
+                        // Create Notification.MediaStyle (available from API 21+)
+                        val mediaStyleClass = Class.forName("android.app.Notification\$MediaStyle")
+                        val mediaStyleConstructor = mediaStyleClass.getConstructor()
+                        val nativeMediaStyle = mediaStyleConstructor.newInstance()
+                        
+                        // Set show actions in compact view (0, 1, 2 = previous, play/pause, next)
+                        val setShowActionsInCompactViewMethod = mediaStyleClass.getMethod("setShowActionsInCompactView", IntArray::class.java)
+                        setShowActionsInCompactViewMethod.invoke(nativeMediaStyle, intArrayOf(0, 1, 2))
+                        
+                        // Set media session token for system integration
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                            try {
+                                // MediaSession from Media3 uses androidx.media3.session.MediaSession
+                                // We need to get the underlying android.media.session.MediaSession.Token
+                                // Media3 MediaSession doesn't expose sessionCompatToken directly
+                                // We'll skip setting the token - MediaSession will still work through the system
+                                android.util.Log.d("NotificationManager", "MediaSession token setting skipped (Media3 MediaSession)")
+                            } catch (e: Exception) {
+                                android.util.Log.w("NotificationManager", "Failed to set MediaSession token: ${e.message}", e)
+                            }
+                        }
+                        
+                        setStyleMethod.invoke(builder, nativeMediaStyle)
+                        android.util.Log.i("NotificationManager", "Successfully set MediaStyle on Notification.Builder via reflection")
+                    } catch (e: Exception) {
+                        android.util.Log.w("NotificationManager", "Failed to set MediaStyle via reflection: ${e.message}, continuing without MediaStyle", e)
+                        // Continue without MediaStyle - notification will still work
+                    }
+                } else {
+                    android.util.Log.d("NotificationManager", "MediaSession not available or Android version < 21, skipping MediaStyle")
+                }
+                
+                val builtNotification = builder.build()
+                android.util.Log.i("NotificationManager", "Successfully created notification with custom Icon and Notification.Builder")
+                builtNotification
+            } catch (e: Exception) {
+                android.util.Log.e("NotificationManager", "Failed to create notification with Notification.Builder, falling back to compat: ${e.message}", e)
+                // Fallback to compat builder (won't have custom icon, but will work)
+                createCompatNotification(displayTitle, displayArtist, pendingIntent, playPauseAction, mediaStyle, smallIconResId)
+            }
+        } else {
+            // Use NotificationCompat.Builder for older Android versions or when no custom icon
+            if (smallIcon == null) {
+                android.util.Log.d("NotificationManager", "No custom icon available, using NotificationCompat.Builder with fallback icon: $smallIconResId")
+            } else {
+                android.util.Log.d("NotificationManager", "Android version ${Build.VERSION.SDK_INT} < 24, using NotificationCompat.Builder with fallback icon: $smallIconResId")
+            }
+            createCompatNotification(displayTitle, displayArtist, pendingIntent, playPauseAction, mediaStyle, smallIconResId)
+        }
+        
+        return notification
+    }
+    
+    private fun createCompatNotification(
+        displayTitle: String,
+        displayArtist: String,
+        pendingIntent: PendingIntent,
+        playPauseAction: NotificationCompat.Action,
+        mediaStyle: MediaStyle,
+        smallIconResId: Int,
+        largeIconBitmap: android.graphics.Bitmap? = null // Not used - user wants cover only in small icon
+    ): Notification {
+        // User wants cover image in small icon (logo), not in large icon (body)
+        // For NotificationCompat, we can't set custom Icon directly, so we use fallback icon
+        // The small icon with cover image only works with Notification.Builder (Android 7.0+)
+        return NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(smallIconResId) // Fallback icon for older Android versions
             .setContentTitle(displayTitle)
             .setContentText(displayArtist)
             .setContentIntent(pendingIntent)
-        
-        // Set large icon (cover image) if available
-        if (largeIcon != null) {
-            notificationBuilder.setLargeIcon(largeIcon)
-        }
-        
-        return notificationBuilder
+            // Do NOT set large icon - user wants cover only in small icon (logo)
             .addAction(
                 NotificationCompat.Action(
                     android.R.drawable.ic_media_previous,
@@ -268,9 +469,16 @@ class NotificationManager(
      * This method includes proper error handling to prevent
      * metadata-related crashes on Android 14+.
      */
-    fun updateMetadata(metadata: Map<String, String>?) {
+    fun updateMetadata(metadata: Map<String, String>?, newEmbeddedArtworkPath: String? = null) {
         try {
+            android.util.Log.d("NotificationManager", "updateMetadata called. newEmbeddedArtworkPath: $newEmbeddedArtworkPath, current embeddedArtworkPath: $embeddedArtworkPath")
             this.metadata = metadata
+            if (newEmbeddedArtworkPath != null) {
+                embeddedArtworkPath = newEmbeddedArtworkPath
+                android.util.Log.i("NotificationManager", "Updated embeddedArtworkPath to: $embeddedArtworkPath")
+            } else {
+                android.util.Log.d("NotificationManager", "newEmbeddedArtworkPath is null, keeping existing: $embeddedArtworkPath")
+            }
             updateNotification()
         } catch (e: Exception) {
             android.util.Log.e("NotificationManager", "Failed to update metadata", e)

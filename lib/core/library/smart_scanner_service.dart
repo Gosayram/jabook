@@ -92,12 +92,23 @@ class SmartScannerService {
   /// Scans all library folders incrementally (only changed folders).
   ///
   /// Returns a list of LocalAudiobookGroup instances.
-  Future<List<LocalAudiobookGroup>> scanIncremental() async {
+  ///
+  /// If [forceScan] is true, all folders will be scanned regardless of modification time.
+  /// If [existingGroups] is provided, groups from unchanged folders will be preserved.
+  Future<List<LocalAudiobookGroup>> scanIncremental({
+    bool forceScan = false,
+    List<LocalAudiobookGroup>? existingGroups,
+  }) async {
     try {
       final folders = await _storageUtils.getLibraryFolders();
       final scanStates = await _getScanStates();
       final allGroups = <LocalAudiobookGroup>[];
       final updatedStates = <String, FolderScanState>{};
+      final scannedFolderPaths = <String>{};
+
+      // If no scan states exist, force scan all folders (first run)
+      final isFirstRun = scanStates.isEmpty;
+      final shouldForceScan = forceScan || isFirstRun;
 
       for (final folder in folders) {
         try {
@@ -112,7 +123,8 @@ class SmartScannerService {
 
           // Check if folder needs scanning
           final existingState = scanStates[folder];
-          final needsScan = existingState == null ||
+          final needsScan = shouldForceScan ||
+              existingState == null ||
               lastModified.isAfter(existingState.lastModifiedTime);
 
           if (needsScan) {
@@ -141,6 +153,8 @@ class SmartScannerService {
               for (final file in group.files) {
                 totalSize += file.fileSize;
               }
+              // Track which folders were scanned
+              scannedFolderPaths.add(folder);
             }
 
             // Update scan state
@@ -154,7 +168,7 @@ class SmartScannerService {
 
             allGroups.addAll(groups);
           } else {
-            // Use cached groups from previous scan
+            // Use cached groups from previous scan or existing groups
             await _logger.log(
               level: 'debug',
               subsystem: 'smart_scanner',
@@ -164,6 +178,14 @@ class SmartScannerService {
                 'lastModified': lastModified.toIso8601String(),
               },
             );
+
+            // If existing groups provided, preserve groups from this unchanged folder
+            if (existingGroups != null) {
+              final groupsFromFolder = existingGroups
+                  .where((group) => group.groupPath.startsWith(folder))
+                  .toList();
+              allGroups.addAll(groupsFromFolder);
+            }
           }
         } on Exception catch (e) {
           await _logger.log(
@@ -189,6 +211,9 @@ class SmartScannerService {
           'foldersScanned': updatedStates.length,
           'foldersSkipped': folders.length - updatedStates.length,
           'totalGroups': allGroups.length,
+          'preservedFromExisting': existingGroups != null
+              ? allGroups.length - updatedStates.length
+              : 0,
         },
       );
 

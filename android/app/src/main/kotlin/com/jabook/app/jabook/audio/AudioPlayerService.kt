@@ -69,6 +69,7 @@ class AudioPlayerService : MediaSessionService() {
     private var mediaSessionManager: MediaSessionManager? = null
     private var playbackTimer: PlaybackTimer? = null
     private var currentMetadata: Map<String, String>? = null
+    private var embeddedArtworkPath: String? = null // Path to saved embedded artwork
     
     private val playerServiceScope = MainScope()
     
@@ -218,7 +219,8 @@ class AudioPlayerService : MediaSessionService() {
                 this,
                 exoPlayer,
                 mediaSession,
-                currentMetadata
+                currentMetadata,
+                embeddedArtworkPath
             )
             
             // Update notification with full media controls after MediaSession is created
@@ -530,7 +532,7 @@ class AudioPlayerService : MediaSessionService() {
         // Just update notification - ExoPlayer already has the embedded artwork in MediaItem
         // Don't replace MediaItem to avoid losing embedded artwork
         // MediaSession automatically updates metadata from ExoPlayer, no manual update needed
-        notificationManager?.updateMetadata(metadata)
+        notificationManager?.updateMetadata(metadata, embeddedArtworkPath)
     }
     
     /**
@@ -1015,14 +1017,68 @@ class AudioPlayerService : MediaSessionService() {
         val currentItem = player.currentMediaItem ?: return emptyMap()
         val metadata = currentItem.mediaMetadata
         
+        // Get artwork path - prefer embedded artwork if available
+        val artworkPath = embeddedArtworkPath?.takeIf { 
+            val file = File(it)
+            file.exists() && file.length() > 0
+        } ?: metadata.artworkUri?.toString()
+        
         return mapOf(
             "mediaId" to currentItem.mediaId,
             "uri" to currentItem.localConfiguration?.uri?.toString(),
             "title" to (metadata.title?.toString()),
             "artist" to (metadata.artist?.toString()),
             "albumTitle" to (metadata.albumTitle?.toString()),
-            "hasArtwork" to (metadata.artworkUri != null || metadata.artworkData != null)
+            "hasArtwork" to (metadata.artworkUri != null || metadata.artworkData != null),
+            "artworkPath" to artworkPath // Path to artwork (embedded or external)
         )
+    }
+    
+    /**
+     * Extracts embedded artwork from audio file metadata using Android MediaMetadataRetriever.
+     *
+     * This method runs in a background thread to avoid blocking the main thread.
+     *
+     * @param filePath Path to the audio file
+     * @return Path to saved artwork file, or null if no artwork found
+     */
+    fun extractArtworkFromFile(filePath: String): String? {
+        return runBlocking {
+            withContext(Dispatchers.IO) {
+                try {
+                    val file = File(filePath)
+                    if (!file.exists()) {
+                        android.util.Log.w("AudioPlayerService", "File does not exist: $filePath")
+                        return@withContext null
+                    }
+                    
+                    // Use Android MediaMetadataRetriever to extract embedded artwork
+                    val retriever = android.media.MediaMetadataRetriever()
+                    try {
+                        retriever.setDataSource(filePath)
+                        
+                        // Try to get embedded picture (album art)
+                        val picture = retriever.embeddedPicture
+                        if (picture != null && picture.isNotEmpty()) {
+                            // Save artwork to cache
+                            val cacheDir = applicationContext.cacheDir
+                            val artworkFile = File(cacheDir, "embedded_artwork_${filePath.hashCode()}.jpg")
+                            artworkFile.outputStream().use { it.write(picture) }
+                            android.util.Log.i("AudioPlayerService", "Extracted and saved artwork from $filePath to ${artworkFile.absolutePath}")
+                            return@withContext artworkFile.absolutePath
+                        }
+                        
+                        android.util.Log.d("AudioPlayerService", "No embedded artwork found in $filePath")
+                        null
+                    } finally {
+                        retriever.release()
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("AudioPlayerService", "Failed to extract artwork from $filePath", e)
+                    null
+                }
+            }
+        }
     }
     
     /**
@@ -1430,10 +1486,24 @@ class AudioPlayerService : MediaSessionService() {
             
             if (artworkUri != null) {
                 android.util.Log.d("AudioPlayerService", "Artwork URI available: $artworkUri")
+                // Clear embedded artwork path if external URI is available
+                embeddedArtworkPath = null
             } else if (hasArtworkData) {
                 android.util.Log.d("AudioPlayerService", "Embedded artwork data available: ${artworkData?.size ?: 0} bytes")
+                // Save embedded artwork to temporary file for Flutter access
+                try {
+                    val cacheDir = applicationContext.cacheDir
+                    val artworkFile = File(cacheDir, "embedded_artwork_${System.currentTimeMillis()}.jpg")
+                    artworkFile.outputStream().use { it.write(artworkData) }
+                    embeddedArtworkPath = artworkFile.absolutePath
+                    android.util.Log.i("AudioPlayerService", "Saved embedded artwork to: $embeddedArtworkPath")
+                } catch (e: Exception) {
+                    android.util.Log.e("AudioPlayerService", "Failed to save embedded artwork", e)
+                    embeddedArtworkPath = null
+                }
             } else {
                 android.util.Log.d("AudioPlayerService", "No artwork available")
+                embeddedArtworkPath = null
             }
             
             android.util.Log.d("AudioPlayerService", "Media metadata changed:")
@@ -1450,7 +1520,7 @@ class AudioPlayerService : MediaSessionService() {
             
             // Update notification to show artwork
             // MediaSession automatically updates from ExoPlayer
-            notificationManager?.updateNotification()
+            notificationManager?.updateMetadata(currentMetadata, embeddedArtworkPath)
         }
     }
     

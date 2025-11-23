@@ -25,6 +25,7 @@ import 'package:jabook/core/library/audiobook_library_scanner.dart';
 import 'package:jabook/core/library/folder_filter_service.dart';
 import 'package:jabook/core/library/local_audiobook.dart';
 import 'package:jabook/core/library/smart_scanner_service.dart';
+import 'package:jabook/core/player/native_audio_player.dart';
 import 'package:jabook/core/utils/content_uri_service.dart';
 import 'package:jabook/core/utils/file_picker_utils.dart' as file_picker_utils;
 import 'package:jabook/core/utils/responsive_utils.dart';
@@ -359,14 +360,6 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                     AppLocalizations.of(context)?.searchAudiobooks ?? 'Search',
               ),
               IconButton(
-                icon: const Icon(Icons.download),
-                onPressed: () {
-                  context.go('/downloads');
-                },
-                tooltip:
-                    AppLocalizations.of(context)?.downloadsTitle ?? 'Downloads',
-              ),
-              IconButton(
                 icon: const Icon(Icons.filter_list),
                 onPressed: () => _showFilterDialog(context),
                 tooltip: AppLocalizations.of(context)?.filterLibraryTooltip ??
@@ -430,17 +423,21 @@ class _LibraryContentState extends ConsumerState<_LibraryContent> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Load audiobooks only once, using cached state if available
+    // Always scan on first load to ensure library is up-to-date
+    // This ensures that deleted files are removed and new files are added
     if (!_hasInitialLoad) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        final cachedGroups = ref.read(libraryGroupsProvider);
-        if (cachedGroups.isEmpty) {
-          _loadLocalAudiobooks();
-        } else {
-          // Use cached groups and apply filters
+        // Always perform incremental scan on first load to sync with filesystem
+        // This ensures that deleted books are removed and new books are added
+        _loadLocalAudiobooks();
+        _hasInitialLoad = true;
+      });
+    } else {
+      // When returning to library tab, ensure UI is updated with current provider state
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
           _applyFilters();
         }
-        _hasInitialLoad = true;
       });
     }
   }
@@ -449,12 +446,24 @@ class _LibraryContentState extends ConsumerState<_LibraryContent> {
     final isScanning = ref.read(isScanningProvider);
     if (isScanning) return;
 
+    // Check if we have groups in provider - if not, force full scan
+    // This ensures that books are always found on first load or after app restart
+    final existingGroups = ref.read(libraryGroupsProvider);
+    final shouldForceFullScan = forceFullScan || existingGroups.isEmpty;
+
+    if (shouldForceFullScan && !forceFullScan) {
+      debugPrint(
+        'Library provider is empty, forcing full scan to find all books',
+      );
+    }
+
     // Update scanning state via provider
     ref.read(isScanningProvider.notifier).state = true;
 
     try {
       // Run scanning in isolate to prevent cancellation when app is minimized
-      final groups = await _scanInBackground(forceFullScan: forceFullScan);
+      final groups =
+          await _scanInBackground(forceFullScan: shouldForceFullScan);
 
       if (mounted) {
         // Update state via provider to persist across tab switches
@@ -500,14 +509,23 @@ class _LibraryContentState extends ConsumerState<_LibraryContent> {
       folderFilterService: folderFilterService,
     );
 
+    // Get existing groups to preserve unchanged folders
+    final existingGroups = ref.read(libraryGroupsProvider);
+
     // Use smart scanner for incremental updates, or full scan if forced
-    return forceFullScan
-        ? await smartScanner.forceFullScan()
-        : await smartScanner.scanIncremental();
+    if (forceFullScan) {
+      return smartScanner.forceFullScan();
+    } else {
+      // Pass existing groups to preserve unchanged folders
+      return smartScanner.scanIncremental(
+        existingGroups: existingGroups.isNotEmpty ? existingGroups : null,
+      );
+    }
   }
 
   Future<void> _refreshLibrary({bool forceFullScan = false}) async {
-    await _loadLocalAudiobooks(forceFullScan: forceFullScan);
+    // Always perform full scan on pull-to-refresh to ensure all files are found
+    await _loadLocalAudiobooks(forceFullScan: true);
   }
 
   void _applyFilters() {
@@ -570,6 +588,15 @@ class _LibraryContentState extends ConsumerState<_LibraryContent> {
     // Watch providers for reactive updates
     final audiobookGroups = ref.watch(libraryGroupsProvider);
     final isScanning = ref.watch(isScanningProvider);
+
+    // Update displayed groups when provider changes
+    if (audiobookGroups.isNotEmpty && _displayedGroups != audiobookGroups) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _applyFilters();
+        }
+      });
+    }
 
     // Show loading indicator while scanning
     if (isScanning && audiobookGroups.isEmpty && !_hasInitialLoad) {
@@ -1040,38 +1067,162 @@ class _LibraryContentState extends ConsumerState<_LibraryContent> {
   Widget _buildAudiobookGroupTile(
     BuildContext context,
     LocalAudiobookGroup group,
-  ) {
-    // Build cover widget with caching optimization
-    Widget coverWidget;
-    if (group.coverPath != null) {
-      final coverFile = File(group.coverPath!);
+  ) =>
+      // Build cover widget with caching optimization
+      // Try embedded artwork from metadata if no coverPath
+      _AudiobookGroupTile(
+        group: group,
+        onPlay: () {
+          // Navigate to local player screen
+          context.push('/local-player', extra: group);
+        },
+        onTap: () {
+          // Navigate to local player screen
+          context.push('/local-player', extra: group);
+        },
+        onMenuAction: _handleMenuAction,
+      );
+}
+
+/// Widget for displaying an audiobook group tile with embedded artwork support.
+class _AudiobookGroupTile extends ConsumerStatefulWidget {
+  const _AudiobookGroupTile({
+    required this.group,
+    required this.onPlay,
+    required this.onTap,
+    this.onMenuAction,
+  });
+
+  final LocalAudiobookGroup group;
+  final VoidCallback onPlay;
+  final VoidCallback onTap;
+  final void Function(BuildContext, LocalAudiobookGroup, String)? onMenuAction;
+
+  @override
+  ConsumerState<_AudiobookGroupTile> createState() =>
+      _AudiobookGroupTileState();
+}
+
+class _AudiobookGroupTileState extends ConsumerState<_AudiobookGroupTile> {
+  String? _embeddedArtworkPath;
+  bool _isLoadingArtwork = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Try to extract embedded artwork if no coverPath
+    if (widget.group.coverPath == null && widget.group.files.isNotEmpty) {
+      _loadEmbeddedArtwork();
+    }
+  }
+
+  Future<void> _loadEmbeddedArtwork() async {
+    if (_isLoadingArtwork) return;
+    _isLoadingArtwork = true;
+
+    try {
+      // Try to extract artwork from first file in group
+      final firstFile = widget.group.files.first;
+      final nativePlayer = NativeAudioPlayer();
+      final artworkPath = await nativePlayer.extractArtworkFromFile(
+        firstFile.filePath,
+      );
+
+      if (artworkPath != null && mounted) {
+        final artworkFile = File(artworkPath);
+        if (artworkFile.existsSync()) {
+          setState(() {
+            _embeddedArtworkPath = artworkPath;
+          });
+        }
+      }
+    } on Exception catch (e) {
+      // Silently fail - embedded artwork is optional
+      debugPrint('Failed to load embedded artwork: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingArtwork = false;
+        });
+      }
+    }
+  }
+
+  Widget _buildCoverWidget() {
+    const coverSize = 56.0;
+
+    // Try embedded artwork first (if available)
+    if (_embeddedArtworkPath != null) {
+      final embeddedFile = File(_embeddedArtworkPath!);
+      if (embeddedFile.existsSync()) {
+        return RepaintBoundary(
+          child: Image.file(
+            embeddedFile,
+            width: coverSize,
+            height: coverSize,
+            fit: BoxFit.cover,
+            cacheWidth: 112, // 2x for retina displays
+            errorBuilder: (context, error, stackTrace) =>
+                _buildGroupCover(coverSize),
+          ),
+        );
+      }
+    }
+
+    // Fallback to group cover path
+    if (widget.group.coverPath != null) {
+      final coverFile = File(widget.group.coverPath!);
       if (coverFile.existsSync()) {
-        coverWidget = RepaintBoundary(
+        return RepaintBoundary(
           child: Image.file(
             coverFile,
-            width: 56,
-            height: 56,
+            width: coverSize,
+            height: coverSize,
             fit: BoxFit.cover,
             cacheWidth: 112, // 2x for retina displays
             errorBuilder: (context, error, stackTrace) =>
                 const Icon(Icons.audiotrack, size: 56),
           ),
         );
-      } else {
-        coverWidget = const Icon(Icons.audiotrack, size: 56);
       }
-    } else {
-      coverWidget = const Icon(Icons.audiotrack, size: 56);
     }
+
+    // Default icon
+    return const Icon(Icons.audiotrack, size: 56);
+  }
+
+  Widget _buildGroupCover(double coverSize) {
+    if (widget.group.coverPath != null) {
+      final coverFile = File(widget.group.coverPath!);
+      if (coverFile.existsSync()) {
+        return RepaintBoundary(
+          child: Image.file(
+            coverFile,
+            width: coverSize,
+            height: coverSize,
+            fit: BoxFit.cover,
+            cacheWidth: 112,
+            errorBuilder: (context, error, stackTrace) =>
+                const Icon(Icons.audiotrack, size: 56),
+          ),
+        );
+      }
+    }
+    return const Icon(Icons.audiotrack, size: 56);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final coverWidget = _buildCoverWidget();
 
     return ListTile(
       leading: ClipRRect(
         borderRadius: BorderRadius.circular(4),
         child: coverWidget,
       ),
-      title: Text(group.groupName),
+      title: Text(widget.group.groupName),
       subtitle: Text(
-        '${group.fileCount} ${group.fileCount == 1 ? 'file' : 'files'} • ${group.formattedTotalSize}',
+        '${widget.group.fileCount} ${widget.group.fileCount == 1 ? 'file' : 'files'} • ${widget.group.formattedTotalSize}',
       ),
       trailing: ref.watch(isScanningProvider)
           ? const SizedBox(
@@ -1084,16 +1235,16 @@ class _LibraryContentState extends ConsumerState<_LibraryContent> {
               children: [
                 IconButton(
                   icon: const Icon(Icons.play_arrow),
-                  onPressed: () {
-                    _playAudiobookGroup(context, group);
-                  },
+                  onPressed: widget.onPlay,
                   tooltip: 'Play',
                 ),
                 PopupMenuButton<String>(
                   icon: const Icon(Icons.more_vert),
                   tooltip: 'More options',
-                  onSelected: (value) =>
-                      _handleMenuAction(context, group, value),
+                  onSelected: (value) {
+                    // Pass context and group to parent for handling
+                    widget.onMenuAction?.call(context, widget.group, value);
+                  },
                   itemBuilder: (context) => [
                     PopupMenuItem(
                       value: 'info',
@@ -1146,19 +1297,13 @@ class _LibraryContentState extends ConsumerState<_LibraryContent> {
                 ),
               ],
             ),
-      onTap: () {
-        // TODO: Navigate to player or show details
-        _playAudiobookGroup(context, group);
-      },
+      onTap: widget.onTap,
     );
   }
+}
 
-  void _playAudiobookGroup(BuildContext context, LocalAudiobookGroup group) {
-    // Navigate to local player screen
-    context.push('/local-player', extra: group);
-  }
-
-  Future<void> _handleMenuAction(
+extension _LibraryContentStateExtension on _LibraryContentState {
+  void _handleMenuAction(
     BuildContext context,
     LocalAudiobookGroup group,
     String action,

@@ -22,9 +22,11 @@ import 'package:jabook/core/errors/failures.dart';
 import 'package:jabook/core/library/local_audiobook.dart';
 import 'package:jabook/core/logging/structured_logger.dart';
 import 'package:jabook/core/permissions/permission_service.dart';
+import 'package:jabook/core/player/native_audio_player.dart';
 import 'package:jabook/core/player/playback_settings_provider.dart';
 import 'package:jabook/core/player/player_state_provider.dart';
 import 'package:jabook/core/player/sleep_timer_service.dart';
+import 'package:jabook/core/utils/safe_async.dart';
 
 /// Player screen for local audiobook files.
 ///
@@ -55,6 +57,7 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
   // Local state for slider during dragging
   double? _sliderValue;
   bool _isDragging = false;
+  String? _embeddedArtworkPath; // Path to embedded artwork from metadata
 
   @override
   void initState() {
@@ -93,8 +96,39 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
       if (previous?.currentIndex != next.currentIndex) {
         // Track changed, update metadata
         _updateMetadata();
+        // Check for embedded artwork from metadata
+        _checkEmbeddedArtwork();
       }
     });
+    // Also check for embedded artwork on initialization
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future.delayed(const Duration(milliseconds: 500), _checkEmbeddedArtwork);
+    });
+  }
+
+  Future<void> _checkEmbeddedArtwork() async {
+    try {
+      // Get current media item info which includes artworkPath
+      final nativePlayer = NativeAudioPlayer();
+      final mediaInfo = await nativePlayer.getCurrentMediaItemInfo();
+      final artworkPath = mediaInfo['artworkPath'] as String?;
+      if (artworkPath != null && artworkPath.isNotEmpty) {
+        final artworkFile = File(artworkPath);
+        if (artworkFile.existsSync()) {
+          setState(() {
+            _embeddedArtworkPath = artworkPath;
+          });
+        }
+      }
+    } on Exception catch (e) {
+      // Silently fail - embedded artwork is optional
+      safeUnawaited(_logger.log(
+        level: 'debug',
+        subsystem: 'player',
+        message: 'Failed to check embedded artwork',
+        cause: e.toString(),
+      ));
+    }
   }
 
   Future<void> _initializePlayer() async {
@@ -643,6 +677,29 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
   Widget _buildCoverImage() {
     // Reduced size for better space utilization
     const coverSize = 200.0; // Reduced from larger size
+
+    // Try embedded artwork from metadata first (if available)
+    if (_embeddedArtworkPath != null) {
+      final embeddedFile = File(_embeddedArtworkPath!);
+      if (embeddedFile.existsSync()) {
+        return RepaintBoundary(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Image.file(
+              embeddedFile,
+              width: coverSize,
+              height: coverSize,
+              fit: BoxFit.cover,
+              cacheWidth: (coverSize * 2).round(), // 2x for retina displays
+              errorBuilder: (context, error, stackTrace) =>
+                  _buildGroupCover(coverSize),
+            ),
+          ),
+        );
+      }
+    }
+
+    // Fallback to group cover path
     if (widget.group.coverPath != null) {
       final coverFile = File(widget.group.coverPath!);
       if (coverFile.existsSync()) {
@@ -655,6 +712,29 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
               height: coverSize,
               fit: BoxFit.cover,
               cacheWidth: (coverSize * 2).round(), // 2x for retina displays
+              errorBuilder: (context, error, stackTrace) =>
+                  _buildDefaultCover(),
+            ),
+          ),
+        );
+      }
+    }
+    return _buildDefaultCover();
+  }
+
+  Widget _buildGroupCover(double coverSize) {
+    if (widget.group.coverPath != null) {
+      final coverFile = File(widget.group.coverPath!);
+      if (coverFile.existsSync()) {
+        return RepaintBoundary(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Image.file(
+              coverFile,
+              width: coverSize,
+              height: coverSize,
+              fit: BoxFit.cover,
+              cacheWidth: (coverSize * 2).round(),
               errorBuilder: (context, error, stackTrace) =>
                   _buildDefaultCover(),
             ),

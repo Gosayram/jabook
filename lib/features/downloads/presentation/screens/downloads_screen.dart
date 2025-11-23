@@ -53,9 +53,10 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
   @override
   void initState() {
     super.initState();
-    // Load downloads immediately
+    // Load downloads immediately with small delay to ensure downloads are initialized
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadDownloads();
+      // Small delay to ensure download is added to manager before loading
+      Future.delayed(const Duration(milliseconds: 100), _loadDownloads);
     });
     // Refresh every 2 seconds
     _refreshTimer = Timer.periodic(const Duration(seconds: 2), (_) {
@@ -67,7 +68,8 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     // Reload downloads when screen becomes visible
-    _loadDownloads();
+    // Small delay to ensure downloads are initialized
+    Future.delayed(const Duration(milliseconds: 100), _loadDownloads);
   }
 
   @override
@@ -214,54 +216,32 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
 
   @override
   Widget build(BuildContext context) => PopScope(
+        canPop: false,
         onPopInvokedWithResult: (didPop, result) {
           if (didPop) {
             EnvironmentLogger()
                 .d('DownloadsScreen: Pop already handled by system');
             return;
           }
-          // Try to navigate back - if canPop is false, go to library
-          final canPop = context.canPop();
+          // Downloads is now a root tab, so back should navigate to Library tab
           EnvironmentLogger().d(
-            'DownloadsScreen: onPopInvokedWithResult - canPop: $canPop',
+            'DownloadsScreen: onPopInvokedWithResult - navigating to Library tab',
           );
-          if (canPop) {
-            try {
-              context.pop();
-              EnvironmentLogger().d(
-                  'DownloadsScreen: Successfully popped using context.pop()');
-            } on Exception catch (e) {
-              EnvironmentLogger().w(
-                'DownloadsScreen: Failed to pop, navigating to library',
-                error: e,
-              );
-              // Navigate to library as fallback
-              context.go('/');
-            }
-          } else {
-            // Cannot pop (e.g., opened directly), navigate to library
-            EnvironmentLogger()
-                .d('DownloadsScreen: Cannot pop, navigating to library');
+          try {
             context.go('/');
+            EnvironmentLogger()
+                .d('DownloadsScreen: Successfully navigated to Library tab');
+          } on Exception catch (e) {
+            EnvironmentLogger().w(
+              'DownloadsScreen: Failed to navigate to Library',
+              error: e,
+            );
           }
         },
         child: Scaffold(
           appBar: AppBar(
             title: Text(
               AppLocalizations.of(context)?.downloadsTitle ?? 'Downloads',
-            ),
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back),
-              onPressed: () {
-                // Handle back button press
-                if (context.canPop()) {
-                  context.pop();
-                } else {
-                  // Navigate to library if cannot pop
-                  context.go('/');
-                }
-              },
-              tooltip: 'Back',
             ),
             actions: [
               if (AppConfig().debugFeaturesEnabled)

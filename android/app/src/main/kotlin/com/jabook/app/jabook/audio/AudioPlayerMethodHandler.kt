@@ -342,6 +342,22 @@ class AudioPlayerMethodHandler(
                     val info = getService()?.getCurrentMediaItemInfo() ?: emptyMap()
                     result.success(info)
                 }
+                "extractArtworkFromFile" -> {
+                    val filePath = call.argument<String>("filePath")
+                    if (filePath != null) {
+                        executeWithRetry(
+                            action = {
+                                val artworkPath = getService()?.extractArtworkFromFile(filePath)
+                                result.success(artworkPath)
+                            },
+                            onError = { e ->
+                                result.error("EXCEPTION", e.message ?: "Failed to extract artwork", null)
+                            }
+                        )
+                    } else {
+                        result.error("INVALID_ARGUMENT", "filePath is required", null)
+                    }
+                }
                 "getPlaylistInfo" -> {
                     val info = getService()?.getPlaylistInfo() ?: emptyMap()
                     result.success(info)

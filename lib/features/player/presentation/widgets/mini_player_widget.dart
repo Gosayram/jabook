@@ -17,19 +17,84 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:jabook/core/player/native_audio_player.dart';
 import 'package:jabook/core/player/player_state_provider.dart';
 
 /// Mini player widget displayed at the bottom of the screen.
 ///
 /// This widget shows the current track information, playback progress,
 /// and basic controls. Tapping on it opens the full player screen.
-class MiniPlayerWidget extends ConsumerWidget {
+class MiniPlayerWidget extends ConsumerStatefulWidget {
   /// Creates a new MiniPlayerWidget instance.
   const MiniPlayerWidget({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<MiniPlayerWidget> createState() => _MiniPlayerWidgetState();
+}
+
+class _MiniPlayerWidgetState extends ConsumerState<MiniPlayerWidget> {
+  String? _embeddedArtworkPath;
+
+  @override
+  void initState() {
+    super.initState();
+    // Check for embedded artwork after first frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future.delayed(const Duration(milliseconds: 500), _checkEmbeddedArtwork);
+    });
+  }
+
+  @override
+  void didUpdateWidget(MiniPlayerWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Re-check embedded artwork when widget updates (e.g., track changes)
+    _checkEmbeddedArtwork();
+  }
+
+  Future<void> _checkEmbeddedArtwork() async {
+    try {
+      // Get current media item info which includes artworkPath
+      final nativePlayer = NativeAudioPlayer();
+      final mediaInfo = await nativePlayer.getCurrentMediaItemInfo();
+      final artworkPath = mediaInfo['artworkPath'] as String?;
+      if (artworkPath != null && artworkPath.isNotEmpty) {
+        final artworkFile = File(artworkPath);
+        if (artworkFile.existsSync()) {
+          if (mounted) {
+            setState(() {
+              _embeddedArtworkPath = artworkPath;
+            });
+          }
+        }
+      } else {
+        // Clear embedded artwork if not available
+        if (mounted) {
+          setState(() {
+            _embeddedArtworkPath = null;
+          });
+        }
+      }
+    } on Exception {
+      // Silently fail - embedded artwork is optional
+      if (mounted) {
+        setState(() {
+          _embeddedArtworkPath = null;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final playerState = ref.watch(playerStateProvider);
+
+    // Listen to track changes and update embedded artwork
+    ref.listen(playerStateProvider, (previous, next) {
+      // Check if track index changed (new track)
+      if (previous?.currentIndex != next.currentIndex) {
+        _checkEmbeddedArtwork();
+      }
+    });
 
     // Show mini player only when there's an active track (not idle)
     if (playerState.playbackState == 0) {
@@ -72,8 +137,11 @@ class MiniPlayerWidget extends ConsumerWidget {
         ),
         child: Row(
           children: [
-            // Cover image
-            _buildCoverImage(context, playerState.currentCoverPath),
+            // Cover image - prioritize embedded artwork, then currentCoverPath
+            _buildCoverImage(
+              context,
+              _embeddedArtworkPath ?? playerState.currentCoverPath,
+            ),
             const SizedBox(width: 12),
             // Track info and progress
             Flexible(

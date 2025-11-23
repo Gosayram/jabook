@@ -623,6 +623,41 @@ class NativeAudioPlayer {
     }
   }
 
+  /// Extracts embedded artwork from audio file metadata.
+  ///
+  /// [filePath] is the path to the audio file.
+  ///
+  /// Returns the path to the saved artwork file, or null if no artwork found.
+  ///
+  /// Throws [AudioFailure] if extraction fails.
+  Future<String?> extractArtworkFromFile(String filePath) async {
+    try {
+      final artworkPath = await _channel.invokeMethod<String>(
+        'extractArtworkFromFile',
+        {'filePath': filePath},
+      );
+      return artworkPath;
+    } on PlatformException catch (e) {
+      await _logger.log(
+        level: 'warning',
+        subsystem: 'audio',
+        message: 'Failed to extract artwork from file',
+        cause: e.toString(),
+        extra: {'code': e.code, 'message': e.message, 'filePath': filePath},
+      );
+      return null;
+    } on Exception catch (e) {
+      await _logger.log(
+        level: 'warning',
+        subsystem: 'audio',
+        message: 'Failed to extract artwork from file',
+        cause: e.toString(),
+        extra: {'filePath': filePath},
+      );
+      return null;
+    }
+  }
+
   /// Seeks to specific track and position.
   ///
   /// [trackIndex] is the track index in the playlist (0-based).
