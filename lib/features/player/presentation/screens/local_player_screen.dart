@@ -658,14 +658,8 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
                           // Playback controls
                           _buildPlaybackControls(playerState),
                           const SizedBox(height: 16),
-                          // Speed control
-                          _buildSpeedControl(playerState),
-                          const SizedBox(height: 16),
-                          // Repeat mode control
-                          _buildRepeatControl(),
-                          const SizedBox(height: 16),
-                          // Sleep timer control
-                          _buildSleepTimerControl(),
+                          // Speed, repeat and sleep timer controls in one row
+                          _buildControlsRow(playerState),
                           const SizedBox(height: 32),
                           // Track list
                           if (widget.group.files.length > 1)
@@ -679,8 +673,8 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
   }
 
   Widget _buildCoverImage() {
-    // Reduced size for better space utilization
-    const coverSize = 200.0; // Reduced from larger size
+    // Increased size after optimizing controls layout
+    const coverSize = 285.0;
 
     // Try embedded artwork from metadata first (if available)
     if (_embeddedArtworkPath != null) {
@@ -750,7 +744,7 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
   }
 
   Widget _buildDefaultCover() {
-    const coverSize = 200.0;
+    const coverSize = 285.0;
     return Container(
       width: coverSize,
       height: coverSize,
@@ -986,6 +980,19 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
     );
   }
 
+  /// Builds a row with speed, repeat and sleep timer controls.
+  Widget _buildControlsRow(PlayerStateModel state) => Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          // Speed control
+          _buildSpeedControl(state),
+          // Repeat mode control
+          _buildRepeatControl(),
+          // Sleep timer control
+          _buildSleepTimerControl(),
+        ],
+      );
+
   Widget _buildSpeedControl(PlayerStateModel state) => PopupMenuButton<double>(
         tooltip: 'Playback speed',
         itemBuilder: (context) =>
@@ -1017,40 +1024,27 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
     final settings = ref.watch(playbackSettingsProvider);
     final repeatMode = settings.repeatMode;
 
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Text(
-          'Repeat: ',
-          style: Theme.of(context).textTheme.bodyMedium,
-        ),
-        const SizedBox(width: 8),
-        IconButton(
-          icon: Icon(
-            repeatMode == RepeatMode.track
-                ? Icons.repeat_one
-                : repeatMode == RepeatMode.playlist
-                    ? Icons.repeat
-                    : Icons.repeat_outlined,
-            color: repeatMode != RepeatMode.none
-                ? Theme.of(context).primaryColor
-                : null,
-          ),
-          onPressed: () async {
-            final settingsNotifier =
-                ref.read(playbackSettingsProvider.notifier);
-            await settingsNotifier.cycleRepeatMode();
-            // Update saved state with new repeat mode
-            final newSettings = ref.read(playbackSettingsProvider);
-            await ref
-                .read(playerStateProvider.notifier)
-                .updateSavedStateSettings(
-                  repeatMode: newSettings.repeatMode.index,
-                );
-          },
-          tooltip: _getRepeatModeTooltip(repeatMode),
-        ),
-      ],
+    return IconButton(
+      icon: Icon(
+        repeatMode == RepeatMode.track
+            ? Icons.repeat_one
+            : repeatMode == RepeatMode.playlist
+                ? Icons.repeat
+                : Icons.repeat_outlined,
+        color: repeatMode != RepeatMode.none
+            ? Theme.of(context).primaryColor
+            : null,
+      ),
+      onPressed: () async {
+        final settingsNotifier = ref.read(playbackSettingsProvider.notifier);
+        await settingsNotifier.cycleRepeatMode();
+        // Update saved state with new repeat mode
+        final newSettings = ref.read(playbackSettingsProvider);
+        await ref.read(playerStateProvider.notifier).updateSavedStateSettings(
+              repeatMode: newSettings.repeatMode.index,
+            );
+      },
+      tooltip: _getRepeatModeTooltip(repeatMode),
     );
   }
 
@@ -1069,125 +1063,137 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
     final isActive = _sleepTimerService.isActive;
     final remainingSeconds = _sleepTimerService.remainingSeconds;
 
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Text(
-          'Sleep Timer: ',
-          style: Theme.of(context).textTheme.bodyMedium,
+    if (isActive && remainingSeconds != null) {
+      return PopupMenuButton<Duration?>(
+        tooltip:
+            'Sleep timer: ${_formatDuration(Duration(seconds: remainingSeconds))}',
+        onSelected: (duration) async {
+          if (duration == null) {
+            await _sleepTimerService.cancelTimer();
+            _stopSleepTimerUpdates();
+            await ref
+                .read(playerStateProvider.notifier)
+                .updateSavedStateSettings();
+            if (mounted) {
+              setState(() {});
+            }
+          }
+        },
+        itemBuilder: (context) => [
+          const PopupMenuItem<Duration?>(
+            child: Text('Cancel timer'),
+          ),
+        ],
+        child: Chip(
+          avatar: const Icon(Icons.timer, size: 18),
+          label: Text(_formatDuration(Duration(seconds: remainingSeconds))),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          backgroundColor:
+              Theme.of(context).primaryColor.withValues(alpha: 0.1),
         ),
-        const SizedBox(width: 8),
-        if (isActive && remainingSeconds != null)
-          Text(
-            _formatDuration(Duration(seconds: remainingSeconds)),
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.primary,
-                  fontWeight: FontWeight.w500,
-                ),
+      );
+    }
+
+    if (isActive && remainingSeconds == null) {
+      return PopupMenuButton<Duration?>(
+        tooltip: 'Sleep timer: At end of chapter',
+        onSelected: (duration) async {
+          if (duration == null) {
+            await _sleepTimerService.cancelTimer();
+            _stopSleepTimerUpdates();
+            await ref
+                .read(playerStateProvider.notifier)
+                .updateSavedStateSettings();
+            if (mounted) {
+              setState(() {});
+            }
+          }
+        },
+        itemBuilder: (context) => [
+          const PopupMenuItem<Duration?>(
+            child: Text('Cancel timer'),
           ),
-        if (isActive && remainingSeconds == null)
-          Text(
-            'At end of chapter',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.primary,
-                  fontWeight: FontWeight.w500,
+        ],
+        child: Chip(
+          avatar: const Icon(Icons.timer, size: 18),
+          label: const Text('End of chapter'),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          backgroundColor:
+              Theme.of(context).primaryColor.withValues(alpha: 0.1),
+        ),
+      );
+    }
+
+    return PopupMenuButton<Duration?>(
+      tooltip: 'Set sleep timer',
+      onSelected: (duration) async {
+        if (duration == null) {
+          await _sleepTimerService.cancelTimer();
+        } else if (duration == const Duration(seconds: -1)) {
+          // Special value for "at end of chapter"
+          await _sleepTimerService.startTimerAtEndOfChapter(() {
+            if (mounted) {
+              ref.read(playerStateProvider.notifier).pause();
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Sleep timer: Playback paused'),
                 ),
-          ),
-        if (!isActive)
-          PopupMenuButton<Duration?>(
-            icon: Icon(
-              Icons.timer_outlined,
-              color: Theme.of(context).colorScheme.onSurface,
-            ),
-            tooltip: 'Set sleep timer',
-            onSelected: (duration) async {
-              if (duration == null) {
-                await _sleepTimerService.cancelTimer();
-              } else if (duration == const Duration(seconds: -1)) {
-                // Special value for "at end of chapter"
-                await _sleepTimerService.startTimerAtEndOfChapter(() {
-                  if (mounted) {
-                    ref.read(playerStateProvider.notifier).pause();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Sleep timer: Playback paused'),
-                      ),
-                    );
-                  }
-                });
-              } else {
-                await _sleepTimerService.startTimer(duration, () {
-                  if (mounted) {
-                    ref.read(playerStateProvider.notifier).pause();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Sleep timer: Playback paused'),
-                      ),
-                    );
-                  }
-                });
-              }
-              if (mounted) {
-                setState(() {});
-                _startSleepTimerUpdates();
-                // Update saved state with sleep timer
-                final remainingSeconds = _sleepTimerService.remainingSeconds;
-                await ref
-                    .read(playerStateProvider.notifier)
-                    .updateSavedStateSettings(
-                      sleepTimerRemainingSeconds: remainingSeconds,
-                    );
-              }
-            },
-            itemBuilder: (context) => [
-              if (isActive)
-                const PopupMenuItem<Duration?>(
-                  child: Text('Cancel timer'),
+              );
+            }
+          });
+        } else {
+          await _sleepTimerService.startTimer(duration, () {
+            if (mounted) {
+              ref.read(playerStateProvider.notifier).pause();
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Sleep timer: Playback paused'),
                 ),
-              const PopupMenuItem<Duration?>(
-                value: Duration(minutes: 10),
-                child: Text('10 minutes'),
-              ),
-              const PopupMenuItem<Duration?>(
-                value: Duration(minutes: 15),
-                child: Text('15 minutes'),
-              ),
-              const PopupMenuItem<Duration?>(
-                value: Duration(minutes: 30),
-                child: Text('30 minutes'),
-              ),
-              const PopupMenuItem<Duration?>(
-                value: Duration(minutes: 45),
-                child: Text('45 minutes'),
-              ),
-              const PopupMenuItem<Duration?>(
-                value: Duration(hours: 1),
-                child: Text('1 hour'),
-              ),
-              const PopupMenuItem<Duration?>(
-                value: Duration(seconds: -1), // Special value
-                child: Text('At end of chapter'),
-              ),
-            ],
-          )
-        else
-          IconButton(
-            icon: const Icon(Icons.timer),
-            color: Theme.of(context).primaryColor,
-            onPressed: () async {
-              await _sleepTimerService.cancelTimer();
-              _stopSleepTimerUpdates();
-              // Update saved state - clear sleep timer
-              await ref
-                  .read(playerStateProvider.notifier)
-                  .updateSavedStateSettings();
-              if (mounted) {
-                setState(() {});
-              }
-            },
-            tooltip: 'Cancel sleep timer',
-          ),
+              );
+            }
+          });
+        }
+        if (mounted) {
+          setState(() {});
+          _startSleepTimerUpdates();
+          // Update saved state with sleep timer
+          final remainingSeconds = _sleepTimerService.remainingSeconds;
+          await ref.read(playerStateProvider.notifier).updateSavedStateSettings(
+                sleepTimerRemainingSeconds: remainingSeconds,
+              );
+        }
+      },
+      itemBuilder: (context) => [
+        const PopupMenuItem<Duration?>(
+          value: Duration(minutes: 10),
+          child: Text('10 minutes'),
+        ),
+        const PopupMenuItem<Duration?>(
+          value: Duration(minutes: 15),
+          child: Text('15 minutes'),
+        ),
+        const PopupMenuItem<Duration?>(
+          value: Duration(minutes: 30),
+          child: Text('30 minutes'),
+        ),
+        const PopupMenuItem<Duration?>(
+          value: Duration(minutes: 45),
+          child: Text('45 minutes'),
+        ),
+        const PopupMenuItem<Duration?>(
+          value: Duration(hours: 1),
+          child: Text('1 hour'),
+        ),
+        const PopupMenuItem<Duration?>(
+          value: Duration(seconds: -1), // Special value
+          child: Text('At end of chapter'),
+        ),
       ],
+      child: const Chip(
+        avatar: Icon(Icons.timer_outlined, size: 18),
+        label: Text('Timer'),
+        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      ),
     );
   }
 
