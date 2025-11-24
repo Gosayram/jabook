@@ -3547,5 +3547,185 @@
   "noAccessibleAudioFiles": "Не найдено доступных аудиофайлов",
   "@noAccessibleAudioFiles": {
     "description": "Сообщение об ошибке, когда не найдено доступных аудиофайлов"
+  },
+  "aboutTitle": "О приложении",
+  "@aboutTitle": {
+    "description": "Заголовок экрана О приложении"
+  },
+  "aboutAppSlogan": "Современный аудиоплеер для торрентов",
+  "@aboutAppSlogan": {
+    "description": "Слоган приложения"
+  },
+  "appVersion": "Версия приложения",
+  "@appVersion": {
+    "description": "Метка для версии приложения"
+  },
+  "buildNumber": "Сборка",
+  "@buildNumber": {
+    "description": "Метка для номера сборки"
+  },
+  "packageId": "ID пакета",
+  "@packageId": {
+    "description": "Метка для ID пакета"
+  },
+  "licenseTitle": "Лицензия",
+  "@licenseTitle": {
+    "description": "Заголовок секции лицензии"
+  },
+  "licenseDescription": "Приложение JaBook распространяется по лицензии Apache 2.0. Нажмите, чтобы посмотреть полный текст лицензии и список сторонних библиотек.",
+  "@licenseDescription": {
+    "description": "Описание лицензии"
+  },
+  "mainLicense": "Основная лицензия",
+  "@mainLicense": {
+    "description": "Пункт меню для основной лицензии"
+  },
+  "thirdPartyLicenses": "Сторонние библиотеки",
+  "@thirdPartyLicenses": {
+    "description": "Пункт меню для сторонних библиотек"
+  },
+  "telegramChannel": "Telegram канал",
+  "@telegramChannel": {
+    "description": "Пункт меню для Telegram канала"
+  },
+  "openTelegramChannel": "Открыть канал в Telegram",
+  "@openTelegramChannel": {
+    "description": "Подпись для Telegram канала"
+  },
+  "contactDeveloper": "Написать разработчику",
+  "@contactDeveloper": {
+    "description": "Пункт меню для связи с разработчиком"
+  },
+  "openEmailClient": "Открыть почтовый клиент",
+  "@openEmailClient": {
+    "description": "Подпись для почтового клиента"
+  },
+  "supportProject": "Поддержать проект",
+  "@supportProject": {
+    "description": "Пункт меню для поддержки проекта"
+  },
+  "supportProjectDescription": "Пожертвовать или поддержать разработку",
+  "@supportProjectDescription": {
+    "description": "Подпись для поддержки проекта"
+  },
+  "githubRepository": "GitHub",
+  "@githubRepository": {
+    "description": "Пункт меню для GitHub репозитория"
+  },
+  "githubRepositoryDescription": "Исходный код и список изменений",
+  "@githubRepositoryDescription": {
+    "description": "Подпись для GitHub репозитория"
+  },
+  "changelog": "Список изменений",
+  "@changelog": {
+    "description": "Пункт меню для списка изменений"
+  },
+  "changelogDescription": "История версий и обновлений",
+  "@changelogDescription": {
+    "description": "Подпись для списка изменений"
+  },
+  "issues": "Issues",
+  "@issues": {
+    "description": "Menu item for GitHub issues"
+  },
+  "issuesDescription": "Сообщить об ошибках и запросить функции",
+  "@issuesDescription": {
+    "description": "Subtitle for issues"
+  },
+  "aboutDeveloper": "О разработчике",
+  "@aboutDeveloper": {
+    "description": "Заголовок секции о разработчике"
+  },
+  "aboutDeveloperText": "JaBook разработан командой Jabook Contributors. Это open source проект, созданный для удобного прослушивания аудиокниг из открытых источников и торрентов. Без рекламы, без регистрации — простое прослушивание.",
+  "@aboutDeveloperText": {
+    "description": "Текст о разработчике"
+  },
+  "copyInfo": "Скопировать",
+  "@copyInfo": {
+    "description": "Кнопка для копирования информации"
+  },
+  "infoCopied": "Информация скопирована",
+  "@infoCopied": {
+    "description": "Сообщение после копирования"
+  },
+  "failedToOpenLink": "Не удалось открыть ссылку",
+  "@failedToOpenLink": {
+    "description": "Сообщение об ошибке при открытии ссылки"
+  },
+  "failedToOpenEmail": "Не удалось открыть почтовый клиент",
+  "@failedToOpenEmail": {
+    "description": "Сообщение об ошибке при открытии почтового клиента"
+  },
+  "viewInApp": "Просмотр в приложении",
+  "@viewInApp": {
+    "description": "Подпись для просмотра лицензии в приложении"
+  },
+  "viewLicenses": "Просмотр лицензий",
+  "@viewLicenses": {
+    "description": "Подпись для просмотра лицензий"
+  },
+  "licenseOnGitHub": "Лицензия на GitHub",
+  "@licenseOnGitHub": {
+    "description": "Пункт меню для просмотра лицензии на GitHub"
+  },
+  "viewLicenseFile": "Просмотр файла LICENSE",
+  "@viewLicenseFile": {
+    "description": "Подпись для просмотра файла лицензии"
+  },
+  "appDiscussionQuestionsReviews": "Обсуждение приложения, вопросы и отзывы",
+  "@appDiscussionQuestionsReviews": {
+    "description": "Подпись для форума 4PDA"
+  },
+  "jabookContributors": "Jabook Contributors",
+  "@jabookContributors": {
+    "description": "Название команды разработчиков"
+  },
+  "github": "GitHub",
+  "@github": {
+    "description": "Название сервиса GitHub"
+  },
+  "versionInformationLongPress": "Информация о версии. Долгое нажатие для копирования.",
+  "@versionInformationLongPress": {
+    "description": "Метка для доступности блока версии"
+  },
+  "unknown": "Неизвестно",
+  "@unknown": {
+    "description": "Значение по умолчанию для неизвестных данных"
+  },
+  "emailFeedbackSubject": "JaBook – обратная связь",
+  "@emailFeedbackSubject": {
+    "description": "Тема письма для обратной связи"
+  },
+  "emailFeedbackApp": "Приложение: JaBook",
+  "@emailFeedbackApp": {
+    "description": "Метка приложения в письме"
+  },
+  "emailFeedbackVersion": "Версия:",
+  "@emailFeedbackVersion": {
+    "description": "Метка версии в письме"
+  },
+  "emailFeedbackDevice": "Устройство:",
+  "@emailFeedbackDevice": {
+    "description": "Метка устройства в письме"
+  },
+  "emailFeedbackAndroid": "Android:",
+  "@emailFeedbackAndroid": {
+    "description": "Метка версии Android в письме"
+  },
+  "emailFeedbackDescription": "Описание проблемы / предложения:",
+  "@emailFeedbackDescription": {
+    "description": "Метка описания в письме"
+  },
+  "aboutSectionDescription": "Информация о приложении и ссылки",
+  "@aboutSectionDescription": {
+    "description": "Описание секции О приложении в настройках"
+  },
+  "aboutSectionSubtitle": "Версия, лицензия и информация о разработчике",
+  "@aboutSectionSubtitle": {
+    "description": "Подпись для секции О приложении в настройках"
+  },
+  "forum4Pda": "4PDA",
+  "@forum4Pda": {
+    "description": "Название форума 4PDA"
   }
 }

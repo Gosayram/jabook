@@ -212,11 +212,11 @@ build-android-signed: use-existing-android-cert patch-gradle-signing patch-gradl
 build-android-signed-apk: use-existing-android-cert patch-gradle-signing patch-gradle-minsdk
 	@echo "Building signed prod APK (without obfuscation for easier debugging)..."
 	@echo "Building split APKs per architecture..."
-	flutter build apk --target lib/main.dart --release \
+	flutter build apk --flavor prod --target lib/main.dart --release \
 		--split-per-abi \
 		--tree-shake-icons
 	@echo "Building universal APK (all architectures)..."
-	flutter build apk --target lib/main.dart --release \
+	flutter build apk --flavor prod --target lib/main.dart --release \
 		--tree-shake-icons
 	@echo "✅ Signed prod APKs built at: build/app/outputs/apk/"
 	@echo "   - Split APKs: app-*-release.apk (per architecture)"

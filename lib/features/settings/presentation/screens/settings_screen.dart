@@ -289,6 +289,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
           if (Platform.isAndroid) const SizedBox(height: 24),
 
+          // About Section
+          Semantics(
+            container: true,
+            label: 'About app',
+            child: _buildAboutSection(context),
+          ),
+
+          const SizedBox(height: 24),
+
           // Backup & Restore Section
           Semantics(
             container: true,
@@ -1541,6 +1550,42 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   builder: (context) => const BackgroundCompatibilityScreen(),
                 ),
               );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAboutSection(BuildContext context) {
+    final localizations = AppLocalizations.of(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          localizations?.aboutTitle ?? 'About',
+          style: Theme.of(context).textTheme.titleLarge,
+        ),
+        const SizedBox(height: 8),
+        Text(
+          localizations?.aboutSectionDescription ?? 'App information and links',
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+        const SizedBox(height: 16),
+        Semantics(
+          button: true,
+          label: localizations?.aboutTitle ?? 'About app',
+          child: ListTile(
+            leading: const Icon(Icons.info_outline),
+            title: Text(localizations?.aboutTitle ?? 'About'),
+            subtitle: Text(
+              localizations?.aboutSectionSubtitle ??
+                  'Version, license, and developer information',
+            ),
+            trailing: const Icon(Icons.arrow_forward_ios),
+            onTap: () {
+              context.push('/settings/about');
             },
           ),
         ),

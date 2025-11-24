@@ -2474,4 +2474,139 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get noAccessibleAudioFiles => 'No accessible audio files found';
+
+  @override
+  String get aboutTitle => 'About';
+
+  @override
+  String get aboutAppSlogan => 'Modern audiobook player for torrents';
+
+  @override
+  String get appVersion => 'App Version';
+
+  @override
+  String get buildNumber => 'Build';
+
+  @override
+  String get packageId => 'Package ID';
+
+  @override
+  String get licenseTitle => 'License';
+
+  @override
+  String get licenseDescription => 'JaBook is distributed under the Apache 2.0 license. Tap to view the full license text and list of third-party libraries.';
+
+  @override
+  String get mainLicense => 'Main License';
+
+  @override
+  String get thirdPartyLicenses => 'Third-Party Libraries';
+
+  @override
+  String get telegramChannel => 'Telegram Channel';
+
+  @override
+  String get openTelegramChannel => 'Open channel in Telegram';
+
+  @override
+  String get contactDeveloper => 'Contact Developer';
+
+  @override
+  String get openEmailClient => 'Open email client';
+
+  @override
+  String get supportProject => 'Support Project';
+
+  @override
+  String get supportProjectDescription => 'Donate or support development';
+
+  @override
+  String get githubRepository => 'GitHub';
+
+  @override
+  String get githubRepositoryDescription => 'Source code and changelog';
+
+  @override
+  String get changelog => 'Changelog';
+
+  @override
+  String get changelogDescription => 'Version history and updates';
+
+  @override
+  String get issues => 'Issues';
+
+  @override
+  String get issuesDescription => 'Report bugs and request features';
+
+  @override
+  String get aboutDeveloper => 'About Developer';
+
+  @override
+  String get aboutDeveloperText => 'JaBook is developed by Jabook Contributors team. This is an open source project created for convenient listening to audiobooks from open sources and torrents. No ads, no registration — just pure listening.';
+
+  @override
+  String get copyInfo => 'Copy';
+
+  @override
+  String get infoCopied => 'Info copied';
+
+  @override
+  String get failedToOpenLink => 'Failed to open link';
+
+  @override
+  String get failedToOpenEmail => 'Failed to open email client';
+
+  @override
+  String get viewInApp => 'View in app';
+
+  @override
+  String get viewLicenses => 'View licenses';
+
+  @override
+  String get licenseOnGitHub => 'License on GitHub';
+
+  @override
+  String get viewLicenseFile => 'View LICENSE file';
+
+  @override
+  String get appDiscussionQuestionsReviews => 'App discussion, questions and reviews';
+
+  @override
+  String get jabookContributors => 'Jabook Contributors';
+
+  @override
+  String get github => 'GitHub';
+
+  @override
+  String get versionInformationLongPress => 'Version information. Long press to copy.';
+
+  @override
+  String get unknown => 'Unknown';
+
+  @override
+  String get emailFeedbackSubject => 'JaBook - Feedback';
+
+  @override
+  String get emailFeedbackApp => 'App: JaBook';
+
+  @override
+  String get emailFeedbackVersion => 'Version:';
+
+  @override
+  String get emailFeedbackDevice => 'Device:';
+
+  @override
+  String get emailFeedbackAndroid => 'Android:';
+
+  @override
+  String get emailFeedbackDescription => 'Description of issue / suggestion:';
+
+  @override
+  String get aboutSectionDescription => 'App information and links';
+
+  @override
+  String get aboutSectionSubtitle => 'Version, license, and developer information';
+
+  @override
+  String get forum4Pda => '4PDA';
 }

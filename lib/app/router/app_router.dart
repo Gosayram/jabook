@@ -31,6 +31,7 @@ import 'package:jabook/features/player/presentation/screens/local_player_screen.
 import 'package:jabook/features/player/presentation/screens/player_screen.dart';
 import 'package:jabook/features/player/presentation/widgets/mini_player_widget.dart';
 import 'package:jabook/features/search/presentation/screens/search_screen.dart';
+import 'package:jabook/features/settings/presentation/screens/about_screen.dart';
 import 'package:jabook/features/settings/presentation/screens/settings_screen.dart';
 import 'package:jabook/features/topic/presentation/screens/topic_screen.dart';
 import 'package:jabook/l10n/app_localizations.dart';
@@ -127,6 +128,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     GoRoute(
       path: '/trash',
       builder: (context, state) => const TrashScreen(),
+    ),
+    GoRoute(
+      path: '/settings/about',
+      builder: (context, state) => const AboutScreen(),
     ),
   ];
 

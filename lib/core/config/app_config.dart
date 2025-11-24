@@ -38,6 +38,9 @@ class AppConfig {
   /// Gets whether this is a production build.
   bool get isProd => flavor == 'prod';
 
+  /// Gets whether this is a beta build.
+  bool get isBeta => flavor == 'beta';
+
   /// Gets the API base URL for the current environment.
   String get apiBaseUrl {
     switch (flavor) {
@@ -45,6 +48,8 @@ class AppConfig {
         return 'https://dev-api.jabook.com';
       case 'stage':
         return 'https://stage-api.jabook.com';
+      case 'beta':
+        return 'https://api.jabook.com';
       case 'prod':
         return 'https://api.jabook.com';
       default:
@@ -66,6 +71,8 @@ class AppConfig {
         return 'all'; // All logs
       case 'stage':
         return 'info'; // Info and above
+      case 'beta':
+        return 'info'; // Info and above
       case 'prod':
         return 'error'; // Error and above only
       default:
@@ -80,6 +87,8 @@ class AppConfig {
         return false;
       case 'stage':
         return true;
+      case 'beta':
+        return true;
       case 'prod':
         return true;
       default:
@@ -93,6 +102,8 @@ class AppConfig {
       case 'dev':
         return false;
       case 'stage':
+        return true;
+      case 'beta':
         return true;
       case 'prod':
         return true;
@@ -114,6 +125,8 @@ class AppConfig {
         return 'JaBook Dev';
       case 'stage':
         return 'JaBook Stage';
+      case 'beta':
+        return 'jabook beta';
       case 'prod':
         return 'JaBook';
       default:
@@ -128,6 +141,8 @@ class AppConfig {
         return 'com.jabook.app.jabook.dev';
       case 'stage':
         return 'com.jabook.app.jabook.stage';
+      case 'beta':
+        return 'com.jabook.app.jabook';
       case 'prod':
         return 'com.jabook.app.jabook';
       default:
@@ -142,6 +157,8 @@ class AppConfig {
         return '/data/user/0/com.jabook.app.jabook.dev/downloads';
       case 'stage':
         return '/data/user/0/com.jabook.app.jabook.stage/downloads';
+      case 'beta':
+        return '/data/user/0/com.jabook.app.jabook/downloads';
       case 'prod':
         return '/data/user/0/com.jabook.app.jabook/downloads';
       default:
@@ -155,6 +172,8 @@ class AppConfig {
       case 'dev':
         return true;
       case 'stage':
+        return false;
+      case 'beta':
         return false;
       case 'prod':
         return false;
@@ -170,6 +189,8 @@ class AppConfig {
         return 1; // Limit downloads in dev
       case 'stage':
         return 3;
+      case 'beta':
+        return 5;
       case 'prod':
         return 5;
       default:
@@ -184,6 +205,8 @@ class AppConfig {
         return 50; // Smaller cache in dev
       case 'stage':
         return 200;
+      case 'beta':
+        return 500;
       case 'prod':
         return 500;
       default:
