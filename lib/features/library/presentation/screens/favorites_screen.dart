@@ -13,10 +13,10 @@
 // limitations under the License.
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:jabook/core/favorites/favorites_service.dart';
+import 'package:jabook/core/favorites/favorites_provider.dart';
 import 'package:jabook/core/parse/rutracker_parser.dart';
-import 'package:jabook/data/db/app_database.dart';
 import 'package:jabook/features/search/presentation/widgets/audiobook_card.dart';
 import 'package:jabook/l10n/app_localizations.dart';
 
@@ -24,90 +24,49 @@ import 'package:jabook/l10n/app_localizations.dart';
 ///
 /// This screen shows all audiobooks that the user has marked as favorites,
 /// with options to view details and remove from favorites.
-class FavoritesScreen extends StatefulWidget {
+class FavoritesScreen extends ConsumerStatefulWidget {
   /// Creates a new FavoritesScreen instance.
   const FavoritesScreen({super.key});
 
   @override
-  State<FavoritesScreen> createState() => _FavoritesScreenState();
+  ConsumerState<FavoritesScreen> createState() => _FavoritesScreenState();
 }
 
-class _FavoritesScreenState extends State<FavoritesScreen> {
-  FavoritesService? _favoritesService;
-  List<Map<String, dynamic>> _favorites = [];
-  bool _isLoading = true;
-  final Set<String> _favoriteIds = <String>{};
-
-  @override
-  void initState() {
-    super.initState();
-    _initializeService();
-  }
-
-  Future<void> _initializeService() async {
-    try {
-      final appDatabase = AppDatabase();
-      await appDatabase.initialize();
-      _favoritesService = FavoritesService(appDatabase.database);
-      await _loadFavorites();
-    } on Exception {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
-    }
-  }
-
-  Future<void> _loadFavorites() async {
-    if (_favoritesService == null) return;
-
-    setState(() {
-      _isLoading = true;
-    });
-
-    try {
-      final favorites = await _favoritesService!.getAllFavorites();
-      if (mounted) {
-        setState(() {
-          _favorites = favorites.map(_audiobookToMap).toList();
-          _favoriteIds
-            ..clear()
-            ..addAll(favorites.map((a) => a.id));
-          _isLoading = false;
-        });
-      }
-    } on Exception {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
-    }
-  }
-
+class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
   Future<void> _toggleFavorite(String topicId, bool isFavorite) async {
-    if (_favoritesService == null) return;
+    final notifier = ref.read(favoriteIdsProvider.notifier);
+    final favoritesAsync = ref.read(favoritesListProvider);
+
+    // Get audiobook data from current favorites list (for re-adding if needed)
+    Map<String, dynamic>? audiobookMap;
+    if (favoritesAsync.hasValue) {
+      try {
+        final audiobook = favoritesAsync.value!.firstWhere(
+          (a) => a.id == topicId,
+        );
+        audiobookMap = _audiobookToMap(audiobook);
+      } on Exception {
+        // Audiobook not found in favorites - this is OK if we're removing
+        audiobookMap = null;
+      }
+    }
 
     try {
-      if (isFavorite) {
-        // This shouldn't happen - already in favorites
-        return;
-      } else {
-        // Remove from favorites
-        await _favoritesService!.removeFromFavorites(topicId);
-      }
+      final wasAdded = await notifier.toggleFavorite(
+        topicId,
+        audiobookMap: audiobookMap,
+      );
 
       if (mounted) {
-        setState(() {
-          _favoriteIds.remove(topicId);
-          _favorites.removeWhere((a) => (a['id'] as String?) == topicId);
-        });
-
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(AppLocalizations.of(context)?.removedFromFavorites ??
-                'Removed from favorites'),
+            content: Text(
+              wasAdded
+                  ? (AppLocalizations.of(context)?.addedToFavorites ??
+                      'Added to favorites')
+                  : (AppLocalizations.of(context)?.removedFromFavorites ??
+                      'Removed from favorites'),
+            ),
             duration: const Duration(seconds: 2),
           ),
         );
@@ -117,8 +76,13 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-                AppLocalizations.of(context)?.failedToRemoveFromFavorites ??
-                    'Failed to remove from favorites'),
+              isFavorite
+                  ? (AppLocalizations.of(context)
+                          ?.failedToRemoveFromFavorites ??
+                      'Failed to remove from favorites')
+                  : (AppLocalizations.of(context)?.failedToAddToFavorites ??
+                      'Failed to add to favorites'),
+            ),
           ),
         );
       }
@@ -153,37 +117,74 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
       };
 
   @override
-  Widget build(BuildContext context) => PopScope(
-        onPopInvokedWithResult: (didPop, result) {
-          if (didPop) return;
-          // Allow navigation back using GoRouter
-          if (context.canPop()) {
-            context.pop();
-          } else {
-            context.go('/');
-          }
-        },
-        child: Scaffold(
-          appBar: AppBar(
-            title: Text(
-                AppLocalizations.of(context)?.favoritesTitle ?? 'Favorites'),
-            actions: [
-              if (_favorites.isNotEmpty)
-                IconButton(
-                  icon: const Icon(Icons.refresh),
-                  tooltip:
-                      AppLocalizations.of(context)?.refreshTooltip ?? 'Refresh',
-                  onPressed: _loadFavorites,
-                ),
-            ],
-          ),
-          body: _isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : _favorites.isEmpty
-                  ? _buildEmptyState(context)
-                  : _buildFavoritesList(context),
+  Widget build(BuildContext context) {
+    final favoritesAsync = ref.watch(favoritesListProvider);
+    final favoriteIds = ref.watch(favoriteIdsProvider);
+
+    return PopScope(
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        // Allow navigation back using GoRouter
+        if (context.canPop()) {
+          context.pop();
+        } else {
+          context.go('/');
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title:
+              Text(AppLocalizations.of(context)?.favoritesTitle ?? 'Favorites'),
+          actions: [
+            if (favoritesAsync.hasValue && favoritesAsync.value!.isNotEmpty)
+              IconButton(
+                icon: const Icon(Icons.refresh),
+                tooltip:
+                    AppLocalizations.of(context)?.refreshTooltip ?? 'Refresh',
+                onPressed: () {
+                  ref.read(favoriteIdsProvider.notifier).refresh();
+                  ref.invalidate(favoritesListProvider);
+                },
+              ),
+          ],
         ),
-      );
+        body: favoritesAsync.when(
+          data: (favorites) {
+            if (favorites.isEmpty) {
+              return _buildEmptyState(context);
+            }
+            return _buildFavoritesList(context, favorites, favoriteIds);
+          },
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (error, stack) => Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  AppLocalizations.of(context)?.error ?? 'Error',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  error.toString(),
+                  style: Theme.of(context).textTheme.bodySmall,
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () {
+                    ref.invalidate(favoritesListProvider);
+                    ref.read(favoriteIdsProvider.notifier).refresh();
+                  },
+                  child: Text(AppLocalizations.of(context)?.retry ?? 'Retry'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
   /// Builds empty state widget when no favorites are available.
   Widget _buildEmptyState(BuildContext context) => Center(
@@ -222,18 +223,26 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
       );
 
   /// Builds favorites list widget.
-  Widget _buildFavoritesList(BuildContext context) => RefreshIndicator(
-        onRefresh: _loadFavorites,
+  Widget _buildFavoritesList(
+    BuildContext context,
+    List<Audiobook> favorites,
+    Set<String> favoriteIds,
+  ) =>
+      RefreshIndicator(
+        onRefresh: () async {
+          await ref.read(favoriteIdsProvider.notifier).refresh();
+          ref.invalidate(favoritesListProvider);
+        },
         child: ListView.builder(
           padding: const EdgeInsets.symmetric(vertical: 8),
-          itemCount: _favorites.length,
+          itemCount: favorites.length,
           itemBuilder: (context, index) {
-            final audiobook = _favorites[index];
-            final topicId = audiobook['id'] as String? ?? '';
-            final isFavorite = _favoriteIds.contains(topicId);
+            final audiobook = favorites[index];
+            final topicId = audiobook.id;
+            final isFavorite = favoriteIds.contains(topicId);
 
             return AudiobookCard(
-              audiobook: audiobook,
+              audiobook: _audiobookToMap(audiobook),
               onTap: () {
                 context.push('/topic/$topicId');
               },

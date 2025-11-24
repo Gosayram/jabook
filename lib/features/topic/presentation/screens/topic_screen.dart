@@ -24,6 +24,7 @@ import 'package:go_router/go_router.dart';
 import 'package:jabook/core/cache/rutracker_cache_service.dart';
 import 'package:jabook/core/endpoints/endpoint_provider.dart';
 import 'package:jabook/core/errors/failures.dart';
+import 'package:jabook/core/favorites/favorites_provider.dart';
 import 'package:jabook/core/logging/environment_logger.dart';
 import 'package:jabook/core/net/dio_client.dart';
 import 'package:jabook/core/parse/rutracker_parser.dart';
@@ -94,6 +95,8 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
         _hasError = false;
         _isFromCache = true;
       });
+      // Load favorite status after audiobook is loaded
+      _loadFavoriteStatus();
       return;
     }
 
@@ -184,6 +187,8 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
             _hasError = false;
             _isFromCache = false;
           });
+          // Load favorite status after audiobook is loaded
+          _loadFavoriteStatus();
         }
       } else {
         if (mounted) {
@@ -253,6 +258,7 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
           title: Text(
               '${AppLocalizations.of(context)?.topicTitle ?? 'Topic'}: ${widget.topicId}'),
           actions: [
+            _buildFavoriteButton(),
             if (_isFromCache)
               IconButton(
                 icon: const Icon(Icons.cached),
@@ -419,6 +425,76 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
           ),
       ],
     );
+  }
+
+  /// Loads favorite status for current topic.
+  void _loadFavoriteStatus() {
+    // Status is automatically loaded via favoriteIdsProvider
+    // No need to manually load, just trigger rebuild
+    setState(() {});
+  }
+
+  /// Builds favorite button for AppBar.
+  Widget _buildFavoriteButton() {
+    final favoriteIds = ref.watch(favoriteIdsProvider);
+    final isFavorite = favoriteIds.contains(widget.topicId);
+
+    return IconButton(
+      icon: Icon(
+        isFavorite ? Icons.favorite : Icons.favorite_border,
+        color: isFavorite ? Colors.red : null,
+      ),
+      tooltip: isFavorite
+          ? (AppLocalizations.of(context)?.favoritesTooltip ?? 'Favorites')
+          : (AppLocalizations.of(context)?.favoritesTooltip ?? 'Favorites'),
+      onPressed: _toggleFavorite,
+    );
+  }
+
+  /// Toggles favorite status for current audiobook.
+  Future<void> _toggleFavorite() async {
+    if (_audiobook == null) return;
+
+    final notifier = ref.read(favoriteIdsProvider.notifier);
+    final favoriteIds = ref.read(favoriteIdsProvider);
+    final isCurrentlyFavorite = favoriteIds.contains(widget.topicId);
+
+    try {
+      final wasAdded = await notifier.toggleFavorite(
+        widget.topicId,
+        audiobookMap: _audiobook,
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              wasAdded
+                  ? (AppLocalizations.of(context)?.addedToFavorites ??
+                      'Added to favorites')
+                  : (AppLocalizations.of(context)?.removedFromFavorites ??
+                      'Removed from favorites'),
+            ),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } on Exception {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              isCurrentlyFavorite
+                  ? (AppLocalizations.of(context)
+                          ?.failedToRemoveFromFavorites ??
+                      'Failed to remove from favorites')
+                  : (AppLocalizations.of(context)?.failedToAddToFavorites ??
+                      'Failed to add to favorites'),
+            ),
+          ),
+        );
+      }
+    }
   }
 
   Widget _buildHeader() {

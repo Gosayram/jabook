@@ -1313,6 +1313,10 @@
   "@goToSearchButton": {
     "description": "Кнопка для перехода к поиску"
   },
+  "addedToFavorites": "Добавлено в избранное",
+  "@addedToFavorites": {
+    "description": "Сообщение при добавлении в избранное"
+  },
   "removedFromFavorites": "Удалено из избранного",
   "@removedFromFavorites": {
     "description": "Сообщение при удалении из избранного"

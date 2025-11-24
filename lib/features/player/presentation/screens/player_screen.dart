@@ -19,6 +19,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:jabook/core/endpoints/endpoint_manager.dart';
+import 'package:jabook/core/favorites/favorites_provider.dart';
 import 'package:jabook/core/net/dio_client.dart';
 import 'package:jabook/core/parse/rutracker_parser.dart';
 import 'package:jabook/core/player/player_state_provider.dart';
@@ -402,6 +403,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
           title: Text(
               '${AppLocalizations.of(context)?.playerTitle ?? 'Player'}: ${widget.bookId}'),
           actions: [
+            _buildFavoriteButton(),
             IconButton(
               icon: const Icon(Icons.download),
               onPressed: _downloadAudiobook,
@@ -410,6 +412,97 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         ),
         body: _buildBody(),
       );
+
+  /// Builds favorite button for AppBar.
+  Widget _buildFavoriteButton() {
+    final favoriteIds = ref.watch(favoriteIdsProvider);
+    final isFavorite = favoriteIds.contains(widget.bookId);
+
+    return IconButton(
+      icon: Icon(
+        isFavorite ? Icons.favorite : Icons.favorite_border,
+        color: isFavorite ? Colors.red : null,
+      ),
+      tooltip: isFavorite
+          ? (AppLocalizations.of(context)?.favoritesTooltip ?? 'Favorites')
+          : (AppLocalizations.of(context)?.favoritesTooltip ?? 'Favorites'),
+      onPressed: _toggleFavorite,
+    );
+  }
+
+  /// Toggles favorite status for current audiobook.
+  Future<void> _toggleFavorite() async {
+    if (_audiobook == null) return;
+
+    final notifier = ref.read(favoriteIdsProvider.notifier);
+    final favoriteIds = ref.read(favoriteIdsProvider);
+    final isCurrentlyFavorite = favoriteIds.contains(widget.bookId);
+
+    // Convert Audiobook to Map format
+    final audiobookMap = {
+      'id': _audiobook!.id,
+      'title': _audiobook!.title,
+      'author': _audiobook!.author,
+      'category': _audiobook!.category,
+      'size': _audiobook!.size,
+      'seeders': _audiobook!.seeders,
+      'leechers': _audiobook!.leechers,
+      'magnetUrl': _audiobook!.magnetUrl,
+      'coverUrl': _audiobook!.coverUrl,
+      'performer': _audiobook!.performer,
+      'genres': _audiobook!.genres,
+      'addedDate': _audiobook!.addedDate.toIso8601String(),
+      'chapters': _audiobook!.chapters
+          .map((c) => {
+                'title': c.title,
+                'durationMs': c.durationMs,
+                'fileIndex': c.fileIndex,
+                'startByte': c.startByte,
+                'endByte': c.endByte,
+              })
+          .toList(),
+      'duration': _audiobook!.duration,
+      'bitrate': _audiobook!.bitrate,
+      'audioCodec': _audiobook!.audioCodec,
+    };
+
+    try {
+      final wasAdded = await notifier.toggleFavorite(
+        widget.bookId,
+        audiobookMap: audiobookMap,
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              wasAdded
+                  ? (AppLocalizations.of(context)?.addedToFavorites ??
+                      'Added to favorites')
+                  : (AppLocalizations.of(context)?.removedFromFavorites ??
+                      'Removed from favorites'),
+            ),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } on Exception {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              isCurrentlyFavorite
+                  ? (AppLocalizations.of(context)
+                          ?.failedToRemoveFromFavorites ??
+                      'Failed to remove from favorites')
+                  : (AppLocalizations.of(context)?.failedToAddToFavorites ??
+                      'Failed to add to favorites'),
+            ),
+          ),
+        );
+      }
+    }
+  }
 
   Widget _buildBody() {
     final playerState = ref.watch(playerStateProvider);
