@@ -203,12 +203,14 @@ build-android-signed-apk: use-existing-android-cert patch-gradle-signing
 	@echo "Building signed prod APK (with obfuscation for production)..."
 	@echo "Building split APKs per architecture..."
 	flutter build apk --flavor prod --target lib/main.dart --release \
+		--dart-define=FLAVOR=prod \
 		--obfuscate \
 		--split-debug-info=./debug-info \
 		--split-per-abi \
 		--tree-shake-icons
 	@echo "Building universal APK (all architectures)..."
 	flutter build apk --flavor prod --target lib/main.dart --release \
+		--dart-define=FLAVOR=prod \
 		--obfuscate \
 		--split-debug-info=./debug-info \
 		--tree-shake-icons
