@@ -687,7 +687,7 @@ perf:
 	@echo "Building for performance analysis..."
 	flutter build apk --profile --split-per-abi
 	@echo "Run the app on a device and use Flutter DevTools for analysis"
-	@echo "Open: flutter pub global run devtools
+	@echo "Open: flutter pub global run devtools"
 
 # Clean and fresh build
 .PHONY: fresh
