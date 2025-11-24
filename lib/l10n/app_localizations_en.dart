@@ -957,6 +957,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get goToSearchButton => 'Go to Search';
 
   @override
+  String get addedToFavorites => 'Added to favorites';
+
+  @override
   String get removedFromFavorites => 'Removed from favorites';
 
   @override

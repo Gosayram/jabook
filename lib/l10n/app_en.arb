@@ -1328,6 +1328,10 @@
   "@goToSearchButton": {
     "description": "Button to navigate to search"
   },
+  "addedToFavorites": "Added to favorites",
+  "@addedToFavorites": {
+    "description": "Message when added to favorites"
+  },
   "removedFromFavorites": "Removed from favorites",
   "@removedFromFavorites": {
     "description": "Message when removed from favorites"

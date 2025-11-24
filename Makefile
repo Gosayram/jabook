@@ -214,43 +214,43 @@ build-android-signed-apk: use-existing-android-cert patch-gradle-signing patch-g
 
 .PHONY: copy-apk
 copy-apk:
-	@echo "Copying APK files with version $(FULL_VERSION)..."
+	@echo "Copying APK files with version $(VERSION) (without build number)..."
 	@mkdir -p $(APK_DEST_DIR)
 	@echo "Copying split APKs (per architecture)..."
 	@if [ -f "build/app/outputs/flutter-apk/app-x86_64-release.apk" ]; then \
-		cp -f build/app/outputs/flutter-apk/app-x86_64-release.apk $(APK_DEST_DIR)/Jabook_$(FULL_VERSION)_x86_64.apk && \
-		echo "✅ Copied: Jabook_$(FULL_VERSION)_x86_64.apk"; \
+		cp -f build/app/outputs/flutter-apk/app-x86_64-release.apk $(APK_DEST_DIR)/Jabook_$(VERSION)_x86_64.apk && \
+		echo "✅ Copied: Jabook_$(VERSION)_x86_64.apk"; \
 	elif [ -f "build/app/outputs/apk/release/app-x86_64-release.apk" ]; then \
-		cp -f build/app/outputs/apk/release/app-x86_64-release.apk $(APK_DEST_DIR)/Jabook_$(FULL_VERSION)_x86_64.apk && \
-		echo "✅ Copied: Jabook_$(FULL_VERSION)_x86_64.apk"; \
+		cp -f build/app/outputs/apk/release/app-x86_64-release.apk $(APK_DEST_DIR)/Jabook_$(VERSION)_x86_64.apk && \
+		echo "✅ Copied: Jabook_$(VERSION)_x86_64.apk"; \
 	else \
 		echo "⚠️  Warning: app-x86_64-release.apk not found"; \
 	fi
 	@if [ -f "build/app/outputs/flutter-apk/app-arm64-v8a-release.apk" ]; then \
-		cp -f build/app/outputs/flutter-apk/app-arm64-v8a-release.apk $(APK_DEST_DIR)/Jabook_$(FULL_VERSION)_v8a.apk && \
-		echo "✅ Copied: Jabook_$(FULL_VERSION)_v8a.apk"; \
+		cp -f build/app/outputs/flutter-apk/app-arm64-v8a-release.apk $(APK_DEST_DIR)/Jabook_$(VERSION)_v8a.apk && \
+		echo "✅ Copied: Jabook_$(VERSION)_v8a.apk"; \
 	elif [ -f "build/app/outputs/apk/release/app-arm64-v8a-release.apk" ]; then \
-		cp -f build/app/outputs/apk/release/app-arm64-v8a-release.apk $(APK_DEST_DIR)/Jabook_$(FULL_VERSION)_v8a.apk && \
-		echo "✅ Copied: Jabook_$(FULL_VERSION)_v8a.apk"; \
+		cp -f build/app/outputs/apk/release/app-arm64-v8a-release.apk $(APK_DEST_DIR)/Jabook_$(VERSION)_v8a.apk && \
+		echo "✅ Copied: Jabook_$(VERSION)_v8a.apk"; \
 	else \
 		echo "⚠️  Warning: app-arm64-v8a-release.apk not found"; \
 	fi
 	@if [ -f "build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk" ]; then \
-		cp -f build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk $(APK_DEST_DIR)/Jabook_$(FULL_VERSION)_v7a.apk && \
-		echo "✅ Copied: Jabook_$(FULL_VERSION)_v7a.apk"; \
+		cp -f build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk $(APK_DEST_DIR)/Jabook_$(VERSION)_v7a.apk && \
+		echo "✅ Copied: Jabook_$(VERSION)_v7a.apk"; \
 	elif [ -f "build/app/outputs/apk/release/app-armeabi-v7a-release.apk" ]; then \
-		cp -f build/app/outputs/apk/release/app-armeabi-v7a-release.apk $(APK_DEST_DIR)/Jabook_$(FULL_VERSION)_v7a.apk && \
-		echo "✅ Copied: Jabook_$(FULL_VERSION)_v7a.apk"; \
+		cp -f build/app/outputs/apk/release/app-armeabi-v7a-release.apk $(APK_DEST_DIR)/Jabook_$(VERSION)_v7a.apk && \
+		echo "✅ Copied: Jabook_$(VERSION)_v7a.apk"; \
 	else \
 		echo "⚠️  Warning: app-armeabi-v7a-release.apk not found"; \
 	fi
 	@echo "Copying universal APK (all architectures)..."
 	@if [ -f "build/app/outputs/flutter-apk/app-release.apk" ]; then \
-		cp -f build/app/outputs/flutter-apk/app-release.apk $(APK_DEST_DIR)/Jabook_$(FULL_VERSION)_universal.apk && \
-		echo "✅ Copied: Jabook_$(FULL_VERSION)_universal.apk"; \
+		cp -f build/app/outputs/flutter-apk/app-release.apk $(APK_DEST_DIR)/Jabook_$(VERSION)_universal.apk && \
+		echo "✅ Copied: Jabook_$(VERSION)_universal.apk"; \
 	elif [ -f "build/app/outputs/apk/release/app-release.apk" ]; then \
-		cp -f build/app/outputs/apk/release/app-release.apk $(APK_DEST_DIR)/Jabook_$(FULL_VERSION)_universal.apk && \
-		echo "✅ Copied: Jabook_$(FULL_VERSION)_universal.apk"; \
+		cp -f build/app/outputs/apk/release/app-release.apk $(APK_DEST_DIR)/Jabook_$(VERSION)_universal.apk && \
+		echo "✅ Copied: Jabook_$(VERSION)_universal.apk"; \
 	else \
 		echo "⚠️  Warning: app-release.apk (universal) not found"; \
 	fi

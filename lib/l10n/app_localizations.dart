@@ -1883,6 +1883,12 @@ abstract class AppLocalizations {
   /// **'Go to Search'**
   String get goToSearchButton;
 
+  /// Message when added to favorites
+  ///
+  /// In en, this message translates to:
+  /// **'Added to favorites'**
+  String get addedToFavorites;
+
   /// Message when removed from favorites
   ///
   /// In en, this message translates to:

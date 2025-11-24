@@ -71,13 +71,29 @@ if [ $# -ge 1 ]; then
         NEW_BUILD=$((CURRENT_BUILD + 1))
     fi
 else
-    # Auto-increment patch version
+    # Auto-increment version with rollover logic
+    # Format: major.minor.bugfix, each part goes up to 9
+    # 1.1.9 -> 1.2.0
+    # 1.9.9 -> 2.0.0
     MAJOR=$(echo "${CURRENT_VERSION}" | cut -d. -f1)
     MINOR=$(echo "${CURRENT_VERSION}" | cut -d. -f2)
     PATCH=$(echo "${CURRENT_VERSION}" | cut -d. -f3)
     
-    # Increment patch version
-    PATCH=$((PATCH + 1))
+    # Increment with rollover logic
+    if [ "${PATCH}" -lt 9 ]; then
+        # Increment patch version
+        PATCH=$((PATCH + 1))
+    elif [ "${MINOR}" -lt 9 ]; then
+        # Patch reached 9, increment minor, reset patch to 0
+        MINOR=$((MINOR + 1))
+        PATCH=0
+    else
+        # Minor reached 9, increment major, reset minor and patch to 0
+        MAJOR=$((MAJOR + 1))
+        MINOR=0
+        PATCH=0
+    fi
+    
     NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
     
     # Increment build number

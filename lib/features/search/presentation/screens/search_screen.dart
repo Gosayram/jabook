@@ -25,7 +25,7 @@ import 'package:jabook/core/cache/rutracker_cache_service.dart';
 import 'package:jabook/core/constants/category_constants.dart';
 import 'package:jabook/core/endpoints/endpoint_provider.dart';
 import 'package:jabook/core/errors/failures.dart';
-import 'package:jabook/core/favorites/favorites_service.dart';
+import 'package:jabook/core/favorites/favorites_provider.dart';
 import 'package:jabook/core/logging/environment_logger.dart';
 import 'package:jabook/core/logging/structured_logger.dart';
 import 'package:jabook/core/metadata/audiobook_metadata_service.dart';
@@ -66,11 +66,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   final RuTrackerCacheService _cacheService = RuTrackerCacheService();
   AudiobookMetadataService? _metadataService;
   SearchHistoryService? _historyService;
-  FavoritesService? _favoritesService;
-
   List<Map<String, dynamic>> _searchResults = [];
   List<String> _searchHistory = [];
-  final Set<String> _favoriteIds = <String>{};
   bool _isLoading = false;
   bool _hasSearched = false;
   bool _isFromCache = false;
@@ -255,30 +252,11 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       await appDatabase.initialize();
       _metadataService = AudiobookMetadataService(appDatabase.database);
       _historyService = SearchHistoryService(appDatabase.database);
-      _favoritesService = FavoritesService(appDatabase.database);
       await _loadSearchHistory();
-      await _loadFavorites();
     } on Exception {
       // Metadata service optional - continue without it
       _metadataService = null;
       _historyService = null;
-      _favoritesService = null;
-    }
-  }
-
-  Future<void> _loadFavorites() async {
-    if (_favoritesService == null) return;
-    try {
-      final favorites = await _favoritesService!.getAllFavorites();
-      if (mounted) {
-        setState(() {
-          _favoriteIds
-            ..clear()
-            ..addAll(favorites.map((a) => a.id));
-        });
-      }
-    } on Exception {
-      // Ignore errors
     }
   }
 
@@ -3301,34 +3279,54 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       loadMore: _hasMore && !_isLoadingMore ? _loadMore : null,
       hasMore: _hasMore,
       isLoadingMore: _isLoadingMore,
-      favoriteIds: _favoriteIds,
+      favoriteIds: ref.watch(favoriteIdsProvider),
       onFavoriteToggle: _toggleFavorite,
     );
   }
 
   Future<void> _toggleFavorite(String topicId, bool isFavorite) async {
-    if (_favoritesService == null) return;
+    final notifier = ref.read(favoriteIdsProvider.notifier);
+
+    // Get audiobook data from search results
+    Map<String, dynamic>? audiobookMap;
+    try {
+      audiobookMap = _searchResults.firstWhere(
+        (r) => (r['id'] as String?) == topicId,
+      );
+    } on Exception {
+      // Audiobook not found in search results
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              AppLocalizations.of(context)?.failedToAddToFavorites ??
+                  'Failed to add to favorites',
+            ),
+          ),
+        );
+      }
+      return;
+    }
 
     try {
-      if (isFavorite) {
-        // Add to favorites
-        final audiobookMap = _searchResults.firstWhere(
-          (r) => (r['id'] as String?) == topicId,
-        );
-        await _favoritesService!.addToFavoritesFromMap(audiobookMap);
-      } else {
-        // Remove from favorites
-        await _favoritesService!.removeFromFavorites(topicId);
-      }
+      final wasAdded = await notifier.toggleFavorite(
+        topicId,
+        audiobookMap: audiobookMap,
+      );
 
       if (mounted) {
-        setState(() {
-          if (isFavorite) {
-            _favoriteIds.add(topicId);
-          } else {
-            _favoriteIds.remove(topicId);
-          }
-        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              wasAdded
+                  ? (AppLocalizations.of(context)?.addedToFavorites ??
+                      'Added to favorites')
+                  : (AppLocalizations.of(context)?.removedFromFavorites ??
+                      'Removed from favorites'),
+            ),
+            duration: const Duration(seconds: 2),
+          ),
+        );
       }
     } on Exception {
       // Show error message

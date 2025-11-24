@@ -957,6 +957,9 @@ class AppLocalizationsRu extends AppLocalizations {
   String get goToSearchButton => 'Перейти к поиску';
 
   @override
+  String get addedToFavorites => 'Добавлено в избранное';
+
+  @override
   String get removedFromFavorites => 'Удалено из избранного';
 
   @override
