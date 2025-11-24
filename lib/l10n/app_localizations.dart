@@ -299,6 +299,54 @@ abstract class AppLocalizations {
   /// **'Cancel'**
   String get cancel;
 
+  /// Button label for reset action
+  ///
+  /// In en, this message translates to:
+  /// **'Reset'**
+  String get reset;
+
+  /// Menu item to reset book settings to global defaults
+  ///
+  /// In en, this message translates to:
+  /// **'Reset to global settings'**
+  String get resetToGlobalSettings;
+
+  /// Button label to reset all individual book settings
+  ///
+  /// In en, this message translates to:
+  /// **'Reset all book settings'**
+  String get resetAllBookSettings;
+
+  /// Description for reset all book settings action
+  ///
+  /// In en, this message translates to:
+  /// **'Remove individual settings for all books'**
+  String get resetAllBookSettingsDescription;
+
+  /// Confirmation message for resetting all book settings
+  ///
+  /// In en, this message translates to:
+  /// **'This will remove individual audio settings for all books. All books will use global settings. This action cannot be undone.'**
+  String get resetAllBookSettingsConfirmation;
+
+  /// Message shown when book settings are reset
+  ///
+  /// In en, this message translates to:
+  /// **'Settings reset to global defaults'**
+  String get settingsResetToGlobal;
+
+  /// Message shown when all book settings are reset
+  ///
+  /// In en, this message translates to:
+  /// **'All book settings have been reset to global defaults'**
+  String get allBookSettingsReset;
+
+  /// Error message when resetting settings fails
+  ///
+  /// In en, this message translates to:
+  /// **'Error resetting settings'**
+  String get errorResettingSettings;
+
   /// Login button text
   ///
   /// In en, this message translates to:

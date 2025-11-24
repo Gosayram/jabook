@@ -22,13 +22,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:jabook/core/backup/backup_service.dart';
 import 'package:jabook/core/cache/rutracker_cache_service.dart';
+import 'package:jabook/core/config/audio_settings_provider.dart';
+import 'package:jabook/core/config/book_audio_settings_service.dart';
 import 'package:jabook/core/config/language_manager.dart';
 import 'package:jabook/core/config/language_provider.dart';
+import 'package:jabook/core/config/theme_provider.dart';
 import 'package:jabook/core/library/library_migration_service.dart';
 import 'package:jabook/core/metadata/audiobook_metadata_service.dart';
 import 'package:jabook/core/metadata/metadata_sync_scheduler.dart';
 import 'package:jabook/core/net/dio_client.dart';
 import 'package:jabook/core/permissions/permission_service.dart';
+import 'package:jabook/core/player/player_state_provider.dart';
 import 'package:jabook/core/utils/file_picker_utils.dart' as file_picker_utils;
 import 'package:jabook/core/utils/storage_path_utils.dart';
 import 'package:jabook/data/db/app_database.dart';
@@ -618,6 +622,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   Widget _buildThemeSection(BuildContext context) {
     final localizations = AppLocalizations.of(context);
+    final themeSettings = ref.watch(themeProvider);
+    final themeNotifier = ref.read(themeProvider.notifier);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -633,28 +639,57 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           style: Theme.of(context).textTheme.bodySmall,
         ),
         const SizedBox(height: 16),
+        // Follow system theme toggle
         ListTile(
-          leading: const Icon(Icons.color_lens),
-          title: Text(localizations?.darkMode ?? 'Dark Mode'),
+          leading: const Icon(Icons.brightness_auto),
+          title: const Text('Follow System Theme'),
           trailing: Semantics(
-            label: 'Dark mode toggle',
+            label: 'Follow system theme toggle',
             child: Switch(
-              value: false,
-              onChanged: (value) {
-                // TODO: Implement theme switching
+              value: themeSettings.followSystem,
+              onChanged: (value) async {
+                await themeNotifier.setFollowSystem(value);
               },
             ),
           ),
         ),
+        // Theme mode selection (only enabled when not following system)
+        if (!themeSettings.followSystem) ...[
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: SegmentedButton<String>(
+              segments: const [
+                ButtonSegment<String>(
+                  value: 'light',
+                  label: Text('Light'),
+                  icon: Icon(Icons.light_mode),
+                ),
+                ButtonSegment<String>(
+                  value: 'dark',
+                  label: Text('Dark'),
+                  icon: Icon(Icons.dark_mode),
+                ),
+              ],
+              selected: {themeSettings.mode},
+              onSelectionChanged: (newSelection) {
+                if (newSelection.isNotEmpty) {
+                  themeNotifier.setThemeMode(newSelection.first);
+                }
+              },
+            ),
+          ),
+          const SizedBox(height: 8),
+        ],
+        // High contrast toggle
         ListTile(
           leading: const Icon(Icons.contrast),
           title: Text(localizations?.highContrast ?? 'High Contrast'),
           trailing: Semantics(
             label: 'High contrast mode toggle',
             child: Switch(
-              value: false,
-              onChanged: (value) {
-                // TODO: Implement high contrast mode
+              value: themeSettings.highContrastEnabled,
+              onChanged: (value) async {
+                await themeNotifier.setHighContrastEnabled(value);
               },
             ),
           ),
@@ -665,6 +700,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   Widget _buildAudioSection(BuildContext context) {
     final localizations = AppLocalizations.of(context);
+    final audioSettings = ref.watch(audioSettingsProvider);
+    final audioNotifier = ref.read(audioSettingsProvider.notifier);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -680,6 +717,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           style: Theme.of(context).textTheme.bodySmall,
         ),
         const SizedBox(height: 16),
+        // Playback speed selection
         Semantics(
           button: true,
           label: 'Set playback speed',
@@ -688,30 +726,237 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             title: Text(localizations?.playbackSpeedTitle ??
                 localizations?.playbackSpeed ??
                 'Playback Speed'),
-            subtitle: Text(
-                AppLocalizations.of(context)?.playbackSpeedDefault ?? '1.0x'),
+            subtitle: Text('${audioSettings.defaultPlaybackSpeed}x'),
             onTap: () {
-              // TODO: Implement playback speed selection
+              _showPlaybackSpeedDialog(context, audioSettings, audioNotifier);
             },
           ),
         ),
+        // Rewind duration selection
         Semantics(
           button: true,
-          label: 'Set skip duration',
+          label: 'Set rewind duration',
           child: ListTile(
-            leading: const Icon(Icons.skip_next),
-            title: Text(localizations?.skipDurationTitle ??
-                localizations?.skipDuration ??
-                'Skip Duration'),
-            subtitle: Text(AppLocalizations.of(context)?.skipDurationDefault ??
-                '15 seconds'),
+            leading: const Icon(Icons.replay_10),
+            title: const Text('Rewind Duration'),
+            subtitle: Text('${audioSettings.defaultRewindDuration} seconds'),
             onTap: () {
-              // TODO: Implement skip duration selection
+              _showSkipDurationDialog(
+                context,
+                audioSettings.defaultRewindDuration,
+                audioNotifier.setDefaultRewindDuration,
+                'Rewind Duration',
+              );
             },
           ),
+        ),
+        // Forward duration selection
+        Semantics(
+          button: true,
+          label: 'Set forward duration',
+          child: ListTile(
+            leading: const Icon(Icons.forward_30),
+            title: const Text('Forward Duration'),
+            subtitle: Text('${audioSettings.defaultForwardDuration} seconds'),
+            onTap: () {
+              _showSkipDurationDialog(
+                context,
+                audioSettings.defaultForwardDuration,
+                audioNotifier.setDefaultForwardDuration,
+                'Forward Duration',
+              );
+            },
+          ),
+        ),
+        const Divider(),
+        // Reset all book settings button
+        ListTile(
+          leading: const Icon(Icons.restore, color: Colors.red),
+          title: Text(
+            localizations?.resetAllBookSettings ?? 'Reset all book settings',
+            style: const TextStyle(color: Colors.red),
+          ),
+          subtitle: Text(
+            localizations?.resetAllBookSettingsDescription ??
+                'Remove individual settings for all books',
+          ),
+          onTap: () => _showResetAllBookSettingsDialog(context),
         ),
       ],
     );
+  }
+
+  /// Shows dialog for selecting playback speed.
+  Future<void> _showPlaybackSpeedDialog(
+    BuildContext context,
+    AudioSettings audioSettings,
+    AudioSettingsNotifier audioNotifier,
+  ) async {
+    final speeds = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0];
+    final selectedSpeed = audioSettings.defaultPlaybackSpeed;
+
+    final result = await showDialog<double>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(AppLocalizations.of(context)?.playbackSpeedTitle ??
+            'Playback Speed'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: speeds
+              .map((speed) => RadioListTile<double>(
+                    title: Text('${speed}x'),
+                    value: speed,
+                    // ignore: deprecated_member_use
+                    groupValue: selectedSpeed,
+                    // ignore: deprecated_member_use
+                    onChanged: (value) {
+                      Navigator.of(context).pop(value);
+                    },
+                  ))
+              .toList(),
+        ),
+      ),
+    );
+
+    if (result != null) {
+      await audioNotifier.setDefaultPlaybackSpeed(result);
+      // Update MediaSessionManager if player is active
+      await _updateMediaSessionSkipDurations();
+    }
+  }
+
+  /// Shows dialog for selecting skip duration.
+  Future<void> _showSkipDurationDialog(
+    BuildContext context,
+    int currentDuration,
+    Future<void> Function(int) onDurationSelected,
+    String title,
+  ) async {
+    final durations = [5, 10, 15, 20, 30, 45, 60];
+
+    final result = await showDialog<int>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(title),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: durations
+              .map((duration) => RadioListTile<int>(
+                    title: Text('$duration seconds'),
+                    value: duration,
+                    // ignore: deprecated_member_use
+                    groupValue: currentDuration,
+                    // ignore: deprecated_member_use
+                    onChanged: (value) {
+                      Navigator.of(context).pop(value);
+                    },
+                  ))
+              .toList(),
+        ),
+      ),
+    );
+
+    if (result != null) {
+      await onDurationSelected(result);
+      // Update MediaSessionManager if player is active
+      await _updateMediaSessionSkipDurations();
+    }
+  }
+
+  /// Updates skip durations in MediaSessionManager if player is active.
+  Future<void> _updateMediaSessionSkipDurations() async {
+    try {
+      final playerState = ref.read(playerStateProvider);
+      // Only update if player is initialized and playing
+      if (playerState.playbackState != 0) {
+        final audioSettings = ref.read(audioSettingsProvider);
+        final playerService = ref.read(media3PlayerServiceProvider);
+        await playerService.updateSkipDurations(
+          audioSettings.defaultRewindDuration,
+          audioSettings.defaultForwardDuration,
+        );
+      }
+    } on Exception {
+      // Ignore errors - MediaSessionManager update is not critical
+    }
+  }
+
+  /// Shows confirmation dialog for resetting all book settings.
+  Future<void> _showResetAllBookSettingsDialog(BuildContext context) async {
+    final localizations = AppLocalizations.of(context);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          localizations?.resetAllBookSettings ?? 'Reset all book settings',
+        ),
+        content: Text(
+          localizations?.resetAllBookSettingsConfirmation ??
+              'This will remove individual audio settings for all books. '
+                  'All books will use global settings. This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(localizations?.cancel ?? 'Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: Text(localizations?.reset ?? 'Reset'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed ?? false) {
+      if (context.mounted) {
+        await _resetAllBookSettings(context);
+      }
+    }
+  }
+
+  /// Resets all individual book settings to global defaults.
+  Future<void> _resetAllBookSettings(BuildContext context) async {
+    try {
+      final bookSettingsService = BookAudioSettingsService();
+      await bookSettingsService.clearAllSettings();
+
+      // Update MediaSessionManager if player is active
+      await _updateMediaSessionSkipDurations();
+
+      // If player is active, reapply global settings
+      final playerState = ref.read(playerStateProvider);
+      if (playerState.playbackState != 0 &&
+          playerState.currentGroupPath != null) {
+        // Player is active, but we can't directly access local_player_screen
+        // The settings will be applied on next book load or app restart
+      }
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              AppLocalizations.of(context)?.allBookSettingsReset ??
+                  'All book settings have been reset to global defaults',
+            ),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } on Exception catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              AppLocalizations.of(context)?.errorResettingSettings ??
+                  'Error resetting settings: ${e.toString()}',
+            ),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
   }
 
   Widget _buildDownloadSection(BuildContext context) {

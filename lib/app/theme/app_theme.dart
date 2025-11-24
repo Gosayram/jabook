@@ -38,82 +38,149 @@ mixin AppTheme {
   ///
   /// Returns a ThemeData object configured for light mode with
   /// custom colors and styling.
-  static ThemeData get lightTheme => _buildLightTheme();
+  ///
+  /// [highContrast] enables high contrast mode for better accessibility.
+  static ThemeData lightTheme({bool highContrast = false}) =>
+      _buildLightTheme(highContrast: highContrast);
 
   /// Gets the dark theme configuration.
   ///
   /// Returns a ThemeData object configured for dark mode with
   /// custom colors and styling.
-  static ThemeData get darkTheme => _buildDarkTheme();
+  ///
+  /// [highContrast] enables high contrast mode for better accessibility.
+  static ThemeData darkTheme({bool highContrast = false}) =>
+      _buildDarkTheme(highContrast: highContrast);
 
-  static ThemeData _buildLightTheme() => ThemeData(
-        useMaterial3: true,
-        colorScheme: const ColorScheme.light(
-          primary: _primaryColor,
-          secondary: _accentColor,
-          surface: _surfaceColor,
-          onSurface: _onSurfaceColor,
-          error: Colors.red,
-        ),
-        appBarTheme: const AppBarTheme(
-          backgroundColor: _primaryColor,
-          foregroundColor: Colors.white,
-          elevation: 0,
-        ),
-        elevatedButtonTheme: ElevatedButtonThemeData(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: _accentColor,
-            foregroundColor: Colors.white,
-            elevation: 2,
-          ),
-        ),
-        textTheme: const TextTheme(
-          bodyLarge: TextStyle(color: _onSurfaceColor),
-          bodyMedium: TextStyle(color: _onSurfaceColor),
-          bodySmall: TextStyle(color: _onSurfaceColor),
-        ),
-        cardTheme: CardThemeData(
-          color: _surfaceColor,
-          elevation: 2,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
-      );
+  static ThemeData _buildLightTheme({bool highContrast = false}) {
+    // High contrast colors for light theme
+    final primaryColor = highContrast
+        ? const Color(0xFF000000) // Black for high contrast
+        : _primaryColor;
+    final surfaceColor = highContrast
+        ? const Color(0xFFF5F5F5) // Light gray for high contrast
+        : _surfaceColor;
+    final onSurfaceColor = highContrast
+        ? const Color(0xFF000000) // Black text for high contrast
+        : _onSurfaceColor;
+    final accentColor = highContrast
+        ? const Color(0xFF0000FF) // Blue for high contrast
+        : _accentColor;
 
-  static ThemeData _buildDarkTheme() => ThemeData(
-        useMaterial3: true,
-        colorScheme: const ColorScheme.dark(
-          primary: _primaryColor,
-          secondary: _accentColor,
-          surface: _surfaceColor,
-          onSurface: _onSurfaceColor,
-          error: Colors.red,
-          onError: Colors.white,
+    return ThemeData(
+      useMaterial3: true,
+      colorScheme: ColorScheme.light(
+        primary: primaryColor,
+        secondary: accentColor,
+        surface: surfaceColor,
+        onSurface: onSurfaceColor,
+        error: highContrast ? const Color(0xFFCC0000) : Colors.red,
+      ),
+      appBarTheme: AppBarTheme(
+        backgroundColor: primaryColor,
+        foregroundColor: highContrast ? Colors.white : Colors.white,
+        elevation: highContrast ? 4 : 0,
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: accentColor,
+          foregroundColor: highContrast ? Colors.white : Colors.white,
+          elevation: highContrast ? 4 : 2,
+          side: highContrast ? const BorderSide(width: 2) : null,
         ),
-        appBarTheme: const AppBarTheme(
-          backgroundColor: _backgroundColor,
-          foregroundColor: _onSurfaceColor,
-          elevation: 0,
+      ),
+      textTheme: TextTheme(
+        bodyLarge: TextStyle(
+          color: onSurfaceColor,
+          fontWeight: highContrast ? FontWeight.bold : FontWeight.normal,
         ),
-        elevatedButtonTheme: ElevatedButtonThemeData(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: _accentColor,
-            foregroundColor: Colors.white,
-            elevation: 2,
-          ),
+        bodyMedium: TextStyle(
+          color: onSurfaceColor,
+          fontWeight: highContrast ? FontWeight.bold : FontWeight.normal,
         ),
-        textTheme: const TextTheme(
-          bodyLarge: TextStyle(color: _onSurfaceColor),
-          bodyMedium: TextStyle(color: _onSurfaceColor),
-          bodySmall: TextStyle(color: _onSurfaceColor),
+        bodySmall: TextStyle(
+          color: onSurfaceColor,
+          fontWeight: highContrast ? FontWeight.bold : FontWeight.normal,
         ),
-        cardTheme: CardThemeData(
-          color: _surfaceColor,
-          elevation: 2,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
+      ),
+      cardTheme: CardThemeData(
+        color: surfaceColor,
+        elevation: highContrast ? 4 : 2,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: highContrast ? const BorderSide(width: 2) : BorderSide.none,
         ),
-      );
+      ),
+    );
+  }
+
+  static ThemeData _buildDarkTheme({bool highContrast = false}) {
+    // High contrast colors for dark theme
+    final primaryColor = highContrast
+        ? const Color(0xFFFFFFFF) // White for high contrast
+        : _primaryColor;
+    final backgroundColor = highContrast
+        ? const Color(0xFF000000) // Black for high contrast
+        : _backgroundColor;
+    final surfaceColor = highContrast
+        ? const Color(0xFF1A1A1A) // Dark gray for high contrast
+        : _surfaceColor;
+    final onSurfaceColor = highContrast
+        ? const Color(0xFFFFFFFF) // White text for high contrast
+        : _onSurfaceColor;
+    final accentColor = highContrast
+        ? const Color(0xFFFFFF00) // Yellow for high contrast
+        : _accentColor;
+
+    return ThemeData(
+      useMaterial3: true,
+      colorScheme: ColorScheme.dark(
+        primary: primaryColor,
+        secondary: accentColor,
+        surface: surfaceColor,
+        onSurface: onSurfaceColor,
+        error: highContrast ? const Color(0xFFFF4444) : Colors.red,
+        onError: Colors.white,
+      ),
+      appBarTheme: AppBarTheme(
+        backgroundColor: backgroundColor,
+        foregroundColor: onSurfaceColor,
+        elevation: highContrast ? 4 : 0,
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: accentColor,
+          foregroundColor: highContrast ? Colors.black : Colors.white,
+          elevation: highContrast ? 4 : 2,
+          side: highContrast
+              ? const BorderSide(color: Colors.white, width: 2)
+              : null,
+        ),
+      ),
+      textTheme: TextTheme(
+        bodyLarge: TextStyle(
+          color: onSurfaceColor,
+          fontWeight: highContrast ? FontWeight.bold : FontWeight.normal,
+        ),
+        bodyMedium: TextStyle(
+          color: onSurfaceColor,
+          fontWeight: highContrast ? FontWeight.bold : FontWeight.normal,
+        ),
+        bodySmall: TextStyle(
+          color: onSurfaceColor,
+          fontWeight: highContrast ? FontWeight.bold : FontWeight.normal,
+        ),
+      ),
+      cardTheme: CardThemeData(
+        color: surfaceColor,
+        elevation: highContrast ? 4 : 2,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: highContrast
+              ? const BorderSide(color: Colors.white, width: 2)
+              : BorderSide.none,
+        ),
+      ),
+    );
+  }
 }

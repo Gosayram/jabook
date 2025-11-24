@@ -130,6 +130,38 @@
     "description": "Message explaining that login is required for search"
   },
   "cancel": "Cancel",
+  "reset": "Reset",
+  "@reset": {
+    "description": "Button label for reset action"
+  },
+  "resetToGlobalSettings": "Reset to global settings",
+  "@resetToGlobalSettings": {
+    "description": "Menu item to reset book settings to global defaults"
+  },
+  "resetAllBookSettings": "Reset all book settings",
+  "@resetAllBookSettings": {
+    "description": "Button label to reset all individual book settings"
+  },
+  "resetAllBookSettingsDescription": "Remove individual settings for all books",
+  "@resetAllBookSettingsDescription": {
+    "description": "Description for reset all book settings action"
+  },
+  "resetAllBookSettingsConfirmation": "This will remove individual audio settings for all books. All books will use global settings. This action cannot be undone.",
+  "@resetAllBookSettingsConfirmation": {
+    "description": "Confirmation message for resetting all book settings"
+  },
+  "settingsResetToGlobal": "Settings reset to global defaults",
+  "@settingsResetToGlobal": {
+    "description": "Message shown when book settings are reset"
+  },
+  "allBookSettingsReset": "All book settings have been reset to global defaults",
+  "@allBookSettingsReset": {
+    "description": "Message shown when all book settings are reset"
+  },
+  "errorResettingSettings": "Error resetting settings",
+  "@errorResettingSettings": {
+    "description": "Error message when resetting settings fails"
+  },
   "@cancel": {
     "description": "Cancel button text"
   },

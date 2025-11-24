@@ -111,6 +111,30 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cancel => 'Cancel';
 
   @override
+  String get reset => 'Reset';
+
+  @override
+  String get resetToGlobalSettings => 'Reset to global settings';
+
+  @override
+  String get resetAllBookSettings => 'Reset all book settings';
+
+  @override
+  String get resetAllBookSettingsDescription => 'Remove individual settings for all books';
+
+  @override
+  String get resetAllBookSettingsConfirmation => 'This will remove individual audio settings for all books. All books will use global settings. This action cannot be undone.';
+
+  @override
+  String get settingsResetToGlobal => 'Settings reset to global defaults';
+
+  @override
+  String get allBookSettingsReset => 'All book settings have been reset to global defaults';
+
+  @override
+  String get errorResettingSettings => 'Error resetting settings';
+
+  @override
   String get login => 'Login';
 
   @override

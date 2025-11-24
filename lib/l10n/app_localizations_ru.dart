@@ -111,6 +111,30 @@ class AppLocalizationsRu extends AppLocalizations {
   String get cancel => 'Отмена';
 
   @override
+  String get reset => 'Сбросить';
+
+  @override
+  String get resetToGlobalSettings => 'Сбросить до глобальных настроек';
+
+  @override
+  String get resetAllBookSettings => 'Сбросить настройки всех книг';
+
+  @override
+  String get resetAllBookSettingsDescription => 'Удалить индивидуальные настройки для всех книг';
+
+  @override
+  String get resetAllBookSettingsConfirmation => 'Это удалит индивидуальные аудио-настройки для всех книг. Все книги будут использовать глобальные настройки. Это действие нельзя отменить.';
+
+  @override
+  String get settingsResetToGlobal => 'Настройки сброшены до глобальных';
+
+  @override
+  String get allBookSettingsReset => 'Все настройки книг сброшены до глобальных';
+
+  @override
+  String get errorResettingSettings => 'Ошибка при сбросе настроек';
+
+  @override
   String get login => 'Войти';
 
   @override

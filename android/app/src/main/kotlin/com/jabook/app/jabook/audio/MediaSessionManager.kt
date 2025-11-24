@@ -67,12 +67,14 @@ class MediaSessionManager(
     private var mediaSession: MediaSession? = null
     private var rewindCallback: (() -> Unit)? = null
     private var forwardCallback: (() -> Unit)? = null
+    private var rewindSeconds: Long = 15L
+    private var forwardSeconds: Long = 30L
     
     companion object {
         private const val REWIND_COMMAND = "com.jabook.app.jabook.audio.REWIND"
         private const val FORWARD_COMMAND = "com.jabook.app.jabook.audio.FORWARD"
-        private const val REWIND_SECONDS = 15L
-        private const val FORWARD_SECONDS = 30L
+        private const val DEFAULT_REWIND_SECONDS = 15L
+        private const val DEFAULT_FORWARD_SECONDS = 30L
         
         /**
          * Provides rewind command icon.
@@ -88,6 +90,8 @@ class MediaSessionManager(
     }
     
     init {
+        rewindSeconds = DEFAULT_REWIND_SECONDS
+        forwardSeconds = DEFAULT_FORWARD_SECONDS
         initializeMediaSession()
     }
     
@@ -104,6 +108,32 @@ class MediaSessionManager(
         this.rewindCallback = rewindCallback
         this.forwardCallback = forwardCallback
     }
+    
+    /**
+     * Updates skip durations for rewind and forward actions.
+     * 
+     * @param rewindSeconds Duration in seconds for rewind action
+     * @param forwardSeconds Duration in seconds for forward action
+     */
+    fun updateSkipDurations(rewindSeconds: Long, forwardSeconds: Long) {
+        this.rewindSeconds = rewindSeconds.coerceAtLeast(1L)
+        this.forwardSeconds = forwardSeconds.coerceAtLeast(1L)
+        
+        android.util.Log.d(
+            "MediaSessionManager",
+            "Updated skip durations: rewind=${this.rewindSeconds}s, forward=${this.forwardSeconds}s"
+        )
+    }
+    
+    /**
+     * Gets current rewind duration in seconds.
+     */
+    fun getRewindDuration(): Long = rewindSeconds
+    
+    /**
+     * Gets current forward duration in seconds.
+     */
+    fun getForwardDuration(): Long = forwardSeconds
     
     /**
      * Initializes MediaSession with custom commands.
@@ -180,13 +210,13 @@ class MediaSessionManager(
                     // Use helper methods for icons (inspired by lissen-android)
                     val rewindButton = CommandButton.Builder(provideRewindCommand())
                         .setSessionCommand(rewindCommand)
-                        .setDisplayName("Rewind ${REWIND_SECONDS}s")
+                        .setDisplayName("Rewind ${rewindSeconds}s")
                         .setEnabled(true)
                         .build()
                     
                     val forwardButton = CommandButton.Builder(provideForwardCommand())
                         .setSessionCommand(forwardCommand)
-                        .setDisplayName("Forward ${FORWARD_SECONDS}s")
+                        .setDisplayName("Forward ${forwardSeconds}s")
                         .setEnabled(true)
                         .build()
                     
@@ -227,25 +257,25 @@ class MediaSessionManager(
     }
     
     /**
-     * Default rewind action: seek back 15 seconds.
+     * Default rewind action: seek back by configured seconds.
      */
     private fun defaultRewind() {
         val currentPosition = player.currentPosition
-        val newPosition = (currentPosition - REWIND_SECONDS * 1000).coerceAtLeast(0L)
+        val newPosition = (currentPosition - rewindSeconds * 1000).coerceAtLeast(0L)
         player.seekTo(newPosition)
-        android.util.Log.d("MediaSessionManager", "Rewind: ${REWIND_SECONDS}s")
+        android.util.Log.d("MediaSessionManager", "Rewind: ${rewindSeconds}s")
     }
     
     /**
-     * Default forward action: seek forward 30 seconds.
+     * Default forward action: seek forward by configured seconds.
      */
     private fun defaultForward() {
         val currentPosition = player.currentPosition
         val duration = player.duration
         if (duration != C.TIME_UNSET) {
-            val newPosition = (currentPosition + FORWARD_SECONDS * 1000).coerceAtMost(duration)
+            val newPosition = (currentPosition + forwardSeconds * 1000).coerceAtMost(duration)
             player.seekTo(newPosition)
-            android.util.Log.d("MediaSessionManager", "Forward: ${FORWARD_SECONDS}s")
+            android.util.Log.d("MediaSessionManager", "Forward: ${forwardSeconds}s")
         }
     }
     

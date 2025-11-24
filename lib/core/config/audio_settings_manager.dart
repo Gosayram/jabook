@@ -1,0 +1,99 @@
+// Copyright 2025 Jabook Contributors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+import 'package:shared_preferences/shared_preferences.dart';
+
+/// Manages global audio settings and preferences for the application.
+class AudioSettingsManager {
+  /// Private constructor for singleton pattern.
+  AudioSettingsManager._();
+
+  /// Factory constructor to get the instance.
+  factory AudioSettingsManager() => _instance;
+
+  static final AudioSettingsManager _instance = AudioSettingsManager._();
+
+  /// Key for storing default playback speed in SharedPreferences.
+  static const String _defaultPlaybackSpeedKey = 'audio_default_playback_speed';
+
+  /// Key for storing default rewind duration in SharedPreferences.
+  static const String _defaultRewindDurationKey =
+      'audio_default_rewind_duration';
+
+  /// Key for storing default forward duration in SharedPreferences.
+  static const String _defaultForwardDurationKey =
+      'audio_default_forward_duration';
+
+  /// Default playback speed.
+  static const double defaultPlaybackSpeed = 1.0;
+
+  /// Default rewind duration in seconds.
+  static const int defaultRewindDuration = 15;
+
+  /// Default forward duration in seconds.
+  static const int defaultForwardDuration = 30;
+
+  /// Gets the default playback speed.
+  Future<double> getDefaultPlaybackSpeed() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getDouble(_defaultPlaybackSpeedKey) ?? defaultPlaybackSpeed;
+  }
+
+  /// Sets the default playback speed.
+  Future<void> setDefaultPlaybackSpeed(double speed) async {
+    if (speed < 0.5 || speed > 2.0) {
+      throw ArgumentError('Speed must be between 0.5 and 2.0');
+    }
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_defaultPlaybackSpeedKey, speed);
+  }
+
+  /// Gets the default rewind duration in seconds.
+  Future<int> getDefaultRewindDuration() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt(_defaultRewindDurationKey) ?? defaultRewindDuration;
+  }
+
+  /// Sets the default rewind duration in seconds.
+  Future<void> setDefaultRewindDuration(int seconds) async {
+    if (seconds < 1) {
+      throw ArgumentError('Duration must be at least 1 second');
+    }
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_defaultRewindDurationKey, seconds);
+  }
+
+  /// Gets the default forward duration in seconds.
+  Future<int> getDefaultForwardDuration() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt(_defaultForwardDurationKey) ?? defaultForwardDuration;
+  }
+
+  /// Sets the default forward duration in seconds.
+  Future<void> setDefaultForwardDuration(int seconds) async {
+    if (seconds < 1) {
+      throw ArgumentError('Duration must be at least 1 second');
+    }
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_defaultForwardDurationKey, seconds);
+  }
+
+  /// Resets audio settings to defaults.
+  Future<void> resetToDefaults() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_defaultPlaybackSpeedKey, defaultPlaybackSpeed);
+    await prefs.setInt(_defaultRewindDurationKey, defaultRewindDuration);
+    await prefs.setInt(_defaultForwardDurationKey, defaultForwardDuration);
+  }
+}

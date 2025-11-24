@@ -18,6 +18,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:jabook/core/config/audio_settings_provider.dart';
+import 'package:jabook/core/config/book_audio_settings_service.dart';
 import 'package:jabook/core/errors/failures.dart';
 import 'package:jabook/core/library/local_audiobook.dart';
 import 'package:jabook/core/logging/structured_logger.dart';
@@ -183,6 +185,9 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
 
       // Wait for player to be ready before enabling controls
       await _waitForPlayerReady();
+
+      // Apply audio settings (speed and skip duration)
+      await _applyAudioSettings();
 
       // Restore position if available - automatically continue from saved position
       // Only restore if we actually loaded new sources (not if player was already playing)
@@ -570,12 +575,152 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
     ref.read(playerStateProvider.notifier).updateMetadata(metadata);
   }
 
+  /// Applies audio settings (speed and skip duration) from settings or book-specific settings.
+  Future<void> _applyAudioSettings() async {
+    try {
+      final groupPath = widget.group.groupPath;
+      final bookSettingsService = BookAudioSettingsService();
+      final audioSettings = ref.read(audioSettingsProvider);
+
+      // Check for individual book settings first
+      final bookSettings = await bookSettingsService.getSettings(groupPath);
+
+      // Determine which settings to use
+      final playbackSpeed =
+          bookSettings?.playbackSpeed ?? audioSettings.defaultPlaybackSpeed;
+      final rewindDuration =
+          bookSettings?.rewindDuration ?? audioSettings.defaultRewindDuration;
+      final forwardDuration =
+          bookSettings?.forwardDuration ?? audioSettings.defaultForwardDuration;
+
+      // Apply playback speed if different from current
+      final currentState = ref.read(playerStateProvider);
+      if ((currentState.playbackSpeed - playbackSpeed).abs() > 0.01) {
+        await ref.read(playerStateProvider.notifier).setSpeed(playbackSpeed);
+      }
+
+      // Update skip durations in MediaSessionManager
+      try {
+        final playerService = ref.read(media3PlayerServiceProvider);
+        await playerService.updateSkipDurations(
+            rewindDuration, forwardDuration);
+      } on Exception catch (e) {
+        await _logger.log(
+          level: 'warning',
+          subsystem: 'audio',
+          message: 'Failed to update skip durations in MediaSessionManager',
+          cause: e.toString(),
+        );
+      }
+
+      await _logger.log(
+        level: 'info',
+        subsystem: 'audio',
+        message: 'Applied audio settings',
+        extra: {
+          'group_path': groupPath,
+          'playback_speed': playbackSpeed,
+          'rewind_duration': rewindDuration,
+          'forward_duration': forwardDuration,
+          'from_book_settings': bookSettings != null,
+        },
+      );
+    } on Exception catch (e) {
+      await _logger.log(
+        level: 'warning',
+        subsystem: 'audio',
+        message: 'Failed to apply audio settings',
+        cause: e.toString(),
+      );
+    }
+  }
+
+  /// Gets the rewind duration for current book.
+  Future<int> _getRewindDuration() async {
+    final groupPath = widget.group.groupPath;
+    final bookSettingsService = BookAudioSettingsService();
+    final audioSettings = ref.read(audioSettingsProvider);
+
+    final bookSettings = await bookSettingsService.getSettings(groupPath);
+    return bookSettings?.rewindDuration ?? audioSettings.defaultRewindDuration;
+  }
+
+  /// Gets the forward duration for current book.
+  Future<int> _getForwardDuration() async {
+    final groupPath = widget.group.groupPath;
+    final bookSettingsService = BookAudioSettingsService();
+    final audioSettings = ref.read(audioSettingsProvider);
+
+    final bookSettings = await bookSettingsService.getSettings(groupPath);
+    return bookSettings?.forwardDuration ??
+        audioSettings.defaultForwardDuration;
+  }
+
+  /// Resets book audio settings to global defaults.
+  Future<void> _resetBookSettings() async {
+    try {
+      final groupPath = widget.group.groupPath;
+      final bookSettingsService = BookAudioSettingsService();
+
+      // Remove individual settings
+      await bookSettingsService.removeSettings(groupPath);
+
+      // Apply global settings
+      await _applyAudioSettings();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              AppLocalizations.of(context)?.settingsResetToGlobal ??
+                  'Settings reset to global defaults',
+            ),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+
+      await _logger.log(
+        level: 'info',
+        subsystem: 'audio',
+        message: 'Reset book settings to global',
+        extra: {'group_path': groupPath},
+      );
+    } on Exception catch (e) {
+      await _logger.log(
+        level: 'error',
+        subsystem: 'audio',
+        message: 'Failed to reset book settings',
+        cause: e.toString(),
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              AppLocalizations.of(context)?.errorResettingSettings ??
+                  'Error resetting settings',
+            ),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+  }
+
   /// Changes playback speed.
   ///
   /// [speed] is the playback speed (0.5 to 2.0).
   Future<void> _setSpeed(double speed) async {
     try {
       await ref.read(playerStateProvider.notifier).setSpeed(speed);
+
+      // Save as individual book setting
+      final groupPath = widget.group.groupPath;
+      final bookSettingsService = BookAudioSettingsService();
+      await bookSettingsService.updateSettings(
+        groupPath,
+        BookAudioSettings(playbackSpeed: speed),
+      );
     } on AudioFailure catch (e) {
       await _logger.log(
         level: 'error',
@@ -938,12 +1083,12 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
               tooltip: 'Previous track',
             ),
             const SizedBox(width: 8),
-            // Rewind button (-15 seconds)
+            // Rewind button
             IconButton(
               icon: const Icon(Icons.replay_10),
               iconSize: 28,
-              onPressed: isLoading ? null : () => _rewind(15),
-              tooltip: 'Rewind 15 seconds',
+              onPressed: isLoading ? null : _rewind,
+              tooltip: 'Rewind',
             ),
             const SizedBox(width: 8),
             // Play/Pause button
@@ -954,12 +1099,12 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
               tooltip: state.isPlaying ? 'Pause' : 'Play',
             ),
             const SizedBox(width: 8),
-            // Forward button (+30 seconds)
+            // Forward button
             IconButton(
               icon: const Icon(Icons.forward_30),
               iconSize: 28,
-              onPressed: isLoading ? null : () => _forward(30),
-              tooltip: 'Forward 30 seconds',
+              onPressed: isLoading ? null : _forward,
+              tooltip: 'Forward',
             ),
             const SizedBox(width: 8),
             // Next track button
@@ -977,23 +1122,25 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
     );
   }
 
-  /// Rewinds playback by specified seconds.
-  void _rewind(int seconds) {
+  /// Rewinds playback by configured seconds.
+  Future<void> _rewind([int? seconds]) async {
+    final rewindSeconds = seconds ?? await _getRewindDuration();
     final state = ref.read(playerStateProvider);
     final currentPosition = Duration(milliseconds: state.currentPosition);
-    final newPosition = currentPosition - Duration(seconds: seconds);
-    ref.read(playerStateProvider.notifier).seek(
+    final newPosition = currentPosition - Duration(seconds: rewindSeconds);
+    await ref.read(playerStateProvider.notifier).seek(
           newPosition.isNegative ? Duration.zero : newPosition,
         );
   }
 
-  /// Forwards playback by specified seconds.
-  void _forward(int seconds) {
+  /// Forwards playback by configured seconds.
+  Future<void> _forward([int? seconds]) async {
+    final forwardSeconds = seconds ?? await _getForwardDuration();
     final state = ref.read(playerStateProvider);
     final currentPosition = Duration(milliseconds: state.currentPosition);
     final duration = Duration(milliseconds: state.duration);
-    final newPosition = currentPosition + Duration(seconds: seconds);
-    ref.read(playerStateProvider.notifier).seek(
+    final newPosition = currentPosition + Duration(seconds: forwardSeconds);
+    await ref.read(playerStateProvider.notifier).seek(
           newPosition > duration ? duration : newPosition,
         );
   }
@@ -1052,26 +1199,53 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
         ],
       );
 
-  Widget _buildSpeedControl(PlayerStateModel state) => PopupMenuButton<double>(
+  Widget _buildSpeedControl(PlayerStateModel state) => PopupMenuButton<double?>(
         tooltip: 'Playback speed',
-        itemBuilder: (context) =>
-            [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0].map((speed) {
-          final isSelected = (state.playbackSpeed - speed).abs() < 0.01;
-          return PopupMenuItem<double>(
-            value: speed,
-            child: Row(
-              children: [
-                if (isSelected)
-                  const Icon(Icons.check, size: 20)
-                else
-                  const SizedBox(width: 20),
-                const SizedBox(width: 8),
-                Text('${speed}x'),
-              ],
+        itemBuilder: (context) {
+          final localizations = AppLocalizations.of(context);
+          final items = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0].map((speed) {
+            final isSelected = (state.playbackSpeed - speed).abs() < 0.01;
+            return PopupMenuItem<double?>(
+              value: speed,
+              child: Row(
+                children: [
+                  if (isSelected)
+                    const Icon(Icons.check, size: 20)
+                  else
+                    const SizedBox(width: 20),
+                  const SizedBox(width: 8),
+                  Text('${speed}x'),
+                ],
+              ),
+            );
+          }).toList();
+
+          // Add divider and reset option if book has individual settings
+          return [
+            ...items,
+            const PopupMenuDivider(),
+            PopupMenuItem<double?>(
+              child: Row(
+                children: [
+                  const Icon(Icons.restore, size: 20),
+                  const SizedBox(width: 8),
+                  Text(
+                    localizations?.resetToGlobalSettings ??
+                        'Reset to global settings',
+                  ),
+                ],
+              ),
             ),
-          );
-        }).toList(),
-        onSelected: _setSpeed,
+          ];
+        },
+        onSelected: (value) async {
+          if (value == null) {
+            // Reset to global settings
+            await _resetBookSettings();
+          } else {
+            await _setSpeed(value);
+          }
+        },
         child: Chip(
           avatar: const Icon(Icons.speed, size: 18),
           label: Text('${state.playbackSpeed}x'),
