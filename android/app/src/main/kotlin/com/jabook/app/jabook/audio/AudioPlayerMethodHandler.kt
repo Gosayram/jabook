@@ -306,6 +306,19 @@ class AudioPlayerMethodHandler(
                         }
                     )
                 }
+                "updateSkipDurations" -> {
+                    val rewindSeconds = call.argument<Int>("rewindSeconds") ?: 15
+                    val forwardSeconds = call.argument<Int>("forwardSeconds") ?: 30
+                    executeWithRetry(
+                        action = {
+                            getService()?.updateSkipDurations(rewindSeconds, forwardSeconds)
+                            result.success(true)
+                        },
+                        onError = { e ->
+                            result.error("EXCEPTION", e.message ?: "Failed to update skip durations", null)
+                        }
+                    )
+                }
                 "setRepeatMode" -> {
                     val repeatMode = call.argument<Int>("repeatMode") ?: 0
                     executeWithRetry(

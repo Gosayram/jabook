@@ -251,6 +251,23 @@ class Media3PlayerService {
     }
   }
 
+  /// Updates skip durations for MediaSessionManager.
+  ///
+  /// [rewindSeconds] is the duration in seconds for rewind action.
+  /// [forwardSeconds] is the duration in seconds for forward action.
+  ///
+  /// Throws [AudioFailure] if updating fails.
+  Future<void> updateSkipDurations(
+      int rewindSeconds, int forwardSeconds) async {
+    try {
+      await _player.updateSkipDurations(rewindSeconds, forwardSeconds);
+    } on AudioFailure {
+      rethrow;
+    } on Exception catch (e) {
+      throw AudioFailure('Failed to update skip durations: ${e.toString()}');
+    }
+  }
+
   /// Skips to next track.
   ///
   /// Throws [AudioFailure] if skipping fails.

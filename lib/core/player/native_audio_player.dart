@@ -482,6 +482,29 @@ class NativeAudioPlayer {
     }
   }
 
+  /// Updates skip durations for MediaSessionManager.
+  ///
+  /// [rewindSeconds] is the duration in seconds for rewind action.
+  /// [forwardSeconds] is the duration in seconds for forward action.
+  Future<void> updateSkipDurations(
+      int rewindSeconds, int forwardSeconds) async {
+    try {
+      await _channel.invokeMethod(
+        'updateSkipDurations',
+        {
+          'rewindSeconds': rewindSeconds,
+          'forwardSeconds': forwardSeconds,
+        },
+      );
+    } on PlatformException catch (e) {
+      throw AudioFailure(
+        'Failed to update skip durations: ${e.message ?? e.code}',
+      );
+    } on Exception catch (e) {
+      throw AudioFailure('Failed to update skip durations: ${e.toString()}');
+    }
+  }
+
   /// Gets current playback position.
   ///
   /// Returns current position in milliseconds.

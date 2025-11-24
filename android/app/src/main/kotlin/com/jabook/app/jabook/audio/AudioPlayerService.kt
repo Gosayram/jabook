@@ -270,12 +270,20 @@ class AudioPlayerService : MediaSessionService() {
             configurePlayer()
             
             // Create MediaSessionManager with callbacks for rewind/forward
-            mediaSessionManager = MediaSessionManager(this, exoPlayer).apply {
-                setCallbacks(
-                    rewindCallback = { rewind(15) },
-                    forwardCallback = { forward(30) }
-                )
-            }
+            // Callbacks will use current skip durations from settings
+            mediaSessionManager = MediaSessionManager(this, exoPlayer)
+            mediaSessionManager?.setCallbacks(
+                rewindCallback = { 
+                    // Use current rewind duration from MediaSessionManager
+                    val duration = mediaSessionManager?.getRewindDuration() ?: 15L
+                    rewind(duration.toInt())
+                },
+                forwardCallback = { 
+                    // Use current forward duration from MediaSessionManager
+                    val duration = mediaSessionManager?.getForwardDuration() ?: 30L
+                    forward(duration.toInt())
+                }
+            )
             
             // Create MediaSession once in onCreate (inspired by lissen-android)
             // MediaSessionService will use it via onGetSession()
@@ -1080,6 +1088,23 @@ class AudioPlayerService : MediaSessionService() {
             player.seekTo(newPosition)
             android.util.Log.d("AudioPlayerService", "Forward: ${seconds}s (from ${currentPosition}ms to ${newPosition}ms)")
         }
+    }
+    
+    /**
+     * Updates skip durations for MediaSessionManager.
+     * 
+     * @param rewindSeconds Duration in seconds for rewind action
+     * @param forwardSeconds Duration in seconds for forward action
+     */
+    fun updateSkipDurations(rewindSeconds: Int, forwardSeconds: Int) {
+        mediaSessionManager?.updateSkipDurations(
+            rewindSeconds.toLong(),
+            forwardSeconds.toLong()
+        )
+        android.util.Log.d(
+            "AudioPlayerService",
+            "Updated skip durations: rewind=${rewindSeconds}s, forward=${forwardSeconds}s"
+        )
     }
     
     /**

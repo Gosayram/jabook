@@ -130,6 +130,38 @@
     "description": "Сообщение о необходимости входа в поиск"
   },
   "cancel": "Отмена",
+  "reset": "Сбросить",
+  "@reset": {
+    "description": "Подпись кнопки для действия сброса"
+  },
+  "resetToGlobalSettings": "Сбросить до глобальных настроек",
+  "@resetToGlobalSettings": {
+    "description": "Пункт меню для сброса настроек книги до глобальных"
+  },
+  "resetAllBookSettings": "Сбросить настройки всех книг",
+  "@resetAllBookSettings": {
+    "description": "Подпись кнопки для сброса всех индивидуальных настроек книг"
+  },
+  "resetAllBookSettingsDescription": "Удалить индивидуальные настройки для всех книг",
+  "@resetAllBookSettingsDescription": {
+    "description": "Описание действия сброса всех настроек книг"
+  },
+  "resetAllBookSettingsConfirmation": "Это удалит индивидуальные аудио-настройки для всех книг. Все книги будут использовать глобальные настройки. Это действие нельзя отменить.",
+  "@resetAllBookSettingsConfirmation": {
+    "description": "Сообщение подтверждения для сброса всех настроек книг"
+  },
+  "settingsResetToGlobal": "Настройки сброшены до глобальных",
+  "@settingsResetToGlobal": {
+    "description": "Сообщение, показываемое при сбросе настроек книги"
+  },
+  "allBookSettingsReset": "Все настройки книг сброшены до глобальных",
+  "@allBookSettingsReset": {
+    "description": "Сообщение, показываемое при сбросе всех настроек книг"
+  },
+  "errorResettingSettings": "Ошибка при сбросе настроек",
+  "@errorResettingSettings": {
+    "description": "Сообщение об ошибке при неудачном сбросе настроек"
+  },
   "@cancel": {
     "description": "Текст кнопки отмены"
   },

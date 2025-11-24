@@ -28,6 +28,7 @@ import 'package:jabook/core/cache/rutracker_cache_service.dart';
 import 'package:jabook/core/config/app_config.dart';
 import 'package:jabook/core/config/language_manager.dart';
 import 'package:jabook/core/config/language_provider.dart';
+import 'package:jabook/core/config/theme_provider.dart';
 import 'package:jabook/core/download/download_foreground_service.dart';
 import 'package:jabook/core/endpoints/endpoint_health_scheduler.dart';
 import 'package:jabook/core/endpoints/endpoint_manager.dart';
@@ -1018,6 +1019,9 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
         logger.e('Error watching languageProvider: $e', stackTrace: stackTrace);
       }
 
+      // Watch for theme changes to trigger rebuild
+      final themeSettings = ref.watch(themeProvider);
+
       // Create router lazily - only when actually needed after initialization
       // This prevents immediate screen building before everything is ready
       // Delay router creation by one frame to ensure all initialization is complete
@@ -1101,8 +1105,13 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
 
               return MaterialApp.router(
                 title: config.appName,
-                theme: AppTheme.lightTheme,
-                darkTheme: AppTheme.darkTheme,
+                theme: AppTheme.lightTheme(
+                  highContrast: themeSettings.highContrastEnabled,
+                ),
+                darkTheme: AppTheme.darkTheme(
+                  highContrast: themeSettings.highContrastEnabled,
+                ),
+                themeMode: themeSettings.themeMode,
                 routerConfig: router,
                 debugShowCheckedModeBanner: config.isDebug,
                 scaffoldMessengerKey:
