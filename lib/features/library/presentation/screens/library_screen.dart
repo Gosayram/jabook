@@ -160,7 +160,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
               children: [
                 // Sort options
                 Text(
-                  'Sort by:',
+                  AppLocalizations.of(context)?.sortByLabel ?? 'Sort by:',
                   style: Theme.of(context).textTheme.titleSmall,
                 ),
                 const SizedBox(height: 8),
@@ -183,7 +183,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                 const Divider(),
                 // Group options
                 Text(
-                  'Group by:',
+                  AppLocalizations.of(context)?.groupByLabel ?? 'Group by:',
                   style: Theme.of(context).textTheme.titleSmall,
                 ),
                 const SizedBox(height: 8),
@@ -235,32 +235,34 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   }
 
   String _getSortOptionLabel(SortOption option, BuildContext context) {
+    final localizations = AppLocalizations.of(context);
     switch (option) {
       case SortOption.nameAsc:
-        return 'Name (A-Z)';
+        return localizations?.sortByNameAsc ?? 'Name (A-Z)';
       case SortOption.nameDesc:
-        return 'Name (Z-A)';
+        return localizations?.sortByNameDesc ?? 'Name (Z-A)';
       case SortOption.sizeAsc:
-        return 'Size (Smallest)';
+        return localizations?.sortBySizeAsc ?? 'Size (Smallest)';
       case SortOption.sizeDesc:
-        return 'Size (Largest)';
+        return localizations?.sortBySizeDesc ?? 'Size (Largest)';
       case SortOption.dateAsc:
-        return 'Date (Oldest)';
+        return localizations?.sortByDateAsc ?? 'Date (Oldest)';
       case SortOption.dateDesc:
-        return 'Date (Newest)';
+        return localizations?.sortByDateDesc ?? 'Date (Newest)';
       case SortOption.filesAsc:
-        return 'Files (Fewest)';
+        return localizations?.sortByFilesAsc ?? 'Files (Fewest)';
       case SortOption.filesDesc:
-        return 'Files (Most)';
+        return localizations?.sortByFilesDesc ?? 'Files (Most)';
     }
   }
 
   String _getGroupOptionLabel(GroupOption option, BuildContext context) {
+    final localizations = AppLocalizations.of(context);
     switch (option) {
       case GroupOption.none:
-        return 'None';
+        return localizations?.groupByNone ?? 'None';
       case GroupOption.firstLetter:
-        return 'First Letter';
+        return localizations?.groupByFirstLetter ?? 'First Letter';
     }
   }
 
@@ -625,7 +627,8 @@ class _LibraryContentState extends ConsumerState<_LibraryContent> {
                 builder: (context, value, child) => Opacity(
                   opacity: value,
                   child: Text(
-                    'Scanning library...',
+                    AppLocalizations.of(context)?.scanningLibrary ??
+                        'Scanning library...',
                     style: Theme.of(context).textTheme.bodyMedium,
                   ),
                 ),

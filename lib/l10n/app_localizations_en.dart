@@ -1092,8 +1092,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String languageChangedMessage(String languageName) {
-    return 'Language changed to \$languageName';
+    return 'Language changed to $languageName';
   }
+
+  @override
+  String get followSystemTheme => 'Follow System Theme';
 
   @override
   String get rutrackerSessionDescription => 'RuTracker session management (cookie)';
@@ -2609,4 +2612,123 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get forum4Pda => '4PDA';
+
+  @override
+  String get rewindDurationTitle => 'Rewind Duration';
+
+  @override
+  String get forwardDurationTitle => 'Forward Duration';
+
+  @override
+  String get secondsLabel => 'seconds';
+
+  @override
+  String get languageSettingsLabel => 'Language settings';
+
+  @override
+  String get mirrorSourceSettingsLabel => 'Mirror and source settings';
+
+  @override
+  String get rutrackerSessionLabel => 'RuTracker session management';
+
+  @override
+  String get metadataManagementLabel => 'Metadata management';
+
+  @override
+  String get themeSettingsLabel => 'Theme settings';
+
+  @override
+  String get audioPlaybackSettingsLabel => 'Audio playback settings';
+
+  @override
+  String get downloadSettingsLabel => 'Download settings';
+
+  @override
+  String get libraryFolderSettingsLabel => 'Library folder settings';
+
+  @override
+  String get storageManagementLabel => 'Storage management';
+
+  @override
+  String get cacheSettingsLabel => 'Cache settings';
+
+  @override
+  String get appPermissionsLabel => 'App permissions';
+
+  @override
+  String get aboutAppLabel => 'About app';
+
+  @override
+  String get backgroundTaskCompatibilityLabel => 'Background task compatibility';
+
+  @override
+  String get backupRestoreLabel => 'Backup and restore';
+
+  @override
+  String get selectFavorites => 'Select';
+
+  @override
+  String get clearSelectedFavorites => 'Delete Selected';
+
+  @override
+  String get clearAllFavorites => 'Clear All';
+
+  @override
+  String get clearAllFavoritesTitle => 'Clear All Favorites?';
+
+  @override
+  String get clearAllFavoritesMessage => 'This will remove all favorite audiobooks. This action cannot be undone.';
+
+  @override
+  String get favoritesCleared => 'Favorites cleared';
+
+  @override
+  String favoritesDeleted(int count) {
+    return '$count favorite(s) deleted';
+  }
+
+  @override
+  String get noFavoritesSelected => 'No favorites selected';
+
+  @override
+  String get selected => 'selected';
+
+  @override
+  String get sortByLabel => 'Sort by:';
+
+  @override
+  String get groupByLabel => 'Group by:';
+
+  @override
+  String get sortByNameAsc => 'Name (A-Z)';
+
+  @override
+  String get sortByNameDesc => 'Name (Z-A)';
+
+  @override
+  String get sortBySizeAsc => 'Size (Smallest)';
+
+  @override
+  String get sortBySizeDesc => 'Size (Largest)';
+
+  @override
+  String get sortByDateAsc => 'Date (Oldest)';
+
+  @override
+  String get sortByDateDesc => 'Date (Newest)';
+
+  @override
+  String get sortByFilesAsc => 'Files (Fewest)';
+
+  @override
+  String get sortByFilesDesc => 'Files (Most)';
+
+  @override
+  String get groupByNone => 'None';
+
+  @override
+  String get groupByFirstLetter => 'First Letter';
+
+  @override
+  String get scanningLibrary => 'Scanning library...';
 }

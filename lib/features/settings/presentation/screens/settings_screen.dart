@@ -137,11 +137,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     // Show confirmation message
     if (mounted) {
       final loc = AppLocalizations.of(context);
+      final languageName = _languageManager.getLanguageName(languageCode);
+      final message = loc?.languageChangedMessage(languageName) ??
+          'Language changed to $languageName';
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(loc?.languageChangedMessage(
-                  _languageManager.getLanguageName(languageCode)) ??
-              'Language changed to ${_languageManager.getLanguageName(languageCode)}'),
+          content: Text(message),
           duration: const Duration(seconds: 2),
         ),
       );
@@ -162,7 +163,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           // Language Settings Section
           Semantics(
             container: true,
-            label: 'Language settings',
+            label: localizations?.languageSettingsLabel ?? 'Language settings',
             child: _buildLanguageSection(context),
           ),
 
@@ -171,7 +172,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           // Mirror Settings Section
           Semantics(
             container: true,
-            label: 'Mirror and source settings',
+            label: localizations?.mirrorSourceSettingsLabel ??
+                'Mirror and source settings',
             child: _buildMirrorSection(context),
           ),
 
@@ -180,7 +182,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           // RuTracker Session Section
           Semantics(
             container: true,
-            label: 'RuTracker session management',
+            label: localizations?.rutrackerSessionLabel ??
+                'RuTracker session management',
             child: _buildRutrackerSessionSection(context),
           ),
 
@@ -189,7 +192,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           // Metadata Section
           Semantics(
             container: true,
-            label: 'Metadata management',
+            label:
+                localizations?.metadataManagementLabel ?? 'Metadata management',
             child: _buildMetadataSection(context),
           ),
 
@@ -198,7 +202,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           // Theme Settings Section
           Semantics(
             container: true,
-            label: 'Theme settings',
+            label: localizations?.themeSettingsLabel ?? 'Theme settings',
             child: _buildThemeSection(context),
           ),
 
@@ -207,7 +211,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           // Audio Settings Section
           Semantics(
             container: true,
-            label: 'Audio playback settings',
+            label: localizations?.audioPlaybackSettingsLabel ??
+                'Audio playback settings',
             child: _buildAudioSection(context),
           ),
 
@@ -216,7 +221,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           // Download Settings Section
           Semantics(
             container: true,
-            label: 'Download settings',
+            label: localizations?.downloadSettingsLabel ?? 'Download settings',
             child: _buildDownloadSection(context),
           ),
 
@@ -225,7 +230,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           // Library Folder Settings Section
           Semantics(
             container: true,
-            label: 'Library folder settings',
+            label: localizations?.libraryFolderSettingsLabel ??
+                'Library folder settings',
             child: _buildLibraryFolderSection(context),
           ),
 
@@ -234,7 +240,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           // Storage Management Section
           Semantics(
             container: true,
-            label: 'Storage management',
+            label:
+                localizations?.storageManagementLabel ?? 'Storage management',
             child: ExpansionTile(
               leading: const Icon(Icons.storage),
               title: Text(
@@ -264,7 +271,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           // Cache Settings Section
           Semantics(
             container: true,
-            label: 'Cache settings',
+            label: localizations?.cacheSettingsLabel ?? 'Cache settings',
             child: _buildCacheSection(context),
           ),
 
@@ -273,8 +280,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           // Permissions Section
           Semantics(
             container: true,
-            label: 'App permissions',
+            label: localizations?.appPermissionsLabel ?? 'App permissions',
             child: _buildPermissionsSection(context),
+          ),
+
+          const SizedBox(height: 24),
+
+          // About Section
+          Semantics(
+            container: true,
+            label: localizations?.aboutAppLabel ?? 'About app',
+            child: _buildAboutSection(context),
           ),
 
           const SizedBox(height: 24),
@@ -283,25 +299,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           if (Platform.isAndroid)
             Semantics(
               container: true,
-              label: 'Background task compatibility',
+              label: localizations?.backgroundTaskCompatibilityLabel ??
+                  'Background task compatibility',
               child: _buildBackgroundCompatibilitySection(context),
             ),
 
           if (Platform.isAndroid) const SizedBox(height: 24),
 
-          // About Section
-          Semantics(
-            container: true,
-            label: 'About app',
-            child: _buildAboutSection(context),
-          ),
-
-          const SizedBox(height: 24),
-
           // Backup & Restore Section
           Semantics(
             container: true,
-            label: 'Backup and restore',
+            label: localizations?.backupRestoreLabel ?? 'Backup and restore',
             child: _buildBackupSection(context),
           ),
         ],
@@ -651,7 +659,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         // Follow system theme toggle
         ListTile(
           leading: const Icon(Icons.brightness_auto),
-          title: const Text('Follow System Theme'),
+          title: Text(
+            localizations?.followSystemTheme ?? 'Follow System Theme',
+          ),
           trailing: Semantics(
             label: 'Follow system theme toggle',
             child: Switch(
@@ -747,14 +757,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           label: 'Set rewind duration',
           child: ListTile(
             leading: const Icon(Icons.replay_10),
-            title: const Text('Rewind Duration'),
-            subtitle: Text('${audioSettings.defaultRewindDuration} seconds'),
+            title:
+                Text(localizations?.rewindDurationTitle ?? 'Rewind Duration'),
+            subtitle: Text(
+              '${audioSettings.defaultRewindDuration} ${localizations?.secondsLabel ?? 'seconds'}',
+            ),
             onTap: () {
               _showSkipDurationDialog(
                 context,
                 audioSettings.defaultRewindDuration,
                 audioNotifier.setDefaultRewindDuration,
-                'Rewind Duration',
+                localizations?.rewindDurationTitle ?? 'Rewind Duration',
               );
             },
           ),
@@ -765,14 +778,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           label: 'Set forward duration',
           child: ListTile(
             leading: const Icon(Icons.forward_30),
-            title: const Text('Forward Duration'),
-            subtitle: Text('${audioSettings.defaultForwardDuration} seconds'),
+            title:
+                Text(localizations?.forwardDurationTitle ?? 'Forward Duration'),
+            subtitle: Text(
+              '${audioSettings.defaultForwardDuration} ${localizations?.secondsLabel ?? 'seconds'}',
+            ),
             onTap: () {
               _showSkipDurationDialog(
                 context,
                 audioSettings.defaultForwardDuration,
                 audioNotifier.setDefaultForwardDuration,
-                'Forward Duration',
+                localizations?.forwardDurationTitle ?? 'Forward Duration',
               );
             },
           ),
@@ -849,18 +865,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         title: Text(title),
         content: Column(
           mainAxisSize: MainAxisSize.min,
-          children: durations
-              .map((duration) => RadioListTile<int>(
-                    title: Text('$duration seconds'),
-                    value: duration,
-                    // ignore: deprecated_member_use
-                    groupValue: currentDuration,
-                    // ignore: deprecated_member_use
-                    onChanged: (value) {
-                      Navigator.of(context).pop(value);
-                    },
-                  ))
-              .toList(),
+          children: durations.map((duration) {
+            final localizations = AppLocalizations.of(context);
+            return RadioListTile<int>(
+              title: Text(
+                '$duration ${localizations?.secondsLabel ?? 'seconds'}',
+              ),
+              value: duration,
+              // ignore: deprecated_member_use
+              groupValue: currentDuration,
+              // ignore: deprecated_member_use
+              onChanged: (value) {
+                Navigator.of(context).pop(value);
+              },
+            );
+          }).toList(),
         ),
       ),
     );

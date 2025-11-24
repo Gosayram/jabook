@@ -1013,11 +1013,9 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
       }
 
       // Watch for language changes to trigger rebuild
-      try {
-        ref.watch(languageProvider);
-      } on Exception catch (e, stackTrace) {
-        logger.e('Error watching languageProvider: $e', stackTrace: stackTrace);
-      }
+      // The watch is needed to trigger rebuild when language changes
+      // ignore: unused_local_variable
+      final currentLanguage = ref.watch(languageProvider);
 
       // Watch for theme changes to trigger rebuild
       final themeSettings = ref.watch(themeProvider);
@@ -1027,8 +1025,9 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
       // Delay router creation by one frame to ensure all initialization is complete
       final router = ref.watch(appRouterProvider);
 
-      // Initialize locale future only once
-      _localeFuture ??= languageManager.getLocale().then((locale) {
+      // Update locale future when language changes
+      // This ensures the app rebuilds with the new locale
+      _localeFuture = languageManager.getLocale().then((locale) {
         _cachedLocale = locale;
         return locale;
       });

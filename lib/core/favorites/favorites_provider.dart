@@ -153,4 +153,38 @@ class FavoriteIdsNotifier extends StateNotifier<Set<String>> {
   ///
   /// Returns true if the audiobook is in favorites, false otherwise.
   bool isFavorite(String topicId) => state.contains(topicId);
+
+  /// Removes multiple favorites.
+  ///
+  /// The [topicIds] parameter is a list of topic IDs to remove.
+  Future<void> removeMultiple(List<String> topicIds) async {
+    if (_service == null) return;
+
+    final newState = <String>{...state};
+    topicIds.forEach(newState.remove);
+    state = newState;
+
+    try {
+      await _service.removeMultipleFromFavorites(topicIds);
+    } on Exception {
+      // Revert on error
+      await _loadFavoriteIds();
+      rethrow;
+    }
+  }
+
+  /// Clears all favorites.
+  Future<void> clearAll() async {
+    if (_service == null) return;
+
+    state = <String>{};
+
+    try {
+      await _service.clearAllFavorites();
+    } on Exception {
+      // Revert on error
+      await _loadFavoriteIds();
+      rethrow;
+    }
+  }
 }

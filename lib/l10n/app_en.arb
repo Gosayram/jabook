@@ -1526,7 +1526,7 @@
   "@resetFiltersButton": {
     "description": "Button to reset filters"
   },
-  "languageChangedMessage": "Language changed to $languageName",
+  "languageChangedMessage": "Language changed to {languageName}",
   "@languageChangedMessage": {
     "description": "Message when language is changed",
     "placeholders": {
@@ -1534,6 +1534,10 @@
         "type": "String"
       }
     }
+  },
+  "followSystemTheme": "Follow System Theme",
+  "@followSystemTheme": {
+    "description": "Title for follow system theme setting"
   },
   "rutrackerSessionDescription": "RuTracker session management (cookie)",
   "@rutrackerSessionDescription": {
@@ -3742,5 +3746,166 @@
   "forum4Pda": "4PDA",
   "@forum4Pda": {
     "description": "4PDA forum name"
+  },
+  "rewindDurationTitle": "Rewind Duration",
+  "@rewindDurationTitle": {
+    "description": "Title for rewind duration setting"
+  },
+  "forwardDurationTitle": "Forward Duration",
+  "@forwardDurationTitle": {
+    "description": "Title for forward duration setting"
+  },
+  "secondsLabel": "seconds",
+  "@secondsLabel": {
+    "description": "Label for seconds unit"
+  },
+  "languageSettingsLabel": "Language settings",
+  "@languageSettingsLabel": {
+    "description": "Accessibility label for language settings section"
+  },
+  "mirrorSourceSettingsLabel": "Mirror and source settings",
+  "@mirrorSourceSettingsLabel": {
+    "description": "Accessibility label for mirror settings section"
+  },
+  "rutrackerSessionLabel": "RuTracker session management",
+  "@rutrackerSessionLabel": {
+    "description": "Accessibility label for RuTracker session section"
+  },
+  "metadataManagementLabel": "Metadata management",
+  "@metadataManagementLabel": {
+    "description": "Accessibility label for metadata section"
+  },
+  "themeSettingsLabel": "Theme settings",
+  "@themeSettingsLabel": {
+    "description": "Accessibility label for theme settings section"
+  },
+  "audioPlaybackSettingsLabel": "Audio playback settings",
+  "@audioPlaybackSettingsLabel": {
+    "description": "Accessibility label for audio settings section"
+  },
+  "downloadSettingsLabel": "Download settings",
+  "@downloadSettingsLabel": {
+    "description": "Accessibility label for download settings section"
+  },
+  "libraryFolderSettingsLabel": "Library folder settings",
+  "@libraryFolderSettingsLabel": {
+    "description": "Accessibility label for library folder settings section"
+  },
+  "storageManagementLabel": "Storage management",
+  "@storageManagementLabel": {
+    "description": "Accessibility label for storage management section"
+  },
+  "cacheSettingsLabel": "Cache settings",
+  "@cacheSettingsLabel": {
+    "description": "Accessibility label for cache settings section"
+  },
+  "appPermissionsLabel": "App permissions",
+  "@appPermissionsLabel": {
+    "description": "Accessibility label for app permissions section"
+  },
+  "aboutAppLabel": "About app",
+  "@aboutAppLabel": {
+    "description": "Accessibility label for about app section"
+  },
+  "backgroundTaskCompatibilityLabel": "Background task compatibility",
+  "@backgroundTaskCompatibilityLabel": {
+    "description": "Accessibility label for background compatibility section"
+  },
+  "backupRestoreLabel": "Backup and restore",
+  "@backupRestoreLabel": {
+    "description": "Accessibility label for backup and restore section"
+  },
+  "selectFavorites": "Select",
+  "@selectFavorites": {
+    "description": "Button to enter selection mode for favorites"
+  },
+  "clearSelectedFavorites": "Delete Selected",
+  "@clearSelectedFavorites": {
+    "description": "Button to delete selected favorites"
+  },
+  "clearAllFavorites": "Clear All",
+  "@clearAllFavorites": {
+    "description": "Button to clear all favorites"
+  },
+  "clearAllFavoritesTitle": "Clear All Favorites?",
+  "@clearAllFavoritesTitle": {
+    "description": "Title for clear all favorites confirmation dialog"
+  },
+  "clearAllFavoritesMessage": "This will remove all favorite audiobooks. This action cannot be undone.",
+  "@clearAllFavoritesMessage": {
+    "description": "Message for clear all favorites confirmation dialog"
+  },
+  "favoritesCleared": "Favorites cleared",
+  "@favoritesCleared": {
+    "description": "Message when favorites are cleared"
+  },
+  "favoritesDeleted": "{count} favorite(s) deleted",
+  "@favoritesDeleted": {
+    "description": "Message when favorites are deleted",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "noFavoritesSelected": "No favorites selected",
+  "@noFavoritesSelected": {
+    "description": "Message when trying to delete but no favorites are selected"
+  },
+  "selected": "selected",
+  "@selected": {
+    "description": "Label for selected items count"
+  },
+  "sortByLabel": "Sort by:",
+  "@sortByLabel": {
+    "description": "Label for sort options section in library filter dialog"
+  },
+  "groupByLabel": "Group by:",
+  "@groupByLabel": {
+    "description": "Label for group options section in library filter dialog"
+  },
+  "sortByNameAsc": "Name (A-Z)",
+  "@sortByNameAsc": {
+    "description": "Sort option: name ascending"
+  },
+  "sortByNameDesc": "Name (Z-A)",
+  "@sortByNameDesc": {
+    "description": "Sort option: name descending"
+  },
+  "sortBySizeAsc": "Size (Smallest)",
+  "@sortBySizeAsc": {
+    "description": "Sort option: size ascending"
+  },
+  "sortBySizeDesc": "Size (Largest)",
+  "@sortBySizeDesc": {
+    "description": "Sort option: size descending"
+  },
+  "sortByDateAsc": "Date (Oldest)",
+  "@sortByDateAsc": {
+    "description": "Sort option: date ascending"
+  },
+  "sortByDateDesc": "Date (Newest)",
+  "@sortByDateDesc": {
+    "description": "Sort option: date descending"
+  },
+  "sortByFilesAsc": "Files (Fewest)",
+  "@sortByFilesAsc": {
+    "description": "Sort option: files ascending"
+  },
+  "sortByFilesDesc": "Files (Most)",
+  "@sortByFilesDesc": {
+    "description": "Sort option: files descending"
+  },
+  "groupByNone": "None",
+  "@groupByNone": {
+    "description": "Group option: no grouping"
+  },
+  "groupByFirstLetter": "First Letter",
+  "@groupByFirstLetter": {
+    "description": "Group option: group by first letter"
+  },
+  "scanningLibrary": "Scanning library...",
+  "@scanningLibrary": {
+    "description": "Message shown while scanning library for audiobooks"
   }
 }

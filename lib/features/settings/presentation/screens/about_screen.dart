@@ -500,19 +500,6 @@ $descriptionLabel
           ),
           const SizedBox(height: 16),
           Semantics(
-            label: localizations?.mainLicense ?? 'Main License',
-            button: true,
-            child: ListTile(
-              leading: const Icon(Icons.description),
-              title: Text(localizations?.mainLicense ?? 'Main License'),
-              subtitle: Text(
-                localizations?.viewInApp ?? 'View in app',
-              ),
-              trailing: const Icon(Icons.arrow_forward_ios),
-              onTap: _showLicensePage,
-            ),
-          ),
-          Semantics(
             label: localizations?.thirdPartyLicenses ?? 'Third-Party Libraries',
             button: true,
             child: ListTile(
