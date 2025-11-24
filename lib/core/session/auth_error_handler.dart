@@ -57,6 +57,8 @@ class AuthErrorHandler {
         },
       );
 
+      if (!context.mounted) return false;
+      final localizations = AppLocalizations.of(context);
       String title;
       String message;
       String actionLabel;
@@ -65,47 +67,55 @@ class AuthErrorHandler {
       if (error is AuthFailure) {
         if (error.message.contains('Session expired') ||
             error.message.contains('expired')) {
-          title = 'Сессия истекла';
-          message = 'Ваша сессия истекла. Пожалуйста, войдите в систему снова.';
-          actionLabel = 'Войти';
+          title = localizations?.sessionExpiredTitle ?? 'Session Expired';
+          message = localizations?.sessionExpiredMessage ??
+              'Your session has expired. Please log in again.';
+          actionLabel = localizations?.loginButton ?? 'Login';
           showRetryButton = onRetry != null;
         } else if (error.message.contains('Invalid') ||
             error.message.contains('неверн')) {
-          title = 'Ошибка авторизации';
-          message = 'Неверный логин или пароль. Проверьте введенные данные.';
-          actionLabel = 'Повторить';
+          title =
+              localizations?.invalidCredentialsTitle ?? 'Authorization Error';
+          message = localizations?.invalidCredentialsMessage ??
+              'Invalid username or password. Please check your credentials.';
+          actionLabel = localizations?.retry ?? 'Retry';
           showRetryButton = onRetry != null;
         } else if (error.message.contains('Authentication required') ||
             error.message.contains('required')) {
-          title = 'Требуется авторизация';
-          message = 'Для выполнения этого действия необходимо войти в систему.';
-          actionLabel = 'Войти';
+          title =
+              localizations?.loginRequiredTitle ?? 'Authentication Required';
+          message = localizations?.loginRequiredMessage ??
+              'You need to log in to perform this action.';
+          actionLabel = localizations?.loginButton ?? 'Login';
           showRetryButton = onRetry != null;
         } else {
-          title = 'Ошибка авторизации';
+          title =
+              localizations?.authorizationErrorTitle ?? 'Authorization Error';
           message = error.message;
-          actionLabel = 'Повторить';
+          actionLabel = localizations?.retry ?? 'Retry';
           showRetryButton = onRetry != null;
         }
       } else if (error is DioException) {
         if (error.response?.statusCode == 401 ||
             error.response?.statusCode == 403) {
-          title = 'Ошибка авторизации';
-          message =
-              'Доступ запрещен. Проверьте правильность учетных данных или войдите снова.';
-          actionLabel = 'Войти';
+          title =
+              localizations?.authorizationErrorTitle ?? 'Authorization Error';
+          message = localizations?.accessDeniedMessage ??
+              'Access denied. Please check your credentials or log in again.';
+          actionLabel = localizations?.loginButton ?? 'Login';
           showRetryButton = onRetry != null;
         } else {
-          title = 'Ошибка сети';
-          message =
-              'Не удалось выполнить запрос. Проверьте подключение к интернету.';
-          actionLabel = 'Повторить';
+          title = localizations?.networkErrorTitle ?? 'Network Error';
+          message = localizations?.networkRequestFailedMessage ??
+              'Failed to complete the request. Please check your internet connection.';
+          actionLabel = localizations?.retry ?? 'Retry';
           showRetryButton = onRetry != null;
         }
       } else {
-        title = 'Ошибка';
-        message = 'Произошла ошибка при выполнении операции.';
-        actionLabel = 'Повторить';
+        title = localizations?.error ?? 'Error';
+        message = localizations?.errorOccurredMessage ??
+            'An error occurred while performing the operation.';
+        actionLabel = localizations?.retry ?? 'Retry';
         showRetryButton = onRetry != null;
       }
 
@@ -188,25 +198,31 @@ class AuthErrorHandler {
   /// The [context] parameter is used to show the snackbar.
   /// The [error] parameter is the error to display.
   static void showAuthErrorSnackBar(BuildContext context, dynamic error) {
+    final localizations = AppLocalizations.of(context);
     String message;
 
     if (error is AuthFailure) {
       if (error.message.contains('Session expired')) {
-        message = 'Сессия истекла. Пожалуйста, войдите снова.';
+        message = localizations?.sessionExpiredSnackBar ??
+            'Session expired. Please log in again.';
       } else if (error.message.contains('Invalid')) {
-        message = 'Неверный логин или пароль.';
+        message = localizations?.invalidCredentialsSnackBar ??
+            'Invalid username or password.';
       } else {
         message = error.message;
       }
     } else if (error is DioException) {
       if (error.response?.statusCode == 401 ||
           error.response?.statusCode == 403) {
-        message = 'Ошибка авторизации. Проверьте учетные данные.';
+        message = localizations?.authorizationErrorSnackBar ??
+            'Authorization error. Please check your credentials.';
       } else {
-        message = 'Ошибка сети. Проверьте подключение.';
+        message = localizations?.networkErrorSnackBar ??
+            'Network error. Please check your connection.';
       }
     } else {
-      message = 'Произошла ошибка при выполнении операции.';
+      message = localizations?.errorOccurredMessage ??
+          'An error occurred while performing the operation.';
     }
 
     ScaffoldMessenger.of(context).showSnackBar(

@@ -32,6 +32,7 @@ import 'package:jabook/core/permissions/permission_service.dart';
 import 'package:jabook/core/utils/file_picker_utils.dart' as file_picker_utils;
 import 'package:jabook/core/utils/storage_path_utils.dart';
 import 'package:jabook/data/db/app_database.dart';
+import 'package:jabook/features/settings/presentation/screens/background_compatibility_screen.dart';
 import 'package:jabook/features/settings/presentation/screens/mirror_settings_screen.dart';
 import 'package:jabook/l10n/app_localizations.dart';
 import 'package:share_plus/share_plus.dart';
@@ -274,6 +275,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
           const SizedBox(height: 24),
 
+          // Background Compatibility Section (Android only)
+          if (Platform.isAndroid)
+            Semantics(
+              container: true,
+              label: 'Background task compatibility',
+              child: _buildBackgroundCompatibilitySection(context),
+            ),
+
+          if (Platform.isAndroid) const SizedBox(height: 24),
+
           // Backup & Restore Section
           Semantics(
             container: true,
@@ -342,7 +353,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           child: ListTile(
             leading: const Icon(Icons.dns),
             title: Text(localizations?.mirrorsScreenTitle ?? 'Manage Mirrors'),
-            subtitle: const Text('Configure and test RuTracker mirrors'),
+            subtitle: Text(localizations?.configureMirrorsSubtitle ??
+                'Configure and test RuTracker mirrors'),
             trailing: const Icon(Icons.arrow_forward_ios),
             onTap: () {
               Navigator.push(
@@ -362,7 +374,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'RuTracker',
+            AppLocalizations.of(context)?.rutrackerTitle ?? 'RuTracker',
             style: Theme.of(context).textTheme.titleLarge,
           ),
           const SizedBox(height: 8),
@@ -1191,7 +1203,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Allow'),
+            child: Text(AppLocalizations.of(context)?.allowButton ?? 'Allow'),
           ),
         ],
       ),
@@ -1220,7 +1232,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               Navigator.pop(context, true);
               _permissionService.openAppSettings();
             },
-            child: const Text('Open Settings'),
+            child: Text(AppLocalizations.of(context)?.openSettingsButton ??
+                'Open Settings'),
           ),
         ],
       ),
@@ -1246,6 +1259,48 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ),
       );
     }
+  }
+
+  Widget _buildBackgroundCompatibilitySection(BuildContext context) {
+    final localizations = AppLocalizations.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          localizations?.backgroundWorkTitle ?? 'Background Work',
+          style: Theme.of(context).textTheme.titleLarge,
+        ),
+        const SizedBox(height: 8),
+        Text(
+          localizations?.backgroundCompatibilityBannerMessage ??
+              'To ensure stable background operation, you may need to configure device settings.',
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+        const SizedBox(height: 16),
+        Semantics(
+          button: true,
+          label: 'Open background compatibility settings',
+          child: ListTile(
+            leading: const Icon(Icons.phone_android),
+            title: Text(localizations?.compatibilityDiagnosticsTitle ??
+                'Compatibility & Diagnostics'),
+            subtitle: Text(
+              localizations?.compatibilityDiagnosticsSubtitle ??
+                  'Compatibility check and manufacturer settings configuration',
+            ),
+            trailing: const Icon(Icons.arrow_forward_ios),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const BackgroundCompatibilityScreen(),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
   }
 
   Widget _buildBackupSection(BuildContext context) => Column(

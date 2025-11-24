@@ -17,6 +17,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:jabook/core/library/trash_service.dart';
+import 'package:jabook/l10n/app_localizations.dart';
 import 'package:share_plus/share_plus.dart';
 
 /// Screen for managing trash (recovery) of deleted files.
@@ -65,9 +66,11 @@ class _TrashScreenState extends State<TrashScreen> {
     } on Exception catch (e) {
       if (mounted) {
         setState(() => _isLoading = false);
+        final localizations = AppLocalizations.of(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to load trash: $e'),
+            content: Text(localizations?.failedToLoadTrash(e.toString()) ??
+                'Failed to load trash: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -83,17 +86,21 @@ class _TrashScreenState extends State<TrashScreen> {
 
       if (mounted) {
         if (success) {
+          final localizations = AppLocalizations.of(context);
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Item restored successfully'),
+            SnackBar(
+              content: Text(localizations?.itemRestoredSuccessfully ??
+                  'Item restored successfully'),
               backgroundColor: Colors.green,
             ),
           );
           await _loadTrashItems();
         } else {
+          final localizations = AppLocalizations.of(context);
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Failed to restore item'),
+            SnackBar(
+              content: Text(localizations?.failedToRestoreItem ??
+                  'Failed to restore item'),
               backgroundColor: Colors.red,
             ),
           );
@@ -101,9 +108,11 @@ class _TrashScreenState extends State<TrashScreen> {
       }
     } on Exception catch (e) {
       if (mounted) {
+        final localizations = AppLocalizations.of(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error restoring item: $e'),
+            content: Text(localizations?.errorRestoringItem(e.toString()) ??
+                'Error restoring item: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -112,24 +121,28 @@ class _TrashScreenState extends State<TrashScreen> {
   }
 
   Future<void> _permanentlyDeleteItem(TrashItem item) async {
+    final localizations = AppLocalizations.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Permanently Delete'),
+        title:
+            Text(localizations?.permanentlyDeleteTitle ?? 'Permanently Delete'),
         content: Text(
-          'Are you sure you want to permanently delete "${item.groupName}"? This action cannot be undone.',
+          localizations?.permanentlyDeleteMessage(item.groupName) ??
+              'Are you sure you want to permanently delete "${item.groupName}"? This action cannot be undone.',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
+            child: Text(AppLocalizations.of(context)?.cancel ?? 'Cancel'),
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
             style: TextButton.styleFrom(
               foregroundColor: Colors.red,
             ),
-            child: const Text('Delete'),
+            child: Text(
+                AppLocalizations.of(context)?.deleteButtonText ?? 'Delete'),
           ),
         ],
       ),
@@ -140,17 +153,21 @@ class _TrashScreenState extends State<TrashScreen> {
         final success = await _trashService.permanentlyDelete(item);
         if (mounted) {
           if (success) {
+            final localizations = AppLocalizations.of(context);
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Item permanently deleted'),
+              SnackBar(
+                content: Text(localizations?.itemPermanentlyDeleted ??
+                    'Item permanently deleted'),
                 backgroundColor: Colors.green,
               ),
             );
             await _loadTrashItems();
           } else {
+            final localizations = AppLocalizations.of(context);
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Failed to delete item'),
+              SnackBar(
+                content: Text(localizations?.failedToDeleteItem ??
+                    'Failed to delete item'),
                 backgroundColor: Colors.red,
               ),
             );
@@ -158,9 +175,11 @@ class _TrashScreenState extends State<TrashScreen> {
         }
       } on Exception catch (e) {
         if (mounted) {
+          final localizations = AppLocalizations.of(context);
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Error deleting item: $e'),
+              content: Text(localizations?.errorDeletingItem(e.toString()) ??
+                  'Error deleting item: $e'),
               backgroundColor: Colors.red,
             ),
           );
@@ -170,24 +189,27 @@ class _TrashScreenState extends State<TrashScreen> {
   }
 
   Future<void> _clearAll() async {
+    final localizations = AppLocalizations.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Clear All Trash'),
-        content: const Text(
-          'Are you sure you want to permanently delete all items in trash? This action cannot be undone.',
+        title: Text(localizations?.clearAllTrashTitle ?? 'Clear All Trash'),
+        content: Text(
+          localizations?.clearAllTrashMessage ??
+              'Are you sure you want to permanently delete all items in trash? This action cannot be undone.',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
+            child: Text(AppLocalizations.of(context)?.cancel ?? 'Cancel'),
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
             style: TextButton.styleFrom(
               foregroundColor: Colors.red,
             ),
-            child: const Text('Clear All'),
+            child: Text(AppLocalizations.of(context)?.clearAllCacheButton ??
+                'Clear All'),
           ),
         ],
       ),

@@ -850,7 +850,12 @@
   },
   "priorityText": "Приоритет: $priority",
   "@priorityText": {
-    "description": "Текст показа приоритета зеркала"
+    "description": "Текст показа приоритета зеркала",
+    "placeholders": {
+      "priority": {
+        "type": "int"
+      }
+    }
   },
   "responseTimeText": "Время отклика: $rtt мс",
   "@responseTimeText": {
@@ -1206,15 +1211,6 @@
     "description": "Текст показывающий здоровье",
     "placeholders": {
       "score": {
-        "type": "int"
-      }
-    }
-  },
-  "priorityText": "Приоритет: $priority",
-  "@priorityText": {
-    "description": "Текст показывающий приоритет",
-    "placeholders": {
-      "priority": {
         "type": "int"
       }
     }
@@ -1780,10 +1776,6 @@
   "@clearSearchCache": {
     "description": "Пункт меню для очистки кэша поиска"
   },
-  "clearAllCache": "Очистить весь кэш",
-  "@clearAllCache": {
-    "description": "Пункт меню для очистки всего кэша"
-  },
   "cacheCleared": "Кэш очищен",
   "@cacheCleared": {
     "description": "Сообщение об успешной очистке кэша"
@@ -1811,10 +1803,6 @@
   "failedToStartDownload": "Не удалось начать загрузку",
   "@failedToStartDownload": {
     "description": "Сообщение об ошибке при начале загрузки"
-  },
-  "downloadsTitle": "Загрузки",
-  "@downloadsTitle": {
-    "description": "Заголовок экрана загрузок"
   },
   "noActiveDownloads": "Нет активных загрузок",
   "@noActiveDownloads": {
@@ -2220,10 +2208,6 @@
   "@clearAllCacheMessage": {
     "description": "Сообщение диалога очистки всего кэша"
   },
-  "clearButton": "Очистить",
-  "@clearButton": {
-    "description": "Кнопка для очистки"
-  },
   "storageManagementDescription": "Управление размером библиотеки, кэшем и файлами",
   "@storageManagementDescription": {
     "description": "Описание секции управления хранилищем"
@@ -2248,9 +2232,9 @@
   "@showDetailsButton": {
     "description": "Кнопка для показа деталей"
   },
-  "permissionDeniedMessage": "Доступ запрещен: Нельзя удалить файл",
-  "@permissionDeniedMessage": {
-    "description": "Сообщение об ошибке при отказе в доступе"
+  "permissionDeniedDeletionMessage": "Доступ запрещен: Нельзя удалить файл",
+  "@permissionDeniedDeletionMessage": {
+    "description": "Сообщение об ошибке при отказе в доступе для удаления файла"
   },
   "deletionDetailsTitle": "Детали удаления",
   "@deletionDetailsTitle": {
@@ -2275,5 +2259,1257 @@
   "retryButton": "Повторить",
   "@retryButton": {
     "description": "Кнопка для повтора операции"
+  },
+  "backgroundWorkTitle": "Фоновая работа",
+  "@backgroundWorkTitle": {
+    "description": "Заголовок экрана совместимости фоновых задач"
+  },
+  "refreshDiagnostics": "Обновить диагностику",
+  "@refreshDiagnostics": {
+    "description": "Подсказка для кнопки обновления"
+  },
+  "deviceInformation": "Информация об устройстве",
+  "@deviceInformation": {
+    "description": "Заголовок секции информации об устройстве"
+  },
+  "manufacturer": "Производитель",
+  "@manufacturer": {
+    "description": "Метка для производителя устройства"
+  },
+  "customRom": "Оболочка",
+  "@customRom": {
+    "description": "Метка для кастомной оболочки"
+  },
+  "androidVersion": "Версия Android",
+  "@androidVersion": {
+    "description": "Метка для версии Android"
+  },
+  "backgroundActivityMode": "Режим фоновой активности",
+  "@backgroundActivityMode": {
+    "description": "Метка для App Standby Bucket"
+  },
+  "compatibilityOk": "Совместимость: ОК",
+  "@compatibilityOk": {
+    "description": "Статус когда совместимость в порядке"
+  },
+  "issuesDetected": "Обнаружены проблемы",
+  "@issuesDetected": {
+    "description": "Статус когда обнаружены проблемы"
+  },
+  "detectedIssues": "Обнаруженные проблемы:",
+  "@detectedIssues": {
+    "description": "Заголовок секции обнаруженных проблем"
+  },
+  "recommendations": "Рекомендации",
+  "@recommendations": {
+    "description": "Заголовок секции рекомендаций"
+  },
+  "manufacturerSettings": "Настройки производителя",
+  "@manufacturerSettings": {
+    "description": "Заголовок секции настроек производителя"
+  },
+  "manufacturerSettingsDescription": "Для стабильной работы приложения в фоне необходимо настроить параметры производителя устройства.",
+  "@manufacturerSettingsDescription": {
+    "description": "Описание секции настроек производителя"
+  },
+  "autostartApp": "Автозапуск приложения",
+  "@autostartApp": {
+    "description": "Заголовок настроек автозапуска"
+  },
+  "enableAutostart": "Включите автозапуск для стабильной работы",
+  "@enableAutostart": {
+    "description": "Подзаголовок настроек автозапуска"
+  },
+  "batteryOptimization": "Оптимизация батареи",
+  "@batteryOptimization": {
+    "description": "Заголовок настроек оптимизации батареи"
+  },
+  "disableBatteryOptimization": "Отключите оптимизацию батареи для приложения",
+  "@disableBatteryOptimization": {
+    "description": "Подзаголовок настроек оптимизации батареи"
+  },
+  "backgroundActivity": "Фоновая активность",
+  "@backgroundActivity": {
+    "description": "Заголовок настроек фоновой активности"
+  },
+  "allowBackgroundActivity": "Разрешите фоновую активность",
+  "@allowBackgroundActivity": {
+    "description": "Подзаголовок настроек фоновой активности"
+  },
+  "showInstructions": "Показать инструкции",
+  "@showInstructions": {
+    "description": "Кнопка для показа инструкций"
+  },
+  "workManagerDiagnostics": "Диагностика WorkManager",
+  "@workManagerDiagnostics": {
+    "description": "Заголовок секции диагностики WorkManager"
+  },
+  "lastExecutions": "Последние выполнения:",
+  "@lastExecutions": {
+    "description": "Заголовок списка последних выполнений"
+  },
+  "executionHistoryEmpty": "История выполнения задач пока пуста",
+  "@executionHistoryEmpty": {
+    "description": "Сообщение когда история выполнения пуста"
+  },
+  "total": "Всего",
+  "@total": {
+    "description": "Метка для общего количества выполнений"
+  },
+  "successful": "Успешно",
+  "@successful": {
+    "description": "Метка для успешных выполнений"
+  },
+  "errors": "Ошибок",
+  "@errors": {
+    "description": "Метка для неудачных выполнений"
+  },
+  "avgDelay": "Ср. задержка",
+  "@avgDelay": {
+    "description": "Метка для средней задержки"
+  },
+  "minutesAbbr": "мин",
+  "@minutesAbbr": {
+    "description": "Сокращение для минут"
+  },
+  "delay": "Задержка: {minutes} мин",
+  "@delay": {
+    "description": "Информация о задержке",
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "errorLabel": "Ошибка: {reason}",
+  "@errorLabel": {
+    "description": "Информация об ошибке",
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "appStandbyBucketRestricted": "Приложение находится в режиме ограниченной фоновой активности (Standby Bucket: {bucket})",
+  "@appStandbyBucketRestricted": {
+    "description": "Сообщение о проблеме для ограниченного standby bucket",
+    "placeholders": {
+      "bucket": {
+        "type": "String"
+      }
+    }
+  },
+  "useAppMoreFrequently": "Используйте приложение чаще, чтобы система перевела его в активный режим",
+  "@useAppMoreFrequently": {
+    "description": "Рекомендация использовать приложение чаще"
+  },
+  "aggressiveBatteryOptimization": "Обнаружено устройство от производителя с агрессивной оптимизацией батареи ({manufacturer}, {rom})",
+  "@aggressiveBatteryOptimization": {
+    "description": "Сообщение о проблеме агрессивной оптимизации батареи",
+    "placeholders": {
+      "manufacturer": {
+        "type": "String"
+      },
+      "rom": {
+        "type": "String"
+      }
+    }
+  },
+  "configureAutostartAndBattery": "Рекомендуется настроить автозапуск и отключить оптимизацию батареи для приложения",
+  "@configureAutostartAndBattery": {
+    "description": "Рекомендация настроить автозапуск и батарею"
+  },
+  "openManufacturerSettings": "Откройте настройки производителя через меню приложения",
+  "@openManufacturerSettings": {
+    "description": "Рекомендация открыть настройки производителя"
+  },
+  "android14ForegroundServices": "На Android 14+ убедитесь, что Foreground Services запускаются корректно",
+  "@android14ForegroundServices": {
+    "description": "Рекомендация для Android 14+"
+  },
+  "compatibilityIssuesDetected": "Обнаружены проблемы с фоновой работой приложения",
+  "@compatibilityIssuesDetected": {
+    "description": "Сообщение события когда обнаружены проблемы совместимости"
+  },
+  "workManagerTaskDelayed": "Задача WorkManager \"{taskName}\" задержана на {hours} часов (ожидалось: {minutes} минут)",
+  "@workManagerTaskDelayed": {
+    "description": "Сообщение события когда задача WorkManager задержана",
+    "placeholders": {
+      "taskName": {
+        "type": "String"
+      },
+      "hours": {
+        "type": "int"
+      },
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "foregroundServiceKilled": "Foreground Service \"{serviceName}\" был неожиданно завершён системой",
+  "@foregroundServiceKilled": {
+    "description": "Сообщение события когда foreground service завершен",
+    "placeholders": {
+      "serviceName": {
+        "type": "String"
+      }
+    }
+  },
+  "standbyBucketActive": "Активно",
+  "@standbyBucketActive": {
+    "description": "Статус App Standby Bucket: Активно"
+  },
+  "standbyBucketWorkingSet": "Часто используется",
+  "@standbyBucketWorkingSet": {
+    "description": "Статус App Standby Bucket: Часто используется"
+  },
+  "standbyBucketFrequent": "Регулярно",
+  "@standbyBucketFrequent": {
+    "description": "Статус App Standby Bucket: Регулярно"
+  },
+  "standbyBucketRare": "Редко",
+  "@standbyBucketRare": {
+    "description": "Статус App Standby Bucket: Редко"
+  },
+  "standbyBucketNever": "Никогда (ограничено)",
+  "@standbyBucketNever": {
+    "description": "Статус App Standby Bucket: Никогда"
+  },
+  "standbyBucketUnknown": "Неизвестно ({bucket})",
+  "@standbyBucketUnknown": {
+    "description": "Статус App Standby Bucket: Неизвестно",
+    "placeholders": {
+      "bucket": {
+        "type": "int"
+      }
+    }
+  },
+  "standbyBucketActiveUsed": "Активно используется",
+  "@standbyBucketActiveUsed": {
+    "description": "Описание App Standby Bucket: Активно"
+  },
+  "standbyBucketFrequentlyUsed": "Часто используется",
+  "@standbyBucketFrequentlyUsed": {
+    "description": "Описание App Standby Bucket: Часто"
+  },
+  "standbyBucketRegularlyUsed": "Регулярно используется",
+  "@standbyBucketRegularlyUsed": {
+    "description": "Описание App Standby Bucket: Регулярно"
+  },
+  "standbyBucketRarelyUsed": "Редко используется",
+  "@standbyBucketRarelyUsed": {
+    "description": "Описание App Standby Bucket: Редко"
+  },
+  "standbyBucketNeverUsed": "Никогда не используется (ограничено)",
+  "@standbyBucketNeverUsed": {
+    "description": "Описание App Standby Bucket: Никогда"
+  },
+  "manufacturerSettingsTitle": "Настройки для стабильной работы",
+  "@manufacturerSettingsTitle": {
+    "description": "Заголовок диалога настроек производителя"
+  },
+  "manufacturerSettingsDialogDescription": "Для стабильной работы приложения необходимо настроить следующие параметры:",
+  "@manufacturerSettingsDialogDescription": {
+    "description": "Описание диалога настроек производителя"
+  },
+  "enableAutostartStep": "1. Включите автозапуск приложения",
+  "@enableAutostartStep": {
+    "description": "Шаг 1: Включить автозапуск"
+  },
+  "disableBatteryOptimizationStep": "2. Отключите оптимизацию батареи для приложения",
+  "@disableBatteryOptimizationStep": {
+    "description": "Шаг 2: Отключить оптимизацию батареи"
+  },
+  "allowBackgroundActivityStep": "3. Разрешите фоновую активность",
+  "@allowBackgroundActivityStep": {
+    "description": "Шаг 3: Разрешить фоновую активность"
+  },
+  "detectedRom": "Обнаружена оболочка: {rom}",
+  "@detectedRom": {
+    "description": "Сообщение показывающее обнаруженную оболочку",
+    "placeholders": {
+      "rom": {
+        "type": "String"
+      }
+    }
+  },
+  "skip": "Пропустить",
+  "@skip": {
+    "description": "Кнопка пропустить"
+  },
+  "gotIt": "Понятно",
+  "@gotIt": {
+    "description": "Кнопка подтверждения"
+  },
+  "backgroundCompatibilityBannerTitle": "Настройки фоновой работы",
+  "@backgroundCompatibilityBannerTitle": {
+    "description": "Заголовок баннера совместимости фоновой работы"
+  },
+  "backgroundCompatibilityBannerMessage": "Для стабильной работы приложения в фоне может потребоваться настройка параметров устройства.",
+  "@backgroundCompatibilityBannerMessage": {
+    "description": "Сообщение баннера совместимости фоновой работы"
+  },
+  "dismiss": "Закрыть",
+  "@dismiss": {
+    "description": "Кнопка закрытия баннера или диалога"
+  },
+  "loginSuccessfulMessage": "Авторизация успешна!",
+  "@loginSuccessfulMessage": {
+    "description": "Сообщение об успешной авторизации"
+  },
+  "openSettingsButton": "Открыть настройки",
+  "@openSettingsButton": {
+    "description": "Кнопка для открытия настроек"
+  },
+  "compatibilityDiagnosticsTitle": "Совместимость и диагностика",
+  "@compatibilityDiagnosticsTitle": {
+    "description": "Заголовок раздела совместимости и диагностики"
+  },
+  "compatibilityDiagnosticsSubtitle": "Проверка совместимости и настройка параметров производителя",
+  "@compatibilityDiagnosticsSubtitle": {
+    "description": "Подзаголовок раздела совместимости и диагностики"
+  },
+  "selectFolderButton": "Выбрать папку",
+  "@selectFolderButton": {
+    "description": "Кнопка для выбора папки"
+  },
+  "continueButton": "Продолжить",
+  "@continueButton": {
+    "description": "Кнопка для продолжения"
+  },
+  "errorAddingFolder": "Ошибка добавления папки: $error",
+  "@errorAddingFolder": {
+    "description": "Сообщение об ошибке при добавлении папки",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "noAudiobookGroupProvided": "Группа аудиокниг не предоставлена",
+  "@noAudiobookGroupProvided": {
+    "description": "Сообщение об ошибке когда группа аудиокниг отсутствует"
+  },
+  "sleepTimerPaused": "Таймер сна: Воспроизведение приостановлено",
+  "@sleepTimerPaused": {
+    "description": "Сообщение уведомления когда таймер сна приостанавливает воспроизведение"
+  },
+  "failedToChangeSpeed": "Не удалось изменить скорость: $error",
+  "@failedToChangeSpeed": {
+    "description": "Сообщение об ошибке при неудачном изменении скорости",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "cancelTimerButton": "Отменить таймер",
+  "@cancelTimerButton": {
+    "description": "Кнопка для отмены таймера"
+  },
+  "endOfChapterLabel": "Конец главы",
+  "@endOfChapterLabel": {
+    "description": "Метка для конца главы"
+  },
+  "atEndOfChapterLabel": "В конце главы",
+  "@atEndOfChapterLabel": {
+    "description": "Метка для конца главы"
+  },
+  "itemsInTrashLabel": "Элементы в корзине",
+  "@itemsInTrashLabel": {
+    "description": "Метка для элементов в корзине"
+  },
+  "trashSizeLabel": "Размер корзины",
+  "@trashSizeLabel": {
+    "description": "Метка для размера корзины"
+  },
+  "manageTrashButton": "Управление корзиной",
+  "@manageTrashButton": {
+    "description": "Кнопка для управления корзиной"
+  },
+  "fileLabel": "файл",
+  "@fileLabel": {
+    "description": "Единственное число файла"
+  },
+  "filesLabel": "файлов",
+  "@filesLabel": {
+    "description": "Множественное число файла"
+  },
+  "failedToLoadTrash": "Не удалось загрузить корзину: $error",
+  "@failedToLoadTrash": {
+    "description": "Сообщение об ошибке при неудачной загрузке корзины",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "itemRestoredSuccessfully": "Элемент успешно восстановлен",
+  "@itemRestoredSuccessfully": {
+    "description": "Сообщение когда элемент восстановлен"
+  },
+  "failedToRestoreItem": "Не удалось восстановить элемент",
+  "@failedToRestoreItem": {
+    "description": "Сообщение об ошибке при неудачном восстановлении"
+  },
+  "errorRestoringItem": "Ошибка восстановления элемента: $error",
+  "@errorRestoringItem": {
+    "description": "Сообщение об ошибке при неудачном восстановлении элемента",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "permanentlyDeleteTitle": "Удалить навсегда",
+  "@permanentlyDeleteTitle": {
+    "description": "Заголовок диалога безвозвратного удаления"
+  },
+  "permanentlyDeleteMessage": "Вы уверены, что хотите безвозвратно удалить \"{name}\"? Это действие нельзя отменить.",
+  "@permanentlyDeleteMessage": {
+    "description": "Сообщение подтверждения для безвозвратного удаления",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "itemPermanentlyDeleted": "Элемент безвозвратно удален",
+  "@itemPermanentlyDeleted": {
+    "description": "Сообщение когда элемент безвозвратно удален"
+  },
+  "failedToDeleteItem": "Не удалось удалить элемент",
+  "@failedToDeleteItem": {
+    "description": "Сообщение об ошибке при неудачном удалении"
+  },
+  "errorDeletingItem": "Ошибка удаления элемента: $error",
+  "@errorDeletingItem": {
+    "description": "Сообщение об ошибке при неудачном удалении элемента",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "clearAllTrashTitle": "Очистить всю корзину",
+  "@clearAllTrashTitle": {
+    "description": "Заголовок диалога очистки всей корзины"
+  },
+  "clearAllTrashMessage": "Вы уверены, что хотите безвозвратно удалить все элементы в корзине? Это действие нельзя отменить.",
+  "@clearAllTrashMessage": {
+    "description": "Сообщение подтверждения для очистки всей корзины"
+  },
+  "filePickerAlreadyOpen": "Файловый менеджер уже открыт. Пожалуйста, закройте его сначала.",
+  "@filePickerAlreadyOpen": {
+    "description": "Сообщение об ошибке когда файловый менеджер уже открыт"
+  },
+  "applyButton": "Применить",
+  "@applyButton": {
+    "description": "Кнопка для применения изменений"
+  },
+  "lastMessageSort": "Посл. сообщение",
+  "@lastMessageSort": {
+    "description": "Опция сортировки по последнему сообщению"
+  },
+  "topicNameSort": "Название темы",
+  "@topicNameSort": {
+    "description": "Опция сортировки по названию темы"
+  },
+  "postingTimeSort": "Время размещения",
+  "@postingTimeSort": {
+    "description": "Опция сортировки по времени размещения"
+  },
+  "operationTimedOut": "Операция превысила время ожидания. Пожалуйста, попробуйте снова.",
+  "@operationTimedOut": {
+    "description": "Сообщение об ошибке когда операция превысила время ожидания"
+  },
+  "permissionDeniedDownloads": "Доступ запрещен. Пожалуйста, проверьте разрешения приложения в настройках.",
+  "@permissionDeniedDownloads": {
+    "description": "Сообщение об ошибке когда доступ запрещен для загрузок"
+  },
+  "downloadNotFound": "Загрузка не найдена. Возможно, она была удалена.",
+  "@downloadNotFound": {
+    "description": "Сообщение об ошибке когда загрузка не найдена"
+  },
+  "anErrorOccurred": "Произошла ошибка. Пожалуйста, попробуйте снова.",
+  "@anErrorOccurred": {
+    "description": "Общее сообщение об ошибке"
+  },
+  "initializationError": "Ошибка инициализации: $error",
+  "@initializationError": {
+    "description": "Сообщение об ошибке во время инициализации",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "criticalError": "Критическая ошибка: $error",
+  "@criticalError": {
+    "description": "Сообщение о критической ошибке",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "capabilityCheckError": "Ошибка проверки возможностей: $error",
+  "@capabilityCheckError": {
+    "description": "Сообщение об ошибке при проверке возможностей",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "filesSelected": "Выбрано файлов: $count",
+  "@filesSelected": {
+    "description": "Сообщение когда файлы выбраны",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "fileSelectionError": "Ошибка выбора файлов: $error",
+  "@fileSelectionError": {
+    "description": "Сообщение об ошибке при выборе файлов",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "imagesSelected": "Выбрано изображений: $count",
+  "@imagesSelected": {
+    "description": "Сообщение когда изображения выбраны",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "imageSelectionError": "Ошибка выбора изображений: $error",
+  "@imageSelectionError": {
+    "description": "Сообщение об ошибке при выборе изображений",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "testNotificationTitle": "Тест уведомления",
+  "@testNotificationTitle": {
+    "description": "Заголовок тестового уведомления"
+  },
+  "testNotificationBody": "Это тестовое уведомление от JaBook",
+  "@testNotificationBody": {
+    "description": "Текст тестового уведомления"
+  },
+  "notificationSent": "Уведомление отправлено",
+  "@notificationSent": {
+    "description": "Сообщение когда уведомление отправлено"
+  },
+  "failedToSendNotification": "Не удалось отправить уведомление (канал не реализован)",
+  "@failedToSendNotification": {
+    "description": "Сообщение об ошибке при неудачной отправке уведомления"
+  },
+  "bluetoothAvailable": "Bluetooth доступен: $available",
+  "@bluetoothAvailable": {
+    "description": "Сообщение о доступности Bluetooth",
+    "placeholders": {
+      "available": {
+        "type": "String"
+      }
+    }
+  },
+  "pairedDevicesCount": "Сопряженных устройств: $count",
+  "@pairedDevicesCount": {
+    "description": "Сообщение о количестве сопряженных устройств",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "bluetoothCheckError": "Ошибка проверки Bluetooth: $error",
+  "@bluetoothCheckError": {
+    "description": "Сообщение об ошибке при проверке Bluetooth",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "systemCapabilitiesTitle": "Системные возможности",
+  "@systemCapabilitiesTitle": {
+    "description": "Заголовок раздела системных возможностей"
+  },
+  "fileAccessCapability": "Доступ к файлам",
+  "@fileAccessCapability": {
+    "description": "Название возможности доступа к файлам"
+  },
+  "imageAccessCapability": "Доступ к изображениям",
+  "@imageAccessCapability": {
+    "description": "Название возможности доступа к изображениям"
+  },
+  "cameraCapability": "Камера",
+  "@cameraCapability": {
+    "description": "Название возможности камеры"
+  },
+  "photoTaken": "Фото сделано: $path",
+  "@photoTaken": {
+    "description": "Сообщение когда фото сделано",
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
+  "photoNotTaken": "Фото не сделано",
+  "@photoNotTaken": {
+    "description": "Сообщение когда фото не сделано"
+  },
+  "cameraError": "Ошибка камеры: $error",
+  "@cameraError": {
+    "description": "Сообщение об ошибке камеры",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "notificationsCapability": "Уведомления",
+  "@notificationsCapability": {
+    "description": "Название возможности уведомлений"
+  },
+  "capabilityExplanationButton": "Объяснение возможностей",
+  "@capabilityExplanationButton": {
+    "description": "Кнопка для объяснения возможностей"
+  },
+  "testButton": "Тест",
+  "@testButton": {
+    "description": "Кнопка для тестирования возможности"
+  },
+  "permissionsForJaBookTitle": "Разрешения для JaBook",
+  "@permissionsForJaBookTitle": {
+    "description": "Заголовок диалога разрешений при первом запуске"
+  },
+  "fileAccessPermissionTitle": "Доступ к файлам",
+  "@fileAccessPermissionTitle": {
+    "description": "Заголовок разрешения доступа к файлам"
+  },
+  "fileAccessPermissionDescription": "Нужен для сохранения и воспроизведения аудиокниг.",
+  "@fileAccessPermissionDescription": {
+    "description": "Описание разрешения доступа к файлам"
+  },
+  "notificationsPermissionTitle": "Уведомления",
+  "@notificationsPermissionTitle": {
+    "description": "Заголовок разрешения уведомлений"
+  },
+  "batteryOptimizationPermissionTitle": "Оптимизация батареи",
+  "@batteryOptimizationPermissionTitle": {
+    "description": "Заголовок разрешения оптимизации батареи"
+  },
+  "batteryOptimizationPermissionDescription": "Чтобы приложение работало в фоне для воспроизведения.",
+  "@batteryOptimizationPermissionDescription": {
+    "description": "Описание разрешения оптимизации батареи"
+  },
+  "permissionsHelpMessage": "Эти разрешения помогут обеспечить лучший опыт использования приложения.",
+  "@permissionsHelpMessage": {
+    "description": "Сообщение объясняющее зачем нужны разрешения"
+  },
+  "urlLabel": "URL: $url",
+  "@urlLabel": {
+    "description": "Метка для отображения URL",
+    "placeholders": {
+      "url": {
+        "type": "String"
+      }
+    }
+  },
+  "rutrackerTitle": "RuTracker",
+  "@rutrackerTitle": {
+    "description": "Заголовок секции RuTracker"
+  },
+  "webViewLoginButton": "Войти в RuTracker через WebView",
+  "@webViewLoginButton": {
+    "description": "Текст кнопки входа через WebView"
+  },
+  "webViewLoginSubtitle": "Пройти Cloudflare/капчу и сохранить cookie для клиента",
+  "@webViewLoginSubtitle": {
+    "description": "Подзаголовок кнопки входа через WebView"
+  },
+  "cookieSavedMessage": "Cookie сохранены для HTTP-клиента",
+  "@cookieSavedMessage": {
+    "description": "Сообщение об успешном сохранении cookie"
+  },
+  "failedToParseSearchResultsEncoding": "Не удалось распарсить результаты поиска из-за проблемы с кодировкой. Это может быть временная проблема сервера. Пожалуйста, попробуйте снова. Если проблема сохраняется, попробуйте изменить зеркало в Настройках → Источники.",
+  "@failedToParseSearchResultsEncoding": {
+    "description": "Сообщение об ошибке при неудачном парсинге результатов поиска из-за проблемы с кодировкой"
+  },
+  "failedToParseSearchResultsStructure": "Не удалось распарсить результаты поиска. Структура страницы могла измениться. Пожалуйста, попробуйте снова. Если проблема сохраняется, попробуйте изменить зеркало в Настройках → Источники.",
+  "@failedToParseSearchResultsStructure": {
+    "description": "Сообщение об ошибке при неудачном парсинге результатов поиска из-за изменения структуры страницы"
+  },
+  "searchFailedMessage": "Поиск не удался: {errorType}",
+  "@searchFailedMessage": {
+    "description": "Сообщение об ошибке при неудачном поиске",
+    "placeholders": {
+      "errorType": {
+        "type": "String"
+      }
+    }
+  },
+  "topicTitleSort": "Название темы",
+  "@topicTitleSort": {
+    "description": "Метка опции сортировки по названию темы"
+  },
+  "postTimeSort": "Время размещения",
+  "@postTimeSort": {
+    "description": "Метка опции сортировки по времени размещения"
+  },
+  "localStreamServerStarted": "Локальный сервер потоковой передачи запущен на http://{host}:{port}",
+  "@localStreamServerStarted": {
+    "description": "Сообщение об успешном запуске локального сервера потоковой передачи",
+    "placeholders": {
+      "host": {
+        "type": "String"
+      },
+      "port": {
+        "type": "int"
+      }
+    }
+  },
+  "failedToStartStreamServer": "Не удалось запустить сервер потоковой передачи: {error}",
+  "@failedToStartStreamServer": {
+    "description": "Сообщение об ошибке при неудачном запуске сервера потоковой передачи",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "localStreamServerStopped": "Локальный сервер потоковой передачи остановлен",
+  "@localStreamServerStopped": {
+    "description": "Сообщение об успешной остановке локального сервера потоковой передачи"
+  },
+  "failedToStopStreamServer": "Не удалось остановить сервер потоковой передачи: {error}",
+  "@failedToStopStreamServer": {
+    "description": "Сообщение об ошибке при неудачной остановке сервера потоковой передачи",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "missingBookIdParameter": "Отсутствует параметр ID книги",
+  "@missingBookIdParameter": {
+    "description": "Сообщение об ошибке при отсутствии параметра ID книги"
+  },
+  "invalidFileIndexParameter": "Неверный параметр индекса файла",
+  "@invalidFileIndexParameter": {
+    "description": "Сообщение об ошибке при неверном параметре индекса файла"
+  },
+  "fileNotFound": "Файл не найден",
+  "@fileNotFound": {
+    "description": "Сообщение об ошибке, когда файл не найден"
+  },
+  "streamingError": "Ошибка потоковой передачи",
+  "@streamingError": {
+    "description": "Сообщение об ошибке потоковой передачи"
+  },
+  "invalidRangeHeader": "Неверный заголовок диапазона",
+  "@invalidRangeHeader": {
+    "description": "Сообщение об ошибке при неверном заголовке диапазона"
+  },
+  "requestedRangeNotSatisfiable": "Запрошенный диапазон не может быть выполнен",
+  "@requestedRangeNotSatisfiable": {
+    "description": "Сообщение об ошибке, когда запрошенный диапазон не может быть выполнен"
+  },
+  "rangeRequestError": "Ошибка запроса диапазона",
+  "@rangeRequestError": {
+    "description": "Сообщение об ошибке запроса диапазона"
+  },
+  "staticFileError": "Ошибка статического файла",
+  "@staticFileError": {
+    "description": "Сообщение об ошибке статического файла"
+  },
+  "failedToStartAudioService": "Не удалось запустить аудио сервис: {error}",
+  "@failedToStartAudioService": {
+    "description": "Сообщение об ошибке при неудачном запуске аудио сервиса",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "failedToPlayMedia": "Не удалось воспроизвести медиа: {error}",
+  "@failedToPlayMedia": {
+    "description": "Сообщение об ошибке при неудачном воспроизведении медиа",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "failedToPauseMedia": "Не удалось приостановить медиа: {error}",
+  "@failedToPauseMedia": {
+    "description": "Сообщение об ошибке при неудачной приостановке медиа",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "failedToStopMedia": "Не удалось остановить медиа: {error}",
+  "@failedToStopMedia": {
+    "description": "Сообщение об ошибке при неудачной остановке медиа",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "failedToSeek": "Не удалось перейти к позиции: {error}",
+  "@failedToSeek": {
+    "description": "Сообщение об ошибке при неудачной операции перехода к позиции",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "failedToSetSpeed": "Не удалось установить скорость: {error}",
+  "@failedToSetSpeed": {
+    "description": "Сообщение об ошибке при неудачной установке скорости воспроизведения",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "failedToInitializeLogger": "Не удалось инициализировать логгер",
+  "@failedToInitializeLogger": {
+    "description": "Сообщение об ошибке при неудачной инициализации логгера"
+  },
+  "failedToWriteLog": "Не удалось записать лог",
+  "@failedToWriteLog": {
+    "description": "Сообщение об ошибке при неудачной записи лога"
+  },
+  "logRotationFailed": "Не удалось выполнить ротацию логов",
+  "@logRotationFailed": {
+    "description": "Сообщение об ошибке при неудачной ротации логов"
+  },
+  "failedToRotateLogs": "Не удалось выполнить ротацию логов",
+  "@failedToRotateLogs": {
+    "description": "Сообщение об ошибке при неудачной ротации логов"
+  },
+  "failedToCleanOldLogs": "Не удалось очистить старые логи",
+  "@failedToCleanOldLogs": {
+    "description": "Сообщение об ошибке при неудачной очистке старых логов"
+  },
+  "errorSharingLogs": "Ошибка при отправке логов: {error}",
+  "@errorSharingLogs": {
+    "description": "Сообщение об ошибке при неудачной отправке логов",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "failedToShareLogs": "Не удалось отправить логи",
+  "@failedToShareLogs": {
+    "description": "Сообщение об ошибке при неудачной отправке логов"
+  },
+  "failedToReadLogs": "Не удалось прочитать логи",
+  "@failedToReadLogs": {
+    "description": "Сообщение об ошибке при неудачном чтении логов"
+  },
+  "cacheManagerNotInitialized": "CacheManager не инициализирован",
+  "@cacheManagerNotInitialized": {
+    "description": "Сообщение об ошибке, когда CacheManager не инициализирован"
+  },
+  "failedToParseSearchResults": "Не удалось распарсить результаты поиска: {error}",
+  "@failedToParseSearchResults": {
+    "description": "Сообщение об ошибке при неудачном парсинге результатов поиска",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "failedToParseTopicDetails": "Не удалось распарсить детали темы: {error}",
+  "@failedToParseTopicDetails": {
+    "description": "Сообщение об ошибке при неудачном парсинге деталей темы",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "failedToParseCategories": "Не удалось распарсить категории",
+  "@failedToParseCategories": {
+    "description": "Сообщение об ошибке при неудачном парсинге категорий"
+  },
+  "failedToParseCategoryTopics": "Не удалось распарсить темы категории",
+  "@failedToParseCategoryTopics": {
+    "description": "Сообщение об ошибке при неудачном парсинге тем категории"
+  },
+  "radioPlayCategory": "Радиоспектакль",
+  "@radioPlayCategory": {
+    "description": "Название категории для радиоспектаклей"
+  },
+  "audiobookCategory": "Аудиокнига",
+  "@audiobookCategory": {
+    "description": "Название категории для аудиокниг"
+  },
+  "biographyCategory": "Биография",
+  "@biographyCategory": {
+    "description": "Название категории для биографий"
+  },
+  "memoirsCategory": "Мемуары",
+  "@memoirsCategory": {
+    "description": "Название категории для мемуаров"
+  },
+  "historyCategory": "История",
+  "@historyCategory": {
+    "description": "Название категории для истории"
+  },
+  "addedLabel": "Добавлено",
+  "@addedLabel": {
+    "description": "Метка для даты добавления"
+  },
+  "invalidMagnetUrlMissingHash": "Неверный magnet URL: отсутствует info hash",
+  "@invalidMagnetUrlMissingHash": {
+    "description": "Сообщение об ошибке, когда в magnet URL отсутствует info hash"
+  },
+  "invalidInfoHashLength": "Неверная длина info hash",
+  "@invalidInfoHashLength": {
+    "description": "Сообщение об ошибке, когда info hash имеет неверную длину"
+  },
+  "failedToStartDownloadWithError": "Не удалось начать загрузку: {error}",
+  "@failedToStartDownloadWithError": {
+    "description": "Сообщение об ошибке при неудачном начале загрузки с деталями ошибки",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "downloadNotFoundTorrent": "Загрузка не найдена",
+  "@downloadNotFoundTorrent": {
+    "description": "Сообщение об ошибке, когда загрузка не найдена"
+  },
+  "failedToPauseDownload": "Не удалось приостановить загрузку: {error}",
+  "@failedToPauseDownload": {
+    "description": "Сообщение об ошибке при неудачной приостановке загрузки",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "failedToResumeDownload": "Не удалось возобновить загрузку: {error}",
+  "@failedToResumeDownload": {
+    "description": "Сообщение об ошибке при неудачном возобновлении загрузки",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "failedToRemoveDownload": "Не удалось удалить загрузку: {error}",
+  "@failedToRemoveDownload": {
+    "description": "Сообщение об ошибке при неудачном удалении загрузки",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "failedToGetActiveDownloads": "Не удалось получить активные загрузки: {error}",
+  "@failedToGetActiveDownloads": {
+    "description": "Сообщение об ошибке при неудачном получении активных загрузок",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "failedToShutdownTorrentManager": "Не удалось остановить менеджер торрентов: {error}",
+  "@failedToShutdownTorrentManager": {
+    "description": "Сообщение об ошибке при неудачной остановке менеджера торрентов",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "noHealthyEndpointsAvailable": "Нет доступных здоровых конечных точек",
+  "@noHealthyEndpointsAvailable": {
+    "description": "Сообщение об ошибке, когда нет доступных здоровых конечных точек"
+  },
+  "authRepositoryProviderMustBeOverridden": "AuthRepositoryProvider должен быть переопределен с правильным контекстом",
+  "@authRepositoryProviderMustBeOverridden": {
+    "description": "Сообщение об ошибке, когда AuthRepositoryProvider не настроен правильно"
+  },
+  "useEndpointManagerGetActiveEndpoint": "Используйте EndpointManager.getActiveEndpoint() для динамического выбора зеркала",
+  "@useEndpointManagerGetActiveEndpoint": {
+    "description": "Устаревшее сообщение для использования EndpointManager.getActiveEndpoint()"
+  },
+  "cacheManagerNotInitializedConfig": "CacheManager не инициализирован",
+  "@cacheManagerNotInitializedConfig": {
+    "description": "Сообщение об ошибке, когда CacheManager не инициализирован в конфигурации"
+  },
+  "searchFailedWithMessage": "Поиск не удался: {message}",
+  "@searchFailedWithMessage": {
+    "description": "Сообщение об ошибке при неудачном поиске с конкретным сообщением",
+    "placeholders": {
+      "message": {
+        "type": "String"
+      }
+    }
+  },
+  "failedToSearchAudiobooks": "Не удалось выполнить поиск аудиокниг",
+  "@failedToSearchAudiobooks": {
+    "description": "Сообщение об ошибке при неудачном поиске аудиокниг"
+  },
+  "failedToFetchCategories": "Не удалось получить категории: {message}",
+  "@failedToFetchCategories": {
+    "description": "Сообщение об ошибке при неудачном получении категорий",
+    "placeholders": {
+      "message": {
+        "type": "String"
+      }
+    }
+  },
+  "failedToGetCategories": "Не удалось получить категории",
+  "@failedToGetCategories": {
+    "description": "Сообщение об ошибке при неудачном получении категорий"
+  },
+  "failedToGetCategoryAudiobooksWithMessage": "Не удалось получить аудиокниги категории: {message}",
+  "@failedToGetCategoryAudiobooksWithMessage": {
+    "description": "Сообщение об ошибке при неудачном получении аудиокниг категории с сообщением",
+    "placeholders": {
+      "message": {
+        "type": "String"
+      }
+    }
+  },
+  "failedToGetCategoryAudiobooks": "Не удалось получить аудиокниги категории",
+  "@failedToGetCategoryAudiobooks": {
+    "description": "Сообщение об ошибке при неудачном получении аудиокниг категории"
+  },
+  "failedToFetchAudiobookDetails": "Не удалось получить детали аудиокниги: {message}",
+  "@failedToFetchAudiobookDetails": {
+    "description": "Сообщение об ошибке при неудачном получении деталей аудиокниги",
+    "placeholders": {
+      "message": {
+        "type": "String"
+      }
+    }
+  },
+  "failedToGetAudiobookDetails": "Не удалось получить детали аудиокниги",
+  "@failedToGetAudiobookDetails": {
+    "description": "Сообщение об ошибке при неудачном получении деталей аудиокниги"
+  },
+  "failedToFetchNewReleases": "Не удалось получить новые релизы: {message}",
+  "@failedToFetchNewReleases": {
+    "description": "Сообщение об ошибке при неудачном получении новых релизов",
+    "placeholders": {
+      "message": {
+        "type": "String"
+      }
+    }
+  },
+  "failedToSaveCredentials": "Не удалось сохранить учетные данные: {error}",
+  "@failedToSaveCredentials": {
+    "description": "Сообщение об ошибке при неудачном сохранении учетных данных",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "failedToRetrieveCredentials": "Не удалось получить учетные данные: {error}",
+  "@failedToRetrieveCredentials": {
+    "description": "Сообщение об ошибке при неудачном получении учетных данных",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "failedToClearCredentials": "Не удалось очистить учетные данные: {error}",
+  "@failedToClearCredentials": {
+    "description": "Сообщение об ошибке при неудачной очистке учетных данных",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "noCredentialsToExport": "Нет учетных данных для экспорта",
+  "@noCredentialsToExport": {
+    "description": "Сообщение об ошибке, когда нет учетных данных для экспорта"
+  },
+  "unsupportedExportFormat": "Неподдерживаемый формат экспорта: {format}",
+  "@unsupportedExportFormat": {
+    "description": "Сообщение об ошибке, когда формат экспорта не поддерживается",
+    "placeholders": {
+      "format": {
+        "type": "String"
+      }
+    }
+  },
+  "invalidCsvFormat": "Неверный формат CSV",
+  "@invalidCsvFormat": {
+    "description": "Сообщение об ошибке, когда формат CSV неверен"
+  },
+  "invalidCsvData": "Неверные данные CSV",
+  "@invalidCsvData": {
+    "description": "Сообщение об ошибке, когда данные CSV неверны"
+  },
+  "invalidJsonFormat": "Неверный формат JSON",
+  "@invalidJsonFormat": {
+    "description": "Сообщение об ошибке, когда формат JSON неверен"
+  },
+  "unsupportedImportFormat": "Неподдерживаемый формат импорта: {format}",
+  "@unsupportedImportFormat": {
+    "description": "Сообщение об ошибке, когда формат импорта не поддерживается",
+    "placeholders": {
+      "format": {
+        "type": "String"
+      }
+    }
+  },
+  "failedToImportCredentials": "Не удалось импортировать учетные данные: {error}",
+  "@failedToImportCredentials": {
+    "description": "Сообщение об ошибке при неудачном импорте учетных данных",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "errorWithDetails": "Ошибка: {error}",
+  "@errorWithDetails": {
+    "description": "Общее сообщение об ошибке с деталями ошибки",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "fileSingular": "файл",
+  "@fileSingular": {
+    "description": "Единственное число слова 'файл'"
+  },
+  "filePlural": "файлов",
+  "@filePlural": {
+    "description": "Множественное число слова 'файл'"
+  },
+  "deleteSelectedAudiobooksConfirmation": "Вы уверены, что хотите удалить {count} выбранную(ых) аудиокнигу(и)?",
+  "@deleteSelectedAudiobooksConfirmation": {
+    "description": "Сообщение подтверждения для удаления выбранных аудиокниг",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "clearPlaybackCacheDescription": "Это очистит кэш воспроизведения. Воспроизведение может быть медленнее, пока кэш не будет восстановлен.",
+  "@clearPlaybackCacheDescription": {
+    "description": "Описание того, что делает очистка кэша воспроизведения"
+  },
+  "clearAllCacheDescription": "Это очистит весь кэш, включая кэш воспроизведения, временные файлы и старые логи.",
+  "@clearAllCacheDescription": {
+    "description": "Описание того, что делает очистка всего кэша"
+  },
+  "sessionExpiredTitle": "Сессия истекла",
+  "@sessionExpiredTitle": {
+    "description": "Заголовок диалога об ошибке истечения сессии"
+  },
+  "sessionExpiredMessage": "Ваша сессия истекла. Пожалуйста, войдите в систему снова.",
+  "@sessionExpiredMessage": {
+    "description": "Сообщение об ошибке истечения сессии"
+  },
+  "invalidCredentialsTitle": "Ошибка авторизации",
+  "@invalidCredentialsTitle": {
+    "description": "Заголовок диалога об ошибке неверных учетных данных"
+  },
+  "invalidCredentialsMessage": "Неверный логин или пароль. Проверьте введенные данные.",
+  "@invalidCredentialsMessage": {
+    "description": "Сообщение об ошибке неверных учетных данных"
+  },
+  "loginRequiredTitle": "Требуется авторизация",
+  "@loginRequiredTitle": {
+    "description": "Заголовок диалога о необходимости входа"
+  },
+  "loginRequiredMessage": "Для выполнения этого действия необходимо войти в систему.",
+  "@loginRequiredMessage": {
+    "description": "Сообщение о необходимости входа"
+  },
+  "authorizationErrorTitle": "Ошибка авторизации",
+  "@authorizationErrorTitle": {
+    "description": "Заголовок диалога об общей ошибке авторизации"
+  },
+  "accessDeniedMessage": "Доступ запрещен. Проверьте правильность учетных данных или войдите снова.",
+  "@accessDeniedMessage": {
+    "description": "Сообщение об ошибке отказа в доступе"
+  },
+  "networkErrorTitle": "Ошибка сети",
+  "@networkErrorTitle": {
+    "description": "Заголовок диалога об ошибке сети"
+  },
+  "networkRequestFailedMessage": "Не удалось выполнить запрос. Проверьте подключение к интернету.",
+  "@networkRequestFailedMessage": {
+    "description": "Сообщение об ошибке неудачного сетевого запроса"
+  },
+  "errorOccurredMessage": "Произошла ошибка при выполнении операции.",
+  "@errorOccurredMessage": {
+    "description": "Общее сообщение об ошибке"
+  },
+  "sessionExpiredSnackBar": "Сессия истекла. Пожалуйста, войдите снова.",
+  "@sessionExpiredSnackBar": {
+    "description": "Сообщение snackbar об истечении сессии"
+  },
+  "invalidCredentialsSnackBar": "Неверный логин или пароль.",
+  "@invalidCredentialsSnackBar": {
+    "description": "Сообщение snackbar о неверных учетных данных"
+  },
+  "authorizationErrorSnackBar": "Ошибка авторизации. Проверьте учетные данные.",
+  "@authorizationErrorSnackBar": {
+    "description": "Сообщение snackbar об ошибке авторизации"
+  },
+  "networkErrorSnackBar": "Ошибка сети. Проверьте подключение.",
+  "@networkErrorSnackBar": {
+    "description": "Сообщение snackbar об ошибке сети"
+  },
+  "captchaVerificationRequired": "Требуется проверка капчи. Пожалуйста, попробуйте позже.",
+  "@captchaVerificationRequired": {
+    "description": "Сообщение, когда требуется проверка капчи"
+  },
+  "networkErrorCheckConnection": "Ошибка сети. Пожалуйста, проверьте подключение и попробуйте снова.",
+  "@networkErrorCheckConnection": {
+    "description": "Сообщение об ошибке сети с просьбой проверить подключение"
+  },
+  "authenticationFailedMessage": "Ошибка аутентификации. Пожалуйста, проверьте учетные данные и попробуйте снова.",
+  "@authenticationFailedMessage": {
+    "description": "Сообщение при неудачной аутентификации"
+  },
+  "loginFailedWithError": "Вход не удался: {error}",
+  "@loginFailedWithError": {
+    "description": "Сообщение о неудачном входе с деталями ошибки",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "noAccessibleAudioFiles": "Не найдено доступных аудиофайлов",
+  "@noAccessibleAudioFiles": {
+    "description": "Сообщение об ошибке, когда не найдено доступных аудиофайлов"
   }
 }

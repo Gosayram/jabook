@@ -214,7 +214,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                   _currentGroup = GroupOption.none;
                 });
               },
-              child: const Text('Reset'),
+              child: Text(AppLocalizations.of(context)?.resetButton ?? 'Reset'),
             ),
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(),
@@ -226,7 +226,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                 // Notify library content to update
                 setState(() {});
               },
-              child: const Text('Apply'),
+              child: Text(AppLocalizations.of(context)?.applyButton ?? 'Apply'),
             ),
           ],
         ),
@@ -921,9 +921,9 @@ class _LibraryContentState extends ConsumerState<_LibraryContent> {
       if (e.toString().contains('already_active')) {
         if (!mounted) return;
         messenger.showSnackBar(
-          const SnackBar(
-            content:
-                Text('File picker is already open. Please close it first.'),
+          SnackBar(
+            content: Text(localizations?.filePickerAlreadyOpen ??
+                'File picker is already open. Please close it first.'),
           ),
         );
         return;
@@ -1011,9 +1011,9 @@ class _LibraryContentState extends ConsumerState<_LibraryContent> {
       if (e.toString().contains('already_active')) {
         if (!mounted) return;
         messenger.showSnackBar(
-          const SnackBar(
-            content:
-                Text('File picker is already open. Please close it first.'),
+          SnackBar(
+            content: Text(localizations?.filePickerAlreadyOpen ??
+                'File picker is already open. Please close it first.'),
           ),
         );
         return;
@@ -1616,7 +1616,7 @@ extension _LibraryContentStateExtension on _LibraryContentState {
       messenger.showSnackBar(
         SnackBar(
           content: Text(
-            localizations?.permissionDeniedMessage ??
+            localizations?.permissionDeniedDeletionMessage ??
                 'Permission denied: Cannot delete file',
           ),
           backgroundColor: Colors.red,

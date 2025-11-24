@@ -95,6 +95,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
               ? (AppLocalizations.of(context)?.loginSuccessMessage ??
                   'Login successful!')
               : (AppLocalizations.of(context)?.loginFailedMessage ??
+                  AppLocalizations.of(context)?.loginFailedMessage ??
                   'Login failed. Please check credentials');
           _statusColor = success ? Colors.green : Colors.red;
           _isLoggingIn = false;
@@ -125,7 +126,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                 'Invalid username or password. Please check your credentials.';
           } else if (e.message.contains('captcha')) {
             _statusMessage =
-                'Captcha verification required. Please try again later.';
+                AppLocalizations.of(context)?.captchaVerificationRequired ??
+                    'Captcha verification required. Please try again later.';
           } else {
             _statusMessage = e.message;
           }
@@ -139,17 +141,20 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
           // Provide user-friendly error messages
           final errorMsg = e.toString().toLowerCase();
           if (errorMsg.contains('timeout') || errorMsg.contains('connection')) {
-            _statusMessage =
+            _statusMessage = AppLocalizations.of(context)
+                    ?.networkErrorCheckConnection ??
                 'Network error. Please check your connection and try again.';
           } else if (errorMsg.contains('authentication required') ||
               errorMsg.contains('network null') ||
               errorMsg.contains('null')) {
             // Handle authentication errors that might show as "network null"
-            _statusMessage = AppLocalizations.of(context)?.loginFailedMessage ??
+            _statusMessage = AppLocalizations.of(context)
+                    ?.authenticationFailedMessage ??
                 'Authentication failed. Please check your credentials and try again.';
           } else {
             final errorString = e.toString();
-            _statusMessage = AppLocalizations.of(context)?.loginFailedMessage ??
+            _statusMessage = AppLocalizations.of(context)
+                    ?.loginFailedWithError(errorString) ??
                 'Login failed: $errorString';
           }
           _statusColor = Colors.red;

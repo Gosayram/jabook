@@ -19,6 +19,7 @@ import 'package:jabook/core/utils/bluetooth_utils.dart' as bluetooth_utils;
 import 'package:jabook/core/utils/file_picker_utils.dart' as file_picker_utils;
 import 'package:jabook/core/utils/notification_utils.dart'
     as notification_utils;
+import 'package:jabook/l10n/app_localizations.dart';
 
 /// Widget that displays system capabilities and allows testing them.
 ///
@@ -60,9 +61,11 @@ class _SystemCapabilitiesWidgetState extends State<SystemCapabilitiesWidget> {
         _isLoading = false;
       });
       if (mounted) {
+        final localizations = AppLocalizations.of(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Ошибка проверки возможностей: $e'),
+            content: Text(localizations?.capabilityCheckError(e.toString()) ??
+                'Error checking capabilities: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -74,18 +77,22 @@ class _SystemCapabilitiesWidgetState extends State<SystemCapabilitiesWidget> {
     try {
       final files = await file_picker_utils.pickAnyFiles();
       if (mounted) {
+        final localizations = AppLocalizations.of(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Выбрано файлов: ${files.length}'),
+            content: Text(localizations?.filesSelected(files.length) ??
+                'Files selected: ${files.length}'),
             backgroundColor: Colors.green,
           ),
         );
       }
     } on Exception catch (e) {
       if (mounted) {
+        final localizations = AppLocalizations.of(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Ошибка выбора файлов: $e'),
+            content: Text(localizations?.fileSelectionError(e.toString()) ??
+                'Error selecting files: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -97,18 +104,22 @@ class _SystemCapabilitiesWidgetState extends State<SystemCapabilitiesWidget> {
     try {
       final images = await file_picker_utils.pickImageFiles();
       if (mounted) {
+        final localizations = AppLocalizations.of(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Выбрано изображений: ${images.length}'),
+            content: Text(localizations?.imagesSelected(images.length) ??
+                'Images selected: ${images.length}'),
             backgroundColor: Colors.green,
           ),
         );
       }
     } on Exception catch (e) {
       if (mounted) {
+        final localizations = AppLocalizations.of(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Ошибка выбора изображений: $e'),
+            content: Text(localizations?.imageSelectionError(e.toString()) ??
+                'Error selecting images: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -117,16 +128,19 @@ class _SystemCapabilitiesWidgetState extends State<SystemCapabilitiesWidget> {
   }
 
   Future<void> _testNotification() async {
+    final localizations = AppLocalizations.of(context);
     final success = await notification_utils.showSimpleNotification(
-      title: 'Тест уведомления',
-      body: 'Это тестовое уведомление от JaBook',
+      title: localizations?.testNotificationTitle ?? 'Test notification',
+      body: localizations?.testNotificationBody ??
+          'This is a test notification from JaBook',
     );
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(success
-              ? 'Уведомление отправлено'
-              : 'Не удалось отправить уведомление (канал не реализован)'),
+              ? (localizations?.notificationSent ?? 'Notification sent')
+              : (localizations?.failedToSendNotification ??
+                  'Failed to send notification (channel not implemented)')),
           backgroundColor: success ? Colors.green : Colors.orange,
         ),
       );
@@ -139,11 +153,12 @@ class _SystemCapabilitiesWidgetState extends State<SystemCapabilitiesWidget> {
       final pairedDevices = await bluetooth_utils.getPairedDevices();
 
       if (mounted) {
+        final localizations = AppLocalizations.of(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'Bluetooth доступен: $isAvailable\n'
-              'Сопряженных устройств: ${pairedDevices.length}',
+              '${localizations?.bluetoothAvailable(isAvailable.toString()) ?? 'Bluetooth available: $isAvailable'}\n'
+              '${localizations?.pairedDevicesCount(pairedDevices.length) ?? 'Paired devices: ${pairedDevices.length}'}',
             ),
             backgroundColor: isAvailable ? Colors.green : Colors.orange,
           ),
@@ -151,9 +166,11 @@ class _SystemCapabilitiesWidgetState extends State<SystemCapabilitiesWidget> {
       }
     } on Exception catch (e) {
       if (mounted) {
+        final localizations = AppLocalizations.of(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Ошибка проверки Bluetooth: $e'),
+            content: Text(localizations?.bluetoothCheckError(e.toString()) ??
+                'Error checking Bluetooth: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -172,9 +189,11 @@ class _SystemCapabilitiesWidgetState extends State<SystemCapabilitiesWidget> {
                 children: [
                   const Icon(Icons.settings_applications),
                   const SizedBox(width: 8),
-                  const Text(
-                    'Системные возможности',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  Text(
+                    AppLocalizations.of(context)?.systemCapabilitiesTitle ??
+                        'System Capabilities',
+                    style: const TextStyle(
+                        fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   const Spacer(),
                   IconButton(
@@ -190,31 +209,40 @@ class _SystemCapabilitiesWidgetState extends State<SystemCapabilitiesWidget> {
                 Column(
                   children: [
                     _buildCapabilityRow(
-                      'Доступ к файлам',
+                      context,
+                      AppLocalizations.of(context)?.fileAccessCapability ??
+                          'File Access',
                       _capabilities['files'] ?? false,
                       Icons.folder,
                       _testFilePicking,
                     ),
                     _buildCapabilityRow(
-                      'Доступ к изображениям',
+                      context,
+                      AppLocalizations.of(context)?.imageAccessCapability ??
+                          'Image Access',
                       _capabilities['media_files'] ?? false,
                       Icons.image,
                       _testImagePicking,
                     ),
                     _buildCapabilityRow(
-                      'Камера',
+                      context,
+                      AppLocalizations.of(context)?.cameraCapability ??
+                          'Camera',
                       _capabilities['camera'] ?? false,
                       Icons.camera_alt,
                       () async {
                         final messenger = ScaffoldMessenger.of(context);
+                        final localizations = AppLocalizations.of(context);
                         try {
                           final photo = await file_picker_utils.takePhoto();
                           if (!mounted) return;
                           messenger.showSnackBar(
                             SnackBar(
                               content: Text(photo != null
-                                  ? 'Фото сделано: $photo'
-                                  : 'Фото не сделано'),
+                                  ? (localizations?.photoTaken(photo) ??
+                                      'Photo taken: $photo')
+                                  : (localizations?.photoNotTaken ??
+                                      'Photo not taken')),
                               backgroundColor:
                                   photo != null ? Colors.green : Colors.orange,
                             ),
@@ -223,7 +251,9 @@ class _SystemCapabilitiesWidgetState extends State<SystemCapabilitiesWidget> {
                           if (!mounted) return;
                           messenger.showSnackBar(
                             SnackBar(
-                              content: Text('Ошибка камеры: $e'),
+                              content: Text(
+                                  localizations?.cameraError(e.toString()) ??
+                                      'Camera error: $e'),
                               backgroundColor: Colors.red,
                             ),
                           );
@@ -231,12 +261,15 @@ class _SystemCapabilitiesWidgetState extends State<SystemCapabilitiesWidget> {
                       },
                     ),
                     _buildCapabilityRow(
-                      'Уведомления',
+                      context,
+                      AppLocalizations.of(context)?.notificationsCapability ??
+                          'Notifications',
                       _capabilities['notifications'] ?? false,
                       Icons.notifications,
                       _testNotification,
                     ),
                     _buildCapabilityRow(
+                      context,
                       'Bluetooth',
                       _capabilities['bluetooth'] ?? false,
                       Icons.bluetooth,
@@ -249,7 +282,9 @@ class _SystemCapabilitiesWidgetState extends State<SystemCapabilitiesWidget> {
                 onPressed: () =>
                     _permissionService.showPermissionExplanationDialog(context),
                 icon: const Icon(Icons.info_outline),
-                label: const Text('Объяснение возможностей'),
+                label: Text(
+                    AppLocalizations.of(context)?.capabilityExplanationButton ??
+                        'Explain Capabilities'),
               ),
             ],
           ),
@@ -258,6 +293,7 @@ class _SystemCapabilitiesWidgetState extends State<SystemCapabilitiesWidget> {
 }
 
 Widget _buildCapabilityRow(
+  BuildContext context,
   String title,
   bool isAvailable,
   IconData icon,
@@ -288,7 +324,7 @@ Widget _buildCapabilityRow(
           const SizedBox(width: 8),
           TextButton(
             onPressed: isAvailable ? onTest : null,
-            child: const Text('Тест'),
+            child: Text(AppLocalizations.of(context)?.testButton ?? 'Test'),
           ),
         ],
       ),

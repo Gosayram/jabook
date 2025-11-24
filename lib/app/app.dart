@@ -22,6 +22,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:jabook/app/router/app_router.dart';
 import 'package:jabook/app/theme/app_theme.dart';
 import 'package:jabook/core/auth/rutracker_auth.dart';
+import 'package:jabook/core/background/background_compatibility_checker.dart';
 import 'package:jabook/core/background/download_background_service.dart';
 import 'package:jabook/core/cache/rutracker_cache_service.dart';
 import 'package:jabook/core/config/app_config.dart';
@@ -341,6 +342,27 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
       await Future.delayed(const Duration(milliseconds: 300));
       await _requestEssentialPermissions();
 
+      // Perform background compatibility check (non-blocking, Android only)
+      if (Platform.isAndroid) {
+        safeUnawaited(
+          () async {
+            try {
+              final checker = BackgroundCompatibilityChecker();
+              // Perform check but don't show UI immediately - let user discover it in settings
+              await checker.checkNow();
+              // Optionally show guidance if critical issues detected
+              // (commented out to be non-intrusive - user can check in settings)
+              // await checker.maybeShowGuidanceUI();
+            } on Exception catch (e) {
+              logger.w('Background compatibility check failed: $e');
+            }
+          }(),
+          onError: (e, stack) {
+            logger.w('Error in background compatibility check: $e');
+          },
+        );
+      }
+
       final envInitDuration =
           DateTime.now().difference(envInitStart).inMilliseconds;
 
@@ -390,7 +412,9 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
         try {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Initialization error: ${e.toString()}'),
+              content: Text(AppLocalizations.of(context)
+                      ?.initializationError(e.toString()) ??
+                  'Initialization error: ${e.toString()}'),
               backgroundColor: Colors.red,
               duration: const Duration(seconds: 5),
             ),
@@ -1175,7 +1199,9 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
                 title: config.appName,
                 home: Scaffold(
                   body: Center(
-                    child: Text('Error: ${e.toString()}'),
+                    child: Text(AppLocalizations.of(context)
+                            ?.errorWithDetails(e.toString()) ??
+                        'Error: ${e.toString()}'),
                   ),
                 ),
               );
@@ -1190,7 +1216,9 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
         title: 'JaBook',
         home: Scaffold(
           body: Center(
-            child: Text('Critical error: ${e.toString()}'),
+            child: Text(
+                AppLocalizations.of(context)?.criticalError(e.toString()) ??
+                    'Critical error: ${e.toString()}'),
           ),
         ),
       );

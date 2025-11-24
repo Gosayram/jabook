@@ -1593,15 +1593,17 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 } else if (isEncodingError) {
                   // Task 3.3: Distinguish encoding errors and suggest specific actions
                   _errorKind = 'network';
-                  _errorMessage =
+                  _errorMessage = AppLocalizations.of(context)
+                          ?.failedToParseSearchResultsEncoding ??
                       'Failed to parse search results due to encoding issue. '
-                      'This may be a temporary server problem. Please try again. '
-                      'If the problem persists, try changing the mirror in Settings → Sources.';
+                          'This may be a temporary server problem. Please try again. '
+                          'If the problem persists, try changing the mirror in Settings → Sources.';
                 } else {
                   _errorKind = 'network';
-                  _errorMessage =
+                  _errorMessage = AppLocalizations.of(context)
+                          ?.failedToParseSearchResultsStructure ??
                       'Failed to parse search results. The page structure may have changed. '
-                      'Please try again. If the problem persists, try changing the mirror in Settings → Sources.';
+                          'Please try again. If the problem persists, try changing the mirror in Settings → Sources.';
                 }
               });
             }
@@ -1787,6 +1789,11 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               false) ||
           (e.message?.toLowerCase().contains('authentication') ?? false);
 
+      // Check if error is server error (5xx)
+      final isServerError = e.response?.statusCode != null &&
+          e.response!.statusCode! >= 500 &&
+          e.response!.statusCode! < 600;
+
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -1796,9 +1803,15 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 AppLocalizations.of(context)?.authorizationFailedMessage ??
                     'Authentication required. Please log in.';
             safeUnawaited(_handleLogin());
+          } else if (isServerError) {
+            _errorKind = 'network';
+            _errorMessage = AppLocalizations.of(context)?.serverError ??
+                'Server is temporarily unavailable. Please try again later or choose another mirror.';
           } else {
             _errorKind = 'network';
-            _errorMessage = 'Search failed: $errorType';
+            _errorMessage =
+                AppLocalizations.of(context)?.searchFailedMessage(errorType) ??
+                    'Search failed: $errorType';
           }
         });
       }
@@ -1834,10 +1847,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             _isLoading = false;
             _errorKind = isDnsError ? 'mirror' : 'network';
             _errorMessage = isDnsError
-                ? (AppLocalizations.of(context)?.networkConnectionError ??
-                    'Could not connect. Check your internet or choose another mirror in Settings → Sources.')
+                ? (AppLocalizations.of(context)?.dnsError ??
+                    'Could not resolve domain. This may be due to network restrictions or an inactive mirror.')
                 : (AppLocalizations.of(context)?.connectionFailed ??
-                    'Connection failed. Please check your internet connection.');
+                    'Connection failed. Please check your internet connection or try a different mirror.');
           });
         }
         return;

@@ -42,33 +42,40 @@ class PermissionsOnboardingDialog extends StatelessWidget {
     final localizations = AppLocalizations.of(context);
 
     return AlertDialog(
-      title: const Text('Разрешения для JaBook'),
+      title: Text(
+          localizations?.permissionsForJaBookTitle ?? 'Permissions for JaBook'),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const _PermissionItem(
+            _PermissionItem(
               icon: Icons.folder_outlined,
-              title: 'Доступ к файлам',
-              description: 'Нужен для сохранения и воспроизведения аудиокниг.',
+              title: localizations?.fileAccessPermissionTitle ?? 'File Access',
+              description: localizations?.fileAccessPermissionDescription ??
+                  'Needed to save and play audiobooks.',
             ),
             const SizedBox(height: 16),
-            const _PermissionItem(
+            _PermissionItem(
               icon: Icons.notifications_outlined,
-              title: 'Уведомления',
-              description: 'Для управления воспроизведением из уведомлений.',
+              title: localizations?.notificationsPermissionTitle ??
+                  'Notifications',
+              description: localizations?.notificationsPermissionDescription ??
+                  'Show playback controls and updates',
             ),
             const SizedBox(height: 16),
-            const _PermissionItem(
+            _PermissionItem(
               icon: Icons.battery_saver_outlined,
-              title: 'Оптимизация батареи',
+              title: localizations?.batteryOptimizationPermissionTitle ??
+                  'Battery Optimization',
               description:
-                  'Чтобы приложение работало в фоне для воспроизведения.',
+                  localizations?.batteryOptimizationPermissionDescription ??
+                      'So the app can work in background for playback.',
             ),
             const SizedBox(height: 16),
             Text(
-              'Эти разрешения помогут обеспечить лучший опыт использования приложения.',
+              localizations?.permissionsHelpMessage ??
+                  'These permissions will help provide a better app experience.',
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ],
@@ -77,11 +84,11 @@ class PermissionsOnboardingDialog extends StatelessWidget {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(false),
-          child: Text(localizations?.cancel ?? 'Отмена'),
+          child: Text(localizations?.cancel ?? 'Cancel'),
         ),
         ElevatedButton(
           onPressed: () => Navigator.of(context).pop(true),
-          child: const Text('Продолжить'),
+          child: Text(localizations?.continueButton ?? 'Continue'),
         ),
       ],
     );

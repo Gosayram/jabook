@@ -1,5 +1,6 @@
 package com.jabook.app.jabook
 
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
@@ -131,6 +132,87 @@ class MainActivity : FlutterActivity() {
                     } else {
                         // For Android 10 and below, always return true (permission not needed)
                         result.success(true)
+                    }
+                }
+                else -> {
+                    result.notImplemented()
+                }
+            }
+        }
+        
+        // Register DeviceInfoChannel for device information queries
+        val deviceInfoChannel = MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            "device_info_channel"
+        )
+        
+        deviceInfoChannel.setMethodCallHandler { call, result ->
+            when (call.method) {
+                "getAppStandbyBucket" -> {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                        try {
+                            val usageStatsManager = getSystemService(Context.USAGE_STATS_SERVICE) as android.app.usage.UsageStatsManager
+                            val bucket = usageStatsManager.appStandbyBucket
+                            result.success(bucket)
+                        } catch (e: Exception) {
+                            result.error("GET_STANDBY_BUCKET_ERROR", "Failed to get App Standby Bucket: ${e.message}", null)
+                        }
+                    } else {
+                        result.error("UNSUPPORTED", "App Standby Bucket requires Android 9.0+ (API 28+)", null)
+                    }
+                }
+                "getRomVersion" -> {
+                    try {
+                        val romVersion = getRomVersion()
+                        result.success(romVersion)
+                    } catch (e: Exception) {
+                        result.error("GET_ROM_VERSION_ERROR", "Failed to get ROM version: ${e.message}", null)
+                    }
+                }
+                else -> {
+                    result.notImplemented()
+                }
+            }
+        }
+        
+        // Register ManufacturerSettingsChannel for opening manufacturer-specific settings
+        val manufacturerSettingsChannel = MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            "manufacturer_settings_channel"
+        )
+        
+        manufacturerSettingsChannel.setMethodCallHandler { call, result ->
+            when (call.method) {
+                "openAutostartSettings" -> {
+                    try {
+                        val success = ManufacturerSettingsHelper.openAutostartSettings(this, packageName)
+                        result.success(success)
+                    } catch (e: Exception) {
+                        result.error("OPEN_AUTOSTART_ERROR", "Failed to open autostart settings: ${e.message}", null)
+                    }
+                }
+                "openBatteryOptimizationSettings" -> {
+                    try {
+                        val success = ManufacturerSettingsHelper.openBatteryOptimizationSettings(this, packageName)
+                        result.success(success)
+                    } catch (e: Exception) {
+                        result.error("OPEN_BATTERY_ERROR", "Failed to open battery optimization settings: ${e.message}", null)
+                    }
+                }
+                "openBackgroundRestrictionsSettings" -> {
+                    try {
+                        val success = ManufacturerSettingsHelper.openBackgroundRestrictionsSettings(this, packageName)
+                        result.success(success)
+                    } catch (e: Exception) {
+                        result.error("OPEN_BACKGROUND_ERROR", "Failed to open background restrictions settings: ${e.message}", null)
+                    }
+                }
+                "checkAutostartEnabled" -> {
+                    try {
+                        val enabled = ManufacturerSettingsHelper.isAutostartEnabled(this, packageName)
+                        result.success(enabled)
+                    } catch (e: Exception) {
+                        result.error("CHECK_AUTOSTART_ERROR", "Failed to check autostart status: ${e.message}", null)
                     }
                 }
                 else -> {
@@ -374,6 +456,94 @@ class MainActivity : FlutterActivity() {
                 val channel = MethodChannel(messenger, "com.jabook.app.jabook/notification")
                 channel.invokeMethod("openPlayer", null)
             }
+        }
+    }
+    
+    /**
+     * Gets the ROM version by reading system properties.
+     *
+     * Different manufacturers store ROM version in different system properties:
+     * - MIUI: ro.miui.ui.version.name, ro.miui.ui.version.code
+     * - EMUI: ro.build.version.emui
+     * - ColorOS: ro.build.version.opporom
+     * - One UI: ro.build.version.oneui
+     * - FuntouchOS: ro.vivo.os.version
+     * - Flyme: ro.build.display.id
+     *
+     * @return ROM version string (e.g., "MIUI 14.0", "EMUI 12.0") or null if unavailable
+     */
+    private fun getRomVersion(): String? {
+        return try {
+            val manufacturer = Build.MANUFACTURER.lowercase()
+            val brand = Build.BRAND.lowercase()
+            
+            // Try to get ROM version from system properties
+            when {
+                manufacturer.contains("xiaomi") || brand.contains("xiaomi") ||
+                brand.contains("redmi") || brand.contains("poco") -> {
+                    // MIUI version
+                    val miuiVersion = getSystemProperty("ro.miui.ui.version.name")
+                    val miuiCode = getSystemProperty("ro.miui.ui.version.code")
+                    when {
+                        miuiVersion != null -> "MIUI $miuiVersion"
+                        miuiCode != null -> "MIUI $miuiCode"
+                        else -> null
+                    }
+                }
+                manufacturer.contains("huawei") || brand.contains("huawei") ||
+                brand.contains("honor") -> {
+                    // EMUI/HarmonyOS version
+                    val emuiVersion = getSystemProperty("ro.build.version.emui")
+                    emuiVersion?.let { "EMUI $it" } ?: "EMUI"
+                }
+                manufacturer.contains("oppo") || brand.contains("oppo") ||
+                manufacturer.contains("realme") || brand.contains("realme") ||
+                manufacturer.contains("oneplus") || brand.contains("oneplus") -> {
+                    // ColorOS/RealmeUI/OxygenOS version
+                    val colorOsVersion = getSystemProperty("ro.build.version.opporom")
+                    colorOsVersion?.let { "ColorOS $it" } ?: null
+                }
+                manufacturer.contains("samsung") || brand.contains("samsung") -> {
+                    // One UI version
+                    val oneUiVersion = getSystemProperty("ro.build.version.oneui")
+                    oneUiVersion?.let { "One UI $it" } ?: null
+                }
+                manufacturer.contains("vivo") || brand.contains("vivo") -> {
+                    // FuntouchOS/OriginOS version
+                    val funtouchVersion = getSystemProperty("ro.vivo.os.version")
+                    funtouchVersion?.let { "FuntouchOS $it" } ?: null
+                }
+                manufacturer.contains("meizu") || brand.contains("meizu") -> {
+                    // Flyme version
+                    val flymeVersion = getSystemProperty("ro.build.display.id")
+                    flymeVersion?.let { "Flyme $it" } ?: null
+                }
+                else -> null
+            }
+        } catch (e: Exception) {
+            android.util.Log.w("MainActivity", "Failed to get ROM version: ${e.message}")
+            null
+        }
+    }
+    
+    /**
+     * Gets a system property value.
+     *
+     * @param key The system property key
+     * @return The property value or null if unavailable
+     */
+    private fun getSystemProperty(key: String): String? {
+        return try {
+            val process = Runtime.getRuntime().exec("getprop $key")
+            val reader = java.io.BufferedReader(
+                java.io.InputStreamReader(process.inputStream)
+            )
+            val value = reader.readLine()
+            reader.close()
+            process.waitFor()
+            if (value.isNullOrEmpty()) null else value.trim()
+        } catch (e: Exception) {
+            null
         }
     }
 }

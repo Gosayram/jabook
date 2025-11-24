@@ -103,7 +103,8 @@ class _MirrorsScreenState extends ConsumerState<MirrorsScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Активное зеркало установлено: $url'),
+            content:
+                Text(AppLocalizations.of(context)!.activeMirrorSetMessage(url)),
             backgroundColor: Colors.green,
             duration: const Duration(seconds: 2),
           ),
@@ -121,7 +122,8 @@ class _MirrorsScreenState extends ConsumerState<MirrorsScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Не удалось установить активное зеркало: $e'),
+            content: Text(AppLocalizations.of(context)!
+                .failedToSetActiveMirrorMessage(e.toString())),
             backgroundColor: Colors.red,
             duration: const Duration(seconds: 3),
           ),

@@ -413,10 +413,10 @@ abstract class AppLocalizations {
   /// **'Permission Denied'**
   String get permissionDeniedTitle;
 
-  /// Error message when permission is denied
+  /// Message for permission denied dialog
   ///
   /// In en, this message translates to:
-  /// **'Permission denied: Cannot delete file'**
+  /// **'Storage permission is required to download files. Please enable it in app settings.'**
   String get permissionDeniedMessage;
 
   /// Button text for permission denied action
@@ -605,10 +605,10 @@ abstract class AppLocalizations {
   /// **'Memory usage'**
   String get memoryUsage;
 
-  /// Menu item for clearing all cache
+  /// Clear all cache button text
   ///
   /// In en, this message translates to:
-  /// **'Clear all cache'**
+  /// **'Clear All Cache'**
   String get clearAllCache;
 
   /// Title for mirrors screen
@@ -737,7 +737,7 @@ abstract class AppLocalizations {
   /// **'Skip duration'**
   String get skipDuration;
 
-  /// Title for downloads screen
+  /// Title for downloads settings
   ///
   /// In en, this message translates to:
   /// **'Downloads'**
@@ -1319,7 +1319,7 @@ abstract class AppLocalizations {
   /// **'Add Custom Mirror'**
   String get addCustomMirrorButtonText;
 
-  /// Text showing priority
+  /// Text for showing mirror priority
   ///
   /// In en, this message translates to:
   /// **'Priority: \$priority'**
@@ -1961,7 +1961,7 @@ abstract class AppLocalizations {
   /// **'Search History'**
   String get searchHistoryTitle;
 
-  /// Button to clear
+  /// Button to clear history
   ///
   /// In en, this message translates to:
   /// **'Clear'**
@@ -3095,6 +3095,12 @@ abstract class AppLocalizations {
   /// **'Details'**
   String get showDetailsButton;
 
+  /// Error message when permission is denied for file deletion
+  ///
+  /// In en, this message translates to:
+  /// **'Permission denied: Cannot delete file'**
+  String get permissionDeniedDeletionMessage;
+
   /// Title for deletion details dialog
   ///
   /// In en, this message translates to:
@@ -3118,6 +3124,1416 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Retry'**
   String get retryButton;
+
+  /// Title for background compatibility screen
+  ///
+  /// In en, this message translates to:
+  /// **'Background Work'**
+  String get backgroundWorkTitle;
+
+  /// Tooltip for refresh button
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh diagnostics'**
+  String get refreshDiagnostics;
+
+  /// Section title for device information
+  ///
+  /// In en, this message translates to:
+  /// **'Device Information'**
+  String get deviceInformation;
+
+  /// Label for device manufacturer
+  ///
+  /// In en, this message translates to:
+  /// **'Manufacturer'**
+  String get manufacturer;
+
+  /// Label for custom ROM
+  ///
+  /// In en, this message translates to:
+  /// **'Custom ROM'**
+  String get customRom;
+
+  /// Label for Android version
+  ///
+  /// In en, this message translates to:
+  /// **'Android Version'**
+  String get androidVersion;
+
+  /// Label for App Standby Bucket
+  ///
+  /// In en, this message translates to:
+  /// **'Background Activity Mode'**
+  String get backgroundActivityMode;
+
+  /// Status when compatibility is OK
+  ///
+  /// In en, this message translates to:
+  /// **'Compatibility: OK'**
+  String get compatibilityOk;
+
+  /// Status when issues are detected
+  ///
+  /// In en, this message translates to:
+  /// **'Issues Detected'**
+  String get issuesDetected;
+
+  /// Title for detected issues section
+  ///
+  /// In en, this message translates to:
+  /// **'Detected Issues:'**
+  String get detectedIssues;
+
+  /// Title for recommendations section
+  ///
+  /// In en, this message translates to:
+  /// **'Recommendations'**
+  String get recommendations;
+
+  /// Title for manufacturer settings section
+  ///
+  /// In en, this message translates to:
+  /// **'Manufacturer Settings'**
+  String get manufacturerSettings;
+
+  /// Description for manufacturer settings section
+  ///
+  /// In en, this message translates to:
+  /// **'To ensure stable background operation, you need to configure manufacturer-specific device settings.'**
+  String get manufacturerSettingsDescription;
+
+  /// Title for autostart settings
+  ///
+  /// In en, this message translates to:
+  /// **'Autostart Application'**
+  String get autostartApp;
+
+  /// Subtitle for autostart settings
+  ///
+  /// In en, this message translates to:
+  /// **'Enable autostart for stable operation'**
+  String get enableAutostart;
+
+  /// Title for battery optimization settings
+  ///
+  /// In en, this message translates to:
+  /// **'Battery Optimization'**
+  String get batteryOptimization;
+
+  /// Subtitle for battery optimization settings
+  ///
+  /// In en, this message translates to:
+  /// **'Disable battery optimization for the application'**
+  String get disableBatteryOptimization;
+
+  /// Title for background activity settings
+  ///
+  /// In en, this message translates to:
+  /// **'Background Activity'**
+  String get backgroundActivity;
+
+  /// Subtitle for background activity settings
+  ///
+  /// In en, this message translates to:
+  /// **'Allow background activity'**
+  String get allowBackgroundActivity;
+
+  /// Button to show instructions
+  ///
+  /// In en, this message translates to:
+  /// **'Show Instructions'**
+  String get showInstructions;
+
+  /// Title for WorkManager diagnostics section
+  ///
+  /// In en, this message translates to:
+  /// **'WorkManager Diagnostics'**
+  String get workManagerDiagnostics;
+
+  /// Title for last executions list
+  ///
+  /// In en, this message translates to:
+  /// **'Last Executions:'**
+  String get lastExecutions;
+
+  /// Message when execution history is empty
+  ///
+  /// In en, this message translates to:
+  /// **'Execution history is empty'**
+  String get executionHistoryEmpty;
+
+  /// Label for total executions
+  ///
+  /// In en, this message translates to:
+  /// **'Total'**
+  String get total;
+
+  /// Label for successful executions
+  ///
+  /// In en, this message translates to:
+  /// **'Successful'**
+  String get successful;
+
+  /// Label for failed executions
+  ///
+  /// In en, this message translates to:
+  /// **'Errors'**
+  String get errors;
+
+  /// Label for average delay
+  ///
+  /// In en, this message translates to:
+  /// **'Avg. Delay'**
+  String get avgDelay;
+
+  /// Abbreviation for minutes
+  ///
+  /// In en, this message translates to:
+  /// **'min'**
+  String get minutesAbbr;
+
+  /// Delay information
+  ///
+  /// In en, this message translates to:
+  /// **'Delay: {minutes} min'**
+  String delay(int minutes);
+
+  /// Error information
+  ///
+  /// In en, this message translates to:
+  /// **'Error: {reason}'**
+  String errorLabel(String reason);
+
+  /// Issue message for restricted standby bucket
+  ///
+  /// In en, this message translates to:
+  /// **'Application is in restricted background activity mode (Standby Bucket: {bucket})'**
+  String appStandbyBucketRestricted(String bucket);
+
+  /// Recommendation to use app more frequently
+  ///
+  /// In en, this message translates to:
+  /// **'Use the application more frequently so the system moves it to active mode'**
+  String get useAppMoreFrequently;
+
+  /// Issue message for aggressive battery optimization
+  ///
+  /// In en, this message translates to:
+  /// **'Device from manufacturer with aggressive battery optimization detected ({manufacturer}, {rom})'**
+  String aggressiveBatteryOptimization(String manufacturer, String rom);
+
+  /// Recommendation to configure autostart and battery
+  ///
+  /// In en, this message translates to:
+  /// **'It is recommended to configure autostart and disable battery optimization for the application'**
+  String get configureAutostartAndBattery;
+
+  /// Recommendation to open manufacturer settings
+  ///
+  /// In en, this message translates to:
+  /// **'Open manufacturer settings through the application menu'**
+  String get openManufacturerSettings;
+
+  /// Recommendation for Android 14+
+  ///
+  /// In en, this message translates to:
+  /// **'On Android 14+, make sure Foreground Services start correctly'**
+  String get android14ForegroundServices;
+
+  /// Event message when compatibility issues are detected
+  ///
+  /// In en, this message translates to:
+  /// **'Background work issues detected'**
+  String get compatibilityIssuesDetected;
+
+  /// Event message when WorkManager task is delayed
+  ///
+  /// In en, this message translates to:
+  /// **'WorkManager task \"{taskName}\" delayed by {hours} hours (expected: {minutes} minutes)'**
+  String workManagerTaskDelayed(String taskName, int hours, int minutes);
+
+  /// Event message when foreground service is killed
+  ///
+  /// In en, this message translates to:
+  /// **'Foreground Service \"{serviceName}\" was unexpectedly terminated by the system'**
+  String foregroundServiceKilled(String serviceName);
+
+  /// App Standby Bucket status: Active
+  ///
+  /// In en, this message translates to:
+  /// **'Actively Used'**
+  String get standbyBucketActive;
+
+  /// App Standby Bucket status: Working Set
+  ///
+  /// In en, this message translates to:
+  /// **'Frequently Used'**
+  String get standbyBucketWorkingSet;
+
+  /// App Standby Bucket status: Frequent
+  ///
+  /// In en, this message translates to:
+  /// **'Regularly Used'**
+  String get standbyBucketFrequent;
+
+  /// App Standby Bucket status: Rare
+  ///
+  /// In en, this message translates to:
+  /// **'Rarely Used'**
+  String get standbyBucketRare;
+
+  /// App Standby Bucket status: Never
+  ///
+  /// In en, this message translates to:
+  /// **'Never Used (Restricted)'**
+  String get standbyBucketNever;
+
+  /// App Standby Bucket status: Unknown
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown ({bucket})'**
+  String standbyBucketUnknown(int bucket);
+
+  /// App Standby Bucket description: Active
+  ///
+  /// In en, this message translates to:
+  /// **'Actively Used'**
+  String get standbyBucketActiveUsed;
+
+  /// App Standby Bucket description: Frequently
+  ///
+  /// In en, this message translates to:
+  /// **'Frequently Used'**
+  String get standbyBucketFrequentlyUsed;
+
+  /// App Standby Bucket description: Regularly
+  ///
+  /// In en, this message translates to:
+  /// **'Regularly Used'**
+  String get standbyBucketRegularlyUsed;
+
+  /// App Standby Bucket description: Rarely
+  ///
+  /// In en, this message translates to:
+  /// **'Rarely Used'**
+  String get standbyBucketRarelyUsed;
+
+  /// App Standby Bucket description: Never
+  ///
+  /// In en, this message translates to:
+  /// **'Never Used (Restricted)'**
+  String get standbyBucketNeverUsed;
+
+  /// Title for manufacturer settings dialog
+  ///
+  /// In en, this message translates to:
+  /// **'Settings for Stable Operation'**
+  String get manufacturerSettingsTitle;
+
+  /// Description for manufacturer settings dialog
+  ///
+  /// In en, this message translates to:
+  /// **'To ensure stable operation, you need to configure the following settings:'**
+  String get manufacturerSettingsDialogDescription;
+
+  /// Step 1: Enable autostart
+  ///
+  /// In en, this message translates to:
+  /// **'1. Enable application autostart'**
+  String get enableAutostartStep;
+
+  /// Step 2: Disable battery optimization
+  ///
+  /// In en, this message translates to:
+  /// **'2. Disable battery optimization for the application'**
+  String get disableBatteryOptimizationStep;
+
+  /// Step 3: Allow background activity
+  ///
+  /// In en, this message translates to:
+  /// **'3. Allow background activity'**
+  String get allowBackgroundActivityStep;
+
+  /// Message showing detected ROM
+  ///
+  /// In en, this message translates to:
+  /// **'Detected ROM: {rom}'**
+  String detectedRom(String rom);
+
+  /// Button to skip
+  ///
+  /// In en, this message translates to:
+  /// **'Skip'**
+  String get skip;
+
+  /// Button to acknowledge
+  ///
+  /// In en, this message translates to:
+  /// **'Got It'**
+  String get gotIt;
+
+  /// Title for background compatibility banner
+  ///
+  /// In en, this message translates to:
+  /// **'Background Operation Settings'**
+  String get backgroundCompatibilityBannerTitle;
+
+  /// Message for background compatibility banner
+  ///
+  /// In en, this message translates to:
+  /// **'To ensure stable background operation, you may need to configure device settings.'**
+  String get backgroundCompatibilityBannerMessage;
+
+  /// Button to dismiss banner or dialog
+  ///
+  /// In en, this message translates to:
+  /// **'Dismiss'**
+  String get dismiss;
+
+  /// Message for successful login
+  ///
+  /// In en, this message translates to:
+  /// **'Login successful!'**
+  String get loginSuccessfulMessage;
+
+  /// Button to open settings
+  ///
+  /// In en, this message translates to:
+  /// **'Open Settings'**
+  String get openSettingsButton;
+
+  /// Title for compatibility and diagnostics section
+  ///
+  /// In en, this message translates to:
+  /// **'Compatibility & Diagnostics'**
+  String get compatibilityDiagnosticsTitle;
+
+  /// Subtitle for compatibility and diagnostics section
+  ///
+  /// In en, this message translates to:
+  /// **'Compatibility check and manufacturer settings configuration'**
+  String get compatibilityDiagnosticsSubtitle;
+
+  /// Button to select folder
+  ///
+  /// In en, this message translates to:
+  /// **'Select Folder'**
+  String get selectFolderButton;
+
+  /// Button to continue
+  ///
+  /// In en, this message translates to:
+  /// **'Continue'**
+  String get continueButton;
+
+  /// Error message when adding folder fails
+  ///
+  /// In en, this message translates to:
+  /// **'Error adding folder: \$error'**
+  String errorAddingFolder(String error);
+
+  /// Error message when audiobook group is missing
+  ///
+  /// In en, this message translates to:
+  /// **'No audiobook group provided'**
+  String get noAudiobookGroupProvided;
+
+  /// Notification message when sleep timer pauses playback
+  ///
+  /// In en, this message translates to:
+  /// **'Sleep timer: Playback paused'**
+  String get sleepTimerPaused;
+
+  /// Error message when speed change fails
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to change speed: \$error'**
+  String failedToChangeSpeed(String error);
+
+  /// Button to cancel timer
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel timer'**
+  String get cancelTimerButton;
+
+  /// Label for end of chapter
+  ///
+  /// In en, this message translates to:
+  /// **'End of chapter'**
+  String get endOfChapterLabel;
+
+  /// Label for at end of chapter
+  ///
+  /// In en, this message translates to:
+  /// **'At end of chapter'**
+  String get atEndOfChapterLabel;
+
+  /// Label for items in trash
+  ///
+  /// In en, this message translates to:
+  /// **'Items in Trash'**
+  String get itemsInTrashLabel;
+
+  /// Label for trash size
+  ///
+  /// In en, this message translates to:
+  /// **'Trash Size'**
+  String get trashSizeLabel;
+
+  /// Button to manage trash
+  ///
+  /// In en, this message translates to:
+  /// **'Manage Trash'**
+  String get manageTrashButton;
+
+  /// Singular form of file
+  ///
+  /// In en, this message translates to:
+  /// **'file'**
+  String get fileLabel;
+
+  /// Plural form of file
+  ///
+  /// In en, this message translates to:
+  /// **'files'**
+  String get filesLabel;
+
+  /// Error message when loading trash fails
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to load trash: \$error'**
+  String failedToLoadTrash(String error);
+
+  /// Message when item is restored
+  ///
+  /// In en, this message translates to:
+  /// **'Item restored successfully'**
+  String get itemRestoredSuccessfully;
+
+  /// Error message when restore fails
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to restore item'**
+  String get failedToRestoreItem;
+
+  /// Error message when restoring item fails
+  ///
+  /// In en, this message translates to:
+  /// **'Error restoring item: \$error'**
+  String errorRestoringItem(String error);
+
+  /// Title for permanently delete dialog
+  ///
+  /// In en, this message translates to:
+  /// **'Permanently Delete'**
+  String get permanentlyDeleteTitle;
+
+  /// Confirmation message for permanent deletion
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to permanently delete \"{name}\"? This action cannot be undone.'**
+  String permanentlyDeleteMessage(String name);
+
+  /// Message when item is permanently deleted
+  ///
+  /// In en, this message translates to:
+  /// **'Item permanently deleted'**
+  String get itemPermanentlyDeleted;
+
+  /// Error message when deletion fails
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to delete item'**
+  String get failedToDeleteItem;
+
+  /// Error message when deleting item fails
+  ///
+  /// In en, this message translates to:
+  /// **'Error deleting item: \$error'**
+  String errorDeletingItem(String error);
+
+  /// Title for clear all trash dialog
+  ///
+  /// In en, this message translates to:
+  /// **'Clear All Trash'**
+  String get clearAllTrashTitle;
+
+  /// Confirmation message for clearing all trash
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to permanently delete all items in trash? This action cannot be undone.'**
+  String get clearAllTrashMessage;
+
+  /// Error message when file picker is already open
+  ///
+  /// In en, this message translates to:
+  /// **'File picker is already open. Please close it first.'**
+  String get filePickerAlreadyOpen;
+
+  /// Button to apply changes
+  ///
+  /// In en, this message translates to:
+  /// **'Apply'**
+  String get applyButton;
+
+  /// Sort option for last message
+  ///
+  /// In en, this message translates to:
+  /// **'Last message'**
+  String get lastMessageSort;
+
+  /// Sort option for topic name
+  ///
+  /// In en, this message translates to:
+  /// **'Topic name'**
+  String get topicNameSort;
+
+  /// Sort option for posting time
+  ///
+  /// In en, this message translates to:
+  /// **'Posting time'**
+  String get postingTimeSort;
+
+  /// Error message when operation times out
+  ///
+  /// In en, this message translates to:
+  /// **'Operation timed out. Please try again.'**
+  String get operationTimedOut;
+
+  /// Error message when permission is denied for downloads
+  ///
+  /// In en, this message translates to:
+  /// **'Permission denied. Please check app permissions in settings.'**
+  String get permissionDeniedDownloads;
+
+  /// Error message when download is not found
+  ///
+  /// In en, this message translates to:
+  /// **'Download not found. It may have been removed.'**
+  String get downloadNotFound;
+
+  /// Generic error message
+  ///
+  /// In en, this message translates to:
+  /// **'An error occurred. Please try again.'**
+  String get anErrorOccurred;
+
+  /// Error message during initialization
+  ///
+  /// In en, this message translates to:
+  /// **'Initialization error: \$error'**
+  String initializationError(String error);
+
+  /// Critical error message
+  ///
+  /// In en, this message translates to:
+  /// **'Critical error: \$error'**
+  String criticalError(String error);
+
+  /// Error message when checking capabilities fails
+  ///
+  /// In en, this message translates to:
+  /// **'Error checking capabilities: \$error'**
+  String capabilityCheckError(String error);
+
+  /// Message when files are selected
+  ///
+  /// In en, this message translates to:
+  /// **'Files selected: \$count'**
+  String filesSelected(int count);
+
+  /// Error message when file selection fails
+  ///
+  /// In en, this message translates to:
+  /// **'Error selecting files: \$error'**
+  String fileSelectionError(String error);
+
+  /// Message when images are selected
+  ///
+  /// In en, this message translates to:
+  /// **'Images selected: \$count'**
+  String imagesSelected(int count);
+
+  /// Error message when image selection fails
+  ///
+  /// In en, this message translates to:
+  /// **'Error selecting images: \$error'**
+  String imageSelectionError(String error);
+
+  /// Title for test notification
+  ///
+  /// In en, this message translates to:
+  /// **'Test notification'**
+  String get testNotificationTitle;
+
+  /// Body text for test notification
+  ///
+  /// In en, this message translates to:
+  /// **'This is a test notification from JaBook'**
+  String get testNotificationBody;
+
+  /// Message when notification is sent
+  ///
+  /// In en, this message translates to:
+  /// **'Notification sent'**
+  String get notificationSent;
+
+  /// Error message when notification fails
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to send notification (channel not implemented)'**
+  String get failedToSendNotification;
+
+  /// Message showing Bluetooth availability
+  ///
+  /// In en, this message translates to:
+  /// **'Bluetooth available: \$available'**
+  String bluetoothAvailable(String available);
+
+  /// Message showing paired devices count
+  ///
+  /// In en, this message translates to:
+  /// **'Paired devices: \$count'**
+  String pairedDevicesCount(int count);
+
+  /// Error message when Bluetooth check fails
+  ///
+  /// In en, this message translates to:
+  /// **'Error checking Bluetooth: \$error'**
+  String bluetoothCheckError(String error);
+
+  /// Title for system capabilities section
+  ///
+  /// In en, this message translates to:
+  /// **'System Capabilities'**
+  String get systemCapabilitiesTitle;
+
+  /// Name for file access capability
+  ///
+  /// In en, this message translates to:
+  /// **'File Access'**
+  String get fileAccessCapability;
+
+  /// Name for image access capability
+  ///
+  /// In en, this message translates to:
+  /// **'Image Access'**
+  String get imageAccessCapability;
+
+  /// Name for camera capability
+  ///
+  /// In en, this message translates to:
+  /// **'Camera'**
+  String get cameraCapability;
+
+  /// Message when photo is taken
+  ///
+  /// In en, this message translates to:
+  /// **'Photo taken: \$path'**
+  String photoTaken(String path);
+
+  /// Message when photo is not taken
+  ///
+  /// In en, this message translates to:
+  /// **'Photo not taken'**
+  String get photoNotTaken;
+
+  /// Error message when camera fails
+  ///
+  /// In en, this message translates to:
+  /// **'Camera error: \$error'**
+  String cameraError(String error);
+
+  /// Name for notifications capability
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications'**
+  String get notificationsCapability;
+
+  /// Button to explain capabilities
+  ///
+  /// In en, this message translates to:
+  /// **'Explain Capabilities'**
+  String get capabilityExplanationButton;
+
+  /// Button to test capability
+  ///
+  /// In en, this message translates to:
+  /// **'Test'**
+  String get testButton;
+
+  /// Title for permissions onboarding dialog
+  ///
+  /// In en, this message translates to:
+  /// **'Permissions for JaBook'**
+  String get permissionsForJaBookTitle;
+
+  /// Title for file access permission
+  ///
+  /// In en, this message translates to:
+  /// **'File Access'**
+  String get fileAccessPermissionTitle;
+
+  /// Description for file access permission
+  ///
+  /// In en, this message translates to:
+  /// **'Needed to save and play audiobooks.'**
+  String get fileAccessPermissionDescription;
+
+  /// Title for notifications permission
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications'**
+  String get notificationsPermissionTitle;
+
+  /// Title for battery optimization permission
+  ///
+  /// In en, this message translates to:
+  /// **'Battery Optimization'**
+  String get batteryOptimizationPermissionTitle;
+
+  /// Description for battery optimization permission
+  ///
+  /// In en, this message translates to:
+  /// **'So the app can work in background for playback.'**
+  String get batteryOptimizationPermissionDescription;
+
+  /// Message explaining why permissions are needed
+  ///
+  /// In en, this message translates to:
+  /// **'These permissions will help provide a better app experience.'**
+  String get permissionsHelpMessage;
+
+  /// Label for URL display
+  ///
+  /// In en, this message translates to:
+  /// **'URL: \$url'**
+  String urlLabel(String url);
+
+  /// Title for RuTracker section
+  ///
+  /// In en, this message translates to:
+  /// **'RuTracker'**
+  String get rutrackerTitle;
+
+  /// Button text for WebView login
+  ///
+  /// In en, this message translates to:
+  /// **'Login to RuTracker via WebView'**
+  String get webViewLoginButton;
+
+  /// Subtitle for WebView login button
+  ///
+  /// In en, this message translates to:
+  /// **'Pass Cloudflare/captcha and save cookies for client'**
+  String get webViewLoginSubtitle;
+
+  /// Success message when cookies are saved
+  ///
+  /// In en, this message translates to:
+  /// **'Cookies saved for HTTP client'**
+  String get cookieSavedMessage;
+
+  /// Error message when search results parsing fails due to encoding issue
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to parse search results due to encoding issue. This may be a temporary server problem. Please try again. If the problem persists, try changing the mirror in Settings → Sources.'**
+  String get failedToParseSearchResultsEncoding;
+
+  /// Error message when search results parsing fails due to page structure change
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to parse search results. The page structure may have changed. Please try again. If the problem persists, try changing the mirror in Settings → Sources.'**
+  String get failedToParseSearchResultsStructure;
+
+  /// Error message when search fails
+  ///
+  /// In en, this message translates to:
+  /// **'Search failed: {errorType}'**
+  String searchFailedMessage(String errorType);
+
+  /// Sort option label for topic title
+  ///
+  /// In en, this message translates to:
+  /// **'Topic title'**
+  String get topicTitleSort;
+
+  /// Sort option label for post time
+  ///
+  /// In en, this message translates to:
+  /// **'Post time'**
+  String get postTimeSort;
+
+  /// Success message when local stream server starts
+  ///
+  /// In en, this message translates to:
+  /// **'Local stream server started on http://{host}:{port}'**
+  String localStreamServerStarted(String host, int port);
+
+  /// Error message when stream server fails to start
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to start stream server: {error}'**
+  String failedToStartStreamServer(String error);
+
+  /// Success message when local stream server stops
+  ///
+  /// In en, this message translates to:
+  /// **'Local stream server stopped'**
+  String get localStreamServerStopped;
+
+  /// Error message when stream server fails to stop
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to stop stream server: {error}'**
+  String failedToStopStreamServer(String error);
+
+  /// Error message when book ID parameter is missing
+  ///
+  /// In en, this message translates to:
+  /// **'Missing book ID parameter'**
+  String get missingBookIdParameter;
+
+  /// Error message when file index parameter is invalid
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid file index parameter'**
+  String get invalidFileIndexParameter;
+
+  /// Error message when file is not found
+  ///
+  /// In en, this message translates to:
+  /// **'File not found'**
+  String get fileNotFound;
+
+  /// Error message for streaming errors
+  ///
+  /// In en, this message translates to:
+  /// **'Streaming error'**
+  String get streamingError;
+
+  /// Error message when range header is invalid
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid range header'**
+  String get invalidRangeHeader;
+
+  /// Error message when requested range cannot be satisfied
+  ///
+  /// In en, this message translates to:
+  /// **'Requested range not satisfiable'**
+  String get requestedRangeNotSatisfiable;
+
+  /// Error message for range request errors
+  ///
+  /// In en, this message translates to:
+  /// **'Range request error'**
+  String get rangeRequestError;
+
+  /// Error message for static file errors
+  ///
+  /// In en, this message translates to:
+  /// **'Static file error'**
+  String get staticFileError;
+
+  /// Error message when audio service fails to start
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to start audio service: {error}'**
+  String failedToStartAudioService(String error);
+
+  /// Error message when media playback fails
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to play media: {error}'**
+  String failedToPlayMedia(String error);
+
+  /// Error message when media pause fails
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to pause media: {error}'**
+  String failedToPauseMedia(String error);
+
+  /// Error message when media stop fails
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to stop media: {error}'**
+  String failedToStopMedia(String error);
+
+  /// Error message when seek operation fails
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to seek: {error}'**
+  String failedToSeek(String error);
+
+  /// Error message when setting playback speed fails
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to set speed: {error}'**
+  String failedToSetSpeed(String error);
+
+  /// Error message when logger initialization fails
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to initialize logger'**
+  String get failedToInitializeLogger;
+
+  /// Error message when log writing fails
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to write log'**
+  String get failedToWriteLog;
+
+  /// Error message when log rotation fails
+  ///
+  /// In en, this message translates to:
+  /// **'Log rotation failed'**
+  String get logRotationFailed;
+
+  /// Error message when log rotation fails
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to rotate logs'**
+  String get failedToRotateLogs;
+
+  /// Error message when cleaning old logs fails
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to clean old logs'**
+  String get failedToCleanOldLogs;
+
+  /// Error message when sharing logs fails
+  ///
+  /// In en, this message translates to:
+  /// **'Error sharing logs: {error}'**
+  String errorSharingLogs(String error);
+
+  /// Error message when sharing logs fails
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to share logs'**
+  String get failedToShareLogs;
+
+  /// Error message when reading logs fails
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to read logs'**
+  String get failedToReadLogs;
+
+  /// Error message when CacheManager is not initialized
+  ///
+  /// In en, this message translates to:
+  /// **'CacheManager not initialized'**
+  String get cacheManagerNotInitialized;
+
+  /// Error message when parsing search results fails
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to parse search results: {error}'**
+  String failedToParseSearchResults(String error);
+
+  /// Error message when parsing topic details fails
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to parse topic details: {error}'**
+  String failedToParseTopicDetails(String error);
+
+  /// Error message when parsing categories fails
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to parse categories'**
+  String get failedToParseCategories;
+
+  /// Error message when parsing category topics fails
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to parse category topics'**
+  String get failedToParseCategoryTopics;
+
+  /// Category name for radio plays
+  ///
+  /// In en, this message translates to:
+  /// **'Radio Play'**
+  String get radioPlayCategory;
+
+  /// Category name for audiobooks
+  ///
+  /// In en, this message translates to:
+  /// **'Audiobook'**
+  String get audiobookCategory;
+
+  /// Category name for biographies
+  ///
+  /// In en, this message translates to:
+  /// **'Biography'**
+  String get biographyCategory;
+
+  /// Category name for memoirs
+  ///
+  /// In en, this message translates to:
+  /// **'Memoirs'**
+  String get memoirsCategory;
+
+  /// Category name for history
+  ///
+  /// In en, this message translates to:
+  /// **'History'**
+  String get historyCategory;
+
+  /// Label for added date
+  ///
+  /// In en, this message translates to:
+  /// **'Added'**
+  String get addedLabel;
+
+  /// Error message when magnet URL is missing info hash
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid magnet URL: missing info hash'**
+  String get invalidMagnetUrlMissingHash;
+
+  /// Error message when info hash has invalid length
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid info hash length'**
+  String get invalidInfoHashLength;
+
+  /// Error message when download fails to start with error details
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to start download: {error}'**
+  String failedToStartDownloadWithError(String error);
+
+  /// Error message when torrent download is not found
+  ///
+  /// In en, this message translates to:
+  /// **'Download not found'**
+  String get downloadNotFoundTorrent;
+
+  /// Error message when download pause fails
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to pause download: {error}'**
+  String failedToPauseDownload(String error);
+
+  /// Error message when download resume fails
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to resume download: {error}'**
+  String failedToResumeDownload(String error);
+
+  /// Error message when download removal fails
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to remove download: {error}'**
+  String failedToRemoveDownload(String error);
+
+  /// Error message when getting active downloads fails
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to get active downloads: {error}'**
+  String failedToGetActiveDownloads(String error);
+
+  /// Error message when torrent manager shutdown fails
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to shutdown torrent manager: {error}'**
+  String failedToShutdownTorrentManager(String error);
+
+  /// Error message when no healthy endpoints are available
+  ///
+  /// In en, this message translates to:
+  /// **'No healthy endpoints available'**
+  String get noHealthyEndpointsAvailable;
+
+  /// Error message when AuthRepositoryProvider is not properly configured
+  ///
+  /// In en, this message translates to:
+  /// **'AuthRepositoryProvider must be overridden with proper context'**
+  String get authRepositoryProviderMustBeOverridden;
+
+  /// Deprecated message for using EndpointManager.getActiveEndpoint()
+  ///
+  /// In en, this message translates to:
+  /// **'Use EndpointManager.getActiveEndpoint() for dynamic mirror selection'**
+  String get useEndpointManagerGetActiveEndpoint;
+
+  /// Error message when CacheManager is not initialized in config
+  ///
+  /// In en, this message translates to:
+  /// **'CacheManager not initialized'**
+  String get cacheManagerNotInitializedConfig;
+
+  /// Error message when search fails with specific message
+  ///
+  /// In en, this message translates to:
+  /// **'Search failed: {message}'**
+  String searchFailedWithMessage(String message);
+
+  /// Error message when audiobook search fails
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to search audiobooks'**
+  String get failedToSearchAudiobooks;
+
+  /// Error message when fetching categories fails
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to fetch categories: {message}'**
+  String failedToFetchCategories(String message);
+
+  /// Error message when getting categories fails
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to get categories'**
+  String get failedToGetCategories;
+
+  /// Error message when getting category audiobooks fails with message
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to get category audiobooks: {message}'**
+  String failedToGetCategoryAudiobooksWithMessage(String message);
+
+  /// Error message when getting category audiobooks fails
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to get category audiobooks'**
+  String get failedToGetCategoryAudiobooks;
+
+  /// Error message when fetching audiobook details fails
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to fetch audiobook details: {message}'**
+  String failedToFetchAudiobookDetails(String message);
+
+  /// Error message when getting audiobook details fails
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to get audiobook details'**
+  String get failedToGetAudiobookDetails;
+
+  /// Error message when fetching new releases fails
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to fetch new releases: {message}'**
+  String failedToFetchNewReleases(String message);
+
+  /// Error message when saving credentials fails
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to save credentials: {error}'**
+  String failedToSaveCredentials(String error);
+
+  /// Error message when retrieving credentials fails
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to retrieve credentials: {error}'**
+  String failedToRetrieveCredentials(String error);
+
+  /// Error message when clearing credentials fails
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to clear credentials: {error}'**
+  String failedToClearCredentials(String error);
+
+  /// Error message when there are no credentials to export
+  ///
+  /// In en, this message translates to:
+  /// **'No credentials to export'**
+  String get noCredentialsToExport;
+
+  /// Error message when export format is unsupported
+  ///
+  /// In en, this message translates to:
+  /// **'Unsupported export format: {format}'**
+  String unsupportedExportFormat(String format);
+
+  /// Error message when CSV format is invalid
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid CSV format'**
+  String get invalidCsvFormat;
+
+  /// Error message when CSV data is invalid
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid CSV data'**
+  String get invalidCsvData;
+
+  /// Error message when JSON format is invalid
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid JSON format'**
+  String get invalidJsonFormat;
+
+  /// Error message when import format is unsupported
+  ///
+  /// In en, this message translates to:
+  /// **'Unsupported import format: {format}'**
+  String unsupportedImportFormat(String format);
+
+  /// Error message when importing credentials fails
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to import credentials: {error}'**
+  String failedToImportCredentials(String error);
+
+  /// Generic error message with error details
+  ///
+  /// In en, this message translates to:
+  /// **'Error: {error}'**
+  String errorWithDetails(String error);
+
+  /// Singular form of 'file'
+  ///
+  /// In en, this message translates to:
+  /// **'file'**
+  String get fileSingular;
+
+  /// Plural form of 'file'
+  ///
+  /// In en, this message translates to:
+  /// **'files'**
+  String get filePlural;
+
+  /// Confirmation message for deleting selected audiobooks
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to delete {count} selected audiobook(s)?'**
+  String deleteSelectedAudiobooksConfirmation(int count);
+
+  /// Description of what clearing playback cache does
+  ///
+  /// In en, this message translates to:
+  /// **'This will clear the playback cache. Playback may be slower until cache is rebuilt.'**
+  String get clearPlaybackCacheDescription;
+
+  /// Description of what clearing all cache does
+  ///
+  /// In en, this message translates to:
+  /// **'This will clear all cache including playback cache, temporary files, and old logs.'**
+  String get clearAllCacheDescription;
+
+  /// Title for session expired error dialog
+  ///
+  /// In en, this message translates to:
+  /// **'Session Expired'**
+  String get sessionExpiredTitle;
+
+  /// Message for session expired error
+  ///
+  /// In en, this message translates to:
+  /// **'Your session has expired. Please log in again.'**
+  String get sessionExpiredMessage;
+
+  /// Title for invalid credentials error dialog
+  ///
+  /// In en, this message translates to:
+  /// **'Authorization Error'**
+  String get invalidCredentialsTitle;
+
+  /// Message for invalid credentials error
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid username or password. Please check your credentials.'**
+  String get invalidCredentialsMessage;
+
+  /// Title for login required error dialog
+  ///
+  /// In en, this message translates to:
+  /// **'Authentication Required'**
+  String get loginRequiredTitle;
+
+  /// Message for login required error
+  ///
+  /// In en, this message translates to:
+  /// **'You need to log in to perform this action.'**
+  String get loginRequiredMessage;
+
+  /// Title for general authorization error dialog
+  ///
+  /// In en, this message translates to:
+  /// **'Authorization Error'**
+  String get authorizationErrorTitle;
+
+  /// Message for access denied error
+  ///
+  /// In en, this message translates to:
+  /// **'Access denied. Please check your credentials or log in again.'**
+  String get accessDeniedMessage;
+
+  /// Title for network error dialog
+  ///
+  /// In en, this message translates to:
+  /// **'Network Error'**
+  String get networkErrorTitle;
+
+  /// Message for network request failed error
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to complete the request. Please check your internet connection.'**
+  String get networkRequestFailedMessage;
+
+  /// Generic error message
+  ///
+  /// In en, this message translates to:
+  /// **'An error occurred while performing the operation.'**
+  String get errorOccurredMessage;
+
+  /// Snackbar message for session expired
+  ///
+  /// In en, this message translates to:
+  /// **'Session expired. Please log in again.'**
+  String get sessionExpiredSnackBar;
+
+  /// Snackbar message for invalid credentials
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid username or password.'**
+  String get invalidCredentialsSnackBar;
+
+  /// Snackbar message for authorization error
+  ///
+  /// In en, this message translates to:
+  /// **'Authorization error. Please check your credentials.'**
+  String get authorizationErrorSnackBar;
+
+  /// Snackbar message for network error
+  ///
+  /// In en, this message translates to:
+  /// **'Network error. Please check your connection.'**
+  String get networkErrorSnackBar;
+
+  /// Message when captcha verification is required
+  ///
+  /// In en, this message translates to:
+  /// **'Captcha verification required. Please try again later.'**
+  String get captchaVerificationRequired;
+
+  /// Network error message asking user to check connection
+  ///
+  /// In en, this message translates to:
+  /// **'Network error. Please check your connection and try again.'**
+  String get networkErrorCheckConnection;
+
+  /// Message when authentication fails
+  ///
+  /// In en, this message translates to:
+  /// **'Authentication failed. Please check your credentials and try again.'**
+  String get authenticationFailedMessage;
+
+  /// Login failed message with error details
+  ///
+  /// In en, this message translates to:
+  /// **'Login failed: {error}'**
+  String loginFailedWithError(String error);
+
+  /// Error message when no accessible audio files are found
+  ///
+  /// In en, this message translates to:
+  /// **'No accessible audio files found'**
+  String get noAccessibleAudioFiles;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

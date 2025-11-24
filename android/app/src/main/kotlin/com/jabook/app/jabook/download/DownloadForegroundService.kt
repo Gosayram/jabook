@@ -61,9 +61,58 @@ class DownloadForegroundService : Service() {
         notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as AndroidNotificationManager
         updateHandler = Handler(Looper.getMainLooper())
         createNotificationChannel()
+        
+        // CRITICAL FIX for Android 11+ and 14+: Call startForeground() immediately if possible
+        // Android 14+ requires startForeground() within 5 seconds or service will be killed
+        // Android 11+ on problematic devices (especially Xiaomi) also needs immediate startForeground()
+        // This prevents crash: "Context.startForegroundService() did not then call Service.startForeground()"
+        val needsImmediateStartForeground = Build.VERSION.SDK_INT >= Build.VERSION_CODES.R || // Android 11+
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE // Android 14+
+        
+        if (needsImmediateStartForeground) {
+            try {
+                // Create notification BEFORE calling startForeground() (required)
+                val tempNotification = createMinimalNotification()
+                
+                // Verify notification is not null before starting foreground
+                if (tempNotification != null) {
+                    startForeground(NOTIFICATION_ID, tempNotification)
+                    android.util.Log.d("DownloadForegroundService", 
+                        "startForeground() called immediately in onCreate() for Android ${Build.VERSION.SDK_INT} (critical fix)")
+                } else {
+                    android.util.Log.e("DownloadForegroundService", 
+                        "Failed to create minimal notification for startForeground()")
+                }
+            } catch (e: Exception) {
+                android.util.Log.w("DownloadForegroundService", 
+                    "Failed to call startForeground() in onCreate(), will try in onStartCommand", e)
+                // Continue - will try again in onStartCommand
+            }
+        }
     }
     
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // CRITICAL: For Android 11+ and 14+, ensure startForeground() is called
+        // This is especially important for problematic devices (Xiaomi, etc.)
+        // If onCreate() didn't call it (e.g., service was restarted), call it here
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) { // Android 11+
+            try {
+                // Ensure notification is created and service is in foreground
+                if (!isServiceRunning) {
+                    val minimalNotification = createMinimalNotification()
+                    if (minimalNotification != null) {
+                        startForeground(NOTIFICATION_ID, minimalNotification)
+                        android.util.Log.d("DownloadForegroundService", 
+                            "startForeground() called in onStartCommand for Android ${Build.VERSION.SDK_INT}")
+                    }
+                }
+            } catch (e: Exception) {
+                android.util.Log.w("DownloadForegroundService", 
+                    "Failed to ensure startForeground() in onStartCommand", e)
+                // Continue - service might still work
+            }
+        }
+        
         when (intent?.action) {
             ACTION_START -> {
                 if (!isServiceRunning) {
@@ -71,7 +120,14 @@ class DownloadForegroundService : Service() {
                     // Create minimal notification only for foreground service
                     // Individual download notifications are handled by DownloadNotificationService
                     val minimalNotification = createMinimalNotification()
+                    if (minimalNotification != null) {
+                        try {
                     startForeground(NOTIFICATION_ID, minimalNotification)
+                        } catch (e: Exception) {
+                            android.util.Log.e("DownloadForegroundService", 
+                                "Failed to start foreground service", e)
+                        }
+                    }
                 }
             }
             ACTION_STOP -> {
@@ -82,6 +138,9 @@ class DownloadForegroundService : Service() {
                 // This service is only used to keep downloads alive in background
             }
         }
+        
+        // Return START_STICKY to restart service if killed by system
+        // This is important for problematic devices that kill background services
         return START_STICKY
     }
     

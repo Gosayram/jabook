@@ -327,7 +327,8 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
     if (mounted) {
       setState(() {
         _hasError = true;
-        _errorMessage = 'Loading error: $errorMessage';
+        _errorMessage = AppLocalizations.of(context)?.loadError(errorMessage) ??
+            'Load error: $errorMessage';
       });
     }
 
@@ -1267,8 +1268,8 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
                         padding: const EdgeInsets.symmetric(horizontal: 24.0),
                         child: Text(
                           _errorMessage ??
-                              (AppLocalizations.of(context)?.networkError ??
-                                  'An error occurred'),
+                              (AppLocalizations.of(context)?.pageLoadError ??
+                                  'An error occurred while loading the page'),
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontSize: 16,
