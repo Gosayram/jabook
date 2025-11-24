@@ -93,7 +93,9 @@ class _AboutScreenState extends State<AboutScreen> {
     if (_packageInfo == null) return;
 
     final config = AppConfig();
-    final appName = config.appName;
+    final appName = _packageInfo!.appName.isNotEmpty
+        ? _packageInfo!.appName
+        : config.appName;
     final version = _packageInfo!.version;
     final buildNumber = _packageInfo!.buildNumber;
     final packageName = _packageInfo!.packageName;
@@ -228,7 +230,7 @@ $descriptionLabel
     if (mounted) {
       showLicensePage(
         context: context,
-        applicationName: AppConfig().appName,
+        applicationName: _packageInfo?.appName ?? AppConfig().appName,
         applicationVersion: _packageInfo?.version ??
             (AppLocalizations.of(context)?.unknown ?? 'Unknown'),
         applicationLegalese: 'Copyright 2025 Jabook Contributors',
@@ -360,7 +362,7 @@ $descriptionLabel
         ),
         const SizedBox(height: 16),
         Text(
-          config.appName,
+          _packageInfo?.appName ?? config.appName,
           style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                 fontWeight: FontWeight.bold,
               ),

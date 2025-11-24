@@ -137,7 +137,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     // Show confirmation message
     if (mounted) {
       final loc = AppLocalizations.of(context);
-      final languageName = _languageManager.getLanguageName(languageCode);
+      final languageName = languageCode == 'system'
+          ? (loc?.systemDefault ?? 'System Default')
+          : _languageManager.getLanguageName(languageCode);
       final message = loc?.languageChangedMessage(languageName) ??
           'Language changed to $languageName';
       ScaffoldMessenger.of(context).showSnackBar(
@@ -340,17 +342,24 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
-  Widget _buildLanguageTile(Map<String, String> language) => ListTile(
-        leading: Text(
-          language['flag']!,
-          style: const TextStyle(fontSize: 24),
-        ),
-        title: Text(language['name']!),
-        trailing: _selectedLanguage == language['code']
-            ? const Icon(Icons.check, color: Colors.blue)
-            : null,
-        onTap: () => _changeLanguage(language['code']!, ref),
-      );
+  Widget _buildLanguageTile(Map<String, String> language) {
+    final localizations = AppLocalizations.of(context);
+    final languageName = language['code'] == 'system'
+        ? (localizations?.systemDefault ?? 'System Default')
+        : language['name']!;
+
+    return ListTile(
+      leading: Text(
+        language['flag']!,
+        style: const TextStyle(fontSize: 24),
+      ),
+      title: Text(languageName),
+      trailing: _selectedLanguage == language['code']
+          ? const Icon(Icons.check, color: Colors.blue)
+          : null,
+      onTap: () => _changeLanguage(language['code']!, ref),
+    );
+  }
 
   Widget _buildMirrorSection(BuildContext context) {
     final localizations = AppLocalizations.of(context);
