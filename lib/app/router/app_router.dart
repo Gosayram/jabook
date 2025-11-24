@@ -26,6 +26,7 @@ import 'package:jabook/features/library/presentation/screens/library_screen.dart
 import 'package:jabook/features/library/presentation/screens/storage_management_screen.dart';
 import 'package:jabook/features/library/presentation/screens/trash_screen.dart';
 import 'package:jabook/features/mirrors/presentation/screens/mirrors_screen.dart';
+import 'package:jabook/features/permissions/presentation/widgets/background_compatibility_banner.dart';
 import 'package:jabook/features/player/presentation/screens/local_player_screen.dart';
 import 'package:jabook/features/player/presentation/screens/player_screen.dart';
 import 'package:jabook/features/player/presentation/widgets/mini_player_widget.dart';
@@ -96,9 +97,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         final group = state.extra as LocalAudiobookGroup?;
         if (group == null) {
           // Fallback if group is not provided
+          final localizations = AppLocalizations.of(context);
           return Scaffold(
-            appBar: AppBar(title: const Text('Error')),
-            body: const Center(child: Text('No audiobook group provided')),
+            appBar: AppBar(title: Text(localizations?.error ?? 'Error')),
+            body: Center(
+                child: Text(localizations?.noAudiobookGroupProvided ??
+                    'No audiobook group provided')),
           );
         }
         return LocalPlayerScreen(group: group);
@@ -224,7 +228,12 @@ class _MainNavigationWrapperState
     if (_selectedIndex == -1) _selectedIndex = 0;
 
     return Scaffold(
-      body: widget.child,
+      body: Column(
+        children: [
+          const BackgroundCompatibilityBanner(),
+          Expanded(child: widget.child),
+        ],
+      ),
       persistentFooterButtons: const [
         MiniPlayerWidget(),
       ],

@@ -121,7 +121,7 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
   String _getUserFriendlyErrorMessage(Exception e) {
     final errorStr = e.toString().toLowerCase();
     if (errorStr.contains('timeout') || errorStr.contains('timed out')) {
-      return AppLocalizations.of(context)?.requestTimedOutMessage ??
+      return AppLocalizations.of(context)?.operationTimedOut ??
           'Operation timed out. Please try again.';
     } else if (errorStr.contains('network') ||
         errorStr.contains('connection') ||
@@ -129,11 +129,13 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
       return AppLocalizations.of(context)?.networkErrorMessage('') ??
           'Network error. Please check your connection.';
     } else if (errorStr.contains('permission') || errorStr.contains('access')) {
-      return 'Permission denied. Please check app permissions in settings.';
+      return AppLocalizations.of(context)?.permissionDeniedDownloads ??
+          'Permission denied. Please check app permissions in settings.';
     } else if (errorStr.contains('not found') || errorStr.contains('missing')) {
-      return 'Download not found. It may have been removed.';
+      return AppLocalizations.of(context)?.downloadNotFound ??
+          'Download not found. It may have been removed.';
     } else {
-      return AppLocalizations.of(context)?.errorLoadingTopicMessage('') ??
+      return AppLocalizations.of(context)?.anErrorOccurred ??
           'An error occurred. Please try again.';
     }
   }

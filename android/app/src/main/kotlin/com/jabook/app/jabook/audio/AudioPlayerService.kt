@@ -109,7 +109,7 @@ class AudioPlayerService : MediaSessionService() {
     
     /**
      * Creates a minimal notification for startForeground() call.
-     * This is required for Android 14+ to prevent crashes.
+     * This is required for Android 8.0+ to prevent crashes.
      * The notification will be updated later with full media controls.
      * 
      * @return Minimal notification for foreground service
@@ -117,18 +117,7 @@ class AudioPlayerService : MediaSessionService() {
     private fun createMinimalNotification(): Notification {
         // Create notification channel if not exists
         val channelId = "jabook_audio_playback"
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                channelId,
-                "JaBook Audio Playback",
-                AndroidNotificationManager.IMPORTANCE_LOW
-            ).apply {
-                description = "Audio playback controls"
-                setShowBadge(false)
-            }
-            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as AndroidNotificationManager
-            notificationManager.createNotificationChannel(channel)
-        }
+        ensureNotificationChannel(channelId)
         
         val intent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
@@ -150,21 +139,100 @@ class AudioPlayerService : MediaSessionService() {
             .build()
     }
     
+    /**
+     * Creates a basic fallback notification when createMinimalNotification() fails.
+     * This is used as last resort to prevent service crash.
+     * 
+     * @return Basic fallback notification
+     */
+    private fun createFallbackNotification(): Notification {
+        val channelId = "jabook_audio_playback"
+        ensureNotificationChannel(channelId)
+        
+        return NotificationCompat.Builder(this, channelId)
+            .setContentTitle("JaBook Audio")
+            .setContentText("Initializing...")
+            .setSmallIcon(android.R.drawable.ic_media_play)
+            .setOngoing(true)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .build()
+    }
+    
+    /**
+     * Ensures notification channel exists. Creates it if it doesn't exist.
+     * 
+     * @param channelId Channel ID to ensure exists
+     */
+    private fun ensureNotificationChannel(channelId: String) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            try {
+                val channel = NotificationChannel(
+                    channelId,
+                    "JaBook Audio Playback",
+                    AndroidNotificationManager.IMPORTANCE_LOW
+                ).apply {
+                    description = "Audio playback controls"
+                    setShowBadge(false)
+                }
+                val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as AndroidNotificationManager
+                notificationManager.createNotificationChannel(channel)
+            } catch (e: Exception) {
+                android.util.Log.e("AudioPlayerService", "Failed to create notification channel", e)
+            }
+        }
+    }
+    
     override fun onCreate() {
         super.onCreate()
         instance = this
         
         android.util.Log.d("AudioPlayerService", "onCreate started")
         
-        try {
-            // CRITICAL FIX for Android 14+: Call startForeground() immediately
-            // MediaSessionService requires explicit startForeground() call within 5 seconds
-            // This prevents crash: "Context.startForegroundService() did not then call Service.startForeground()"
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+        // CRITICAL FIX: Call startForeground() IMMEDIATELY for ALL Android 8.0+ (O and above)
+        // Android 8.0+ requires startForeground() within 5 seconds or service will be killed
+        // This MUST be called FIRST, before any other operations, to prevent crashes
+        // This prevents crash: "Context.startForegroundService() did not then call Service.startForeground()"
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) { // Android 8.0+
+            try {
+                // Create notification BEFORE calling startForeground() (required)
                 val tempNotification = createMinimalNotification()
-                startForeground(NOTIFICATION_ID, tempNotification)
-                android.util.Log.d("AudioPlayerService", "startForeground() called for Android 14+ (critical fix)")
+                
+                // Verify notification is not null before starting foreground
+                if (tempNotification != null) {
+                    startForeground(NOTIFICATION_ID, tempNotification)
+                    android.util.Log.d("AudioPlayerService", 
+                        "startForeground() called immediately for Android ${Build.VERSION.SDK_INT} (critical fix)")
+                } else {
+                    android.util.Log.e("AudioPlayerService", 
+                        "Failed to create minimal notification for startForeground()")
+                    // Try to create a basic notification as fallback
+                    try {
+                        val fallbackNotification = createFallbackNotification()
+                        startForeground(NOTIFICATION_ID, fallbackNotification)
+                        android.util.Log.w("AudioPlayerService", "Used fallback notification for startForeground()")
+                    } catch (e: Exception) {
+                        android.util.Log.e("AudioPlayerService", 
+                            "Failed to call startForeground() with fallback notification", e)
+                        // Service will likely crash, but we tried our best
+                    }
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("AudioPlayerService", 
+                    "Failed to call startForeground() immediately", e)
+                // Try fallback notification
+                try {
+                    val fallbackNotification = createFallbackNotification()
+                    startForeground(NOTIFICATION_ID, fallbackNotification)
+                    android.util.Log.w("AudioPlayerService", "Used fallback notification after exception")
+                } catch (e2: Exception) {
+                    android.util.Log.e("AudioPlayerService", 
+                        "CRITICAL: Failed to call startForeground() with fallback - service may crash", e2)
+                    // Service will likely crash, but we tried our best
+                }
             }
+        }
+        
+        try {
             
             // Check Hilt initialization before using @Inject fields
             // This prevents crashes if Hilt is not ready
@@ -270,6 +338,51 @@ class AudioPlayerService : MediaSessionService() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         super.onStartCommand(intent, flags, startId)
         
+        // CRITICAL: For ALL Android 8.0+, ensure startForeground() is called
+        // This is especially important for problematic devices (Xiaomi, etc.)
+        // If onCreate() didn't call it (e.g., service was restarted), call it here
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) { // Android 8.0+
+            try {
+                // Check if notification manager is ready
+                if (notificationManager != null) {
+                    // Update notification (this will call startForeground if needed)
+                    notificationManager?.updateNotification()
+                } else {
+                    // Fallback: create minimal notification and call startForeground
+                    val tempNotification = createMinimalNotification()
+                    if (tempNotification != null) {
+                        startForeground(NOTIFICATION_ID, tempNotification)
+                        android.util.Log.d("AudioPlayerService", 
+                            "startForeground() called in onStartCommand for Android ${Build.VERSION.SDK_INT}")
+                    } else {
+                        // Last resort: create basic fallback notification
+                        try {
+                            val fallbackNotification = createFallbackNotification()
+                            startForeground(NOTIFICATION_ID, fallbackNotification)
+                            android.util.Log.w("AudioPlayerService", 
+                                "Used fallback notification in onStartCommand for Android ${Build.VERSION.SDK_INT}")
+                        } catch (e2: Exception) {
+                            android.util.Log.e("AudioPlayerService", 
+                                "Failed to call startForeground() in onStartCommand even with fallback", e2)
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                android.util.Log.w("AudioPlayerService", 
+                    "Failed to ensure startForeground() in onStartCommand", e)
+                // Try fallback notification
+                try {
+                    val fallbackNotification = createFallbackNotification()
+                    startForeground(NOTIFICATION_ID, fallbackNotification)
+                    android.util.Log.w("AudioPlayerService", 
+                        "Used fallback notification in onStartCommand after exception")
+                } catch (e2: Exception) {
+                    android.util.Log.e("AudioPlayerService", 
+                        "CRITICAL: Failed to call startForeground() in onStartCommand - service may crash", e2)
+                }
+            }
+        }
+        
         // Handle actions from notification and timer
         when (intent?.action) {
             com.jabook.app.jabook.audio.NotificationManager.ACTION_PLAY -> play()
@@ -283,6 +396,9 @@ class AudioPlayerService : MediaSessionService() {
                 android.util.Log.d("AudioPlayerService", "Timer expired, playback paused")
             }
         }
+        
+        // Return START_STICKY to restart service if killed by system
+        // This is important for problematic devices that kill background services
         return START_STICKY
     }
     

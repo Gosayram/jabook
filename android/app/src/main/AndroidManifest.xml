@@ -60,6 +60,10 @@
     <!-- This is for download/upload tasks in foreground service -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
 
+    <!-- Required for Android 15+ (API 35+) when using media processing foreground services -->
+    <!-- This is for audio conversion/transcoding tasks in foreground service -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROCESSING" />
+
     <!-- Optional: requesting battery optimization exemption requires strict justification -->
     <!-- This permission is rarely approved by Google Play and should be avoided -->
     <!-- <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" /> -->

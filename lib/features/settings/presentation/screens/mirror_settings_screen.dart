@@ -336,7 +336,7 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('URL: $url'),
+            Text(AppLocalizations.of(context)?.urlLabel(url) ?? 'URL: $url'),
             const SizedBox(height: 16),
             TextField(
               controller: priorityController,
@@ -516,7 +516,7 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('URL: $url'),
+            Text(AppLocalizations.of(context)?.urlLabel(url) ?? 'URL: $url'),
             if (isDefault) ...[
               const SizedBox(height: 8),
               Text(
@@ -616,17 +616,20 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
           children: [
             TextField(
               controller: urlController,
-              decoration: const InputDecoration(
-                labelText: 'Mirror URL',
-                hintText: 'https://rutracker.example.com',
+              decoration: InputDecoration(
+                labelText: AppLocalizations.of(context)?.mirrorUrlLabelText ??
+                    'Mirror URL',
+                hintText: AppLocalizations.of(context)?.mirrorUrlHintText ??
+                    'https://rutracker.example.com',
               ),
             ),
             const SizedBox(height: 16),
             TextField(
               controller: priorityController,
-              decoration: const InputDecoration(
-                labelText: 'Priority (1-10)',
-                hintText: '5',
+              decoration: InputDecoration(
+                labelText: AppLocalizations.of(context)?.priorityLabelText ??
+                    'Priority (1-10)',
+                hintText: AppLocalizations.of(context)?.priorityHintText ?? '5',
               ),
               keyboardType: TextInputType.number,
             ),
@@ -671,10 +674,12 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
           if (uri.host.isEmpty) {
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Неверный формат URL'),
+                SnackBar(
+                  content: Text(
+                      AppLocalizations.of(context)?.invalidUrlFormatMessage ??
+                          'Invalid URL format'),
                   backgroundColor: Colors.orange,
-                  duration: Duration(seconds: 3),
+                  duration: const Duration(seconds: 3),
                 ),
               );
             }
@@ -1086,7 +1091,7 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
                       ),
                       if (rtt != null)
                         Text(
-                          'RTT: $rtt ms',
+                          '${AppLocalizations.of(context)?.rttLabelText ?? 'RTT: '}$rtt ms',
                           style: TextStyle(
                             color: Theme.of(context)
                                 .colorScheme

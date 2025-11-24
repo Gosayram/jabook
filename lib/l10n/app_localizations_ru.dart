@@ -168,7 +168,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get permissionDeniedTitle => 'В разрешении отказано';
 
   @override
-  String get permissionDeniedMessage => 'Доступ запрещен: Нельзя удалить файл';
+  String get permissionDeniedMessage => 'Для загрузки файлов требуется разрешение на хранение. Пожалуйста, включите его в настройках приложения.';
 
   @override
   String get permissionDeniedButton => 'Открыть настройки';
@@ -1607,6 +1607,9 @@ class AppLocalizationsRu extends AppLocalizations {
   String get showDetailsButton => 'Детали';
 
   @override
+  String get permissionDeniedDeletionMessage => 'Доступ запрещен: Нельзя удалить файл';
+
+  @override
   String get deletionDetailsTitle => 'Детали удаления';
 
   @override
@@ -1619,4 +1622,829 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get retryButton => 'Повторить';
+
+  @override
+  String get backgroundWorkTitle => 'Фоновая работа';
+
+  @override
+  String get refreshDiagnostics => 'Обновить диагностику';
+
+  @override
+  String get deviceInformation => 'Информация об устройстве';
+
+  @override
+  String get manufacturer => 'Производитель';
+
+  @override
+  String get customRom => 'Оболочка';
+
+  @override
+  String get androidVersion => 'Версия Android';
+
+  @override
+  String get backgroundActivityMode => 'Режим фоновой активности';
+
+  @override
+  String get compatibilityOk => 'Совместимость: ОК';
+
+  @override
+  String get issuesDetected => 'Обнаружены проблемы';
+
+  @override
+  String get detectedIssues => 'Обнаруженные проблемы:';
+
+  @override
+  String get recommendations => 'Рекомендации';
+
+  @override
+  String get manufacturerSettings => 'Настройки производителя';
+
+  @override
+  String get manufacturerSettingsDescription => 'Для стабильной работы приложения в фоне необходимо настроить параметры производителя устройства.';
+
+  @override
+  String get autostartApp => 'Автозапуск приложения';
+
+  @override
+  String get enableAutostart => 'Включите автозапуск для стабильной работы';
+
+  @override
+  String get batteryOptimization => 'Оптимизация батареи';
+
+  @override
+  String get disableBatteryOptimization => 'Отключите оптимизацию батареи для приложения';
+
+  @override
+  String get backgroundActivity => 'Фоновая активность';
+
+  @override
+  String get allowBackgroundActivity => 'Разрешите фоновую активность';
+
+  @override
+  String get showInstructions => 'Показать инструкции';
+
+  @override
+  String get workManagerDiagnostics => 'Диагностика WorkManager';
+
+  @override
+  String get lastExecutions => 'Последние выполнения:';
+
+  @override
+  String get executionHistoryEmpty => 'История выполнения задач пока пуста';
+
+  @override
+  String get total => 'Всего';
+
+  @override
+  String get successful => 'Успешно';
+
+  @override
+  String get errors => 'Ошибок';
+
+  @override
+  String get avgDelay => 'Ср. задержка';
+
+  @override
+  String get minutesAbbr => 'мин';
+
+  @override
+  String delay(int minutes) {
+    return 'Задержка: $minutes мин';
+  }
+
+  @override
+  String errorLabel(String reason) {
+    return 'Ошибка: $reason';
+  }
+
+  @override
+  String appStandbyBucketRestricted(String bucket) {
+    return 'Приложение находится в режиме ограниченной фоновой активности (Standby Bucket: $bucket)';
+  }
+
+  @override
+  String get useAppMoreFrequently => 'Используйте приложение чаще, чтобы система перевела его в активный режим';
+
+  @override
+  String aggressiveBatteryOptimization(String manufacturer, String rom) {
+    return 'Обнаружено устройство от производителя с агрессивной оптимизацией батареи ($manufacturer, $rom)';
+  }
+
+  @override
+  String get configureAutostartAndBattery => 'Рекомендуется настроить автозапуск и отключить оптимизацию батареи для приложения';
+
+  @override
+  String get openManufacturerSettings => 'Откройте настройки производителя через меню приложения';
+
+  @override
+  String get android14ForegroundServices => 'На Android 14+ убедитесь, что Foreground Services запускаются корректно';
+
+  @override
+  String get compatibilityIssuesDetected => 'Обнаружены проблемы с фоновой работой приложения';
+
+  @override
+  String workManagerTaskDelayed(String taskName, int hours, int minutes) {
+    return 'Задача WorkManager \"$taskName\" задержана на $hours часов (ожидалось: $minutes минут)';
+  }
+
+  @override
+  String foregroundServiceKilled(String serviceName) {
+    return 'Foreground Service \"$serviceName\" был неожиданно завершён системой';
+  }
+
+  @override
+  String get standbyBucketActive => 'Активно';
+
+  @override
+  String get standbyBucketWorkingSet => 'Часто используется';
+
+  @override
+  String get standbyBucketFrequent => 'Регулярно';
+
+  @override
+  String get standbyBucketRare => 'Редко';
+
+  @override
+  String get standbyBucketNever => 'Никогда (ограничено)';
+
+  @override
+  String standbyBucketUnknown(int bucket) {
+    return 'Неизвестно ($bucket)';
+  }
+
+  @override
+  String get standbyBucketActiveUsed => 'Активно используется';
+
+  @override
+  String get standbyBucketFrequentlyUsed => 'Часто используется';
+
+  @override
+  String get standbyBucketRegularlyUsed => 'Регулярно используется';
+
+  @override
+  String get standbyBucketRarelyUsed => 'Редко используется';
+
+  @override
+  String get standbyBucketNeverUsed => 'Никогда не используется (ограничено)';
+
+  @override
+  String get manufacturerSettingsTitle => 'Настройки для стабильной работы';
+
+  @override
+  String get manufacturerSettingsDialogDescription => 'Для стабильной работы приложения необходимо настроить следующие параметры:';
+
+  @override
+  String get enableAutostartStep => '1. Включите автозапуск приложения';
+
+  @override
+  String get disableBatteryOptimizationStep => '2. Отключите оптимизацию батареи для приложения';
+
+  @override
+  String get allowBackgroundActivityStep => '3. Разрешите фоновую активность';
+
+  @override
+  String detectedRom(String rom) {
+    return 'Обнаружена оболочка: $rom';
+  }
+
+  @override
+  String get skip => 'Пропустить';
+
+  @override
+  String get gotIt => 'Понятно';
+
+  @override
+  String get backgroundCompatibilityBannerTitle => 'Настройки фоновой работы';
+
+  @override
+  String get backgroundCompatibilityBannerMessage => 'Для стабильной работы приложения в фоне может потребоваться настройка параметров устройства.';
+
+  @override
+  String get dismiss => 'Закрыть';
+
+  @override
+  String get loginSuccessfulMessage => 'Авторизация успешна!';
+
+  @override
+  String get openSettingsButton => 'Открыть настройки';
+
+  @override
+  String get compatibilityDiagnosticsTitle => 'Совместимость и диагностика';
+
+  @override
+  String get compatibilityDiagnosticsSubtitle => 'Проверка совместимости и настройка параметров производителя';
+
+  @override
+  String get selectFolderButton => 'Выбрать папку';
+
+  @override
+  String get continueButton => 'Продолжить';
+
+  @override
+  String errorAddingFolder(String error) {
+    return 'Ошибка добавления папки: \$error';
+  }
+
+  @override
+  String get noAudiobookGroupProvided => 'Группа аудиокниг не предоставлена';
+
+  @override
+  String get sleepTimerPaused => 'Таймер сна: Воспроизведение приостановлено';
+
+  @override
+  String failedToChangeSpeed(String error) {
+    return 'Не удалось изменить скорость: \$error';
+  }
+
+  @override
+  String get cancelTimerButton => 'Отменить таймер';
+
+  @override
+  String get endOfChapterLabel => 'Конец главы';
+
+  @override
+  String get atEndOfChapterLabel => 'В конце главы';
+
+  @override
+  String get itemsInTrashLabel => 'Элементы в корзине';
+
+  @override
+  String get trashSizeLabel => 'Размер корзины';
+
+  @override
+  String get manageTrashButton => 'Управление корзиной';
+
+  @override
+  String get fileLabel => 'файл';
+
+  @override
+  String get filesLabel => 'файлов';
+
+  @override
+  String failedToLoadTrash(String error) {
+    return 'Не удалось загрузить корзину: \$error';
+  }
+
+  @override
+  String get itemRestoredSuccessfully => 'Элемент успешно восстановлен';
+
+  @override
+  String get failedToRestoreItem => 'Не удалось восстановить элемент';
+
+  @override
+  String errorRestoringItem(String error) {
+    return 'Ошибка восстановления элемента: \$error';
+  }
+
+  @override
+  String get permanentlyDeleteTitle => 'Удалить навсегда';
+
+  @override
+  String permanentlyDeleteMessage(String name) {
+    return 'Вы уверены, что хотите безвозвратно удалить \"$name\"? Это действие нельзя отменить.';
+  }
+
+  @override
+  String get itemPermanentlyDeleted => 'Элемент безвозвратно удален';
+
+  @override
+  String get failedToDeleteItem => 'Не удалось удалить элемент';
+
+  @override
+  String errorDeletingItem(String error) {
+    return 'Ошибка удаления элемента: \$error';
+  }
+
+  @override
+  String get clearAllTrashTitle => 'Очистить всю корзину';
+
+  @override
+  String get clearAllTrashMessage => 'Вы уверены, что хотите безвозвратно удалить все элементы в корзине? Это действие нельзя отменить.';
+
+  @override
+  String get filePickerAlreadyOpen => 'Файловый менеджер уже открыт. Пожалуйста, закройте его сначала.';
+
+  @override
+  String get applyButton => 'Применить';
+
+  @override
+  String get lastMessageSort => 'Посл. сообщение';
+
+  @override
+  String get topicNameSort => 'Название темы';
+
+  @override
+  String get postingTimeSort => 'Время размещения';
+
+  @override
+  String get operationTimedOut => 'Операция превысила время ожидания. Пожалуйста, попробуйте снова.';
+
+  @override
+  String get permissionDeniedDownloads => 'Доступ запрещен. Пожалуйста, проверьте разрешения приложения в настройках.';
+
+  @override
+  String get downloadNotFound => 'Загрузка не найдена. Возможно, она была удалена.';
+
+  @override
+  String get anErrorOccurred => 'Произошла ошибка. Пожалуйста, попробуйте снова.';
+
+  @override
+  String initializationError(String error) {
+    return 'Ошибка инициализации: \$error';
+  }
+
+  @override
+  String criticalError(String error) {
+    return 'Критическая ошибка: \$error';
+  }
+
+  @override
+  String capabilityCheckError(String error) {
+    return 'Ошибка проверки возможностей: \$error';
+  }
+
+  @override
+  String filesSelected(int count) {
+    return 'Выбрано файлов: \$count';
+  }
+
+  @override
+  String fileSelectionError(String error) {
+    return 'Ошибка выбора файлов: \$error';
+  }
+
+  @override
+  String imagesSelected(int count) {
+    return 'Выбрано изображений: \$count';
+  }
+
+  @override
+  String imageSelectionError(String error) {
+    return 'Ошибка выбора изображений: \$error';
+  }
+
+  @override
+  String get testNotificationTitle => 'Тест уведомления';
+
+  @override
+  String get testNotificationBody => 'Это тестовое уведомление от JaBook';
+
+  @override
+  String get notificationSent => 'Уведомление отправлено';
+
+  @override
+  String get failedToSendNotification => 'Не удалось отправить уведомление (канал не реализован)';
+
+  @override
+  String bluetoothAvailable(String available) {
+    return 'Bluetooth доступен: \$available';
+  }
+
+  @override
+  String pairedDevicesCount(int count) {
+    return 'Сопряженных устройств: \$count';
+  }
+
+  @override
+  String bluetoothCheckError(String error) {
+    return 'Ошибка проверки Bluetooth: \$error';
+  }
+
+  @override
+  String get systemCapabilitiesTitle => 'Системные возможности';
+
+  @override
+  String get fileAccessCapability => 'Доступ к файлам';
+
+  @override
+  String get imageAccessCapability => 'Доступ к изображениям';
+
+  @override
+  String get cameraCapability => 'Камера';
+
+  @override
+  String photoTaken(String path) {
+    return 'Фото сделано: \$path';
+  }
+
+  @override
+  String get photoNotTaken => 'Фото не сделано';
+
+  @override
+  String cameraError(String error) {
+    return 'Ошибка камеры: \$error';
+  }
+
+  @override
+  String get notificationsCapability => 'Уведомления';
+
+  @override
+  String get capabilityExplanationButton => 'Объяснение возможностей';
+
+  @override
+  String get testButton => 'Тест';
+
+  @override
+  String get permissionsForJaBookTitle => 'Разрешения для JaBook';
+
+  @override
+  String get fileAccessPermissionTitle => 'Доступ к файлам';
+
+  @override
+  String get fileAccessPermissionDescription => 'Нужен для сохранения и воспроизведения аудиокниг.';
+
+  @override
+  String get notificationsPermissionTitle => 'Уведомления';
+
+  @override
+  String get batteryOptimizationPermissionTitle => 'Оптимизация батареи';
+
+  @override
+  String get batteryOptimizationPermissionDescription => 'Чтобы приложение работало в фоне для воспроизведения.';
+
+  @override
+  String get permissionsHelpMessage => 'Эти разрешения помогут обеспечить лучший опыт использования приложения.';
+
+  @override
+  String urlLabel(String url) {
+    return 'URL: \$url';
+  }
+
+  @override
+  String get rutrackerTitle => 'RuTracker';
+
+  @override
+  String get webViewLoginButton => 'Войти в RuTracker через WebView';
+
+  @override
+  String get webViewLoginSubtitle => 'Пройти Cloudflare/капчу и сохранить cookie для клиента';
+
+  @override
+  String get cookieSavedMessage => 'Cookie сохранены для HTTP-клиента';
+
+  @override
+  String get failedToParseSearchResultsEncoding => 'Не удалось распарсить результаты поиска из-за проблемы с кодировкой. Это может быть временная проблема сервера. Пожалуйста, попробуйте снова. Если проблема сохраняется, попробуйте изменить зеркало в Настройках → Источники.';
+
+  @override
+  String get failedToParseSearchResultsStructure => 'Не удалось распарсить результаты поиска. Структура страницы могла измениться. Пожалуйста, попробуйте снова. Если проблема сохраняется, попробуйте изменить зеркало в Настройках → Источники.';
+
+  @override
+  String searchFailedMessage(String errorType) {
+    return 'Поиск не удался: $errorType';
+  }
+
+  @override
+  String get topicTitleSort => 'Название темы';
+
+  @override
+  String get postTimeSort => 'Время размещения';
+
+  @override
+  String localStreamServerStarted(String host, int port) {
+    return 'Локальный сервер потоковой передачи запущен на http://$host:$port';
+  }
+
+  @override
+  String failedToStartStreamServer(String error) {
+    return 'Не удалось запустить сервер потоковой передачи: $error';
+  }
+
+  @override
+  String get localStreamServerStopped => 'Локальный сервер потоковой передачи остановлен';
+
+  @override
+  String failedToStopStreamServer(String error) {
+    return 'Не удалось остановить сервер потоковой передачи: $error';
+  }
+
+  @override
+  String get missingBookIdParameter => 'Отсутствует параметр ID книги';
+
+  @override
+  String get invalidFileIndexParameter => 'Неверный параметр индекса файла';
+
+  @override
+  String get fileNotFound => 'Файл не найден';
+
+  @override
+  String get streamingError => 'Ошибка потоковой передачи';
+
+  @override
+  String get invalidRangeHeader => 'Неверный заголовок диапазона';
+
+  @override
+  String get requestedRangeNotSatisfiable => 'Запрошенный диапазон не может быть выполнен';
+
+  @override
+  String get rangeRequestError => 'Ошибка запроса диапазона';
+
+  @override
+  String get staticFileError => 'Ошибка статического файла';
+
+  @override
+  String failedToStartAudioService(String error) {
+    return 'Не удалось запустить аудио сервис: $error';
+  }
+
+  @override
+  String failedToPlayMedia(String error) {
+    return 'Не удалось воспроизвести медиа: $error';
+  }
+
+  @override
+  String failedToPauseMedia(String error) {
+    return 'Не удалось приостановить медиа: $error';
+  }
+
+  @override
+  String failedToStopMedia(String error) {
+    return 'Не удалось остановить медиа: $error';
+  }
+
+  @override
+  String failedToSeek(String error) {
+    return 'Не удалось перейти к позиции: $error';
+  }
+
+  @override
+  String failedToSetSpeed(String error) {
+    return 'Не удалось установить скорость: $error';
+  }
+
+  @override
+  String get failedToInitializeLogger => 'Не удалось инициализировать логгер';
+
+  @override
+  String get failedToWriteLog => 'Не удалось записать лог';
+
+  @override
+  String get logRotationFailed => 'Не удалось выполнить ротацию логов';
+
+  @override
+  String get failedToRotateLogs => 'Не удалось выполнить ротацию логов';
+
+  @override
+  String get failedToCleanOldLogs => 'Не удалось очистить старые логи';
+
+  @override
+  String errorSharingLogs(String error) {
+    return 'Ошибка при отправке логов: $error';
+  }
+
+  @override
+  String get failedToShareLogs => 'Не удалось отправить логи';
+
+  @override
+  String get failedToReadLogs => 'Не удалось прочитать логи';
+
+  @override
+  String get cacheManagerNotInitialized => 'CacheManager не инициализирован';
+
+  @override
+  String failedToParseSearchResults(String error) {
+    return 'Не удалось распарсить результаты поиска: $error';
+  }
+
+  @override
+  String failedToParseTopicDetails(String error) {
+    return 'Не удалось распарсить детали темы: $error';
+  }
+
+  @override
+  String get failedToParseCategories => 'Не удалось распарсить категории';
+
+  @override
+  String get failedToParseCategoryTopics => 'Не удалось распарсить темы категории';
+
+  @override
+  String get radioPlayCategory => 'Радиоспектакль';
+
+  @override
+  String get audiobookCategory => 'Аудиокнига';
+
+  @override
+  String get biographyCategory => 'Биография';
+
+  @override
+  String get memoirsCategory => 'Мемуары';
+
+  @override
+  String get historyCategory => 'История';
+
+  @override
+  String get addedLabel => 'Добавлено';
+
+  @override
+  String get invalidMagnetUrlMissingHash => 'Неверный magnet URL: отсутствует info hash';
+
+  @override
+  String get invalidInfoHashLength => 'Неверная длина info hash';
+
+  @override
+  String failedToStartDownloadWithError(String error) {
+    return 'Не удалось начать загрузку: $error';
+  }
+
+  @override
+  String get downloadNotFoundTorrent => 'Загрузка не найдена';
+
+  @override
+  String failedToPauseDownload(String error) {
+    return 'Не удалось приостановить загрузку: $error';
+  }
+
+  @override
+  String failedToResumeDownload(String error) {
+    return 'Не удалось возобновить загрузку: $error';
+  }
+
+  @override
+  String failedToRemoveDownload(String error) {
+    return 'Не удалось удалить загрузку: $error';
+  }
+
+  @override
+  String failedToGetActiveDownloads(String error) {
+    return 'Не удалось получить активные загрузки: $error';
+  }
+
+  @override
+  String failedToShutdownTorrentManager(String error) {
+    return 'Не удалось остановить менеджер торрентов: $error';
+  }
+
+  @override
+  String get noHealthyEndpointsAvailable => 'Нет доступных здоровых конечных точек';
+
+  @override
+  String get authRepositoryProviderMustBeOverridden => 'AuthRepositoryProvider должен быть переопределен с правильным контекстом';
+
+  @override
+  String get useEndpointManagerGetActiveEndpoint => 'Используйте EndpointManager.getActiveEndpoint() для динамического выбора зеркала';
+
+  @override
+  String get cacheManagerNotInitializedConfig => 'CacheManager не инициализирован';
+
+  @override
+  String searchFailedWithMessage(String message) {
+    return 'Поиск не удался: $message';
+  }
+
+  @override
+  String get failedToSearchAudiobooks => 'Не удалось выполнить поиск аудиокниг';
+
+  @override
+  String failedToFetchCategories(String message) {
+    return 'Не удалось получить категории: $message';
+  }
+
+  @override
+  String get failedToGetCategories => 'Не удалось получить категории';
+
+  @override
+  String failedToGetCategoryAudiobooksWithMessage(String message) {
+    return 'Не удалось получить аудиокниги категории: $message';
+  }
+
+  @override
+  String get failedToGetCategoryAudiobooks => 'Не удалось получить аудиокниги категории';
+
+  @override
+  String failedToFetchAudiobookDetails(String message) {
+    return 'Не удалось получить детали аудиокниги: $message';
+  }
+
+  @override
+  String get failedToGetAudiobookDetails => 'Не удалось получить детали аудиокниги';
+
+  @override
+  String failedToFetchNewReleases(String message) {
+    return 'Не удалось получить новые релизы: $message';
+  }
+
+  @override
+  String failedToSaveCredentials(String error) {
+    return 'Не удалось сохранить учетные данные: $error';
+  }
+
+  @override
+  String failedToRetrieveCredentials(String error) {
+    return 'Не удалось получить учетные данные: $error';
+  }
+
+  @override
+  String failedToClearCredentials(String error) {
+    return 'Не удалось очистить учетные данные: $error';
+  }
+
+  @override
+  String get noCredentialsToExport => 'Нет учетных данных для экспорта';
+
+  @override
+  String unsupportedExportFormat(String format) {
+    return 'Неподдерживаемый формат экспорта: $format';
+  }
+
+  @override
+  String get invalidCsvFormat => 'Неверный формат CSV';
+
+  @override
+  String get invalidCsvData => 'Неверные данные CSV';
+
+  @override
+  String get invalidJsonFormat => 'Неверный формат JSON';
+
+  @override
+  String unsupportedImportFormat(String format) {
+    return 'Неподдерживаемый формат импорта: $format';
+  }
+
+  @override
+  String failedToImportCredentials(String error) {
+    return 'Не удалось импортировать учетные данные: $error';
+  }
+
+  @override
+  String errorWithDetails(String error) {
+    return 'Ошибка: $error';
+  }
+
+  @override
+  String get fileSingular => 'файл';
+
+  @override
+  String get filePlural => 'файлов';
+
+  @override
+  String deleteSelectedAudiobooksConfirmation(int count) {
+    return 'Вы уверены, что хотите удалить $count выбранную(ых) аудиокнигу(и)?';
+  }
+
+  @override
+  String get clearPlaybackCacheDescription => 'Это очистит кэш воспроизведения. Воспроизведение может быть медленнее, пока кэш не будет восстановлен.';
+
+  @override
+  String get clearAllCacheDescription => 'Это очистит весь кэш, включая кэш воспроизведения, временные файлы и старые логи.';
+
+  @override
+  String get sessionExpiredTitle => 'Сессия истекла';
+
+  @override
+  String get sessionExpiredMessage => 'Ваша сессия истекла. Пожалуйста, войдите в систему снова.';
+
+  @override
+  String get invalidCredentialsTitle => 'Ошибка авторизации';
+
+  @override
+  String get invalidCredentialsMessage => 'Неверный логин или пароль. Проверьте введенные данные.';
+
+  @override
+  String get loginRequiredTitle => 'Требуется авторизация';
+
+  @override
+  String get loginRequiredMessage => 'Для выполнения этого действия необходимо войти в систему.';
+
+  @override
+  String get authorizationErrorTitle => 'Ошибка авторизации';
+
+  @override
+  String get accessDeniedMessage => 'Доступ запрещен. Проверьте правильность учетных данных или войдите снова.';
+
+  @override
+  String get networkErrorTitle => 'Ошибка сети';
+
+  @override
+  String get networkRequestFailedMessage => 'Не удалось выполнить запрос. Проверьте подключение к интернету.';
+
+  @override
+  String get errorOccurredMessage => 'Произошла ошибка при выполнении операции.';
+
+  @override
+  String get sessionExpiredSnackBar => 'Сессия истекла. Пожалуйста, войдите снова.';
+
+  @override
+  String get invalidCredentialsSnackBar => 'Неверный логин или пароль.';
+
+  @override
+  String get authorizationErrorSnackBar => 'Ошибка авторизации. Проверьте учетные данные.';
+
+  @override
+  String get networkErrorSnackBar => 'Ошибка сети. Проверьте подключение.';
+
+  @override
+  String get captchaVerificationRequired => 'Требуется проверка капчи. Пожалуйста, попробуйте позже.';
+
+  @override
+  String get networkErrorCheckConnection => 'Ошибка сети. Пожалуйста, проверьте подключение и попробуйте снова.';
+
+  @override
+  String get authenticationFailedMessage => 'Ошибка аутентификации. Пожалуйста, проверьте учетные данные и попробуйте снова.';
+
+  @override
+  String loginFailedWithError(String error) {
+    return 'Вход не удался: $error';
+  }
+
+  @override
+  String get noAccessibleAudioFiles => 'Не найдено доступных аудиофайлов';
 }

@@ -168,7 +168,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get permissionDeniedTitle => 'Permission Denied';
 
   @override
-  String get permissionDeniedMessage => 'Permission denied: Cannot delete file';
+  String get permissionDeniedMessage => 'Storage permission is required to download files. Please enable it in app settings.';
 
   @override
   String get permissionDeniedButton => 'Open Settings';
@@ -264,7 +264,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get memoryUsage => 'Memory usage';
 
   @override
-  String get clearAllCache => 'Clear all cache';
+  String get clearAllCache => 'Clear All Cache';
 
   @override
   String get mirrorsScreenTitle => 'Mirrors';
@@ -1607,6 +1607,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get showDetailsButton => 'Details';
 
   @override
+  String get permissionDeniedDeletionMessage => 'Permission denied: Cannot delete file';
+
+  @override
   String get deletionDetailsTitle => 'Deletion Details';
 
   @override
@@ -1619,4 +1622,829 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get retryButton => 'Retry';
+
+  @override
+  String get backgroundWorkTitle => 'Background Work';
+
+  @override
+  String get refreshDiagnostics => 'Refresh diagnostics';
+
+  @override
+  String get deviceInformation => 'Device Information';
+
+  @override
+  String get manufacturer => 'Manufacturer';
+
+  @override
+  String get customRom => 'Custom ROM';
+
+  @override
+  String get androidVersion => 'Android Version';
+
+  @override
+  String get backgroundActivityMode => 'Background Activity Mode';
+
+  @override
+  String get compatibilityOk => 'Compatibility: OK';
+
+  @override
+  String get issuesDetected => 'Issues Detected';
+
+  @override
+  String get detectedIssues => 'Detected Issues:';
+
+  @override
+  String get recommendations => 'Recommendations';
+
+  @override
+  String get manufacturerSettings => 'Manufacturer Settings';
+
+  @override
+  String get manufacturerSettingsDescription => 'To ensure stable background operation, you need to configure manufacturer-specific device settings.';
+
+  @override
+  String get autostartApp => 'Autostart Application';
+
+  @override
+  String get enableAutostart => 'Enable autostart for stable operation';
+
+  @override
+  String get batteryOptimization => 'Battery Optimization';
+
+  @override
+  String get disableBatteryOptimization => 'Disable battery optimization for the application';
+
+  @override
+  String get backgroundActivity => 'Background Activity';
+
+  @override
+  String get allowBackgroundActivity => 'Allow background activity';
+
+  @override
+  String get showInstructions => 'Show Instructions';
+
+  @override
+  String get workManagerDiagnostics => 'WorkManager Diagnostics';
+
+  @override
+  String get lastExecutions => 'Last Executions:';
+
+  @override
+  String get executionHistoryEmpty => 'Execution history is empty';
+
+  @override
+  String get total => 'Total';
+
+  @override
+  String get successful => 'Successful';
+
+  @override
+  String get errors => 'Errors';
+
+  @override
+  String get avgDelay => 'Avg. Delay';
+
+  @override
+  String get minutesAbbr => 'min';
+
+  @override
+  String delay(int minutes) {
+    return 'Delay: $minutes min';
+  }
+
+  @override
+  String errorLabel(String reason) {
+    return 'Error: $reason';
+  }
+
+  @override
+  String appStandbyBucketRestricted(String bucket) {
+    return 'Application is in restricted background activity mode (Standby Bucket: $bucket)';
+  }
+
+  @override
+  String get useAppMoreFrequently => 'Use the application more frequently so the system moves it to active mode';
+
+  @override
+  String aggressiveBatteryOptimization(String manufacturer, String rom) {
+    return 'Device from manufacturer with aggressive battery optimization detected ($manufacturer, $rom)';
+  }
+
+  @override
+  String get configureAutostartAndBattery => 'It is recommended to configure autostart and disable battery optimization for the application';
+
+  @override
+  String get openManufacturerSettings => 'Open manufacturer settings through the application menu';
+
+  @override
+  String get android14ForegroundServices => 'On Android 14+, make sure Foreground Services start correctly';
+
+  @override
+  String get compatibilityIssuesDetected => 'Background work issues detected';
+
+  @override
+  String workManagerTaskDelayed(String taskName, int hours, int minutes) {
+    return 'WorkManager task \"$taskName\" delayed by $hours hours (expected: $minutes minutes)';
+  }
+
+  @override
+  String foregroundServiceKilled(String serviceName) {
+    return 'Foreground Service \"$serviceName\" was unexpectedly terminated by the system';
+  }
+
+  @override
+  String get standbyBucketActive => 'Actively Used';
+
+  @override
+  String get standbyBucketWorkingSet => 'Frequently Used';
+
+  @override
+  String get standbyBucketFrequent => 'Regularly Used';
+
+  @override
+  String get standbyBucketRare => 'Rarely Used';
+
+  @override
+  String get standbyBucketNever => 'Never Used (Restricted)';
+
+  @override
+  String standbyBucketUnknown(int bucket) {
+    return 'Unknown ($bucket)';
+  }
+
+  @override
+  String get standbyBucketActiveUsed => 'Actively Used';
+
+  @override
+  String get standbyBucketFrequentlyUsed => 'Frequently Used';
+
+  @override
+  String get standbyBucketRegularlyUsed => 'Regularly Used';
+
+  @override
+  String get standbyBucketRarelyUsed => 'Rarely Used';
+
+  @override
+  String get standbyBucketNeverUsed => 'Never Used (Restricted)';
+
+  @override
+  String get manufacturerSettingsTitle => 'Settings for Stable Operation';
+
+  @override
+  String get manufacturerSettingsDialogDescription => 'To ensure stable operation, you need to configure the following settings:';
+
+  @override
+  String get enableAutostartStep => '1. Enable application autostart';
+
+  @override
+  String get disableBatteryOptimizationStep => '2. Disable battery optimization for the application';
+
+  @override
+  String get allowBackgroundActivityStep => '3. Allow background activity';
+
+  @override
+  String detectedRom(String rom) {
+    return 'Detected ROM: $rom';
+  }
+
+  @override
+  String get skip => 'Skip';
+
+  @override
+  String get gotIt => 'Got It';
+
+  @override
+  String get backgroundCompatibilityBannerTitle => 'Background Operation Settings';
+
+  @override
+  String get backgroundCompatibilityBannerMessage => 'To ensure stable background operation, you may need to configure device settings.';
+
+  @override
+  String get dismiss => 'Dismiss';
+
+  @override
+  String get loginSuccessfulMessage => 'Login successful!';
+
+  @override
+  String get openSettingsButton => 'Open Settings';
+
+  @override
+  String get compatibilityDiagnosticsTitle => 'Compatibility & Diagnostics';
+
+  @override
+  String get compatibilityDiagnosticsSubtitle => 'Compatibility check and manufacturer settings configuration';
+
+  @override
+  String get selectFolderButton => 'Select Folder';
+
+  @override
+  String get continueButton => 'Continue';
+
+  @override
+  String errorAddingFolder(String error) {
+    return 'Error adding folder: \$error';
+  }
+
+  @override
+  String get noAudiobookGroupProvided => 'No audiobook group provided';
+
+  @override
+  String get sleepTimerPaused => 'Sleep timer: Playback paused';
+
+  @override
+  String failedToChangeSpeed(String error) {
+    return 'Failed to change speed: \$error';
+  }
+
+  @override
+  String get cancelTimerButton => 'Cancel timer';
+
+  @override
+  String get endOfChapterLabel => 'End of chapter';
+
+  @override
+  String get atEndOfChapterLabel => 'At end of chapter';
+
+  @override
+  String get itemsInTrashLabel => 'Items in Trash';
+
+  @override
+  String get trashSizeLabel => 'Trash Size';
+
+  @override
+  String get manageTrashButton => 'Manage Trash';
+
+  @override
+  String get fileLabel => 'file';
+
+  @override
+  String get filesLabel => 'files';
+
+  @override
+  String failedToLoadTrash(String error) {
+    return 'Failed to load trash: \$error';
+  }
+
+  @override
+  String get itemRestoredSuccessfully => 'Item restored successfully';
+
+  @override
+  String get failedToRestoreItem => 'Failed to restore item';
+
+  @override
+  String errorRestoringItem(String error) {
+    return 'Error restoring item: \$error';
+  }
+
+  @override
+  String get permanentlyDeleteTitle => 'Permanently Delete';
+
+  @override
+  String permanentlyDeleteMessage(String name) {
+    return 'Are you sure you want to permanently delete \"$name\"? This action cannot be undone.';
+  }
+
+  @override
+  String get itemPermanentlyDeleted => 'Item permanently deleted';
+
+  @override
+  String get failedToDeleteItem => 'Failed to delete item';
+
+  @override
+  String errorDeletingItem(String error) {
+    return 'Error deleting item: \$error';
+  }
+
+  @override
+  String get clearAllTrashTitle => 'Clear All Trash';
+
+  @override
+  String get clearAllTrashMessage => 'Are you sure you want to permanently delete all items in trash? This action cannot be undone.';
+
+  @override
+  String get filePickerAlreadyOpen => 'File picker is already open. Please close it first.';
+
+  @override
+  String get applyButton => 'Apply';
+
+  @override
+  String get lastMessageSort => 'Last message';
+
+  @override
+  String get topicNameSort => 'Topic name';
+
+  @override
+  String get postingTimeSort => 'Posting time';
+
+  @override
+  String get operationTimedOut => 'Operation timed out. Please try again.';
+
+  @override
+  String get permissionDeniedDownloads => 'Permission denied. Please check app permissions in settings.';
+
+  @override
+  String get downloadNotFound => 'Download not found. It may have been removed.';
+
+  @override
+  String get anErrorOccurred => 'An error occurred. Please try again.';
+
+  @override
+  String initializationError(String error) {
+    return 'Initialization error: \$error';
+  }
+
+  @override
+  String criticalError(String error) {
+    return 'Critical error: \$error';
+  }
+
+  @override
+  String capabilityCheckError(String error) {
+    return 'Error checking capabilities: \$error';
+  }
+
+  @override
+  String filesSelected(int count) {
+    return 'Files selected: \$count';
+  }
+
+  @override
+  String fileSelectionError(String error) {
+    return 'Error selecting files: \$error';
+  }
+
+  @override
+  String imagesSelected(int count) {
+    return 'Images selected: \$count';
+  }
+
+  @override
+  String imageSelectionError(String error) {
+    return 'Error selecting images: \$error';
+  }
+
+  @override
+  String get testNotificationTitle => 'Test notification';
+
+  @override
+  String get testNotificationBody => 'This is a test notification from JaBook';
+
+  @override
+  String get notificationSent => 'Notification sent';
+
+  @override
+  String get failedToSendNotification => 'Failed to send notification (channel not implemented)';
+
+  @override
+  String bluetoothAvailable(String available) {
+    return 'Bluetooth available: \$available';
+  }
+
+  @override
+  String pairedDevicesCount(int count) {
+    return 'Paired devices: \$count';
+  }
+
+  @override
+  String bluetoothCheckError(String error) {
+    return 'Error checking Bluetooth: \$error';
+  }
+
+  @override
+  String get systemCapabilitiesTitle => 'System Capabilities';
+
+  @override
+  String get fileAccessCapability => 'File Access';
+
+  @override
+  String get imageAccessCapability => 'Image Access';
+
+  @override
+  String get cameraCapability => 'Camera';
+
+  @override
+  String photoTaken(String path) {
+    return 'Photo taken: \$path';
+  }
+
+  @override
+  String get photoNotTaken => 'Photo not taken';
+
+  @override
+  String cameraError(String error) {
+    return 'Camera error: \$error';
+  }
+
+  @override
+  String get notificationsCapability => 'Notifications';
+
+  @override
+  String get capabilityExplanationButton => 'Explain Capabilities';
+
+  @override
+  String get testButton => 'Test';
+
+  @override
+  String get permissionsForJaBookTitle => 'Permissions for JaBook';
+
+  @override
+  String get fileAccessPermissionTitle => 'File Access';
+
+  @override
+  String get fileAccessPermissionDescription => 'Needed to save and play audiobooks.';
+
+  @override
+  String get notificationsPermissionTitle => 'Notifications';
+
+  @override
+  String get batteryOptimizationPermissionTitle => 'Battery Optimization';
+
+  @override
+  String get batteryOptimizationPermissionDescription => 'So the app can work in background for playback.';
+
+  @override
+  String get permissionsHelpMessage => 'These permissions will help provide a better app experience.';
+
+  @override
+  String urlLabel(String url) {
+    return 'URL: \$url';
+  }
+
+  @override
+  String get rutrackerTitle => 'RuTracker';
+
+  @override
+  String get webViewLoginButton => 'Login to RuTracker via WebView';
+
+  @override
+  String get webViewLoginSubtitle => 'Pass Cloudflare/captcha and save cookies for client';
+
+  @override
+  String get cookieSavedMessage => 'Cookies saved for HTTP client';
+
+  @override
+  String get failedToParseSearchResultsEncoding => 'Failed to parse search results due to encoding issue. This may be a temporary server problem. Please try again. If the problem persists, try changing the mirror in Settings → Sources.';
+
+  @override
+  String get failedToParseSearchResultsStructure => 'Failed to parse search results. The page structure may have changed. Please try again. If the problem persists, try changing the mirror in Settings → Sources.';
+
+  @override
+  String searchFailedMessage(String errorType) {
+    return 'Search failed: $errorType';
+  }
+
+  @override
+  String get topicTitleSort => 'Topic title';
+
+  @override
+  String get postTimeSort => 'Post time';
+
+  @override
+  String localStreamServerStarted(String host, int port) {
+    return 'Local stream server started on http://$host:$port';
+  }
+
+  @override
+  String failedToStartStreamServer(String error) {
+    return 'Failed to start stream server: $error';
+  }
+
+  @override
+  String get localStreamServerStopped => 'Local stream server stopped';
+
+  @override
+  String failedToStopStreamServer(String error) {
+    return 'Failed to stop stream server: $error';
+  }
+
+  @override
+  String get missingBookIdParameter => 'Missing book ID parameter';
+
+  @override
+  String get invalidFileIndexParameter => 'Invalid file index parameter';
+
+  @override
+  String get fileNotFound => 'File not found';
+
+  @override
+  String get streamingError => 'Streaming error';
+
+  @override
+  String get invalidRangeHeader => 'Invalid range header';
+
+  @override
+  String get requestedRangeNotSatisfiable => 'Requested range not satisfiable';
+
+  @override
+  String get rangeRequestError => 'Range request error';
+
+  @override
+  String get staticFileError => 'Static file error';
+
+  @override
+  String failedToStartAudioService(String error) {
+    return 'Failed to start audio service: $error';
+  }
+
+  @override
+  String failedToPlayMedia(String error) {
+    return 'Failed to play media: $error';
+  }
+
+  @override
+  String failedToPauseMedia(String error) {
+    return 'Failed to pause media: $error';
+  }
+
+  @override
+  String failedToStopMedia(String error) {
+    return 'Failed to stop media: $error';
+  }
+
+  @override
+  String failedToSeek(String error) {
+    return 'Failed to seek: $error';
+  }
+
+  @override
+  String failedToSetSpeed(String error) {
+    return 'Failed to set speed: $error';
+  }
+
+  @override
+  String get failedToInitializeLogger => 'Failed to initialize logger';
+
+  @override
+  String get failedToWriteLog => 'Failed to write log';
+
+  @override
+  String get logRotationFailed => 'Log rotation failed';
+
+  @override
+  String get failedToRotateLogs => 'Failed to rotate logs';
+
+  @override
+  String get failedToCleanOldLogs => 'Failed to clean old logs';
+
+  @override
+  String errorSharingLogs(String error) {
+    return 'Error sharing logs: $error';
+  }
+
+  @override
+  String get failedToShareLogs => 'Failed to share logs';
+
+  @override
+  String get failedToReadLogs => 'Failed to read logs';
+
+  @override
+  String get cacheManagerNotInitialized => 'CacheManager not initialized';
+
+  @override
+  String failedToParseSearchResults(String error) {
+    return 'Failed to parse search results: $error';
+  }
+
+  @override
+  String failedToParseTopicDetails(String error) {
+    return 'Failed to parse topic details: $error';
+  }
+
+  @override
+  String get failedToParseCategories => 'Failed to parse categories';
+
+  @override
+  String get failedToParseCategoryTopics => 'Failed to parse category topics';
+
+  @override
+  String get radioPlayCategory => 'Radio Play';
+
+  @override
+  String get audiobookCategory => 'Audiobook';
+
+  @override
+  String get biographyCategory => 'Biography';
+
+  @override
+  String get memoirsCategory => 'Memoirs';
+
+  @override
+  String get historyCategory => 'History';
+
+  @override
+  String get addedLabel => 'Added';
+
+  @override
+  String get invalidMagnetUrlMissingHash => 'Invalid magnet URL: missing info hash';
+
+  @override
+  String get invalidInfoHashLength => 'Invalid info hash length';
+
+  @override
+  String failedToStartDownloadWithError(String error) {
+    return 'Failed to start download: $error';
+  }
+
+  @override
+  String get downloadNotFoundTorrent => 'Download not found';
+
+  @override
+  String failedToPauseDownload(String error) {
+    return 'Failed to pause download: $error';
+  }
+
+  @override
+  String failedToResumeDownload(String error) {
+    return 'Failed to resume download: $error';
+  }
+
+  @override
+  String failedToRemoveDownload(String error) {
+    return 'Failed to remove download: $error';
+  }
+
+  @override
+  String failedToGetActiveDownloads(String error) {
+    return 'Failed to get active downloads: $error';
+  }
+
+  @override
+  String failedToShutdownTorrentManager(String error) {
+    return 'Failed to shutdown torrent manager: $error';
+  }
+
+  @override
+  String get noHealthyEndpointsAvailable => 'No healthy endpoints available';
+
+  @override
+  String get authRepositoryProviderMustBeOverridden => 'AuthRepositoryProvider must be overridden with proper context';
+
+  @override
+  String get useEndpointManagerGetActiveEndpoint => 'Use EndpointManager.getActiveEndpoint() for dynamic mirror selection';
+
+  @override
+  String get cacheManagerNotInitializedConfig => 'CacheManager not initialized';
+
+  @override
+  String searchFailedWithMessage(String message) {
+    return 'Search failed: $message';
+  }
+
+  @override
+  String get failedToSearchAudiobooks => 'Failed to search audiobooks';
+
+  @override
+  String failedToFetchCategories(String message) {
+    return 'Failed to fetch categories: $message';
+  }
+
+  @override
+  String get failedToGetCategories => 'Failed to get categories';
+
+  @override
+  String failedToGetCategoryAudiobooksWithMessage(String message) {
+    return 'Failed to get category audiobooks: $message';
+  }
+
+  @override
+  String get failedToGetCategoryAudiobooks => 'Failed to get category audiobooks';
+
+  @override
+  String failedToFetchAudiobookDetails(String message) {
+    return 'Failed to fetch audiobook details: $message';
+  }
+
+  @override
+  String get failedToGetAudiobookDetails => 'Failed to get audiobook details';
+
+  @override
+  String failedToFetchNewReleases(String message) {
+    return 'Failed to fetch new releases: $message';
+  }
+
+  @override
+  String failedToSaveCredentials(String error) {
+    return 'Failed to save credentials: $error';
+  }
+
+  @override
+  String failedToRetrieveCredentials(String error) {
+    return 'Failed to retrieve credentials: $error';
+  }
+
+  @override
+  String failedToClearCredentials(String error) {
+    return 'Failed to clear credentials: $error';
+  }
+
+  @override
+  String get noCredentialsToExport => 'No credentials to export';
+
+  @override
+  String unsupportedExportFormat(String format) {
+    return 'Unsupported export format: $format';
+  }
+
+  @override
+  String get invalidCsvFormat => 'Invalid CSV format';
+
+  @override
+  String get invalidCsvData => 'Invalid CSV data';
+
+  @override
+  String get invalidJsonFormat => 'Invalid JSON format';
+
+  @override
+  String unsupportedImportFormat(String format) {
+    return 'Unsupported import format: $format';
+  }
+
+  @override
+  String failedToImportCredentials(String error) {
+    return 'Failed to import credentials: $error';
+  }
+
+  @override
+  String errorWithDetails(String error) {
+    return 'Error: $error';
+  }
+
+  @override
+  String get fileSingular => 'file';
+
+  @override
+  String get filePlural => 'files';
+
+  @override
+  String deleteSelectedAudiobooksConfirmation(int count) {
+    return 'Are you sure you want to delete $count selected audiobook(s)?';
+  }
+
+  @override
+  String get clearPlaybackCacheDescription => 'This will clear the playback cache. Playback may be slower until cache is rebuilt.';
+
+  @override
+  String get clearAllCacheDescription => 'This will clear all cache including playback cache, temporary files, and old logs.';
+
+  @override
+  String get sessionExpiredTitle => 'Session Expired';
+
+  @override
+  String get sessionExpiredMessage => 'Your session has expired. Please log in again.';
+
+  @override
+  String get invalidCredentialsTitle => 'Authorization Error';
+
+  @override
+  String get invalidCredentialsMessage => 'Invalid username or password. Please check your credentials.';
+
+  @override
+  String get loginRequiredTitle => 'Authentication Required';
+
+  @override
+  String get loginRequiredMessage => 'You need to log in to perform this action.';
+
+  @override
+  String get authorizationErrorTitle => 'Authorization Error';
+
+  @override
+  String get accessDeniedMessage => 'Access denied. Please check your credentials or log in again.';
+
+  @override
+  String get networkErrorTitle => 'Network Error';
+
+  @override
+  String get networkRequestFailedMessage => 'Failed to complete the request. Please check your internet connection.';
+
+  @override
+  String get errorOccurredMessage => 'An error occurred while performing the operation.';
+
+  @override
+  String get sessionExpiredSnackBar => 'Session expired. Please log in again.';
+
+  @override
+  String get invalidCredentialsSnackBar => 'Invalid username or password.';
+
+  @override
+  String get authorizationErrorSnackBar => 'Authorization error. Please check your credentials.';
+
+  @override
+  String get networkErrorSnackBar => 'Network error. Please check your connection.';
+
+  @override
+  String get captchaVerificationRequired => 'Captcha verification required. Please try again later.';
+
+  @override
+  String get networkErrorCheckConnection => 'Network error. Please check your connection and try again.';
+
+  @override
+  String get authenticationFailedMessage => 'Authentication failed. Please check your credentials and try again.';
+
+  @override
+  String loginFailedWithError(String error) {
+    return 'Login failed: $error';
+  }
+
+  @override
+  String get noAccessibleAudioFiles => 'No accessible audio files found';
 }

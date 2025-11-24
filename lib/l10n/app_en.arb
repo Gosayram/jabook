@@ -856,7 +856,12 @@
   },
   "priorityText": "Priority: $priority",
   "@priorityText": {
-    "description": "Text for showing mirror priority"
+    "description": "Text for showing mirror priority",
+    "placeholders": {
+      "priority": {
+        "type": "int"
+      }
+    }
   },
   "responseTimeText": "Response time: $rtt ms",
   "@responseTimeText": {
@@ -1217,15 +1222,6 @@
     "description": "Text showing health score",
     "placeholders": {
       "score": {
-        "type": "int"
-      }
-    }
-  },
-  "priorityText": "Priority: $priority",
-  "@priorityText": {
-    "description": "Text showing priority",
-    "placeholders": {
-      "priority": {
         "type": "int"
       }
     }
@@ -1795,10 +1791,6 @@
   "@clearSearchCache": {
     "description": "Menu item for clearing search cache"
   },
-  "clearAllCache": "Clear all cache",
-  "@clearAllCache": {
-    "description": "Menu item for clearing all cache"
-  },
   "cacheCleared": "Cache cleared",
   "@cacheCleared": {
     "description": "Message for successful cache clearing"
@@ -1826,10 +1818,6 @@
   "failedToStartDownload": "Failed to start download",
   "@failedToStartDownload": {
     "description": "Error message for failed download start"
-  },
-  "downloadsTitle": "Downloads",
-  "@downloadsTitle": {
-    "description": "Title for downloads screen"
   },
   "noActiveDownloads": "No active downloads",
   "@noActiveDownloads": {
@@ -2235,10 +2223,6 @@
   "@clearAllCacheMessage": {
     "description": "Message for clear all cache dialog"
   },
-  "clearButton": "Clear",
-  "@clearButton": {
-    "description": "Button to clear"
-  },
   "storageManagementDescription": "Manage library size, cache, and files",
   "@storageManagementDescription": {
     "description": "Description for storage management section"
@@ -2263,9 +2247,9 @@
   "@showDetailsButton": {
     "description": "Button to show details"
   },
-  "permissionDeniedMessage": "Permission denied: Cannot delete file",
-  "@permissionDeniedMessage": {
-    "description": "Error message when permission is denied"
+  "permissionDeniedDeletionMessage": "Permission denied: Cannot delete file",
+  "@permissionDeniedDeletionMessage": {
+    "description": "Error message when permission is denied for file deletion"
   },
   "deletionDetailsTitle": "Deletion Details",
   "@deletionDetailsTitle": {
@@ -2290,5 +2274,1257 @@
   "retryButton": "Retry",
   "@retryButton": {
     "description": "Button to retry an operation"
+  },
+  "backgroundWorkTitle": "Background Work",
+  "@backgroundWorkTitle": {
+    "description": "Title for background compatibility screen"
+  },
+  "refreshDiagnostics": "Refresh diagnostics",
+  "@refreshDiagnostics": {
+    "description": "Tooltip for refresh button"
+  },
+  "deviceInformation": "Device Information",
+  "@deviceInformation": {
+    "description": "Section title for device information"
+  },
+  "manufacturer": "Manufacturer",
+  "@manufacturer": {
+    "description": "Label for device manufacturer"
+  },
+  "customRom": "Custom ROM",
+  "@customRom": {
+    "description": "Label for custom ROM"
+  },
+  "androidVersion": "Android Version",
+  "@androidVersion": {
+    "description": "Label for Android version"
+  },
+  "backgroundActivityMode": "Background Activity Mode",
+  "@backgroundActivityMode": {
+    "description": "Label for App Standby Bucket"
+  },
+  "compatibilityOk": "Compatibility: OK",
+  "@compatibilityOk": {
+    "description": "Status when compatibility is OK"
+  },
+  "issuesDetected": "Issues Detected",
+  "@issuesDetected": {
+    "description": "Status when issues are detected"
+  },
+  "detectedIssues": "Detected Issues:",
+  "@detectedIssues": {
+    "description": "Title for detected issues section"
+  },
+  "recommendations": "Recommendations",
+  "@recommendations": {
+    "description": "Title for recommendations section"
+  },
+  "manufacturerSettings": "Manufacturer Settings",
+  "@manufacturerSettings": {
+    "description": "Title for manufacturer settings section"
+  },
+  "manufacturerSettingsDescription": "To ensure stable background operation, you need to configure manufacturer-specific device settings.",
+  "@manufacturerSettingsDescription": {
+    "description": "Description for manufacturer settings section"
+  },
+  "autostartApp": "Autostart Application",
+  "@autostartApp": {
+    "description": "Title for autostart settings"
+  },
+  "enableAutostart": "Enable autostart for stable operation",
+  "@enableAutostart": {
+    "description": "Subtitle for autostart settings"
+  },
+  "batteryOptimization": "Battery Optimization",
+  "@batteryOptimization": {
+    "description": "Title for battery optimization settings"
+  },
+  "disableBatteryOptimization": "Disable battery optimization for the application",
+  "@disableBatteryOptimization": {
+    "description": "Subtitle for battery optimization settings"
+  },
+  "backgroundActivity": "Background Activity",
+  "@backgroundActivity": {
+    "description": "Title for background activity settings"
+  },
+  "allowBackgroundActivity": "Allow background activity",
+  "@allowBackgroundActivity": {
+    "description": "Subtitle for background activity settings"
+  },
+  "showInstructions": "Show Instructions",
+  "@showInstructions": {
+    "description": "Button to show instructions"
+  },
+  "workManagerDiagnostics": "WorkManager Diagnostics",
+  "@workManagerDiagnostics": {
+    "description": "Title for WorkManager diagnostics section"
+  },
+  "lastExecutions": "Last Executions:",
+  "@lastExecutions": {
+    "description": "Title for last executions list"
+  },
+  "executionHistoryEmpty": "Execution history is empty",
+  "@executionHistoryEmpty": {
+    "description": "Message when execution history is empty"
+  },
+  "total": "Total",
+  "@total": {
+    "description": "Label for total executions"
+  },
+  "successful": "Successful",
+  "@successful": {
+    "description": "Label for successful executions"
+  },
+  "errors": "Errors",
+  "@errors": {
+    "description": "Label for failed executions"
+  },
+  "avgDelay": "Avg. Delay",
+  "@avgDelay": {
+    "description": "Label for average delay"
+  },
+  "minutesAbbr": "min",
+  "@minutesAbbr": {
+    "description": "Abbreviation for minutes"
+  },
+  "delay": "Delay: {minutes} min",
+  "@delay": {
+    "description": "Delay information",
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "errorLabel": "Error: {reason}",
+  "@errorLabel": {
+    "description": "Error information",
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "appStandbyBucketRestricted": "Application is in restricted background activity mode (Standby Bucket: {bucket})",
+  "@appStandbyBucketRestricted": {
+    "description": "Issue message for restricted standby bucket",
+    "placeholders": {
+      "bucket": {
+        "type": "String"
+      }
+    }
+  },
+  "useAppMoreFrequently": "Use the application more frequently so the system moves it to active mode",
+  "@useAppMoreFrequently": {
+    "description": "Recommendation to use app more frequently"
+  },
+  "aggressiveBatteryOptimization": "Device from manufacturer with aggressive battery optimization detected ({manufacturer}, {rom})",
+  "@aggressiveBatteryOptimization": {
+    "description": "Issue message for aggressive battery optimization",
+    "placeholders": {
+      "manufacturer": {
+        "type": "String"
+      },
+      "rom": {
+        "type": "String"
+      }
+    }
+  },
+  "configureAutostartAndBattery": "It is recommended to configure autostart and disable battery optimization for the application",
+  "@configureAutostartAndBattery": {
+    "description": "Recommendation to configure autostart and battery"
+  },
+  "openManufacturerSettings": "Open manufacturer settings through the application menu",
+  "@openManufacturerSettings": {
+    "description": "Recommendation to open manufacturer settings"
+  },
+  "android14ForegroundServices": "On Android 14+, make sure Foreground Services start correctly",
+  "@android14ForegroundServices": {
+    "description": "Recommendation for Android 14+"
+  },
+  "compatibilityIssuesDetected": "Background work issues detected",
+  "@compatibilityIssuesDetected": {
+    "description": "Event message when compatibility issues are detected"
+  },
+  "workManagerTaskDelayed": "WorkManager task \"{taskName}\" delayed by {hours} hours (expected: {minutes} minutes)",
+  "@workManagerTaskDelayed": {
+    "description": "Event message when WorkManager task is delayed",
+    "placeholders": {
+      "taskName": {
+        "type": "String"
+      },
+      "hours": {
+        "type": "int"
+      },
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "foregroundServiceKilled": "Foreground Service \"{serviceName}\" was unexpectedly terminated by the system",
+  "@foregroundServiceKilled": {
+    "description": "Event message when foreground service is killed",
+    "placeholders": {
+      "serviceName": {
+        "type": "String"
+      }
+    }
+  },
+  "standbyBucketActive": "Actively Used",
+  "@standbyBucketActive": {
+    "description": "App Standby Bucket status: Active"
+  },
+  "standbyBucketWorkingSet": "Frequently Used",
+  "@standbyBucketWorkingSet": {
+    "description": "App Standby Bucket status: Working Set"
+  },
+  "standbyBucketFrequent": "Regularly Used",
+  "@standbyBucketFrequent": {
+    "description": "App Standby Bucket status: Frequent"
+  },
+  "standbyBucketRare": "Rarely Used",
+  "@standbyBucketRare": {
+    "description": "App Standby Bucket status: Rare"
+  },
+  "standbyBucketNever": "Never Used (Restricted)",
+  "@standbyBucketNever": {
+    "description": "App Standby Bucket status: Never"
+  },
+  "standbyBucketUnknown": "Unknown ({bucket})",
+  "@standbyBucketUnknown": {
+    "description": "App Standby Bucket status: Unknown",
+    "placeholders": {
+      "bucket": {
+        "type": "int"
+      }
+    }
+  },
+  "standbyBucketActiveUsed": "Actively Used",
+  "@standbyBucketActiveUsed": {
+    "description": "App Standby Bucket description: Active"
+  },
+  "standbyBucketFrequentlyUsed": "Frequently Used",
+  "@standbyBucketFrequentlyUsed": {
+    "description": "App Standby Bucket description: Frequently"
+  },
+  "standbyBucketRegularlyUsed": "Regularly Used",
+  "@standbyBucketRegularlyUsed": {
+    "description": "App Standby Bucket description: Regularly"
+  },
+  "standbyBucketRarelyUsed": "Rarely Used",
+  "@standbyBucketRarelyUsed": {
+    "description": "App Standby Bucket description: Rarely"
+  },
+  "standbyBucketNeverUsed": "Never Used (Restricted)",
+  "@standbyBucketNeverUsed": {
+    "description": "App Standby Bucket description: Never"
+  },
+  "manufacturerSettingsTitle": "Settings for Stable Operation",
+  "@manufacturerSettingsTitle": {
+    "description": "Title for manufacturer settings dialog"
+  },
+  "manufacturerSettingsDialogDescription": "To ensure stable operation, you need to configure the following settings:",
+  "@manufacturerSettingsDialogDescription": {
+    "description": "Description for manufacturer settings dialog"
+  },
+  "enableAutostartStep": "1. Enable application autostart",
+  "@enableAutostartStep": {
+    "description": "Step 1: Enable autostart"
+  },
+  "disableBatteryOptimizationStep": "2. Disable battery optimization for the application",
+  "@disableBatteryOptimizationStep": {
+    "description": "Step 2: Disable battery optimization"
+  },
+  "allowBackgroundActivityStep": "3. Allow background activity",
+  "@allowBackgroundActivityStep": {
+    "description": "Step 3: Allow background activity"
+  },
+  "detectedRom": "Detected ROM: {rom}",
+  "@detectedRom": {
+    "description": "Message showing detected ROM",
+    "placeholders": {
+      "rom": {
+        "type": "String"
+      }
+    }
+  },
+  "skip": "Skip",
+  "@skip": {
+    "description": "Button to skip"
+  },
+  "gotIt": "Got It",
+  "@gotIt": {
+    "description": "Button to acknowledge"
+  },
+  "backgroundCompatibilityBannerTitle": "Background Operation Settings",
+  "@backgroundCompatibilityBannerTitle": {
+    "description": "Title for background compatibility banner"
+  },
+  "backgroundCompatibilityBannerMessage": "To ensure stable background operation, you may need to configure device settings.",
+  "@backgroundCompatibilityBannerMessage": {
+    "description": "Message for background compatibility banner"
+  },
+  "dismiss": "Dismiss",
+  "@dismiss": {
+    "description": "Button to dismiss banner or dialog"
+  },
+  "loginSuccessfulMessage": "Login successful!",
+  "@loginSuccessfulMessage": {
+    "description": "Message for successful login"
+  },
+  "openSettingsButton": "Open Settings",
+  "@openSettingsButton": {
+    "description": "Button to open settings"
+  },
+  "compatibilityDiagnosticsTitle": "Compatibility & Diagnostics",
+  "@compatibilityDiagnosticsTitle": {
+    "description": "Title for compatibility and diagnostics section"
+  },
+  "compatibilityDiagnosticsSubtitle": "Compatibility check and manufacturer settings configuration",
+  "@compatibilityDiagnosticsSubtitle": {
+    "description": "Subtitle for compatibility and diagnostics section"
+  },
+  "selectFolderButton": "Select Folder",
+  "@selectFolderButton": {
+    "description": "Button to select folder"
+  },
+  "continueButton": "Continue",
+  "@continueButton": {
+    "description": "Button to continue"
+  },
+  "errorAddingFolder": "Error adding folder: $error",
+  "@errorAddingFolder": {
+    "description": "Error message when adding folder fails",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "noAudiobookGroupProvided": "No audiobook group provided",
+  "@noAudiobookGroupProvided": {
+    "description": "Error message when audiobook group is missing"
+  },
+  "sleepTimerPaused": "Sleep timer: Playback paused",
+  "@sleepTimerPaused": {
+    "description": "Notification message when sleep timer pauses playback"
+  },
+  "failedToChangeSpeed": "Failed to change speed: $error",
+  "@failedToChangeSpeed": {
+    "description": "Error message when speed change fails",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "cancelTimerButton": "Cancel timer",
+  "@cancelTimerButton": {
+    "description": "Button to cancel timer"
+  },
+  "endOfChapterLabel": "End of chapter",
+  "@endOfChapterLabel": {
+    "description": "Label for end of chapter"
+  },
+  "atEndOfChapterLabel": "At end of chapter",
+  "@atEndOfChapterLabel": {
+    "description": "Label for at end of chapter"
+  },
+  "itemsInTrashLabel": "Items in Trash",
+  "@itemsInTrashLabel": {
+    "description": "Label for items in trash"
+  },
+  "trashSizeLabel": "Trash Size",
+  "@trashSizeLabel": {
+    "description": "Label for trash size"
+  },
+  "manageTrashButton": "Manage Trash",
+  "@manageTrashButton": {
+    "description": "Button to manage trash"
+  },
+  "fileLabel": "file",
+  "@fileLabel": {
+    "description": "Singular form of file"
+  },
+  "filesLabel": "files",
+  "@filesLabel": {
+    "description": "Plural form of file"
+  },
+  "failedToLoadTrash": "Failed to load trash: $error",
+  "@failedToLoadTrash": {
+    "description": "Error message when loading trash fails",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "itemRestoredSuccessfully": "Item restored successfully",
+  "@itemRestoredSuccessfully": {
+    "description": "Message when item is restored"
+  },
+  "failedToRestoreItem": "Failed to restore item",
+  "@failedToRestoreItem": {
+    "description": "Error message when restore fails"
+  },
+  "errorRestoringItem": "Error restoring item: $error",
+  "@errorRestoringItem": {
+    "description": "Error message when restoring item fails",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "permanentlyDeleteTitle": "Permanently Delete",
+  "@permanentlyDeleteTitle": {
+    "description": "Title for permanently delete dialog"
+  },
+  "permanentlyDeleteMessage": "Are you sure you want to permanently delete \"{name}\"? This action cannot be undone.",
+  "@permanentlyDeleteMessage": {
+    "description": "Confirmation message for permanent deletion",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "itemPermanentlyDeleted": "Item permanently deleted",
+  "@itemPermanentlyDeleted": {
+    "description": "Message when item is permanently deleted"
+  },
+  "failedToDeleteItem": "Failed to delete item",
+  "@failedToDeleteItem": {
+    "description": "Error message when deletion fails"
+  },
+  "errorDeletingItem": "Error deleting item: $error",
+  "@errorDeletingItem": {
+    "description": "Error message when deleting item fails",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "clearAllTrashTitle": "Clear All Trash",
+  "@clearAllTrashTitle": {
+    "description": "Title for clear all trash dialog"
+  },
+  "clearAllTrashMessage": "Are you sure you want to permanently delete all items in trash? This action cannot be undone.",
+  "@clearAllTrashMessage": {
+    "description": "Confirmation message for clearing all trash"
+  },
+  "filePickerAlreadyOpen": "File picker is already open. Please close it first.",
+  "@filePickerAlreadyOpen": {
+    "description": "Error message when file picker is already open"
+  },
+  "applyButton": "Apply",
+  "@applyButton": {
+    "description": "Button to apply changes"
+  },
+  "lastMessageSort": "Last message",
+  "@lastMessageSort": {
+    "description": "Sort option for last message"
+  },
+  "topicNameSort": "Topic name",
+  "@topicNameSort": {
+    "description": "Sort option for topic name"
+  },
+  "postingTimeSort": "Posting time",
+  "@postingTimeSort": {
+    "description": "Sort option for posting time"
+  },
+  "operationTimedOut": "Operation timed out. Please try again.",
+  "@operationTimedOut": {
+    "description": "Error message when operation times out"
+  },
+  "permissionDeniedDownloads": "Permission denied. Please check app permissions in settings.",
+  "@permissionDeniedDownloads": {
+    "description": "Error message when permission is denied for downloads"
+  },
+  "downloadNotFound": "Download not found. It may have been removed.",
+  "@downloadNotFound": {
+    "description": "Error message when download is not found"
+  },
+  "anErrorOccurred": "An error occurred. Please try again.",
+  "@anErrorOccurred": {
+    "description": "Generic error message"
+  },
+  "initializationError": "Initialization error: $error",
+  "@initializationError": {
+    "description": "Error message during initialization",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "criticalError": "Critical error: $error",
+  "@criticalError": {
+    "description": "Critical error message",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "capabilityCheckError": "Error checking capabilities: $error",
+  "@capabilityCheckError": {
+    "description": "Error message when checking capabilities fails",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "filesSelected": "Files selected: $count",
+  "@filesSelected": {
+    "description": "Message when files are selected",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "fileSelectionError": "Error selecting files: $error",
+  "@fileSelectionError": {
+    "description": "Error message when file selection fails",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "imagesSelected": "Images selected: $count",
+  "@imagesSelected": {
+    "description": "Message when images are selected",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "imageSelectionError": "Error selecting images: $error",
+  "@imageSelectionError": {
+    "description": "Error message when image selection fails",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "testNotificationTitle": "Test notification",
+  "@testNotificationTitle": {
+    "description": "Title for test notification"
+  },
+  "testNotificationBody": "This is a test notification from JaBook",
+  "@testNotificationBody": {
+    "description": "Body text for test notification"
+  },
+  "notificationSent": "Notification sent",
+  "@notificationSent": {
+    "description": "Message when notification is sent"
+  },
+  "failedToSendNotification": "Failed to send notification (channel not implemented)",
+  "@failedToSendNotification": {
+    "description": "Error message when notification fails"
+  },
+  "bluetoothAvailable": "Bluetooth available: $available",
+  "@bluetoothAvailable": {
+    "description": "Message showing Bluetooth availability",
+    "placeholders": {
+      "available": {
+        "type": "String"
+      }
+    }
+  },
+  "pairedDevicesCount": "Paired devices: $count",
+  "@pairedDevicesCount": {
+    "description": "Message showing paired devices count",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "bluetoothCheckError": "Error checking Bluetooth: $error",
+  "@bluetoothCheckError": {
+    "description": "Error message when Bluetooth check fails",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "systemCapabilitiesTitle": "System Capabilities",
+  "@systemCapabilitiesTitle": {
+    "description": "Title for system capabilities section"
+  },
+  "fileAccessCapability": "File Access",
+  "@fileAccessCapability": {
+    "description": "Name for file access capability"
+  },
+  "imageAccessCapability": "Image Access",
+  "@imageAccessCapability": {
+    "description": "Name for image access capability"
+  },
+  "cameraCapability": "Camera",
+  "@cameraCapability": {
+    "description": "Name for camera capability"
+  },
+  "photoTaken": "Photo taken: $path",
+  "@photoTaken": {
+    "description": "Message when photo is taken",
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
+  "photoNotTaken": "Photo not taken",
+  "@photoNotTaken": {
+    "description": "Message when photo is not taken"
+  },
+  "cameraError": "Camera error: $error",
+  "@cameraError": {
+    "description": "Error message when camera fails",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "notificationsCapability": "Notifications",
+  "@notificationsCapability": {
+    "description": "Name for notifications capability"
+  },
+  "capabilityExplanationButton": "Explain Capabilities",
+  "@capabilityExplanationButton": {
+    "description": "Button to explain capabilities"
+  },
+  "testButton": "Test",
+  "@testButton": {
+    "description": "Button to test capability"
+  },
+  "permissionsForJaBookTitle": "Permissions for JaBook",
+  "@permissionsForJaBookTitle": {
+    "description": "Title for permissions onboarding dialog"
+  },
+  "fileAccessPermissionTitle": "File Access",
+  "@fileAccessPermissionTitle": {
+    "description": "Title for file access permission"
+  },
+  "fileAccessPermissionDescription": "Needed to save and play audiobooks.",
+  "@fileAccessPermissionDescription": {
+    "description": "Description for file access permission"
+  },
+  "notificationsPermissionTitle": "Notifications",
+  "@notificationsPermissionTitle": {
+    "description": "Title for notifications permission"
+  },
+  "batteryOptimizationPermissionTitle": "Battery Optimization",
+  "@batteryOptimizationPermissionTitle": {
+    "description": "Title for battery optimization permission"
+  },
+  "batteryOptimizationPermissionDescription": "So the app can work in background for playback.",
+  "@batteryOptimizationPermissionDescription": {
+    "description": "Description for battery optimization permission"
+  },
+  "permissionsHelpMessage": "These permissions will help provide a better app experience.",
+  "@permissionsHelpMessage": {
+    "description": "Message explaining why permissions are needed"
+  },
+  "urlLabel": "URL: $url",
+  "@urlLabel": {
+    "description": "Label for URL display",
+    "placeholders": {
+      "url": {
+        "type": "String"
+      }
+    }
+  },
+  "rutrackerTitle": "RuTracker",
+  "@rutrackerTitle": {
+    "description": "Title for RuTracker section"
+  },
+  "webViewLoginButton": "Login to RuTracker via WebView",
+  "@webViewLoginButton": {
+    "description": "Button text for WebView login"
+  },
+  "webViewLoginSubtitle": "Pass Cloudflare/captcha and save cookies for client",
+  "@webViewLoginSubtitle": {
+    "description": "Subtitle for WebView login button"
+  },
+  "cookieSavedMessage": "Cookies saved for HTTP client",
+  "@cookieSavedMessage": {
+    "description": "Success message when cookies are saved"
+  },
+  "failedToParseSearchResultsEncoding": "Failed to parse search results due to encoding issue. This may be a temporary server problem. Please try again. If the problem persists, try changing the mirror in Settings → Sources.",
+  "@failedToParseSearchResultsEncoding": {
+    "description": "Error message when search results parsing fails due to encoding issue"
+  },
+  "failedToParseSearchResultsStructure": "Failed to parse search results. The page structure may have changed. Please try again. If the problem persists, try changing the mirror in Settings → Sources.",
+  "@failedToParseSearchResultsStructure": {
+    "description": "Error message when search results parsing fails due to page structure change"
+  },
+  "searchFailedMessage": "Search failed: {errorType}",
+  "@searchFailedMessage": {
+    "description": "Error message when search fails",
+    "placeholders": {
+      "errorType": {
+        "type": "String"
+      }
+    }
+  },
+  "topicTitleSort": "Topic title",
+  "@topicTitleSort": {
+    "description": "Sort option label for topic title"
+  },
+  "postTimeSort": "Post time",
+  "@postTimeSort": {
+    "description": "Sort option label for post time"
+  },
+  "localStreamServerStarted": "Local stream server started on http://{host}:{port}",
+  "@localStreamServerStarted": {
+    "description": "Success message when local stream server starts",
+    "placeholders": {
+      "host": {
+        "type": "String"
+      },
+      "port": {
+        "type": "int"
+      }
+    }
+  },
+  "failedToStartStreamServer": "Failed to start stream server: {error}",
+  "@failedToStartStreamServer": {
+    "description": "Error message when stream server fails to start",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "localStreamServerStopped": "Local stream server stopped",
+  "@localStreamServerStopped": {
+    "description": "Success message when local stream server stops"
+  },
+  "failedToStopStreamServer": "Failed to stop stream server: {error}",
+  "@failedToStopStreamServer": {
+    "description": "Error message when stream server fails to stop",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "missingBookIdParameter": "Missing book ID parameter",
+  "@missingBookIdParameter": {
+    "description": "Error message when book ID parameter is missing"
+  },
+  "invalidFileIndexParameter": "Invalid file index parameter",
+  "@invalidFileIndexParameter": {
+    "description": "Error message when file index parameter is invalid"
+  },
+  "fileNotFound": "File not found",
+  "@fileNotFound": {
+    "description": "Error message when file is not found"
+  },
+  "streamingError": "Streaming error",
+  "@streamingError": {
+    "description": "Error message for streaming errors"
+  },
+  "invalidRangeHeader": "Invalid range header",
+  "@invalidRangeHeader": {
+    "description": "Error message when range header is invalid"
+  },
+  "requestedRangeNotSatisfiable": "Requested range not satisfiable",
+  "@requestedRangeNotSatisfiable": {
+    "description": "Error message when requested range cannot be satisfied"
+  },
+  "rangeRequestError": "Range request error",
+  "@rangeRequestError": {
+    "description": "Error message for range request errors"
+  },
+  "staticFileError": "Static file error",
+  "@staticFileError": {
+    "description": "Error message for static file errors"
+  },
+  "failedToStartAudioService": "Failed to start audio service: {error}",
+  "@failedToStartAudioService": {
+    "description": "Error message when audio service fails to start",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "failedToPlayMedia": "Failed to play media: {error}",
+  "@failedToPlayMedia": {
+    "description": "Error message when media playback fails",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "failedToPauseMedia": "Failed to pause media: {error}",
+  "@failedToPauseMedia": {
+    "description": "Error message when media pause fails",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "failedToStopMedia": "Failed to stop media: {error}",
+  "@failedToStopMedia": {
+    "description": "Error message when media stop fails",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "failedToSeek": "Failed to seek: {error}",
+  "@failedToSeek": {
+    "description": "Error message when seek operation fails",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "failedToSetSpeed": "Failed to set speed: {error}",
+  "@failedToSetSpeed": {
+    "description": "Error message when setting playback speed fails",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "failedToInitializeLogger": "Failed to initialize logger",
+  "@failedToInitializeLogger": {
+    "description": "Error message when logger initialization fails"
+  },
+  "failedToWriteLog": "Failed to write log",
+  "@failedToWriteLog": {
+    "description": "Error message when log writing fails"
+  },
+  "logRotationFailed": "Log rotation failed",
+  "@logRotationFailed": {
+    "description": "Error message when log rotation fails"
+  },
+  "failedToRotateLogs": "Failed to rotate logs",
+  "@failedToRotateLogs": {
+    "description": "Error message when log rotation fails"
+  },
+  "failedToCleanOldLogs": "Failed to clean old logs",
+  "@failedToCleanOldLogs": {
+    "description": "Error message when cleaning old logs fails"
+  },
+  "errorSharingLogs": "Error sharing logs: {error}",
+  "@errorSharingLogs": {
+    "description": "Error message when sharing logs fails",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "failedToShareLogs": "Failed to share logs",
+  "@failedToShareLogs": {
+    "description": "Error message when sharing logs fails"
+  },
+  "failedToReadLogs": "Failed to read logs",
+  "@failedToReadLogs": {
+    "description": "Error message when reading logs fails"
+  },
+  "cacheManagerNotInitialized": "CacheManager not initialized",
+  "@cacheManagerNotInitialized": {
+    "description": "Error message when CacheManager is not initialized"
+  },
+  "failedToParseSearchResults": "Failed to parse search results: {error}",
+  "@failedToParseSearchResults": {
+    "description": "Error message when parsing search results fails",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "failedToParseTopicDetails": "Failed to parse topic details: {error}",
+  "@failedToParseTopicDetails": {
+    "description": "Error message when parsing topic details fails",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "failedToParseCategories": "Failed to parse categories",
+  "@failedToParseCategories": {
+    "description": "Error message when parsing categories fails"
+  },
+  "failedToParseCategoryTopics": "Failed to parse category topics",
+  "@failedToParseCategoryTopics": {
+    "description": "Error message when parsing category topics fails"
+  },
+  "radioPlayCategory": "Radio Play",
+  "@radioPlayCategory": {
+    "description": "Category name for radio plays"
+  },
+  "audiobookCategory": "Audiobook",
+  "@audiobookCategory": {
+    "description": "Category name for audiobooks"
+  },
+  "biographyCategory": "Biography",
+  "@biographyCategory": {
+    "description": "Category name for biographies"
+  },
+  "memoirsCategory": "Memoirs",
+  "@memoirsCategory": {
+    "description": "Category name for memoirs"
+  },
+  "historyCategory": "History",
+  "@historyCategory": {
+    "description": "Category name for history"
+  },
+  "addedLabel": "Added",
+  "@addedLabel": {
+    "description": "Label for added date"
+  },
+  "invalidMagnetUrlMissingHash": "Invalid magnet URL: missing info hash",
+  "@invalidMagnetUrlMissingHash": {
+    "description": "Error message when magnet URL is missing info hash"
+  },
+  "invalidInfoHashLength": "Invalid info hash length",
+  "@invalidInfoHashLength": {
+    "description": "Error message when info hash has invalid length"
+  },
+  "failedToStartDownloadWithError": "Failed to start download: {error}",
+  "@failedToStartDownloadWithError": {
+    "description": "Error message when download fails to start with error details",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "downloadNotFoundTorrent": "Download not found",
+  "@downloadNotFoundTorrent": {
+    "description": "Error message when torrent download is not found"
+  },
+  "failedToPauseDownload": "Failed to pause download: {error}",
+  "@failedToPauseDownload": {
+    "description": "Error message when download pause fails",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "failedToResumeDownload": "Failed to resume download: {error}",
+  "@failedToResumeDownload": {
+    "description": "Error message when download resume fails",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "failedToRemoveDownload": "Failed to remove download: {error}",
+  "@failedToRemoveDownload": {
+    "description": "Error message when download removal fails",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "failedToGetActiveDownloads": "Failed to get active downloads: {error}",
+  "@failedToGetActiveDownloads": {
+    "description": "Error message when getting active downloads fails",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "failedToShutdownTorrentManager": "Failed to shutdown torrent manager: {error}",
+  "@failedToShutdownTorrentManager": {
+    "description": "Error message when torrent manager shutdown fails",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "noHealthyEndpointsAvailable": "No healthy endpoints available",
+  "@noHealthyEndpointsAvailable": {
+    "description": "Error message when no healthy endpoints are available"
+  },
+  "authRepositoryProviderMustBeOverridden": "AuthRepositoryProvider must be overridden with proper context",
+  "@authRepositoryProviderMustBeOverridden": {
+    "description": "Error message when AuthRepositoryProvider is not properly configured"
+  },
+  "useEndpointManagerGetActiveEndpoint": "Use EndpointManager.getActiveEndpoint() for dynamic mirror selection",
+  "@useEndpointManagerGetActiveEndpoint": {
+    "description": "Deprecated message for using EndpointManager.getActiveEndpoint()"
+  },
+  "cacheManagerNotInitializedConfig": "CacheManager not initialized",
+  "@cacheManagerNotInitializedConfig": {
+    "description": "Error message when CacheManager is not initialized in config"
+  },
+  "searchFailedWithMessage": "Search failed: {message}",
+  "@searchFailedWithMessage": {
+    "description": "Error message when search fails with specific message",
+    "placeholders": {
+      "message": {
+        "type": "String"
+      }
+    }
+  },
+  "failedToSearchAudiobooks": "Failed to search audiobooks",
+  "@failedToSearchAudiobooks": {
+    "description": "Error message when audiobook search fails"
+  },
+  "failedToFetchCategories": "Failed to fetch categories: {message}",
+  "@failedToFetchCategories": {
+    "description": "Error message when fetching categories fails",
+    "placeholders": {
+      "message": {
+        "type": "String"
+      }
+    }
+  },
+  "failedToGetCategories": "Failed to get categories",
+  "@failedToGetCategories": {
+    "description": "Error message when getting categories fails"
+  },
+  "failedToGetCategoryAudiobooksWithMessage": "Failed to get category audiobooks: {message}",
+  "@failedToGetCategoryAudiobooksWithMessage": {
+    "description": "Error message when getting category audiobooks fails with message",
+    "placeholders": {
+      "message": {
+        "type": "String"
+      }
+    }
+  },
+  "failedToGetCategoryAudiobooks": "Failed to get category audiobooks",
+  "@failedToGetCategoryAudiobooks": {
+    "description": "Error message when getting category audiobooks fails"
+  },
+  "failedToFetchAudiobookDetails": "Failed to fetch audiobook details: {message}",
+  "@failedToFetchAudiobookDetails": {
+    "description": "Error message when fetching audiobook details fails",
+    "placeholders": {
+      "message": {
+        "type": "String"
+      }
+    }
+  },
+  "failedToGetAudiobookDetails": "Failed to get audiobook details",
+  "@failedToGetAudiobookDetails": {
+    "description": "Error message when getting audiobook details fails"
+  },
+  "failedToFetchNewReleases": "Failed to fetch new releases: {message}",
+  "@failedToFetchNewReleases": {
+    "description": "Error message when fetching new releases fails",
+    "placeholders": {
+      "message": {
+        "type": "String"
+      }
+    }
+  },
+  "failedToSaveCredentials": "Failed to save credentials: {error}",
+  "@failedToSaveCredentials": {
+    "description": "Error message when saving credentials fails",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "failedToRetrieveCredentials": "Failed to retrieve credentials: {error}",
+  "@failedToRetrieveCredentials": {
+    "description": "Error message when retrieving credentials fails",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "failedToClearCredentials": "Failed to clear credentials: {error}",
+  "@failedToClearCredentials": {
+    "description": "Error message when clearing credentials fails",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "noCredentialsToExport": "No credentials to export",
+  "@noCredentialsToExport": {
+    "description": "Error message when there are no credentials to export"
+  },
+  "unsupportedExportFormat": "Unsupported export format: {format}",
+  "@unsupportedExportFormat": {
+    "description": "Error message when export format is unsupported",
+    "placeholders": {
+      "format": {
+        "type": "String"
+      }
+    }
+  },
+  "invalidCsvFormat": "Invalid CSV format",
+  "@invalidCsvFormat": {
+    "description": "Error message when CSV format is invalid"
+  },
+  "invalidCsvData": "Invalid CSV data",
+  "@invalidCsvData": {
+    "description": "Error message when CSV data is invalid"
+  },
+  "invalidJsonFormat": "Invalid JSON format",
+  "@invalidJsonFormat": {
+    "description": "Error message when JSON format is invalid"
+  },
+  "unsupportedImportFormat": "Unsupported import format: {format}",
+  "@unsupportedImportFormat": {
+    "description": "Error message when import format is unsupported",
+    "placeholders": {
+      "format": {
+        "type": "String"
+      }
+    }
+  },
+  "failedToImportCredentials": "Failed to import credentials: {error}",
+  "@failedToImportCredentials": {
+    "description": "Error message when importing credentials fails",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "errorWithDetails": "Error: {error}",
+  "@errorWithDetails": {
+    "description": "Generic error message with error details",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "fileSingular": "file",
+  "@fileSingular": {
+    "description": "Singular form of 'file'"
+  },
+  "filePlural": "files",
+  "@filePlural": {
+    "description": "Plural form of 'file'"
+  },
+  "deleteSelectedAudiobooksConfirmation": "Are you sure you want to delete {count} selected audiobook(s)?",
+  "@deleteSelectedAudiobooksConfirmation": {
+    "description": "Confirmation message for deleting selected audiobooks",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "clearPlaybackCacheDescription": "This will clear the playback cache. Playback may be slower until cache is rebuilt.",
+  "@clearPlaybackCacheDescription": {
+    "description": "Description of what clearing playback cache does"
+  },
+  "clearAllCacheDescription": "This will clear all cache including playback cache, temporary files, and old logs.",
+  "@clearAllCacheDescription": {
+    "description": "Description of what clearing all cache does"
+  },
+  "sessionExpiredTitle": "Session Expired",
+  "@sessionExpiredTitle": {
+    "description": "Title for session expired error dialog"
+  },
+  "sessionExpiredMessage": "Your session has expired. Please log in again.",
+  "@sessionExpiredMessage": {
+    "description": "Message for session expired error"
+  },
+  "invalidCredentialsTitle": "Authorization Error",
+  "@invalidCredentialsTitle": {
+    "description": "Title for invalid credentials error dialog"
+  },
+  "invalidCredentialsMessage": "Invalid username or password. Please check your credentials.",
+  "@invalidCredentialsMessage": {
+    "description": "Message for invalid credentials error"
+  },
+  "loginRequiredTitle": "Authentication Required",
+  "@loginRequiredTitle": {
+    "description": "Title for login required error dialog"
+  },
+  "loginRequiredMessage": "You need to log in to perform this action.",
+  "@loginRequiredMessage": {
+    "description": "Message for login required error"
+  },
+  "authorizationErrorTitle": "Authorization Error",
+  "@authorizationErrorTitle": {
+    "description": "Title for general authorization error dialog"
+  },
+  "accessDeniedMessage": "Access denied. Please check your credentials or log in again.",
+  "@accessDeniedMessage": {
+    "description": "Message for access denied error"
+  },
+  "networkErrorTitle": "Network Error",
+  "@networkErrorTitle": {
+    "description": "Title for network error dialog"
+  },
+  "networkRequestFailedMessage": "Failed to complete the request. Please check your internet connection.",
+  "@networkRequestFailedMessage": {
+    "description": "Message for network request failed error"
+  },
+  "errorOccurredMessage": "An error occurred while performing the operation.",
+  "@errorOccurredMessage": {
+    "description": "Generic error message"
+  },
+  "sessionExpiredSnackBar": "Session expired. Please log in again.",
+  "@sessionExpiredSnackBar": {
+    "description": "Snackbar message for session expired"
+  },
+  "invalidCredentialsSnackBar": "Invalid username or password.",
+  "@invalidCredentialsSnackBar": {
+    "description": "Snackbar message for invalid credentials"
+  },
+  "authorizationErrorSnackBar": "Authorization error. Please check your credentials.",
+  "@authorizationErrorSnackBar": {
+    "description": "Snackbar message for authorization error"
+  },
+  "networkErrorSnackBar": "Network error. Please check your connection.",
+  "@networkErrorSnackBar": {
+    "description": "Snackbar message for network error"
+  },
+  "captchaVerificationRequired": "Captcha verification required. Please try again later.",
+  "@captchaVerificationRequired": {
+    "description": "Message when captcha verification is required"
+  },
+  "networkErrorCheckConnection": "Network error. Please check your connection and try again.",
+  "@networkErrorCheckConnection": {
+    "description": "Network error message asking user to check connection"
+  },
+  "authenticationFailedMessage": "Authentication failed. Please check your credentials and try again.",
+  "@authenticationFailedMessage": {
+    "description": "Message when authentication fails"
+  },
+  "loginFailedWithError": "Login failed: {error}",
+  "@loginFailedWithError": {
+    "description": "Login failed message with error details",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "noAccessibleAudioFiles": "No accessible audio files found",
+  "@noAccessibleAudioFiles": {
+    "description": "Error message when no accessible audio files are found"
   }
 }

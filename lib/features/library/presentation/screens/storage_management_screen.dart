@@ -481,14 +481,15 @@ class _StorageManagementScreenState extends State<StorageManagementScreen> {
               _buildStatRow(
                 context,
                 Icons.delete_outline,
-                'Items in Trash',
+                AppLocalizations.of(context)?.itemsInTrashLabel ??
+                    'Items in Trash',
                 '$_trashItemsCount',
               ),
               const SizedBox(height: 8),
               _buildStatRow(
                 context,
                 Icons.storage,
-                'Trash Size',
+                AppLocalizations.of(context)?.trashSizeLabel ?? 'Trash Size',
                 _formatSize(_trashSize),
               ),
               const SizedBox(height: 16),
@@ -500,7 +501,9 @@ class _StorageManagementScreenState extends State<StorageManagementScreen> {
                     ElevatedButton.icon(
                       onPressed: () => context.push('/trash'),
                       icon: const Icon(Icons.restore),
-                      label: const Text('Manage Trash'),
+                      label: Text(
+                          AppLocalizations.of(context)?.manageTrashButton ??
+                              'Manage Trash'),
                     ),
                 ],
               ),
@@ -577,6 +580,7 @@ class _StorageManagementScreenState extends State<StorageManagementScreen> {
   }
 
   Widget _buildGroupTile(BuildContext context, LocalAudiobookGroup group) {
+    final localizations = AppLocalizations.of(context);
     final isSelected = _selectedGroups.contains(group.groupPath);
     final size = group.formattedTotalSize;
 
@@ -593,7 +597,7 @@ class _StorageManagementScreenState extends State<StorageManagementScreen> {
       },
       title: Text(group.groupName),
       subtitle: Text(
-        '${group.fileCount} ${group.fileCount == 1 ? 'file' : 'files'} • $size',
+        '${group.fileCount} ${group.fileCount == 1 ? (localizations?.fileSingular ?? 'file') : (localizations?.filePlural ?? 'files')} • $size',
       ),
       secondary: PopupMenuButton<String>(
         icon: const Icon(Icons.more_vert),
@@ -741,7 +745,8 @@ class _StorageManagementScreenState extends State<StorageManagementScreen> {
           localizations?.deleteSelectedTitle ?? 'Delete Selected?',
         ),
         content: Text(
-          localizations?.deleteSelectedMessage(_selectedGroups.length) ??
+          localizations?.deleteSelectedAudiobooksConfirmation(
+                  _selectedGroups.length) ??
               'Are you sure you want to delete ${_selectedGroups.length} selected audiobook(s)?',
         ),
         actions: [
@@ -817,7 +822,7 @@ class _StorageManagementScreenState extends State<StorageManagementScreen> {
           localizations?.clearPlaybackCacheTitle ?? 'Clear Playback Cache?',
         ),
         content: Text(
-          localizations?.clearPlaybackCacheMessage ??
+          localizations?.clearPlaybackCacheDescription ??
               'This will clear the playback cache. Playback may be slower until cache is rebuilt.',
         ),
         actions: [
@@ -869,7 +874,7 @@ class _StorageManagementScreenState extends State<StorageManagementScreen> {
           localizations?.clearAllCacheTitle ?? 'Clear All Cache?',
         ),
         content: Text(
-          localizations?.clearAllCacheMessage ??
+          localizations?.clearAllCacheDescription ??
               'This will clear all cache including playback cache, temporary files, and old logs.',
         ),
         actions: [

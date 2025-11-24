@@ -12,16 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:io';
+
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:jabook/core/logging/environment_logger.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sembast/sembast_io.dart';
-import 'package:webview_flutter/webview_flutter.dart';
 
 /// Manages User-Agent synchronization between WebView and HTTP requests.
 ///
-/// This class handles extracting the User-Agent from WebView, storing it
-/// in the database, and applying it to Dio requests for consistent
-/// browser identification.
+/// This class handles generating a dynamic User-Agent based on the device's
+/// Android version (inspired by lissen-android), extracting it from WebView
+/// as fallback, storing it in the database, and applying it to Dio requests
+/// for consistent browser identification.
 class UserAgentManager {
   /// Private constructor for singleton pattern.
   UserAgentManager._();
@@ -35,44 +38,89 @@ class UserAgentManager {
   /// Key for storing User-Agent in the database.
   static const String _userAgentKey = 'user_agent';
 
-  /// Default User-Agent string to use as fallback.
-  /// Uses modern mobile browser User-Agent.
-  static String get _defaultUserAgent =>
-      'Mozilla/5.0 (Linux; Android 13; SM-S918B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.6099.210 Mobile Safari/537.36';
+  /// Chrome version to use in User-Agent string.
+  /// Updated to match lissen-android for better compatibility.
+  static const String _chromeVersion = '130.0.6723.106';
+
+  /// Generates a dynamic User-Agent string based on the device's Android version.
+  ///
+  /// Inspired by lissen-android approach: uses actual Android version from device
+  /// instead of hardcoded values. This ensures the User-Agent is always accurate
+  /// and matches the device's actual Android version.
+  ///
+  /// Format: Mozilla/5.0 (Linux; Android {VERSION}; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{CHROME_VERSION} Mobile Safari/537.36
+  ///
+  /// Returns a User-Agent string with dynamic Android version.
+  static Future<String> _generateDynamicUserAgent() async {
+    try {
+      if (!Platform.isAndroid) {
+        // Fallback for non-Android platforms
+        return 'Mozilla/5.0 (Linux; Android 13; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/$_chromeVersion Mobile Safari/537.36';
+      }
+
+      final deviceInfo = DeviceInfoPlugin();
+      final androidInfo = await deviceInfo.androidInfo;
+      final androidVersion = androidInfo.version.release;
+
+      // Generate User-Agent with dynamic Android version (inspired by lissen-android)
+      return 'Mozilla/5.0 (Linux; Android $androidVersion; K) '
+          'AppleWebKit/537.36 (KHTML, like Gecko) '
+          'Chrome/$_chromeVersion Mobile Safari/537.36';
+    } on Exception catch (e) {
+      EnvironmentLogger().e('Failed to generate dynamic user agent: $e');
+      // Fallback to default if device info is unavailable
+      return 'Mozilla/5.0 (Linux; Android 13; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/$_chromeVersion Mobile Safari/537.36';
+    }
+  }
 
   /// Database instance for storing User-Agent data.
   Database? _db;
 
   /// Gets the current User-Agent string.
   ///
-  /// First tries to get the stored User-Agent from the database,
-  /// then extracts it from WebView if not available or if forced refresh.
-  /// Falls back to default User-Agent if extraction fails.
+  /// Priority order (inspired by lissen-android approach):
+  /// 1. Generate dynamic User-Agent based on device's Android version (preferred)
+  /// 2. Try to get stored User-Agent from the database (if not force refresh)
+  /// 3. Extract from WebView if available (fallback)
+  /// 4. Fall back to generated dynamic User-Agent
+  ///
+  /// The dynamic approach is preferred because it:
+  /// - Always uses the correct Android version for the device
+  /// - Doesn't require creating a temporary WebView
+  /// - Is faster and more reliable
+  /// - Matches the approach used in lissen-android
   Future<String> getUserAgent({bool forceRefresh = false}) async {
     try {
-      // Initialize database if not already done
-      await _initializeDatabase();
+      // First, try to generate dynamic User-Agent (inspired by lissen-android)
+      // This is the preferred approach as it's faster and always accurate
+      final dynamicUa = await _generateDynamicUserAgent();
 
-      // Try to get stored User-Agent first (unless force refresh)
-      if (!forceRefresh) {
-        final storedUa = await _getStoredUserAgent();
-        if (storedUa != null) {
+      // If force refresh, always use dynamic User-Agent
+      if (forceRefresh) {
+        await _storeUserAgent(dynamicUa);
+        return dynamicUa;
+      }
+
+      // Try to get stored User-Agent from database
+      await _initializeDatabase();
+      final storedUa = await _getStoredUserAgent();
+      if (storedUa != null && storedUa.isNotEmpty) {
+        // Verify stored User-Agent is still valid (contains Chrome version)
+        if (storedUa.contains('Chrome/') && storedUa.contains('Android')) {
           return storedUa;
         }
+        // If stored User-Agent is invalid, regenerate and store
+        await _storeUserAgent(dynamicUa);
+        return dynamicUa;
       }
 
-      // Extract from WebView if available
-      final webViewUa = await _extractUserAgentFromWebView();
-      if (webViewUa != null) {
-        await _storeUserAgent(webViewUa);
-        return webViewUa;
-      }
-
-      // Fall back to default
-      return _defaultUserAgent;
-    } on Exception {
-      // If anything goes wrong, return default User-Agent
-      return _defaultUserAgent;
+      // Store and return dynamic User-Agent
+      await _storeUserAgent(dynamicUa);
+      return dynamicUa;
+    } on Exception catch (e) {
+      EnvironmentLogger().e('Failed to get user agent: $e');
+      // Fall back to generated dynamic User-Agent
+      return _generateDynamicUserAgent();
     }
   }
 
@@ -84,71 +132,6 @@ class UserAgentManager {
     final dbPath = '${appDocumentDir.path}/jabook.db';
 
     _db = await databaseFactoryIo.openDatabase(dbPath);
-  }
-
-  /// Extracts User-Agent from WebView using JavaScript execution.
-  ///
-  /// Creates a temporary WebView to extract the actual User-Agent string
-  /// from the browser's navigator.userAgent property via JavaScript.
-  Future<String?> _extractUserAgentFromWebView() async {
-    try {
-      final controller = WebViewController();
-
-      await controller.setJavaScriptMode(JavaScriptMode.unrestricted);
-
-      String? userAgent;
-      var scriptExecuted = false;
-
-      await controller.setNavigationDelegate(
-        NavigationDelegate(
-          onPageFinished: (url) async {
-            if (!scriptExecuted) {
-              try {
-                // Execute JavaScript to get the actual User-Agent
-                final extractedUa = await controller
-                        .runJavaScriptReturningResult('navigator.userAgent')
-                    as String?;
-
-                if (extractedUa != null && extractedUa.isNotEmpty) {
-                  userAgent = extractedUa;
-                } else {
-                  // Fallback to default User-Agent
-                  userAgent = _defaultUserAgent;
-                }
-              } on Exception {
-                // If JavaScript execution fails, use default User-Agent
-                userAgent = _defaultUserAgent;
-              }
-              scriptExecuted = true;
-            }
-          },
-        ),
-      );
-
-      // Load a simple page to ensure JavaScript execution
-      await controller.loadHtmlString('''
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="utf-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        </head>
-        <body>
-            <script>
-                // Simple page to ensure User-Agent extraction works
-            </script>
-        </body>
-        </html>
-        ''');
-
-      // Wait for User-Agent extraction with timeout
-      await Future.delayed(const Duration(seconds: 2));
-
-      return userAgent;
-    } on Exception {
-      // Fallback to default User-Agent
-      return _defaultUserAgent;
-    }
   }
 
   /// Stores the User-Agent in the database.
@@ -210,8 +193,9 @@ class UserAgentManager {
       final userAgent = await getUserAgent();
       dio.options.headers['User-Agent'] = userAgent;
     } on Exception {
-      // If anything goes wrong, use the default User-Agent
-      dio.options.headers['User-Agent'] = _defaultUserAgent;
+      // If anything goes wrong, use the dynamic User-Agent
+      final fallbackUa = await _generateDynamicUserAgent();
+      dio.options.headers['User-Agent'] = fallbackUa;
     }
   }
 }

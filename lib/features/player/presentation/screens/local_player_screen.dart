@@ -27,6 +27,7 @@ import 'package:jabook/core/player/playback_settings_provider.dart';
 import 'package:jabook/core/player/player_state_provider.dart';
 import 'package:jabook/core/player/sleep_timer_service.dart';
 import 'package:jabook/core/utils/safe_async.dart';
+import 'package:jabook/l10n/app_localizations.dart';
 
 /// Player screen for local audiobook files.
 ///
@@ -315,9 +316,11 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
             () {
               if (mounted) {
                 ref.read(playerStateProvider.notifier).pause();
+                final localizations = AppLocalizations.of(context);
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Sleep timer: Playback paused'),
+                  SnackBar(
+                    content: Text(localizations?.sleepTimerPaused ??
+                        'Sleep timer: Playback paused'),
                   ),
                 );
               }
@@ -344,7 +347,49 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
       setState(() {
         _isInitialized = true;
         _hasError = true;
-        _errorMessage = e.message;
+        final localizations = AppLocalizations.of(context);
+        var errorMessage = e.message;
+
+        // Localize common audio error messages
+        if (e.message.contains('Failed to start audio service')) {
+          final errorMatch = RegExp(r'Failed to start audio service: (.+)')
+              .firstMatch(e.message);
+          errorMessage = localizations?.failedToStartAudioService(
+                  errorMatch?.group(1) ?? e.message) ??
+              e.message;
+        } else if (e.message.contains('Failed to play media')) {
+          final errorMatch =
+              RegExp(r'Failed to play media: (.+)').firstMatch(e.message);
+          errorMessage = localizations
+                  ?.failedToPlayMedia(errorMatch?.group(1) ?? e.message) ??
+              e.message;
+        } else if (e.message.contains('Failed to pause media')) {
+          final errorMatch =
+              RegExp(r'Failed to pause media: (.+)').firstMatch(e.message);
+          errorMessage = localizations
+                  ?.failedToPauseMedia(errorMatch?.group(1) ?? e.message) ??
+              e.message;
+        } else if (e.message.contains('Failed to stop media')) {
+          final errorMatch =
+              RegExp(r'Failed to stop media: (.+)').firstMatch(e.message);
+          errorMessage = localizations
+                  ?.failedToStopMedia(errorMatch?.group(1) ?? e.message) ??
+              e.message;
+        } else if (e.message.contains('Failed to seek')) {
+          final errorMatch =
+              RegExp(r'Failed to seek: (.+)').firstMatch(e.message);
+          errorMessage =
+              localizations?.failedToSeek(errorMatch?.group(1) ?? e.message) ??
+                  e.message;
+        } else if (e.message.contains('Failed to set speed')) {
+          final errorMatch =
+              RegExp(r'Failed to set speed: (.+)').firstMatch(e.message);
+          errorMessage = localizations
+                  ?.failedToSetSpeed(errorMatch?.group(1) ?? e.message) ??
+              e.message;
+        }
+
+        _errorMessage = errorMessage;
       });
     } on Exception catch (e) {
       await _logger.log(
@@ -356,7 +401,9 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
       setState(() {
         _isInitialized = true;
         _hasError = true;
-        _errorMessage = 'Failed to load audio: ${e.toString()}';
+        _errorMessage =
+            AppLocalizations.of(context)?.failedToLoadAudioMessage ??
+                'Failed to load audio: ${e.toString()}';
       });
     }
   }
@@ -412,7 +459,11 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
           message: 'No accessible audio files found',
           extra: {'total_files': filePaths.length},
         );
-        throw const AudioFailure('No accessible audio files found');
+        final errorMessage = mounted
+            ? (AppLocalizations.of(context)?.noAccessibleAudioFiles ??
+                'No accessible audio files found')
+            : 'No accessible audio files found';
+        throw AudioFailure(errorMessage);
       }
 
       await _logger.log(
@@ -452,7 +503,11 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
         message: 'Failed to load audio sources',
         cause: e.toString(),
       );
-      throw AudioFailure('Failed to load audio: ${e.toString()}');
+      final errorMessage = mounted
+          ? (AppLocalizations.of(context)?.failedToLoadAudioMessage ??
+              'Failed to load audio: ${e.toString()}')
+          : 'Failed to load audio: ${e.toString()}';
+      throw AudioFailure(errorMessage);
     }
   }
 
@@ -529,8 +584,11 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
         cause: e.toString(),
       );
       if (mounted) {
+        final localizations = AppLocalizations.of(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to change speed: ${e.message}')),
+          SnackBar(
+              content: Text(localizations?.failedToChangeSpeed(e.message) ??
+                  'Failed to change speed: ${e.message}')),
         );
       }
     }
@@ -581,7 +639,8 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
                           size: 64, color: Colors.red),
                       const SizedBox(height: 16),
                       Text(
-                        'Failed to load audio',
+                        AppLocalizations.of(context)?.failedToLoadAudio ??
+                            'Failed to load audio',
                         style: Theme.of(context).textTheme.titleMedium,
                         textAlign: TextAlign.center,
                       ),
@@ -1079,11 +1138,14 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
             }
           }
         },
-        itemBuilder: (context) => [
-          const PopupMenuItem<Duration?>(
-            child: Text('Cancel timer'),
-          ),
-        ],
+        itemBuilder: (context) {
+          final localizations = AppLocalizations.of(context);
+          return [
+            PopupMenuItem<Duration?>(
+              child: Text(localizations?.cancelTimerButton ?? 'Cancel timer'),
+            ),
+          ];
+        },
         child: Chip(
           avatar: const Icon(Icons.timer, size: 18),
           label: Text(_formatDuration(Duration(seconds: remainingSeconds))),
@@ -1096,7 +1158,8 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
 
     if (isActive && remainingSeconds == null) {
       return PopupMenuButton<Duration?>(
-        tooltip: 'Sleep timer: At end of chapter',
+        tooltip: AppLocalizations.of(context)?.atEndOfChapterLabel ??
+            'Sleep timer: At end of chapter',
         onSelected: (duration) async {
           if (duration == null) {
             await _sleepTimerService.cancelTimer();
@@ -1109,14 +1172,18 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
             }
           }
         },
-        itemBuilder: (context) => [
-          const PopupMenuItem<Duration?>(
-            child: Text('Cancel timer'),
-          ),
-        ],
+        itemBuilder: (context) {
+          final localizations = AppLocalizations.of(context);
+          return [
+            PopupMenuItem<Duration?>(
+              child: Text(localizations?.cancelTimerButton ?? 'Cancel timer'),
+            ),
+          ];
+        },
         child: Chip(
           avatar: const Icon(Icons.timer, size: 18),
-          label: const Text('End of chapter'),
+          label: Text(AppLocalizations.of(context)?.endOfChapterLabel ??
+              'End of chapter'),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           backgroundColor:
               Theme.of(context).primaryColor.withValues(alpha: 0.1),
@@ -1184,9 +1251,10 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
           value: Duration(hours: 1),
           child: Text('1 hour'),
         ),
-        const PopupMenuItem<Duration?>(
-          value: Duration(seconds: -1), // Special value
-          child: Text('At end of chapter'),
+        PopupMenuItem<Duration?>(
+          value: const Duration(seconds: -1), // Special value
+          child: Text(AppLocalizations.of(context)?.atEndOfChapterLabel ??
+              'At end of chapter'),
         ),
       ],
       child: const Chip(

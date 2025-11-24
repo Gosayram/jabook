@@ -903,7 +903,8 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                AppLocalizations.of(context)?.failedToStartDownload ??
+                AppLocalizations.of(context)?.failedToStartDownloadWithError(
+                        'Invalid torrent file') ??
                     'Failed to start download: Invalid torrent file',
               ),
             ),
@@ -961,13 +962,58 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
       } on TorrentFailure catch (e) {
         logger.e('Failed to start download: $e');
         if (mounted) {
+          final localizations = AppLocalizations.of(context);
+          var errorMessage = e.message;
+
+          // Localize common torrent error messages
+          if (e.message.contains('Failed to start download')) {
+            final errorMatch =
+                RegExp(r'Failed to start download: (.+)').firstMatch(e.message);
+            errorMessage = localizations?.failedToStartDownloadWithError(
+                    errorMatch?.group(1) ?? e.message) ??
+                e.message;
+          } else if (e.message.contains('Download not found')) {
+            errorMessage = localizations?.downloadNotFoundTorrent ?? e.message;
+          } else if (e.message.contains('Failed to pause download')) {
+            final errorMatch =
+                RegExp(r'Failed to pause download: (.+)').firstMatch(e.message);
+            errorMessage = localizations?.failedToPauseDownload(
+                    errorMatch?.group(1) ?? e.message) ??
+                e.message;
+          } else if (e.message.contains('Failed to resume download')) {
+            final errorMatch = RegExp(r'Failed to resume download: (.+)')
+                .firstMatch(e.message);
+            errorMessage = localizations?.failedToResumeDownload(
+                    errorMatch?.group(1) ?? e.message) ??
+                e.message;
+          } else if (e.message.contains('Failed to remove download')) {
+            final errorMatch = RegExp(r'Failed to remove download: (.+)')
+                .firstMatch(e.message);
+            errorMessage = localizations?.failedToRemoveDownload(
+                    errorMatch?.group(1) ?? e.message) ??
+                e.message;
+          } else if (e.message.contains('Failed to get active downloads')) {
+            final errorMatch = RegExp(r'Failed to get active downloads: (.+)')
+                .firstMatch(e.message);
+            errorMessage = localizations?.failedToGetActiveDownloads(
+                    errorMatch?.group(1) ?? e.message) ??
+                e.message;
+          } else if (e.message.contains('Failed to shutdown torrent manager')) {
+            final errorMatch =
+                RegExp(r'Failed to shutdown torrent manager: (.+)')
+                    .firstMatch(e.message);
+            errorMessage = localizations?.failedToShutdownTorrentManager(
+                    errorMatch?.group(1) ?? e.message) ??
+                e.message;
+          }
+
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(e.message),
+              content: Text(errorMessage),
               backgroundColor: Colors.orange,
               duration: const Duration(seconds: 5),
               action: SnackBarAction(
-                label: 'Settings',
+                label: localizations?.navSettings ?? 'Settings',
                 onPressed: () => context.go('/settings'),
               ),
             ),
@@ -1033,7 +1079,9 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                '${AppLocalizations.of(context)?.failedToStartDownload ?? 'Failed to start download'}: Failed to track download progress: ${e.toString()}',
+                AppLocalizations.of(context)?.failedToStartDownloadWithError(
+                        'Failed to track download progress: ${e.toString()}') ??
+                    'Failed to start download: Failed to track download progress: ${e.toString()}',
               ),
             ),
           );
@@ -1064,7 +1112,9 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              '${AppLocalizations.of(context)?.failedToStartDownload ?? 'Failed to start download'}: ${e.toString()}',
+              AppLocalizations.of(context)
+                      ?.failedToStartDownloadWithError(e.toString()) ??
+                  'Failed to start download: ${e.toString()}',
             ),
           ),
         );
@@ -1102,13 +1152,58 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
       } on TorrentFailure catch (e) {
         logger.e('Failed to start download: $e');
         if (mounted) {
+          final localizations = AppLocalizations.of(context);
+          var errorMessage = e.message;
+
+          // Localize common torrent error messages
+          if (e.message.contains('Failed to start download')) {
+            final errorMatch =
+                RegExp(r'Failed to start download: (.+)').firstMatch(e.message);
+            errorMessage = localizations?.failedToStartDownloadWithError(
+                    errorMatch?.group(1) ?? e.message) ??
+                e.message;
+          } else if (e.message.contains('Download not found')) {
+            errorMessage = localizations?.downloadNotFoundTorrent ?? e.message;
+          } else if (e.message.contains('Failed to pause download')) {
+            final errorMatch =
+                RegExp(r'Failed to pause download: (.+)').firstMatch(e.message);
+            errorMessage = localizations?.failedToPauseDownload(
+                    errorMatch?.group(1) ?? e.message) ??
+                e.message;
+          } else if (e.message.contains('Failed to resume download')) {
+            final errorMatch = RegExp(r'Failed to resume download: (.+)')
+                .firstMatch(e.message);
+            errorMessage = localizations?.failedToResumeDownload(
+                    errorMatch?.group(1) ?? e.message) ??
+                e.message;
+          } else if (e.message.contains('Failed to remove download')) {
+            final errorMatch = RegExp(r'Failed to remove download: (.+)')
+                .firstMatch(e.message);
+            errorMessage = localizations?.failedToRemoveDownload(
+                    errorMatch?.group(1) ?? e.message) ??
+                e.message;
+          } else if (e.message.contains('Failed to get active downloads')) {
+            final errorMatch = RegExp(r'Failed to get active downloads: (.+)')
+                .firstMatch(e.message);
+            errorMessage = localizations?.failedToGetActiveDownloads(
+                    errorMatch?.group(1) ?? e.message) ??
+                e.message;
+          } else if (e.message.contains('Failed to shutdown torrent manager')) {
+            final errorMatch =
+                RegExp(r'Failed to shutdown torrent manager: (.+)')
+                    .firstMatch(e.message);
+            errorMessage = localizations?.failedToShutdownTorrentManager(
+                    errorMatch?.group(1) ?? e.message) ??
+                e.message;
+          }
+
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(e.message),
+              content: Text(errorMessage),
               backgroundColor: Colors.orange,
               duration: const Duration(seconds: 5),
               action: SnackBarAction(
-                label: 'Settings',
+                label: localizations?.navSettings ?? 'Settings',
                 onPressed: () => context.go('/settings'),
               ),
             ),
@@ -1174,7 +1269,9 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                '${AppLocalizations.of(context)?.failedToStartDownload ?? 'Failed to start download'}: Failed to track download progress: ${e.toString()}',
+                AppLocalizations.of(context)?.failedToStartDownloadWithError(
+                        'Failed to track download progress: ${e.toString()}') ??
+                    'Failed to start download: Failed to track download progress: ${e.toString()}',
               ),
             ),
           );
@@ -1198,7 +1295,9 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              '${AppLocalizations.of(context)?.failedToStartDownload ?? 'Failed to start download'}: ${e.toString()}',
+              AppLocalizations.of(context)
+                      ?.failedToStartDownloadWithError(e.toString()) ??
+                  'Failed to start download: ${e.toString()}',
             ),
           ),
         );
