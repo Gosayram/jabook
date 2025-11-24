@@ -115,8 +115,9 @@ android {
         }
         create("beta") {
             dimension = "default"
+            applicationIdSuffix = ".beta"
             versionNameSuffix = "-beta"
-            resValue("string", "app_name", "jabook beta")
+            resValue("string", "app_name", "Jabook Beta")
         }
         create("prod") {
             dimension = "default"
@@ -175,4 +176,8 @@ dependencies {
     
     // OkHttp for network requests in MediaDataSourceFactory
     implementation("com.squareup.okhttp3:okhttp:5.3.2")
+    
+    // Note: Google Play Core is NOT needed as a dependency
+    // Flutter references these classes but they're not actually used
+    // ProGuard rules in proguard-rules.pro handle R8 warnings with -dontwarn
 }

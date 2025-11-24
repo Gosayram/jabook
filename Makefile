@@ -179,16 +179,6 @@ patch-gradle-signing:
 		exit 1; \
 	fi
 
-.PHONY: patch-gradle-minsdk
-patch-gradle-minsdk:
-	@echo "Patching Gradle minSdk to 21..."
-	@if [ -f "scripts/patch-gradle-minsdk.sh" ]; then \
-		scripts/patch-gradle-minsdk.sh; \
-		echo "minSdk patched successfully"; \
-	else \
-		echo "Warning: patch-gradle-minsdk.sh not found, skipping minSdk patch"; \
-	fi
-
 .PHONY: build-android-bundle
 build-android-bundle:
 	@if [ ! -f "android/key.properties" ]; then \
@@ -205,36 +195,46 @@ build-android-bundle:
 	fi
 
 .PHONY: build-android-signed
-build-android-signed: use-existing-android-cert patch-gradle-signing patch-gradle-minsdk build-android-bundle
+build-android-signed: use-existing-android-cert patch-gradle-signing build-android-bundle
 	@echo "Signed Android App Bundle built successfully"
 
 .PHONY: build-android-signed-apk
-build-android-signed-apk: use-existing-android-cert patch-gradle-signing patch-gradle-minsdk
-	@echo "Building signed prod APK (without obfuscation for easier debugging)..."
+build-android-signed-apk: use-existing-android-cert patch-gradle-signing
+	@echo "Building signed prod APK (with obfuscation for production)..."
 	@echo "Building split APKs per architecture..."
 	flutter build apk --flavor prod --target lib/main.dart --release \
+		--obfuscate \
+		--split-debug-info=./debug-info \
 		--split-per-abi \
 		--tree-shake-icons
 	@echo "Building universal APK (all architectures)..."
 	flutter build apk --flavor prod --target lib/main.dart --release \
+		--obfuscate \
+		--split-debug-info=./debug-info \
 		--tree-shake-icons
 	@echo "✅ Signed prod APKs built at: build/app/outputs/apk/"
 	@echo "   - Split APKs: app-*-release.apk (per architecture)"
 	@echo "   - Universal APK: app-release.apk (all architectures)"
+	@echo "   - Debug symbols saved to: ./debug-info/"
 
 .PHONY: build-android-signed-apk-beta
-build-android-signed-apk-beta: use-existing-android-cert patch-gradle-signing patch-gradle-minsdk
-	@echo "Building signed beta APK (without obfuscation for easier debugging)..."
+build-android-signed-apk-beta: use-existing-android-cert patch-gradle-signing
+	@echo "Building signed beta APK (with obfuscation for testing)..."
 	@echo "Building split APKs per architecture..."
 	flutter build apk --flavor beta --target lib/main.dart --release \
+		--obfuscate \
+		--split-debug-info=./debug-info \
 		--split-per-abi \
 		--tree-shake-icons
 	@echo "Building universal APK (all architectures)..."
 	flutter build apk --flavor beta --target lib/main.dart --release \
+		--obfuscate \
+		--split-debug-info=./debug-info \
 		--tree-shake-icons
 	@echo "✅ Signed beta APKs built at: build/app/outputs/apk/"
 	@echo "   - Split APKs: app-*-release.apk (per architecture)"
 	@echo "   - Universal APK: app-release.apk (all architectures)"
+	@echo "   - Debug symbols saved to: ./debug-info/"
 
 .PHONY: copy-apk
 copy-apk:
@@ -333,7 +333,7 @@ build-android-signed-apk-beta-copy: build-android-signed-apk-beta copy-apk-beta
 	@echo "✅ Build and copy complete!"
 
 .PHONY: build-android-debug-apk
-build-android-debug-apk: use-existing-android-cert patch-gradle-signing patch-gradle-minsdk
+build-android-debug-apk: use-existing-android-cert patch-gradle-signing
 	@echo "Building signed debug APK (no obfuscation for easier debugging)..."
 	flutter build apk --target lib/main.dart --release \
 		--split-per-abi \
@@ -569,13 +569,6 @@ install-ios:
 setup-android:
 	@echo "Setting up Android project configuration..."
 	flutter create . --org com.jabook.app --platforms=android -a kotlin
-	@echo "Patching Android minSdk to 21 (Android 5.0+)..."
-	@if [ -f "scripts/patch-gradle-minsdk.sh" ]; then \
-		scripts/patch-gradle-minsdk.sh; \
-		echo "minSdk patched successfully"; \
-	else \
-		echo "Warning: patch-gradle-minsdk.sh not found, skipping minSdk patch"; \
-	fi
 	@echo "Generating custom launcher icons..."
 	dart run flutter_launcher_icons:main
 	@echo "Android project setup complete!"
