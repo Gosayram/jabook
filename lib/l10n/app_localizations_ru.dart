@@ -2474,4 +2474,139 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get noAccessibleAudioFiles => 'Не найдено доступных аудиофайлов';
+
+  @override
+  String get aboutTitle => 'О приложении';
+
+  @override
+  String get aboutAppSlogan => 'Современный аудиоплеер для торрентов';
+
+  @override
+  String get appVersion => 'Версия приложения';
+
+  @override
+  String get buildNumber => 'Сборка';
+
+  @override
+  String get packageId => 'ID пакета';
+
+  @override
+  String get licenseTitle => 'Лицензия';
+
+  @override
+  String get licenseDescription => 'Приложение JaBook распространяется по лицензии Apache 2.0. Нажмите, чтобы посмотреть полный текст лицензии и список сторонних библиотек.';
+
+  @override
+  String get mainLicense => 'Основная лицензия';
+
+  @override
+  String get thirdPartyLicenses => 'Сторонние библиотеки';
+
+  @override
+  String get telegramChannel => 'Telegram канал';
+
+  @override
+  String get openTelegramChannel => 'Открыть канал в Telegram';
+
+  @override
+  String get contactDeveloper => 'Написать разработчику';
+
+  @override
+  String get openEmailClient => 'Открыть почтовый клиент';
+
+  @override
+  String get supportProject => 'Поддержать проект';
+
+  @override
+  String get supportProjectDescription => 'Пожертвовать или поддержать разработку';
+
+  @override
+  String get githubRepository => 'GitHub';
+
+  @override
+  String get githubRepositoryDescription => 'Исходный код и список изменений';
+
+  @override
+  String get changelog => 'Список изменений';
+
+  @override
+  String get changelogDescription => 'История версий и обновлений';
+
+  @override
+  String get issues => 'Issues';
+
+  @override
+  String get issuesDescription => 'Сообщить об ошибках и запросить функции';
+
+  @override
+  String get aboutDeveloper => 'О разработчике';
+
+  @override
+  String get aboutDeveloperText => 'JaBook разработан командой Jabook Contributors. Это open source проект, созданный для удобного прослушивания аудиокниг из открытых источников и торрентов. Без рекламы, без регистрации — простое прослушивание.';
+
+  @override
+  String get copyInfo => 'Скопировать';
+
+  @override
+  String get infoCopied => 'Информация скопирована';
+
+  @override
+  String get failedToOpenLink => 'Не удалось открыть ссылку';
+
+  @override
+  String get failedToOpenEmail => 'Не удалось открыть почтовый клиент';
+
+  @override
+  String get viewInApp => 'Просмотр в приложении';
+
+  @override
+  String get viewLicenses => 'Просмотр лицензий';
+
+  @override
+  String get licenseOnGitHub => 'Лицензия на GitHub';
+
+  @override
+  String get viewLicenseFile => 'Просмотр файла LICENSE';
+
+  @override
+  String get appDiscussionQuestionsReviews => 'Обсуждение приложения, вопросы и отзывы';
+
+  @override
+  String get jabookContributors => 'Jabook Contributors';
+
+  @override
+  String get github => 'GitHub';
+
+  @override
+  String get versionInformationLongPress => 'Информация о версии. Долгое нажатие для копирования.';
+
+  @override
+  String get unknown => 'Неизвестно';
+
+  @override
+  String get emailFeedbackSubject => 'JaBook – обратная связь';
+
+  @override
+  String get emailFeedbackApp => 'Приложение: JaBook';
+
+  @override
+  String get emailFeedbackVersion => 'Версия:';
+
+  @override
+  String get emailFeedbackDevice => 'Устройство:';
+
+  @override
+  String get emailFeedbackAndroid => 'Android:';
+
+  @override
+  String get emailFeedbackDescription => 'Описание проблемы / предложения:';
+
+  @override
+  String get aboutSectionDescription => 'Информация о приложении и ссылки';
+
+  @override
+  String get aboutSectionSubtitle => 'Версия, лицензия и информация о разработчике';
+
+  @override
+  String get forum4Pda => '4PDA';
 }

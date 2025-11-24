@@ -43,6 +43,31 @@ android {
         manifestPlaceholders["enableExplicitIntentHandling"] = "true"
     }
 
+    flavorDimensions += "default"
+    productFlavors {
+        create("dev") {
+            dimension = "default"
+            applicationIdSuffix = ".dev"
+            versionNameSuffix = "-dev"
+            resValue("string", "app_name", "JaBook Dev")
+        }
+        create("stage") {
+            dimension = "default"
+            applicationIdSuffix = ".stage"
+            versionNameSuffix = "-stage"
+            resValue("string", "app_name", "JaBook Stage")
+        }
+        create("beta") {
+            dimension = "default"
+            versionNameSuffix = "-beta"
+            resValue("string", "app_name", "jabook beta")
+        }
+        create("prod") {
+            dimension = "default"
+            resValue("string", "app_name", "JaBook")
+        }
+    }
+
     signingConfigs {
         create("release") {
             val keystorePropertiesFile = rootProject.file("key.properties")

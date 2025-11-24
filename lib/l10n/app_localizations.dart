@@ -4588,6 +4588,276 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No accessible audio files found'**
   String get noAccessibleAudioFiles;
+
+  /// About screen title
+  ///
+  /// In en, this message translates to:
+  /// **'About'**
+  String get aboutTitle;
+
+  /// App slogan
+  ///
+  /// In en, this message translates to:
+  /// **'Modern audiobook player for torrents'**
+  String get aboutAppSlogan;
+
+  /// Label for app version
+  ///
+  /// In en, this message translates to:
+  /// **'App Version'**
+  String get appVersion;
+
+  /// Label for build number
+  ///
+  /// In en, this message translates to:
+  /// **'Build'**
+  String get buildNumber;
+
+  /// Label for package ID
+  ///
+  /// In en, this message translates to:
+  /// **'Package ID'**
+  String get packageId;
+
+  /// License section title
+  ///
+  /// In en, this message translates to:
+  /// **'License'**
+  String get licenseTitle;
+
+  /// License description
+  ///
+  /// In en, this message translates to:
+  /// **'JaBook is distributed under the Apache 2.0 license. Tap to view the full license text and list of third-party libraries.'**
+  String get licenseDescription;
+
+  /// Menu item for main license
+  ///
+  /// In en, this message translates to:
+  /// **'Main License'**
+  String get mainLicense;
+
+  /// Menu item for third-party libraries
+  ///
+  /// In en, this message translates to:
+  /// **'Third-Party Libraries'**
+  String get thirdPartyLicenses;
+
+  /// Menu item for Telegram channel
+  ///
+  /// In en, this message translates to:
+  /// **'Telegram Channel'**
+  String get telegramChannel;
+
+  /// Subtitle for Telegram channel
+  ///
+  /// In en, this message translates to:
+  /// **'Open channel in Telegram'**
+  String get openTelegramChannel;
+
+  /// Menu item for contacting developer
+  ///
+  /// In en, this message translates to:
+  /// **'Contact Developer'**
+  String get contactDeveloper;
+
+  /// Subtitle for email client
+  ///
+  /// In en, this message translates to:
+  /// **'Open email client'**
+  String get openEmailClient;
+
+  /// Menu item for supporting project
+  ///
+  /// In en, this message translates to:
+  /// **'Support Project'**
+  String get supportProject;
+
+  /// Subtitle for supporting project
+  ///
+  /// In en, this message translates to:
+  /// **'Donate or support development'**
+  String get supportProjectDescription;
+
+  /// Menu item for GitHub repository
+  ///
+  /// In en, this message translates to:
+  /// **'GitHub'**
+  String get githubRepository;
+
+  /// Subtitle for GitHub repository
+  ///
+  /// In en, this message translates to:
+  /// **'Source code and changelog'**
+  String get githubRepositoryDescription;
+
+  /// Menu item for changelog
+  ///
+  /// In en, this message translates to:
+  /// **'Changelog'**
+  String get changelog;
+
+  /// Subtitle for changelog
+  ///
+  /// In en, this message translates to:
+  /// **'Version history and updates'**
+  String get changelogDescription;
+
+  /// Menu item for GitHub issues
+  ///
+  /// In en, this message translates to:
+  /// **'Issues'**
+  String get issues;
+
+  /// Subtitle for issues
+  ///
+  /// In en, this message translates to:
+  /// **'Report bugs and request features'**
+  String get issuesDescription;
+
+  /// About developer section title
+  ///
+  /// In en, this message translates to:
+  /// **'About Developer'**
+  String get aboutDeveloper;
+
+  /// Text about developer
+  ///
+  /// In en, this message translates to:
+  /// **'JaBook is developed by Jabook Contributors team. This is an open source project created for convenient listening to audiobooks from open sources and torrents. No ads, no registration — just pure listening.'**
+  String get aboutDeveloperText;
+
+  /// Button for copying information
+  ///
+  /// In en, this message translates to:
+  /// **'Copy'**
+  String get copyInfo;
+
+  /// Message after copying
+  ///
+  /// In en, this message translates to:
+  /// **'Info copied'**
+  String get infoCopied;
+
+  /// Error message when opening link fails
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to open link'**
+  String get failedToOpenLink;
+
+  /// Error message when opening email client fails
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to open email client'**
+  String get failedToOpenEmail;
+
+  /// Subtitle for viewing license in app
+  ///
+  /// In en, this message translates to:
+  /// **'View in app'**
+  String get viewInApp;
+
+  /// Subtitle for viewing licenses
+  ///
+  /// In en, this message translates to:
+  /// **'View licenses'**
+  String get viewLicenses;
+
+  /// Menu item for viewing license on GitHub
+  ///
+  /// In en, this message translates to:
+  /// **'License on GitHub'**
+  String get licenseOnGitHub;
+
+  /// Subtitle for viewing license file
+  ///
+  /// In en, this message translates to:
+  /// **'View LICENSE file'**
+  String get viewLicenseFile;
+
+  /// Subtitle for 4PDA forum
+  ///
+  /// In en, this message translates to:
+  /// **'App discussion, questions and reviews'**
+  String get appDiscussionQuestionsReviews;
+
+  /// Developer team name
+  ///
+  /// In en, this message translates to:
+  /// **'Jabook Contributors'**
+  String get jabookContributors;
+
+  /// GitHub service name
+  ///
+  /// In en, this message translates to:
+  /// **'GitHub'**
+  String get github;
+
+  /// Accessibility label for version section
+  ///
+  /// In en, this message translates to:
+  /// **'Version information. Long press to copy.'**
+  String get versionInformationLongPress;
+
+  /// Default value for unknown data
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown'**
+  String get unknown;
+
+  /// Email subject for feedback
+  ///
+  /// In en, this message translates to:
+  /// **'JaBook - Feedback'**
+  String get emailFeedbackSubject;
+
+  /// App label in email
+  ///
+  /// In en, this message translates to:
+  /// **'App: JaBook'**
+  String get emailFeedbackApp;
+
+  /// Version label in email
+  ///
+  /// In en, this message translates to:
+  /// **'Version:'**
+  String get emailFeedbackVersion;
+
+  /// Device label in email
+  ///
+  /// In en, this message translates to:
+  /// **'Device:'**
+  String get emailFeedbackDevice;
+
+  /// Android version label in email
+  ///
+  /// In en, this message translates to:
+  /// **'Android:'**
+  String get emailFeedbackAndroid;
+
+  /// Description label in email
+  ///
+  /// In en, this message translates to:
+  /// **'Description of issue / suggestion:'**
+  String get emailFeedbackDescription;
+
+  /// Description of About section in settings
+  ///
+  /// In en, this message translates to:
+  /// **'App information and links'**
+  String get aboutSectionDescription;
+
+  /// Subtitle for About section in settings
+  ///
+  /// In en, this message translates to:
+  /// **'Version, license, and developer information'**
+  String get aboutSectionSubtitle;
+
+  /// 4PDA forum name
+  ///
+  /// In en, this message translates to:
+  /// **'4PDA'**
+  String get forum4Pda;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

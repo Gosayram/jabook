@@ -3562,5 +3562,185 @@
   "noAccessibleAudioFiles": "No accessible audio files found",
   "@noAccessibleAudioFiles": {
     "description": "Error message when no accessible audio files are found"
+  },
+  "aboutTitle": "About",
+  "@aboutTitle": {
+    "description": "About screen title"
+  },
+  "aboutAppSlogan": "Modern audiobook player for torrents",
+  "@aboutAppSlogan": {
+    "description": "App slogan"
+  },
+  "appVersion": "App Version",
+  "@appVersion": {
+    "description": "Label for app version"
+  },
+  "buildNumber": "Build",
+  "@buildNumber": {
+    "description": "Label for build number"
+  },
+  "packageId": "Package ID",
+  "@packageId": {
+    "description": "Label for package ID"
+  },
+  "licenseTitle": "License",
+  "@licenseTitle": {
+    "description": "License section title"
+  },
+  "licenseDescription": "JaBook is distributed under the Apache 2.0 license. Tap to view the full license text and list of third-party libraries.",
+  "@licenseDescription": {
+    "description": "License description"
+  },
+  "mainLicense": "Main License",
+  "@mainLicense": {
+    "description": "Menu item for main license"
+  },
+  "thirdPartyLicenses": "Third-Party Libraries",
+  "@thirdPartyLicenses": {
+    "description": "Menu item for third-party libraries"
+  },
+  "telegramChannel": "Telegram Channel",
+  "@telegramChannel": {
+    "description": "Menu item for Telegram channel"
+  },
+  "openTelegramChannel": "Open channel in Telegram",
+  "@openTelegramChannel": {
+    "description": "Subtitle for Telegram channel"
+  },
+  "contactDeveloper": "Contact Developer",
+  "@contactDeveloper": {
+    "description": "Menu item for contacting developer"
+  },
+  "openEmailClient": "Open email client",
+  "@openEmailClient": {
+    "description": "Subtitle for email client"
+  },
+  "supportProject": "Support Project",
+  "@supportProject": {
+    "description": "Menu item for supporting project"
+  },
+  "supportProjectDescription": "Donate or support development",
+  "@supportProjectDescription": {
+    "description": "Subtitle for supporting project"
+  },
+  "githubRepository": "GitHub",
+  "@githubRepository": {
+    "description": "Menu item for GitHub repository"
+  },
+  "githubRepositoryDescription": "Source code and changelog",
+  "@githubRepositoryDescription": {
+    "description": "Subtitle for GitHub repository"
+  },
+  "changelog": "Changelog",
+  "@changelog": {
+    "description": "Menu item for changelog"
+  },
+  "changelogDescription": "Version history and updates",
+  "@changelogDescription": {
+    "description": "Subtitle for changelog"
+  },
+  "issues": "Issues",
+  "@issues": {
+    "description": "Menu item for GitHub issues"
+  },
+  "issuesDescription": "Report bugs and request features",
+  "@issuesDescription": {
+    "description": "Subtitle for issues"
+  },
+  "aboutDeveloper": "About Developer",
+  "@aboutDeveloper": {
+    "description": "About developer section title"
+  },
+  "aboutDeveloperText": "JaBook is developed by Jabook Contributors team. This is an open source project created for convenient listening to audiobooks from open sources and torrents. No ads, no registration — just pure listening.",
+  "@aboutDeveloperText": {
+    "description": "Text about developer"
+  },
+  "copyInfo": "Copy",
+  "@copyInfo": {
+    "description": "Button for copying information"
+  },
+  "infoCopied": "Info copied",
+  "@infoCopied": {
+    "description": "Message after copying"
+  },
+  "failedToOpenLink": "Failed to open link",
+  "@failedToOpenLink": {
+    "description": "Error message when opening link fails"
+  },
+  "failedToOpenEmail": "Failed to open email client",
+  "@failedToOpenEmail": {
+    "description": "Error message when opening email client fails"
+  },
+  "viewInApp": "View in app",
+  "@viewInApp": {
+    "description": "Subtitle for viewing license in app"
+  },
+  "viewLicenses": "View licenses",
+  "@viewLicenses": {
+    "description": "Subtitle for viewing licenses"
+  },
+  "licenseOnGitHub": "License on GitHub",
+  "@licenseOnGitHub": {
+    "description": "Menu item for viewing license on GitHub"
+  },
+  "viewLicenseFile": "View LICENSE file",
+  "@viewLicenseFile": {
+    "description": "Subtitle for viewing license file"
+  },
+  "appDiscussionQuestionsReviews": "App discussion, questions and reviews",
+  "@appDiscussionQuestionsReviews": {
+    "description": "Subtitle for 4PDA forum"
+  },
+  "jabookContributors": "Jabook Contributors",
+  "@jabookContributors": {
+    "description": "Developer team name"
+  },
+  "github": "GitHub",
+  "@github": {
+    "description": "GitHub service name"
+  },
+  "versionInformationLongPress": "Version information. Long press to copy.",
+  "@versionInformationLongPress": {
+    "description": "Accessibility label for version section"
+  },
+  "unknown": "Unknown",
+  "@unknown": {
+    "description": "Default value for unknown data"
+  },
+  "emailFeedbackSubject": "JaBook - Feedback",
+  "@emailFeedbackSubject": {
+    "description": "Email subject for feedback"
+  },
+  "emailFeedbackApp": "App: JaBook",
+  "@emailFeedbackApp": {
+    "description": "App label in email"
+  },
+  "emailFeedbackVersion": "Version:",
+  "@emailFeedbackVersion": {
+    "description": "Version label in email"
+  },
+  "emailFeedbackDevice": "Device:",
+  "@emailFeedbackDevice": {
+    "description": "Device label in email"
+  },
+  "emailFeedbackAndroid": "Android:",
+  "@emailFeedbackAndroid": {
+    "description": "Android version label in email"
+  },
+  "emailFeedbackDescription": "Description of issue / suggestion:",
+  "@emailFeedbackDescription": {
+    "description": "Description label in email"
+  },
+  "aboutSectionDescription": "App information and links",
+  "@aboutSectionDescription": {
+    "description": "Description of About section in settings"
+  },
+  "aboutSectionSubtitle": "Version, license, and developer information",
+  "@aboutSectionSubtitle": {
+    "description": "Subtitle for About section in settings"
+  },
+  "forum4Pda": "4PDA",
+  "@forum4Pda": {
+    "description": "4PDA forum name"
   }
 }
