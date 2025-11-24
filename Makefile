@@ -3,7 +3,7 @@
 
 # Variables
 PROJECT_NAME = jabook
-FLAVORS = dev stage prod
+FLAVORS = dev stage beta prod
 ANDROID_BUILD_VARIANTS = $(addsuffix $(FLAVOR), $(FLAVORS))
 IOS_BUILD_VARIANTS = $(addprefix $(PROJECT_NAME)-, $(FLAVORS))
 SIGNING_SCRIPT = scripts/signing.sh
@@ -32,11 +32,13 @@ help:
 	@echo "Build Commands:"
 	@echo "  make build-android-dev             - Build Android dev variant"
 	@echo "  make build-android-stage           - Build Android stage variant"
+	@echo "  make build-android-beta            - Build Android beta variant"
 	@echo "  make build-android-prod            - Build Android production variant"
 	@echo "  make build-ios-dev                 - Build iOS dev variant"
 	@echo "  make build-ios-stage               - Build iOS stage variant"
 	@echo "  make build-ios-prod                - Build iOS production variant"
-	@echo "  make build-android-signed-apk      - Build signed APKs (split per architecture + universal)"
+	@echo "  make build-android-signed-apk      - Build signed prod APKs (split per architecture + universal)"
+	@echo "  make build-android-signed-apk-beta - Build signed beta APKs (split per architecture + universal)"
 	@echo ""
 	@echo "Testing Commands:"
 	@echo "  make test                          - Run all tests"
@@ -67,7 +69,8 @@ help:
 	@echo "  make release-ios                   - Build all iOS release variants"
 	@echo "  make release                       - Build all release variants"
 	@echo "  make copy-apk                      - Copy APK files to ~/Downloads/Jabook with version in filename"
-	@echo "  make build-android-signed-apk-copy - Build signed APK and copy to ~/Downloads/Jabook with version"
+	@echo "  make build-android-signed-apk-copy - Build signed prod APK and copy to ~/Downloads/Jabook with version"
+	@echo "  make build-android-signed-apk-beta-copy - Build signed beta APK and copy to ~/Downloads/Jabook with version"
 
 # Development commands
 .PHONY: install
@@ -99,7 +102,7 @@ run:
 run-profile:
 	@echo "Running app with profiling (output saved to startup_profile.log)..."
 	@echo "Note: DevTools can be accessed via 'flutter pub global run devtools' if needed"
-	flutter run --verbose --trace-startup --profile > startup_profile.log 2>&1
+	flutter run --flavor dev --verbose --trace-startup --profile > startup_profile.log 2>&1
 	@echo "Profile run complete. Check startup_profile.log for details."
 
 # Android build commands
@@ -115,6 +118,13 @@ build-android-stage:
 		--split-per-abi \
 		--tree-shake-icons
 	@echo "Android stage APK built with optimizations at: build/app/outputs/apk/"
+
+.PHONY: build-android-beta
+build-android-beta:
+	flutter build apk --flavor beta --target lib/main.dart --release \
+		--split-per-abi \
+		--tree-shake-icons
+	@echo "Android beta APK built at: build/app/outputs/apk/"
 
 .PHONY: build-android-prod
 build-android-prod:
@@ -200,7 +210,7 @@ build-android-signed: use-existing-android-cert patch-gradle-signing patch-gradl
 
 .PHONY: build-android-signed-apk
 build-android-signed-apk: use-existing-android-cert patch-gradle-signing patch-gradle-minsdk
-	@echo "Building signed optimized APK (without obfuscation for easier debugging)..."
+	@echo "Building signed prod APK (without obfuscation for easier debugging)..."
 	@echo "Building split APKs per architecture..."
 	flutter build apk --target lib/main.dart --release \
 		--split-per-abi \
@@ -208,7 +218,21 @@ build-android-signed-apk: use-existing-android-cert patch-gradle-signing patch-g
 	@echo "Building universal APK (all architectures)..."
 	flutter build apk --target lib/main.dart --release \
 		--tree-shake-icons
-	@echo "✅ Signed optimized APKs built at: build/app/outputs/apk/"
+	@echo "✅ Signed prod APKs built at: build/app/outputs/apk/"
+	@echo "   - Split APKs: app-*-release.apk (per architecture)"
+	@echo "   - Universal APK: app-release.apk (all architectures)"
+
+.PHONY: build-android-signed-apk-beta
+build-android-signed-apk-beta: use-existing-android-cert patch-gradle-signing patch-gradle-minsdk
+	@echo "Building signed beta APK (without obfuscation for easier debugging)..."
+	@echo "Building split APKs per architecture..."
+	flutter build apk --flavor beta --target lib/main.dart --release \
+		--split-per-abi \
+		--tree-shake-icons
+	@echo "Building universal APK (all architectures)..."
+	flutter build apk --flavor beta --target lib/main.dart --release \
+		--tree-shake-icons
+	@echo "✅ Signed beta APKs built at: build/app/outputs/apk/"
 	@echo "   - Split APKs: app-*-release.apk (per architecture)"
 	@echo "   - Universal APK: app-release.apk (all architectures)"
 
@@ -258,6 +282,54 @@ copy-apk:
 
 .PHONY: build-android-signed-apk-copy
 build-android-signed-apk-copy: build-android-signed-apk copy-apk
+	@echo "✅ Build and copy complete!"
+
+.PHONY: copy-apk-beta
+copy-apk-beta:
+	@echo "Copying beta APK files with version $(VERSION) (without build number)..."
+	@mkdir -p $(APK_DEST_DIR)
+	@echo "Copying split APKs (per architecture)..."
+	@if [ -f "build/app/outputs/flutter-apk/app-x86_64-release.apk" ]; then \
+		cp -f build/app/outputs/flutter-apk/app-x86_64-release.apk $(APK_DEST_DIR)/Jabook_$(VERSION)_beta_x86_64.apk && \
+		echo "✅ Copied: Jabook_$(VERSION)_beta_x86_64.apk"; \
+	elif [ -f "build/app/outputs/apk/release/app-x86_64-release.apk" ]; then \
+		cp -f build/app/outputs/apk/release/app-x86_64-release.apk $(APK_DEST_DIR)/Jabook_$(VERSION)_beta_x86_64.apk && \
+		echo "✅ Copied: Jabook_$(VERSION)_beta_x86_64.apk"; \
+	else \
+		echo "⚠️  Warning: app-x86_64-release.apk not found"; \
+	fi
+	@if [ -f "build/app/outputs/flutter-apk/app-arm64-v8a-release.apk" ]; then \
+		cp -f build/app/outputs/flutter-apk/app-arm64-v8a-release.apk $(APK_DEST_DIR)/Jabook_$(VERSION)_beta_v8a.apk && \
+		echo "✅ Copied: Jabook_$(VERSION)_beta_v8a.apk"; \
+	elif [ -f "build/app/outputs/apk/release/app-arm64-v8a-release.apk" ]; then \
+		cp -f build/app/outputs/apk/release/app-arm64-v8a-release.apk $(APK_DEST_DIR)/Jabook_$(VERSION)_beta_v8a.apk && \
+		echo "✅ Copied: Jabook_$(VERSION)_beta_v8a.apk"; \
+	else \
+		echo "⚠️  Warning: app-arm64-v8a-release.apk not found"; \
+	fi
+	@if [ -f "build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk" ]; then \
+		cp -f build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk $(APK_DEST_DIR)/Jabook_$(VERSION)_beta_v7a.apk && \
+		echo "✅ Copied: Jabook_$(VERSION)_beta_v7a.apk"; \
+	elif [ -f "build/app/outputs/apk/release/app-armeabi-v7a-release.apk" ]; then \
+		cp -f build/app/outputs/apk/release/app-armeabi-v7a-release.apk $(APK_DEST_DIR)/Jabook_$(VERSION)_beta_v7a.apk && \
+		echo "✅ Copied: Jabook_$(VERSION)_beta_v7a.apk"; \
+	else \
+		echo "⚠️  Warning: app-armeabi-v7a-release.apk not found"; \
+	fi
+	@echo "Copying universal APK (all architectures)..."
+	@if [ -f "build/app/outputs/flutter-apk/app-release.apk" ]; then \
+		cp -f build/app/outputs/flutter-apk/app-release.apk $(APK_DEST_DIR)/Jabook_$(VERSION)_beta_universal.apk && \
+		echo "✅ Copied: Jabook_$(VERSION)_beta_universal.apk"; \
+	elif [ -f "build/app/outputs/apk/release/app-release.apk" ]; then \
+		cp -f build/app/outputs/apk/release/app-release.apk $(APK_DEST_DIR)/Jabook_$(VERSION)_beta_universal.apk && \
+		echo "✅ Copied: Jabook_$(VERSION)_beta_universal.apk"; \
+	else \
+		echo "⚠️  Warning: app-release.apk (universal) not found"; \
+	fi
+	@echo "✅ Beta APK files copied to $(APK_DEST_DIR)/"
+
+.PHONY: build-android-signed-apk-beta-copy
+build-android-signed-apk-beta-copy: build-android-signed-apk-beta copy-apk-beta
 	@echo "✅ Build and copy complete!"
 
 .PHONY: build-android-debug-apk
