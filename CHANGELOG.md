@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
-## [Unreleased]
+## [1.2.0] - 2025-11-24
 
 ### Added
 - Add theme and audio settings with per-book customization (#25)
@@ -155,5 +155,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Security params
 
 
-[Unreleased]: https://github.com/Gosayram/jabook/compare/1.1.4+9...HEAD
+[Unreleased]: https://github.com/Gosayram/jabook/compare/1.2.0...HEAD
+[1.2.0]: https://github.com/Gosayram/jabook/compare/1.1.4+9...1.2.0
 [1.1.4+9]: https://github.com/Gosayram/jabook/compare/d267d15fb5c474143256670074da461cd315af74...1.1.4+9
