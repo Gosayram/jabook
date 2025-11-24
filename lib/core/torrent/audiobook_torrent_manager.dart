@@ -570,7 +570,10 @@ class AudiobookTorrentManager {
             ..close();
         }
         _progressControllers.remove(downloadId);
-        _activeTasks.remove(downloadId);
+        final taskToDispose = _activeTasks.remove(downloadId);
+        if (taskToDispose != null) {
+          safeUnawaited(taskToDispose.dispose());
+        }
 
         // Update notification with completed status
         final completedNotificationMetadata2 =
@@ -1135,7 +1138,10 @@ class AudiobookTorrentManager {
             ..close();
         }
         _progressControllers.remove(downloadId);
-        _activeTasks.remove(downloadId);
+        final taskToDispose = _activeTasks.remove(downloadId);
+        if (taskToDispose != null) {
+          safeUnawaited(taskToDispose.dispose());
+        }
 
         // Update notification with completed status
         final completedNotificationMetadata3 =
@@ -1454,7 +1460,10 @@ class AudiobookTorrentManager {
             safeUnawaited(progressController.close());
           }
           _progressControllers.remove(downloadId);
-          _activeTasks.remove(downloadId);
+          final taskToDispose = _activeTasks.remove(downloadId);
+          if (taskToDispose != null) {
+            safeUnawaited(taskToDispose.dispose());
+          }
 
           // Clean up retry tracking data
           _cleanupRetryData(downloadId);
@@ -1579,7 +1588,10 @@ class AudiobookTorrentManager {
             safeUnawaited(progressController.close());
           }
           _progressControllers.remove(downloadId);
-          _activeTasks.remove(downloadId);
+          final taskToDispose = _activeTasks.remove(downloadId);
+          if (taskToDispose != null) {
+            safeUnawaited(taskToDispose.dispose());
+          }
 
           // Clean up retry tracking data
           _cleanupRetryData(downloadId);

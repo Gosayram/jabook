@@ -1511,7 +1511,7 @@
   "@resetFiltersButton": {
     "description": "Кнопка для сброса фильтров"
   },
-  "languageChangedMessage": "Язык изменен на $languageName",
+  "languageChangedMessage": "Язык изменен на {languageName}",
   "@languageChangedMessage": {
     "description": "Сообщение при изменении языка",
     "placeholders": {
@@ -1519,6 +1519,10 @@
         "type": "String"
       }
     }
+  },
+  "followSystemTheme": "Следовать системной теме",
+  "@followSystemTheme": {
+    "description": "Заголовок настройки следования системной теме"
   },
   "rutrackerSessionDescription": "Управление сессией RuTracker (cookie)",
   "@rutrackerSessionDescription": {
@@ -3727,5 +3731,166 @@
   "forum4Pda": "4PDA",
   "@forum4Pda": {
     "description": "Название форума 4PDA"
+  },
+  "rewindDurationTitle": "Длительность перемотки назад",
+  "@rewindDurationTitle": {
+    "description": "Заголовок настройки длительности перемотки назад"
+  },
+  "forwardDurationTitle": "Длительность перемотки вперед",
+  "@forwardDurationTitle": {
+    "description": "Заголовок настройки длительности перемотки вперед"
+  },
+  "secondsLabel": "секунд",
+  "@secondsLabel": {
+    "description": "Метка для единицы времени секунды"
+  },
+  "languageSettingsLabel": "Настройки языка",
+  "@languageSettingsLabel": {
+    "description": "Метка доступности для секции настроек языка"
+  },
+  "mirrorSourceSettingsLabel": "Настройки зеркал и источников",
+  "@mirrorSourceSettingsLabel": {
+    "description": "Метка доступности для секции настроек зеркал"
+  },
+  "rutrackerSessionLabel": "Управление сессией RuTracker",
+  "@rutrackerSessionLabel": {
+    "description": "Метка доступности для секции сессии RuTracker"
+  },
+  "metadataManagementLabel": "Управление метаданными",
+  "@metadataManagementLabel": {
+    "description": "Метка доступности для секции метаданных"
+  },
+  "themeSettingsLabel": "Настройки темы",
+  "@themeSettingsLabel": {
+    "description": "Метка доступности для секции настроек темы"
+  },
+  "audioPlaybackSettingsLabel": "Настройки воспроизведения аудио",
+  "@audioPlaybackSettingsLabel": {
+    "description": "Метка доступности для секции настроек аудио"
+  },
+  "downloadSettingsLabel": "Настройки загрузки",
+  "@downloadSettingsLabel": {
+    "description": "Метка доступности для секции настроек загрузки"
+  },
+  "libraryFolderSettingsLabel": "Настройки папки библиотеки",
+  "@libraryFolderSettingsLabel": {
+    "description": "Метка доступности для секции настроек папки библиотеки"
+  },
+  "storageManagementLabel": "Управление хранилищем",
+  "@storageManagementLabel": {
+    "description": "Метка доступности для секции управления хранилищем"
+  },
+  "cacheSettingsLabel": "Настройки кэша",
+  "@cacheSettingsLabel": {
+    "description": "Метка доступности для секции настроек кэша"
+  },
+  "appPermissionsLabel": "Разрешения приложения",
+  "@appPermissionsLabel": {
+    "description": "Метка доступности для секции разрешений приложения"
+  },
+  "aboutAppLabel": "О приложении",
+  "@aboutAppLabel": {
+    "description": "Метка доступности для секции о приложении"
+  },
+  "backgroundTaskCompatibilityLabel": "Совместимость фоновых задач",
+  "@backgroundTaskCompatibilityLabel": {
+    "description": "Метка доступности для секции совместимости фоновых задач"
+  },
+  "backupRestoreLabel": "Резервное копирование и восстановление",
+  "@backupRestoreLabel": {
+    "description": "Метка доступности для секции резервного копирования"
+  },
+  "selectFavorites": "Выбрать",
+  "@selectFavorites": {
+    "description": "Кнопка для входа в режим выбора закладок"
+  },
+  "clearSelectedFavorites": "Удалить выбранные",
+  "@clearSelectedFavorites": {
+    "description": "Кнопка для удаления выбранных закладок"
+  },
+  "clearAllFavorites": "Очистить все",
+  "@clearAllFavorites": {
+    "description": "Кнопка для очистки всех закладок"
+  },
+  "clearAllFavoritesTitle": "Очистить все закладки?",
+  "@clearAllFavoritesTitle": {
+    "description": "Заголовок диалога подтверждения очистки всех закладок"
+  },
+  "clearAllFavoritesMessage": "Это удалит все избранные аудиокниги. Это действие нельзя отменить.",
+  "@clearAllFavoritesMessage": {
+    "description": "Сообщение в диалоге подтверждения очистки всех закладок"
+  },
+  "favoritesCleared": "Закладки очищены",
+  "@favoritesCleared": {
+    "description": "Сообщение когда закладки очищены"
+  },
+  "favoritesDeleted": "Удалено закладок: {count}",
+  "@favoritesDeleted": {
+    "description": "Сообщение когда закладки удалены",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "noFavoritesSelected": "Закладки не выбраны",
+  "@noFavoritesSelected": {
+    "description": "Сообщение при попытке удалить, но закладки не выбраны"
+  },
+  "selected": "выбрано",
+  "@selected": {
+    "description": "Метка для количества выбранных элементов"
+  },
+  "sortByLabel": "Сортировать по:",
+  "@sortByLabel": {
+    "description": "Метка для секции опций сортировки в диалоге фильтра библиотеки"
+  },
+  "groupByLabel": "Группировать по:",
+  "@groupByLabel": {
+    "description": "Метка для секции опций группировки в диалоге фильтра библиотеки"
+  },
+  "sortByNameAsc": "Имя (А-Я)",
+  "@sortByNameAsc": {
+    "description": "Опция сортировки: имя по возрастанию"
+  },
+  "sortByNameDesc": "Имя (Я-А)",
+  "@sortByNameDesc": {
+    "description": "Опция сортировки: имя по убыванию"
+  },
+  "sortBySizeAsc": "Размер (Меньший)",
+  "@sortBySizeAsc": {
+    "description": "Опция сортировки: размер по возрастанию"
+  },
+  "sortBySizeDesc": "Размер (Больший)",
+  "@sortBySizeDesc": {
+    "description": "Опция сортировки: размер по убыванию"
+  },
+  "sortByDateAsc": "Дата (Старые)",
+  "@sortByDateAsc": {
+    "description": "Опция сортировки: дата по возрастанию"
+  },
+  "sortByDateDesc": "Дата (Новые)",
+  "@sortByDateDesc": {
+    "description": "Опция сортировки: дата по убыванию"
+  },
+  "sortByFilesAsc": "Файлы (Меньше)",
+  "@sortByFilesAsc": {
+    "description": "Опция сортировки: файлы по возрастанию"
+  },
+  "sortByFilesDesc": "Файлы (Больше)",
+  "@sortByFilesDesc": {
+    "description": "Опция сортировки: файлы по убыванию"
+  },
+  "groupByNone": "Нет",
+  "@groupByNone": {
+    "description": "Опция группировки: без группировки"
+  },
+  "groupByFirstLetter": "Первая буква",
+  "@groupByFirstLetter": {
+    "description": "Опция группировки: группировать по первой букве"
+  },
+  "scanningLibrary": "Сканирование библиотеки...",
+  "@scanningLibrary": {
+    "description": "Сообщение, показываемое при сканировании библиотеки аудиокниг"
   }
 }

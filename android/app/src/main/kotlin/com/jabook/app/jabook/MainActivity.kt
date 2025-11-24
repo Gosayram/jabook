@@ -169,6 +169,14 @@ class MainActivity : FlutterActivity() {
                         result.error("GET_ROM_VERSION_ERROR", "Failed to get ROM version: ${e.message}", null)
                     }
                 }
+                "getFirmwareVersion" -> {
+                    try {
+                        val firmwareVersion = getFirmwareVersion()
+                        result.success(firmwareVersion)
+                    } catch (e: Exception) {
+                        result.error("GET_FIRMWARE_VERSION_ERROR", "Failed to get firmware version: ${e.message}", null)
+                    }
+                }
                 else -> {
                     result.notImplemented()
                 }
@@ -504,9 +512,33 @@ class MainActivity : FlutterActivity() {
                     colorOsVersion?.let { "ColorOS $it" } ?: null
                 }
                 manufacturer.contains("samsung") || brand.contains("samsung") -> {
-                    // One UI version
+                    // One UI version - try multiple system properties
+                    // ro.build.version.oneui or ro.build.version.sem should contain the One UI version
                     val oneUiVersion = getSystemProperty("ro.build.version.oneui")
-                    oneUiVersion?.let { "One UI $it" } ?: null
+                        ?: getSystemProperty("ro.build.version.sem")
+                    
+                    if (oneUiVersion != null) {
+                        // Check if version looks valid (contains dot or is a reasonable number)
+                        val isValidVersion = oneUiVersion.contains(".") || 
+                            (oneUiVersion.length <= 3 && oneUiVersion.toIntOrNull() != null && oneUiVersion.toInt() < 100)
+                        
+                        if (isValidVersion) {
+                            // Extract major version number
+                            val majorVersion = oneUiVersion.split(".").firstOrNull()?.toIntOrNull()
+                            if (majorVersion != null && majorVersion > 0 && majorVersion < 20) {
+                                "One UI $majorVersion"
+                            } else {
+                                // If major version extraction failed, use Android API mapping
+                                getOneUIVersionFromAndroidApi()
+                            }
+                        } else {
+                            // Invalid version (like "3601", "80000"), use Android API mapping
+                            getOneUIVersionFromAndroidApi()
+                        }
+                    } else {
+                        // No system property available, use Android API mapping
+                        getOneUIVersionFromAndroidApi()
+                    }
                 }
                 manufacturer.contains("vivo") || brand.contains("vivo") -> {
                     // FuntouchOS/OriginOS version
@@ -522,6 +554,82 @@ class MainActivity : FlutterActivity() {
             }
         } catch (e: Exception) {
             android.util.Log.w("MainActivity", "Failed to get ROM version: ${e.message}")
+            null
+        }
+    }
+    
+    /**
+     * Gets One UI version based on Android API level.
+     * 
+     * Mapping:
+     * - API 36 (Android 16) = One UI 8
+     * - API 35 (Android 15) = One UI 8
+     * - API 34 (Android 14) = One UI 7
+     * - API 33 (Android 13) = One UI 6
+     * - API 32 (Android 12L) = One UI 5
+     * - API 31 (Android 12) = One UI 4
+     * - API 30 (Android 11) = One UI 3
+     * - API 29 (Android 10) = One UI 2
+     * - API 28 (Android 9) = One UI 1
+     */
+    private fun getOneUIVersionFromAndroidApi(): String {
+        val androidApi = Build.VERSION.SDK_INT
+        val oneUiVersion = when (androidApi) {
+            36 -> 8  // Android 16
+            35 -> 8  // Android 15
+            34 -> 7  // Android 14
+            33 -> 6  // Android 13
+            32, 31 -> 5  // Android 12/12L
+            30 -> 4  // Android 11
+            29 -> 3  // Android 10
+            28 -> 2  // Android 9
+            27 -> 1  // Android 8.1
+            else -> null
+        }
+        return oneUiVersion?.let { "One UI $it" } ?: "One UI"
+    }
+    
+    /**
+     * Gets the firmware version (build number) of the device.
+     * 
+     * For Samsung devices, this typically includes the build number like "S918BXXU3AWGJ".
+     * Uses ro.build.display.id or ro.build.version.incremental system property.
+     *
+     * @return Firmware version string or null if unavailable
+     */
+    private fun getFirmwareVersion(): String? {
+        return try {
+            // Try ro.build.display.id first (contains full firmware version like "BP2A.250605.031.A3.S918BXXU3AWGJ")
+            val displayId = getSystemProperty("ro.build.display.id")
+            if (!displayId.isNullOrEmpty() && displayId != "unknown") {
+                // Extract the build number part (last segment after last dot)
+                val parts = displayId.split(".")
+                if (parts.isNotEmpty()) {
+                    val buildNumber = parts.lastOrNull()
+                    if (!buildNumber.isNullOrEmpty() && buildNumber.length >= 10) {
+                        // Return the build number (e.g., "S918BXXU3AWGJ")
+                        return buildNumber
+                    }
+                }
+                // If extraction failed, return full display.id
+                return displayId
+            }
+            
+            // Fallback to ro.build.version.incremental (build number like "S918BXXU3AWGJ")
+            val incremental = getSystemProperty("ro.build.version.incremental")
+            if (!incremental.isNullOrEmpty() && incremental != "unknown") {
+                return incremental
+            }
+            
+            // Last resort: use Build.ID
+            val buildId = Build.ID
+            if (buildId.isNotEmpty() && buildId != "unknown") {
+                return buildId
+            }
+            
+            null
+        } catch (e: Exception) {
+            android.util.Log.w("MainActivity", "Failed to get firmware version: ${e.message}")
             null
         }
     }

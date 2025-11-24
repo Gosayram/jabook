@@ -43,6 +43,7 @@ class DeviceInfoUtils {
   String? _cachedBrand;
   String? _cachedCustomRom;
   String? _cachedRomVersion;
+  String? _cachedFirmwareVersion;
   int? _cachedStandbyBucket;
   AndroidDeviceInfo? _cachedAndroidInfo;
 
@@ -472,6 +473,51 @@ class DeviceInfoUtils {
     }
   }
 
+  /// Gets the firmware version (build number) of the device.
+  ///
+  /// For Samsung devices, this typically includes the build number like "S918BXXU3AWGJ".
+  /// Returns null if the version cannot be determined.
+  ///
+  /// Returns the firmware version string or null if unavailable.
+  Future<String?> getFirmwareVersion() async {
+    if (_cachedFirmwareVersion != null) return _cachedFirmwareVersion;
+
+    try {
+      if (!Platform.isAndroid) {
+        return null;
+      }
+
+      final result = await _deviceInfoChannel.invokeMethod<String>(
+        'getFirmwareVersion',
+      );
+
+      _cachedFirmwareVersion = result;
+      await _logger.log(
+        level: 'debug',
+        subsystem: 'device_info',
+        message: 'Firmware version retrieved',
+        extra: {'firmware_version': _cachedFirmwareVersion},
+      );
+      return _cachedFirmwareVersion;
+    } on PlatformException catch (e) {
+      await _logger.log(
+        level: 'debug',
+        subsystem: 'device_info',
+        message: 'Cannot get firmware version (may not be available)',
+        cause: e.toString(),
+      );
+      return null;
+    } on Exception catch (e) {
+      await _logger.log(
+        level: 'error',
+        subsystem: 'device_info',
+        message: 'Error getting firmware version',
+        cause: e.toString(),
+      );
+      return null;
+    }
+  }
+
   /// Gets cached Android device info or fetches it if not cached.
   Future<AndroidDeviceInfo> _getAndroidInfo() async {
     if (_cachedAndroidInfo != null) return _cachedAndroidInfo!;
@@ -489,6 +535,7 @@ class DeviceInfoUtils {
     _cachedBrand = null;
     _cachedCustomRom = null;
     _cachedRomVersion = null;
+    _cachedFirmwareVersion = null;
     _cachedStandbyBucket = null;
     _cachedAndroidInfo = null;
   }

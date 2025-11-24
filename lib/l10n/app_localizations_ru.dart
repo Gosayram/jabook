@@ -1092,8 +1092,11 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String languageChangedMessage(String languageName) {
-    return 'Язык изменен на \$languageName';
+    return 'Язык изменен на $languageName';
   }
+
+  @override
+  String get followSystemTheme => 'Следовать системной теме';
 
   @override
   String get rutrackerSessionDescription => 'Управление сессией RuTracker (cookie)';
@@ -2609,4 +2612,123 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get forum4Pda => '4PDA';
+
+  @override
+  String get rewindDurationTitle => 'Длительность перемотки назад';
+
+  @override
+  String get forwardDurationTitle => 'Длительность перемотки вперед';
+
+  @override
+  String get secondsLabel => 'секунд';
+
+  @override
+  String get languageSettingsLabel => 'Настройки языка';
+
+  @override
+  String get mirrorSourceSettingsLabel => 'Настройки зеркал и источников';
+
+  @override
+  String get rutrackerSessionLabel => 'Управление сессией RuTracker';
+
+  @override
+  String get metadataManagementLabel => 'Управление метаданными';
+
+  @override
+  String get themeSettingsLabel => 'Настройки темы';
+
+  @override
+  String get audioPlaybackSettingsLabel => 'Настройки воспроизведения аудио';
+
+  @override
+  String get downloadSettingsLabel => 'Настройки загрузки';
+
+  @override
+  String get libraryFolderSettingsLabel => 'Настройки папки библиотеки';
+
+  @override
+  String get storageManagementLabel => 'Управление хранилищем';
+
+  @override
+  String get cacheSettingsLabel => 'Настройки кэша';
+
+  @override
+  String get appPermissionsLabel => 'Разрешения приложения';
+
+  @override
+  String get aboutAppLabel => 'О приложении';
+
+  @override
+  String get backgroundTaskCompatibilityLabel => 'Совместимость фоновых задач';
+
+  @override
+  String get backupRestoreLabel => 'Резервное копирование и восстановление';
+
+  @override
+  String get selectFavorites => 'Выбрать';
+
+  @override
+  String get clearSelectedFavorites => 'Удалить выбранные';
+
+  @override
+  String get clearAllFavorites => 'Очистить все';
+
+  @override
+  String get clearAllFavoritesTitle => 'Очистить все закладки?';
+
+  @override
+  String get clearAllFavoritesMessage => 'Это удалит все избранные аудиокниги. Это действие нельзя отменить.';
+
+  @override
+  String get favoritesCleared => 'Закладки очищены';
+
+  @override
+  String favoritesDeleted(int count) {
+    return 'Удалено закладок: $count';
+  }
+
+  @override
+  String get noFavoritesSelected => 'Закладки не выбраны';
+
+  @override
+  String get selected => 'выбрано';
+
+  @override
+  String get sortByLabel => 'Сортировать по:';
+
+  @override
+  String get groupByLabel => 'Группировать по:';
+
+  @override
+  String get sortByNameAsc => 'Имя (А-Я)';
+
+  @override
+  String get sortByNameDesc => 'Имя (Я-А)';
+
+  @override
+  String get sortBySizeAsc => 'Размер (Меньший)';
+
+  @override
+  String get sortBySizeDesc => 'Размер (Больший)';
+
+  @override
+  String get sortByDateAsc => 'Дата (Старые)';
+
+  @override
+  String get sortByDateDesc => 'Дата (Новые)';
+
+  @override
+  String get sortByFilesAsc => 'Файлы (Меньше)';
+
+  @override
+  String get sortByFilesDesc => 'Файлы (Больше)';
+
+  @override
+  String get groupByNone => 'Нет';
+
+  @override
+  String get groupByFirstLetter => 'Первая буква';
+
+  @override
+  String get scanningLibrary => 'Сканирование библиотеки...';
 }

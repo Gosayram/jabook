@@ -52,6 +52,7 @@ class _BackgroundCompatibilityScreenState
   String? _manufacturer;
   String? _customRom;
   String? _romVersion;
+  String? _firmwareVersion;
   String? _androidVersion;
   int? _standbyBucket;
   String? _standbyBucketDescription;
@@ -77,6 +78,7 @@ class _BackgroundCompatibilityScreenState
       final manufacturer = await _deviceInfo.getManufacturer();
       final customRom = await _deviceInfo.getCustomRom();
       final romVersion = await _deviceInfo.getRomVersion();
+      final firmwareVersion = await _deviceInfo.getFirmwareVersion();
       final deviceInfoPlugin = DeviceInfoPlugin();
       final androidInfo = await deviceInfoPlugin.androidInfo;
       final standbyBucket = await _deviceInfo.getAppStandbyBucket();
@@ -88,6 +90,7 @@ class _BackgroundCompatibilityScreenState
           _manufacturer = manufacturer;
           _customRom = customRom;
           _romVersion = romVersion;
+          _firmwareVersion = firmwareVersion;
           _androidVersion =
               'Android ${androidInfo.version.release} (API ${androidInfo.version.sdkInt})';
           _standbyBucket = standbyBucket;
@@ -192,7 +195,11 @@ class _BackgroundCompatibilityScreenState
                 _buildInfoRow(
                   AppLocalizations.of(context)?.customRom ?? 'Custom ROM',
                   _romVersion != null
-                      ? '$_customRom ($_romVersion)'
+                      ? (_romVersion!.startsWith(_customRom!)
+                          ? (_firmwareVersion != null
+                              ? '$_romVersion ($_firmwareVersion)'
+                              : _romVersion!)
+                          : '$_customRom ($_romVersion)')
                       : _customRom!,
                 ),
               if (_androidVersion != null)

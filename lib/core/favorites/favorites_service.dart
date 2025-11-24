@@ -179,6 +179,56 @@ class FavoritesService {
     }
   }
 
+  /// Removes multiple favorites by topic IDs.
+  ///
+  /// The [topicIds] parameter is a list of topic IDs to remove.
+  Future<void> removeMultipleFromFavorites(List<String> topicIds) async {
+    try {
+      for (final topicId in topicIds) {
+        await _store.record(topicId).delete(_db);
+      }
+
+      await StructuredLogger().log(
+        level: 'info',
+        subsystem: 'favorites',
+        message: 'Removed multiple audiobooks from favorites',
+        extra: {'count': topicIds.length},
+      );
+    } on Exception catch (e) {
+      await StructuredLogger().log(
+        level: 'error',
+        subsystem: 'favorites',
+        message: 'Failed to remove multiple audiobooks from favorites',
+        extra: {'count': topicIds.length},
+        cause: e.toString(),
+      );
+      rethrow;
+    }
+  }
+
+  /// Clears all favorites.
+  ///
+  /// Removes all favorite audiobooks from the database.
+  Future<void> clearAllFavorites() async {
+    try {
+      await _store.delete(_db);
+
+      await StructuredLogger().log(
+        level: 'info',
+        subsystem: 'favorites',
+        message: 'Cleared all favorites',
+      );
+    } on Exception catch (e) {
+      await StructuredLogger().log(
+        level: 'error',
+        subsystem: 'favorites',
+        message: 'Failed to clear all favorites',
+        cause: e.toString(),
+      );
+      rethrow;
+    }
+  }
+
   /// Converts an Audiobook to a Map for storage.
   Map<String, dynamic> _audiobookToMap(Audiobook audiobook) => {
         'topic_id': audiobook.id,

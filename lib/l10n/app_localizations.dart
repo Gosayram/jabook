@@ -2126,8 +2126,14 @@ abstract class AppLocalizations {
   /// Message when language is changed
   ///
   /// In en, this message translates to:
-  /// **'Language changed to \$languageName'**
+  /// **'Language changed to {languageName}'**
   String languageChangedMessage(String languageName);
+
+  /// Title for follow system theme setting
+  ///
+  /// In en, this message translates to:
+  /// **'Follow System Theme'**
+  String get followSystemTheme;
 
   /// Description for RuTracker session section
   ///
@@ -4858,6 +4864,240 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'4PDA'**
   String get forum4Pda;
+
+  /// Title for rewind duration setting
+  ///
+  /// In en, this message translates to:
+  /// **'Rewind Duration'**
+  String get rewindDurationTitle;
+
+  /// Title for forward duration setting
+  ///
+  /// In en, this message translates to:
+  /// **'Forward Duration'**
+  String get forwardDurationTitle;
+
+  /// Label for seconds unit
+  ///
+  /// In en, this message translates to:
+  /// **'seconds'**
+  String get secondsLabel;
+
+  /// Accessibility label for language settings section
+  ///
+  /// In en, this message translates to:
+  /// **'Language settings'**
+  String get languageSettingsLabel;
+
+  /// Accessibility label for mirror settings section
+  ///
+  /// In en, this message translates to:
+  /// **'Mirror and source settings'**
+  String get mirrorSourceSettingsLabel;
+
+  /// Accessibility label for RuTracker session section
+  ///
+  /// In en, this message translates to:
+  /// **'RuTracker session management'**
+  String get rutrackerSessionLabel;
+
+  /// Accessibility label for metadata section
+  ///
+  /// In en, this message translates to:
+  /// **'Metadata management'**
+  String get metadataManagementLabel;
+
+  /// Accessibility label for theme settings section
+  ///
+  /// In en, this message translates to:
+  /// **'Theme settings'**
+  String get themeSettingsLabel;
+
+  /// Accessibility label for audio settings section
+  ///
+  /// In en, this message translates to:
+  /// **'Audio playback settings'**
+  String get audioPlaybackSettingsLabel;
+
+  /// Accessibility label for download settings section
+  ///
+  /// In en, this message translates to:
+  /// **'Download settings'**
+  String get downloadSettingsLabel;
+
+  /// Accessibility label for library folder settings section
+  ///
+  /// In en, this message translates to:
+  /// **'Library folder settings'**
+  String get libraryFolderSettingsLabel;
+
+  /// Accessibility label for storage management section
+  ///
+  /// In en, this message translates to:
+  /// **'Storage management'**
+  String get storageManagementLabel;
+
+  /// Accessibility label for cache settings section
+  ///
+  /// In en, this message translates to:
+  /// **'Cache settings'**
+  String get cacheSettingsLabel;
+
+  /// Accessibility label for app permissions section
+  ///
+  /// In en, this message translates to:
+  /// **'App permissions'**
+  String get appPermissionsLabel;
+
+  /// Accessibility label for about app section
+  ///
+  /// In en, this message translates to:
+  /// **'About app'**
+  String get aboutAppLabel;
+
+  /// Accessibility label for background compatibility section
+  ///
+  /// In en, this message translates to:
+  /// **'Background task compatibility'**
+  String get backgroundTaskCompatibilityLabel;
+
+  /// Accessibility label for backup and restore section
+  ///
+  /// In en, this message translates to:
+  /// **'Backup and restore'**
+  String get backupRestoreLabel;
+
+  /// Button to enter selection mode for favorites
+  ///
+  /// In en, this message translates to:
+  /// **'Select'**
+  String get selectFavorites;
+
+  /// Button to delete selected favorites
+  ///
+  /// In en, this message translates to:
+  /// **'Delete Selected'**
+  String get clearSelectedFavorites;
+
+  /// Button to clear all favorites
+  ///
+  /// In en, this message translates to:
+  /// **'Clear All'**
+  String get clearAllFavorites;
+
+  /// Title for clear all favorites confirmation dialog
+  ///
+  /// In en, this message translates to:
+  /// **'Clear All Favorites?'**
+  String get clearAllFavoritesTitle;
+
+  /// Message for clear all favorites confirmation dialog
+  ///
+  /// In en, this message translates to:
+  /// **'This will remove all favorite audiobooks. This action cannot be undone.'**
+  String get clearAllFavoritesMessage;
+
+  /// Message when favorites are cleared
+  ///
+  /// In en, this message translates to:
+  /// **'Favorites cleared'**
+  String get favoritesCleared;
+
+  /// Message when favorites are deleted
+  ///
+  /// In en, this message translates to:
+  /// **'{count} favorite(s) deleted'**
+  String favoritesDeleted(int count);
+
+  /// Message when trying to delete but no favorites are selected
+  ///
+  /// In en, this message translates to:
+  /// **'No favorites selected'**
+  String get noFavoritesSelected;
+
+  /// Label for selected items count
+  ///
+  /// In en, this message translates to:
+  /// **'selected'**
+  String get selected;
+
+  /// Label for sort options section in library filter dialog
+  ///
+  /// In en, this message translates to:
+  /// **'Sort by:'**
+  String get sortByLabel;
+
+  /// Label for group options section in library filter dialog
+  ///
+  /// In en, this message translates to:
+  /// **'Group by:'**
+  String get groupByLabel;
+
+  /// Sort option: name ascending
+  ///
+  /// In en, this message translates to:
+  /// **'Name (A-Z)'**
+  String get sortByNameAsc;
+
+  /// Sort option: name descending
+  ///
+  /// In en, this message translates to:
+  /// **'Name (Z-A)'**
+  String get sortByNameDesc;
+
+  /// Sort option: size ascending
+  ///
+  /// In en, this message translates to:
+  /// **'Size (Smallest)'**
+  String get sortBySizeAsc;
+
+  /// Sort option: size descending
+  ///
+  /// In en, this message translates to:
+  /// **'Size (Largest)'**
+  String get sortBySizeDesc;
+
+  /// Sort option: date ascending
+  ///
+  /// In en, this message translates to:
+  /// **'Date (Oldest)'**
+  String get sortByDateAsc;
+
+  /// Sort option: date descending
+  ///
+  /// In en, this message translates to:
+  /// **'Date (Newest)'**
+  String get sortByDateDesc;
+
+  /// Sort option: files ascending
+  ///
+  /// In en, this message translates to:
+  /// **'Files (Fewest)'**
+  String get sortByFilesAsc;
+
+  /// Sort option: files descending
+  ///
+  /// In en, this message translates to:
+  /// **'Files (Most)'**
+  String get sortByFilesDesc;
+
+  /// Group option: no grouping
+  ///
+  /// In en, this message translates to:
+  /// **'None'**
+  String get groupByNone;
+
+  /// Group option: group by first letter
+  ///
+  /// In en, this message translates to:
+  /// **'First Letter'**
+  String get groupByFirstLetter;
+
+  /// Message shown while scanning library for audiobooks
+  ///
+  /// In en, this message translates to:
+  /// **'Scanning library...'**
+  String get scanningLibrary;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

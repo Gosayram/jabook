@@ -17,7 +17,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:jabook/core/favorites/favorites_provider.dart';
 import 'package:jabook/core/parse/rutracker_parser.dart';
-import 'package:jabook/features/search/presentation/widgets/audiobook_card.dart';
 import 'package:jabook/l10n/app_localizations.dart';
 
 /// Screen for displaying user's favorite audiobooks.
@@ -33,6 +32,143 @@ class FavoritesScreen extends ConsumerStatefulWidget {
 }
 
 class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
+  bool _isSelectionMode = false;
+  final Set<String> _selectedIds = {};
+
+  void _toggleSelectionMode() {
+    setState(() {
+      _isSelectionMode = !_isSelectionMode;
+      if (!_isSelectionMode) {
+        _selectedIds.clear();
+      }
+    });
+  }
+
+  void _toggleSelection(String topicId) {
+    setState(() {
+      if (_selectedIds.contains(topicId)) {
+        _selectedIds.remove(topicId);
+      } else {
+        _selectedIds.add(topicId);
+      }
+    });
+  }
+
+  Future<void> _clearSelectedFavorites() async {
+    if (_selectedIds.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              AppLocalizations.of(context)?.noFavoritesSelected ??
+                  'No favorites selected',
+            ),
+          ),
+        );
+      }
+      return;
+    }
+
+    final selectedCount = _selectedIds.length;
+    final selectedIdsList = _selectedIds.toList();
+    final notifier = ref.read(favoriteIdsProvider.notifier);
+    try {
+      await notifier.removeMultiple(selectedIdsList);
+      ref.invalidate(favoritesListProvider);
+      setState(() {
+        _selectedIds.clear();
+        _isSelectionMode = false;
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              AppLocalizations.of(context)?.favoritesDeleted(selectedCount) ??
+                  '$selectedCount favorite(s) deleted',
+            ),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } on Exception {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              AppLocalizations.of(context)?.error ?? 'Error',
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _clearAllFavorites() async {
+    final localizations = AppLocalizations.of(context);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(
+          localizations?.clearAllFavoritesTitle ?? 'Clear All Favorites?',
+        ),
+        content: Text(
+          localizations?.clearAllFavoritesMessage ??
+              'This will remove all favorite audiobooks. This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(localizations?.cancel ?? 'Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: Theme.of(context).colorScheme.onError,
+            ),
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(localizations?.clearAllFavorites ?? 'Clear All'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    final notifier = ref.read(favoriteIdsProvider.notifier);
+    try {
+      await notifier.clearAll();
+      ref.invalidate(favoritesListProvider);
+      setState(() {
+        _selectedIds.clear();
+        _isSelectionMode = false;
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              localizations?.favoritesCleared ?? 'Favorites cleared',
+            ),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } on Exception {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              localizations?.error ?? 'Error',
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   Future<void> _toggleFavorite(String topicId, bool isFavorite) async {
     final notifier = ref.read(favoriteIdsProvider.notifier);
     final favoritesAsync = ref.read(favoritesListProvider);
@@ -122,30 +258,100 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
     final favoriteIds = ref.watch(favoriteIdsProvider);
 
     return PopScope(
+      canPop: false,
       onPopInvokedWithResult: (didPop, result) {
-        if (didPop) return;
-        // Allow navigation back using GoRouter
-        if (context.canPop()) {
-          context.pop();
-        } else {
+        if (didPop) {
+          return;
+        }
+        // Favorites screen should navigate back to Library tab
+        try {
           context.go('/');
+        } on Exception {
+          // Fallback to pop if go fails
+          if (context.canPop()) {
+            context.pop();
+          }
         }
       },
       child: Scaffold(
         appBar: AppBar(
-          title:
-              Text(AppLocalizations.of(context)?.favoritesTitle ?? 'Favorites'),
+          title: _isSelectionMode
+              ? Text(
+                  '${_selectedIds.length} ${AppLocalizations.of(context)?.selected ?? 'selected'}',
+                )
+              : Text(
+                  AppLocalizations.of(context)?.favoritesTitle ?? 'Favorites',
+                ),
+          leading: _isSelectionMode
+              ? IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: _toggleSelectionMode,
+                  tooltip: AppLocalizations.of(context)?.cancel ?? 'Cancel',
+                )
+              : null,
           actions: [
-            if (favoritesAsync.hasValue && favoritesAsync.value!.isNotEmpty)
-              IconButton(
-                icon: const Icon(Icons.refresh),
-                tooltip:
-                    AppLocalizations.of(context)?.refreshTooltip ?? 'Refresh',
-                onPressed: () {
-                  ref.read(favoriteIdsProvider.notifier).refresh();
-                  ref.invalidate(favoritesListProvider);
-                },
-              ),
+            if (favoritesAsync.hasValue &&
+                favoritesAsync.value!.isNotEmpty) ...[
+              if (_isSelectionMode) ...[
+                if (_selectedIds.isNotEmpty)
+                  IconButton(
+                    icon: const Icon(Icons.delete),
+                    tooltip:
+                        AppLocalizations.of(context)?.clearSelectedFavorites ??
+                            'Delete Selected',
+                    onPressed: _clearSelectedFavorites,
+                  ),
+              ] else ...[
+                IconButton(
+                  icon: const Icon(Icons.refresh),
+                  tooltip:
+                      AppLocalizations.of(context)?.refreshTooltip ?? 'Refresh',
+                  onPressed: () {
+                    ref.read(favoriteIdsProvider.notifier).refresh();
+                    ref.invalidate(favoritesListProvider);
+                  },
+                ),
+                PopupMenuButton<String>(
+                  icon: const Icon(Icons.more_vert),
+                  onSelected: (value) {
+                    if (value == 'select') {
+                      _toggleSelectionMode();
+                    } else if (value == 'clear_all') {
+                      _clearAllFavorites();
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    PopupMenuItem(
+                      value: 'select',
+                      child: Row(
+                        children: [
+                          const Icon(Icons.checklist),
+                          const SizedBox(width: 8),
+                          Text(
+                            AppLocalizations.of(context)?.selectFavorites ??
+                                'Select',
+                          ),
+                        ],
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: 'clear_all',
+                      child: Row(
+                        children: [
+                          const Icon(Icons.delete_sweep, color: Colors.red),
+                          const SizedBox(width: 8),
+                          Text(
+                            AppLocalizations.of(context)?.clearAllFavorites ??
+                                'Clear All',
+                            style: const TextStyle(color: Colors.red),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ],
           ],
         ),
         body: favoritesAsync.when(
@@ -241,15 +447,36 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
             final topicId = audiobook.id;
             final isFavorite = favoriteIds.contains(topicId);
 
-            return AudiobookCard(
-              audiobook: _audiobookToMap(audiobook),
-              onTap: () {
-                context.push('/topic/$topicId');
-              },
-              isFavorite: isFavorite,
-              onFavoriteToggle: (newState) {
-                _toggleFavorite(topicId, newState);
-              },
+            return ListTile(
+              leading: _isSelectionMode
+                  ? Checkbox(
+                      value: _selectedIds.contains(topicId),
+                      onChanged: (_) => _toggleSelection(topicId),
+                    )
+                  : null,
+              title: Text(audiobook.title),
+              subtitle:
+                  audiobook.author.isNotEmpty ? Text(audiobook.author) : null,
+              trailing: _isSelectionMode
+                  ? null
+                  : IconButton(
+                      icon: Icon(
+                        isFavorite ? Icons.favorite : Icons.favorite_border,
+                        color: isFavorite ? Colors.red : null,
+                      ),
+                      onPressed: () => _toggleFavorite(topicId, isFavorite),
+                    ),
+              onTap: _isSelectionMode
+                  ? () => _toggleSelection(topicId)
+                  : () => context.push('/topic/$topicId'),
+              onLongPress: !_isSelectionMode
+                  ? () {
+                      setState(() {
+                        _isSelectionMode = true;
+                        _selectedIds.add(topicId);
+                      });
+                    }
+                  : null,
             );
           },
         ),

@@ -15,18 +15,25 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:device_info_plus/device_info_plus.dart';
+import 'package:jabook/core/config/audio_settings_manager.dart';
+import 'package:jabook/core/config/language_manager.dart';
 import 'package:jabook/core/favorites/favorites_service.dart';
 import 'package:jabook/core/logging/structured_logger.dart';
 import 'package:jabook/core/metadata/audiobook_metadata_service.dart';
 import 'package:jabook/core/parse/rutracker_parser.dart';
 import 'package:jabook/core/search/search_history_service.dart';
+import 'package:jabook/core/utils/storage_path_utils.dart';
 import 'package:jabook/data/db/app_database.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sembast/sembast.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// Service for exporting and importing application data (backup/restore).
 ///
 /// This service provides functionality to backup and restore:
+/// - Application settings (language, audio settings, folders, etc.)
 /// - Audiobook metadata
 /// - Favorites
 /// - Search history
@@ -41,7 +48,7 @@ class BackupService {
   final Database _db;
 
   /// Current backup format version.
-  static const int backupFormatVersion = 1;
+  static const int backupFormatVersion = 2;
 
   /// Metadata service instance.
   AudiobookMetadataService? _metadataService;
@@ -66,14 +73,32 @@ class BackupService {
     _initializeServices();
 
     try {
+      final appSettings = await _exportAppSettings();
       final metadata = await _exportMetadata();
       final favorites = await _exportFavorites();
       final searchHistory = await _exportSearchHistory();
       final forumResolverCache = await _exportForumResolverCache();
 
+      // Get app version info
+      final packageInfo = await PackageInfo.fromPlatform();
+      final deviceInfo =
+          Platform.isAndroid ? await DeviceInfoPlugin().androidInfo : null;
+
       return {
         'version': backupFormatVersion,
         'exported_at': DateTime.now().toIso8601String(),
+        'app_info': {
+          'name': packageInfo.appName,
+          'version': packageInfo.version,
+          'build_number': packageInfo.buildNumber,
+          'package_name': packageInfo.packageName,
+          if (deviceInfo != null) ...{
+            'device_model': deviceInfo.model,
+            'android_version':
+                '${deviceInfo.version.release} (API ${deviceInfo.version.sdkInt})',
+          },
+        },
+        'app_settings': appSettings,
         'metadata': {
           'audiobooks': metadata,
           'count': metadata.length,
@@ -178,6 +203,17 @@ class BackupService {
       }
 
       final stats = <String, int>{};
+
+      // Import app settings (always import if available, not controlled by options)
+      if (data.containsKey('app_settings')) {
+        final settingsData = data['app_settings'] as Map<String, dynamic>?;
+        if (settingsData != null) {
+          final imported = await _importAppSettings(settingsData);
+          if (imported) {
+            stats['app_settings'] = 1;
+          }
+        }
+      }
 
       if (opts.importMetadata && data.containsKey('metadata')) {
         final metadataData = data['metadata'] as Map<String, dynamic>?;
@@ -365,6 +401,160 @@ class BackupService {
       return records.map((record) => record.value).toList();
     } on Exception {
       return [];
+    }
+  }
+
+  /// Exports application settings.
+  Future<Map<String, dynamic>> _exportAppSettings() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final languageManager = LanguageManager();
+      final audioSettingsManager = AudioSettingsManager();
+
+      // Get language setting
+      final language = await languageManager.getCurrentLanguage();
+
+      // Get audio settings
+      final defaultPlaybackSpeed =
+          await audioSettingsManager.getDefaultPlaybackSpeed();
+      final defaultRewindDuration =
+          await audioSettingsManager.getDefaultRewindDuration();
+      final defaultForwardDuration =
+          await audioSettingsManager.getDefaultForwardDuration();
+
+      // Get playback settings (repeat mode)
+      final repeatMode = prefs.getInt('repeat_mode') ?? 0;
+
+      // Get Wi-Fi only downloads setting
+      final wifiOnlyDownloads = prefs.getBool('wifi_only_downloads') ?? false;
+
+      // Get folder paths
+      final downloadFolderPath =
+          prefs.getString(StoragePathUtils.downloadFolderPathKey);
+      final libraryFolderPath =
+          prefs.getString(StoragePathUtils.libraryFolderPathKey);
+      final libraryFoldersJson =
+          prefs.getString(StoragePathUtils.libraryFoldersKey);
+      final libraryFolders = libraryFoldersJson != null
+          ? (jsonDecode(libraryFoldersJson) as List<dynamic>?)
+                  ?.map((e) => e.toString())
+                  .toList() ??
+              []
+          : [];
+
+      return {
+        'language': language,
+        'wifi_only_downloads': wifiOnlyDownloads,
+        if (downloadFolderPath != null) 'download_folder': downloadFolderPath,
+        if (libraryFolderPath != null) 'library_folder': libraryFolderPath,
+        if (libraryFolders.isNotEmpty) 'library_folders': libraryFolders,
+        'audio_settings': {
+          'default_playback_speed': defaultPlaybackSpeed,
+          'default_rewind_duration': defaultRewindDuration,
+          'default_forward_duration': defaultForwardDuration,
+        },
+        'playback_settings': {
+          'repeat_mode': repeatMode,
+        },
+      };
+    } on Exception catch (e) {
+      await StructuredLogger().log(
+        level: 'error',
+        subsystem: 'backup',
+        message: 'Failed to export app settings',
+        cause: e.toString(),
+      );
+      return {};
+    }
+  }
+
+  /// Imports application settings.
+  Future<bool> _importAppSettings(Map<String, dynamic>? settingsData) async {
+    if (settingsData == null) return false;
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final languageManager = LanguageManager();
+      final audioSettingsManager = AudioSettingsManager();
+
+      // Import language
+      final language = settingsData['language'] as String?;
+      if (language != null) {
+        await languageManager.setLanguage(language);
+      }
+
+      // Import Wi-Fi only downloads
+      final wifiOnlyDownloads = settingsData['wifi_only_downloads'] as bool?;
+      if (wifiOnlyDownloads != null) {
+        await prefs.setBool('wifi_only_downloads', wifiOnlyDownloads);
+      }
+
+      // Import folder paths
+      final downloadFolder = settingsData['download_folder'] as String?;
+      if (downloadFolder != null) {
+        await prefs.setString(
+          StoragePathUtils.downloadFolderPathKey,
+          downloadFolder,
+        );
+      }
+
+      final libraryFolder = settingsData['library_folder'] as String?;
+      if (libraryFolder != null) {
+        await prefs.setString(
+          StoragePathUtils.libraryFolderPathKey,
+          libraryFolder,
+        );
+      }
+
+      final libraryFolders = settingsData['library_folders'] as List<dynamic>?;
+      if (libraryFolders != null && libraryFolders.isNotEmpty) {
+        await prefs.setString(
+          StoragePathUtils.libraryFoldersKey,
+          jsonEncode(libraryFolders.map((e) => e.toString()).toList()),
+        );
+      }
+
+      // Import audio settings
+      final audioSettings =
+          settingsData['audio_settings'] as Map<String, dynamic>?;
+      if (audioSettings != null) {
+        final playbackSpeed =
+            audioSettings['default_playback_speed'] as double?;
+        if (playbackSpeed != null) {
+          await audioSettingsManager.setDefaultPlaybackSpeed(playbackSpeed);
+        }
+
+        final rewindDuration = audioSettings['default_rewind_duration'] as int?;
+        if (rewindDuration != null) {
+          await audioSettingsManager.setDefaultRewindDuration(rewindDuration);
+        }
+
+        final forwardDuration =
+            audioSettings['default_forward_duration'] as int?;
+        if (forwardDuration != null) {
+          await audioSettingsManager.setDefaultForwardDuration(forwardDuration);
+        }
+      }
+
+      // Import playback settings
+      final playbackSettings =
+          settingsData['playback_settings'] as Map<String, dynamic>?;
+      if (playbackSettings != null) {
+        final repeatMode = playbackSettings['repeat_mode'] as int?;
+        if (repeatMode != null) {
+          await prefs.setInt('repeat_mode', repeatMode);
+        }
+      }
+
+      return true;
+    } on Exception catch (e) {
+      await StructuredLogger().log(
+        level: 'error',
+        subsystem: 'backup',
+        message: 'Failed to import app settings',
+        cause: e.toString(),
+      );
+      return false;
     }
   }
 
