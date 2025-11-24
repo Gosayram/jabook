@@ -21,8 +21,64 @@ android {
         isCoreLibraryDesugaringEnabled = true
     }
 
-    kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_17.toString()
+    kotlin {
+        jvmToolchain(17)
+        
+        compilerOptions {
+            // Kotlin compilation optimization to reduce CPU load
+            freeCompilerArgs.addAll(
+                "-Xallow-result-return-type",
+                "-Xopt-in=kotlin.RequiresOptIn"
+            )
+        }
+    }
+
+    // Build process optimization to reduce CPU load
+    tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+        compilerOptions {
+            // Reduce Kotlin compilation threads
+            freeCompilerArgs.addAll(
+                "-Xallow-result-return-type",
+                "-Xopt-in=kotlin.RequiresOptIn"
+            )
+        }
+    }
+
+    signingConfigs {
+        create("release") {
+            val keystorePropertiesFile = rootProject.file("key.properties")
+            if (keystorePropertiesFile.exists()) {
+                val keystoreProperties = Properties()
+                keystoreProperties.load(keystorePropertiesFile.inputStream())
+                
+                storeFile = file(keystoreProperties.getProperty("storeFile"))
+                storePassword = keystoreProperties.getProperty("storePassword")
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+            }
+        }
+    }
+
+    // R8 configuration for code optimization
+    buildTypes {
+        release {
+            // TODO: Add your own signing config for the release build.
+            // Signing with the debug keys for now, so `flutter run --release` works.
+            signingConfig = signingConfigs.getByName("release")
+            
+            // Enable code shrinking, obfuscation, and optimization for release builds
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+        }
+        debug {
+            // Disable some optimizations for debug build speed
+            isMinifyEnabled = false
+            isShrinkResources = false
+        }
     }
 
     defaultConfig {
@@ -68,28 +124,6 @@ android {
         }
     }
 
-    signingConfigs {
-        create("release") {
-            val keystorePropertiesFile = rootProject.file("key.properties")
-            if (keystorePropertiesFile.exists()) {
-                val keystoreProperties = Properties()
-                keystoreProperties.load(keystorePropertiesFile.inputStream())
-                
-                storeFile = file(keystoreProperties.getProperty("storeFile"))
-                storePassword = keystoreProperties.getProperty("storePassword")
-                keyAlias = keystoreProperties.getProperty("keyAlias")
-                keyPassword = keystoreProperties.getProperty("keyPassword")
-            }
-        }
-    }
-
-    buildTypes {
-        release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("release")
-        }
-    }
 }
 
 flutter {
