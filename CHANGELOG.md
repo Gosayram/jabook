@@ -24,13 +24,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Bump changelog generator
 - Optimize Android build configuration and ProGuard rules
+- Prod package validation
 - Update release 1.2.0
 
 ### Fixed
 - Fix typo
 - Fix/about (#29)
 - Fix/distr (#24)
+- Prod prefix
 - Reduce compilation resources for build params
+- System label for localization
 
 ## [1.1.4+9] - 2025-11-23
 
