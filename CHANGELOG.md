@@ -14,19 +14,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+## [Unreleased]
+
+### Added
+- Add theme and audio settings with per-book customization (#25)
+- Feature/about page (#28)
+- Refactor favorites to Riverpod and add favorite buttons (#26)
+
+### Changed
+- Bump changelog generator
+- Optimize Android build configuration and ProGuard rules
+- Update release 1.2.0
+
+### Fixed
+- Fix typo
+- Fix/about (#29)
+- Fix/distr (#24)
+- Reduce compilation resources for build params
+
 ## [1.1.4+9] - 2025-11-23
 
 ### Added
 - ADD - Add CI workflow for GitHub Actions
 - Add CI workflow for GitHub Actions
-- Add RuTracker availability checker, improve logging and settings UI: - Add RuTrackerAvailabilityChecker: periodic background check (every 5 min) and manual check from settings. - Integrate checker with MainActivity lifecycle and RuTrackerSettingsScreen (manual button). - Refactor RuTrackerSettingsScreen and ViewModel: all UI strings moved to resources, improved localization. - Add/replace strings in strings.xml for all new UI and error messages. - Improve debug log export, SAF folder selection, and error handling in settings. - Update DI modules, repository, and core network logic for new checker and guest mode. - Minor: update DebugLogger, file_paths.xml, and related UI/UX polish
 - Add comprehensive file management and torrent system
 - Add downloads management and enhanced metadata support (#15)
+- Add RuTracker availability checker, improve logging and settings UI: - Add RuTrackerAvailabilityChecker: periodic background check (every 5 min) and manual check from settings. - Integrate checker with MainActivity lifecycle and RuTrackerSettingsScreen (manual button). - Refactor RuTrackerSettingsScreen and ViewModel: all UI strings moved to resources, improved localization. - Add/replace strings in strings.xml for all new UI and error messages. - Improve debug log export, SAF folder selection, and error handling in settings. - Update DI modules, repository, and core network logic for new checker and guest mode. - Minor: update DebugLogger, file_paths.xml, and related UI/UX polish
 - FEATURE - Add RuTracker and torrent system architecture
 - Implement Clean Architecture foundation with modular structure
+- Implement phase 2 core player functionality
 - Implement Phase 4 advanced features: background playback + performance optimization
 - Implement Phase 5 UI/UX improvements with comprehensive animation system
-- Implement phase 2 core player functionality
 - Improve cache and cookie handling; (#13)
 - Initial commit
 - Initialize Android Kotlin project with Jetpack Compose
@@ -65,16 +83,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add automatic download resumption and improve settings UX (#19)
 - Adding super.onStartCommand(intent, flags, startId) at the beginning of the onStartCommand method
 - Api version for deprecated libs
-- BUGFIX - Fix RuTracker integration and compilation issues
 - Base fixes
-- CI settings
+- BUGFIX - Fix RuTracker integration and compilation issues
 - Change duration time via external libs
+- CI settings
 - Compiler version
 - Download mechanism; states and Download status; fix old errors with playerListener
 - Exclude additional files
-- Fix CI via ignore wrapper jar
 - Fix app version and sdk; fix theme names
 - Fix base params and editor configs
+- Fix CI via ignore wrapper jar
 - Fix deprecated libs
 - Fix formats
 - Fix imports and minor bugs
