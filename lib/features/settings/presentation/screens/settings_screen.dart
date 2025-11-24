@@ -279,6 +279,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
           const SizedBox(height: 24),
 
+          // About Section
+          Semantics(
+            container: true,
+            label: 'About app',
+            child: _buildAboutSection(context),
+          ),
+
+          const SizedBox(height: 24),
+
           // Background Compatibility Section (Android only)
           if (Platform.isAndroid)
             Semantics(
@@ -288,15 +297,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
 
           if (Platform.isAndroid) const SizedBox(height: 24),
-
-          // About Section
-          Semantics(
-            container: true,
-            label: 'About app',
-            child: _buildAboutSection(context),
-          ),
-
-          const SizedBox(height: 24),
 
           // Backup & Restore Section
           Semantics(
