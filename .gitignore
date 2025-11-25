@@ -248,3 +248,6 @@ android/signing/
 
 # Test folders
 test_results/
+
+# Issue docs
+issue*.md
