@@ -18,6 +18,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:jabook/core/config/audio_settings_manager.dart';
 import 'package:jabook/core/config/audio_settings_provider.dart';
 import 'package:jabook/core/config/book_audio_settings_service.dart';
 import 'package:jabook/core/errors/failures.dart';
@@ -60,6 +61,7 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
   // Local state for slider during dragging
   double? _sliderValue;
   bool _isDragging = false;
+  int? _initialPositionMs; // Initial position when dragging starts
   String? _embeddedArtworkPath; // Path to embedded artwork from metadata
 
   @override
@@ -849,15 +851,7 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
                           _buildProgressSlider(playerState),
                           const SizedBox(height: 16),
                           // Time indicators
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(_formatDuration(Duration(
-                                  milliseconds: playerState.currentPosition))),
-                              Text(_formatDuration(Duration(
-                                  milliseconds: playerState.duration))),
-                            ],
-                          ),
+                          _buildTimeIndicators(playerState),
                           const SizedBox(height: 32),
                           // Playback controls
                           _buildPlaybackControls(playerState),
@@ -1013,9 +1007,11 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
 
   /// Called when user starts dragging the slider.
   void _onSliderStart(double value) {
+    final state = ref.read(playerStateProvider);
     setState(() {
       _isDragging = true;
       _sliderValue = value;
+      _initialPositionMs = state.currentPosition;
     });
   }
 
@@ -1040,7 +1036,112 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
     setState(() {
       _isDragging = false;
       _sliderValue = null;
+      _initialPositionMs = null;
     });
+  }
+
+  /// Builds time indicators with skip information when dragging.
+  Widget _buildTimeIndicators(PlayerStateModel state) {
+    if (_isDragging && _sliderValue != null && _initialPositionMs != null) {
+      // Show skip information during dragging
+      final newPositionMs =
+          (_sliderValue! * state.duration).round().clamp(0, state.duration);
+      final skipMs = newPositionMs - _initialPositionMs!;
+      final skipDuration = Duration(milliseconds: skipMs.abs());
+      final isForward = skipMs > 0;
+
+      return Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              // Current position (initial)
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    AppLocalizations.of(context)?.currentPosition ?? 'Current',
+                    style: Theme.of(context).textTheme.labelSmall,
+                  ),
+                  Text(
+                    _formatDuration(
+                        Duration(milliseconds: _initialPositionMs!)),
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                ],
+              ),
+              // Skip duration
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Theme.of(context)
+                      .colorScheme
+                      .primary
+                      .withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      isForward ? Icons.forward : Icons.replay,
+                      size: 16,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${isForward ? '+' : '-'}${_formatDuration(skipDuration)}',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: Theme.of(context).colorScheme.primary,
+                            fontWeight: FontWeight.bold,
+                          ),
+                    ),
+                  ],
+                ),
+              ),
+              // New position
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    AppLocalizations.of(context)?.newPosition ?? 'New',
+                    style: Theme.of(context).textTheme.labelSmall,
+                  ),
+                  Text(
+                    _formatDuration(Duration(milliseconds: newPositionMs)),
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Theme.of(context).colorScheme.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          // Total duration
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              Text(
+                _formatDuration(Duration(milliseconds: state.duration)),
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
+          ),
+        ],
+      );
+    } else {
+      // Normal display when not dragging
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(_formatDuration(Duration(milliseconds: state.currentPosition))),
+          Text(_formatDuration(Duration(milliseconds: state.duration))),
+        ],
+      );
+    }
   }
 
   /// Waits for player to be ready (playbackState == 2).
@@ -1128,9 +1229,21 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
     final state = ref.read(playerStateProvider);
     final currentPosition = Duration(milliseconds: state.currentPosition);
     final newPosition = currentPosition - Duration(seconds: rewindSeconds);
-    await ref.read(playerStateProvider.notifier).seek(
-          newPosition.isNegative ? Duration.zero : newPosition,
-        );
+    final actualNewPosition =
+        newPosition.isNegative ? Duration.zero : newPosition;
+
+    // Show bottom sheet with skip information
+    if (mounted) {
+      _showSkipBottomSheet(
+        context,
+        isRewind: true,
+        skipSeconds: rewindSeconds,
+        currentPosition: currentPosition,
+        newPosition: actualNewPosition,
+      );
+    }
+
+    await ref.read(playerStateProvider.notifier).seek(actualNewPosition);
   }
 
   /// Forwards playback by configured seconds.
@@ -1140,9 +1253,153 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
     final currentPosition = Duration(milliseconds: state.currentPosition);
     final duration = Duration(milliseconds: state.duration);
     final newPosition = currentPosition + Duration(seconds: forwardSeconds);
-    await ref.read(playerStateProvider.notifier).seek(
-          newPosition > duration ? duration : newPosition,
-        );
+    final actualNewPosition = newPosition > duration ? duration : newPosition;
+
+    // Show bottom sheet with skip information
+    if (mounted) {
+      _showSkipBottomSheet(
+        context,
+        isRewind: false,
+        skipSeconds: forwardSeconds,
+        currentPosition: currentPosition,
+        newPosition: actualNewPosition,
+      );
+    }
+
+    await ref.read(playerStateProvider.notifier).seek(actualNewPosition);
+  }
+
+  /// Shows bottom sheet with skip information.
+  void _showSkipBottomSheet(
+    BuildContext context, {
+    required bool isRewind,
+    required int skipSeconds,
+    required Duration currentPosition,
+    required Duration newPosition,
+  }) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: BoxDecoration(
+          color: Theme.of(context).bottomSheetTheme.backgroundColor ??
+              Theme.of(context).scaffoldBackgroundColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Handle bar
+            Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: 20),
+              decoration: BoxDecoration(
+                color: Theme.of(context).dividerColor,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            // Icon and direction
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  isRewind ? Icons.replay_10 : Icons.forward_30,
+                  size: 32,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  isRewind
+                      ? (AppLocalizations.of(context)?.rewind ?? 'Rewind')
+                      : (AppLocalizations.of(context)?.forward ?? 'Forward'),
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            // Time information
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                // Current position
+                Column(
+                  children: [
+                    Text(
+                      AppLocalizations.of(context)?.currentPosition ??
+                          'Current',
+                      style: Theme.of(context).textTheme.labelMedium,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      _formatDuration(currentPosition),
+                      style:
+                          Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                    ),
+                  ],
+                ),
+                // Arrow
+                Icon(
+                  isRewind ? Icons.arrow_back : Icons.arrow_forward,
+                  size: 32,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                // New position
+                Column(
+                  children: [
+                    Text(
+                      AppLocalizations.of(context)?.newPosition ?? 'New',
+                      style: Theme.of(context).textTheme.labelMedium,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      _formatDuration(newPosition),
+                      style:
+                          Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            // Skip duration
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: Theme.of(context)
+                    .colorScheme
+                    .primary
+                    .withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                '${isRewind ? '-' : '+'}${skipSeconds}s',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: Theme.of(context).colorScheme.primary,
+                      fontWeight: FontWeight.bold,
+                    ),
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+
+    // Auto-dismiss after 1.5 seconds
+    Future.delayed(const Duration(milliseconds: 1500), () {
+      if (context.mounted && Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
+    });
   }
 
   Widget _buildTrackList(PlayerStateModel state) {
@@ -1203,7 +1460,8 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
         tooltip: 'Playback speed',
         itemBuilder: (context) {
           final localizations = AppLocalizations.of(context);
-          final items = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0].map((speed) {
+          final speeds = AudioSettingsManager.getAvailablePlaybackSpeeds();
+          final items = speeds.map((speed) {
             final isSelected = (state.playbackSpeed - speed).abs() < 0.01;
             return PopupMenuItem<double?>(
               value: speed,
@@ -1468,8 +1726,14 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
   }
 
   String _formatDuration(Duration duration) {
-    final minutes = duration.inMinutes;
-    final seconds = duration.inSeconds % 60;
-    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+    final hours = duration.inHours;
+    final minutes = duration.inMinutes.remainder(60);
+    final seconds = duration.inSeconds.remainder(60);
+
+    if (hours > 0) {
+      return '${hours.toString().padLeft(2, '0')}:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+    } else {
+      return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+    }
   }
 }

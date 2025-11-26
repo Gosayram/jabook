@@ -4877,6 +4877,30 @@ abstract class AppLocalizations {
   /// **'Forward Duration'**
   String get forwardDurationTitle;
 
+  /// Label for rewind action
+  ///
+  /// In en, this message translates to:
+  /// **'Rewind'**
+  String get rewind;
+
+  /// Label for forward action
+  ///
+  /// In en, this message translates to:
+  /// **'Forward'**
+  String get forward;
+
+  /// Label for current playback position
+  ///
+  /// In en, this message translates to:
+  /// **'Current'**
+  String get currentPosition;
+
+  /// Label for new playback position after skip
+  ///
+  /// In en, this message translates to:
+  /// **'New'**
+  String get newPosition;
+
   /// Label for seconds unit
   ///
   /// In en, this message translates to:

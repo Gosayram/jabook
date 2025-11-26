@@ -84,8 +84,10 @@ class AudioSettingsNotifier extends StateNotifier<AudioSettings> {
 
   /// Sets the default playback speed.
   Future<void> setDefaultPlaybackSpeed(double speed) async {
-    if (speed < 0.5 || speed > 2.0) {
-      throw ArgumentError('Speed must be between 0.5 and 2.0');
+    if (speed < AudioSettingsManager.minPlaybackSpeed ||
+        speed > AudioSettingsManager.maxPlaybackSpeed) {
+      throw ArgumentError(
+          'Speed must be between ${AudioSettingsManager.minPlaybackSpeed} and ${AudioSettingsManager.maxPlaybackSpeed}');
     }
     await _audioSettingsManager.setDefaultPlaybackSpeed(speed);
     state = state.copyWith(defaultPlaybackSpeed: speed);

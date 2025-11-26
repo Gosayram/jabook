@@ -2620,6 +2620,18 @@ class AppLocalizationsRu extends AppLocalizations {
   String get forwardDurationTitle => 'Длительность перемотки вперед';
 
   @override
+  String get rewind => 'Назад';
+
+  @override
+  String get forward => 'Вперед';
+
+  @override
+  String get currentPosition => 'Текущая';
+
+  @override
+  String get newPosition => 'Новая';
+
+  @override
   String get secondsLabel => 'секунд';
 
   @override

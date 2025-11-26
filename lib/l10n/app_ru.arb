@@ -3740,6 +3740,22 @@
   "@forwardDurationTitle": {
     "description": "Заголовок настройки длительности перемотки вперед"
   },
+  "rewind": "Назад",
+  "@rewind": {
+    "description": "Метка для действия перемотки назад"
+  },
+  "forward": "Вперед",
+  "@forward": {
+    "description": "Метка для действия перемотки вперед"
+  },
+  "currentPosition": "Текущая",
+  "@currentPosition": {
+    "description": "Метка для текущей позиции воспроизведения"
+  },
+  "newPosition": "Новая",
+  "@newPosition": {
+    "description": "Метка для новой позиции воспроизведения после перемотки"
+  },
   "secondsLabel": "секунд",
   "@secondsLabel": {
     "description": "Метка для единицы времени секунды"

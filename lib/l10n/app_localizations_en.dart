@@ -2620,6 +2620,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get forwardDurationTitle => 'Forward Duration';
 
   @override
+  String get rewind => 'Rewind';
+
+  @override
+  String get forward => 'Forward';
+
+  @override
+  String get currentPosition => 'Current';
+
+  @override
+  String get newPosition => 'New';
+
+  @override
   String get secondsLabel => 'seconds';
 
   @override
