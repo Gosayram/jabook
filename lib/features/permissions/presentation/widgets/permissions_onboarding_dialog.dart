@@ -13,6 +13,7 @@
 // limitations under the License.
 
 import 'package:flutter/material.dart';
+import 'package:jabook/core/animations/dialog_utils.dart';
 import 'package:jabook/l10n/app_localizations.dart';
 
 /// Onboarding dialog that explains why permissions are needed.
@@ -29,7 +30,7 @@ class PermissionsOnboardingDialog extends StatelessWidget {
   /// Returns [true] if user wants to proceed with permission requests,
   /// [false] if user cancels.
   static Future<bool> show(BuildContext context) async {
-    final result = await showDialog<bool>(
+    final result = await DialogUtils.showAnimatedDialog<bool>(
       context: context,
       barrierDismissible: false,
       builder: (context) => const PermissionsOnboardingDialog(),

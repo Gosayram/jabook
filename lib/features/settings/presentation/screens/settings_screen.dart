@@ -67,6 +67,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   String? _libraryFolderPath;
   List<String> _libraryFolders = [];
   bool _wifiOnlyDownloads = false;
+  bool _reduceAnimations = false;
   // Key for FutureBuilder to force rebuild when permissions change
   int _permissionStatusKey = 0;
 
@@ -77,6 +78,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _loadDownloadFolder();
     _loadLibraryFolders();
     _loadWifiOnlySetting();
+    _loadAnimationSetting();
   }
 
   Future<void> _loadLanguagePreference() async {
@@ -125,6 +127,26 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     if (mounted) {
       setState(() {
         _wifiOnlyDownloads = value;
+      });
+    }
+  }
+
+  Future<void> _loadAnimationSetting() async {
+    final prefs = await SharedPreferences.getInstance();
+    final reduceAnimations = prefs.getBool('reduce_animations') ?? false;
+    if (mounted) {
+      setState(() {
+        _reduceAnimations = reduceAnimations;
+      });
+    }
+  }
+
+  Future<void> _saveAnimationSetting(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('reduce_animations', value);
+    if (mounted) {
+      setState(() {
+        _reduceAnimations = value;
       });
     }
   }
@@ -208,6 +230,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             container: true,
             label: localizations?.themeSettingsLabel ?? 'Theme settings',
             child: _buildThemeSection(context),
+          ),
+
+          const SizedBox(height: 24),
+
+          // Accessibility Settings Section
+          Semantics(
+            container: true,
+            label: 'Accessibility settings',
+            child: _buildAccessibilitySection(context),
           ),
 
           const SizedBox(height: 24),
@@ -735,6 +766,38 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       ],
     );
   }
+
+  Widget _buildAccessibilitySection(BuildContext context) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Accessibility',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Customize accessibility options',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          const SizedBox(height: 16),
+          // Reduce animations toggle
+          ListTile(
+            leading: const Icon(Icons.animation),
+            title: const Text('Reduce Animations'),
+            subtitle: Text(
+              'Disable complex animations to improve performance and save battery',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            trailing: Semantics(
+              label: 'Reduce animations toggle',
+              child: Switch(
+                value: _reduceAnimations,
+                onChanged: _saveAnimationSetting,
+              ),
+            ),
+          ),
+        ],
+      );
 
   Widget _buildAudioSection(BuildContext context) {
     final localizations = AppLocalizations.of(context);

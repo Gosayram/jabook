@@ -35,6 +35,7 @@ import 'package:jabook/core/parse/category_parser.dart' as category_parser;
 import 'package:jabook/core/parse/rutracker_parser.dart';
 import 'package:jabook/core/search/search_history_service.dart';
 import 'package:jabook/core/services/cookie_service.dart';
+import 'package:jabook/core/utils/responsive_utils.dart';
 import 'package:jabook/core/utils/safe_async.dart';
 import 'package:jabook/data/db/app_database.dart';
 import 'package:jabook/features/auth/data/providers/auth_provider.dart';
@@ -2463,25 +2464,49 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                     ),
                   ),
                   SizedBox(
-                    height: 50,
+                    height:
+                        ResponsiveUtils.isVerySmallScreen(context) ? 45 : 50,
                     child: ListView.builder(
                       scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      padding: EdgeInsets.symmetric(
+                        horizontal:
+                            ResponsiveUtils.isVerySmallScreen(context) ? 8 : 12,
+                      ),
                       itemCount: _searchHistory.length > 10
                           ? 10
                           : _searchHistory.length,
                       itemBuilder: (context, index) {
                         final query = _searchHistory[index];
                         return Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: ResponsiveUtils.isVerySmallScreen(
+                              context,
+                            )
+                                ? 2
+                                : 4,
+                          ),
                           child: ActionChip(
-                            label: Text(query),
+                            label: Text(
+                              query,
+                              style: TextStyle(
+                                fontSize: ResponsiveUtils.isVerySmallScreen(
+                                  context,
+                                )
+                                    ? 12
+                                    : 14,
+                              ),
+                            ),
                             onPressed: () {
                               _searchController.text = query;
                               _searchFocusNode.unfocus();
                               _performSearch();
                             },
-                            avatar: const Icon(Icons.history, size: 16),
+                            avatar: Icon(
+                              Icons.history,
+                              size: ResponsiveUtils.isVerySmallScreen(context)
+                                  ? 14
+                                  : 16,
+                            ),
                           ),
                         );
                       },

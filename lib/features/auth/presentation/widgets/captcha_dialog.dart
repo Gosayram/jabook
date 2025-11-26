@@ -14,7 +14,9 @@
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:jabook/core/animations/dialog_utils.dart';
 import 'package:jabook/core/auth/captcha_detector.dart';
+import 'package:jabook/core/utils/responsive_utils.dart';
 import 'package:jabook/l10n/app_localizations.dart';
 
 /// Universal dialog for displaying and solving captcha challenges.
@@ -46,7 +48,7 @@ class CaptchaDialog extends StatefulWidget {
     RutrackerCaptchaData? rutrackerCaptchaData,
     String? captchaUrl,
   }) async =>
-      showDialog<String>(
+      DialogUtils.showAnimatedDialog<String>(
         context: context,
         barrierDismissible: false,
         builder: (context) => CaptchaDialog(
@@ -221,22 +223,41 @@ class _CaptchaDialogState extends State<CaptchaDialog> {
   double _getDialogWidth(BuildContext context) {
     switch (widget.captchaType) {
       case CaptchaType.rutracker:
-        return 400; // Compact for RuTracker captcha
+        // Use responsive width, but ensure it's not too wide on small screens
+        final responsiveWidth = ResponsiveUtils.getDialogWidth(context);
+        if (responsiveWidth != null) {
+          // Use responsive width if available, but cap at 400px for compact captcha
+          return responsiveWidth < 400 ? responsiveWidth : 400;
+        }
+        // For mobile (full width), use 90% of screen width but max 400px
+        final screenWidth = MediaQuery.of(context).size.width;
+        final calculatedWidth = screenWidth * 0.9;
+        return calculatedWidth < 400 ? calculatedWidth : 400;
       case CaptchaType.cloudflare:
-        return MediaQuery.of(context).size.width * 0.9; // Wide for CloudFlare
+        // Wide for CloudFlare - use 90% of screen width
+        return MediaQuery.of(context).size.width * 0.9;
       case CaptchaType.unknown:
-        return 400;
+        // Use responsive width for unknown captcha type
+        final responsiveWidth = ResponsiveUtils.getDialogWidth(context);
+        if (responsiveWidth != null) {
+          return responsiveWidth < 400 ? responsiveWidth : 400;
+        }
+        final screenWidth = MediaQuery.of(context).size.width;
+        return screenWidth * 0.9;
     }
   }
 
-  double _getDialogHeight(BuildContext context) {
+  double? _getDialogHeight(BuildContext context) {
     switch (widget.captchaType) {
       case CaptchaType.rutracker:
-        return 350; // Compact for RuTracker captcha
+        // Compact height for RuTracker captcha
+        return ResponsiveUtils.getDialogHeight(context, contentType: 'compact');
       case CaptchaType.cloudflare:
-        return MediaQuery.of(context).size.height * 0.7; // Tall for CloudFlare
+        // Tall for CloudFlare - use 70% of screen height
+        return MediaQuery.of(context).size.height * 0.7;
       case CaptchaType.unknown:
-        return 300;
+        // Normal height for unknown captcha
+        return ResponsiveUtils.getDialogHeight(context);
     }
   }
 }

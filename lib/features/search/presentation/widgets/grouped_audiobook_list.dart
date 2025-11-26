@@ -254,9 +254,13 @@ class _CategorySectionState extends State<_CategorySection> {
                 final topicId = audiobook['id'] as String? ?? '';
                 final isFavorite = widget.favoriteIds.contains(topicId);
                 // RepaintBoundary is already in AudiobookCard, no need to add here
+                // OpenContainer now handles navigation, so onTap is not needed
                 return AudiobookCard(
                   audiobook: audiobook,
-                  onTap: () => widget.onAudiobookTap(topicId),
+                  onTap: () {
+                    // Fallback: if OpenContainer doesn't work, use GoRouter
+                    widget.onAudiobookTap(topicId);
+                  },
                   isFavorite: isFavorite,
                   onFavoriteToggle: widget.onFavoriteToggle != null
                       ? (newState) =>

@@ -15,6 +15,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:jabook/core/utils/responsive_utils.dart';
 import 'package:jabook/l10n/app_localizations.dart';
 
 /// Recommended audiobooks data model.
@@ -127,71 +128,85 @@ class _RecommendedAudiobookCard extends StatelessWidget {
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) => GestureDetector(
-        onTap: onTap,
-        child: Container(
-          width: 140,
-          margin: const EdgeInsets.symmetric(horizontal: 4),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Cover image with size badge overlay
-              Stack(
-                children: [
-                  _buildCover(context),
-                  // Size badge overlay
-                  if (audiobook.size != null)
-                    Positioned(
-                      bottom: 8,
-                      right: 8,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.7),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          audiobook.size!,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w500,
-                          ),
+  Widget build(BuildContext context) {
+    // Use responsive width from ResponsiveUtils
+    // This ensures proper adaptation for very small screens, mobile, tablets, and desktop
+    final cardWidth = ResponsiveUtils.getRecommendedCardWidth(context);
+    final isVerySmall = ResponsiveUtils.isVerySmallScreen(context);
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: cardWidth,
+        margin: const EdgeInsets.symmetric(horizontal: 4),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Cover image with size badge overlay
+            Stack(
+              children: [
+                _buildCover(context),
+                // Size badge overlay
+                if (audiobook.size != null)
+                  Positioned(
+                    bottom: 8,
+                    right: 8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.7),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        audiobook.size!,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
                     ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              // Title
-              Text(
-                audiobook.title,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 4),
-              // Author
-              Text(
-                audiobook.author,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context)
-                          .colorScheme
-                          .onSurface
-                          .withValues(alpha: 0.7),
-                    ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-          ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            // Title - primary information, more space
+            Text(
+              audiobook.title,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    fontSize: isVerySmall
+                        ? 12
+                        : (ResponsiveUtils.isMobile(context) ? 13 : 14),
+                  ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 4),
+            // Author - secondary information, always visible
+            Text(
+              audiobook.author,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurface
+                        .withValues(alpha: 0.7),
+                    fontSize: isVerySmall
+                        ? 10
+                        : (ResponsiveUtils.isMobile(context) ? 11 : 12),
+                  ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
         ),
-      );
+      ),
+    );
+  }
 
   Widget _buildCover(BuildContext context) => AspectRatio(
         aspectRatio: 2 / 3, // Standard book cover ratio

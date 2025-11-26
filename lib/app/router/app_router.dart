@@ -15,6 +15,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:jabook/core/animations/motion.dart';
 import 'package:jabook/core/config/app_config.dart';
 import 'package:jabook/core/library/local_audiobook.dart';
 import 'package:jabook/core/logging/environment_logger.dart';
@@ -47,32 +48,87 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       routes: [
         GoRoute(
           path: '/',
-          builder: (context, state) => const LibraryScreen(),
+          pageBuilder: (context, state) => CustomTransitionPage<void>(
+            key: state.pageKey,
+            child: const LibraryScreen(),
+            transitionsBuilder:
+                (context, animation, secondaryAnimation, child) =>
+                    Motion.fadeThroughTransition(
+              context: context,
+              animation: animation,
+              secondaryAnimation: secondaryAnimation,
+              child: child,
+            ),
+          ),
         ),
         GoRoute(
           path: '/search',
-          builder: (context, state) {
+          pageBuilder: (context, state) {
             EnvironmentLogger().d('GoRouter building SearchScreen at /search');
-            return const SearchScreen();
+            return CustomTransitionPage<void>(
+              key: state.pageKey,
+              child: const SearchScreen(),
+              transitionsBuilder:
+                  (context, animation, secondaryAnimation, child) =>
+                      Motion.fadeThroughTransition(
+                context: context,
+                animation: animation,
+                secondaryAnimation: secondaryAnimation,
+                child: child,
+              ),
+            );
           },
         ),
         GoRoute(
           path: '/downloads',
-          builder: (context, state) {
+          pageBuilder: (context, state) {
             // Get downloadId from query parameters if present
             final downloadId = state.uri.queryParameters['downloadId'];
-            return DownloadsScreen(highlightDownloadId: downloadId);
+            return CustomTransitionPage<void>(
+              key: state.pageKey,
+              child: DownloadsScreen(highlightDownloadId: downloadId),
+              transitionsBuilder:
+                  (context, animation, secondaryAnimation, child) =>
+                      Motion.fadeThroughTransition(
+                context: context,
+                animation: animation,
+                secondaryAnimation: secondaryAnimation,
+                child: child,
+              ),
+            );
           },
         ),
         GoRoute(
           path: '/settings',
-          builder: (context, state) => const SettingsScreen(),
+          pageBuilder: (context, state) => CustomTransitionPage<void>(
+            key: state.pageKey,
+            child: const SettingsScreen(),
+            transitionsBuilder:
+                (context, animation, secondaryAnimation, child) =>
+                    Motion.fadeThroughTransition(
+              context: context,
+              animation: animation,
+              secondaryAnimation: secondaryAnimation,
+              child: child,
+            ),
+          ),
         ),
         // Only include debug route if debug features are enabled
         if (config.debugFeaturesEnabled)
           GoRoute(
             path: '/debug',
-            builder: (context, state) => const DebugScreen(),
+            pageBuilder: (context, state) => CustomTransitionPage<void>(
+              key: state.pageKey,
+              child: const DebugScreen(),
+              transitionsBuilder:
+                  (context, animation, secondaryAnimation, child) =>
+                      Motion.fadeThroughTransition(
+                context: context,
+                animation: animation,
+                secondaryAnimation: secondaryAnimation,
+                child: child,
+              ),
+            ),
           ),
       ],
       builder: (context, state, child) => _MainNavigationWrapper(

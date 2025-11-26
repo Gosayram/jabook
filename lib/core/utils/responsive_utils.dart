@@ -200,4 +200,128 @@ class ResponsiveUtils {
       return 56;
     }
   }
+
+  /// Checks if the current screen is very small (<360px width).
+  ///
+  /// Very small screens require special handling for compact layouts.
+  static bool isVerySmallScreen(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    return screenWidth < 360;
+  }
+
+  /// Checks if the current screen is a large tablet (>800px width).
+  ///
+  /// Large tablets can use more desktop-like layouts.
+  static bool isLargeTablet(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    return screenWidth > 800 && isTablet(context);
+  }
+
+  /// Gets responsive width for recommended audiobook cards.
+  ///
+  /// Returns wider cards on small screens to ensure both title and author are visible.
+  static double getRecommendedCardWidth(BuildContext context) {
+    if (isVerySmallScreen(context)) {
+      return 170.0; // Wider for very small screens
+    } else if (isMobile(context)) {
+      final screenWidth = MediaQuery.of(context).size.width;
+      // Use wider cards on small screens (<400px) to show both title and author
+      return screenWidth < 400 ? 160.0 : 140.0;
+    } else if (isTablet(context)) {
+      return 160.0; // Slightly wider on tablets
+    } else {
+      return 180.0; // Wider on desktop
+    }
+  }
+
+  /// Gets responsive dialog height.
+  ///
+  /// Returns appropriate height based on screen size and content type.
+  /// The [contentType] parameter can be 'compact', 'normal', or 'tall'.
+  static double? getDialogHeight(
+    BuildContext context, {
+    String contentType = 'normal',
+  }) {
+    final screenHeight = MediaQuery.of(context).size.height;
+
+    if (isVerySmallScreen(context)) {
+      // Very small screens: use percentage of screen height
+      switch (contentType) {
+        case 'compact':
+          return screenHeight * 0.4;
+        case 'tall':
+          return screenHeight * 0.85;
+        default:
+          return screenHeight * 0.6;
+      }
+    } else if (isMobile(context)) {
+      // Mobile screens
+      switch (contentType) {
+        case 'compact':
+          return 300;
+        case 'tall':
+          return screenHeight * 0.8;
+        default:
+          return 400;
+      }
+    } else if (isTablet(context)) {
+      // Tablet screens
+      switch (contentType) {
+        case 'compact':
+          return 400;
+        case 'tall':
+          return screenHeight * 0.75;
+        default:
+          return 500;
+      }
+    } else {
+      // Desktop screens
+      switch (contentType) {
+        case 'compact':
+          return 450;
+        case 'tall':
+          return screenHeight * 0.7;
+        default:
+          return 600;
+      }
+    }
+  }
+
+  /// Gets minimum touch target size for mobile devices.
+  ///
+  /// Returns 44.0 pixels, which is the recommended minimum touch target size
+  /// for mobile interfaces according to Material Design and iOS guidelines.
+  static double getMinTouchTarget(BuildContext context) => 44.0;
+
+  /// Gets compact padding for very small screens.
+  ///
+  /// Returns reduced padding on very small screens to save space.
+  static EdgeInsets getCompactPadding(BuildContext context) {
+    if (isVerySmallScreen(context)) {
+      return const EdgeInsets.all(8); // Reduced padding for very small screens
+    }
+    return getResponsivePadding(context);
+  }
+
+  /// Gets responsive title font size.
+  ///
+  /// Returns appropriate font size for titles based on screen size.
+  /// The [baseSize] parameter is the base font size (default: 20).
+  static double getTitleFontSize(BuildContext context, {double baseSize = 20}) {
+    if (isVerySmallScreen(context)) {
+      return baseSize * 0.85; // Smaller on very small screens
+    }
+    return baseSize * getFontSizeMultiplier(context);
+  }
+
+  /// Gets responsive body font size.
+  ///
+  /// Returns appropriate font size for body text based on screen size.
+  /// The [baseSize] parameter is the base font size (default: 14).
+  static double getBodyFontSize(BuildContext context, {double baseSize = 14}) {
+    if (isVerySmallScreen(context)) {
+      return baseSize * 0.9; // Slightly smaller on very small screens
+    }
+    return baseSize * getFontSizeMultiplier(context);
+  }
 }

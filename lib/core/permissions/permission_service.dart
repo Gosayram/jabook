@@ -18,6 +18,7 @@ import 'dart:io';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:jabook/core/animations/dialog_utils.dart';
 import 'package:jabook/core/logging/structured_logger.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:permission_handler/permission_handler.dart' as ph
@@ -658,7 +659,7 @@ class PermissionService {
     required String message,
     required Future<bool> Function() requestPermission,
   }) async {
-    final result = await showDialog<bool>(
+    final result = await DialogUtils.showAnimatedDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: Text(title),

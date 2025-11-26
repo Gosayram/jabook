@@ -29,6 +29,7 @@ import 'package:jabook/core/player/native_audio_player.dart';
 import 'package:jabook/core/player/playback_settings_provider.dart';
 import 'package:jabook/core/player/player_state_provider.dart';
 import 'package:jabook/core/player/sleep_timer_service.dart';
+import 'package:jabook/core/utils/responsive_utils.dart';
 import 'package:jabook/core/utils/safe_async.dart';
 import 'package:jabook/l10n/app_localizations.dart';
 
@@ -819,12 +820,17 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
                 ? const Center(child: CircularProgressIndicator())
                 : SingleChildScrollView(
                     child: Padding(
-                      padding: const EdgeInsets.all(16.0),
+                      padding: ResponsiveUtils.getCompactPadding(context),
                       child: Column(
                         children: [
                           // Cover image
                           _buildCoverImage(),
-                          const SizedBox(height: 24),
+                          SizedBox(
+                            height: ResponsiveUtils.getSpacing(
+                              context,
+                              baseSpacing: 24,
+                            ),
+                          ),
                           // Track info
                           Text(
                             widget.group.hasMultiFolderStructure
@@ -836,26 +842,61 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
                             style: Theme.of(context).textTheme.titleLarge,
                             textAlign: TextAlign.center,
                           ),
-                          const SizedBox(height: 8),
+                          SizedBox(
+                            height: ResponsiveUtils.getSpacing(
+                              context,
+                            ),
+                          ),
                           Text(
                             widget.group.groupName,
-                            style: Theme.of(context).textTheme.bodyMedium,
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(
+                                  fontSize:
+                                      ResponsiveUtils.getBodyFontSize(context),
+                                ),
                             textAlign: TextAlign.center,
                           ),
-                          const SizedBox(height: 32),
+                          SizedBox(
+                            height: ResponsiveUtils.getSpacing(
+                              context,
+                              baseSpacing: 32,
+                            ),
+                          ),
                           // Group progress indicator
                           if (widget.group.files.length > 1)
                             _buildGroupProgressIndicator(playerState),
-                          const SizedBox(height: 16),
+                          SizedBox(
+                            height: ResponsiveUtils.getSpacing(
+                              context,
+                              baseSpacing: 16,
+                            ),
+                          ),
                           // Progress slider
                           _buildProgressSlider(playerState),
-                          const SizedBox(height: 16),
+                          SizedBox(
+                            height: ResponsiveUtils.getSpacing(
+                              context,
+                              baseSpacing: 16,
+                            ),
+                          ),
                           // Time indicators
                           _buildTimeIndicators(playerState),
-                          const SizedBox(height: 32),
+                          SizedBox(
+                            height: ResponsiveUtils.getSpacing(
+                              context,
+                              baseSpacing: 32,
+                            ),
+                          ),
                           // Playback controls
                           _buildPlaybackControls(playerState),
-                          const SizedBox(height: 16),
+                          SizedBox(
+                            height: ResponsiveUtils.getSpacing(
+                              context,
+                              baseSpacing: 16,
+                            ),
+                          ),
                           // Speed, repeat and sleep timer controls in one row
                           _buildControlsRow(playerState),
                           const SizedBox(height: 32),
@@ -871,8 +912,13 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
   }
 
   Widget _buildCoverImage() {
-    // Increased size after optimizing controls layout
-    const coverSize = 285.0;
+    // Responsive cover size based on screen size
+    final screenWidth = MediaQuery.of(context).size.width;
+    final coverSize = ResponsiveUtils.isVerySmallScreen(context)
+        ? 200.0
+        : (screenWidth < 400
+            ? 240.0
+            : (ResponsiveUtils.isTablet(context) ? 320.0 : 285.0));
 
     // Try embedded artwork from metadata first (if available)
     if (_embeddedArtworkPath != null) {
@@ -1179,43 +1225,86 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
             // Previous track button
             IconButton(
               icon: const Icon(Icons.skip_previous),
-              iconSize: 32,
+              iconSize: ResponsiveUtils.getIconSize(
+                context,
+                baseSize: ResponsiveUtils.isVerySmallScreen(context) ? 28 : 32,
+              ),
               onPressed: state.currentIndex > 0 ? _prevTrack : null,
               tooltip: 'Previous track',
+              constraints: BoxConstraints(
+                minWidth: ResponsiveUtils.getMinTouchTarget(context),
+                minHeight: ResponsiveUtils.getMinTouchTarget(context),
+              ),
             ),
-            const SizedBox(width: 8),
+            SizedBox(
+              width: ResponsiveUtils.isVerySmallScreen(context) ? 4 : 8,
+            ),
             // Rewind button
             IconButton(
               icon: const Icon(Icons.replay_10),
-              iconSize: 28,
+              iconSize: ResponsiveUtils.getIconSize(
+                context,
+                baseSize: ResponsiveUtils.isVerySmallScreen(context) ? 24 : 28,
+              ),
               onPressed: isLoading ? null : _rewind,
               tooltip: 'Rewind',
+              constraints: BoxConstraints(
+                minWidth: ResponsiveUtils.getMinTouchTarget(context),
+                minHeight: ResponsiveUtils.getMinTouchTarget(context),
+              ),
             ),
-            const SizedBox(width: 8),
+            SizedBox(
+              width: ResponsiveUtils.isVerySmallScreen(context) ? 4 : 8,
+            ),
             // Play/Pause button
             IconButton(
               icon: Icon(state.isPlaying ? Icons.pause : Icons.play_arrow),
-              iconSize: 48,
+              iconSize: ResponsiveUtils.getIconSize(
+                context,
+                baseSize: ResponsiveUtils.isVerySmallScreen(context) ? 40 : 48,
+              ),
               onPressed: isLoading ? null : _playPause,
               tooltip: state.isPlaying ? 'Pause' : 'Play',
+              constraints: BoxConstraints(
+                minWidth: ResponsiveUtils.getMinTouchTarget(context) * 1.2,
+                minHeight: ResponsiveUtils.getMinTouchTarget(context) * 1.2,
+              ),
             ),
-            const SizedBox(width: 8),
+            SizedBox(
+              width: ResponsiveUtils.isVerySmallScreen(context) ? 4 : 8,
+            ),
             // Forward button
             IconButton(
               icon: const Icon(Icons.forward_30),
-              iconSize: 28,
+              iconSize: ResponsiveUtils.getIconSize(
+                context,
+                baseSize: ResponsiveUtils.isVerySmallScreen(context) ? 24 : 28,
+              ),
               onPressed: isLoading ? null : _forward,
               tooltip: 'Forward',
+              constraints: BoxConstraints(
+                minWidth: ResponsiveUtils.getMinTouchTarget(context),
+                minHeight: ResponsiveUtils.getMinTouchTarget(context),
+              ),
             ),
-            const SizedBox(width: 8),
+            SizedBox(
+              width: ResponsiveUtils.isVerySmallScreen(context) ? 4 : 8,
+            ),
             // Next track button
             IconButton(
               icon: const Icon(Icons.skip_next),
-              iconSize: 32,
+              iconSize: ResponsiveUtils.getIconSize(
+                context,
+                baseSize: ResponsiveUtils.isVerySmallScreen(context) ? 28 : 32,
+              ),
               onPressed: state.currentIndex < widget.group.files.length - 1
                   ? _nextTrack
                   : null,
               tooltip: 'Next track',
+              constraints: BoxConstraints(
+                minWidth: ResponsiveUtils.getMinTouchTarget(context),
+                minHeight: ResponsiveUtils.getMinTouchTarget(context),
+              ),
             ),
           ],
         ),

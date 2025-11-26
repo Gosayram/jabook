@@ -33,6 +33,7 @@ import 'package:jabook/core/torrent/audiobook_torrent_manager.dart';
 import 'package:jabook/core/torrent/audiobook_torrent_manager_provider.dart';
 import 'package:jabook/core/torrent/external_torrent_handler.dart';
 import 'package:jabook/core/torrent/torrent_parser_service.dart';
+import 'package:jabook/core/utils/responsive_utils.dart';
 import 'package:jabook/features/downloads/presentation/widgets/download_status_bar.dart';
 import 'package:jabook/l10n/app_localizations.dart';
 import 'package:path_provider/path_provider.dart';
@@ -515,18 +516,22 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
         <String>[];
     // Chapters variable is not used, removed to fix lint warning
 
-    // Determine font size based on screen size
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isSmallScreen = screenWidth < 360;
-    final titleStyle = isSmallScreen
-        ? Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 20)
-        : Theme.of(context).textTheme.headlineSmall;
-    final authorStyle = isSmallScreen
-        ? Theme.of(context).textTheme.titleSmall
-        : Theme.of(context).textTheme.titleMedium;
+    // Use ResponsiveUtils for consistent responsive design
+    final titleStyle = Theme.of(context).textTheme.headlineSmall?.copyWith(
+          fontSize: ResponsiveUtils.getTitleFontSize(
+            context,
+            baseSize: Theme.of(context).textTheme.headlineSmall?.fontSize ?? 24,
+          ),
+        );
+    final authorStyle = Theme.of(context).textTheme.titleMedium?.copyWith(
+          fontSize: ResponsiveUtils.getBodyFontSize(
+            context,
+            baseSize: Theme.of(context).textTheme.titleMedium?.fontSize ?? 16,
+          ),
+        );
 
     return Padding(
-      padding: const EdgeInsets.all(16.0),
+      padding: ResponsiveUtils.getCompactPadding(context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -534,22 +539,30 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
             title: title,
             style: titleStyle,
           ),
-          const SizedBox(height: 12),
+          SizedBox(
+            height: ResponsiveUtils.getSpacing(context, baseSpacing: 12),
+          ),
           SelectableText(
             'by $author',
             style: authorStyle,
           ),
           if (performer != null && performer.isNotEmpty) ...[
-            const SizedBox(height: 8),
+            SizedBox(
+              height: ResponsiveUtils.getSpacing(context),
+            ),
             SelectableText(
               'Performed by $performer',
-              style: Theme.of(context).textTheme.bodyMedium,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    fontSize: ResponsiveUtils.getBodyFontSize(context),
+                  ),
             ),
           ],
-          const SizedBox(height: 16),
+          SizedBox(
+            height: ResponsiveUtils.getSpacing(context, baseSpacing: 16),
+          ),
           Wrap(
-            spacing: 8,
-            runSpacing: 8,
+            spacing: ResponsiveUtils.isVerySmallScreen(context) ? 6 : 8,
+            runSpacing: ResponsiveUtils.isVerySmallScreen(context) ? 6 : 8,
             children: [
               _buildChip(
                 category,
@@ -574,10 +587,12 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
             ],
           ),
           if (genres.isNotEmpty) ...[
-            const SizedBox(height: 8),
+            SizedBox(
+              height: ResponsiveUtils.getSpacing(context),
+            ),
             Wrap(
-              spacing: 8,
-              runSpacing: 4,
+              spacing: ResponsiveUtils.isVerySmallScreen(context) ? 6 : 8,
+              runSpacing: ResponsiveUtils.isVerySmallScreen(context) ? 3 : 4,
               children: genres
                   .map((genre) => Chip(
                         label: Text(genre),
@@ -597,10 +612,12 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
           if ((audiobook['duration'] as String?) != null ||
               (audiobook['bitrate'] as String?) != null ||
               (audiobook['audioCodec'] as String?) != null) ...[
-            const SizedBox(height: 12),
+            SizedBox(
+              height: ResponsiveUtils.getSpacing(context, baseSpacing: 12),
+            ),
             Wrap(
-              spacing: 8,
-              runSpacing: 8,
+              spacing: ResponsiveUtils.isVerySmallScreen(context) ? 6 : 8,
+              runSpacing: ResponsiveUtils.isVerySmallScreen(context) ? 6 : 8,
               children: [
                 if ((audiobook['duration'] as String?) != null)
                   _buildChip(
@@ -625,22 +642,30 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
               ],
             ),
           ],
-          const SizedBox(height: 16),
+          SizedBox(
+            height: ResponsiveUtils.getSpacing(context, baseSpacing: 16),
+          ),
           if (coverUrl != null)
             RepaintBoundary(
               child: CachedNetworkImage(
                 imageUrl: coverUrl,
-                height: 200,
+                height: ResponsiveUtils.isVerySmallScreen(context)
+                    ? 160
+                    : (ResponsiveUtils.isMobile(context) ? 200 : 240),
                 fit: BoxFit.cover,
                 placeholder: (context, url) => Container(
-                  height: 200,
+                  height: ResponsiveUtils.isVerySmallScreen(context)
+                      ? 160
+                      : (ResponsiveUtils.isMobile(context) ? 200 : 240),
                   color: Theme.of(context).colorScheme.surfaceContainerHighest,
                   child: const Center(
                     child: CircularProgressIndicator(),
                   ),
                 ),
                 errorWidget: (context, url, e) => Container(
-                  height: 200,
+                  height: ResponsiveUtils.isVerySmallScreen(context)
+                      ? 160
+                      : (ResponsiveUtils.isMobile(context) ? 200 : 240),
                   color: Theme.of(context).colorScheme.errorContainer,
                   child: Icon(
                     Icons.error_outline,
