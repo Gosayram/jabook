@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
-## [Unreleased]
+## [1.2.4] - 2025-11-27
 
 ### Changed
 - Bump actions/checkout from 5.0.1 to 6.0.0 (#30)
@@ -170,6 +170,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Security params
 
 
-[Unreleased]: https://github.com/Gosayram/jabook/compare/1.2.0...HEAD
+[Unreleased]: https://github.com/Gosayram/jabook/compare/1.2.4...HEAD
+[1.2.4]: https://github.com/Gosayram/jabook/compare/1.2.0...1.2.4
 [1.2.0]: https://github.com/Gosayram/jabook/compare/1.1.4+9...1.2.0
 [1.1.4+9]: https://github.com/Gosayram/jabook/compare/d267d15fb5c474143256670074da461cd315af74...1.1.4+9
