@@ -9,20 +9,19 @@
     <!-- Required only if your app modifies network configuration -->
     <!-- <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" /> -->
 
-    <!-- Legacy external storage permissions (Android 5.0-12, API 21-32) -->
+    <!-- Legacy external storage permissions -->
     <!-- READ_EXTERNAL_STORAGE: Required for reading files on external storage -->
     <!-- Note: On Android 6.0+ (API 23+), this is a runtime permission -->
-    <uses-permission
-        android:name="android.permission.READ_EXTERNAL_STORAGE"
-        android:maxSdkVersion="32" />
+    <!-- On Android 11+ (API 30+), this permission is mostly ignored, but some custom ROMs (Xiaomi/Oppo) still check it for backward compatibility -->
+    <!-- Keep without maxSdkVersion for compatibility with custom ROMs -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     
     <!-- WRITE_EXTERNAL_STORAGE: Required for writing files on external storage -->
     <!-- Note: On Android 6.0+ (API 23+), this is a runtime permission -->
     <!-- On Android 10+ (API 29+), Scoped Storage limits this permission -->
-    <!-- On Android 11+ (API 30+), this permission is mostly ignored, use SAF instead -->
-    <uses-permission
-        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
-        android:maxSdkVersion="32" />
+    <!-- On Android 11+ (API 30+), this permission is mostly ignored, but some custom ROMs (Xiaomi/Oppo) still check it for backward compatibility -->
+    <!-- Keep without maxSdkVersion for compatibility with custom ROMs -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
 
     <!-- MANAGE_EXTERNAL_STORAGE: Required for accessing all files on Android 11+ (API 30+) -->
     <!-- This permission is required to write to /storage/emulated/0/JabookAudio on Android 11+ -->

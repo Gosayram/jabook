@@ -35,6 +35,7 @@ import 'package:jabook/core/net/dio_client.dart';
 import 'package:jabook/core/permissions/permission_service.dart';
 import 'package:jabook/core/player/player_state_provider.dart';
 import 'package:jabook/core/session/session_manager.dart';
+import 'package:jabook/core/utils/content_uri_service.dart';
 import 'package:jabook/core/utils/file_picker_utils.dart' as file_picker_utils;
 import 'package:jabook/core/utils/storage_path_utils.dart';
 import 'package:jabook/data/db/app_database.dart';
@@ -1477,18 +1478,72 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ),
       );
     } else {
-      // Show dialog to open settings
-      await _showOpenSettingsDialog(
-        context,
-        title: AppLocalizations.of(context)?.storagePermissionName ??
-            'Storage Permission',
-        message: AppLocalizations.of(context)?.permissionDeniedMessage ??
-            'Storage permission was denied. Please grant it in app settings to use this feature.',
-      );
+      if (!mounted) return;
+
+      // Check if manufacturer-specific guidance is needed
+      final needsGuidance =
+          await _permissionService.needsStoragePermissionGuidance();
+
+      if (!mounted) return;
+
+      if (needsGuidance) {
+        // Check if SAF fallback should be suggested
+        final shouldSuggestSaf =
+            await _permissionService.shouldSuggestSafFallback();
+        if (!mounted) return;
+
+        if (shouldSuggestSaf) {
+          // Show SAF fallback dialog
+          final useSaf =
+              await _permissionService.showSafFallbackDialog(context);
+          if (!mounted) return;
+
+          if (useSaf) {
+            // User chose to use SAF - this will be handled by the library screen
+            // where user can select folders using SAF
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  AppLocalizations.of(context)?.safFallbackMessage ??
+                      'You can select folders using the folder selection option in Library settings.',
+                ),
+              ),
+            );
+            return;
+          }
+        }
+
+        // Show manufacturer-specific guidance dialog
+        final guidanceShown = await _permissionService
+            .showStoragePermissionGuidanceDialog(context);
+        if (!mounted) return;
+
+        if (!guidanceShown) {
+          // Fallback to standard settings dialog
+          await _showOpenSettingsDialog(
+            context,
+            title: AppLocalizations.of(context)?.storagePermissionName ??
+                'Storage Permission',
+            message: AppLocalizations.of(context)?.permissionDeniedMessage ??
+                'Storage permission was denied. Please grant it in app settings to use this feature.',
+          );
+        }
+      } else {
+        // Show standard dialog to open settings
+        await _showOpenSettingsDialog(
+          context,
+          title: AppLocalizations.of(context)?.storagePermissionName ??
+              'Storage Permission',
+          message: AppLocalizations.of(context)?.permissionDeniedMessage ??
+              'Storage permission was denied. Please grant it in app settings to use this feature.',
+        );
+      }
       // Force FutureBuilder to rebuild even if denied
-      setState(() {
-        _permissionStatusKey++;
-      });
+      if (mounted) {
+        setState(() {
+          _permissionStatusKey++;
+        });
+      }
     }
   }
 
@@ -1994,24 +2049,59 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
       if (selectedPath != null) {
         // Validate folder accessibility
-        try {
-          final dir = Directory(selectedPath);
-          if (!await dir.exists()) {
-            if (mounted) {
-              messenger.showSnackBar(
-                const SnackBar(
-                  content: Text(
-                    'Selected folder is not accessible. Please try again.',
+        // For content:// URIs, use ContentUriService; for file paths, use Directory
+        final isContentUri = StoragePathUtils.isContentUri(selectedPath);
+        var isAccessible = false;
+
+        if (isContentUri) {
+          // Check access via ContentResolver for content URIs
+          try {
+            final contentUriService = ContentUriService();
+            isAccessible = await contentUriService.checkUriAccess(selectedPath);
+            if (!isAccessible) {
+              if (mounted) {
+                messenger.showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      localizations?.permissionDeniedMessage ??
+                          'No access to selected folder. Please grant permission in the file picker.',
+                    ),
+                    backgroundColor: Colors.orange,
+                    duration: const Duration(seconds: 3),
                   ),
-                  backgroundColor: Colors.orange,
-                  duration: Duration(seconds: 3),
-                ),
-              );
+                );
+              }
+              return;
             }
-            return;
+          } on Exception catch (e) {
+            // Log error but continue - permission might still work
+            debugPrint('Error checking content URI access: $e');
+            // Assume accessible if check fails (might be timing issue)
+            isAccessible = true;
           }
-        } on Exception {
-          // If we can't check, still try to save - might be SAF URI
+        } else {
+          // Check access via Directory for file paths
+          try {
+            final dir = Directory(selectedPath);
+            isAccessible = await dir.exists();
+            if (!isAccessible) {
+              if (mounted) {
+                messenger.showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                      'Selected folder is not accessible. Please try again.',
+                    ),
+                    backgroundColor: Colors.orange,
+                    duration: Duration(seconds: 3),
+                  ),
+                );
+              }
+              return;
+            }
+          } on Exception {
+            // If we can't check, still try to save - might be SAF URI
+            isAccessible = true; // Assume accessible if check fails
+          }
         }
 
         // Save selected path using StoragePathUtils
@@ -2298,24 +2388,59 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
       if (selectedPath != null) {
         // Validate folder accessibility
-        try {
-          final dir = Directory(selectedPath);
-          if (!await dir.exists()) {
-            if (mounted) {
-              messenger.showSnackBar(
-                const SnackBar(
-                  content: Text(
-                    'Selected folder is not accessible. Please try again.',
+        // For content:// URIs, use ContentUriService; for file paths, use Directory
+        final isContentUri = StoragePathUtils.isContentUri(selectedPath);
+        var isAccessible = false;
+
+        if (isContentUri) {
+          // Check access via ContentResolver for content URIs
+          try {
+            final contentUriService = ContentUriService();
+            isAccessible = await contentUriService.checkUriAccess(selectedPath);
+            if (!isAccessible) {
+              if (mounted) {
+                messenger.showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      localizations?.permissionDeniedMessage ??
+                          'No access to selected folder. Please grant permission in the file picker.',
+                    ),
+                    backgroundColor: Colors.orange,
+                    duration: const Duration(seconds: 3),
                   ),
-                  backgroundColor: Colors.orange,
-                  duration: Duration(seconds: 3),
-                ),
-              );
+                );
+              }
+              return;
             }
-            return;
+          } on Exception catch (e) {
+            // Log error but continue - permission might still work
+            debugPrint('Error checking content URI access: $e');
+            // Assume accessible if check fails (might be timing issue)
+            isAccessible = true;
           }
-        } on Exception {
-          // If we can't check, still try to save - might be SAF URI
+        } else {
+          // Check access via Directory for file paths
+          try {
+            final dir = Directory(selectedPath);
+            isAccessible = await dir.exists();
+            if (!isAccessible) {
+              if (mounted) {
+                messenger.showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                      'Selected folder is not accessible. Please try again.',
+                    ),
+                    backgroundColor: Colors.orange,
+                    duration: Duration(seconds: 3),
+                  ),
+                );
+              }
+              return;
+            }
+          } on Exception {
+            // If we can't check, still try to save - might be SAF URI
+            isAccessible = true; // Assume accessible if check fails
+          }
         }
 
         // Check if we should migrate files
@@ -2448,24 +2573,59 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
       if (selectedPath != null) {
         // Validate folder accessibility
-        try {
-          final dir = Directory(selectedPath);
-          if (!await dir.exists()) {
-            if (mounted) {
-              messenger.showSnackBar(
-                const SnackBar(
-                  content: Text(
-                    'Selected folder is not accessible. Please try again.',
+        // For content:// URIs, use ContentUriService; for file paths, use Directory
+        final isContentUri = StoragePathUtils.isContentUri(selectedPath);
+        var isAccessible = false;
+
+        if (isContentUri) {
+          // Check access via ContentResolver for content URIs
+          try {
+            final contentUriService = ContentUriService();
+            isAccessible = await contentUriService.checkUriAccess(selectedPath);
+            if (!isAccessible) {
+              if (mounted) {
+                messenger.showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      localizations?.permissionDeniedMessage ??
+                          'No access to selected folder. Please grant permission in the file picker.',
+                    ),
+                    backgroundColor: Colors.orange,
+                    duration: const Duration(seconds: 3),
                   ),
-                  backgroundColor: Colors.orange,
-                  duration: Duration(seconds: 3),
-                ),
-              );
+                );
+              }
+              return;
             }
-            return;
+          } on Exception catch (e) {
+            // Log error but continue - permission might still work
+            debugPrint('Error checking content URI access: $e');
+            // Assume accessible if check fails (might be timing issue)
+            isAccessible = true;
           }
-        } on Exception {
-          // If we can't check, still try to save - might be SAF URI
+        } else {
+          // Check access via Directory for file paths
+          try {
+            final dir = Directory(selectedPath);
+            isAccessible = await dir.exists();
+            if (!isAccessible) {
+              if (mounted) {
+                messenger.showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                      'Selected folder is not accessible. Please try again.',
+                    ),
+                    backgroundColor: Colors.orange,
+                    duration: Duration(seconds: 3),
+                  ),
+                );
+              }
+              return;
+            }
+          } on Exception {
+            // If we can't check, still try to save - might be SAF URI
+            isAccessible = true; // Assume accessible if check fails
+          }
         }
 
         // Check if folder already exists

@@ -105,21 +105,70 @@ class MainActivity : FlutterActivity() {
             when (call.method) {
                 "openManageExternalStorageSettings" -> {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                        var success = false
+                        var lastError: Exception? = null
+                        
+                        // Try 1: ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION with package name (standard Android 11+)
                         try {
                             val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
                                 data = Uri.parse("package:$packageName")
+                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                             }
-                            startActivity(intent)
-                            result.success(true)
-                        } catch (e: Exception) {
-                            // Fallback to general storage settings if specific intent is not available
-                            try {
-                                val intent = Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
+                            if (intent.resolveActivity(packageManager) != null) {
                                 startActivity(intent)
-                                result.success(true)
-                            } catch (e2: Exception) {
-                                result.error("OPEN_SETTINGS_ERROR", "Failed to open settings: ${e2.message}", null)
+                                android.util.Log.d("MainActivity", "Opened MANAGE_APP_ALL_FILES_ACCESS_PERMISSION settings for package: $packageName")
+                                success = true
+                            } else {
+                                android.util.Log.w("MainActivity", "ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION intent not resolvable")
                             }
+                        } catch (e: Exception) {
+                            android.util.Log.e("MainActivity", "Failed to open ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION: ${e.message}", e)
+                            lastError = e
+                        }
+                        
+                        // Try 2: ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION (general settings)
+                        if (!success) {
+                            try {
+                                val intent = Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION).apply {
+                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                }
+                                if (intent.resolveActivity(packageManager) != null) {
+                                    startActivity(intent)
+                                    android.util.Log.d("MainActivity", "Opened ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION settings")
+                                    success = true
+                                } else {
+                                    android.util.Log.w("MainActivity", "ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION intent not resolvable")
+                                }
+                            } catch (e: Exception) {
+                                android.util.Log.e("MainActivity", "Failed to open ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION: ${e.message}", e)
+                                lastError = e
+                            }
+                        }
+                        
+                        // Try 3: Open app-specific settings page (fallback for OPPO/ColorOS and other custom ROMs)
+                        if (!success) {
+                            try {
+                                val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                    data = Uri.parse("package:$packageName")
+                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                }
+                                if (intent.resolveActivity(packageManager) != null) {
+                                    startActivity(intent)
+                                    android.util.Log.d("MainActivity", "Opened application details settings as fallback")
+                                    success = true
+                                }
+                            } catch (e: Exception) {
+                                android.util.Log.e("MainActivity", "Failed to open application details settings: ${e.message}", e)
+                                lastError = e
+                            }
+                        }
+                        
+                        if (success) {
+                            result.success(true)
+                        } else {
+                            val errorMessage = lastError?.message ?: "All intent resolution attempts failed"
+                            android.util.Log.e("MainActivity", "Failed to open any settings: $errorMessage")
+                            result.error("OPEN_SETTINGS_ERROR", errorMessage, null)
                         }
                     } else {
                         result.error("UNSUPPORTED", "MANAGE_EXTERNAL_STORAGE requires Android 11+", null)
@@ -127,8 +176,64 @@ class MainActivity : FlutterActivity() {
                 }
                 "hasManageExternalStoragePermission" -> {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                        val hasPermission = Environment.isExternalStorageManager()
+                        // Try standard method first
+                        var hasPermission = Environment.isExternalStorageManager()
+                        android.util.Log.d("MainActivity", "Environment.isExternalStorageManager() = $hasPermission")
+                        
+                        // If standard method returns false, try AppOpsManager as fallback
+                        // This is needed for some custom ROMs (OPPO/ColorOS, etc.) where
+                        // Environment.isExternalStorageManager() may not work correctly
+                        if (!hasPermission && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                            try {
+                                val appOpsManager = getSystemService(Context.APP_OPS_SERVICE) as android.app.AppOpsManager
+                                // Use string constant for MANAGE_EXTERNAL_STORAGE (available from API 30+)
+                                // The constant OPSTR_MANAGE_EXTERNAL_STORAGE doesn't exist, so we use the string directly
+                                val opString = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                                    "android:manage_external_storage"
+                                } else {
+                                    null
+                                }
+                                if (opString != null) {
+                                    val mode = appOpsManager.checkOpNoThrow(
+                                        opString,
+                                        android.os.Process.myUid(),
+                                        packageName
+                                    )
+                                    // MODE_ALLOWED = 0, MODE_IGNORED = 1, MODE_ERRORED = 2, MODE_DEFAULT = 3
+                                    hasPermission = (mode == android.app.AppOpsManager.MODE_ALLOWED)
+                                    android.util.Log.d("MainActivity", "AppOpsManager check: mode=$mode, hasPermission=$hasPermission")
+                                }
+                            } catch (e: Exception) {
+                                android.util.Log.w("MainActivity", "Failed to check via AppOpsManager: ${e.message}")
+                                // Keep the result from Environment.isExternalStorageManager()
+                            }
+                        }
+                        
                         result.success(hasPermission)
+                    } else {
+                        // For Android 10 and below, always return true (permission not needed)
+                        result.success(true)
+                    }
+                }
+                "canRequestManageExternalStorage" -> {
+                    // Check if the "All files access" option is available in settings
+                    // This is useful to determine if we should suggest SAF fallback
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                        val canRequest = try {
+                            // Check if ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION intent can be resolved
+                            // If it can't be resolved, the option is not available (e.g., Restricted settings on Android 13+)
+                            val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
+                                data = Uri.parse("package:$packageName")
+                            }
+                            val resolved = intent.resolveActivity(packageManager) != null
+                            android.util.Log.d("MainActivity", "Can request MANAGE_EXTERNAL_STORAGE: $resolved")
+                            resolved
+                        } catch (e: Exception) {
+                            android.util.Log.w("MainActivity", "Failed to check if can request MANAGE_EXTERNAL_STORAGE: ${e.message}")
+                            // If check fails, assume it's not available (safer to suggest SAF)
+                            false
+                        }
+                        result.success(canRequest)
                     } else {
                         // For Android 10 and below, always return true (permission not needed)
                         result.success(true)
@@ -375,8 +480,29 @@ class MainActivity : FlutterActivity() {
             val contentResolver = this.contentResolver
             val persistedUriPermissions = contentResolver.persistedUriPermissions
             
+            android.util.Log.d("MainActivity", "Checking URI access for: $uri")
+            android.util.Log.d("MainActivity", "Persisted permissions count: ${persistedUriPermissions.size}")
+            
             // Check if we have persistable permission for this URI
-            persistedUriPermissions.any { it.uri == uri && it.isReadPermission }
+            // Check both read and write permissions
+            val hasPermission = persistedUriPermissions.any { 
+                val uriMatches = it.uri == uri
+                val hasReadOrWrite = it.isReadPermission || it.isWritePermission
+                if (uriMatches) {
+                    android.util.Log.d("MainActivity", "Found matching URI permission: read=${it.isReadPermission}, write=${it.isWritePermission}")
+                }
+                uriMatches && hasReadOrWrite
+            }
+            
+            if (!hasPermission) {
+                android.util.Log.w("MainActivity", "No persistable permission found for URI: $uri")
+                // Log all persisted permissions for debugging
+                persistedUriPermissions.forEach { perm ->
+                    android.util.Log.d("MainActivity", "Persisted permission: ${perm.uri}, read=${perm.isReadPermission}, write=${perm.isWritePermission}")
+                }
+            }
+            
+            hasPermission
         } catch (e: Exception) {
             android.util.Log.e("MainActivity", "Error checking URI access", e)
             false
@@ -403,21 +529,61 @@ class MainActivity : FlutterActivity() {
                 val treeUri: Uri? = data.data
                 if (treeUri != null) {
                     try {
+                        android.util.Log.d("MainActivity", "Directory selected: $treeUri")
+                        
                         // Take persistable URI permission for long-term access
                         val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or
                                 Intent.FLAG_GRANT_WRITE_URI_PERMISSION
-                        contentResolver.takePersistableUriPermission(treeUri, flags)
+                        
+                        try {
+                            contentResolver.takePersistableUriPermission(treeUri, flags)
+                            android.util.Log.d("MainActivity", "Persistable URI permission taken successfully")
+                        } catch (e: SecurityException) {
+                            android.util.Log.e("MainActivity", "SecurityException taking persistable URI permission: ${e.message}")
+                            // This can happen if user didn't grant permission properly
+                            // Still try to return URI, but log the issue
+                            directoryPickerResult?.error(
+                                "PERMISSION_DENIED",
+                                "Failed to take persistable URI permission. User may need to grant permission in the file picker dialog.",
+                                null
+                            )
+                            return
+                        } catch (e: Exception) {
+                            android.util.Log.e("MainActivity", "Exception taking persistable URI permission: ${e.message}", e)
+                            directoryPickerResult?.error(
+                                "PERMISSION_ERROR",
+                                "Failed to take persistable URI permission: ${e.message}",
+                                null
+                            )
+                            return
+                        }
+                        
+                        // Verify permission was actually granted
+                        val persistedPermissions = contentResolver.persistedUriPermissions
+                        val hasPermission = persistedPermissions.any { 
+                            it.uri == treeUri && (it.isReadPermission || it.isWritePermission)
+                        }
+                        
+                        if (!hasPermission) {
+                            android.util.Log.w("MainActivity", "Warning: URI permission not found in persisted permissions after takePersistableUriPermission")
+                            // Still return URI, but log warning
+                            // Some devices may have delayed permission persistence
+                        } else {
+                            android.util.Log.d("MainActivity", "URI permission verified in persisted permissions")
+                        }
                         
                         // Convert URI to path string for Flutter
                         val uriString = treeUri.toString()
+                        android.util.Log.d("MainActivity", "Returning URI to Flutter: $uriString")
                         
                         // Return URI string (Flutter can work with it)
                         // The URI is already persisted via takePersistableUriPermission above
                         directoryPickerResult?.success(uriString)
                     } catch (e: Exception) {
+                        android.util.Log.e("MainActivity", "Unexpected error processing directory selection", e)
                         directoryPickerResult?.error(
-                            "PERMISSION_ERROR",
-                            "Failed to take persistable URI permission: ${e.message}",
+                            "UNEXPECTED_ERROR",
+                            "Unexpected error: ${e.message}",
                             null
                         )
                     }

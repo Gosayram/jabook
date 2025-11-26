@@ -16,6 +16,7 @@ import 'dart:io';
 
 import 'package:jabook/core/logging/environment_logger.dart';
 import 'package:jabook/core/permissions/permission_service.dart';
+import 'package:jabook/core/utils/content_uri_service.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -69,6 +70,30 @@ class StoragePathUtils {
           // Clear the old app-specific path from preferences
           await prefs.remove(downloadFolderPathKey);
           // Continue to use default path below
+        } else if (isContentUri(savedPath)) {
+          // For content URIs, check access via ContentResolver
+          try {
+            final contentUriService = ContentUriService();
+            final hasAccess = await contentUriService.checkUriAccess(savedPath);
+            if (hasAccess) {
+              EnvironmentLogger().d(
+                'StoragePathUtils: Using saved content URI: $savedPath',
+              );
+              return savedPath;
+            } else {
+              EnvironmentLogger().w(
+                'StoragePathUtils: No access to saved content URI: $savedPath, falling back to default',
+              );
+              await prefs.remove(downloadFolderPathKey);
+            }
+          } on Exception catch (e) {
+            EnvironmentLogger().w(
+              'StoragePathUtils: Error checking content URI access: $savedPath',
+              error: e,
+            );
+            // Assume accessible if check fails (might be timing issue)
+            return savedPath;
+          }
         } else {
           // Validate that the saved path exists
           final dir = Directory(savedPath);

@@ -662,6 +662,10 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
 
       final permissionService = PermissionService();
 
+      // Log detailed storage permission status at startup
+      // This helps diagnose issues on problematic devices (Oppo/Xiaomi)
+      await permissionService.logStoragePermissionStatusAtStartup();
+
       // Check if permissions are already granted
       final hasAllPermissions =
           await permissionService.hasAllEssentialPermissions();

@@ -1700,6 +1700,98 @@
   "@fileAccessUnavailable": {
     "description": "Message when file access is unavailable"
   },
+  "storagePermissionGuidanceTitle": "File Access Permission",
+  "@storagePermissionGuidanceTitle": {
+    "description": "Title for storage permission guidance dialog"
+  },
+  "storagePermissionGuidanceMessage": "To access audio files, you need to grant file access permission.",
+  "@storagePermissionGuidanceMessage": {
+    "description": "Message for storage permission guidance dialog"
+  },
+  "storagePermissionGuidanceStep1": "1. Open JaBook app settings",
+  "@storagePermissionGuidanceStep1": {
+    "description": "Step 1 for storage permission guidance"
+  },
+  "storagePermissionGuidanceStep2": "2. Go to Permissions section",
+  "@storagePermissionGuidanceStep2": {
+    "description": "Step 2 for storage permission guidance"
+  },
+  "storagePermissionGuidanceStep3": "3. Enable \"Files and media\" or \"Storage\" permission",
+  "@storagePermissionGuidanceStep3": {
+    "description": "Step 3 for storage permission guidance"
+  },
+  "storagePermissionGuidanceMiuiTitle": "File Access Permission (MIUI)",
+  "@storagePermissionGuidanceMiuiTitle": {
+    "description": "Title for MIUI storage permission guidance dialog"
+  },
+  "storagePermissionGuidanceMiuiMessage": "On Xiaomi/Redmi/Poco (MIUI) devices, you need to grant file access permission:",
+  "@storagePermissionGuidanceMiuiMessage": {
+    "description": "Message for MIUI storage permission guidance dialog"
+  },
+  "storagePermissionGuidanceMiuiStep1": "1. Open Settings → Apps → JaBook → Permissions",
+  "@storagePermissionGuidanceMiuiStep1": {
+    "description": "Step 1 for MIUI storage permission guidance"
+  },
+  "storagePermissionGuidanceMiuiStep2": "2. Enable \"Files and media\" or \"Storage\" permission",
+  "@storagePermissionGuidanceMiuiStep2": {
+    "description": "Step 2 for MIUI storage permission guidance"
+  },
+  "storagePermissionGuidanceMiuiStep3": "3. If access is limited, enable \"Manage all files\" in MIUI Security settings",
+  "@storagePermissionGuidanceMiuiStep3": {
+    "description": "Step 3 for MIUI storage permission guidance"
+  },
+  "storagePermissionGuidanceMiuiNote": "Note: On some MIUI versions, you may need to additionally enable \"Manage all files\" in Settings → Security → Permission management.",
+  "@storagePermissionGuidanceMiuiNote": {
+    "description": "Note for MIUI storage permission guidance"
+  },
+  "storagePermissionGuidanceColorosTitle": "File Access Permission (ColorOS/RealmeUI)",
+  "@storagePermissionGuidanceColorosTitle": {
+    "description": "Title for ColorOS/RealmeUI storage permission guidance dialog"
+  },
+  "storagePermissionGuidanceColorosMessage": "On Oppo/Realme (ColorOS/RealmeUI) devices, you need to grant file access permission:",
+  "@storagePermissionGuidanceColorosMessage": {
+    "description": "Message for ColorOS/RealmeUI storage permission guidance dialog"
+  },
+  "storagePermissionGuidanceColorosStep1": "1. Open Settings → Apps → JaBook → Permissions",
+  "@storagePermissionGuidanceColorosStep1": {
+    "description": "Step 1 for ColorOS/RealmeUI storage permission guidance"
+  },
+  "storagePermissionGuidanceColorosStep2": "2. Enable \"Files and media\" permission",
+  "@storagePermissionGuidanceColorosStep2": {
+    "description": "Step 2 for ColorOS/RealmeUI storage permission guidance"
+  },
+  "storagePermissionGuidanceColorosStep3": "3. If access is limited, check \"Files and media\" settings in permissions section",
+  "@storagePermissionGuidanceColorosStep3": {
+    "description": "Step 3 for ColorOS/RealmeUI storage permission guidance"
+  },
+  "storagePermissionGuidanceColorosNote": "Note: On some ColorOS versions, you may need to additionally allow file access in security settings.",
+  "@storagePermissionGuidanceColorosNote": {
+    "description": "Note for ColorOS/RealmeUI storage permission guidance"
+  },
+  "openSettings": "Open Settings",
+  "@openSettings": {
+    "description": "Button text to open settings"
+  },
+  "safFallbackTitle": "Alternative File Access Method",
+  "@safFallbackTitle": {
+    "description": "Title for SAF fallback dialog"
+  },
+  "safFallbackMessage": "File access permissions are not working properly on your device. You can use the Storage Access Framework (SAF) to select folders manually. This method works without requiring special permissions.",
+  "@safFallbackMessage": {
+    "description": "Message for SAF fallback dialog"
+  },
+  "safFallbackBenefits": "Benefits of using SAF:\n• Works on all Android devices\n• No special permissions needed\n• You choose which folders to access",
+  "@safFallbackBenefits": {
+    "description": "Benefits of using SAF fallback"
+  },
+  "useSafMethod": "Use Folder Selection",
+  "@useSafMethod": {
+    "description": "Button to use SAF method"
+  },
+  "tryPermissionsAgain": "Try Permissions Again",
+  "@tryPermissionsAgain": {
+    "description": "Button to try permissions again"
+  },
   "notificationsAvailable": "Notifications available",
   "@notificationsAvailable": {
     "description": "Message when notifications are available"

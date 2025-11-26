@@ -67,6 +67,51 @@ class AudiobookLibraryScanner {
     'art',
   ];
 
+  /// Scans for audio files using MediaStore API (Android 10+).
+  ///
+  /// This method uses MediaStore to find audio files without requiring
+  /// storage permissions. It's useful as a fallback when permissions don't work.
+  ///
+  /// Returns a list of LocalAudiobook instances found via MediaStore.
+  Future<List<LocalAudiobook>> scanViaMediaStore() async {
+    try {
+      if (!Platform.isAndroid) {
+        await _logger.log(
+          level: 'debug',
+          subsystem: 'library_scanner',
+          message: 'MediaStore scan is only available on Android',
+        );
+        return [];
+      }
+
+      await _logger.log(
+        level: 'info',
+        subsystem: 'library_scanner',
+        message: 'Scanning for audio files via MediaStore API',
+      );
+
+      // MediaStore API requires native implementation
+      // For now, return empty list - this can be implemented later if needed
+      // The native implementation would query MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
+      await _logger.log(
+        level: 'info',
+        subsystem: 'library_scanner',
+        message:
+            'MediaStore scan not yet implemented, using directory scan instead',
+      );
+
+      return [];
+    } on Exception catch (e) {
+      await _logger.log(
+        level: 'error',
+        subsystem: 'library_scanner',
+        message: 'Error scanning via MediaStore',
+        cause: e.toString(),
+      );
+      return [];
+    }
+  }
+
   /// Scans the default audiobook directory recursively for audio files.
   ///
   /// Returns a list of LocalAudiobook instances found in the default directory.

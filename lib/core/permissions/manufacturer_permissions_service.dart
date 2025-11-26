@@ -14,10 +14,12 @@
 
 import 'dart:io';
 
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:jabook/core/background/background_compatibility_checker.dart';
 import 'package:jabook/core/logging/structured_logger.dart';
 import 'package:jabook/core/utils/device_info_utils.dart';
+import 'package:jabook/l10n/app_localizations.dart';
 
 /// Service for managing manufacturer-specific settings on Android devices.
 ///
@@ -320,6 +322,231 @@ class ManufacturerPermissionsService {
       );
       // Default to showing settings if we can't determine
       return true;
+    }
+  }
+
+  /// Checks if storage permissions need special handling for this manufacturer.
+  ///
+  /// Returns `true` if the device manufacturer requires special storage permission handling
+  /// (e.g., MIUI, ColorOS), `false` otherwise.
+  Future<bool> needsStoragePermissionGuidance() async {
+    try {
+      if (!Platform.isAndroid) {
+        return false;
+      }
+
+      final customRom = await _deviceInfo.getCustomRom();
+      final manufacturer = await _deviceInfo.getManufacturer() ?? '';
+
+      // MIUI and ColorOS require special storage permission handling
+      final needsGuidance = customRom == 'MIUI' ||
+          customRom == 'ColorOS' ||
+          customRom == 'RealmeUI' ||
+          manufacturer.toLowerCase().contains('xiaomi') ||
+          manufacturer.toLowerCase().contains('oppo') ||
+          manufacturer.toLowerCase().contains('realme');
+
+      await _logger.log(
+        level: 'debug',
+        subsystem: 'manufacturer_permissions',
+        message: 'Checking if storage permission guidance is needed',
+        extra: {
+          'needs_guidance': needsGuidance,
+          'custom_rom': customRom,
+          'manufacturer': manufacturer,
+        },
+      );
+
+      return needsGuidance;
+    } on Exception catch (e) {
+      await _logger.log(
+        level: 'error',
+        subsystem: 'manufacturer_permissions',
+        message: 'Error checking if storage permission guidance is needed',
+        cause: e.toString(),
+      );
+      return false;
+    }
+  }
+
+  /// Opens storage permission settings for the app.
+  ///
+  /// This will open manufacturer-specific storage permission settings if available,
+  /// or fall back to standard Android app settings.
+  ///
+  /// Returns `true` if settings were opened successfully, `false` otherwise.
+  Future<bool> openStoragePermissionSettings() async {
+    try {
+      if (!Platform.isAndroid) {
+        await _logger.log(
+          level: 'warning',
+          subsystem: 'manufacturer_permissions',
+          message: 'Storage permission settings only available on Android',
+        );
+        return false;
+      }
+
+      await _logger.log(
+        level: 'info',
+        subsystem: 'manufacturer_permissions',
+        message: 'Opening storage permission settings',
+      );
+
+      // Try to open manufacturer-specific storage settings
+      // For now, fall back to standard app settings
+      // This can be enhanced with manufacturer-specific Intents if needed
+      final result = await _channel.invokeMethod<bool>(
+        'openStoragePermissionSettings',
+      );
+      final success = result ?? false;
+
+      if (!success) {
+        // Fallback to standard app settings
+        await _logger.log(
+          level: 'info',
+          subsystem: 'manufacturer_permissions',
+          message: 'Falling back to standard app settings',
+        );
+        // Use permission_handler's openAppSettings as fallback
+        // This will be handled by PermissionService
+        return false;
+      }
+
+      await _logger.log(
+        level: success ? 'info' : 'warning',
+        subsystem: 'manufacturer_permissions',
+        message: 'Storage permission settings opened',
+        extra: {'success': success},
+      );
+
+      return success;
+    } on PlatformException catch (e) {
+      await _logger.log(
+        level: 'debug',
+        subsystem: 'manufacturer_permissions',
+        message:
+            'Manufacturer-specific storage settings not available, using fallback',
+        cause: e.toString(),
+      );
+      return false;
+    } on Exception catch (e) {
+      await _logger.log(
+        level: 'error',
+        subsystem: 'manufacturer_permissions',
+        message: 'Unexpected error opening storage permission settings',
+        cause: e.toString(),
+      );
+      return false;
+    }
+  }
+
+  /// Gets manufacturer-specific storage permission instructions for the user.
+  ///
+  /// Returns a map with instructions tailored to the device's manufacturer and ROM
+  /// for granting storage permissions.
+  ///
+  /// [context] is used to get localized strings. If null, English defaults are used.
+  Future<Map<String, String>> getStoragePermissionInstructions(
+    BuildContext? context,
+  ) async {
+    // Get localizations before async operations to avoid BuildContext issues
+    final localizations = context != null && context.mounted
+        ? AppLocalizations.of(context)
+        : null;
+
+    try {
+      if (!Platform.isAndroid) {
+        return {
+          'title': localizations?.storagePermissionGuidanceTitle ??
+              'Storage Permission Not Available',
+          'message': localizations?.storagePermissionGuidanceMessage ??
+              'Storage permissions are only relevant on Android devices.',
+        };
+      }
+
+      final customRom = await _deviceInfo.getCustomRom();
+      final manufacturer = await _deviceInfo.getManufacturer() ?? 'unknown';
+      final romVersion = await _deviceInfo.getRomVersion();
+
+      // Default instructions
+      var instructions = <String, String>{
+        'title': localizations?.storagePermissionGuidanceTitle ??
+            'File Access Permission',
+        'message': localizations?.storagePermissionGuidanceMessage ??
+            'To access audio files, you need to grant file access permission.',
+        'step1': localizations?.storagePermissionGuidanceStep1 ??
+            '1. Open JaBook app settings',
+        'step2': localizations?.storagePermissionGuidanceStep2 ??
+            '2. Go to Permissions section',
+        'step3': localizations?.storagePermissionGuidanceStep3 ??
+            '3. Enable "Files and media" or "Storage" permission',
+      };
+
+      // Manufacturer-specific instructions
+      if (customRom == 'MIUI') {
+        instructions = {
+          'title': localizations?.storagePermissionGuidanceMiuiTitle ??
+              'File Access Permission (MIUI)',
+          'message': localizations?.storagePermissionGuidanceMiuiMessage ??
+              'On Xiaomi/Redmi/Poco (MIUI) devices, you need to grant file access permission:',
+          'step1': localizations?.storagePermissionGuidanceMiuiStep1 ??
+              '1. Open Settings → Apps → JaBook → Permissions',
+          'step2': localizations?.storagePermissionGuidanceMiuiStep2 ??
+              '2. Enable "Files and media" or "Storage" permission',
+          'step3': localizations?.storagePermissionGuidanceMiuiStep3 ??
+              '3. If access is limited, enable "Manage all files" in MIUI Security settings',
+          'note': localizations?.storagePermissionGuidanceMiuiNote ??
+              'Note: On some MIUI versions, you may need to additionally enable "Manage all files" in Settings → Security → Permission management.',
+        };
+      } else if (customRom == 'ColorOS' || customRom == 'RealmeUI') {
+        instructions = {
+          'title': localizations?.storagePermissionGuidanceColorosTitle ??
+              'File Access Permission (ColorOS/RealmeUI)',
+          'message': localizations?.storagePermissionGuidanceColorosMessage ??
+              'On Oppo/Realme (ColorOS/RealmeUI) devices, you need to grant file access permission:',
+          'step1': localizations?.storagePermissionGuidanceColorosStep1 ??
+              '1. Open Settings → Apps → JaBook → Permissions',
+          'step2': localizations?.storagePermissionGuidanceColorosStep2 ??
+              '2. Enable "Files and media" permission',
+          'step3': localizations?.storagePermissionGuidanceColorosStep3 ??
+              '3. If access is limited, check "Files and media" settings in permissions section',
+          'note': localizations?.storagePermissionGuidanceColorosNote ??
+              'Note: On some ColorOS versions, you may need to additionally allow file access in security settings.',
+        };
+      }
+
+      await _logger.log(
+        level: 'debug',
+        subsystem: 'manufacturer_permissions',
+        message: 'Storage permission instructions retrieved',
+        extra: {
+          'custom_rom': customRom,
+          'manufacturer': manufacturer,
+          'rom_version': romVersion,
+        },
+      );
+
+      return instructions;
+    } on Exception catch (e) {
+      await _logger.log(
+        level: 'error',
+        subsystem: 'manufacturer_permissions',
+        message: 'Error getting storage permission instructions',
+        cause: e.toString(),
+      );
+      // Return default instructions on error (using localizations obtained before async)
+      return {
+        'title': localizations?.storagePermissionGuidanceTitle ??
+            'File Access Permission',
+        'message': localizations?.storagePermissionGuidanceMessage ??
+            'To access audio files, you need to grant file access permission.',
+        'step1': localizations?.storagePermissionGuidanceStep1 ??
+            '1. Open JaBook app settings',
+        'step2': localizations?.storagePermissionGuidanceStep2 ??
+            '2. Go to Permissions section',
+        'step3': localizations?.storagePermissionGuidanceStep3 ??
+            '3. Enable "Files and media" or "Storage" permission',
+      };
     }
   }
 
