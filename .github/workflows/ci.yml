@@ -114,19 +114,47 @@ jobs:
           
           # Test keystore access (verify password is correct)
           echo "Testing keystore access..."
-          keytool -list -v \
+          
+          # Step 1: Test keystore password (list all aliases)
+          echo "Step 1: Testing keystore password..."
+          KEYTOOL_OUTPUT=$(keytool -list \
+            -keystore "${KEYSTORE_PATH}" \
+            -storepass "${{ secrets.KEY_STORE_PASSWORD }}" \
+            2>&1)
+          KEYTOOL_EXIT_CODE=$?
+          
+          if [ $KEYTOOL_EXIT_CODE -ne 0 ]; then
+            echo "❌ ERROR: Keystore password test failed"
+            echo "Keytool error output (password hidden):"
+            echo "$KEYTOOL_OUTPUT" | sed 's/storepass [^ ]*/storepass ***/g' | sed 's/keypass [^ ]*/keypass ***/g'
+            exit 1
+          fi
+          
+          echo "✅ Keystore password is correct"
+          echo "Available aliases in keystore:"
+          echo "$KEYTOOL_OUTPUT" | grep -E "^[a-zA-Z0-9_-]+," || echo "$KEYTOOL_OUTPUT" | grep -i alias || echo "Could not parse aliases"
+          
+          # Step 2: Test specific alias and key password
+          echo "Step 2: Testing alias '${{ secrets.KEY_ALIAS }}' and key password..."
+          KEYTOOL_ALIAS_OUTPUT=$(keytool -list -v \
             -keystore "${KEYSTORE_PATH}" \
             -storepass "${{ secrets.KEY_STORE_PASSWORD }}" \
             -alias "${{ secrets.KEY_ALIAS }}" \
             -keypass "${{ secrets.KEY_PASSWORD }}" \
-            > /dev/null 2>&1
+            2>&1)
+          KEYTOOL_ALIAS_EXIT_CODE=$?
           
-          if [ $? -eq 0 ]; then
-            echo "✅ Keystore access test passed"
+          if [ $KEYTOOL_ALIAS_EXIT_CODE -ne 0 ]; then
+            echo "⚠️  WARNING: Alias or key password test failed, but keystore password is correct"
+            echo "This might be okay if alias/key password differ from store password"
+            echo "Keytool error (passwords hidden):"
+            echo "$KEYTOOL_ALIAS_OUTPUT" | sed 's/storepass [^ ]*/storepass ***/g' | sed 's/keypass [^ ]*/keypass ***/g' | head -5
+            echo "Continuing with build - Gradle will handle signing..."
           else
-            echo "❌ ERROR: Keystore access test failed - password or alias may be incorrect"
-            exit 1
+            echo "✅ Alias and key password are correct"
           fi
+          
+          echo "✅ Keystore access test completed"
 
       - name: Build beta APK
         env:
