@@ -14,6 +14,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+## [Unreleased]
+
+### Changed
+- Bump actions/checkout from 5.0.1 to 6.0.0 (#30)
+- Ignore issue docs
+- Improve playback speed control and seek feedback (#35)
+- Improve storage permissions handling for custom ROMs (#42)
+
+### Fixed
+- Fix library books not visible after app update (#37)
+- Fix/login auth (#32)
+
 ## [1.2.0] - 2025-11-24
 
 ### Added
