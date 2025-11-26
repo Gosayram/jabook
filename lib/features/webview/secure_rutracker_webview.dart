@@ -857,9 +857,29 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
                 },
               );
 
-              // Also save to SecureStorage for persistence (use active endpoint)
+              // CRITICAL: Save cookies to database FIRST - this is the primary storage
               final cookieHeader =
                   dioCookies.map((c) => '${c.name}=${c.value}').join('; ');
+              final cookieDbService = CookieDatabaseService(AppDatabase());
+              final savedToDb = await cookieDbService.saveCookies(
+                  activeEndpointBaseUrl, cookieHeader);
+
+              await StructuredLogger().log(
+                level: savedToDb ? 'info' : 'error',
+                subsystem: 'cookies',
+                message: savedToDb
+                    ? 'Cookies saved to database (InAppWebView CookieManager)'
+                    : 'Failed to save cookies to database (InAppWebView CookieManager)',
+                operationId: operationId,
+                context: 'webview_login_sync',
+                extra: {
+                  'endpoint': activeEndpointBaseUrl,
+                  'saved_to_db': savedToDb,
+                  'cookie_count': dioCookies.length,
+                },
+              );
+
+              // Also save to SecureStorage for persistence (use active endpoint)
               await DioClient.saveCookiesToSecureStorage(
                   cookieHeader, activeEndpointBaseUrl);
 
@@ -885,6 +905,18 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
                     .evaluateJavascript(source: 'document.cookie');
                 if (jsCookiesResult != null) {
                   final jsCookiesString = jsCookiesResult.toString();
+                  await StructuredLogger().log(
+                    level: 'info',
+                    subsystem: 'cookies',
+                    message: 'JavaScript fallback: document.cookie result',
+                    operationId: operationId,
+                    context: 'webview_login_sync',
+                    extra: {
+                      'result_is_null': false,
+                      'cookie_string_length': jsCookiesString.length,
+                      'cookie_string_empty': jsCookiesString.isEmpty,
+                    },
+                  );
                   if (jsCookiesString.isNotEmpty) {
                     await StructuredLogger().log(
                       level: 'info',
@@ -968,6 +1000,28 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
                         final cookieHeader = dioCookies
                             .map((c) => '${c.name}=${c.value}')
                             .join('; ');
+
+                        // CRITICAL: Save cookies to database FIRST - this is the primary storage
+                        final cookieDbService =
+                            CookieDatabaseService(AppDatabase());
+                        final savedToDb = await cookieDbService.saveCookies(
+                            activeEndpointBaseUrl, cookieHeader);
+
+                        await StructuredLogger().log(
+                          level: savedToDb ? 'info' : 'error',
+                          subsystem: 'cookies',
+                          message: savedToDb
+                              ? 'Cookies saved to database (JavaScript fallback)'
+                              : 'Failed to save cookies to database (JavaScript fallback)',
+                          operationId: operationId,
+                          context: 'webview_login_sync',
+                          extra: {
+                            'endpoint': activeEndpointBaseUrl,
+                            'saved_to_db': savedToDb,
+                            'cookie_count': dioCookies.length,
+                          },
+                        );
+
                         await DioClient.saveCookiesToSecureStorage(
                             cookieHeader, activeEndpointBaseUrl);
 
@@ -975,9 +1029,49 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
                         await CookieService.flushCookies();
 
                         return; // Success via JavaScript
+                      } else {
+                        await StructuredLogger().log(
+                          level: 'warning',
+                          subsystem: 'cookies',
+                          message:
+                              'JavaScript fallback: No valid cookies parsed from document.cookie',
+                          operationId: operationId,
+                          context: 'webview_login_sync',
+                          extra: {
+                            'cookie_string_length': jsCookiesString.length,
+                            'parsed_cookie_count': dioCookies.length,
+                          },
+                        );
                       }
+                    } else {
+                      await StructuredLogger().log(
+                        level: 'warning',
+                        subsystem: 'cookies',
+                        message:
+                            'JavaScript fallback: document.cookie returned empty string',
+                        operationId: operationId,
+                        context: 'webview_login_sync',
+                      );
                     }
+                  } else {
+                    await StructuredLogger().log(
+                      level: 'warning',
+                      subsystem: 'cookies',
+                      message:
+                          'JavaScript fallback: evaluateJavascript returned null',
+                      operationId: operationId,
+                      context: 'webview_login_sync',
+                    );
                   }
+                } else {
+                  await StructuredLogger().log(
+                    level: 'warning',
+                    subsystem: 'cookies',
+                    message:
+                        'JavaScript fallback: WebViewController is null, cannot get cookies',
+                    operationId: operationId,
+                    context: 'webview_login_sync',
+                  );
                 }
               } on Exception catch (e) {
                 await StructuredLogger().log(
