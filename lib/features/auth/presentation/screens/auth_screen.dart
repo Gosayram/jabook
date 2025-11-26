@@ -14,10 +14,14 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:jabook/core/auth/captcha_detector.dart';
 import 'package:jabook/core/endpoints/endpoint_provider.dart';
 import 'package:jabook/core/errors/failures.dart';
+import 'package:jabook/core/net/dio_client.dart';
 import 'package:jabook/core/session/auth_error_handler.dart';
 import 'package:jabook/features/auth/data/providers/auth_provider.dart';
+import 'package:jabook/features/auth/presentation/widgets/captcha_dialog.dart';
+import 'package:jabook/features/webview/secure_rutracker_webview.dart';
 import 'package:jabook/l10n/app_localizations.dart';
 
 /// Screen for RuTracker authentication and connection management.
@@ -128,6 +132,13 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
             _statusMessage =
                 AppLocalizations.of(context)?.captchaVerificationRequired ??
                     'Captcha verification required. Please try again later.';
+            // Show captcha dialog with data from AuthFailure
+            _showCaptchaDialog(
+              context,
+              captchaType: e.captchaType as CaptchaType?,
+              rutrackerCaptchaData:
+                  e.rutrackerCaptchaData as RutrackerCaptchaData?,
+            );
           } else {
             _statusMessage = e.message;
           }
@@ -164,7 +175,215 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     }
   }
 
-  Future<void> _testConnection() async {
+  /// Shows a dialog for captcha verification.
+  ///
+  /// If [captchaType] and [rutrackerCaptchaData] are provided, shows the
+  /// universal CaptchaDialog. Otherwise, shows a dialog offering to use WebView.
+  Future<void> _showCaptchaDialog(
+    BuildContext context, {
+    CaptchaType? captchaType,
+    RutrackerCaptchaData? rutrackerCaptchaData,
+  }) async {
+    if (!mounted) return;
+
+    // Store Navigator before async operations to avoid BuildContext issues
+    final navigator = Navigator.of(context);
+
+    // If we have RuTracker captcha data, show the universal captcha dialog
+    if (captchaType == CaptchaType.rutracker && rutrackerCaptchaData != null) {
+      final captchaCode = await CaptchaDialog.show(
+        context,
+        captchaType: CaptchaType.rutracker,
+        rutrackerCaptchaData: rutrackerCaptchaData,
+      );
+
+      if (captchaCode != null && captchaCode.isNotEmpty && mounted) {
+        // Retry login with captcha code
+        await _loginWithCaptcha(captchaCode, rutrackerCaptchaData);
+      }
+      return;
+    }
+
+    // For CloudFlare or unknown captcha, or if no data available, show WebView option
+    final localizations = AppLocalizations.of(context);
+    final useWebView = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          localizations?.captchaVerificationRequired ??
+              'Captcha verification required',
+        ),
+        content: const Text(
+          'RuTracker requires captcha verification. You can use WebView to complete the login with captcha.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(localizations?.cancel ?? 'Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text(
+              localizations?.loginViaWebViewButton ?? 'Login via WebView',
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if ((useWebView ?? false) && mounted) {
+      await _showWebViewLogin(navigator);
+    }
+  }
+
+  /// Attempts to login with captcha code.
+  Future<void> _loginWithCaptcha(
+    String captchaCode,
+    RutrackerCaptchaData captchaData,
+  ) async {
+    if (!mounted) return;
+
+    setState(() {
+      _statusMessage =
+          AppLocalizations.of(context)?.loggingInText ?? 'Logging in...';
+      _statusColor = Colors.blue;
+      _isLoggingIn = true;
+    });
+
+    try {
+      final repository = ref.read(authRepositoryProvider);
+      final success = await repository.loginWithCaptcha(
+        _usernameController.text,
+        _passwordController.text,
+        captchaCode,
+        captchaData,
+      );
+
+      if (success && _rememberMe) {
+        await repository.saveCredentials(
+          username: _usernameController.text,
+          password: _passwordController.text,
+          rememberMe: _rememberMe,
+        );
+      }
+
+      if (mounted) {
+        setState(() {
+          _statusMessage = success
+              ? (AppLocalizations.of(context)?.loginSuccessMessage ??
+                  'Login successful!')
+              : (AppLocalizations.of(context)?.loginFailedMessage ??
+                  'Login failed. Please check credentials');
+          _statusColor = success ? Colors.green : Colors.red;
+          _isLoggingIn = false;
+        });
+
+        if (success) {
+          await _testConnection();
+          if (mounted) {
+            Navigator.of(context).pop(true);
+          }
+        }
+      }
+    } on AuthFailure catch (e) {
+      if (mounted) {
+        AuthErrorHandler.showAuthErrorSnackBar(context, e);
+        setState(() {
+          if (e.message.contains('captcha')) {
+            _statusMessage =
+                AppLocalizations.of(context)?.captchaVerificationRequired ??
+                    'Captcha verification required. Please try again.';
+            // Show captcha dialog again with new data (if available)
+            _showCaptchaDialog(
+              context,
+              captchaType: e.captchaType as CaptchaType?,
+              rutrackerCaptchaData:
+                  e.rutrackerCaptchaData as RutrackerCaptchaData?,
+            );
+          } else {
+            _statusMessage = e.message;
+          }
+          _statusColor = Colors.red;
+          _isLoggingIn = false;
+        });
+      }
+    } on Exception catch (e) {
+      if (mounted) {
+        setState(() {
+          _statusMessage = AppLocalizations.of(context)
+                  ?.loginFailedWithError(e.toString()) ??
+              'Login failed: ${e.toString()}';
+          _statusColor = Colors.red;
+          _isLoggingIn = false;
+        });
+      }
+    }
+  }
+
+  /// Shows WebView login and handles the result.
+  Future<void> _showWebViewLogin(NavigatorState navigator) async {
+    final result = await navigator.push(
+      MaterialPageRoute(
+        builder: (context) => const SecureRutrackerWebView(),
+      ),
+    );
+
+    // If login was successful via WebView, wait for cookie sync and test connection
+    // Check that result is not null and not empty (empty string means no cookies)
+    if (result != null && result.isNotEmpty && mounted) {
+      setState(() {
+        _statusMessage = AppLocalizations.of(context)?.testingConnectionText ??
+            'Syncing cookies...';
+        _statusColor = Colors.blue;
+      });
+
+      // CRITICAL: Wait for cookie sync to complete with retries
+      // Cookies need time to sync from WebView to CookieManager to Dio
+      var cookiesSynced = false;
+      for (var attempt = 0; attempt < 5; attempt++) {
+        await Future.delayed(Duration(milliseconds: 300 + (attempt * 200)));
+
+        final hasCookies = await DioClient.hasValidCookies();
+        if (hasCookies) {
+          cookiesSynced = true;
+          break;
+        }
+      }
+
+      if (!cookiesSynced && mounted) {
+        setState(() {
+          _statusMessage = AppLocalizations.of(context)
+                  ?.authenticationFailedMessage ??
+              'Cookies synchronization failed. Please try logging in again.';
+          _statusColor = Colors.red;
+        });
+        return;
+      }
+
+      // Test connection with real authentication check
+      final connectionSuccess = await _testConnection();
+      if (connectionSuccess && mounted) {
+        // CRITICAL: Refresh auth status to notify the app that user is authenticated
+        final repository = ref.read(authRepositoryProvider);
+        await repository.refreshAuthStatus();
+
+        navigator.pop(true);
+      } else if (mounted) {
+        // Connection test failed - cookies may not have synced properly
+        setState(() {
+          _statusMessage =
+              AppLocalizations.of(context)?.authenticationFailedMessage ??
+                  'Authentication validation failed. Please try again.';
+          _statusColor = Colors.red;
+        });
+      }
+    }
+  }
+
+  /// Tests connection and verifies authentication is working.
+  ///
+  /// Returns true if authentication is valid, false otherwise.
+  Future<bool> _testConnection() async {
     setState(() {
       _statusMessage = AppLocalizations.of(context)?.testingConnectionText ??
           'Testing connection...';
@@ -172,20 +391,48 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     });
 
     try {
+      // CRITICAL: Actually verify authentication by checking cookies
+      final hasValidCookies = await DioClient.hasValidCookies();
+
+      if (!hasValidCookies) {
+        setState(() {
+          _statusMessage =
+              AppLocalizations.of(context)?.authenticationFailedMessage ??
+                  'Authentication failed. No valid cookies found.';
+          _statusColor = Colors.red;
+        });
+        return false;
+      }
+
+      // Also validate cookies by making a test request
+      final cookiesValid = await DioClient.validateCookies();
+
       final endpointManager = ref.read(endpointManagerProvider);
       final activeEndpoint = await endpointManager.getActiveEndpoint();
 
-      setState(() {
-        _statusMessage = AppLocalizations.of(context)!
-            .connectionSuccessMessage(activeEndpoint);
-        _statusColor = Colors.green;
-      });
+      if (cookiesValid) {
+        setState(() {
+          _statusMessage = AppLocalizations.of(context)!
+              .connectionSuccessMessage(activeEndpoint);
+          _statusColor = Colors.green;
+        });
+        return true;
+      } else {
+        setState(() {
+          _statusMessage =
+              AppLocalizations.of(context)?.authenticationFailedMessage ??
+                  'Authentication validation failed. Cookies may be expired.';
+          _statusColor = Colors.red;
+        });
+        return false;
+      }
     } on Exception catch (e) {
       setState(() {
         _statusMessage =
             AppLocalizations.of(context)!.connectionFailedMessage(e.toString());
         _statusColor = Colors.red;
       });
+      return false;
     }
   }
 

@@ -161,8 +161,9 @@ class CookieService {
         context: 'cookie_service',
         extra: {
           'url': url,
-          'cookie_preview':
-              cookie.length > 100 ? '${cookie.substring(0, 100)}...' : cookie,
+          'cookie_length': cookie.length,
+          'cookie_count': cookie.split(';').length,
+          // Don't log cookie values - they are sensitive
         },
       );
 

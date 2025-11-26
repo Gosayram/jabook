@@ -18,6 +18,7 @@ import 'dart:io' as io;
 
 import 'package:cookie_jar/cookie_jar.dart';
 import 'package:dio/dio.dart';
+import 'package:jabook/core/auth/cookie_database_service.dart';
 import 'package:jabook/core/auth/simple_cookie_manager.dart';
 import 'package:jabook/core/endpoints/endpoint_manager.dart';
 import 'package:jabook/core/logging/structured_logger.dart';
@@ -610,7 +611,49 @@ class DioCookieManager {
     final startTime = DateTime.now();
 
     try {
-      // Step 1: Check CookieService (Android CookieManager) first - primary source
+      // Step 0: Check database FIRST - this is the most reliable source
+      try {
+        final db = AppDatabase().database;
+        final endpointManager = EndpointManager(db);
+        final activeBase = await endpointManager.getActiveEndpoint();
+
+        final cookieDbService = CookieDatabaseService(AppDatabase());
+        final cookieHeader =
+            await cookieDbService.getCookiesForAnyEndpoint(activeBase);
+
+        if (cookieHeader != null && cookieHeader.isNotEmpty) {
+          final trimmed = cookieHeader.trim();
+          if (trimmed.isNotEmpty && trimmed.contains('=')) {
+            await logger.log(
+              level: 'info',
+              subsystem: 'cookies',
+              message: 'Found valid cookies in database',
+              operationId: operationId,
+              context: 'has_valid_cookies',
+              durationMs: DateTime.now().difference(startTime).inMilliseconds,
+              extra: {
+                'active_endpoint': activeBase,
+                'cookie_header_length': cookieHeader.length,
+                'source': 'database',
+                'has_bb_session': cookieHeader.contains('bb_session='),
+                'has_bb_data': cookieHeader.contains('bb_data='),
+              },
+            );
+            return true;
+          }
+        }
+      } on Exception catch (e) {
+        await logger.log(
+          level: 'debug',
+          subsystem: 'cookies',
+          message: 'Failed to check cookies in database',
+          operationId: operationId,
+          context: 'has_valid_cookies',
+          cause: e.toString(),
+        );
+      }
+
+      // Step 1: Check CookieService (Android CookieManager) - fallback source
       final rutrackerDomains = EndpointManager.getRutrackerDomains();
       for (final domain in rutrackerDomains) {
         try {

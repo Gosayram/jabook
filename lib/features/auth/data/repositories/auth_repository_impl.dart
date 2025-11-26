@@ -13,6 +13,7 @@
 // limitations under the License.
 
 import 'dart:async';
+import 'package:jabook/core/auth/captcha_detector.dart';
 import 'package:jabook/core/auth/rutracker_auth.dart';
 import 'package:jabook/features/auth/domain/entities/auth_status.dart';
 import 'package:jabook/features/auth/domain/repositories/auth_repository.dart';
@@ -32,6 +33,20 @@ class AuthRepositoryImpl implements AuthRepository {
       // Use direct HTTP authentication (no WebView)
       // The login() method in RuTrackerAuth now uses DirectAuthService
       _auth.login(username, password);
+
+  @override
+  Future<bool> loginWithCaptcha(
+    String username,
+    String password,
+    String captchaCode,
+    RutrackerCaptchaData captchaData,
+  ) =>
+      _auth.loginViaHttpWithCaptcha(
+        username,
+        password,
+        captchaCode,
+        captchaData,
+      );
 
   @override
   Future<void> logout() => _auth.logout();

@@ -224,12 +224,14 @@ build-android-signed-apk-beta: use-existing-android-cert patch-gradle-signing
 	@echo "Building signed beta APK (with obfuscation for testing)..."
 	@echo "Building split APKs per architecture..."
 	flutter build apk --flavor beta --target lib/main.dart --release \
+		--dart-define=FLAVOR=beta \
 		--obfuscate \
 		--split-debug-info=./debug-info \
 		--split-per-abi \
 		--tree-shake-icons
 	@echo "Building universal APK (all architectures)..."
 	flutter build apk --flavor beta --target lib/main.dart --release \
+		--dart-define=FLAVOR=beta \
 		--obfuscate \
 		--split-debug-info=./debug-info \
 		--tree-shake-icons

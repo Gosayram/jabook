@@ -442,9 +442,9 @@ class DioClient {
           context: 'cookie_sync_service',
           durationMs: DateTime.now().difference(startTime).inMilliseconds,
           extra: {
-            'cookie_header_preview': cookieHeader.length > 200
-                ? '${cookieHeader.substring(0, 200)}...'
-                : cookieHeader,
+            'cookie_header_length': cookieHeader.length,
+            'cookie_count': cookieHeader.split(';').length,
+            // Don't log cookie values - they are sensitive
           },
         );
         return;
