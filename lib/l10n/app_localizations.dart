@@ -2339,6 +2339,144 @@ abstract class AppLocalizations {
   /// **'File access unavailable'**
   String get fileAccessUnavailable;
 
+  /// Title for storage permission guidance dialog
+  ///
+  /// In en, this message translates to:
+  /// **'File Access Permission'**
+  String get storagePermissionGuidanceTitle;
+
+  /// Message for storage permission guidance dialog
+  ///
+  /// In en, this message translates to:
+  /// **'To access audio files, you need to grant file access permission.'**
+  String get storagePermissionGuidanceMessage;
+
+  /// Step 1 for storage permission guidance
+  ///
+  /// In en, this message translates to:
+  /// **'1. Open JaBook app settings'**
+  String get storagePermissionGuidanceStep1;
+
+  /// Step 2 for storage permission guidance
+  ///
+  /// In en, this message translates to:
+  /// **'2. Go to Permissions section'**
+  String get storagePermissionGuidanceStep2;
+
+  /// Step 3 for storage permission guidance
+  ///
+  /// In en, this message translates to:
+  /// **'3. Enable \"Files and media\" or \"Storage\" permission'**
+  String get storagePermissionGuidanceStep3;
+
+  /// Title for MIUI storage permission guidance dialog
+  ///
+  /// In en, this message translates to:
+  /// **'File Access Permission (MIUI)'**
+  String get storagePermissionGuidanceMiuiTitle;
+
+  /// Message for MIUI storage permission guidance dialog
+  ///
+  /// In en, this message translates to:
+  /// **'On Xiaomi/Redmi/Poco (MIUI) devices, you need to grant file access permission:'**
+  String get storagePermissionGuidanceMiuiMessage;
+
+  /// Step 1 for MIUI storage permission guidance
+  ///
+  /// In en, this message translates to:
+  /// **'1. Open Settings → Apps → JaBook → Permissions'**
+  String get storagePermissionGuidanceMiuiStep1;
+
+  /// Step 2 for MIUI storage permission guidance
+  ///
+  /// In en, this message translates to:
+  /// **'2. Enable \"Files and media\" or \"Storage\" permission'**
+  String get storagePermissionGuidanceMiuiStep2;
+
+  /// Step 3 for MIUI storage permission guidance
+  ///
+  /// In en, this message translates to:
+  /// **'3. If access is limited, enable \"Manage all files\" in MIUI Security settings'**
+  String get storagePermissionGuidanceMiuiStep3;
+
+  /// Note for MIUI storage permission guidance
+  ///
+  /// In en, this message translates to:
+  /// **'Note: On some MIUI versions, you may need to additionally enable \"Manage all files\" in Settings → Security → Permission management.'**
+  String get storagePermissionGuidanceMiuiNote;
+
+  /// Title for ColorOS/RealmeUI storage permission guidance dialog
+  ///
+  /// In en, this message translates to:
+  /// **'File Access Permission (ColorOS/RealmeUI)'**
+  String get storagePermissionGuidanceColorosTitle;
+
+  /// Message for ColorOS/RealmeUI storage permission guidance dialog
+  ///
+  /// In en, this message translates to:
+  /// **'On Oppo/Realme (ColorOS/RealmeUI) devices, you need to grant file access permission:'**
+  String get storagePermissionGuidanceColorosMessage;
+
+  /// Step 1 for ColorOS/RealmeUI storage permission guidance
+  ///
+  /// In en, this message translates to:
+  /// **'1. Open Settings → Apps → JaBook → Permissions'**
+  String get storagePermissionGuidanceColorosStep1;
+
+  /// Step 2 for ColorOS/RealmeUI storage permission guidance
+  ///
+  /// In en, this message translates to:
+  /// **'2. Enable \"Files and media\" permission'**
+  String get storagePermissionGuidanceColorosStep2;
+
+  /// Step 3 for ColorOS/RealmeUI storage permission guidance
+  ///
+  /// In en, this message translates to:
+  /// **'3. If access is limited, check \"Files and media\" settings in permissions section'**
+  String get storagePermissionGuidanceColorosStep3;
+
+  /// Note for ColorOS/RealmeUI storage permission guidance
+  ///
+  /// In en, this message translates to:
+  /// **'Note: On some ColorOS versions, you may need to additionally allow file access in security settings.'**
+  String get storagePermissionGuidanceColorosNote;
+
+  /// Button text to open settings
+  ///
+  /// In en, this message translates to:
+  /// **'Open Settings'**
+  String get openSettings;
+
+  /// Title for SAF fallback dialog
+  ///
+  /// In en, this message translates to:
+  /// **'Alternative File Access Method'**
+  String get safFallbackTitle;
+
+  /// Message for SAF fallback dialog
+  ///
+  /// In en, this message translates to:
+  /// **'File access permissions are not working properly on your device. You can use the Storage Access Framework (SAF) to select folders manually. This method works without requiring special permissions.'**
+  String get safFallbackMessage;
+
+  /// Benefits of using SAF fallback
+  ///
+  /// In en, this message translates to:
+  /// **'Benefits of using SAF:\n• Works on all Android devices\n• No special permissions needed\n• You choose which folders to access'**
+  String get safFallbackBenefits;
+
+  /// Button to use SAF method
+  ///
+  /// In en, this message translates to:
+  /// **'Use Folder Selection'**
+  String get useSafMethod;
+
+  /// Button to try permissions again
+  ///
+  /// In en, this message translates to:
+  /// **'Try Permissions Again'**
+  String get tryPermissionsAgain;
+
   /// Message when notifications are available
   ///
   /// In en, this message translates to:

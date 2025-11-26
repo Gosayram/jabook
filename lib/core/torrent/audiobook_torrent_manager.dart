@@ -244,56 +244,106 @@ class AudiobookTorrentManager {
 
       // Early permission check before creating directory
       final isAppSpecific = PermissionService.isAppSpecificDirectory(savePath);
-      if (!isAppSpecific) {
-        // For user-selected directory (SAF), check permissions early
+      final isContentUri = StoragePathUtils.isContentUri(savePath);
+
+      if (!isAppSpecific && !isContentUri) {
+        // For user-selected directory (not SAF), check actual write capability
         logger.i(
-            'Checking storage permission for non-app-specific directory: $savePath');
+            'Checking write capability for non-app-specific directory: $savePath');
         await StructuredLogger().log(
           level: 'info',
           subsystem: 'torrent',
-          message: 'Checking storage permission for non-app-specific directory',
+          message: 'Checking write capability for non-app-specific directory',
         );
 
         final permissionService = PermissionService();
-        final canWrite = await permissionService.canWriteToStorage();
+        // Check actual write capability, not just permissions
+        final canWrite = await permissionService.canWriteToPath(savePath);
         if (!canWrite) {
-          logger.w(
-              'Cannot write to storage, requesting permission for: $savePath');
+          logger.w('Cannot write to path, checking permissions for: $savePath');
           await StructuredLogger().log(
             level: 'warning',
             subsystem: 'torrent',
-            message: 'Cannot write to storage, requesting permission',
+            message: 'Cannot write to path, checking permissions',
           );
-          final granted = await permissionService.requestStoragePermission();
-          if (!granted) {
-            // Check again after opening settings (user might have granted permission)
-            final canWriteAfterRequest =
-                await permissionService.canWriteToStorage();
-            if (!canWriteAfterRequest) {
-              logger.e(
-                  'Cannot write to selected directory - permission denied: $savePath');
-              await StructuredLogger().log(
-                level: 'error',
-                subsystem: 'torrent',
-                message:
-                    'Cannot write to selected directory - permission denied',
-              );
-              throw const TorrentFailure(
-                'Permission denied: Cannot write to download directory. '
-                'Please grant "Allow access to manage all files" permission in system settings '
-                '(Settings > Apps > Jabook > Permissions > Files and media > Allow access to manage all files).',
-              );
+
+          // If write test failed, check if we have permissions at all
+          final hasPermission = await permissionService.canWriteToStorage();
+          if (!hasPermission) {
+            // Request permission
+            final granted = await permissionService.requestStoragePermission();
+            if (!granted) {
+              // Check again after opening settings (user might have granted permission)
+              final canWriteAfterRequest =
+                  await permissionService.canWriteToPath(savePath);
+              if (!canWriteAfterRequest) {
+                logger.e(
+                    'Cannot write to selected directory - permission denied: $savePath');
+                await StructuredLogger().log(
+                  level: 'error',
+                  subsystem: 'torrent',
+                  message:
+                      'Cannot write to selected directory - permission denied',
+                );
+                throw const TorrentFailure(
+                  'Permission denied: Cannot write to download directory. '
+                  'Please grant "Allow access to manage all files" permission in system settings '
+                  '(Settings > Apps > Jabook > Permissions > Files and media > Allow access to manage all files).',
+                );
+              }
+            } else {
+              // Permission granted, test write again
+              final canWriteAfterGrant =
+                  await permissionService.canWriteToPath(savePath);
+              if (!canWriteAfterGrant) {
+                logger.e(
+                    'Permission granted but still cannot write to directory: $savePath');
+                await StructuredLogger().log(
+                  level: 'error',
+                  subsystem: 'torrent',
+                  message:
+                      'Permission granted but still cannot write to directory',
+                );
+                throw const TorrentFailure(
+                  'Permission granted but cannot write to directory. '
+                  'This may be a system-level issue. Please try restarting the app or selecting a different folder.',
+                );
+              }
             }
+          } else {
+            // Has permission but cannot write - this is unusual
+            logger.e('Has permission but cannot write to directory: $savePath');
+            await StructuredLogger().log(
+              level: 'error',
+              subsystem: 'torrent',
+              message: 'Has permission but cannot write to directory',
+            );
+            throw const TorrentFailure(
+              'Cannot write to directory despite having permissions. '
+              'This may be a system-level issue. Please try restarting the app or selecting a different folder.',
+            );
           }
+        } else {
+          logger.i('Write capability verified for directory: $savePath');
         }
       } else {
-        logger.i(
-            'Using app-specific directory, no permission check needed: $savePath');
-        await StructuredLogger().log(
-          level: 'info',
-          subsystem: 'torrent',
-          message: 'Using app-specific directory, no permission check needed',
-        );
+        if (isAppSpecific) {
+          logger.i(
+              'Using app-specific directory, no permission check needed: $savePath');
+          await StructuredLogger().log(
+            level: 'info',
+            subsystem: 'torrent',
+            message: 'Using app-specific directory, no permission check needed',
+          );
+        } else if (isContentUri) {
+          logger.i(
+              'Using content URI (SAF), no permission check needed: $savePath');
+          await StructuredLogger().log(
+            level: 'info',
+            subsystem: 'torrent',
+            message: 'Using content URI (SAF), no permission check needed',
+          );
+        }
       }
 
       // Create download directory if it doesn't exist
@@ -874,25 +924,69 @@ class AudiobookTorrentManager {
 
       // Check if path is app-specific directory (no permission needed on Android 11+)
       final isAppSpecific = PermissionService.isAppSpecificDirectory(savePath);
+      final isContentUri = StoragePathUtils.isContentUri(savePath);
+
       if (isAppSpecific) {
         logger.d(
           'Using app-specific directory: $savePath (no permission needed on Android 11+)',
         );
+      } else if (isContentUri) {
+        logger.d(
+          'Using content URI (SAF): $savePath (no permission check needed)',
+        );
       } else {
-        // For user-selected directory (SAF), check permissions
+        // For user-selected directory (not SAF), check actual write capability
         final permissionService = PermissionService();
-        final canWrite = await permissionService.canWriteToStorage();
+        final canWrite = await permissionService.canWriteToPath(savePath);
         if (!canWrite) {
           logger.w(
-            'Cannot write to storage, requesting permission before creating directory',
+            'Cannot write to path, checking permissions before creating directory',
           );
-          final granted = await permissionService.requestStoragePermission();
-          if (!granted) {
+
+          // If write test failed, check if we have permissions at all
+          final hasPermission = await permissionService.canWriteToStorage();
+          if (!hasPermission) {
+            final granted = await permissionService.requestStoragePermission();
+            if (!granted) {
+              // Check again after opening settings (user might have granted permission)
+              final canWriteAfterRequest =
+                  await permissionService.canWriteToPath(savePath);
+              if (!canWriteAfterRequest) {
+                logger.e(
+                  'Cannot write to storage - permission denied after request',
+                );
+                throw const TorrentFailure(
+                  'Permission denied: Cannot write to download directory. '
+                  'Please grant "Allow access to manage all files" permission in system settings '
+                  '(Settings > Apps > Jabook > Permissions > Files and media > Allow access to manage all files).',
+                );
+              }
+            } else {
+              // Permission granted, test write again
+              final canWriteAfterGrant =
+                  await permissionService.canWriteToPath(savePath);
+              if (!canWriteAfterGrant) {
+                logger.e(
+                  'Permission granted but still cannot write to directory',
+                );
+                throw const TorrentFailure(
+                  'Permission granted but cannot write to directory. '
+                  'This may be a system-level issue. Please try restarting the app or selecting a different folder.',
+                );
+              }
+            }
+          } else {
+            // Has permission but cannot write - this is unusual
+            logger.e(
+              'Has permission but cannot write to directory',
+            );
             throw const TorrentFailure(
-              'Storage permission is required to download files. '
-              'Please grant storage permission in app settings.',
+              'Cannot write to directory despite having permissions. '
+              'This may be a system-level issue. Please try restarting the app or selecting a different folder.',
             );
           }
+        } else {
+          logger.d('Write capability verified for directory: $savePath');
         }
       }
 
@@ -908,112 +1002,162 @@ class AudiobookTorrentManager {
         }, // Don't include path in extra to avoid redaction
       );
 
-      final downloadDir = Directory(savePath);
-      if (!await downloadDir.exists()) {
+      // Check if path is content URI (SAF)
+      final isContentUriPath = StoragePathUtils.isContentUri(savePath);
+      if (isContentUriPath) {
+        // For content URIs, check access via ContentResolver
+        // The directory should already exist (user selected it via SAF)
+        // We just need to verify access
         try {
-          logger.d('Creating download directory: $savePath');
-          await downloadDir.create(recursive: true);
-          logger
-            ..d('Successfully created download directory: $savePath')
-            ..i('Successfully created download directory: $savePath (downloadId: $downloadId)');
-          await StructuredLogger().log(
-            level: 'info',
-            subsystem: 'torrent',
-            message: 'Successfully created download directory',
-            extra: {
-              'downloadId': downloadId
-            }, // Don't include path in extra to avoid redaction
-          );
+          final contentUriService = ContentUriService();
+          final hasAccess = await contentUriService.checkUriAccess(savePath);
+          if (!hasAccess) {
+            logger.e('No access to content URI: $savePath');
+            await StructuredLogger().log(
+              level: 'error',
+              subsystem: 'torrent',
+              message: 'No access to content URI',
+              extra: {
+                'downloadId': downloadId,
+                'error': 'No access to content URI',
+              },
+            );
+            throw const TorrentFailure(
+              'No access to selected folder. Please grant permission in the file picker.',
+            );
+          }
+          logger.d('Content URI access verified: $savePath');
+        } on TorrentFailure {
+          rethrow;
         } on Exception catch (e) {
           logger.e(
-            'Failed to create download directory: $savePath',
+            'Error checking content URI access: $savePath',
             error: e,
           );
           await StructuredLogger().log(
             level: 'error',
             subsystem: 'torrent',
-            message: 'Failed to create download directory',
+            message: 'Error checking content URI access',
             extra: {
-              'path': savePath,
               'downloadId': downloadId,
               'error': e.toString(),
             },
           );
-          // Check if error is related to permissions
-          final errorStr = e.toString().toLowerCase();
-          if (errorStr.contains('permission') ||
-              errorStr.contains('access') ||
-              errorStr.contains('denied')) {
-            if (isAppSpecific) {
-              throw TorrentFailure(
-                'Cannot create download directory: ${e.toString()}. '
-                'This may be a system-level issue. Please try restarting the app.',
-              );
-            } else {
-              throw const TorrentFailure(
-                'Permission denied: Cannot create download directory. '
-                'Please grant storage permission in app settings or select a different folder.',
-              );
-            }
-          }
           throw TorrentFailure(
-            'Failed to create download directory: ${e.toString()}',
+            'Failed to verify access to selected folder: ${e.toString()}',
           );
         }
       } else {
-        logger
-          ..d('Download directory already exists: $savePath')
-          ..i('Download directory already exists: $savePath (downloadId: $downloadId)');
-        await StructuredLogger().log(
-          level: 'info',
-          subsystem: 'torrent',
-          message: 'Download directory already exists',
-          extra: {
-            'downloadId': downloadId
-          }, // Don't include path in extra to avoid redaction
-        );
-        // Verify we can write to the directory
-        try {
-          final testFile = File('${downloadDir.path}/.test_write');
-          await testFile.writeAsString('test');
-          await testFile.delete();
-        } on Exception catch (e) {
-          logger
-            ..e(
-              'Cannot write to download directory: $savePath',
+        // For file paths, use Directory API
+        final downloadDir = Directory(savePath);
+        if (!await downloadDir.exists()) {
+          try {
+            logger.d('Creating download directory: $savePath');
+            await downloadDir.create(recursive: true);
+            logger
+              ..d('Successfully created download directory: $savePath')
+              ..i('Successfully created download directory: $savePath (downloadId: $downloadId)');
+            await StructuredLogger().log(
+              level: 'info',
+              subsystem: 'torrent',
+              message: 'Successfully created download directory',
+              extra: {
+                'downloadId': downloadId
+              }, // Don't include path in extra to avoid redaction
+            );
+          } on Exception catch (e) {
+            logger.e(
+              'Failed to create download directory: $savePath',
               error: e,
-            )
-            ..e('Cannot write to download directory: $savePath (downloadId: $downloadId)',
-                error: e);
+            );
+            await StructuredLogger().log(
+              level: 'error',
+              subsystem: 'torrent',
+              message: 'Failed to create download directory',
+              extra: {
+                'path': savePath,
+                'downloadId': downloadId,
+                'error': e.toString(),
+              },
+            );
+            // Check if error is related to permissions
+            final errorStr = e.toString().toLowerCase();
+            if (errorStr.contains('permission') ||
+                errorStr.contains('access') ||
+                errorStr.contains('denied')) {
+              if (isAppSpecific) {
+                throw TorrentFailure(
+                  'Cannot create download directory: ${e.toString()}. '
+                  'This may be a system-level issue. Please try restarting the app.',
+                );
+              } else {
+                throw const TorrentFailure(
+                  'Permission denied: Cannot create download directory. '
+                  'Please grant storage permission in app settings or select a different folder.',
+                );
+              }
+            }
+            throw TorrentFailure(
+              'Failed to create download directory: ${e.toString()}',
+            );
+          }
+        } else {
+          logger
+            ..d('Download directory already exists: $savePath')
+            ..i('Download directory already exists: $savePath (downloadId: $downloadId)');
           await StructuredLogger().log(
-            level: 'error',
+            level: 'info',
             subsystem: 'torrent',
-            message: 'Cannot write to download directory',
+            message: 'Download directory already exists',
             extra: {
-              'downloadId': downloadId,
-              'error': e.toString(),
+              'downloadId': downloadId
             }, // Don't include path in extra to avoid redaction
           );
-          final errorStr = e.toString().toLowerCase();
-          if (errorStr.contains('permission') ||
-              errorStr.contains('access') ||
-              errorStr.contains('denied')) {
-            if (isAppSpecific) {
-              throw TorrentFailure(
-                'Cannot write to download directory: ${e.toString()}. '
-                'This may be a system-level issue. Please try restarting the app.',
+          // Verify we can write to the directory (only for file paths, not content URIs)
+          if (!isContentUriPath) {
+            try {
+              final testFile = File('$savePath/.test_write');
+              await testFile.writeAsString('test');
+              await testFile.delete();
+            } on Exception catch (e) {
+              logger
+                ..e(
+                  'Cannot write to download directory: $savePath',
+                  error: e,
+                )
+                ..e('Cannot write to download directory: $savePath (downloadId: $downloadId)',
+                    error: e);
+              await StructuredLogger().log(
+                level: 'error',
+                subsystem: 'torrent',
+                message: 'Cannot write to download directory',
+                extra: {
+                  'downloadId': downloadId,
+                  'error': e.toString(),
+                }, // Don't include path in extra to avoid redaction
               );
-            } else {
-              throw const TorrentFailure(
-                'Permission denied: Cannot write to download directory. '
-                'Please grant MANAGE_EXTERNAL_STORAGE permission in app settings '
-                '(Android 11+) or storage permission (Android 10 and below).',
+              final errorStr = e.toString().toLowerCase();
+              if (errorStr.contains('permission') ||
+                  errorStr.contains('access') ||
+                  errorStr.contains('denied')) {
+                if (isAppSpecific) {
+                  throw TorrentFailure(
+                    'Cannot write to download directory: ${e.toString()}. '
+                    'This may be a system-level issue. Please try restarting the app.',
+                  );
+                } else {
+                  throw const TorrentFailure(
+                    'Permission denied: Cannot write to download directory. '
+                    'Please grant MANAGE_EXTERNAL_STORAGE permission in app settings '
+                    '(Android 11+) or storage permission (Android 10 and below).',
+                  );
+                }
+              }
+              throw TorrentFailure(
+                'Cannot write to download directory: ${e.toString()}',
               );
             }
           }
-          throw TorrentFailure(
-            'Cannot write to download directory: ${e.toString()}',
-          );
         }
       }
 

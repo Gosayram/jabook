@@ -1685,6 +1685,98 @@
   "@fileAccessUnavailable": {
     "description": "Сообщение когда доступ к файлам недоступен"
   },
+  "storagePermissionGuidanceTitle": "Разрешение на доступ к файлам",
+  "@storagePermissionGuidanceTitle": {
+    "description": "Заголовок диалога инструкций по разрешениям хранения"
+  },
+  "storagePermissionGuidanceMessage": "Для доступа к аудиофайлам необходимо предоставить разрешение на доступ к файлам.",
+  "@storagePermissionGuidanceMessage": {
+    "description": "Сообщение диалога инструкций по разрешениям хранения"
+  },
+  "storagePermissionGuidanceStep1": "1. Откройте настройки приложения JaBook",
+  "@storagePermissionGuidanceStep1": {
+    "description": "Шаг 1 инструкций по разрешениям хранения"
+  },
+  "storagePermissionGuidanceStep2": "2. Перейдите в раздел \"Разрешения\"",
+  "@storagePermissionGuidanceStep2": {
+    "description": "Шаг 2 инструкций по разрешениям хранения"
+  },
+  "storagePermissionGuidanceStep3": "3. Включите разрешение \"Файлы и медиа\" или \"Хранилище\"",
+  "@storagePermissionGuidanceStep3": {
+    "description": "Шаг 3 инструкций по разрешениям хранения"
+  },
+  "storagePermissionGuidanceMiuiTitle": "Разрешение на доступ к файлам (MIUI)",
+  "@storagePermissionGuidanceMiuiTitle": {
+    "description": "Заголовок диалога инструкций по разрешениям хранения для MIUI"
+  },
+  "storagePermissionGuidanceMiuiMessage": "На устройствах Xiaomi/Redmi/Poco (MIUI) необходимо предоставить разрешение на доступ к файлам:",
+  "@storagePermissionGuidanceMiuiMessage": {
+    "description": "Сообщение диалога инструкций по разрешениям хранения для MIUI"
+  },
+  "storagePermissionGuidanceMiuiStep1": "1. Откройте Настройки → Приложения → JaBook → Разрешения",
+  "@storagePermissionGuidanceMiuiStep1": {
+    "description": "Шаг 1 инструкций по разрешениям хранения для MIUI"
+  },
+  "storagePermissionGuidanceMiuiStep2": "2. Включите разрешение \"Файлы и медиа\" или \"Хранилище\"",
+  "@storagePermissionGuidanceMiuiStep2": {
+    "description": "Шаг 2 инструкций по разрешениям хранения для MIUI"
+  },
+  "storagePermissionGuidanceMiuiStep3": "3. Если доступ ограничен, включите \"Управление всеми файлами\" в настройках безопасности MIUI",
+  "@storagePermissionGuidanceMiuiStep3": {
+    "description": "Шаг 3 инструкций по разрешениям хранения для MIUI"
+  },
+  "storagePermissionGuidanceMiuiNote": "Примечание: В некоторых версиях MIUI может потребоваться дополнительно включить \"Управление всеми файлами\" в Настройки → Безопасность → Управление разрешениями.",
+  "@storagePermissionGuidanceMiuiNote": {
+    "description": "Примечание для инструкций по разрешениям хранения для MIUI"
+  },
+  "storagePermissionGuidanceColorosTitle": "Разрешение на доступ к файлам (ColorOS/RealmeUI)",
+  "@storagePermissionGuidanceColorosTitle": {
+    "description": "Заголовок диалога инструкций по разрешениям хранения для ColorOS/RealmeUI"
+  },
+  "storagePermissionGuidanceColorosMessage": "На устройствах Oppo/Realme (ColorOS/RealmeUI) необходимо предоставить разрешение на доступ к файлам:",
+  "@storagePermissionGuidanceColorosMessage": {
+    "description": "Сообщение диалога инструкций по разрешениям хранения для ColorOS/RealmeUI"
+  },
+  "storagePermissionGuidanceColorosStep1": "1. Откройте Настройки → Приложения → JaBook → Разрешения",
+  "@storagePermissionGuidanceColorosStep1": {
+    "description": "Шаг 1 инструкций по разрешениям хранения для ColorOS/RealmeUI"
+  },
+  "storagePermissionGuidanceColorosStep2": "2. Включите разрешение \"Файлы и медиа\"",
+  "@storagePermissionGuidanceColorosStep2": {
+    "description": "Шаг 2 инструкций по разрешениям хранения для ColorOS/RealmeUI"
+  },
+  "storagePermissionGuidanceColorosStep3": "3. Если доступ ограничен, проверьте настройки \"Файлы и медиа\" в разделе разрешений",
+  "@storagePermissionGuidanceColorosStep3": {
+    "description": "Шаг 3 инструкций по разрешениям хранения для ColorOS/RealmeUI"
+  },
+  "storagePermissionGuidanceColorosNote": "Примечание: В некоторых версиях ColorOS может потребоваться дополнительно разрешить доступ к файлам в настройках безопасности.",
+  "@storagePermissionGuidanceColorosNote": {
+    "description": "Примечание для инструкций по разрешениям хранения для ColorOS/RealmeUI"
+  },
+  "openSettings": "Открыть настройки",
+  "@openSettings": {
+    "description": "Текст кнопки для открытия настроек"
+  },
+  "safFallbackTitle": "Альтернативный метод доступа к файлам",
+  "@safFallbackTitle": {
+    "description": "Заголовок диалога SAF fallback"
+  },
+  "safFallbackMessage": "Разрешения на доступ к файлам не работают должным образом на вашем устройстве. Вы можете использовать Storage Access Framework (SAF) для выбора папок вручную. Этот метод работает без специальных разрешений.",
+  "@safFallbackMessage": {
+    "description": "Сообщение диалога SAF fallback"
+  },
+  "safFallbackBenefits": "Преимущества использования SAF:\n• Работает на всех Android устройствах\n• Не требует специальных разрешений\n• Вы выбираете, к каким папкам предоставить доступ",
+  "@safFallbackBenefits": {
+    "description": "Преимущества использования SAF fallback"
+  },
+  "useSafMethod": "Использовать выбор папок",
+  "@useSafMethod": {
+    "description": "Кнопка для использования метода SAF"
+  },
+  "tryPermissionsAgain": "Попробовать разрешения снова",
+  "@tryPermissionsAgain": {
+    "description": "Кнопка для повторной попытки разрешений"
+  },
   "notificationsAvailable": "Уведомления доступны",
   "@notificationsAvailable": {
     "description": "Сообщение когда уведомления доступны"

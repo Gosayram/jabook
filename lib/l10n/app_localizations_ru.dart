@@ -1211,6 +1211,75 @@ class AppLocalizationsRu extends AppLocalizations {
   String get fileAccessUnavailable => 'Доступ к файлам недоступен';
 
   @override
+  String get storagePermissionGuidanceTitle => 'Разрешение на доступ к файлам';
+
+  @override
+  String get storagePermissionGuidanceMessage => 'Для доступа к аудиофайлам необходимо предоставить разрешение на доступ к файлам.';
+
+  @override
+  String get storagePermissionGuidanceStep1 => '1. Откройте настройки приложения JaBook';
+
+  @override
+  String get storagePermissionGuidanceStep2 => '2. Перейдите в раздел \"Разрешения\"';
+
+  @override
+  String get storagePermissionGuidanceStep3 => '3. Включите разрешение \"Файлы и медиа\" или \"Хранилище\"';
+
+  @override
+  String get storagePermissionGuidanceMiuiTitle => 'Разрешение на доступ к файлам (MIUI)';
+
+  @override
+  String get storagePermissionGuidanceMiuiMessage => 'На устройствах Xiaomi/Redmi/Poco (MIUI) необходимо предоставить разрешение на доступ к файлам:';
+
+  @override
+  String get storagePermissionGuidanceMiuiStep1 => '1. Откройте Настройки → Приложения → JaBook → Разрешения';
+
+  @override
+  String get storagePermissionGuidanceMiuiStep2 => '2. Включите разрешение \"Файлы и медиа\" или \"Хранилище\"';
+
+  @override
+  String get storagePermissionGuidanceMiuiStep3 => '3. Если доступ ограничен, включите \"Управление всеми файлами\" в настройках безопасности MIUI';
+
+  @override
+  String get storagePermissionGuidanceMiuiNote => 'Примечание: В некоторых версиях MIUI может потребоваться дополнительно включить \"Управление всеми файлами\" в Настройки → Безопасность → Управление разрешениями.';
+
+  @override
+  String get storagePermissionGuidanceColorosTitle => 'Разрешение на доступ к файлам (ColorOS/RealmeUI)';
+
+  @override
+  String get storagePermissionGuidanceColorosMessage => 'На устройствах Oppo/Realme (ColorOS/RealmeUI) необходимо предоставить разрешение на доступ к файлам:';
+
+  @override
+  String get storagePermissionGuidanceColorosStep1 => '1. Откройте Настройки → Приложения → JaBook → Разрешения';
+
+  @override
+  String get storagePermissionGuidanceColorosStep2 => '2. Включите разрешение \"Файлы и медиа\"';
+
+  @override
+  String get storagePermissionGuidanceColorosStep3 => '3. Если доступ ограничен, проверьте настройки \"Файлы и медиа\" в разделе разрешений';
+
+  @override
+  String get storagePermissionGuidanceColorosNote => 'Примечание: В некоторых версиях ColorOS может потребоваться дополнительно разрешить доступ к файлам в настройках безопасности.';
+
+  @override
+  String get openSettings => 'Открыть настройки';
+
+  @override
+  String get safFallbackTitle => 'Альтернативный метод доступа к файлам';
+
+  @override
+  String get safFallbackMessage => 'Разрешения на доступ к файлам не работают должным образом на вашем устройстве. Вы можете использовать Storage Access Framework (SAF) для выбора папок вручную. Этот метод работает без специальных разрешений.';
+
+  @override
+  String get safFallbackBenefits => 'Преимущества использования SAF:\n• Работает на всех Android устройствах\n• Не требует специальных разрешений\n• Вы выбираете, к каким папкам предоставить доступ';
+
+  @override
+  String get useSafMethod => 'Использовать выбор папок';
+
+  @override
+  String get tryPermissionsAgain => 'Попробовать разрешения снова';
+
+  @override
   String get notificationsAvailable => 'Уведомления доступны';
 
   @override

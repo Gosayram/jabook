@@ -1211,6 +1211,75 @@ class AppLocalizationsEn extends AppLocalizations {
   String get fileAccessUnavailable => 'File access unavailable';
 
   @override
+  String get storagePermissionGuidanceTitle => 'File Access Permission';
+
+  @override
+  String get storagePermissionGuidanceMessage => 'To access audio files, you need to grant file access permission.';
+
+  @override
+  String get storagePermissionGuidanceStep1 => '1. Open JaBook app settings';
+
+  @override
+  String get storagePermissionGuidanceStep2 => '2. Go to Permissions section';
+
+  @override
+  String get storagePermissionGuidanceStep3 => '3. Enable \"Files and media\" or \"Storage\" permission';
+
+  @override
+  String get storagePermissionGuidanceMiuiTitle => 'File Access Permission (MIUI)';
+
+  @override
+  String get storagePermissionGuidanceMiuiMessage => 'On Xiaomi/Redmi/Poco (MIUI) devices, you need to grant file access permission:';
+
+  @override
+  String get storagePermissionGuidanceMiuiStep1 => '1. Open Settings → Apps → JaBook → Permissions';
+
+  @override
+  String get storagePermissionGuidanceMiuiStep2 => '2. Enable \"Files and media\" or \"Storage\" permission';
+
+  @override
+  String get storagePermissionGuidanceMiuiStep3 => '3. If access is limited, enable \"Manage all files\" in MIUI Security settings';
+
+  @override
+  String get storagePermissionGuidanceMiuiNote => 'Note: On some MIUI versions, you may need to additionally enable \"Manage all files\" in Settings → Security → Permission management.';
+
+  @override
+  String get storagePermissionGuidanceColorosTitle => 'File Access Permission (ColorOS/RealmeUI)';
+
+  @override
+  String get storagePermissionGuidanceColorosMessage => 'On Oppo/Realme (ColorOS/RealmeUI) devices, you need to grant file access permission:';
+
+  @override
+  String get storagePermissionGuidanceColorosStep1 => '1. Open Settings → Apps → JaBook → Permissions';
+
+  @override
+  String get storagePermissionGuidanceColorosStep2 => '2. Enable \"Files and media\" permission';
+
+  @override
+  String get storagePermissionGuidanceColorosStep3 => '3. If access is limited, check \"Files and media\" settings in permissions section';
+
+  @override
+  String get storagePermissionGuidanceColorosNote => 'Note: On some ColorOS versions, you may need to additionally allow file access in security settings.';
+
+  @override
+  String get openSettings => 'Open Settings';
+
+  @override
+  String get safFallbackTitle => 'Alternative File Access Method';
+
+  @override
+  String get safFallbackMessage => 'File access permissions are not working properly on your device. You can use the Storage Access Framework (SAF) to select folders manually. This method works without requiring special permissions.';
+
+  @override
+  String get safFallbackBenefits => 'Benefits of using SAF:\n• Works on all Android devices\n• No special permissions needed\n• You choose which folders to access';
+
+  @override
+  String get useSafMethod => 'Use Folder Selection';
+
+  @override
+  String get tryPermissionsAgain => 'Try Permissions Again';
+
+  @override
   String get notificationsAvailable => 'Notifications available';
 
   @override
