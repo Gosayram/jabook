@@ -74,6 +74,9 @@ jobs:
           echo "Android signing configured"
 
       - name: Build beta APK
+        env:
+          # Increase Gradle memory for CI builds
+          GRADLE_OPTS: "-Xmx4g -XX:MaxMetaspaceSize=1g -XX:ReservedCodeCacheSize=1g"
         run: make build-android-beta-ci
 
       - name: Verify APK files exist
