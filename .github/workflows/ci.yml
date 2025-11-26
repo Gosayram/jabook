@@ -54,6 +54,12 @@ jobs:
           echo "VERSION=${VERSION}" >> "$GITHUB_ENV"
           echo "Extracted version from pubspec.yaml: ${VERSION}"
 
+      - name: Set up JDK 17
+        uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 # v5.0.0
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
       - name: Setup Android signing
         run: |
           # Get absolute path to workspace
@@ -115,18 +121,42 @@ jobs:
           # Test keystore access (verify password is correct)
           echo "Testing keystore access..."
           
+          # Verify keytool is available
+          if ! command -v keytool &> /dev/null; then
+            echo "❌ ERROR: keytool is not available. Java may not be installed."
+            exit 1
+          fi
+          
+          echo "Keytool version:"
+          keytool -help 2>&1 | head -1 || true
+          
           # Step 1: Test keystore password (list all aliases)
-          echo "Step 1: Testing keystore password..."
+          # Try PKCS12 first (as used in signing.sh), then fallback to default
+          echo "Step 1: Testing keystore password with PKCS12 storetype..."
           KEYTOOL_OUTPUT=$(keytool -list \
             -keystore "${KEYSTORE_PATH}" \
+            -storetype PKCS12 \
             -storepass "${{ secrets.KEY_STORE_PASSWORD }}" \
             2>&1)
           KEYTOOL_EXIT_CODE=$?
+          
+          # If PKCS12 fails, try without storetype (default JKS)
+          if [ $KEYTOOL_EXIT_CODE -ne 0 ]; then
+            echo "PKCS12 failed, trying default storetype..."
+            KEYTOOL_OUTPUT=$(keytool -list \
+              -keystore "${KEYSTORE_PATH}" \
+              -storepass "${{ secrets.KEY_STORE_PASSWORD }}" \
+              2>&1)
+            KEYTOOL_EXIT_CODE=$?
+          fi
           
           if [ $KEYTOOL_EXIT_CODE -ne 0 ]; then
             echo "❌ ERROR: Keystore password test failed"
             echo "Keytool error output (password hidden):"
             echo "$KEYTOOL_OUTPUT" | sed 's/storepass [^ ]*/storepass ***/g' | sed 's/keypass [^ ]*/keypass ***/g'
+            echo ""
+            echo "Full error (first 20 lines):"
+            echo "$KEYTOOL_OUTPUT" | head -20
             exit 1
           fi
           
@@ -138,11 +168,23 @@ jobs:
           echo "Step 2: Testing alias '${{ secrets.KEY_ALIAS }}' and key password..."
           KEYTOOL_ALIAS_OUTPUT=$(keytool -list -v \
             -keystore "${KEYSTORE_PATH}" \
+            -storetype PKCS12 \
             -storepass "${{ secrets.KEY_STORE_PASSWORD }}" \
             -alias "${{ secrets.KEY_ALIAS }}" \
             -keypass "${{ secrets.KEY_PASSWORD }}" \
             2>&1)
           KEYTOOL_ALIAS_EXIT_CODE=$?
+          
+          # If PKCS12 fails, try without storetype
+          if [ $KEYTOOL_ALIAS_EXIT_CODE -ne 0 ]; then
+            KEYTOOL_ALIAS_OUTPUT=$(keytool -list -v \
+              -keystore "${KEYSTORE_PATH}" \
+              -storepass "${{ secrets.KEY_STORE_PASSWORD }}" \
+              -alias "${{ secrets.KEY_ALIAS }}" \
+              -keypass "${{ secrets.KEY_PASSWORD }}" \
+              2>&1)
+            KEYTOOL_ALIAS_EXIT_CODE=$?
+          fi
           
           if [ $KEYTOOL_ALIAS_EXIT_CODE -ne 0 ]; then
             echo "⚠️  WARNING: Alias or key password test failed, but keystore password is correct"
