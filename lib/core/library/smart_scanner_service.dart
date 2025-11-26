@@ -106,9 +106,52 @@ class SmartScannerService {
       final updatedStates = <String, FolderScanState>{};
       final scannedFolderPaths = <String>{};
 
+      // Check if scan states are compatible with current library folders
+      // This handles cases where library paths changed after app update
+      final hasIncompatibleStates = await _checkScanStatesCompatibility(
+        folders,
+        scanStates,
+      );
+
+      // If scan states are incompatible (paths changed after update),
+      // clear all states and force full scan
+      if (hasIncompatibleStates) {
+        await _logger.log(
+          level: 'warning',
+          subsystem: 'smart_scanner',
+          message:
+              'Scan states incompatible with current library folders, clearing and forcing full scan',
+          extra: {
+            'currentFolders': folders,
+            'existingStatesCount': scanStates.length,
+          },
+        );
+        await clearScanStates();
+        // Force full scan after clearing incompatible states
+        return forceFullScan();
+      }
+
       // If no scan states exist, force scan all folders (first run)
       final isFirstRun = scanStates.isEmpty;
-      final shouldForceScan = forceScan || isFirstRun;
+
+      // If existingGroups is null or empty, we need to scan all folders
+      // because we can't preserve groups from unchanged folders without existingGroups
+      // This handles the case after app update when provider is empty but scan states exist
+      final needsFullScan = existingGroups == null || existingGroups.isEmpty;
+      final shouldForceScan = forceScan || isFirstRun || needsFullScan;
+
+      if (needsFullScan && !forceScan && !isFirstRun) {
+        await _logger.log(
+          level: 'info',
+          subsystem: 'smart_scanner',
+          message:
+              'Existing groups empty but scan states exist, forcing full scan to find all books',
+          extra: {
+            'scanStatesCount': scanStates.length,
+            'foldersCount': folders.length,
+          },
+        );
+      }
 
       for (final folder in folders) {
         try {
@@ -180,10 +223,12 @@ class SmartScannerService {
             );
 
             // If existing groups provided, preserve groups from this unchanged folder
-            if (existingGroups != null) {
-              final groupsFromFolder = existingGroups
-                  .where((group) => group.groupPath.startsWith(folder))
-                  .toList();
+            // Note: If existingGroups was null/empty, shouldForceScan would be true
+            // and we wouldn't reach this branch, so existingGroups is guaranteed non-null here
+            final groupsFromFolder = existingGroups
+                .where((group) => group.groupPath.startsWith(folder))
+                .toList();
+            if (groupsFromFolder.isNotEmpty) {
               allGroups.addAll(groupsFromFolder);
             }
           }
@@ -200,8 +245,8 @@ class SmartScannerService {
         }
       }
 
-      // Save updated scan states
-      await _saveScanStates(updatedStates);
+      // Save updated scan states and clean up old states for removed folders
+      await _saveScanStates(updatedStates, currentFolders: folders);
 
       await _logger.log(
         level: 'info',
@@ -295,7 +340,9 @@ class SmartScannerService {
         }
       }
 
-      await _saveScanStates(updatedStates);
+      // Get current folders for cleanup
+      final folders = await _storageUtils.getLibraryFolders();
+      await _saveScanStates(updatedStates, currentFolders: folders);
 
       return allGroups;
     } on Exception catch (e) {
@@ -348,7 +395,7 @@ class SmartScannerService {
         }
       }
 
-      await _saveScanStates(updatedStates);
+      await _saveScanStates(updatedStates, currentFolders: folders);
 
       await _logger.log(
         level: 'info',
@@ -439,6 +486,84 @@ class SmartScannerService {
     }
   }
 
+  /// Checks if scan states are compatible with current library folders.
+  ///
+  /// Returns true if states are incompatible (e.g., paths changed after app update).
+  /// This happens when:
+  /// - There are scan states but none match current library folders
+  /// - Some current folders don't have scan states but others do (mixed state)
+  Future<bool> _checkScanStatesCompatibility(
+    List<String> currentFolders,
+    Map<String, FolderScanState> scanStates,
+  ) async {
+    // If no scan states exist, they are compatible (first run)
+    if (scanStates.isEmpty) {
+      return false;
+    }
+
+    // If no current folders, states are incompatible
+    if (currentFolders.isEmpty) {
+      return true;
+    }
+
+    // Check if any current folder has a scan state
+    final currentFoldersSet = currentFolders.toSet();
+    final statesFoldersSet = scanStates.keys.toSet();
+
+    // Check if there's any overlap between current folders and state folders
+    final hasOverlap =
+        currentFoldersSet.intersection(statesFoldersSet).isNotEmpty;
+
+    // If there's no overlap at all, states are incompatible
+    // This means library paths changed completely after app update
+    if (!hasOverlap) {
+      await _logger.log(
+        level: 'warning',
+        subsystem: 'smart_scanner',
+        message: 'No overlap between current folders and scan states',
+        extra: {
+          'currentFolders': currentFolders,
+          'stateFolders': statesFoldersSet.toList(),
+        },
+      );
+      return true;
+    }
+
+    // Check if all current folders have states
+    // If some folders don't have states, it might indicate paths changed
+    final foldersWithoutStates = currentFoldersSet.difference(statesFoldersSet);
+    if (foldersWithoutStates.isNotEmpty) {
+      // Log warning but don't treat as incompatible
+      // New folders might have been added by user
+      await _logger.log(
+        level: 'info',
+        subsystem: 'smart_scanner',
+        message:
+            'Some current folders do not have scan states (may be newly added)',
+        extra: {
+          'foldersWithoutStates': foldersWithoutStates.toList(),
+        },
+      );
+    }
+
+    // Check if there are old states for folders that no longer exist
+    final oldStatesForRemovedFolders =
+        statesFoldersSet.difference(currentFoldersSet);
+    if (oldStatesForRemovedFolders.isNotEmpty) {
+      await _logger.log(
+        level: 'info',
+        subsystem: 'smart_scanner',
+        message: 'Found scan states for folders that no longer exist',
+        extra: {
+          'removedFolders': oldStatesForRemovedFolders.toList(),
+        },
+      );
+      // Don't treat as incompatible - just clean up old states later
+    }
+
+    return false;
+  }
+
   /// Clears scan states for all folders.
   Future<void> clearScanStates() async {
     try {
@@ -491,12 +616,52 @@ class SmartScannerService {
   }
 
   /// Saves scan states.
-  Future<void> _saveScanStates(Map<String, FolderScanState> states) async {
+  ///
+  /// The [states] parameter contains the states to save.
+  /// The [currentFolders] parameter is optional and if provided, will be used
+  /// to clean up old states for folders that no longer exist.
+  Future<void> _saveScanStates(
+    Map<String, FolderScanState> states, {
+    List<String>? currentFolders,
+  }) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final existingStates = await _getScanStates();
 
-      // Merge with existing states
+      // If currentFolders is provided, remove states for folders that no longer exist
+      if (currentFolders != null && currentFolders.isNotEmpty) {
+        final currentFoldersSet = currentFolders.toSet();
+        final statesToRemove = <String>[];
+
+        for (final statePath in existingStates.keys) {
+          // Check if this state path is still in current folders
+          // Also check if any current folder starts with this state path (for nested paths)
+          final isStillValid = currentFoldersSet.contains(statePath) ||
+              currentFoldersSet.any((folder) => folder.startsWith(statePath)) ||
+              existingStates.keys.any((existingPath) =>
+                  statePath.startsWith(existingPath) &&
+                  currentFoldersSet.contains(existingPath));
+
+          if (!isStillValid) {
+            statesToRemove.add(statePath);
+          }
+        }
+
+        if (statesToRemove.isNotEmpty) {
+          await _logger.log(
+            level: 'info',
+            subsystem: 'smart_scanner',
+            message: 'Removing scan states for folders that no longer exist',
+            extra: {
+              'removedStates': statesToRemove,
+            },
+          );
+
+          statesToRemove.forEach(existingStates.remove);
+        }
+      }
+
+      // Merge with existing states (after cleanup)
       existingStates.addAll(states);
 
       // Convert to JSON strings for storage

@@ -455,7 +455,15 @@ class _LibraryContentState extends ConsumerState<_LibraryContent> {
 
     if (shouldForceFullScan && !forceFullScan) {
       debugPrint(
-        'Library provider is empty, forcing full scan to find all books',
+        'Library provider is empty (${existingGroups.length} groups), forcing full scan to find all books',
+      );
+    } else if (forceFullScan) {
+      debugPrint(
+        'Force full scan requested, scanning all library folders',
+      );
+    } else {
+      debugPrint(
+        'Incremental scan: provider has ${existingGroups.length} groups',
       );
     }
 
@@ -471,12 +479,16 @@ class _LibraryContentState extends ConsumerState<_LibraryContent> {
         // Update state via provider to persist across tab switches
         ref.read(libraryGroupsProvider.notifier).updateGroups(groups);
         ref.read(isScanningProvider.notifier).state = false;
+        debugPrint(
+          'Library scan completed: found ${groups.length} groups with ${groups.fold<int>(0, (sum, g) => sum + g.files.length)} total files',
+        );
         _applyFilters();
       }
     } on Exception catch (e) {
       if (mounted) {
         ref.read(isScanningProvider.notifier).state = false;
         debugPrint('Failed to load local audiobooks: $e');
+        debugPrint('Stack trace: ${StackTrace.current}');
         // Fallback to regular scanner on error
         try {
           final groups = await _scanner.scanAllLibraryFolders();
