@@ -74,30 +74,21 @@ jobs:
           # Decode keystore from base64 secret (remove any whitespace/newlines)
           echo "${{ secrets.KEYSTORE_BASE64 }}" | tr -d '\n\r\t ' | base64 -d > "${KEYSTORE_PATH}"
           
-          # Verify keystore file was created
+          # Verify keystore file was created and has reasonable size
           if [ ! -f "${KEYSTORE_PATH}" ]; then
             echo "ERROR: Keystore file was not created at ${KEYSTORE_PATH}"
             exit 1
           fi
           
-          # Verify keystore file size
           KEYSTORE_SIZE=$(stat -f%z "${KEYSTORE_PATH}" 2>/dev/null || stat -c%s "${KEYSTORE_PATH}" 2>/dev/null)
           if [ "$KEYSTORE_SIZE" -lt 1000 ]; then
-            echo "ERROR: Keystore file seems too small (${KEYSTORE_SIZE} bytes)"
+            echo "ERROR: Keystore file seems too small (${KEYSTORE_SIZE} bytes). Check KEYSTORE_BASE64 secret."
             exit 1
           fi
           
-          # Verify secrets are not empty (without showing values)
-          if [ -z "${{ secrets.KEY_STORE_PASSWORD }}" ]; then
-            echo "ERROR: KEY_STORE_PASSWORD secret is empty"
-            exit 1
-          fi
-          if [ -z "${{ secrets.KEY_PASSWORD }}" ]; then
-            echo "ERROR: KEY_PASSWORD secret is empty"
-            exit 1
-          fi
-          if [ -z "${{ secrets.KEY_ALIAS }}" ]; then
-            echo "ERROR: KEY_ALIAS secret is empty"
+          # Verify secrets are not empty
+          if [ -z "${{ secrets.KEY_STORE_PASSWORD }}" ] || [ -z "${{ secrets.KEY_PASSWORD }}" ] || [ -z "${{ secrets.KEY_ALIAS }}" ]; then
+            echo "ERROR: One or more signing secrets are empty"
             exit 1
           fi
           
@@ -116,92 +107,10 @@ jobs:
             exit 1
           fi
           
-          echo "Android signing configured"
-          echo "Keystore file size: ${KEYSTORE_SIZE} bytes"
-          echo "key.properties created successfully"
-          
-          # Optional: Test keystore access (verify password is correct)
-          # This is optional because Gradle will verify during build
-          # Disable exit on error for this section since keytool may fail
-          set +e
-          echo "Testing keystore access (optional verification)..."
-          
-          # Verify keytool is available
-          if ! command -v keytool &> /dev/null; then
-            echo "⚠️  WARNING: keytool is not available, skipping keystore verification"
-            echo "Gradle will verify keystore during build"
-          else
-            echo "Keytool version:"
-            keytool -help 2>&1 | head -1 || true
-            
-            # Try to detect keystore type and test access
-            # First try JKS (default, most common for older keystores)
-            echo "Step 1: Testing keystore with default storetype (JKS)..."
-            KEYTOOL_OUTPUT=$(keytool -list \
-              -keystore "${KEYSTORE_PATH}" \
-              -storepass "${{ secrets.KEY_STORE_PASSWORD }}" \
-              2>&1)
-            KEYTOOL_EXIT_CODE=$?
-            
-            # If JKS fails, try PKCS12
-            if [ $KEYTOOL_EXIT_CODE -ne 0 ]; then
-              echo "JKS failed, trying PKCS12 storetype..."
-              KEYTOOL_OUTPUT=$(keytool -list \
-                -keystore "${KEYSTORE_PATH}" \
-                -storetype PKCS12 \
-                -storepass "${{ secrets.KEY_STORE_PASSWORD }}" \
-                2>&1)
-              KEYTOOL_EXIT_CODE=$?
-            fi
-            
-            if [ $KEYTOOL_EXIT_CODE -eq 0 ]; then
-              echo "✅ Keystore password is correct"
-              echo "Available aliases in keystore:"
-              echo "$KEYTOOL_OUTPUT" | grep -E '^[a-zA-Z0-9_-]+,' || echo "$KEYTOOL_OUTPUT" | grep -i alias || echo "Could not parse aliases"
-              
-              # Step 2: Test specific alias and key password
-              echo "Step 2: Testing alias '${{ secrets.KEY_ALIAS }}' and key password..."
-              KEYTOOL_ALIAS_OUTPUT=$(keytool -list -v \
-                -keystore "${KEYSTORE_PATH}" \
-                -storepass "${{ secrets.KEY_STORE_PASSWORD }}" \
-                -alias "${{ secrets.KEY_ALIAS }}" \
-                -keypass "${{ secrets.KEY_PASSWORD }}" \
-                2>&1)
-              KEYTOOL_ALIAS_EXIT_CODE=$?
-              
-              # If default fails, try PKCS12
-              if [ $KEYTOOL_ALIAS_EXIT_CODE -ne 0 ]; then
-                KEYTOOL_ALIAS_OUTPUT=$(keytool -list -v \
-                  -keystore "${KEYSTORE_PATH}" \
-                  -storetype PKCS12 \
-                  -storepass "${{ secrets.KEY_STORE_PASSWORD }}" \
-                  -alias "${{ secrets.KEY_ALIAS }}" \
-                  -keypass "${{ secrets.KEY_PASSWORD }}" \
-                  2>&1)
-                KEYTOOL_ALIAS_EXIT_CODE=$?
-              fi
-              
-              if [ $KEYTOOL_ALIAS_EXIT_CODE -eq 0 ]; then
-                echo "✅ Alias and key password are correct"
-              else
-                echo "⚠️  WARNING: Alias or key password test failed"
-                echo "This might be okay - Gradle will verify during build"
-                echo "Keytool error (passwords hidden):"
-                echo "$KEYTOOL_ALIAS_OUTPUT" | sed 's/storepass [^ ]*/storepass ***/g' | sed 's/keypass [^ ]*/keypass ***/g' | head -10
-              fi
-            else
-              echo "⚠️  WARNING: Keystore password test failed"
-              echo "This might be okay - Gradle will verify during build"
-              echo "Keytool error output (first 15 lines, passwords hidden):"
-              echo "$KEYTOOL_OUTPUT" | sed 's/storepass [^ ]*/storepass ***/g' | sed 's/keypass [^ ]*/keypass ***/g' | head -15
-              echo ""
-              echo "Note: If keystore is corrupted or password is wrong, Gradle build will fail with a clear error message"
-            fi
-          fi
-          
-          # Re-enable exit on error
-          set -e
-          echo "✅ Keystore setup completed (Gradle will verify during build)"
+          echo "✅ Android signing configured"
+          echo "   Keystore: ${KEYSTORE_PATH} (${KEYSTORE_SIZE} bytes)"
+          echo "   Key properties: android/key.properties"
+          echo "   Note: Gradle will verify keystore during build"
 
       - name: Build beta APK
         env:
