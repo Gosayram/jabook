@@ -22,6 +22,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:jabook/core/backup/backup_service.dart';
 import 'package:jabook/core/cache/rutracker_cache_service.dart';
+import 'package:jabook/core/config/audio_settings_manager.dart';
 import 'package:jabook/core/config/audio_settings_provider.dart';
 import 'package:jabook/core/config/book_audio_settings_service.dart';
 import 'package:jabook/core/config/language_manager.dart';
@@ -835,7 +836,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     AudioSettings audioSettings,
     AudioSettingsNotifier audioNotifier,
   ) async {
-    final speeds = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0];
+    final speeds = AudioSettingsManager.getAvailablePlaybackSpeeds();
     final selectedSpeed = audioSettings.defaultPlaybackSpeed;
 
     final result = await showDialog<double>(
@@ -843,20 +844,25 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       builder: (context) => AlertDialog(
         title: Text(AppLocalizations.of(context)?.playbackSpeedTitle ??
             'Playback Speed'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: speeds
-              .map((speed) => RadioListTile<double>(
-                    title: Text('${speed}x'),
-                    value: speed,
-                    // ignore: deprecated_member_use
-                    groupValue: selectedSpeed,
-                    // ignore: deprecated_member_use
-                    onChanged: (value) {
-                      Navigator.of(context).pop(value);
-                    },
-                  ))
-              .toList(),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: speeds
+                  .map((speed) => RadioListTile<double>(
+                        title: Text('${speed}x'),
+                        value: speed,
+                        // ignore: deprecated_member_use
+                        groupValue: selectedSpeed,
+                        // ignore: deprecated_member_use
+                        onChanged: (value) {
+                          Navigator.of(context).pop(value);
+                        },
+                      ))
+                  .toList(),
+            ),
+          ),
         ),
       ),
     );

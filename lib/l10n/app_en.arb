@@ -3755,6 +3755,22 @@
   "@forwardDurationTitle": {
     "description": "Title for forward duration setting"
   },
+  "rewind": "Rewind",
+  "@rewind": {
+    "description": "Label for rewind action"
+  },
+  "forward": "Forward",
+  "@forward": {
+    "description": "Label for forward action"
+  },
+  "currentPosition": "Current",
+  "@currentPosition": {
+    "description": "Label for current playback position"
+  },
+  "newPosition": "New",
+  "@newPosition": {
+    "description": "Label for new playback position after skip"
+  },
   "secondsLabel": "seconds",
   "@secondsLabel": {
     "description": "Label for seconds unit"

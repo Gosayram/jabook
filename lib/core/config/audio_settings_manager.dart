@@ -44,6 +44,30 @@ class AudioSettingsManager {
   /// Default forward duration in seconds.
   static const int defaultForwardDuration = 30;
 
+  /// Playback speed step for fine control.
+  static const double playbackSpeedStep = 0.05;
+
+  /// Minimum playback speed.
+  static const double minPlaybackSpeed = 0.5;
+
+  /// Maximum playback speed.
+  static const double maxPlaybackSpeed = 2.0;
+
+  /// Generates list of available playback speeds with step of 0.05.
+  ///
+  /// Returns speeds from [minPlaybackSpeed] to [maxPlaybackSpeed] with step of [playbackSpeedStep].
+  static List<double> getAvailablePlaybackSpeeds() {
+    final speeds = <double>[];
+    // Use integer arithmetic to avoid floating point precision issues
+    final minSteps = (minPlaybackSpeed / playbackSpeedStep).round();
+    final maxSteps = (maxPlaybackSpeed / playbackSpeedStep).round();
+    for (var step = minSteps; step <= maxSteps; step++) {
+      final speed = step * playbackSpeedStep;
+      speeds.add(double.parse(speed.toStringAsFixed(2)));
+    }
+    return speeds;
+  }
+
   /// Gets the default playback speed.
   Future<double> getDefaultPlaybackSpeed() async {
     final prefs = await SharedPreferences.getInstance();
@@ -52,8 +76,9 @@ class AudioSettingsManager {
 
   /// Sets the default playback speed.
   Future<void> setDefaultPlaybackSpeed(double speed) async {
-    if (speed < 0.5 || speed > 2.0) {
-      throw ArgumentError('Speed must be between 0.5 and 2.0');
+    if (speed < minPlaybackSpeed || speed > maxPlaybackSpeed) {
+      throw ArgumentError(
+          'Speed must be between $minPlaybackSpeed and $maxPlaybackSpeed');
     }
     final prefs = await SharedPreferences.getInstance();
     await prefs.setDouble(_defaultPlaybackSpeedKey, speed);

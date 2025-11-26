@@ -81,6 +81,7 @@ install:
 clean:
 	rm -rf build/
 	rm -rf debug-info/
+	rm -rf .dart_tool/
 	@echo "Cleaned build artifacts"
 
 .PHONY: run
