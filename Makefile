@@ -79,9 +79,8 @@ install:
 
 .PHONY: clean
 clean:
-	rm -rf build/
+	flutter clean
 	rm -rf debug-info/
-	rm -rf .dart_tool/
 	@echo "Cleaned build artifacts"
 
 .PHONY: run
