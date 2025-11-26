@@ -12,7 +12,7 @@ jobs:
 
     steps:
       - name: Checkout (with LFS)
-        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3
+        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
         with:
           fetch-depth: 0
           lfs: true
@@ -24,11 +24,13 @@ jobs:
           git lfs checkout
 
       - name: Set up Flutter
-        uses: subosito/flutter-action@fd55f4c5af5b953cc57a2be44cb082c8f6635e8e
+        uses: subosito/flutter-action@fd55f4c5af5b953cc57a2be44cb082c8f6635e8e # v2.21.0
         with:
           flutter-version: '3.38.3'
           channel: 'stable'
           cache: true
+          cache-key: 'flutter-sdk-3.38.3-stable-x64'
+          pub-cache-key: 'flutter-pub-cache-v1'
 
       - name: Verify Flutter installation
         run: flutter doctor -v
@@ -69,8 +71,8 @@ jobs:
           # Create .signing directory
           mkdir -p .signing
           
-          # Decode keystore from base64 secret
-          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > "${KEYSTORE_PATH}"
+          # Decode keystore from base64 secret (remove any whitespace/newlines)
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | tr -d '\n\r\t ' | base64 -d > "${KEYSTORE_PATH}"
           
           # Verify keystore file was created
           if [ ! -f "${KEYSTORE_PATH}" ]; then
@@ -82,6 +84,20 @@ jobs:
           KEYSTORE_SIZE=$(stat -f%z "${KEYSTORE_PATH}" 2>/dev/null || stat -c%s "${KEYSTORE_PATH}" 2>/dev/null)
           if [ "$KEYSTORE_SIZE" -lt 1000 ]; then
             echo "ERROR: Keystore file seems too small (${KEYSTORE_SIZE} bytes)"
+            exit 1
+          fi
+          
+          # Verify secrets are not empty (without showing values)
+          if [ -z "${{ secrets.KEY_STORE_PASSWORD }}" ]; then
+            echo "ERROR: KEY_STORE_PASSWORD secret is empty"
+            exit 1
+          fi
+          if [ -z "${{ secrets.KEY_PASSWORD }}" ]; then
+            echo "ERROR: KEY_PASSWORD secret is empty"
+            exit 1
+          fi
+          if [ -z "${{ secrets.KEY_ALIAS }}" ]; then
+            echo "ERROR: KEY_ALIAS secret is empty"
             exit 1
           fi
           
@@ -100,103 +116,88 @@ jobs:
             exit 1
           fi
           
-          # Verify secrets are not empty (without showing values)
-          if [ -z "${{ secrets.KEY_STORE_PASSWORD }}" ]; then
-            echo "ERROR: KEY_STORE_PASSWORD secret is empty"
-            exit 1
-          fi
-          if [ -z "${{ secrets.KEY_PASSWORD }}" ]; then
-            echo "ERROR: KEY_PASSWORD secret is empty"
-            exit 1
-          fi
-          if [ -z "${{ secrets.KEY_ALIAS }}" ]; then
-            echo "ERROR: KEY_ALIAS secret is empty"
-            exit 1
-          fi
-          
           echo "Android signing configured"
           echo "Keystore file size: ${KEYSTORE_SIZE} bytes"
           echo "key.properties created successfully"
           
-          # Test keystore access (verify password is correct)
-          echo "Testing keystore access..."
+          # Optional: Test keystore access (verify password is correct)
+          # This is optional because Gradle will verify during build
+          echo "Testing keystore access (optional verification)..."
           
           # Verify keytool is available
           if ! command -v keytool &> /dev/null; then
-            echo "❌ ERROR: keytool is not available. Java may not be installed."
-            exit 1
-          fi
-          
-          echo "Keytool version:"
-          keytool -help 2>&1 | head -1 || true
-          
-          # Step 1: Test keystore password (list all aliases)
-          # Try PKCS12 first (as used in signing.sh), then fallback to default
-          echo "Step 1: Testing keystore password with PKCS12 storetype..."
-          KEYTOOL_OUTPUT=$(keytool -list \
-            -keystore "${KEYSTORE_PATH}" \
-            -storetype PKCS12 \
-            -storepass "${{ secrets.KEY_STORE_PASSWORD }}" \
-            2>&1)
-          KEYTOOL_EXIT_CODE=$?
-          
-          # If PKCS12 fails, try without storetype (default JKS)
-          if [ $KEYTOOL_EXIT_CODE -ne 0 ]; then
-            echo "PKCS12 failed, trying default storetype..."
+            echo "⚠️  WARNING: keytool is not available, skipping keystore verification"
+            echo "Gradle will verify keystore during build"
+          else
+            echo "Keytool version:"
+            keytool -help 2>&1 | head -1 || true
+            
+            # Try to detect keystore type and test access
+            # First try JKS (default, most common for older keystores)
+            echo "Step 1: Testing keystore with default storetype (JKS)..."
             KEYTOOL_OUTPUT=$(keytool -list \
               -keystore "${KEYSTORE_PATH}" \
               -storepass "${{ secrets.KEY_STORE_PASSWORD }}" \
               2>&1)
             KEYTOOL_EXIT_CODE=$?
+            
+            # If JKS fails, try PKCS12
+            if [ $KEYTOOL_EXIT_CODE -ne 0 ]; then
+              echo "JKS failed, trying PKCS12 storetype..."
+              KEYTOOL_OUTPUT=$(keytool -list \
+                -keystore "${KEYSTORE_PATH}" \
+                -storetype PKCS12 \
+                -storepass "${{ secrets.KEY_STORE_PASSWORD }}" \
+                2>&1)
+              KEYTOOL_EXIT_CODE=$?
+            fi
+            
+            if [ $KEYTOOL_EXIT_CODE -eq 0 ]; then
+              echo "✅ Keystore password is correct"
+              echo "Available aliases in keystore:"
+              echo "$KEYTOOL_OUTPUT" | grep -E '^[a-zA-Z0-9_-]+,' || echo "$KEYTOOL_OUTPUT" | grep -i alias || echo "Could not parse aliases"
+              
+              # Step 2: Test specific alias and key password
+              echo "Step 2: Testing alias '${{ secrets.KEY_ALIAS }}' and key password..."
+              KEYTOOL_ALIAS_OUTPUT=$(keytool -list -v \
+                -keystore "${KEYSTORE_PATH}" \
+                -storepass "${{ secrets.KEY_STORE_PASSWORD }}" \
+                -alias "${{ secrets.KEY_ALIAS }}" \
+                -keypass "${{ secrets.KEY_PASSWORD }}" \
+                2>&1)
+              KEYTOOL_ALIAS_EXIT_CODE=$?
+              
+              # If default fails, try PKCS12
+              if [ $KEYTOOL_ALIAS_EXIT_CODE -ne 0 ]; then
+                KEYTOOL_ALIAS_OUTPUT=$(keytool -list -v \
+                  -keystore "${KEYSTORE_PATH}" \
+                  -storetype PKCS12 \
+                  -storepass "${{ secrets.KEY_STORE_PASSWORD }}" \
+                  -alias "${{ secrets.KEY_ALIAS }}" \
+                  -keypass "${{ secrets.KEY_PASSWORD }}" \
+                  2>&1)
+                KEYTOOL_ALIAS_EXIT_CODE=$?
+              fi
+              
+              if [ $KEYTOOL_ALIAS_EXIT_CODE -eq 0 ]; then
+                echo "✅ Alias and key password are correct"
+              else
+                echo "⚠️  WARNING: Alias or key password test failed"
+                echo "This might be okay - Gradle will verify during build"
+                echo "Keytool error (passwords hidden):"
+                echo "$KEYTOOL_ALIAS_OUTPUT" | sed 's/storepass [^ ]*/storepass ***/g' | sed 's/keypass [^ ]*/keypass ***/g' | head -5
+              fi
+            else
+              echo "⚠️  WARNING: Keystore password test failed"
+              echo "This might be okay - Gradle will verify during build"
+              echo "Keytool error output (password hidden):"
+              echo "$KEYTOOL_OUTPUT" | sed 's/storepass [^ ]*/storepass ***/g' | sed 's/keypass [^ ]*/keypass ***/g' | head -10
+              echo ""
+              echo "Note: If keystore is corrupted or password is wrong, Gradle build will fail with a clear error message"
+            fi
           fi
           
-          if [ $KEYTOOL_EXIT_CODE -ne 0 ]; then
-            echo "❌ ERROR: Keystore password test failed"
-            echo "Keytool error output (password hidden):"
-            echo "$KEYTOOL_OUTPUT" | sed 's/storepass [^ ]*/storepass ***/g' | sed 's/keypass [^ ]*/keypass ***/g'
-            echo ""
-            echo "Full error (first 20 lines):"
-            echo "$KEYTOOL_OUTPUT" | head -20
-            exit 1
-          fi
-          
-          echo "✅ Keystore password is correct"
-          echo "Available aliases in keystore:"
-          echo "$KEYTOOL_OUTPUT" | grep -E "^[a-zA-Z0-9_-]+," || echo "$KEYTOOL_OUTPUT" | grep -i alias || echo "Could not parse aliases"
-          
-          # Step 2: Test specific alias and key password
-          echo "Step 2: Testing alias '${{ secrets.KEY_ALIAS }}' and key password..."
-          KEYTOOL_ALIAS_OUTPUT=$(keytool -list -v \
-            -keystore "${KEYSTORE_PATH}" \
-            -storetype PKCS12 \
-            -storepass "${{ secrets.KEY_STORE_PASSWORD }}" \
-            -alias "${{ secrets.KEY_ALIAS }}" \
-            -keypass "${{ secrets.KEY_PASSWORD }}" \
-            2>&1)
-          KEYTOOL_ALIAS_EXIT_CODE=$?
-          
-          # If PKCS12 fails, try without storetype
-          if [ $KEYTOOL_ALIAS_EXIT_CODE -ne 0 ]; then
-            KEYTOOL_ALIAS_OUTPUT=$(keytool -list -v \
-              -keystore "${KEYSTORE_PATH}" \
-              -storepass "${{ secrets.KEY_STORE_PASSWORD }}" \
-              -alias "${{ secrets.KEY_ALIAS }}" \
-              -keypass "${{ secrets.KEY_PASSWORD }}" \
-              2>&1)
-            KEYTOOL_ALIAS_EXIT_CODE=$?
-          fi
-          
-          if [ $KEYTOOL_ALIAS_EXIT_CODE -ne 0 ]; then
-            echo "⚠️  WARNING: Alias or key password test failed, but keystore password is correct"
-            echo "This might be okay if alias/key password differ from store password"
-            echo "Keytool error (passwords hidden):"
-            echo "$KEYTOOL_ALIAS_OUTPUT" | sed 's/storepass [^ ]*/storepass ***/g' | sed 's/keypass [^ ]*/keypass ***/g' | head -5
-            echo "Continuing with build - Gradle will handle signing..."
-          else
-            echo "✅ Alias and key password are correct"
-          fi
-          
-          echo "✅ Keystore access test completed"
+          echo "✅ Keystore setup completed (Gradle will verify during build)"
 
       - name: Build beta APK
         env:
