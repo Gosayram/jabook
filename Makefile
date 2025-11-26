@@ -39,6 +39,7 @@ help:
 	@echo "  make build-ios-prod                - Build iOS production variant"
 	@echo "  make build-android-signed-apk      - Build signed prod APKs (split per architecture + universal)"
 	@echo "  make build-android-signed-apk-beta - Build signed beta APKs (split per architecture + universal)"
+	@echo "  make build-android-beta-ci         - Build signed beta APKs for CI (assumes signing is configured)"
 	@echo ""
 	@echo "Testing Commands:"
 	@echo "  make test                          - Run all tests"
@@ -49,6 +50,7 @@ help:
 	@echo "Analysis Commands:"
 	@echo "  make analyze                       - Run Flutter analysis"
 	@echo "  make fmt                           - Format code"
+	@echo "  make fmt-check                     - Check code formatting (for CI)"
 	@echo "  make lint                          - Run linting"
 	@echo "  make l10n                          - Generate localization files (flutter gen-l10n)"
 	@echo "  make check-l10n         			- Check for duplicate keys in ARB files"
@@ -79,9 +81,8 @@ install:
 
 .PHONY: clean
 clean:
-	rm -rf build/
+	flutter clean
 	rm -rf debug-info/
-	rm -rf .dart_tool/
 	@echo "Cleaned build artifacts"
 
 .PHONY: run
@@ -240,6 +241,41 @@ build-android-signed-apk-beta: use-existing-android-cert patch-gradle-signing
 	@echo "   - Split APKs: app-*-release.apk (per architecture)"
 	@echo "   - Universal APK: app-release.apk (all architectures)"
 	@echo "   - Debug symbols saved to: ./debug-info/"
+
+.PHONY: build-android-beta-ci
+build-android-beta-ci:
+	@echo "Building signed beta APK for CI (assumes signing is already configured)..."
+	@echo "Building split APKs per architecture..."
+	flutter build apk --flavor beta --target lib/main.dart --release \
+		--dart-define=FLAVOR=beta \
+		--obfuscate \
+		--split-debug-info=./debug-info \
+		--split-per-abi \
+		--tree-shake-icons
+	@echo "Building universal APK (all architectures)..."
+	flutter build apk --flavor beta --target lib/main.dart --release \
+		--dart-define=FLAVOR=beta \
+		--obfuscate \
+		--split-debug-info=./debug-info \
+		--tree-shake-icons
+	@echo "✅ Signed beta APKs built at: build/app/outputs/apk/"
+	@echo "   - Split APKs: app-*-release.apk (per architecture)"
+	@echo "   - Universal APK: app-release.apk (all architectures)"
+	@echo "   - Debug symbols saved to: ./debug-info/"
+
+.PHONY: fmt-check
+fmt-check:
+	@echo "Checking code formatting..."
+	@find . -name "*.dart" \
+		-not -path "./lib/l10n/*" \
+		-not -path "./build/*" \
+		-not -path "./.dart_tool/*" \
+		-not -path "./.git/*" \
+		-not -path "./android/*" \
+		-not -path "./ios/*" \
+		-not -path "./web/*" \
+		-print0 | xargs -0 -r dart format --set-exit-if-changed
+	@echo "✅ Code formatting check passed"
 
 .PHONY: copy-apk
 copy-apk:

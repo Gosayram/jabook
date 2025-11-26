@@ -159,6 +159,10 @@
 # share_plus
 -keep class dev.fluttercommunity.plus.share.** { *; }
 
+# integration_test - dev dependency, not available in release builds
+-dontwarn dev.flutter.plugins.integration_test.**
+-keep class dev.flutter.plugins.integration_test.** { *; }
+
 # device_info_plus
 -keep class dev.fluttercommunity.plus.deviceinfo.** { *; }
 

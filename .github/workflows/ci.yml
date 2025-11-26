@@ -2,12 +2,13 @@ name: CI
 
 on:
   push:
-    branches: [ main ]
-    tags: [ 'v*' ]
+    tags: [ '*' ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout (with LFS)
@@ -25,7 +26,7 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@fd55f4c5af5b953cc57a2be44cb082c8f6635e8e
         with:
-          flutter-version: '3.38.1'
+          flutter-version: '3.38.3'
           channel: 'stable'
           cache: true
 
@@ -33,65 +34,113 @@ jobs:
         run: flutter doctor -v
 
       - name: Install dependencies
-        run: flutter pub get
+        run: make install
 
-      - name: Generate localization files
-        run: flutter gen-l10n
+      - name: Check localization files
+        run: make check-l10n
 
       - name: Verify code formatting
-        run: |
-          # Find Dart files excluding generated and build directories
-          # Use -print0 and -0 for safe handling of filenames with spaces
-          find . -name "*.dart" \
-            -not -path "./lib/l10n/*" \
-            -not -path "./build/*" \
-            -not -path "./.dart_tool/*" \
-            -not -path "./.git/*" \
-            -not -path "./android/*" \
-            -not -path "./ios/*" \
-            -not -path "./web/*" \
-            -print0 | xargs -0 -r dart format --set-exit-if-changed
+        run: make fmt-check
 
       - name: Analyze code
-        run: flutter analyze
+        run: make analyze
 
-      - name: Run tests
-        run: flutter test
+      - name: Check copyright headers
+        run: make check-copyright
 
-      - name: Extract version from tag
-        if: startsWith(github.ref, 'refs/tags/v')
+      - name: Extract version from pubspec.yaml
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
+          VERSION=$(grep '^version:' pubspec.yaml | sed 's/version:[[:space:]]*//' | cut -d+ -f1)
           echo "VERSION=${VERSION}" >> "$GITHUB_ENV"
+          echo "Extracted version from pubspec.yaml: ${VERSION}"
 
-      - name: Set version variables
-        if: startsWith(github.ref, 'refs/tags/v')
+      - name: Setup Android signing
         run: |
-          VERSION_NAME="${VERSION}"
-          IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION_NAME"
-          : "${MAJOR:=0}" ; : "${MINOR:=0}" ; : "${PATCH:=0}"
-          VERSION_CODE=$(printf '%d%02d%02d' "$MAJOR" "$MINOR" "$PATCH")
-          echo "VERSION_NAME=$VERSION_NAME" >> "$GITHUB_ENV"
-          echo "VERSION_CODE=$VERSION_CODE" >> "$GITHUB_ENV"
+          # Create .signing directory
+          mkdir -p .signing
+          
+          # Decode keystore from base64 secret
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > .signing/release.keystore
+          
+          # Create android/key.properties file
+          mkdir -p android
+          cat > android/key.properties <<EOF
+          storeFile=${PWD}/.signing/release.keystore
+          storePassword=${{ secrets.KEY_STORE_PASSWORD }}
+          keyPassword=${{ secrets.KEY_PASSWORD }}
+          keyAlias=${{ secrets.KEY_ALIAS }}
+          EOF
+          
+          echo "Android signing configured"
 
-      - name: Update app version in pubspec.yaml
-        if: startsWith(github.ref, 'refs/tags/v')
+      - name: Build beta APK
+        run: make build-android-beta-ci
+
+      - name: Verify APK files exist
+        id: verify-apk
         run: |
-          sed -i "s/^version: .*/version: ${VERSION_NAME}+${VERSION_CODE}/g" pubspec.yaml
+          # Check for APK files in both possible locations
+          UNIVERSAL_APK=""
+          SPLIT_APKS=""
+          
+          # Universal APK
+          if [ -f "build/app/outputs/flutter-apk/app-beta-release.apk" ]; then
+            UNIVERSAL_APK="build/app/outputs/flutter-apk/app-beta-release.apk"
+          elif [ -f "build/app/outputs/apk/release/app-beta-release.apk" ]; then
+            UNIVERSAL_APK="build/app/outputs/apk/release/app-beta-release.apk"
+          fi
+          
+          # Split APKs
+          for arch in arm64-v8a armeabi-v7a x86_64; do
+            if [ -f "build/app/outputs/flutter-apk/app-${arch}-beta-release.apk" ]; then
+              SPLIT_APKS="${SPLIT_APKS}build/app/outputs/flutter-apk/app-${arch}-beta-release.apk"$'\n'
+            elif [ -f "build/app/outputs/apk/release/app-${arch}-beta-release.apk" ]; then
+              SPLIT_APKS="${SPLIT_APKS}build/app/outputs/apk/release/app-${arch}-beta-release.apk"$'\n'
+            fi
+          done
+          
+          # Remove trailing newline
+          SPLIT_APKS=$(echo "$SPLIT_APKS" | sed '/^$/d')
+          
+          # Combine all APKs
+          ALL_APKS=""
+          if [ -n "$UNIVERSAL_APK" ]; then
+            ALL_APKS="${UNIVERSAL_APK}"$'\n'
+          fi
+          if [ -n "$SPLIT_APKS" ]; then
+            ALL_APKS="${ALL_APKS}${SPLIT_APKS}"
+          fi
+          
+          # Remove trailing newline
+          ALL_APKS=$(echo "$ALL_APKS" | sed '/^$/d')
+          
+          if [ -z "$ALL_APKS" ]; then
+            echo "⚠️  Warning: No APK files found!"
+            echo "has_files=false" >> $GITHUB_OUTPUT
+          else
+            echo "✅ Found APK files:"
+            echo "$ALL_APKS"
+            echo "has_files=true" >> $GITHUB_OUTPUT
+            echo "files<<EOF" >> $GITHUB_OUTPUT
+            echo "$ALL_APKS" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          fi
 
-      - name: Build APK (tag only)
-        if: startsWith(github.ref, 'refs/tags/v')
-        run: flutter build apk --target lib/main.dart --release
+      - name: Generate changelog
+        if: steps.verify-apk.outputs.has_files == 'true'
+        run: make changelog
 
-      - name: Set APK artifact name
-        if: startsWith(github.ref, 'refs/tags/v')
-        run: |
-          APK_NAME="jabook-release-${GITHUB_REF_NAME#v}.apk"
-          echo "APK_NAME=${APK_NAME}" >> "$GITHUB_ENV"
-
-      - name: Upload APK
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
+      - name: Create GitHub Prerelease
+        if: steps.verify-apk.outputs.has_files == 'true'
+        id: release
+        uses: softprops/action-gh-release@5be0e66d93ac7ed76da52eca8bb058f665c3a5fe # v2.4.2
         with:
-          name: ${{ env.APK_NAME }}
-          path: build/app/outputs/flutter-apk/app-release.apk
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ env.VERSION }}-beta
+          body_path: CHANGELOG.md
+          draft: false
+          prerelease: true
+          files: ${{ steps.verify-apk.outputs.files }}
+          fail_on_unmatched_files: false
+          generate_release_notes: false
+          make_latest: false

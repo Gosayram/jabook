@@ -13,6 +13,7 @@
 // limitations under the License.
 
 import 'package:flutter/material.dart';
+import 'package:jabook/core/animations/dialog_utils.dart';
 import 'package:jabook/core/permissions/manufacturer_permissions_service.dart';
 import 'package:jabook/core/utils/device_info_utils.dart';
 import 'package:jabook/l10n/app_localizations.dart';
@@ -30,7 +31,7 @@ class ManufacturerSettingsDialog extends StatefulWidget {
   ///
   /// Returns `true` if user completed the setup, `false` if cancelled.
   static Future<bool> show(BuildContext context) async {
-    final result = await showDialog<bool>(
+    final result = await DialogUtils.showAnimatedDialog<bool>(
       context: context,
       barrierDismissible: false,
       builder: (context) => const ManufacturerSettingsDialog(),

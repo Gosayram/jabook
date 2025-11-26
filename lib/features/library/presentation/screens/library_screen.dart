@@ -455,7 +455,15 @@ class _LibraryContentState extends ConsumerState<_LibraryContent> {
 
     if (shouldForceFullScan && !forceFullScan) {
       debugPrint(
-        'Library provider is empty, forcing full scan to find all books',
+        'Library provider is empty (${existingGroups.length} groups), forcing full scan to find all books',
+      );
+    } else if (forceFullScan) {
+      debugPrint(
+        'Force full scan requested, scanning all library folders',
+      );
+    } else {
+      debugPrint(
+        'Incremental scan: provider has ${existingGroups.length} groups',
       );
     }
 
@@ -471,12 +479,16 @@ class _LibraryContentState extends ConsumerState<_LibraryContent> {
         // Update state via provider to persist across tab switches
         ref.read(libraryGroupsProvider.notifier).updateGroups(groups);
         ref.read(isScanningProvider.notifier).state = false;
+        debugPrint(
+          'Library scan completed: found ${groups.length} groups with ${groups.fold<int>(0, (sum, g) => sum + g.files.length)} total files',
+        );
         _applyFilters();
       }
     } on Exception catch (e) {
       if (mounted) {
         ref.read(isScanningProvider.notifier).state = false;
         debugPrint('Failed to load local audiobooks: $e');
+        debugPrint('Stack trace: ${StackTrace.current}');
         // Fallback to regular scanner on error
         try {
           final groups = await _scanner.scanAllLibraryFolders();
@@ -855,9 +867,26 @@ class _LibraryContentState extends ConsumerState<_LibraryContent> {
     required String label,
     required VoidCallback onPressed,
   }) {
+    final screenWidth = MediaQuery.of(context).size.width;
     final isDesktop = ResponsiveUtils.isDesktop(context);
     final isTablet = ResponsiveUtils.isTablet(context);
-    final buttonWidth = isDesktop ? 220.0 : (isTablet ? 200.0 : 180.0);
+    final isVerySmall = ResponsiveUtils.isVerySmallScreen(context);
+
+    // Calculate button width responsively
+    // Use percentage of screen width for better adaptation
+    double buttonWidth;
+    if (isDesktop) {
+      buttonWidth = 220.0;
+    } else if (isTablet) {
+      buttonWidth = 200.0;
+    } else if (isVerySmall) {
+      // For very small screens, use 85% of screen width but min 160px
+      buttonWidth = (screenWidth * 0.85).clamp(160.0, 200.0);
+    } else {
+      // For normal mobile screens, use 80% of screen width but min 170px, max 200px
+      buttonWidth = (screenWidth * 0.8).clamp(170.0, 200.0);
+    }
+
     final iconSize = ResponsiveUtils.getIconSize(context, baseSize: 20);
     final padding = ResponsiveUtils.getSpacing(context, baseSpacing: 12);
 

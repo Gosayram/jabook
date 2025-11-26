@@ -24,6 +24,7 @@ import 'package:jabook/core/net/dio_client.dart';
 import 'package:jabook/core/parse/rutracker_parser.dart';
 import 'package:jabook/core/player/player_state_provider.dart';
 import 'package:jabook/core/stream/local_stream_server.dart';
+import 'package:jabook/core/utils/responsive_utils.dart';
 import 'package:jabook/data/db/app_database.dart';
 import 'package:jabook/l10n/app_localizations.dart';
 
@@ -663,27 +664,61 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 
         // Player controls
         Padding(
-          padding: const EdgeInsets.all(16.0),
+          padding: ResponsiveUtils.getCompactPadding(context),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               IconButton(
                 icon: const Icon(Icons.skip_previous),
                 onPressed: _prevChapter,
-                iconSize: 48,
+                iconSize: ResponsiveUtils.getIconSize(
+                  context,
+                  baseSize:
+                      ResponsiveUtils.isVerySmallScreen(context) ? 40 : 48,
+                ),
+                constraints: BoxConstraints(
+                  minWidth: ResponsiveUtils.getMinTouchTarget(context) * 1.1,
+                  minHeight: ResponsiveUtils.getMinTouchTarget(context) * 1.1,
+                ),
               ),
-              const SizedBox(width: 32),
+              SizedBox(
+                width: ResponsiveUtils.getSpacing(
+                  context,
+                  baseSpacing: 32,
+                ),
+              ),
               IconButton(
                 icon: Icon(
                     playerState.isPlaying ? Icons.pause : Icons.play_arrow),
                 onPressed: _playPause,
-                iconSize: 64,
+                iconSize: ResponsiveUtils.getIconSize(
+                  context,
+                  baseSize:
+                      ResponsiveUtils.isVerySmallScreen(context) ? 56 : 64,
+                ),
+                constraints: BoxConstraints(
+                  minWidth: ResponsiveUtils.getMinTouchTarget(context) * 1.4,
+                  minHeight: ResponsiveUtils.getMinTouchTarget(context) * 1.4,
+                ),
               ),
-              const SizedBox(width: 32),
+              SizedBox(
+                width: ResponsiveUtils.getSpacing(
+                  context,
+                  baseSpacing: 32,
+                ),
+              ),
               IconButton(
                 icon: const Icon(Icons.skip_next),
                 onPressed: _nextChapter,
-                iconSize: 48,
+                iconSize: ResponsiveUtils.getIconSize(
+                  context,
+                  baseSize:
+                      ResponsiveUtils.isVerySmallScreen(context) ? 40 : 48,
+                ),
+                constraints: BoxConstraints(
+                  minWidth: ResponsiveUtils.getMinTouchTarget(context) * 1.1,
+                  minHeight: ResponsiveUtils.getMinTouchTarget(context) * 1.1,
+                ),
               ),
             ],
           ),
