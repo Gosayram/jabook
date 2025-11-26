@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'package:jabook/core/auth/captcha_detector.dart';
 import 'package:jabook/features/auth/domain/entities/auth_status.dart';
 
 /// Repository interface for authentication operations.
@@ -23,6 +24,16 @@ abstract class AuthRepository {
   ///
   /// Returns [true] if login was successful, [false] otherwise.
   Future<bool> login(String username, String password);
+
+  /// Logs in with the provided credentials and captcha code.
+  ///
+  /// Returns [true] if login was successful, [false] otherwise.
+  Future<bool> loginWithCaptcha(
+    String username,
+    String password,
+    String captchaCode,
+    RutrackerCaptchaData captchaData,
+  );
 
   /// Logs out the current user.
   Future<void> logout();

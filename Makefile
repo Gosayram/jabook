@@ -55,7 +55,7 @@ help:
 	@echo "  make analyze-size                  - Analyze APK size with detailed breakdown"
 	@echo ""
 	@echo "Maintenance Commands:"
-	@echo "  make update-version [VERSION] [BUILD] - Update version in pubspec.yaml"
+	@echo "  make update-version [NEW_VERSION=1.2.1] - Update version in pubspec.yaml (SemVer style, patch 0-9)"
 	@echo "  make update-copyright                 - Update copyright year in all files"
 	@echo "  make check-copyright                  - Check copyright headers in Dart files"
 	@echo "  make add-copyright                   - Add copyright headers to Dart files"
@@ -224,12 +224,14 @@ build-android-signed-apk-beta: use-existing-android-cert patch-gradle-signing
 	@echo "Building signed beta APK (with obfuscation for testing)..."
 	@echo "Building split APKs per architecture..."
 	flutter build apk --flavor beta --target lib/main.dart --release \
+		--dart-define=FLAVOR=beta \
 		--obfuscate \
 		--split-debug-info=./debug-info \
 		--split-per-abi \
 		--tree-shake-icons
 	@echo "Building universal APK (all architectures)..."
 	flutter build apk --flavor beta --target lib/main.dart --release \
+		--dart-define=FLAVOR=beta \
 		--obfuscate \
 		--split-debug-info=./debug-info \
 		--tree-shake-icons
@@ -481,14 +483,10 @@ version:
 # Project maintenance commands
 .PHONY: update-version
 update-version:
-	@if [ -z "$(VERSION)" ]; then \
+	@if [ -z "$(NEW_VERSION)" ]; then \
 		hack/update-version.sh; \
 	else \
-		if [ -z "$(BUILD)" ]; then \
-			hack/update-version.sh "$(VERSION)"; \
-		else \
-			hack/update-version.sh "$(VERSION)" "$(BUILD)"; \
-		fi; \
+		hack/update-version.sh "$(NEW_VERSION)"; \
 	fi
 
 .PHONY: update-copyright

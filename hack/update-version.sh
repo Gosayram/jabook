@@ -13,14 +13,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Script to update version in pubspec.yaml
+# Script to update version in pubspec.yaml (SemVer style, patch 0-9)
 #
 # Usage:
-#   ./update-version.sh [version] [build_number]
+#   ./update-version.sh [version]
 #
-#   If version is provided, updates version in pubspec.yaml.
-#   If not provided, extracts current version and increments patch version.
-#   build_number is optional and defaults to incrementing current build number or 1.
+#   If version is provided, updates version in pubspec.yaml to that version.
+#   If not provided, extracts current version and increments patch version (0-9).
+#   Version format: X.Y.Z (no build number, SemVer style)
+#   Examples:
+#     1.2.0 -> 1.2.1 -> ... -> 1.2.9 -> 1.3.0
+#     1.9.9 -> 2.0.0
 
 set -euo pipefail
 
@@ -41,14 +44,9 @@ if [ -z "${CURRENT_VERSION_LINE}" ]; then
     exit 1
 fi
 
-# Extract version and build number
+# Extract version (ignore build number if present)
 CURRENT_VERSION_FULL=$(echo "${CURRENT_VERSION_LINE}" | sed 's/^version:[[:space:]]*//' | tr -d '[:space:]')
 CURRENT_VERSION=$(echo "${CURRENT_VERSION_FULL}" | cut -d+ -f1)
-CURRENT_BUILD=$(echo "${CURRENT_VERSION_FULL}" | cut -d+ -f2)
-
-if [ -z "${CURRENT_BUILD}" ] || [ "${CURRENT_BUILD}" = "${CURRENT_VERSION_FULL}" ]; then
-    CURRENT_BUILD="1"
-fi
 
 # If version is provided as argument, use it
 if [ $# -ge 1 ]; then
@@ -58,30 +56,24 @@ if [ $# -ge 1 ]; then
         echo "Error: Invalid version format: ${NEW_VERSION}. Expected format: X.Y.Z" >&2
         exit 1
     fi
-    
-    # If build number is provided, use it; otherwise increment current
-    if [ $# -ge 2 ]; then
-        NEW_BUILD="$2"
-        if ! [[ "${NEW_BUILD}" =~ ^[0-9]+$ ]]; then
-            echo "Error: Invalid build number format: ${NEW_BUILD}. Expected number." >&2
-            exit 1
-        fi
-    else
-        # Increment build number
-        NEW_BUILD=$((CURRENT_BUILD + 1))
-    fi
 else
-    # Auto-increment version with rollover logic
-    # Format: major.minor.bugfix, each part goes up to 9
-    # 1.1.9 -> 1.2.0
+    # Auto-increment version with rollover logic (SemVer style, patch 0-9)
+    # Format: major.minor.patch, patch goes from 0 to 9
+    # 1.2.0 -> 1.2.1 -> ... -> 1.2.9 -> 1.3.0
     # 1.9.9 -> 2.0.0
     MAJOR=$(echo "${CURRENT_VERSION}" | cut -d. -f1)
     MINOR=$(echo "${CURRENT_VERSION}" | cut -d. -f2)
     PATCH=$(echo "${CURRENT_VERSION}" | cut -d. -f3)
     
-    # Increment with rollover logic
+    # Validate patch is a number
+    if ! [[ "${PATCH}" =~ ^[0-9]+$ ]]; then
+        echo "Error: Invalid patch version: ${PATCH}" >&2
+        exit 1
+    fi
+    
+    # Increment with rollover logic (patch 0-9)
     if [ "${PATCH}" -lt 9 ]; then
-        # Increment patch version
+        # Increment patch version (0-8 -> 1-9)
         PATCH=$((PATCH + 1))
     elif [ "${MINOR}" -lt 9 ]; then
         # Patch reached 9, increment minor, reset patch to 0
@@ -95,20 +87,17 @@ else
     fi
     
     NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
-    
-    # Increment build number
-    NEW_BUILD=$((CURRENT_BUILD + 1))
 fi
 
-# Update pubspec.yaml
+# Update pubspec.yaml (without build number, SemVer style)
 # Use sed to replace the version line
 if [[ "$(uname)" == "Darwin" ]]; then
     # macOS requires empty string for backup extension
-    sed -i '' "s|^version:.*|version: ${NEW_VERSION}+${NEW_BUILD}|" "${PUBSPEC_FILE}"
+    sed -i '' "s|^version:.*|version: ${NEW_VERSION}|" "${PUBSPEC_FILE}"
 else
-    sed -i "s|^version:.*|version: ${NEW_VERSION}+${NEW_BUILD}|" "${PUBSPEC_FILE}"
+    sed -i "s|^version:.*|version: ${NEW_VERSION}|" "${PUBSPEC_FILE}"
 fi
 
-echo "Updated pubspec.yaml version to ${NEW_VERSION}+${NEW_BUILD}"
-echo "Previous version: ${CURRENT_VERSION}+${CURRENT_BUILD}"
+echo "Updated pubspec.yaml version to ${NEW_VERSION}"
+echo "Previous version: ${CURRENT_VERSION}"
 echo "File: ${PUBSPEC_FILE}"

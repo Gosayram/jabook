@@ -19,6 +19,8 @@ import 'package:dio/dio.dart';
 import 'package:dio_cookie_manager/dio_cookie_manager.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:jabook/core/auth/captcha_detector.dart';
+import 'package:jabook/core/auth/cookie_database_service.dart';
 import 'package:jabook/core/auth/credential_manager.dart';
 import 'package:jabook/core/auth/direct_auth_service.dart';
 import 'package:jabook/core/auth/simple_cookie_manager.dart';
@@ -160,6 +162,48 @@ class RuTrackerAuth {
           cookieJar,
         );
 
+        // CRITICAL: Save cookies to database FIRST - this is the primary storage
+        try {
+          final uri = Uri.parse(activeBase);
+          final cookies = await cookieJar.loadForRequest(uri);
+          if (cookies.isNotEmpty) {
+            final cookieHeader =
+                cookies.map((c) => '${c.name}=${c.value}').join('; ');
+
+            // Save to database - most reliable storage
+            final cookieDbService = CookieDatabaseService(AppDatabase());
+            final savedToDb =
+                await cookieDbService.saveCookies(activeBase, cookieHeader);
+
+            await logger.log(
+              level: savedToDb ? 'info' : 'warning',
+              subsystem: 'auth',
+              message: savedToDb
+                  ? 'Cookies saved to database after HTTP login'
+                  : 'Failed to save cookies to database after HTTP login',
+              operationId: operationId,
+              context: 'http_login',
+              extra: {
+                'endpoint': activeBase,
+                'cookie_count': cookies.length,
+                'cookie_names': cookies.map((c) => c.name).toList(),
+                'saved_to_db': savedToDb,
+                'has_bb_session': cookieHeader.contains('bb_session='),
+                'has_bb_data': cookieHeader.contains('bb_data='),
+              },
+            );
+          }
+        } on Exception catch (e) {
+          await logger.log(
+            level: 'warning',
+            subsystem: 'auth',
+            message: 'Failed to save cookies to database',
+            operationId: operationId,
+            context: 'http_login',
+            cause: e.toString(),
+          );
+        }
+
         // CRITICAL: Also save to CookieService (Android CookieManager)
         // This ensures hasValidCookies() can find cookies
         // Note: CookieService is Android-only, skip on web
@@ -171,6 +215,18 @@ class RuTrackerAuth {
               // Convert cookies to cookie header string for CookieService
               final cookieHeader =
                   cookies.map((c) => '${c.name}=${c.value}').join('; ');
+
+              await logger.log(
+                level: 'info',
+                subsystem: 'auth',
+                message: 'Syncing cookies to CookieService',
+                operationId: operationId,
+                context: 'http_login',
+                extra: {
+                  'endpoint': activeBase,
+                  'cookie_count': cookies.length,
+                },
+              );
 
               // Save to CookieService via DioClient (Android only)
               await DioClient.syncCookiesFromCookieService(
@@ -198,6 +254,45 @@ class RuTrackerAuth {
               cause: e.toString(),
             );
           }
+        }
+
+        // CRITICAL: Save cookies to database FIRST - this is the primary storage
+        try {
+          final uri = Uri.parse(activeBase);
+          final cookies = await cookieJar.loadForRequest(uri);
+          if (cookies.isNotEmpty) {
+            final cookieHeader =
+                cookies.map((c) => '${c.name}=${c.value}').join('; ');
+
+            // Save to database - most reliable storage
+            final cookieDbService = CookieDatabaseService(AppDatabase());
+            final savedToDb =
+                await cookieDbService.saveCookies(activeBase, cookieHeader);
+
+            await logger.log(
+              level: savedToDb ? 'info' : 'warning',
+              subsystem: 'auth',
+              message: savedToDb
+                  ? 'Cookies saved to database after HTTP login'
+                  : 'Failed to save cookies to database after HTTP login',
+              operationId: operationId,
+              context: 'http_login',
+              extra: {
+                'endpoint': activeBase,
+                'cookie_count': cookies.length,
+                'saved_to_db': savedToDb,
+              },
+            );
+          }
+        } on Exception catch (e) {
+          await logger.log(
+            level: 'warning',
+            subsystem: 'auth',
+            message: 'Failed to save cookies to database',
+            operationId: operationId,
+            context: 'http_login',
+            cause: e.toString(),
+          );
         }
 
         // Save to SecureStorage for persistence (works on all platforms including web)
@@ -323,7 +418,12 @@ class RuTrackerAuth {
         if (errorMessage.contains('wrong username/password')) {
           throw const AuthFailure.invalidCredentials();
         } else if (errorMessage.contains('captcha')) {
-          throw const AuthFailure('Site requires captcha verification');
+          // Pass captcha data to AuthFailure
+          throw AuthFailure.captchaRequired(
+            authResult.captchaType,
+            authResult.rutrackerCaptchaData,
+            authResult.captchaUrl,
+          );
         } else {
           throw AuthFailure('Authentication failed: $errorMessage');
         }
@@ -726,6 +826,312 @@ class RuTrackerAuth {
     }
   }
 
+  /// Attempts to log in to RuTracker with the provided credentials and captcha code.
+  ///
+  /// This method uses DirectAuthService to authenticate with captcha code.
+  ///
+  /// Returns `true` if login was successful, `false` otherwise.
+  Future<bool> loginViaHttpWithCaptcha(
+    String username,
+    String password,
+    String captchaCode,
+    RutrackerCaptchaData captchaData,
+  ) async {
+    final operationId =
+        'http_login_captcha_${DateTime.now().millisecondsSinceEpoch}';
+    final logger = StructuredLogger();
+    final startTime = DateTime.now();
+
+    // Validate input
+    if (username.trim().isEmpty ||
+        password.trim().isEmpty ||
+        captchaCode.trim().isEmpty) {
+      await logger.log(
+        level: 'warning',
+        subsystem: 'auth',
+        message: 'Login attempt with empty credentials or captcha code',
+        operationId: operationId,
+        context: 'http_login_captcha',
+        durationMs: DateTime.now().difference(startTime).inMilliseconds,
+      );
+      return false;
+    }
+
+    // Prevent concurrent login attempts
+    if (_isLoggingIn) {
+      await logger.log(
+        level: 'warning',
+        subsystem: 'auth',
+        message: 'Login already in progress, ignoring duplicate request',
+        operationId: operationId,
+        context: 'http_login_captcha',
+        durationMs: DateTime.now().difference(startTime).inMilliseconds,
+      );
+      return false;
+    }
+
+    _isLoggingIn = true;
+    try {
+      // Get active endpoint (mirror)
+      final db = AppDatabase().database;
+      final endpointManager = EndpointManager(db);
+      final activeBase = await endpointManager.getActiveEndpoint();
+      final dio = await DioClient.instance;
+
+      await logger.log(
+        level: 'info',
+        subsystem: 'auth',
+        message: 'Direct HTTP login with captcha started',
+        operationId: operationId,
+        context: 'http_login_captcha',
+        extra: {
+          'base_url': activeBase,
+          'username_length': username.length,
+          'captcha_code_length': captchaCode.length,
+        },
+      );
+
+      // Use DirectAuthService for authentication with captcha
+      final authService = DirectAuthService(dio);
+      final authResult = await authService.authenticateWithCaptcha(
+        username,
+        password,
+        activeBase,
+        captchaCode,
+        captchaData,
+      );
+
+      if (authResult.success && authResult.cookieString != null) {
+        // Save cookie using SimpleCookieManager
+        final cookieJar = await _getCookieJar(dio);
+        await _cookieManager.saveCookie(
+          authResult.cookieString!,
+          activeBase,
+          cookieJar,
+        );
+
+        // CRITICAL: Save cookies to database FIRST - this is the primary storage
+        try {
+          final uri = Uri.parse(activeBase);
+          final cookies = await cookieJar.loadForRequest(uri);
+          if (cookies.isNotEmpty) {
+            final cookieHeader =
+                cookies.map((c) => '${c.name}=${c.value}').join('; ');
+
+            // Save to database - most reliable storage
+            final cookieDbService = CookieDatabaseService(AppDatabase());
+            final savedToDb =
+                await cookieDbService.saveCookies(activeBase, cookieHeader);
+
+            await logger.log(
+              level: savedToDb ? 'info' : 'warning',
+              subsystem: 'auth',
+              message: savedToDb
+                  ? 'Cookies saved to database after captcha login'
+                  : 'Failed to save cookies to database after captcha login',
+              operationId: operationId,
+              context: 'http_login_captcha',
+              extra: {
+                'endpoint': activeBase,
+                'cookie_count': cookies.length,
+                'cookie_names': cookies.map((c) => c.name).toList(),
+                'saved_to_db': savedToDb,
+                'has_bb_session': cookieHeader.contains('bb_session='),
+                'has_bb_data': cookieHeader.contains('bb_data='),
+              },
+            );
+          }
+        } on Exception catch (e) {
+          await logger.log(
+            level: 'warning',
+            subsystem: 'auth',
+            message: 'Failed to save cookies to database',
+            operationId: operationId,
+            context: 'http_login_captcha',
+            cause: e.toString(),
+          );
+        }
+
+        // CRITICAL: Also save to CookieService (Android CookieManager)
+        if (!kIsWeb) {
+          try {
+            final uri = Uri.parse(activeBase);
+            final cookies = await cookieJar.loadForRequest(uri);
+            if (cookies.isNotEmpty) {
+              final cookieHeader =
+                  cookies.map((c) => '${c.name}=${c.value}').join('; ');
+
+              await logger.log(
+                level: 'info',
+                subsystem: 'auth',
+                message: 'Syncing cookies to CookieService',
+                operationId: operationId,
+                context: 'http_login_captcha',
+                extra: {
+                  'endpoint': activeBase,
+                  'cookie_count': cookies.length,
+                },
+              );
+
+              await DioClient.syncCookiesFromCookieService(
+                  cookieHeader, activeBase);
+
+              await logger.log(
+                level: 'info',
+                subsystem: 'auth',
+                message: 'Cookies synced to CookieService',
+                operationId: operationId,
+                context: 'http_login_captcha',
+                extra: {
+                  'cookie_count': cookies.length,
+                  'cookie_names': cookies.map((c) => c.name).toList(),
+                },
+              );
+            }
+          } on Exception catch (e) {
+            await logger.log(
+              level: 'warning',
+              subsystem: 'auth',
+              message: 'Failed to sync cookies to CookieService',
+              operationId: operationId,
+              context: 'http_login_captcha',
+              cause: e.toString(),
+            );
+          }
+        }
+
+        // Save to SecureStorage
+        try {
+          final uri = Uri.parse(activeBase);
+          final cookies = await cookieJar.loadForRequest(uri);
+          if (cookies.isNotEmpty) {
+            final cookieHeader =
+                cookies.map((c) => '${c.name}=${c.value}').join('; ');
+
+            await logger.log(
+              level: 'info',
+              subsystem: 'auth',
+              message: 'Saving cookies to SecureStorage',
+              operationId: operationId,
+              context: 'http_login_captcha',
+            );
+
+            await DioClient.saveCookiesToSecureStorage(
+                cookieHeader, activeBase);
+
+            await logger.log(
+              level: 'info',
+              subsystem: 'auth',
+              message: 'Cookies saved to SecureStorage',
+              operationId: operationId,
+              context: 'http_login_captcha',
+              extra: {
+                'cookie_count': cookies.length,
+                'platform': kIsWeb ? 'web' : 'android',
+              },
+            );
+          }
+        } on Exception catch (e) {
+          await logger.log(
+            level: 'warning',
+            subsystem: 'auth',
+            message: 'Failed to save cookies to SecureStorage',
+            operationId: operationId,
+            context: 'http_login_captcha',
+            cause: e.toString(),
+          );
+        }
+
+        // Validate authentication
+        final isValid =
+            await _validateAuthentication(dio, activeBase, operationId);
+
+        final totalDuration =
+            DateTime.now().difference(startTime).inMilliseconds;
+
+        const loginSuccessful = true;
+
+        if (isValid) {
+          _authStatusController.add(true);
+          await logger.log(
+            level: 'info',
+            subsystem: 'auth',
+            message: 'Direct HTTP login with captcha successful and validated',
+            operationId: operationId,
+            context: 'http_login_captcha',
+            durationMs: totalDuration,
+            extra: {
+              'validation_passed': true,
+            },
+          );
+        } else {
+          _authStatusController.add(true);
+          await logger.log(
+            level: 'info',
+            subsystem: 'auth',
+            message:
+                'Direct HTTP login with captcha successful (cookies received, validation failed but ignored)',
+            operationId: operationId,
+            context: 'http_login_captcha',
+            durationMs: totalDuration,
+            extra: {
+              'validation_passed': false,
+            },
+          );
+        }
+
+        return loginSuccessful;
+      } else {
+        // Handle authentication errors
+        final errorMessage = authResult.errorMessage ?? 'Unknown error';
+        final totalDuration =
+            DateTime.now().difference(startTime).inMilliseconds;
+
+        await logger.log(
+          level: 'warning',
+          subsystem: 'auth',
+          message: 'Direct HTTP login with captcha failed',
+          operationId: operationId,
+          context: 'http_login_captcha',
+          durationMs: totalDuration,
+          extra: {
+            'error_message': errorMessage,
+          },
+        );
+
+        // Map error messages to AuthFailure
+        if (errorMessage.contains('wrong username/password')) {
+          throw const AuthFailure.invalidCredentials();
+        } else if (errorMessage.contains('captcha')) {
+          // Pass captcha data to AuthFailure (new captcha may be required)
+          throw AuthFailure.captchaRequired(
+            authResult.captchaType,
+            authResult.rutrackerCaptchaData,
+            authResult.captchaUrl,
+          );
+        } else {
+          throw AuthFailure('Authentication failed: $errorMessage');
+        }
+      }
+    } on AuthFailure {
+      rethrow;
+    } on Exception catch (e) {
+      final totalDuration = DateTime.now().difference(startTime).inMilliseconds;
+      await logger.log(
+        level: 'error',
+        subsystem: 'auth',
+        message: 'Direct HTTP login with captcha failed with exception',
+        operationId: operationId,
+        context: 'http_login_captcha',
+        durationMs: totalDuration,
+        cause: e.toString(),
+      );
+      throw AuthFailure('Login failed: ${e.toString()}');
+    } finally {
+      _isLoggingIn = false;
+    }
+  }
+
   /// Attempts to log in to RuTracker with the provided credentials.
   ///
   /// This method uses direct HTTP authentication (no WebView).
@@ -739,8 +1145,56 @@ class RuTrackerAuth {
   ///
   /// Throws [AuthFailure] if logout fails.
   Future<void> logout() async {
+    final operationId = 'logout_${DateTime.now().millisecondsSinceEpoch}';
+    final logger = StructuredLogger();
+    final startTime = DateTime.now();
+
     try {
+      await logger.log(
+        level: 'info',
+        subsystem: 'auth',
+        message: 'Logout started',
+        operationId: operationId,
+        context: 'logout',
+      );
+
+      // CRITICAL: Clear cookies from database FIRST - this is the primary storage
+      try {
+        final cookieDbService = CookieDatabaseService(AppDatabase());
+        final cleared = await cookieDbService.clearCookies();
+
+        await logger.log(
+          level: cleared ? 'info' : 'warning',
+          subsystem: 'auth',
+          message: cleared
+              ? 'Cookies cleared from database'
+              : 'Failed to clear cookies from database',
+          operationId: operationId,
+          context: 'logout',
+          extra: {
+            'cleared_from_db': cleared,
+          },
+        );
+      } on Exception catch (e) {
+        await logger.log(
+          level: 'warning',
+          subsystem: 'auth',
+          message: 'Failed to clear cookies from database',
+          operationId: operationId,
+          context: 'logout',
+          cause: e.toString(),
+        );
+      }
+
       // Clear session via SessionManager
+      await logger.log(
+        level: 'info',
+        subsystem: 'auth',
+        message: 'Clearing session via SessionManager',
+        operationId: operationId,
+        context: 'logout',
+      );
+
       await sessionManager.clearSession();
 
       // Clear cookies from SimpleCookieManager
@@ -750,9 +1204,52 @@ class RuTrackerAuth {
       final dio = await DioClient.instance;
       final cookieJar = await _getCookieJar(dio);
 
+      await logger.log(
+        level: 'info',
+        subsystem: 'auth',
+        message: 'Clearing cookies from CookieJar',
+        operationId: operationId,
+        context: 'logout',
+        extra: {
+          'endpoint': activeBase,
+        },
+      );
+
       await _cookieManager.clearCookie(activeBase, cookieJar);
+
+      // Also clear from DioClient
+      await logger.log(
+        level: 'info',
+        subsystem: 'auth',
+        message: 'Clearing cookies from DioClient',
+        operationId: operationId,
+        context: 'logout',
+      );
+
+      await DioClient.clearCookies();
+
       _authStatusController.add(false);
-    } on Exception {
+
+      final duration = DateTime.now().difference(startTime).inMilliseconds;
+      await logger.log(
+        level: 'info',
+        subsystem: 'auth',
+        message: 'Logout completed successfully',
+        operationId: operationId,
+        context: 'logout',
+        durationMs: duration,
+      );
+    } on Exception catch (e) {
+      final duration = DateTime.now().difference(startTime).inMilliseconds;
+      await logger.log(
+        level: 'error',
+        subsystem: 'auth',
+        message: 'Logout failed',
+        operationId: operationId,
+        context: 'logout',
+        durationMs: duration,
+        cause: e.toString(),
+      );
       throw const AuthFailure('Logout failed');
     }
   }

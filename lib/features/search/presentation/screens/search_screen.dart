@@ -20,6 +20,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:jabook/core/auth/cookie_database_service.dart';
 import 'package:jabook/core/auth/simple_cookie_manager.dart';
 import 'package:jabook/core/cache/rutracker_cache_service.dart';
 import 'package:jabook/core/constants/category_constants.dart';
@@ -536,12 +537,78 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     );
 
     // CRITICAL: Comprehensive cookie synchronization before search
-    // Sync cookies from all sources (CookieService, SecureStorage, CookieJar) to ensure availability
+    // Sync cookies from all sources (Database, CookieService, SecureStorage, CookieJar) to ensure availability
     final syncStartTime = DateTime.now();
     var syncSuccessCount = 0;
     final syncSourceDetails = <String, dynamic>{};
 
-    // Step 1: Sync from CookieService (Android CookieManager) - primary source
+    // Step 0: Try to get cookies from database FIRST - this is the most reliable source
+    try {
+      await structuredLogger.log(
+        level: 'info',
+        subsystem: 'search',
+        message: 'Getting cookies from database before search',
+        context: 'search_request',
+        extra: {
+          'active_endpoint': activeEndpoint,
+        },
+      );
+
+      final cookieDbService = CookieDatabaseService(AppDatabase());
+      final cookieHeader =
+          await cookieDbService.getCookiesForAnyEndpoint(activeEndpoint);
+
+      if (cookieHeader != null && cookieHeader.isNotEmpty) {
+        // Check for required session cookies
+        final hasBbSession = cookieHeader.contains('bb_session=');
+        final hasBbData = cookieHeader.contains('bb_data=');
+
+        // Sync cookies to Dio CookieJar
+        await DioClient.syncCookiesFromCookieService(
+            cookieHeader, activeEndpoint);
+        syncSuccessCount++;
+
+        await structuredLogger.log(
+          level: 'info',
+          subsystem: 'search',
+          message: 'Cookies synced from database before search',
+          context: 'search_request',
+          extra: {
+            'active_endpoint': activeEndpoint,
+            'cookie_header_length': cookieHeader.length,
+            'has_bb_session': hasBbSession,
+            'has_bb_data': hasBbData,
+            'has_required_cookies': hasBbSession || hasBbData,
+          },
+        );
+
+        syncSourceDetails['Database'] = {
+          'success': true,
+          'cookie_count': cookieHeader.split(';').length,
+          'has_bb_session': hasBbSession,
+          'has_bb_data': hasBbData,
+        };
+      } else {
+        syncSourceDetails['Database'] = {
+          'success': false,
+          'reason': 'no_cookies_found',
+        };
+      }
+    } on Exception catch (e) {
+      await structuredLogger.log(
+        level: 'warning',
+        subsystem: 'search',
+        message: 'Failed to sync cookies from database',
+        context: 'search_request',
+        cause: e.toString(),
+      );
+      syncSourceDetails['Database'] = {
+        'success': false,
+        'error': e.toString(),
+      };
+    }
+
+    // Step 1: Sync from CookieService (Android CookieManager) - fallback source
     try {
       final activeHost = Uri.parse(activeEndpoint).host;
       final url = 'https://$activeHost';

@@ -33,6 +33,7 @@ import 'package:jabook/core/metadata/metadata_sync_scheduler.dart';
 import 'package:jabook/core/net/dio_client.dart';
 import 'package:jabook/core/permissions/permission_service.dart';
 import 'package:jabook/core/player/player_state_provider.dart';
+import 'package:jabook/core/session/session_manager.dart';
 import 'package:jabook/core/utils/file_picker_utils.dart' as file_picker_utils;
 import 'package:jabook/core/utils/storage_path_utils.dart';
 import 'package:jabook/data/db/app_database.dart';
@@ -456,19 +457,27 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             subtitle: Text(AppLocalizations.of(context)?.clearSessionSubtitle ??
                 'Delete saved cookies and logout from account'),
             onTap: () async {
-              // Clear cookies in Dio and secure storage
+              // Clear session using SessionManager
               final messenger = ScaffoldMessenger.of(context);
               final localizations = AppLocalizations.of(context);
-              await DioClient.clearCookies();
-              final prefs = await SharedPreferences.getInstance();
-              await prefs.remove('rutracker_cookies_v1');
-              await prefs.remove('rutracker_cookie_string');
-              if (mounted) {
-                messenger.showSnackBar(
-                  SnackBar(
-                      content: Text(localizations?.sessionClearedMessage ??
-                          'RuTracker session cleared')),
-                );
+              try {
+                final sessionManager = SessionManager();
+                await sessionManager.clearSession();
+                if (mounted) {
+                  messenger.showSnackBar(
+                    SnackBar(
+                        content: Text(localizations?.sessionClearedMessage ??
+                            'RuTracker session cleared')),
+                  );
+                }
+              } on Exception catch (e) {
+                if (mounted) {
+                  messenger.showSnackBar(
+                    SnackBar(
+                      content: Text('Error clearing session: ${e.toString()}'),
+                    ),
+                  );
+                }
               }
             },
           ),

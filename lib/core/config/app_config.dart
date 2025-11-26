@@ -172,9 +172,9 @@ class AppConfig {
       case 'dev':
         return true;
       case 'stage':
-        return false;
+        return true;
       case 'beta':
-        return false;
+        return true;
       case 'prod':
         return false;
       default:

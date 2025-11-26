@@ -15,9 +15,11 @@
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
+import 'package:jabook/core/auth/captcha_detector.dart';
 import 'package:jabook/core/auth/cp1251_encoder.dart';
 import 'package:jabook/core/errors/failures.dart';
 import 'package:jabook/core/logging/structured_logger.dart';
+import 'package:jabook/core/net/user_agent_manager.dart';
 import 'package:windows1251/windows1251.dart';
 
 /// Result of authentication attempt.
@@ -27,6 +29,9 @@ class AuthResult {
     required this.success,
     this.cookieString,
     this.errorMessage,
+    this.captchaType,
+    this.rutrackerCaptchaData,
+    this.captchaUrl,
   });
 
   /// Whether authentication was successful.
@@ -37,6 +42,15 @@ class AuthResult {
 
   /// Error message if authentication failed.
   final String? errorMessage;
+
+  /// Type of captcha required (if any).
+  final CaptchaType? captchaType;
+
+  /// RuTracker captcha data (if captchaType is rutracker).
+  final RutrackerCaptchaData? rutrackerCaptchaData;
+
+  /// URL for CloudFlare challenge (if captchaType is cloudflare).
+  final String? captchaUrl;
 }
 
 /// Service for direct HTTP authentication with RuTracker.
@@ -69,6 +83,10 @@ class DirectAuthService {
     final startTime = DateTime.now();
 
     try {
+      // CRITICAL: Get User Agent from WebView
+      final userAgentManager = UserAgentManager();
+      final userAgent = await userAgentManager.getUserAgent();
+
       await logger.log(
         level: 'info',
         subsystem: 'auth',
@@ -79,16 +97,52 @@ class DirectAuthService {
           'base_url': baseUrl,
           'username_length': username.length,
           'password_length': password.length,
+          'user_agent': userAgent,
+          'user_agent_length': userAgent.length,
+        },
+      );
+
+      await logger.log(
+        level: 'warning', // Changed to 'warning' for visibility in release mode
+        subsystem: 'auth',
+        message: 'User Agent obtained for authentication request',
+        operationId: operationId,
+        context: 'direct_auth',
+        extra: {
+          'user_agent': userAgent,
+          'user_agent_length': userAgent.length,
         },
       );
 
       // Step 1: Encode credentials to CP1251
+      await logger.log(
+        level: 'info',
+        subsystem: 'auth',
+        message: 'Starting credential encoding to CP1251',
+        operationId: operationId,
+        context: 'direct_auth',
+      );
+
       final encodeStartTime = DateTime.now();
       final usernameBytes = Cp1251Encoder.encodeToCp1251(username);
       final passwordBytes = Cp1251Encoder.encodeToCp1251(password);
       final loginButtonBytes = Cp1251Encoder.loginButtonBytes;
       final encodeDuration =
           DateTime.now().difference(encodeStartTime).inMilliseconds;
+
+      await logger.log(
+        level: 'info',
+        subsystem: 'auth',
+        message: 'Credential encoding completed',
+        operationId: operationId,
+        context: 'direct_auth',
+        durationMs: encodeDuration,
+        extra: {
+          'username_bytes_length': usernameBytes.length,
+          'password_bytes_length': passwordBytes.length,
+          'login_button_bytes_length': loginButtonBytes.length,
+        },
+      );
 
       await logger.log(
         level: 'debug',
@@ -141,12 +195,13 @@ class DirectAuthService {
       await logger.log(
         level: 'debug',
         subsystem: 'auth',
-        message: 'Sending authentication request',
+        message: 'Sending authentication request with User Agent',
         operationId: operationId,
         context: 'direct_auth',
         extra: {
           'url': loginUrl,
           'method': 'POST',
+          'user_agent': userAgent,
         },
       );
 
@@ -165,6 +220,7 @@ class DirectAuthService {
             'Accept-Encoding': 'gzip,deflate',
             'Referer': '$baseUrl/forum/index.php',
             'Connection': 'keep-alive',
+            'User-Agent': userAgent, // CRITICAL: Use User Agent from WebView
           },
         ),
       );
@@ -188,7 +244,7 @@ class DirectAuthService {
       await logger.log(
         level: 'info', // Changed to 'info' to ensure it's logged
         subsystem: 'auth',
-        message: 'Authentication request completed',
+        message: 'Authentication request completed with User Agent',
         operationId: operationId,
         context: 'direct_auth',
         durationMs: requestDuration,
@@ -201,7 +257,10 @@ class DirectAuthService {
               setCookieHeaders != null && setCookieHeaders.isNotEmpty,
           'set_cookie_headers_count': setCookieHeaders?.length ?? 0,
           'all_response_headers': allHeaders,
-          'set_cookie_headers': setCookieHeaders?.toList() ?? [],
+          // Don't log cookie headers - they are sensitive
+          'user_agent': userAgent,
+          'user_agent_applied':
+              true, // Confirmation that User Agent was applied
         },
       );
 
@@ -217,13 +276,7 @@ class DirectAuthService {
         context: 'direct_auth',
         extra: {
           'set_cookie_headers_count': setCookieHeaders?.length ?? 0,
-          'set_cookie_headers_preview': setCookieHeaders != null &&
-                  setCookieHeaders.isNotEmpty
-              ? setCookieHeaders
-                  .map((h) => h.length > 100 ? '${h.substring(0, 100)}...' : h)
-                  .toList()
-              : <String>[],
-          'set_cookie_headers_full': setCookieHeaders?.toList() ?? [],
+          // Don't log cookie headers - they are sensitive
         },
       );
 
@@ -242,9 +295,9 @@ class DirectAuthService {
         extra: {
           'cookie_found': cookieString != null,
           'cookie_length': cookieString?.length ?? 0,
-          'cookie_preview': cookieString != null && cookieString.length > 50
-              ? '${cookieString.substring(0, 50)}...'
-              : cookieString,
+          'cookie_count':
+              cookieString != null ? cookieString.split(';').length : 0,
+          // Don't log cookie values - they are sensitive
         },
       );
 
@@ -284,6 +337,28 @@ class DirectAuthService {
       final errorCheckDuration =
           DateTime.now().difference(errorCheckStartTime).inMilliseconds;
 
+      // Step 6: Extract captcha data if captcha is required
+      Map<String, dynamic>? captchaData;
+      if (errorMessage == 'site want captcha') {
+        final captchaExtractStartTime = DateTime.now();
+        captchaData = await _extractCaptchaData(response, baseUrl);
+        final captchaExtractDuration =
+            DateTime.now().difference(captchaExtractStartTime).inMilliseconds;
+
+        await logger.log(
+          level: 'info',
+          subsystem: 'auth',
+          message: 'Captcha data extracted',
+          operationId: operationId,
+          context: 'direct_auth',
+          durationMs: captchaExtractDuration,
+          extra: {
+            'has_captcha_data': captchaData != null,
+            'captcha_type': captchaData?['type']?.toString(),
+          },
+        );
+      }
+
       final totalDuration = DateTime.now().difference(startTime).inMilliseconds;
 
       await logger.log(
@@ -296,6 +371,7 @@ class DirectAuthService {
         extra: {
           'error_message': errorMessage,
           'status_code': response.statusCode,
+          'has_captcha_data': captchaData != null,
           'steps': {
             'encode_ms': encodeDuration,
             'form_data_ms': formDataDuration,
@@ -309,6 +385,10 @@ class DirectAuthService {
       return AuthResult(
         success: false,
         errorMessage: errorMessage,
+        captchaType: captchaData?['type'] as CaptchaType?,
+        rutrackerCaptchaData:
+            captchaData?['rutrackerData'] as RutrackerCaptchaData?,
+        captchaUrl: captchaData?['url'] as String?,
       );
     } on DioException catch (e) {
       final duration = DateTime.now().difference(startTime).inMilliseconds;
@@ -349,6 +429,187 @@ class DirectAuthService {
     }
   }
 
+  /// Authenticates with RuTracker using direct HTTP POST request with captcha code.
+  ///
+  /// Similar to [authenticate], but includes captcha code in the request.
+  /// The [captchaCode] is the code entered by the user.
+  /// The [rutrackerCaptchaData] contains captcha session data from previous attempt.
+  Future<AuthResult> authenticateWithCaptcha(
+    String username,
+    String password,
+    String baseUrl,
+    String captchaCode,
+    RutrackerCaptchaData rutrackerCaptchaData,
+  ) async {
+    final operationId =
+        'direct_auth_captcha_${DateTime.now().millisecondsSinceEpoch}';
+    final logger = StructuredLogger();
+    final startTime = DateTime.now();
+
+    try {
+      // CRITICAL: Get User Agent from WebView
+      final userAgentManager = UserAgentManager();
+      final userAgent = await userAgentManager.getUserAgent();
+
+      await logger.log(
+        level: 'info',
+        subsystem: 'auth',
+        message: 'Direct authentication with captcha started',
+        operationId: operationId,
+        context: 'direct_auth_captcha',
+        extra: {
+          'base_url': baseUrl,
+          'username_length': username.length,
+          'password_length': password.length,
+          'captcha_code_length': captchaCode.length,
+          'user_agent': userAgent,
+        },
+      );
+
+      // Step 1: Encode credentials to CP1251
+      final usernameBytes = Cp1251Encoder.encodeToCp1251(username);
+      final passwordBytes = Cp1251Encoder.encodeToCp1251(password);
+      final loginButtonBytes = Cp1251Encoder.loginButtonBytes;
+      final captchaCodeBytes = Cp1251Encoder.encodeToCp1251(captchaCode);
+
+      // Step 2: Build form data with captcha
+      final formData = _buildFormDataWithCaptcha(
+        usernameBytes: usernameBytes,
+        passwordBytes: passwordBytes,
+        loginButtonBytes: loginButtonBytes,
+        captchaCodeBytes: captchaCodeBytes,
+        capSid: rutrackerCaptchaData.capSid,
+        capCodeFieldName: rutrackerCaptchaData.capCodeFieldName,
+      );
+
+      await logger.log(
+        level: 'debug',
+        subsystem: 'auth',
+        message: 'Form data with captcha built',
+        operationId: operationId,
+        context: 'direct_auth_captcha',
+        extra: {
+          'form_data_length': formData.length,
+          'cap_sid': rutrackerCaptchaData.capSid,
+          'cap_code_field': rutrackerCaptchaData.capCodeFieldName,
+        },
+      );
+
+      // Step 3: Send POST request
+      final loginUrl = '$baseUrl/forum/login.php';
+
+      final response = await _dio.post(
+        loginUrl,
+        data: formData,
+        options: Options(
+          validateStatus: (status) => status != null && status < 600,
+          followRedirects: false,
+          headers: {
+            'Content-Type':
+                'application/x-www-form-urlencoded; charset=windows-1251',
+            'Accept':
+                'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'ru,en-US;q=0.8,en;q=0.6',
+            'Accept-Encoding': 'gzip,deflate',
+            'Referer': '$baseUrl/forum/index.php',
+            'Connection': 'keep-alive',
+            'User-Agent': userAgent,
+          },
+        ),
+      );
+
+      // Step 4: Extract and validate cookies
+      final cookieString = _extractCookie(response);
+
+      if (cookieString != null) {
+        // Success: cookies found
+        await logger.log(
+          level: 'info',
+          subsystem: 'auth',
+          message: 'Authentication with captcha successful',
+          operationId: operationId,
+          context: 'direct_auth_captcha',
+          durationMs: DateTime.now().difference(startTime).inMilliseconds,
+          extra: {
+            'cookie_length': cookieString.length,
+            'status_code': response.statusCode,
+          },
+        );
+
+        return AuthResult(
+          success: true,
+          cookieString: cookieString,
+        );
+      }
+
+      // Step 5: Check for errors
+      final errorMessage = _checkForErrors(response);
+
+      // If captcha is still required, extract new captcha data
+      Map<String, dynamic>? captchaData;
+      if (errorMessage == 'site want captcha') {
+        captchaData = await _extractCaptchaData(response, baseUrl);
+      }
+
+      final totalDuration = DateTime.now().difference(startTime).inMilliseconds;
+
+      await logger.log(
+        level: 'warning',
+        subsystem: 'auth',
+        message: 'Authentication with captcha failed',
+        operationId: operationId,
+        context: 'direct_auth_captcha',
+        durationMs: totalDuration,
+        extra: {
+          'error_message': errorMessage,
+          'status_code': response.statusCode,
+          'has_new_captcha_data': captchaData != null,
+        },
+      );
+
+      return AuthResult(
+        success: false,
+        errorMessage: errorMessage,
+        captchaType: captchaData?['type'] as CaptchaType?,
+        rutrackerCaptchaData:
+            captchaData?['rutrackerData'] as RutrackerCaptchaData?,
+        captchaUrl: captchaData?['url'] as String?,
+      );
+    } on DioException catch (e) {
+      final duration = DateTime.now().difference(startTime).inMilliseconds;
+      await StructuredLogger().log(
+        level: 'error',
+        subsystem: 'auth',
+        message: 'Network error during authentication with captcha',
+        operationId: operationId,
+        context: 'direct_auth_captcha',
+        durationMs: duration,
+        cause: e.toString(),
+      );
+
+      if (e.type == DioExceptionType.connectionTimeout ||
+          e.type == DioExceptionType.receiveTimeout) {
+        throw const AuthFailure(
+            'Request timeout. Please check your connection.');
+      }
+
+      throw AuthFailure('Network error: ${e.message}');
+    } on Exception catch (e) {
+      final duration = DateTime.now().difference(startTime).inMilliseconds;
+      await StructuredLogger().log(
+        level: 'error',
+        subsystem: 'auth',
+        message: 'Unexpected error during authentication with captcha',
+        operationId: operationId,
+        context: 'direct_auth_captcha',
+        durationMs: duration,
+        cause: e.toString(),
+      );
+
+      throw AuthFailure('Authentication failed: ${e.toString()}');
+    }
+  }
+
   /// Builds form data string with CP1251-encoded values.
   ///
   /// The form data is URL-encoded but uses CP1251 bytes for values.
@@ -367,6 +628,33 @@ class DirectAuthService {
     return 'login_username=$usernameEncoded'
         '&login_password=$passwordEncoded'
         '&login=$loginEncoded';
+  }
+
+  /// Builds form data string with CP1251-encoded values including captcha.
+  ///
+  /// Format: login_username=...&login_password=...&login=...&cap_sid=...&cap_code_*=...
+  String _buildFormDataWithCaptcha({
+    required List<int> usernameBytes,
+    required List<int> passwordBytes,
+    required List<int> loginButtonBytes,
+    required List<int> captchaCodeBytes,
+    required String capSid,
+    required String capCodeFieldName,
+  }) {
+    final usernameEncoded = _percentEncode(usernameBytes);
+    final passwordEncoded = _percentEncode(passwordBytes);
+    final loginEncoded = _percentEncode(loginButtonBytes);
+    final captchaCodeEncoded = _percentEncode(captchaCodeBytes);
+
+    // URL encode cap_sid and cap_code field name
+    final capSidEncoded = Uri.encodeComponent(capSid);
+    final capCodeFieldEncoded = Uri.encodeComponent(capCodeFieldName);
+
+    return 'login_username=$usernameEncoded'
+        '&login_password=$passwordEncoded'
+        '&login=$loginEncoded'
+        '&cap_sid=$capSidEncoded'
+        '&$capCodeFieldEncoded=$captchaCodeEncoded';
   }
 
   /// Percent-encodes a list of bytes.
@@ -448,9 +736,20 @@ class DirectAuthService {
   /// In Python parser, errors are checked by searching for CP1251-encoded error strings
   /// in the response content. We decode the response and check for error patterns.
   String? _checkForErrors(Response response) {
+    // Check if we have cookies - if yes, no error (successful auth)
+    final hasCookies = _extractCookie(response) != null;
+
+    // IMPORTANT: Based on HAR file analysis, RuTracker returns:
+    // - Status 200 with no cookies = authentication failed (error page with HTML)
+    // - Status 302 with cookies = authentication successful
+    // - Status 302 without cookies = authentication failed (redirect to login)
+    // If status 200 and no cookies - this is an error page (not a redirect)
+    // RuTracker shows error page with status 200 when auth fails (including captcha)
+    // We need to check the response body for specific error messages below
+
     // If 302 redirect but no cookies, check for error messages
     // In Python parser: 302 without cookies = authentication failed
-    if (response.statusCode == 302) {
+    if (response.statusCode == 302 && !hasCookies) {
       // Check location header - if redirects to login, it's an error
       final location = response.headers.value('location') ?? '';
       if (location.contains('login.php')) {
@@ -498,32 +797,106 @@ class DirectAuthService {
 
     final lowerBody = bodyText.toLowerCase();
 
-    // Check for "wrong password" error
+    // Check for "wrong password" error FIRST (has priority over captcha)
+    // Use more specific patterns to avoid false positives
     // Pattern: "неверный пароль" or variations
-    if (lowerBody.contains('неверный пароль') ||
-        lowerBody.contains('неверн') ||
+    final hasWrongPassword = lowerBody.contains('неверный пароль') ||
         lowerBody.contains('неправильный пароль') ||
-        lowerBody.contains('неправильн') ||
         lowerBody.contains('wrong password') ||
         lowerBody.contains('invalid password') ||
-        lowerBody.contains('неверное имя') ||
-        lowerBody.contains('неверное имя пользователя')) {
+        lowerBody.contains('неверное имя пользователя') ||
+        lowerBody.contains('неверное имя');
+
+    // Check for captcha requirement
+    // Use more specific patterns to avoid false positives with wrong password messages
+    // Pattern: "введите код подтверждения" or variations
+    final hasCaptcha = (lowerBody.contains('введите код подтверждения') ||
+            lowerBody.contains('код подтверждения') ||
+            (lowerBody.contains('код') &&
+                lowerBody.contains('подтверждени'))) &&
+        !hasWrongPassword; // Don't treat as captcha if there's a wrong password error
+
+    // Priority: wrong password > captcha
+    if (hasWrongPassword) {
       return 'wrong username/password';
     }
 
-    // Check for captcha requirement
-    // Pattern: "введите код подтверждения" or variations
-    if (lowerBody.contains('введите код подтверждения') ||
-        lowerBody.contains('код подтверждения') ||
-        lowerBody.contains('код') && lowerBody.contains('подтверждени') ||
-        lowerBody.contains('captcha') ||
-        lowerBody.contains('капча') ||
-        lowerBody.contains('подтверждения')) {
+    if (hasCaptcha ||
+        (lowerBody.contains('captcha') && !hasWrongPassword) ||
+        (lowerBody.contains('капча') && !hasWrongPassword)) {
       return 'site want captcha';
     }
 
     // If no cookie and no specific error, return generic message
     // This matches Python parser behavior: 'no cookies returned'
     return 'no cookies returned';
+  }
+
+  /// Extracts captcha information from response if captcha is required.
+  ///
+  /// Returns captcha type and data if found, null otherwise.
+  Future<Map<String, dynamic>?> _extractCaptchaData(
+    Response response,
+    String baseUrl,
+  ) async {
+    final errorMessage = _checkForErrors(response);
+    if (errorMessage != 'site want captcha') {
+      return null;
+    }
+
+    try {
+      // Decode response body
+      String htmlBody;
+      final responseBody = response.data;
+      if (responseBody is String) {
+        htmlBody = responseBody;
+      } else if (responseBody is List<int>) {
+        try {
+          htmlBody = windows1251.decode(responseBody);
+        } on Exception {
+          try {
+            htmlBody = utf8.decode(responseBody);
+          } on FormatException {
+            htmlBody = String.fromCharCodes(responseBody);
+          }
+        }
+      } else {
+        htmlBody = responseBody.toString();
+      }
+
+      // Detect captcha type
+      final captchaType = await CaptchaDetector.detectType(htmlBody);
+
+      if (captchaType == CaptchaType.rutracker) {
+        // Extract RuTracker captcha data
+        final captchaData = await CaptchaDetector.extractRutrackerCaptcha(
+          responseBody,
+          baseUrl,
+        );
+
+        if (captchaData != null) {
+          return {
+            'type': captchaType,
+            'rutrackerData': captchaData,
+          };
+        }
+      } else if (captchaType == CaptchaType.cloudflare) {
+        // For CloudFlare, return the login URL
+        return {
+          'type': captchaType,
+          'url': '$baseUrl/forum/login.php',
+        };
+      }
+    } on Exception catch (e) {
+      await StructuredLogger().log(
+        level: 'warning',
+        subsystem: 'auth',
+        message: 'Failed to extract captcha data',
+        context: 'direct_auth',
+        cause: e.toString(),
+      );
+    }
+
+    return null;
   }
 }

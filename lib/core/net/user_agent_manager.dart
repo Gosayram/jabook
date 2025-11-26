@@ -16,8 +16,10 @@ import 'dart:io';
 
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:jabook/core/logging/environment_logger.dart';
+import 'package:jabook/core/logging/structured_logger.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sembast/sembast_io.dart';
+import 'package:webview_flutter/webview_flutter.dart';
 
 /// Manages User-Agent synchronization between WebView and HTTP requests.
 ///
@@ -76,51 +78,199 @@ class UserAgentManager {
   /// Database instance for storing User-Agent data.
   Database? _db;
 
-  /// Gets the current User-Agent string.
+  /// Extracts User Agent from WebView through JavaScript.
   ///
-  /// Priority order (inspired by lissen-android approach):
-  /// 1. Generate dynamic User-Agent based on device's Android version (preferred)
-  /// 2. Try to get stored User-Agent from the database (if not force refresh)
-  /// 3. Extract from WebView if available (fallback)
-  /// 4. Fall back to generated dynamic User-Agent
-  ///
-  /// The dynamic approach is preferred because it:
-  /// - Always uses the correct Android version for the device
-  /// - Doesn't require creating a temporary WebView
-  /// - Is faster and more reliable
-  /// - Matches the approach used in lissen-android
-  Future<String> getUserAgent({bool forceRefresh = false}) async {
+  /// This provides a real browser User Agent with unique device characteristics.
+  /// This is the preferred method as it gives legitimate User Agent that CloudFlare accepts.
+  Future<String?> _extractUserAgentFromWebView() async {
+    final operationId = 'extract_ua_${DateTime.now().millisecondsSinceEpoch}';
+    final logger = StructuredLogger();
+    final startTime = DateTime.now();
+
     try {
-      // First, try to generate dynamic User-Agent (inspired by lissen-android)
-      // This is the preferred approach as it's faster and always accurate
-      final dynamicUa = await _generateDynamicUserAgent();
+      await logger.log(
+        level: 'warning', // Changed to 'warning' for visibility in release mode
+        subsystem: 'user_agent',
+        message: 'Starting User Agent extraction from WebView',
+        operationId: operationId,
+        context: 'ua_extraction',
+      );
 
-      // If force refresh, always use dynamic User-Agent
-      if (forceRefresh) {
-        await _storeUserAgent(dynamicUa);
-        return dynamicUa;
+      final controller = WebViewController();
+      await controller.setJavaScriptMode(JavaScriptMode.unrestricted);
+
+      String? userAgent;
+
+      await controller.addJavaScriptChannel(
+        'UserAgentChannel',
+        onMessageReceived: (message) {
+          userAgent = message.message;
+        },
+      );
+
+      await controller.loadHtmlString('''
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        </head>
+        <body>
+            <script>
+                UserAgentChannel.postMessage(navigator.userAgent);
+            </script>
+        </body>
+        </html>
+      ''');
+
+      // Wait for User-Agent extraction with timeout
+      await Future.delayed(const Duration(seconds: 2));
+
+      final duration = DateTime.now().difference(startTime).inMilliseconds;
+
+      if (userAgent != null && userAgent!.isNotEmpty) {
+        await logger.log(
+          level:
+              'warning', // Changed to 'warning' for visibility in release mode
+          subsystem: 'user_agent',
+          message: 'User Agent successfully extracted from WebView',
+          operationId: operationId,
+          context: 'ua_extraction',
+          durationMs: duration,
+          extra: {
+            'user_agent': userAgent,
+            'user_agent_length': userAgent!.length,
+            'source': 'webview',
+          },
+        );
+        return userAgent;
+      } else {
+        await logger.log(
+          level: 'warning',
+          subsystem: 'user_agent',
+          message: 'Failed to extract User Agent from WebView (empty result)',
+          operationId: operationId,
+          context: 'ua_extraction',
+          durationMs: duration,
+        );
+        return null;
       }
+    } on Exception catch (e) {
+      final duration = DateTime.now().difference(startTime).inMilliseconds;
+      await logger.log(
+        level: 'error',
+        subsystem: 'user_agent',
+        message: 'Failed to extract User Agent from WebView',
+        operationId: operationId,
+        context: 'ua_extraction',
+        durationMs: duration,
+        cause: e.toString(),
+      );
+      return null;
+    }
+  }
 
-      // Try to get stored User-Agent from database
+  /// Gets the current User-Agent string with proper priority.
+  ///
+  /// Priority order (CRITICAL: WebView first to avoid CloudFlare botnet detection):
+  /// 1. Use stored User-Agent from database (if not force refresh)
+  ///    - Usually User-Agent doesn't change for a device, so we cache it
+  /// 2. Extract from WebView (as it was in version 1.1.4+9)
+  ///    - This gives real browser User-Agent with unique device characteristics
+  ///    - CloudFlare accepts this as legitimate
+  /// 3. Fall back to generated dynamic User-Agent
+  ///
+  /// IMPORTANT: WebView extraction is preferred over dynamic generation because:
+  /// - CloudFlare fingerprinting detects identical User-Agents as botnet
+  /// - Real User-Agent from WebView has unique device characteristics
+  /// - Each device should have unique User-Agent to avoid CloudFlare blocks
+  Future<String> getUserAgent({bool forceRefresh = false}) async {
+    final operationId = 'get_ua_${DateTime.now().millisecondsSinceEpoch}';
+    final logger = StructuredLogger();
+    final startTime = DateTime.now();
+
+    try {
       await _initializeDatabase();
-      final storedUa = await _getStoredUserAgent();
-      if (storedUa != null && storedUa.isNotEmpty) {
-        // Verify stored User-Agent is still valid (contains Chrome version)
-        if (storedUa.contains('Chrome/') && storedUa.contains('Android')) {
+
+      // PRIORITY 1: Use stored User-Agent (if not force refresh)
+      // Usually User-Agent doesn't change for a device, so we cache it
+      if (!forceRefresh) {
+        final storedUa = await _getStoredUserAgent();
+        if (storedUa != null && storedUa.isNotEmpty) {
+          await logger.log(
+            level:
+                'warning', // Changed to 'warning' for visibility in release mode
+            subsystem: 'user_agent',
+            message: 'Using stored User Agent from database',
+            operationId: operationId,
+            context: 'ua_get',
+            durationMs: DateTime.now().difference(startTime).inMilliseconds,
+            extra: {
+              'user_agent': storedUa,
+              'source': 'database',
+            },
+          );
           return storedUa;
         }
-        // If stored User-Agent is invalid, regenerate and store
-        await _storeUserAgent(dynamicUa);
-        return dynamicUa;
       }
 
-      // Store and return dynamic User-Agent
-      await _storeUserAgent(dynamicUa);
-      return dynamicUa;
+      // PRIORITY 2: Extract from WebView (as it was in version 1.1.4+9)
+      // This gives real browser User-Agent with unique device characteristics
+      final webViewUa = await _extractUserAgentFromWebView();
+      if (webViewUa != null && webViewUa.isNotEmpty) {
+        await _storeUserAgent(webViewUa);
+
+        await logger.log(
+          level:
+              'warning', // Changed to 'warning' for visibility in release mode
+          subsystem: 'user_agent',
+          message: 'User Agent extracted from WebView and stored',
+          operationId: operationId,
+          context: 'ua_get',
+          durationMs: DateTime.now().difference(startTime).inMilliseconds,
+          extra: {
+            'user_agent': webViewUa,
+            'source': 'webview',
+            'stored': true,
+          },
+        );
+        return webViewUa;
+      }
+
+      // PRIORITY 3: Fallback - use dynamic generation
+      final fallbackUa = await _generateDynamicUserAgent();
+      await _storeUserAgent(fallbackUa);
+
+      await logger.log(
+        level: 'warning',
+        subsystem: 'user_agent',
+        message:
+            'Using fallback generated User Agent (WebView extraction failed)',
+        operationId: operationId,
+        context: 'ua_get',
+        durationMs: DateTime.now().difference(startTime).inMilliseconds,
+        extra: {
+          'user_agent': fallbackUa,
+          'source': 'generated',
+        },
+      );
+      return fallbackUa;
     } on Exception catch (e) {
-      EnvironmentLogger().e('Failed to get user agent: $e');
-      // Fall back to generated dynamic User-Agent
-      return _generateDynamicUserAgent();
+      final fallbackUa = await _generateDynamicUserAgent();
+      await logger.log(
+        level: 'error',
+        subsystem: 'user_agent',
+        message: 'Failed to get User Agent, using fallback',
+        operationId: operationId,
+        context: 'ua_get',
+        durationMs: DateTime.now().difference(startTime).inMilliseconds,
+        cause: e.toString(),
+        extra: {
+          'user_agent': fallbackUa,
+          'source': 'fallback',
+        },
+      );
+      return fallbackUa;
     }
   }
 

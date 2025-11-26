@@ -107,6 +107,17 @@ class AppDatabase {
   StoreRef<String, Map<String, dynamic>> get downloadsStore =>
       StoreRef('downloads');
 
+  /// Gets the cookies store.
+  ///
+  /// This store contains authentication cookies for RuTracker.
+  /// Primary key is endpoint (String, e.g., "https://rutracker.org").
+  /// Each entry contains:
+  /// - cookie_header: String - Full cookie header string
+  /// - saved_at: String - ISO 8601 timestamp when cookies were saved
+  /// - expires_at: String? - Optional ISO 8601 timestamp when cookies expire
+  StoreRef<String, Map<String, dynamic>> get cookiesStore =>
+      StoreRef('cookies');
+
   /// Closes the database connection.
   Future<void> close() async {
     if (_isInitialized && _db != null) {

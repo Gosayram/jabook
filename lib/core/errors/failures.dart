@@ -49,19 +49,55 @@ class NetworkFailure extends Failure {
 /// Authentication-related failures.
 class AuthFailure extends Failure {
   /// Creates a new [AuthFailure].
-  const AuthFailure(super.message, [super.exception]);
+  const AuthFailure(
+    super.message, [
+    super.exception,
+    this.captchaType,
+    this.rutrackerCaptchaData,
+    this.captchaUrl,
+  ]);
 
   /// Creates an authentication failure that requires user action (login).
   const AuthFailure.loginRequired([Exception? exception])
-      : super('Authentication required. Please login to RuTracker.', exception);
+      : captchaType = null,
+        rutrackerCaptchaData = null,
+        captchaUrl = null,
+        super('Authentication required. Please login to RuTracker.', exception);
 
   /// Creates an authentication failure for expired session.
   const AuthFailure.sessionExpired([Exception? exception])
-      : super('Session expired. Please login again.', exception);
+      : captchaType = null,
+        rutrackerCaptchaData = null,
+        captchaUrl = null,
+        super('Session expired. Please login again.', exception);
 
   /// Creates an authentication failure for invalid credentials.
   const AuthFailure.invalidCredentials([Exception? exception])
-      : super('Invalid username or password. Please try again.', exception);
+      : captchaType = null,
+        rutrackerCaptchaData = null,
+        captchaUrl = null,
+        super('Invalid username or password. Please try again.', exception);
+
+  /// Creates an authentication failure that requires captcha verification.
+  ///
+  /// [captchaType] indicates the type of captcha required.
+  /// [rutrackerCaptchaData] contains RuTracker captcha data if available.
+  /// [captchaUrl] contains URL for CloudFlare challenge if applicable.
+  const AuthFailure.captchaRequired(
+    this.captchaType,
+    this.rutrackerCaptchaData,
+    this.captchaUrl, [
+    Exception? exception,
+  ]) : super('Site requires captcha verification', exception);
+
+  /// Type of captcha required (if any).
+  final dynamic captchaType;
+
+  /// RuTracker captcha data (if captchaType is rutracker).
+  final dynamic rutrackerCaptchaData;
+
+  /// URL for CloudFlare challenge (if captchaType is cloudflare).
+  final String? captchaUrl;
 }
 
 /// Parsing-related failures.

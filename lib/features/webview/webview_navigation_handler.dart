@@ -61,10 +61,47 @@ class WebViewNavigationHandler {
           if (!newIsAvailable) {
             // New endpoint also not available, try fallbacks
             endpoint = await tryFallbackEndpoints(fallbackEndpoints);
+            // Validate fallback endpoint
+            final dio = await DioClient.instance;
+            try {
+              await dio
+                  .get(
+                    '$endpoint/forum/index.php',
+                    options: Options(
+                      receiveTimeout: const Duration(seconds: 5),
+                      validateStatus: (status) =>
+                          status != null && status < 500,
+                    ),
+                  )
+                  .timeout(const Duration(seconds: 5));
+            } on Exception {
+              // Fallback also failed - will be caught by outer try-catch
+              throw Exception(
+                'All RuTracker endpoints are unavailable. Please check your internet connection and try again later.',
+              );
+            }
           }
         } else {
           // Switch failed, try fallbacks
           endpoint = await tryFallbackEndpoints(fallbackEndpoints);
+          // Validate fallback endpoint
+          final dio = await DioClient.instance;
+          try {
+            await dio
+                .get(
+                  '$endpoint/forum/index.php',
+                  options: Options(
+                    receiveTimeout: const Duration(seconds: 5),
+                    validateStatus: (status) => status != null && status < 500,
+                  ),
+                )
+                .timeout(const Duration(seconds: 5));
+          } on Exception {
+            // Fallback also failed - will be caught by outer try-catch
+            throw Exception(
+              'All RuTracker endpoints are unavailable. Please check your internet connection and try again later.',
+            );
+          }
         }
       } else {
         // Endpoint is available, but do a quick DNS check to ensure it resolves
@@ -81,6 +118,24 @@ class WebViewNavigationHandler {
             extra: {'failed_endpoint': endpoint, 'error': e.toString()},
           );
           endpoint = await tryFallbackEndpoints(fallbackEndpoints);
+          // Validate fallback endpoint
+          final dio = await DioClient.instance;
+          try {
+            await dio
+                .get(
+                  '$endpoint/forum/index.php',
+                  options: Options(
+                    receiveTimeout: const Duration(seconds: 5),
+                    validateStatus: (status) => status != null && status < 500,
+                  ),
+                )
+                .timeout(const Duration(seconds: 5));
+          } on Exception {
+            // Fallback also failed - will be caught by outer try-catch
+            throw Exception(
+              'All RuTracker endpoints are unavailable. Please check your internet connection and try again later.',
+            );
+          }
         }
       }
 
@@ -97,6 +152,12 @@ class WebViewNavigationHandler {
             )
             .timeout(const Duration(seconds: 5));
 
+        await StructuredLogger().log(
+          level: 'info',
+          subsystem: 'webview',
+          message: 'Endpoint validated successfully',
+          extra: {'endpoint': endpoint},
+        );
         return endpoint;
       } on Exception catch (e) {
         // Even validation failed, try fallbacks
@@ -106,17 +167,69 @@ class WebViewNavigationHandler {
           message: 'Endpoint validation failed, trying fallbacks',
           extra: {'failed_endpoint': endpoint, 'error': e.toString()},
         );
-        return await tryFallbackEndpoints(fallbackEndpoints);
+        final fallbackEndpoint = await tryFallbackEndpoints(fallbackEndpoints);
+        // Validate the fallback endpoint before returning
+        try {
+          final dio = await DioClient.instance;
+          await dio
+              .get(
+                '$fallbackEndpoint/forum/index.php',
+                options: Options(
+                  receiveTimeout: const Duration(seconds: 5),
+                  validateStatus: (status) => status != null && status < 500,
+                ),
+              )
+              .timeout(const Duration(seconds: 5));
+          return fallbackEndpoint;
+        } on Exception catch (validationError) {
+          // Fallback endpoint also failed validation - this means all endpoints are unavailable
+          await StructuredLogger().log(
+            level: 'error',
+            subsystem: 'webview',
+            message:
+                'Fallback endpoint validation failed - all endpoints unavailable',
+            extra: {
+              'fallback_endpoint': fallbackEndpoint,
+              'error': validationError.toString(),
+            },
+          );
+          throw Exception(
+            'All RuTracker endpoints are unavailable. Please check your internet connection and try again later.',
+          );
+        }
       }
     } on Exception catch (e) {
-      // If all fails, use hardcoded fallback
+      // If all fails, try one more time with hardcoded fallback
+      try {
+        final hardcodedFallback = EndpointManager.getPrimaryFallbackEndpoint();
+        final db = AppDatabase().database;
+        final endpointManager = EndpointManager(db);
+        final isAvailable =
+            await endpointManager.quickAvailabilityCheck(hardcodedFallback);
+
+        if (isAvailable) {
+          await StructuredLogger().log(
+            level: 'warning',
+            subsystem: 'webview',
+            message: 'Using hardcoded fallback endpoint',
+            extra: {'endpoint': hardcodedFallback},
+          );
+          return hardcodedFallback;
+        }
+      } on Exception {
+        // Hardcoded fallback also failed
+      }
+
+      // If even hardcoded fallback failed, throw exception
       await StructuredLogger().log(
         level: 'error',
         subsystem: 'webview',
-        message: 'All endpoint resolution failed, using hardcoded fallback',
+        message: 'All endpoint resolution failed including hardcoded fallback',
         cause: e.toString(),
       );
-      return EndpointManager.getPrimaryFallbackEndpoint();
+      throw Exception(
+        'All RuTracker endpoints are unavailable. Please check your internet connection and try again later.',
+      );
     }
   }
 
@@ -150,13 +263,18 @@ class WebViewNavigationHandler {
       }
     }
 
-    // If all fallbacks failed, return the first one anyway
+    // If all fallbacks failed, throw exception instead of returning unavailable endpoint
     await StructuredLogger().log(
-      level: 'warning',
+      level: 'error',
       subsystem: 'webview',
-      message: 'All fallback endpoints failed, using first fallback',
-      extra: {'endpoint': endpoints.first},
+      message: 'All fallback endpoints failed - no endpoints available',
+      extra: {
+        'tried_endpoints': endpoints,
+        'count': endpoints.length,
+      },
     );
-    return endpoints.first;
+    throw Exception(
+      'All RuTracker endpoints are unavailable. Please check your internet connection and try again later.',
+    );
   }
 }
