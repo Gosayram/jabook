@@ -122,6 +122,8 @@ jobs:
           
           # Optional: Test keystore access (verify password is correct)
           # This is optional because Gradle will verify during build
+          # Disable exit on error for this section since keytool may fail
+          set +e
           echo "Testing keystore access (optional verification)..."
           
           # Verify keytool is available
@@ -185,18 +187,20 @@ jobs:
                 echo "⚠️  WARNING: Alias or key password test failed"
                 echo "This might be okay - Gradle will verify during build"
                 echo "Keytool error (passwords hidden):"
-                echo "$KEYTOOL_ALIAS_OUTPUT" | sed 's/storepass [^ ]*/storepass ***/g' | sed 's/keypass [^ ]*/keypass ***/g' | head -5
+                echo "$KEYTOOL_ALIAS_OUTPUT" | sed 's/storepass [^ ]*/storepass ***/g' | sed 's/keypass [^ ]*/keypass ***/g' | head -10
               fi
             else
               echo "⚠️  WARNING: Keystore password test failed"
               echo "This might be okay - Gradle will verify during build"
-              echo "Keytool error output (password hidden):"
-              echo "$KEYTOOL_OUTPUT" | sed 's/storepass [^ ]*/storepass ***/g' | sed 's/keypass [^ ]*/keypass ***/g' | head -10
+              echo "Keytool error output (first 15 lines, passwords hidden):"
+              echo "$KEYTOOL_OUTPUT" | sed 's/storepass [^ ]*/storepass ***/g' | sed 's/keypass [^ ]*/keypass ***/g' | head -15
               echo ""
               echo "Note: If keystore is corrupted or password is wrong, Gradle build will fail with a clear error message"
             fi
           fi
           
+          # Re-enable exit on error
+          set -e
           echo "✅ Keystore setup completed (Gradle will verify during build)"
 
       - name: Build beta APK
