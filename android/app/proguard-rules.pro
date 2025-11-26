@@ -72,6 +72,12 @@
 -keep class com.google.android.exoplayer2.** { *; }
 -dontwarn androidx.media3.**
 
+# Media3-session uses legacy support library classes for backward compatibility
+# Jetifier will handle the migration automatically, suppress warnings
+-keep class androidx.media3.session.legacy.** { *; }
+# Keep legacy classes that are used by Media3 for compatibility
+-keep class android.support.v4.media.MediaDescriptionCompat { *; }
+
 # ============================================================================
 # Network Libraries
 # ============================================================================
@@ -238,8 +244,13 @@
 -dontwarn androidx.**
 
 # Keep Android Support Library classes
+# Media3-session and other libraries may reference old support library classes
+# Jetifier automatically migrates these, suppress warnings
 -keep class android.support.** { *; }
 -dontwarn android.support.**
+# Specifically suppress warnings for media support library classes used by Media3
+-dontwarn android.support.v4.media.**
+-dontwarn android.support.v4.media.MediaDescriptionCompat
 
 # ============================================================================
 # Android Platform Classes

@@ -56,22 +56,77 @@ jobs:
 
       - name: Setup Android signing
         run: |
+          # Get absolute path to workspace
+          WORKSPACE_DIR="${{ github.workspace }}"
+          KEYSTORE_PATH="${WORKSPACE_DIR}/.signing/release.keystore"
+          
           # Create .signing directory
           mkdir -p .signing
           
           # Decode keystore from base64 secret
-          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > .signing/release.keystore
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > "${KEYSTORE_PATH}"
           
-          # Create android/key.properties file
+          # Verify keystore file was created
+          if [ ! -f "${KEYSTORE_PATH}" ]; then
+            echo "ERROR: Keystore file was not created at ${KEYSTORE_PATH}"
+            exit 1
+          fi
+          
+          # Verify keystore file size
+          KEYSTORE_SIZE=$(stat -f%z "${KEYSTORE_PATH}" 2>/dev/null || stat -c%s "${KEYSTORE_PATH}" 2>/dev/null)
+          if [ "$KEYSTORE_SIZE" -lt 1000 ]; then
+            echo "ERROR: Keystore file seems too small (${KEYSTORE_SIZE} bytes)"
+            exit 1
+          fi
+          
+          # Create android/key.properties file with absolute path
           mkdir -p android
           cat > android/key.properties <<EOF
-          storeFile=${PWD}/.signing/release.keystore
+          storeFile=${KEYSTORE_PATH}
           storePassword=${{ secrets.KEY_STORE_PASSWORD }}
           keyPassword=${{ secrets.KEY_PASSWORD }}
           keyAlias=${{ secrets.KEY_ALIAS }}
           EOF
           
+          # Verify key.properties was created
+          if [ ! -f android/key.properties ]; then
+            echo "ERROR: key.properties file was not created"
+            exit 1
+          fi
+          
+          # Verify secrets are not empty (without showing values)
+          if [ -z "${{ secrets.KEY_STORE_PASSWORD }}" ]; then
+            echo "ERROR: KEY_STORE_PASSWORD secret is empty"
+            exit 1
+          fi
+          if [ -z "${{ secrets.KEY_PASSWORD }}" ]; then
+            echo "ERROR: KEY_PASSWORD secret is empty"
+            exit 1
+          fi
+          if [ -z "${{ secrets.KEY_ALIAS }}" ]; then
+            echo "ERROR: KEY_ALIAS secret is empty"
+            exit 1
+          fi
+          
           echo "Android signing configured"
+          echo "Keystore file size: ${KEYSTORE_SIZE} bytes"
+          echo "key.properties created successfully"
+          
+          # Test keystore access (verify password is correct)
+          echo "Testing keystore access..."
+          keytool -list -v \
+            -keystore "${KEYSTORE_PATH}" \
+            -storepass "${{ secrets.KEY_STORE_PASSWORD }}" \
+            -alias "${{ secrets.KEY_ALIAS }}" \
+            -keypass "${{ secrets.KEY_PASSWORD }}" \
+            > /dev/null 2>&1
+          
+          if [ $? -eq 0 ]; then
+            echo "✅ Keystore access test passed"
+          else
+            echo "❌ ERROR: Keystore access test failed - password or alias may be incorrect"
+            exit 1
+          fi
 
       - name: Build beta APK
         env:
