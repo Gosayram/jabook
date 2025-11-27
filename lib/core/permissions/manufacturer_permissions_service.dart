@@ -651,11 +651,14 @@ class ManufacturerPermissionsService {
               'FuntouchOS/OriginOS Settings for Stable Operation',
           'message': localizations?.manufacturerSettingsFuntouchosMessage ??
               'On Vivo devices, you need to configure the following settings:',
-          'step1': localizations?.manufacturerSettingsFuntouchosStep1(appName) ??
+          'step1': localizations
+                  ?.manufacturerSettingsFuntouchosStep1(appName) ??
               '1. Autostart: Settings → Apps → Autostart → Enable for $appName',
-          'step2': localizations?.manufacturerSettingsFuntouchosStep2(appName) ??
+          'step2': localizations
+                  ?.manufacturerSettingsFuntouchosStep2(appName) ??
               '2. Battery optimization: Settings → Battery → Battery optimization → $appName → Don\'t optimize',
-          'step3': localizations?.manufacturerSettingsFuntouchosStep3(appName) ??
+          'step3': localizations
+                  ?.manufacturerSettingsFuntouchosStep3(appName) ??
               '3. Background activity: Settings → Apps → $appName → Battery → Allow background activity',
         };
       } else if (customRom == 'Flyme') {

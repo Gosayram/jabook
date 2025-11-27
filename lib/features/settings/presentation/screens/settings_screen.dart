@@ -831,7 +831,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             title: Text(localizations?.playbackSpeedTitle ??
                 localizations?.playbackSpeed ??
                 'Playback Speed'),
-            subtitle: Text('${audioSettings.defaultPlaybackSpeed}x'),
+            subtitle: Text(AudioSettingsManager.formatPlaybackSpeed(
+                audioSettings.defaultPlaybackSpeed)),
             onTap: () {
               _showPlaybackSpeedDialog(context, audioSettings, audioNotifier);
             },
@@ -918,7 +919,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               mainAxisSize: MainAxisSize.min,
               children: speeds
                   .map((speed) => RadioListTile<double>(
-                        title: Text('${speed}x'),
+                        title: Text(
+                            AudioSettingsManager.formatPlaybackSpeed(speed)),
                         value: speed,
                         // ignore: deprecated_member_use
                         groupValue: selectedSpeed,

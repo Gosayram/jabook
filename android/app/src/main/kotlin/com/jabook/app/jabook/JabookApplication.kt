@@ -19,7 +19,7 @@ import dagger.hilt.android.HiltAndroidApp
 
 /**
  * Application class for Jabook with Dagger Hilt support.
- * 
+ *
  * This class initializes Dagger Hilt for dependency injection.
  * Inspired by lissen-android implementation.
  */
@@ -30,4 +30,3 @@ class JabookApplication : Application() {
         android.util.Log.d("JabookApplication", "Application created with Hilt support")
     }
 }
-

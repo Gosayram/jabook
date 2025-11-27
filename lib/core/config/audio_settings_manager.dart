@@ -121,4 +121,16 @@ class AudioSettingsManager {
     await prefs.setInt(_defaultRewindDurationKey, defaultRewindDuration);
     await prefs.setInt(_defaultForwardDurationKey, defaultForwardDuration);
   }
+
+  /// Formats playback speed for display in UI.
+  ///
+  /// Rounds the speed value to 2 decimal places and formats it as "X.XXx".
+  /// This ensures consistent display format across all UI components.
+  ///
+  /// Example:
+  /// - 1.149999976158142 → "1.15x"
+  /// - 0.999999 → "1.00x"
+  /// - 1.250000 → "1.25x"
+  static String formatPlaybackSpeed(double speed) =>
+      '${speed.toStringAsFixed(2)}x';
 }

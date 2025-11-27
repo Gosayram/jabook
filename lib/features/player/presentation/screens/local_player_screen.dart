@@ -1561,7 +1561,7 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
                   else
                     const SizedBox(width: 20),
                   const SizedBox(width: 8),
-                  Text('${speed}x'),
+                  Text(AudioSettingsManager.formatPlaybackSpeed(speed)),
                 ],
               ),
             );
@@ -1595,7 +1595,8 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
         },
         child: Chip(
           avatar: const Icon(Icons.speed, size: 18),
-          label: Text('${state.playbackSpeed}x'),
+          label: Text(
+              AudioSettingsManager.formatPlaybackSpeed(state.playbackSpeed)),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         ),
       );

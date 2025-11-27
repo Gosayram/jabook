@@ -26,17 +26,16 @@ import io.flutter.plugin.common.MethodChannel
  * them to AudioPlayerService.
  */
 class AudioPlayerMethodHandler(
-    private val context: Context
+    private val context: Context,
 ) : MethodChannel.MethodCallHandler {
-    
     /**
      * Gets AudioPlayerService instance, ensuring service is started and fully initialized.
      * Returns null if service is not available or not ready.
-     * 
+     *
      * CRITICAL: This method is NON-BLOCKING to prevent ANR on Android 16.
      * It does NOT use Thread.sleep() which blocks main thread.
      * Flutter should retry if service is not ready.
-     * 
+     *
      * Improved for Android 14+:
      * - Non-blocking: no Thread.sleep() calls
      * - Quick check: returns immediately if service not ready
@@ -51,7 +50,7 @@ class AudioPlayerMethodHandler(
             try {
                 android.util.Log.d("AudioPlayerMethodHandler", "Starting AudioPlayerService (non-blocking)...")
                 context.startForegroundService(intent)
-                
+
                 // CRITICAL: Do NOT wait here with Thread.sleep() - it blocks main thread!
                 // Service will be ready on next call. Flutter should retry.
                 // Just check once quickly (non-blocking)
@@ -59,7 +58,7 @@ class AudioPlayerMethodHandler(
                 if (service == null) {
                     android.util.Log.d(
                         "AudioPlayerMethodHandler",
-                        "Service started but not ready yet. Flutter should retry."
+                        "Service started but not ready yet. Flutter should retry.",
                     )
                     return null // Return null to allow Flutter to retry
                 }
@@ -68,14 +67,14 @@ class AudioPlayerMethodHandler(
                 android.util.Log.e(
                     "AudioPlayerMethodHandler",
                     "Failed to start foreground service (IllegalStateException): ${e.message}",
-                    e
+                    e,
                 )
                 // Try to get existing service instance
                 service = AudioPlayerService.getInstance()
                 if (service == null) {
                     android.util.Log.e(
                         "AudioPlayerMethodHandler",
-                        "Service not available after IllegalStateException"
+                        "Service not available after IllegalStateException",
                     )
                     return null
                 }
@@ -83,36 +82,36 @@ class AudioPlayerMethodHandler(
                 android.util.Log.e(
                     "AudioPlayerMethodHandler",
                     "Failed to start service: ${e.message}",
-                    e
+                    e,
                 )
                 return null
             }
         }
-        
+
         // CRITICAL: Check if service is fully initialized before returning
         // This prevents using service before it's ready (race condition fix)
         if (service == null) {
             return null
         }
-        
+
         if (!service.isFullyInitialized()) {
             android.util.Log.w(
                 "AudioPlayerMethodHandler",
-                "Service exists but not fully initialized yet. initialized=${service.isFullyInitialized()}. Flutter should retry."
+                "Service exists but not fully initialized yet. initialized=${service.isFullyInitialized()}. Flutter should retry.",
             )
             return null // Return null to force Flutter to retry
         }
-        
+
         return service
     }
-    
+
     /**
      * Executes method call with retry logic if service is not ready.
-     * 
+     *
      * CRITICAL: This method is NON-BLOCKING to prevent ANR on Android 16.
      * It does NOT use Thread.sleep() which blocks main thread.
      * Returns error immediately if service not ready - Flutter should retry.
-     * 
+     *
      * Improved for Android 14+:
      * - Added exponential backoff retry mechanism
      * - Better error handling with timeout protection
@@ -123,11 +122,11 @@ class AudioPlayerMethodHandler(
         initialDelayMs: Long = 100,
         maxDelayMs: Long = 2000,
         action: () -> Unit,
-        onError: (Exception) -> Unit
+        onError: (Exception) -> Unit,
     ) {
         var retryCount = 0
         var delayMs = initialDelayMs
-        
+
         while (retryCount < maxRetries) {
             try {
                 val service = getService()
@@ -136,9 +135,12 @@ class AudioPlayerMethodHandler(
                     action()
                     return
                 }
-                
+
                 if (retryCount < maxRetries - 1) {
-                    android.util.Log.d("AudioPlayerMethodHandler", "Service not ready, retrying in ${delayMs}ms (attempt ${retryCount + 1})")
+                    android.util.Log.d(
+                        "AudioPlayerMethodHandler",
+                        "Service not ready, retrying in ${delayMs}ms (attempt ${retryCount + 1})",
+                    )
                     // Non-blocking delay using Handler instead of Thread.sleep()
                     android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
                         // This prevents ANR on Android 14+
@@ -162,19 +164,22 @@ class AudioPlayerMethodHandler(
             }
         }
     }
-    
-    override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
+
+    override fun onMethodCall(
+        call: MethodCall,
+        result: MethodChannel.Result,
+    ) {
         try {
             // Validate Android 14+ requirements before handling method calls
             if (!ErrorHandler.validateAndroid14Requirements(context)) {
                 result.error(
                     "android_14_requirements_not_met",
                     "Android 14+ requirements not met",
-                    null
+                    null,
                 )
                 return
             }
-            
+
             when (call.method) {
                 "initialize" -> {
                     val service = getService()
@@ -182,19 +187,20 @@ class AudioPlayerMethodHandler(
                         android.util.Log.d("AudioPlayerMethodHandler", "Service initialized successfully")
                         result.success(true)
                     } else {
-                        val reason = when {
-                            service == null -> "Service instance not created yet"
-                            !service.isFullyInitialized() -> "Service not fully initialized (MediaSession not ready)"
-                            else -> "Unknown error"
-                        }
+                        val reason =
+                            when {
+                                service == null -> "Service instance not created yet"
+                                !service.isFullyInitialized() -> "Service not fully initialized (MediaSession not ready)"
+                                else -> "Unknown error"
+                            }
                         android.util.Log.w(
                             "AudioPlayerMethodHandler",
-                            "Service not ready for initialization: $reason. Flutter should retry."
+                            "Service not ready for initialization: $reason. Flutter should retry.",
                         )
                         result.error(
                             "SERVICE_UNAVAILABLE",
                             "Audio service not ready: $reason. Please retry.",
-                            null
+                            null,
                         )
                     }
                 }
@@ -205,13 +211,13 @@ class AudioPlayerMethodHandler(
                         result.error("INVALID_ARGUMENT", "File paths list cannot be empty", null)
                         return
                     }
-                    
+
                     val service = getService()
                     if (service == null) {
                         result.error("SERVICE_UNAVAILABLE", "Audio service is not available", null)
                         return
                     }
-                    
+
                     service.setPlaylist(filePaths, metadata) { success, exception ->
                         if (success) {
                             android.util.Log.d("AudioPlayerMethodHandler", "Playlist set successfully via callback")
@@ -252,7 +258,7 @@ class AudioPlayerMethodHandler(
                         },
                         onError = { e ->
                             result.error("EXCEPTION", e.message ?: "Failed to pause", null)
-                        }
+                        },
                     )
                 }
                 "stop" -> {
@@ -263,26 +269,27 @@ class AudioPlayerMethodHandler(
                         },
                         onError = { e ->
                             result.error("EXCEPTION", e.message ?: "Failed to stop", null)
-                        }
+                        },
                     )
                 }
                 "seek" -> {
                     // Handle both Int and Long types from Flutter MethodChannel
                     val positionMsArg = call.argument<Any>("positionMs")
-                    val positionMs: Long = when (positionMsArg) {
-                        is Long -> positionMsArg
-                        is Int -> positionMsArg.toLong()
-                        is Number -> positionMsArg.toLong()
-                        null -> {
-                            result.error("INVALID_ARGUMENT", "positionMs is required", null)
-                            return
+                    val positionMs: Long =
+                        when (positionMsArg) {
+                            is Long -> positionMsArg
+                            is Int -> positionMsArg.toLong()
+                            is Number -> positionMsArg.toLong()
+                            null -> {
+                                result.error("INVALID_ARGUMENT", "positionMs is required", null)
+                                return
+                            }
+                            else -> {
+                                result.error("INVALID_ARGUMENT", "positionMs must be a number", null)
+                                return
+                            }
                         }
-                        else -> {
-                            result.error("INVALID_ARGUMENT", "positionMs must be a number", null)
-                            return
-                        }
-                    }
-                    
+
                     executeWithRetry(
                         action = {
                             getService()?.seekTo(positionMs)
@@ -291,7 +298,7 @@ class AudioPlayerMethodHandler(
                         onError = { e ->
                             android.util.Log.e("AudioPlayerMethodHandler", "Failed to seek: positionMs=$positionMs", e)
                             result.error("EXCEPTION", e.message ?: "Failed to seek", null)
-                        }
+                        },
                     )
                 }
                 "setSpeed" -> {
@@ -303,7 +310,7 @@ class AudioPlayerMethodHandler(
                         },
                         onError = { e ->
                             result.error("EXCEPTION", e.message ?: "Failed to set speed", null)
-                        }
+                        },
                     )
                 }
                 "updateSkipDurations" -> {
@@ -316,7 +323,7 @@ class AudioPlayerMethodHandler(
                         },
                         onError = { e ->
                             result.error("EXCEPTION", e.message ?: "Failed to update skip durations", null)
-                        }
+                        },
                     )
                 }
                 "setRepeatMode" -> {
@@ -328,7 +335,7 @@ class AudioPlayerMethodHandler(
                         },
                         onError = { e ->
                             result.error("EXCEPTION", e.message ?: "Failed to set repeat mode", null)
-                        }
+                        },
                     )
                 }
                 "getRepeatMode" -> {
@@ -344,7 +351,7 @@ class AudioPlayerMethodHandler(
                         },
                         onError = { e ->
                             result.error("EXCEPTION", e.message ?: "Failed to set shuffle mode", null)
-                        }
+                        },
                     )
                 }
                 "getShuffleModeEnabled" -> {
@@ -365,7 +372,7 @@ class AudioPlayerMethodHandler(
                             },
                             onError = { e ->
                                 result.error("EXCEPTION", e.message ?: "Failed to extract artwork", null)
-                            }
+                            },
                         )
                     } else {
                         result.error("INVALID_ARGUMENT", "filePath is required", null)
@@ -395,7 +402,7 @@ class AudioPlayerMethodHandler(
                         },
                         onError = { e ->
                             result.error("EXCEPTION", e.message ?: "Failed to skip next", null)
-                        }
+                        },
                     )
                 }
                 "previous" -> {
@@ -406,7 +413,7 @@ class AudioPlayerMethodHandler(
                         },
                         onError = { e ->
                             result.error("EXCEPTION", e.message ?: "Failed to skip previous", null)
-                        }
+                        },
                     )
                 }
                 "seekToTrack" -> {
@@ -418,7 +425,7 @@ class AudioPlayerMethodHandler(
                         },
                         onError = { e ->
                             result.error("EXCEPTION", e.message ?: "Failed to seek to track", null)
-                        }
+                        },
                     )
                 }
                 "updateMetadata" -> {
@@ -431,7 +438,7 @@ class AudioPlayerMethodHandler(
                             },
                             onError = { e ->
                                 result.error("EXCEPTION", e.message ?: "Failed to update metadata", null)
-                            }
+                            },
                         )
                     } else {
                         result.success(true)
@@ -439,32 +446,37 @@ class AudioPlayerMethodHandler(
                 }
                 "seekToTrackAndPosition" -> {
                     val trackIndex = call.argument<Int>("trackIndex") ?: 0
-                    
+
                     // Handle both Int and Long types from Flutter MethodChannel
                     val positionMsArg = call.argument<Any>("positionMs")
-                    val positionMs: Long = when (positionMsArg) {
-                        is Long -> positionMsArg
-                        is Int -> positionMsArg.toLong()
-                        is Number -> positionMsArg.toLong()
-                        null -> {
-                            result.error("INVALID_ARGUMENT", "positionMs is required", null)
-                            return
+                    val positionMs: Long =
+                        when (positionMsArg) {
+                            is Long -> positionMsArg
+                            is Int -> positionMsArg.toLong()
+                            is Number -> positionMsArg.toLong()
+                            null -> {
+                                result.error("INVALID_ARGUMENT", "positionMs is required", null)
+                                return
+                            }
+                            else -> {
+                                result.error("INVALID_ARGUMENT", "positionMs must be a number", null)
+                                return
+                            }
                         }
-                        else -> {
-                            result.error("INVALID_ARGUMENT", "positionMs must be a number", null)
-                            return
-                        }
-                    }
-                    
+
                     executeWithRetry(
                         action = {
                             getService()?.seekToTrackAndPosition(trackIndex, positionMs)
                             result.success(true)
                         },
                         onError = { e ->
-                            android.util.Log.e("AudioPlayerMethodHandler", "Failed to seek to track and position: trackIndex=$trackIndex, positionMs=$positionMs", e)
+                            android.util.Log.e(
+                                "AudioPlayerMethodHandler",
+                                "Failed to seek to track and position: trackIndex=$trackIndex, positionMs=$positionMs",
+                                e,
+                            )
                             result.error("EXCEPTION", e.message ?: "Failed to seek to track and position", null)
-                        }
+                        },
                     )
                 }
                 "rewind" -> {
@@ -476,7 +488,7 @@ class AudioPlayerMethodHandler(
                         },
                         onError = { e ->
                             result.error("EXCEPTION", e.message ?: "Failed to rewind", null)
-                        }
+                        },
                     )
                 }
                 "forward" -> {
@@ -488,13 +500,13 @@ class AudioPlayerMethodHandler(
                         },
                         onError = { e ->
                             result.error("EXCEPTION", e.message ?: "Failed to forward", null)
-                        }
+                        },
                     )
                 }
                 "setPlaybackProgress" -> {
                     val filePaths = call.argument<List<String>>("filePaths") ?: emptyList()
                     val progressSeconds = call.argument<Double>("progressSeconds")
-                    
+
                     executeWithRetry(
                         action = {
                             getService()?.setPlaybackProgress(filePaths, progressSeconds)
@@ -502,7 +514,7 @@ class AudioPlayerMethodHandler(
                         },
                         onError = { e ->
                             result.error("EXCEPTION", e.message ?: "Failed to set playback progress", null)
-                        }
+                        },
                     )
                 }
                 "startTimer" -> {
@@ -515,7 +527,7 @@ class AudioPlayerMethodHandler(
                         },
                         onError = { e ->
                             result.error("EXCEPTION", e.message ?: "Failed to start timer", null)
-                        }
+                        },
                     )
                 }
                 "stopTimer" -> {
@@ -526,7 +538,7 @@ class AudioPlayerMethodHandler(
                         },
                         onError = { e ->
                             result.error("EXCEPTION", e.message ?: "Failed to stop timer", null)
-                        }
+                        },
                     )
                 }
                 "dispose" -> {

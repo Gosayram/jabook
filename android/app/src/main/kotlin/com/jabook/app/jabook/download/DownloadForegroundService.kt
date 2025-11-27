@@ -16,7 +16,6 @@ package com.jabook.app.jabook.download
 
 import android.app.Notification
 import android.app.NotificationChannel
-import android.app.NotificationManager as AndroidNotificationManager
 import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
@@ -27,6 +26,7 @@ import android.os.IBinder
 import android.os.Looper
 import androidx.core.app.NotificationCompat
 import com.jabook.app.jabook.MainActivity
+import android.app.NotificationManager as AndroidNotificationManager
 
 /**
  * Foreground service for managing torrent downloads.
@@ -39,59 +39,72 @@ class DownloadForegroundService : Service() {
     private var updateHandler: Handler? = null
     private var updateRunnable: Runnable? = null
     private var isServiceRunning = false
-    
+
     companion object {
         private const val CHANNEL_ID = "jabook_downloads"
         private const val CHANNEL_NAME = "JaBook Downloads"
         private const val NOTIFICATION_ID = 2
-        
+
         const val ACTION_START = "com.jabook.app.jabook.download.START"
         const val ACTION_STOP = "com.jabook.app.jabook.download.STOP"
         const val ACTION_UPDATE_PROGRESS = "com.jabook.app.jabook.download.UPDATE_PROGRESS"
-        
+
         @Volatile
         private var instance: DownloadForegroundService? = null
-        
+
         fun getInstance(): DownloadForegroundService? = instance
     }
-    
+
     override fun onCreate() {
         super.onCreate()
         instance = this
         notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as AndroidNotificationManager
         updateHandler = Handler(Looper.getMainLooper())
         createNotificationChannel()
-        
+
         // CRITICAL FIX for Android 11+ and 14+: Call startForeground() immediately if possible
         // Android 14+ requires startForeground() within 5 seconds or service will be killed
         // Android 11+ on problematic devices (especially Xiaomi) also needs immediate startForeground()
         // This prevents crash: "Context.startForegroundService() did not then call Service.startForeground()"
-        val needsImmediateStartForeground = Build.VERSION.SDK_INT >= Build.VERSION_CODES.R || // Android 11+
+        val needsImmediateStartForeground =
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.R ||
+                // Android 11+
                 Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE // Android 14+
-        
+
         if (needsImmediateStartForeground) {
             try {
                 // Create notification BEFORE calling startForeground() (required)
                 val tempNotification = createMinimalNotification()
-                
+
                 // Verify notification is not null before starting foreground
                 if (tempNotification != null) {
                     startForeground(NOTIFICATION_ID, tempNotification)
-                    android.util.Log.d("DownloadForegroundService", 
-                        "startForeground() called immediately in onCreate() for Android ${Build.VERSION.SDK_INT} (critical fix)")
+                    android.util.Log.d(
+                        "DownloadForegroundService",
+                        "startForeground() called immediately in onCreate() for Android ${Build.VERSION.SDK_INT} (critical fix)",
+                    )
                 } else {
-                    android.util.Log.e("DownloadForegroundService", 
-                        "Failed to create minimal notification for startForeground()")
+                    android.util.Log.e(
+                        "DownloadForegroundService",
+                        "Failed to create minimal notification for startForeground()",
+                    )
                 }
             } catch (e: Exception) {
-                android.util.Log.w("DownloadForegroundService", 
-                    "Failed to call startForeground() in onCreate(), will try in onStartCommand", e)
+                android.util.Log.w(
+                    "DownloadForegroundService",
+                    "Failed to call startForeground() in onCreate(), will try in onStartCommand",
+                    e,
+                )
                 // Continue - will try again in onStartCommand
             }
         }
     }
-    
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+
+    override fun onStartCommand(
+        intent: Intent?,
+        flags: Int,
+        startId: Int,
+    ): Int {
         // CRITICAL: For Android 11+ and 14+, ensure startForeground() is called
         // This is especially important for problematic devices (Xiaomi, etc.)
         // If onCreate() didn't call it (e.g., service was restarted), call it here
@@ -102,17 +115,22 @@ class DownloadForegroundService : Service() {
                     val minimalNotification = createMinimalNotification()
                     if (minimalNotification != null) {
                         startForeground(NOTIFICATION_ID, minimalNotification)
-                        android.util.Log.d("DownloadForegroundService", 
-                            "startForeground() called in onStartCommand for Android ${Build.VERSION.SDK_INT}")
+                        android.util.Log.d(
+                            "DownloadForegroundService",
+                            "startForeground() called in onStartCommand for Android ${Build.VERSION.SDK_INT}",
+                        )
                     }
                 }
             } catch (e: Exception) {
-                android.util.Log.w("DownloadForegroundService", 
-                    "Failed to ensure startForeground() in onStartCommand", e)
+                android.util.Log.w(
+                    "DownloadForegroundService",
+                    "Failed to ensure startForeground() in onStartCommand",
+                    e,
+                )
                 // Continue - service might still work
             }
         }
-        
+
         when (intent?.action) {
             ACTION_START -> {
                 if (!isServiceRunning) {
@@ -122,10 +140,13 @@ class DownloadForegroundService : Service() {
                     val minimalNotification = createMinimalNotification()
                     if (minimalNotification != null) {
                         try {
-                    startForeground(NOTIFICATION_ID, minimalNotification)
+                            startForeground(NOTIFICATION_ID, minimalNotification)
                         } catch (e: Exception) {
-                            android.util.Log.e("DownloadForegroundService", 
-                                "Failed to start foreground service", e)
+                            android.util.Log.e(
+                                "DownloadForegroundService",
+                                "Failed to start foreground service",
+                                e,
+                            )
                         }
                     }
                 }
@@ -138,14 +159,14 @@ class DownloadForegroundService : Service() {
                 // This service is only used to keep downloads alive in background
             }
         }
-        
+
         // Return START_STICKY to restart service if killed by system
         // This is important for problematic devices that kill background services
         return START_STICKY
     }
-    
+
     override fun onBind(intent: Intent?): IBinder? = null
-    
+
     override fun onDestroy() {
         instance = null
         isServiceRunning = false
@@ -153,42 +174,46 @@ class DownloadForegroundService : Service() {
         updateHandler = null
         super.onDestroy()
     }
-    
+
     /**
      * Creates notification channel for Android O+.
      */
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                CHANNEL_ID,
-                CHANNEL_NAME,
-                AndroidNotificationManager.IMPORTANCE_LOW
-            ).apply {
-                description = "Download progress notifications"
-                setShowBadge(false)
-            }
+            val channel =
+                NotificationChannel(
+                    CHANNEL_ID,
+                    CHANNEL_NAME,
+                    AndroidNotificationManager.IMPORTANCE_LOW,
+                ).apply {
+                    description = "Download progress notifications"
+                    setShowBadge(false)
+                }
             notificationManager?.createNotificationChannel(channel)
         }
     }
-    
+
     /**
      * Creates minimal notification for foreground service.
-     * 
+     *
      * This notification is only used to keep the service alive in background.
      * Individual download notifications are handled by DownloadNotificationService.
      */
     private fun createMinimalNotification(): Notification {
-        val intent = Intent(this, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
-        }
-        val pendingIntent = PendingIntent.getActivity(
-            this,
-            0,
-            intent,
-            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-        )
-        
-        return NotificationCompat.Builder(this, CHANNEL_ID)
+        val intent =
+            Intent(this, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+            }
+        val pendingIntent =
+            PendingIntent.getActivity(
+                this,
+                0,
+                intent,
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+            )
+
+        return NotificationCompat
+            .Builder(this, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.stat_sys_download)
             .setContentTitle("JaBook Downloads")
             .setContentText("Downloads in progress")
@@ -199,4 +224,3 @@ class DownloadForegroundService : Service() {
             .build()
     }
 }
-
