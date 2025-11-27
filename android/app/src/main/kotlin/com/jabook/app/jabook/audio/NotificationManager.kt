@@ -58,20 +58,23 @@ class NotificationManager(
         private fun getChannelName(context: Context): String {
             val baseName = "JaBook Audio Playback"
             val flavor = getFlavorSuffix(context)
-            return if (flavor.isEmpty()) baseName else "$baseName ($flavor)"
+            return if (flavor.isEmpty()) baseName else "$baseName - $flavor"
         }
         
         /**
          * Gets flavor suffix for non-prod builds.
+         * Returns formatted flavor name (capitalized) or empty string for prod.
          */
         private fun getFlavorSuffix(context: Context): String {
             val packageName = context.packageName
-            return when {
+            val flavor = when {
                 packageName.endsWith(".dev") -> "dev"
                 packageName.endsWith(".stage") -> "stage"
                 packageName.endsWith(".beta") -> "beta"
                 else -> "" // prod or unknown
             }
+            // Capitalize first letter for display
+            return if (flavor.isEmpty()) "" else flavor.substring(0, 1).uppercase() + flavor.substring(1)
         }
         const val ACTION_PLAY = "com.jabook.app.jabook.audio.PLAY"
         const val ACTION_PAUSE = "com.jabook.app.jabook.audio.PAUSE"
@@ -151,9 +154,9 @@ class NotificationManager(
         
         // Get flavor suffix for notification title
         val flavorSuffix = Companion.getFlavorSuffix(context)
-        val flavorText = if (flavorSuffix.isEmpty()) "" else " ($flavorSuffix)"
+        val flavorText = if (flavorSuffix.isEmpty()) "" else " - $flavorSuffix"
         
-        val title = metadata?.get("title") ?: "JaBook Audio$flavorText"
+        val title = metadata?.get("title") ?: "jabook Audio$flavorText"
         val artist = metadata?.get("artist") ?: "Playing audio"
         val currentMediaItem = player.currentMediaItem
         val displayTitle = currentMediaItem?.mediaMetadata?.title?.toString() ?: title
