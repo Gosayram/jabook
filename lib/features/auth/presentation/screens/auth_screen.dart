@@ -19,6 +19,7 @@ import 'package:jabook/core/endpoints/endpoint_provider.dart';
 import 'package:jabook/core/errors/failures.dart';
 import 'package:jabook/core/net/dio_client.dart';
 import 'package:jabook/core/session/auth_error_handler.dart';
+import 'package:jabook/core/utils/app_title_utils.dart';
 import 'package:jabook/features/auth/data/providers/auth_provider.dart';
 import 'package:jabook/features/auth/presentation/widgets/captcha_dialog.dart';
 import 'package:jabook/features/webview/secure_rutracker_webview.dart';
@@ -471,8 +472,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(AppLocalizations.of(context)?.authScreenTitle ??
-            'RuTracker Connection'),
+        title: Text((AppLocalizations.of(context)?.authScreenTitle ??
+                'RuTracker Connection')
+            .withFlavorSuffix()),
       ),
       body: SafeArea(
         child: SingleChildScrollView(

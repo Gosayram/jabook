@@ -20,6 +20,7 @@ import 'package:intl/intl.dart';
 import 'package:jabook/core/background/background_compatibility_checker.dart';
 import 'package:jabook/core/background/workmanager_diagnostics_service.dart';
 import 'package:jabook/core/permissions/manufacturer_permissions_service.dart';
+import 'package:jabook/core/utils/app_title_utils.dart';
 import 'package:jabook/core/utils/device_info_utils.dart';
 import 'package:jabook/features/permissions/presentation/widgets/manufacturer_settings_dialog.dart';
 import 'package:jabook/l10n/app_localizations.dart';
@@ -136,8 +137,9 @@ class _BackgroundCompatibilityScreenState
   @override
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(
-          title: Text(AppLocalizations.of(context)?.backgroundWorkTitle ??
-              'Background Work'),
+          title: Text((AppLocalizations.of(context)?.backgroundWorkTitle ??
+                  'Background Work')
+              .withFlavorSuffix()),
           actions: [
             IconButton(
               icon: const Icon(Icons.refresh),

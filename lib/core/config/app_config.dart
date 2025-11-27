@@ -134,6 +134,21 @@ class AppConfig {
     }
   }
 
+  /// Gets the display app name with flavor suffix (except for prod).
+  ///
+  /// Returns app name with flavor suffix for non-prod flavors:
+  /// - prod: "JaBook"
+  /// - beta: "jabook - beta"
+  /// - dev: "jabook - dev"
+  /// - stage: "jabook - stage"
+  String get displayAppName {
+    if (isProd) {
+      return 'JaBook';
+    }
+    final flavorName = flavor.toLowerCase();
+    return 'jabook - $flavorName';
+  }
+
   /// Gets the application ID for the current environment.
   String get appId {
     switch (flavor) {

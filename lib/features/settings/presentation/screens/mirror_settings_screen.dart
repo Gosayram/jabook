@@ -19,6 +19,7 @@ import 'package:jabook/core/endpoints/endpoint_manager.dart';
 import 'package:jabook/core/endpoints/endpoint_provider.dart';
 import 'package:jabook/core/errors/failures.dart';
 import 'package:jabook/core/logging/structured_logger.dart';
+import 'package:jabook/core/utils/app_title_utils.dart';
 import 'package:jabook/l10n/app_localizations.dart';
 
 /// Screen for managing RuTracker mirror settings.
@@ -748,8 +749,9 @@ class _MirrorSettingsScreenState extends ConsumerState<MirrorSettingsScreen> {
   @override
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(
-          title: Text(AppLocalizations.of(context)?.mirrorSettingsTitle ??
-              'Mirror Settings'),
+          title: Text((AppLocalizations.of(context)?.mirrorSettingsTitle ??
+                  'Mirror Settings')
+              .withFlavorSuffix()),
         ),
         body: _isLoading
             ? const Center(child: CircularProgressIndicator())

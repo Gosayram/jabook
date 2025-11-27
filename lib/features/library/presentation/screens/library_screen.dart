@@ -26,6 +26,7 @@ import 'package:jabook/core/library/folder_filter_service.dart';
 import 'package:jabook/core/library/local_audiobook.dart';
 import 'package:jabook/core/library/smart_scanner_service.dart';
 import 'package:jabook/core/player/native_audio_player.dart';
+import 'package:jabook/core/utils/app_title_utils.dart';
 import 'package:jabook/core/utils/content_uri_service.dart';
 import 'package:jabook/core/utils/file_picker_utils.dart' as file_picker_utils;
 import 'package:jabook/core/utils/responsive_utils.dart';
@@ -310,8 +311,9 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
         },
         child: Scaffold(
           appBar: AppBar(
-            title:
-                Text(AppLocalizations.of(context)?.libraryTitle ?? 'Library'),
+            title: Text(
+                (AppLocalizations.of(context)?.libraryTitle ?? 'Library')
+                    .withFlavorSuffix()),
             actions: [
               Stack(
                 clipBehavior: Clip.none,

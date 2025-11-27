@@ -2812,4 +2812,170 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get scanningLibrary => 'Scanning library...';
+
+  @override
+  String get manufacturerSettingsNotAvailable => 'Settings Not Available';
+
+  @override
+  String get manufacturerSettingsNotAvailableMessage => 'Manufacturer-specific settings are only available on Android devices.';
+
+  @override
+  String get manufacturerSettingsDefaultTitle => 'Settings for Stable Operation';
+
+  @override
+  String get manufacturerSettingsDefaultMessage => 'To ensure stable operation, you need to configure the following settings:';
+
+  @override
+  String get manufacturerSettingsDefaultStep1 => '1. Enable application autostart';
+
+  @override
+  String get manufacturerSettingsDefaultStep2 => '2. Disable battery optimization for the application';
+
+  @override
+  String get manufacturerSettingsDefaultStep3 => '3. Allow background activity';
+
+  @override
+  String get manufacturerSettingsMiuiTitle => 'MIUI Settings for Stable Operation';
+
+  @override
+  String get manufacturerSettingsMiuiMessage => 'On Xiaomi/Redmi/Poco devices, you need to configure the following settings:';
+
+  @override
+  String manufacturerSettingsMiuiStep1(String appName) {
+    return '1. Autostart: Settings → Apps → Permission management → Autostart → Enable for $appName';
+  }
+
+  @override
+  String manufacturerSettingsMiuiStep2(String appName) {
+    return '2. Battery optimization: Settings → Battery → Battery optimization → Select $appName → Don\'t optimize';
+  }
+
+  @override
+  String manufacturerSettingsMiuiStep3(String appName) {
+    return '3. Background activity: Settings → Apps → $appName → Battery → Background activity → Allow';
+  }
+
+  @override
+  String get manufacturerSettingsEmuiTitle => 'EMUI Settings for Stable Operation';
+
+  @override
+  String get manufacturerSettingsEmuiMessage => 'On Huawei/Honor devices, you need to configure the following settings:';
+
+  @override
+  String manufacturerSettingsEmuiStep1(String appName) {
+    return '1. App protection: Settings → Apps → App protection → $appName → Enable autostart';
+  }
+
+  @override
+  String manufacturerSettingsEmuiStep2(String appName) {
+    return '2. Battery management: Settings → Battery → Battery management → $appName → Don\'t optimize';
+  }
+
+  @override
+  String manufacturerSettingsEmuiStep3(String appName) {
+    return '3. Background activity: Settings → Apps → $appName → Battery → Allow background activity';
+  }
+
+  @override
+  String get manufacturerSettingsColorosTitle => 'ColorOS/RealmeUI Settings for Stable Operation';
+
+  @override
+  String get manufacturerSettingsColorosMessage => 'On Oppo/Realme devices, you need to configure the following settings:';
+
+  @override
+  String manufacturerSettingsColorosStep1(String appName) {
+    return '1. Autostart: Settings → Apps → Autostart → Enable for $appName';
+  }
+
+  @override
+  String manufacturerSettingsColorosStep2(String appName) {
+    return '2. Battery optimization: Settings → Battery → Battery optimization → $appName → Don\'t optimize';
+  }
+
+  @override
+  String manufacturerSettingsColorosStep3(String appName) {
+    return '3. Background activity: Settings → Apps → $appName → Battery → Allow background activity';
+  }
+
+  @override
+  String get manufacturerSettingsOxygenosTitle => 'OxygenOS Settings for Stable Operation';
+
+  @override
+  String get manufacturerSettingsOxygenosMessage => 'On OnePlus devices, you need to configure the following settings:';
+
+  @override
+  String manufacturerSettingsOxygenosStep1(String appName) {
+    return '1. Autostart: Settings → Apps → Autostart → Enable for $appName';
+  }
+
+  @override
+  String manufacturerSettingsOxygenosStep2(String appName) {
+    return '2. Battery optimization: Settings → Battery → Battery optimization → $appName → Don\'t optimize';
+  }
+
+  @override
+  String manufacturerSettingsOxygenosStep3(String appName) {
+    return '3. Background activity: Settings → Apps → $appName → Battery → Allow background activity';
+  }
+
+  @override
+  String get manufacturerSettingsFuntouchosTitle => 'FuntouchOS/OriginOS Settings for Stable Operation';
+
+  @override
+  String get manufacturerSettingsFuntouchosMessage => 'On Vivo devices, you need to configure the following settings:';
+
+  @override
+  String manufacturerSettingsFuntouchosStep1(String appName) {
+    return '1. Autostart: Settings → Apps → Autostart → Enable for $appName';
+  }
+
+  @override
+  String manufacturerSettingsFuntouchosStep2(String appName) {
+    return '2. Battery optimization: Settings → Battery → Battery optimization → $appName → Don\'t optimize';
+  }
+
+  @override
+  String manufacturerSettingsFuntouchosStep3(String appName) {
+    return '3. Background activity: Settings → Apps → $appName → Battery → Allow background activity';
+  }
+
+  @override
+  String get manufacturerSettingsFlymeTitle => 'Flyme Settings for Stable Operation';
+
+  @override
+  String get manufacturerSettingsFlymeMessage => 'On Meizu devices, you need to configure the following settings:';
+
+  @override
+  String manufacturerSettingsFlymeStep1(String appName) {
+    return '1. Autostart: Settings → Apps → Autostart → Enable for $appName';
+  }
+
+  @override
+  String manufacturerSettingsFlymeStep2(String appName) {
+    return '2. Battery optimization: Settings → Battery → Battery optimization → $appName → Don\'t optimize';
+  }
+
+  @override
+  String manufacturerSettingsFlymeStep3(String appName) {
+    return '3. Background activity: Settings → Apps → $appName → Battery → Allow background activity';
+  }
+
+  @override
+  String get manufacturerSettingsOneuiTitle => 'One UI Settings for Stable Operation';
+
+  @override
+  String get manufacturerSettingsOneuiMessage => 'On Samsung devices, it is recommended to configure the following settings:';
+
+  @override
+  String manufacturerSettingsOneuiStep1(String appName) {
+    return '1. Battery optimization: Settings → Apps → $appName → Battery → Don\'t optimize';
+  }
+
+  @override
+  String manufacturerSettingsOneuiStep2(String appName) {
+    return '2. Background activity: Settings → Apps → $appName → Battery → Background activity → Allow';
+  }
+
+  @override
+  String get manufacturerSettingsOneuiStep3 => '3. Autostart: Usually not required on Samsung, but you can check in app settings';
 }

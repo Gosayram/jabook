@@ -2812,4 +2812,170 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get scanningLibrary => 'Сканирование библиотеки...';
+
+  @override
+  String get manufacturerSettingsNotAvailable => 'Настройки недоступны';
+
+  @override
+  String get manufacturerSettingsNotAvailableMessage => 'Настройки производителя доступны только на устройствах Android.';
+
+  @override
+  String get manufacturerSettingsDefaultTitle => 'Настройки для стабильной работы';
+
+  @override
+  String get manufacturerSettingsDefaultMessage => 'Для стабильной работы приложения необходимо настроить следующие параметры:';
+
+  @override
+  String get manufacturerSettingsDefaultStep1 => '1. Включите автозапуск приложения';
+
+  @override
+  String get manufacturerSettingsDefaultStep2 => '2. Отключите оптимизацию батареи для приложения';
+
+  @override
+  String get manufacturerSettingsDefaultStep3 => '3. Разрешите фоновую активность';
+
+  @override
+  String get manufacturerSettingsMiuiTitle => 'Настройки MIUI для стабильной работы';
+
+  @override
+  String get manufacturerSettingsMiuiMessage => 'На устройствах Xiaomi/Redmi/Poco необходимо настроить следующие параметры:';
+
+  @override
+  String manufacturerSettingsMiuiStep1(String appName) {
+    return '1. Автозапуск: Настройки → Приложения → Управление разрешениями → Автозапуск → Включите для $appName';
+  }
+
+  @override
+  String manufacturerSettingsMiuiStep2(String appName) {
+    return '2. Оптимизация батареи: Настройки → Батарея → Оптимизация батареи → Выберите $appName → Не оптимизировать';
+  }
+
+  @override
+  String manufacturerSettingsMiuiStep3(String appName) {
+    return '3. Фоновая активность: Настройки → Приложения → $appName → Батарея → Фоновая активность → Разрешить';
+  }
+
+  @override
+  String get manufacturerSettingsEmuiTitle => 'Настройки EMUI для стабильной работы';
+
+  @override
+  String get manufacturerSettingsEmuiMessage => 'На устройствах Huawei/Honor необходимо настроить следующие параметры:';
+
+  @override
+  String manufacturerSettingsEmuiStep1(String appName) {
+    return '1. Защита приложений: Настройки → Приложения → Защита приложений → $appName → Включите автозапуск';
+  }
+
+  @override
+  String manufacturerSettingsEmuiStep2(String appName) {
+    return '2. Управление батареей: Настройки → Батарея → Управление батареей → $appName → Не оптимизировать';
+  }
+
+  @override
+  String manufacturerSettingsEmuiStep3(String appName) {
+    return '3. Фоновая активность: Настройки → Приложения → $appName → Батарея → Разрешить фоновую активность';
+  }
+
+  @override
+  String get manufacturerSettingsColorosTitle => 'Настройки ColorOS/RealmeUI для стабильной работы';
+
+  @override
+  String get manufacturerSettingsColorosMessage => 'На устройствах Oppo/Realme необходимо настроить следующие параметры:';
+
+  @override
+  String manufacturerSettingsColorosStep1(String appName) {
+    return '1. Автозапуск: Настройки → Приложения → Автозапуск → Включите для $appName';
+  }
+
+  @override
+  String manufacturerSettingsColorosStep2(String appName) {
+    return '2. Оптимизация батареи: Настройки → Батарея → Оптимизация батареи → $appName → Не оптимизировать';
+  }
+
+  @override
+  String manufacturerSettingsColorosStep3(String appName) {
+    return '3. Фоновая активность: Настройки → Приложения → $appName → Батарея → Разрешить фоновую активность';
+  }
+
+  @override
+  String get manufacturerSettingsOxygenosTitle => 'Настройки OxygenOS для стабильной работы';
+
+  @override
+  String get manufacturerSettingsOxygenosMessage => 'На устройствах OnePlus необходимо настроить следующие параметры:';
+
+  @override
+  String manufacturerSettingsOxygenosStep1(String appName) {
+    return '1. Автозапуск: Настройки → Приложения → Автозапуск → Включите для $appName';
+  }
+
+  @override
+  String manufacturerSettingsOxygenosStep2(String appName) {
+    return '2. Оптимизация батареи: Настройки → Батарея → Оптимизация батареи → $appName → Не оптимизировать';
+  }
+
+  @override
+  String manufacturerSettingsOxygenosStep3(String appName) {
+    return '3. Фоновая активность: Настройки → Приложения → $appName → Батарея → Разрешить фоновую активность';
+  }
+
+  @override
+  String get manufacturerSettingsFuntouchosTitle => 'Настройки FuntouchOS/OriginOS для стабильной работы';
+
+  @override
+  String get manufacturerSettingsFuntouchosMessage => 'На устройствах Vivo необходимо настроить следующие параметры:';
+
+  @override
+  String manufacturerSettingsFuntouchosStep1(String appName) {
+    return '1. Автозапуск: Настройки → Приложения → Автозапуск → Включите для $appName';
+  }
+
+  @override
+  String manufacturerSettingsFuntouchosStep2(String appName) {
+    return '2. Оптимизация батареи: Настройки → Батарея → Оптимизация батареи → $appName → Не оптимизировать';
+  }
+
+  @override
+  String manufacturerSettingsFuntouchosStep3(String appName) {
+    return '3. Фоновая активность: Настройки → Приложения → $appName → Батарея → Разрешить фоновую активность';
+  }
+
+  @override
+  String get manufacturerSettingsFlymeTitle => 'Настройки Flyme для стабильной работы';
+
+  @override
+  String get manufacturerSettingsFlymeMessage => 'На устройствах Meizu необходимо настроить следующие параметры:';
+
+  @override
+  String manufacturerSettingsFlymeStep1(String appName) {
+    return '1. Автозапуск: Настройки → Приложения → Автозапуск → Включите для $appName';
+  }
+
+  @override
+  String manufacturerSettingsFlymeStep2(String appName) {
+    return '2. Оптимизация батареи: Настройки → Батарея → Оптимизация батареи → $appName → Не оптимизировать';
+  }
+
+  @override
+  String manufacturerSettingsFlymeStep3(String appName) {
+    return '3. Фоновая активность: Настройки → Приложения → $appName → Батарея → Разрешить фоновую активность';
+  }
+
+  @override
+  String get manufacturerSettingsOneuiTitle => 'Настройки One UI для стабильной работы';
+
+  @override
+  String get manufacturerSettingsOneuiMessage => 'На устройствах Samsung рекомендуется настроить следующие параметры:';
+
+  @override
+  String manufacturerSettingsOneuiStep1(String appName) {
+    return '1. Оптимизация батареи: Настройки → Приложения → $appName → Батарея → Не оптимизировать';
+  }
+
+  @override
+  String manufacturerSettingsOneuiStep2(String appName) {
+    return '2. Фоновая активность: Настройки → Приложения → $appName → Батарея → Фоновая активность → Разрешить';
+  }
+
+  @override
+  String get manufacturerSettingsOneuiStep3 => '3. Автозапуск: Обычно не требуется на Samsung, но можно проверить в настройках приложения';
 }

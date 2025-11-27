@@ -67,7 +67,7 @@ class _ManufacturerSettingsDialogState
 
     try {
       final instructions =
-          await _manufacturerService.getManufacturerSpecificInstructions();
+          await _manufacturerService.getManufacturerSpecificInstructions(context);
       final customRom = await _deviceInfo.getCustomRom();
 
       if (mounted) {

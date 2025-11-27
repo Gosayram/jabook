@@ -14,6 +14,7 @@
 
 import 'package:flutter/material.dart';
 
+import 'package:jabook/core/config/app_config.dart';
 import 'package:jabook/core/permissions/permission_service_v2.dart';
 import 'package:jabook/core/utils/bluetooth_utils.dart' as bluetooth_utils;
 import 'package:jabook/core/utils/file_picker_utils.dart' as file_picker_utils;
@@ -132,7 +133,7 @@ class _SystemCapabilitiesWidgetState extends State<SystemCapabilitiesWidget> {
     final success = await notification_utils.showSimpleNotification(
       title: localizations?.testNotificationTitle ?? 'Test notification',
       body: localizations?.testNotificationBody ??
-          'This is a test notification from JaBook',
+          'This is a test notification from ${AppConfig().displayAppName}',
     );
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(

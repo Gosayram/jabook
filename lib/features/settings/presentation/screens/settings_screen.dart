@@ -22,6 +22,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:jabook/core/backup/backup_service.dart';
 import 'package:jabook/core/cache/rutracker_cache_service.dart';
+import 'package:jabook/core/config/app_config.dart';
 import 'package:jabook/core/config/audio_settings_manager.dart';
 import 'package:jabook/core/config/audio_settings_provider.dart';
 import 'package:jabook/core/config/book_audio_settings_service.dart';
@@ -35,6 +36,7 @@ import 'package:jabook/core/net/dio_client.dart';
 import 'package:jabook/core/permissions/permission_service.dart';
 import 'package:jabook/core/player/player_state_provider.dart';
 import 'package:jabook/core/session/session_manager.dart';
+import 'package:jabook/core/utils/app_title_utils.dart';
 import 'package:jabook/core/utils/content_uri_service.dart';
 import 'package:jabook/core/utils/file_picker_utils.dart' as file_picker_utils;
 import 'package:jabook/core/utils/storage_path_utils.dart';
@@ -182,7 +184,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(localizations?.settingsTitle ?? 'Settings'),
+        title: Text(
+            (localizations?.settingsTitle ?? 'Settings').withFlavorSuffix()),
       ),
       body: ListView(
         padding: const EdgeInsets.all(16.0),
@@ -1455,7 +1458,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       title: AppLocalizations.of(context)?.storagePermissionName ??
           'Storage Permission',
       message: AppLocalizations.of(context)?.storagePermissionDescription ??
-          'JaBook needs storage permission to save audiobook files and cache data. '
+          '${AppConfig().displayAppName} needs storage permission to save audiobook files and cache data. '
               'This allows you to download and play audiobooks offline.',
     );
 
@@ -1557,7 +1560,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           'Notification Permission',
       message: AppLocalizations.of(context)
               ?.notificationsPermissionDescription ??
-          'JaBook needs notification permission to show playback controls and updates. '
+          '${AppConfig().displayAppName} needs notification permission to show playback controls and updates. '
               'This allows you to control playback from the notification panel.',
     );
 
@@ -1816,8 +1819,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         // ignore: deprecated_member_use
         await Share.shareXFiles(
           [XFile(filePath)],
-          subject: 'JaBook Backup',
-          text: 'JaBook data backup',
+          subject: '${AppConfig().displayAppName} Backup',
+          text: '${AppConfig().displayAppName} data backup',
         );
 
         if (!mounted) return;

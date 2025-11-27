@@ -16,6 +16,7 @@ import 'dart:io';
 
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:go_router/go_router.dart';
+import 'package:jabook/core/config/app_config.dart';
 import 'package:jabook/core/logging/environment_logger.dart';
 import 'package:jabook/core/permissions/permission_service.dart';
 import 'package:jabook/core/torrent/audiobook_torrent_manager.dart';
@@ -147,9 +148,12 @@ class DownloadNotificationService {
       EnvironmentLogger().d(
         'DownloadNotificationService: Creating notification channel "downloads"',
       );
-      const androidChannel = AndroidNotificationChannel(
+      final config = AppConfig();
+      final channelName =
+          config.isProd ? 'Downloads' : 'Downloads (${config.flavor})';
+      final androidChannel = AndroidNotificationChannel(
         'downloads',
-        'Downloads',
+        channelName,
         description: 'Notifications for active torrent downloads',
         importance: Importance.low,
         showBadge: false,
@@ -261,9 +265,12 @@ class DownloadNotificationService {
         ];
       }
 
+      final config = AppConfig();
+      final channelName =
+          config.isProd ? 'Downloads' : 'Downloads (${config.flavor})';
       final androidDetails = AndroidNotificationDetails(
         'downloads',
-        'Downloads',
+        channelName,
         channelDescription: 'Notifications for active torrent downloads',
         importance: Importance.low,
         priority: Priority.low,

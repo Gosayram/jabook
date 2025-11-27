@@ -22,6 +22,7 @@ import 'package:jabook/core/library/audiobook_library_scanner.dart';
 import 'package:jabook/core/library/local_audiobook.dart';
 import 'package:jabook/core/library/storage_statistics_service.dart';
 import 'package:jabook/core/library/trash_service.dart';
+import 'package:jabook/core/utils/app_title_utils.dart';
 import 'package:jabook/core/utils/storage_path_utils.dart';
 import 'package:jabook/features/library/presentation/widgets/delete_confirmation_dialog.dart';
 import 'package:jabook/l10n/app_localizations.dart';
@@ -142,7 +143,8 @@ class _StorageManagementScreenState extends State<StorageManagementScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          localizations?.storageManagementTitle ?? 'Storage Management',
+          (localizations?.storageManagementTitle ?? 'Storage Management')
+              .withFlavorSuffix(),
         ),
         actions: [
           if (_selectedGroups.isNotEmpty)

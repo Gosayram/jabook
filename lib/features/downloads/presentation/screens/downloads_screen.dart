@@ -19,6 +19,7 @@ import 'package:go_router/go_router.dart';
 import 'package:jabook/core/config/app_config.dart';
 import 'package:jabook/core/logging/environment_logger.dart';
 import 'package:jabook/core/torrent/audiobook_torrent_manager.dart';
+import 'package:jabook/core/utils/app_title_utils.dart';
 import 'package:jabook/l10n/app_localizations.dart';
 
 /// Screen for displaying all active downloads.
@@ -243,7 +244,8 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
         child: Scaffold(
           appBar: AppBar(
             title: Text(
-              AppLocalizations.of(context)?.downloadsTitle ?? 'Downloads',
+              (AppLocalizations.of(context)?.downloadsTitle ?? 'Downloads')
+                  .withFlavorSuffix(),
             ),
             actions: [
               if (AppConfig().debugFeaturesEnabled)

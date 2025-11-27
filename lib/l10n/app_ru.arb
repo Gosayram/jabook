@@ -4000,5 +4000,273 @@
   "scanningLibrary": "Сканирование библиотеки...",
   "@scanningLibrary": {
     "description": "Сообщение, показываемое при сканировании библиотеки аудиокниг"
+  },
+  "manufacturerSettingsNotAvailable": "Настройки недоступны",
+  "@manufacturerSettingsNotAvailable": {
+    "description": "Заголовок когда настройки производителя недоступны"
+  },
+  "manufacturerSettingsNotAvailableMessage": "Настройки производителя доступны только на устройствах Android.",
+  "@manufacturerSettingsNotAvailableMessage": {
+    "description": "Сообщение когда настройки производителя недоступны"
+  },
+  "manufacturerSettingsDefaultTitle": "Настройки для стабильной работы",
+  "@manufacturerSettingsDefaultTitle": {
+    "description": "Заголовок по умолчанию для инструкций настроек производителя"
+  },
+  "manufacturerSettingsDefaultMessage": "Для стабильной работы приложения необходимо настроить следующие параметры:",
+  "@manufacturerSettingsDefaultMessage": {
+    "description": "Сообщение по умолчанию для инструкций настроек производителя"
+  },
+  "manufacturerSettingsDefaultStep1": "1. Включите автозапуск приложения",
+  "@manufacturerSettingsDefaultStep1": {
+    "description": "Шаг 1 по умолчанию для настроек производителя"
+  },
+  "manufacturerSettingsDefaultStep2": "2. Отключите оптимизацию батареи для приложения",
+  "@manufacturerSettingsDefaultStep2": {
+    "description": "Шаг 2 по умолчанию для настроек производителя"
+  },
+  "manufacturerSettingsDefaultStep3": "3. Разрешите фоновую активность",
+  "@manufacturerSettingsDefaultStep3": {
+    "description": "Шаг 3 по умолчанию для настроек производителя"
+  },
+  "manufacturerSettingsMiuiTitle": "Настройки MIUI для стабильной работы",
+  "@manufacturerSettingsMiuiTitle": {
+    "description": "Заголовок для настроек производителя MIUI"
+  },
+  "manufacturerSettingsMiuiMessage": "На устройствах Xiaomi/Redmi/Poco необходимо настроить следующие параметры:",
+  "@manufacturerSettingsMiuiMessage": {
+    "description": "Сообщение для настроек производителя MIUI"
+  },
+  "manufacturerSettingsMiuiStep1": "1. Автозапуск: Настройки → Приложения → Управление разрешениями → Автозапуск → Включите для {appName}",
+  "@manufacturerSettingsMiuiStep1": {
+    "description": "Шаг 1 для настроек MIUI",
+    "placeholders": {
+      "appName": {
+        "type": "String"
+      }
+    }
+  },
+  "manufacturerSettingsMiuiStep2": "2. Оптимизация батареи: Настройки → Батарея → Оптимизация батареи → Выберите {appName} → Не оптимизировать",
+  "@manufacturerSettingsMiuiStep2": {
+    "description": "Шаг 2 для настроек MIUI",
+    "placeholders": {
+      "appName": {
+        "type": "String"
+      }
+    }
+  },
+  "manufacturerSettingsMiuiStep3": "3. Фоновая активность: Настройки → Приложения → {appName} → Батарея → Фоновая активность → Разрешить",
+  "@manufacturerSettingsMiuiStep3": {
+    "description": "Шаг 3 для настроек MIUI",
+    "placeholders": {
+      "appName": {
+        "type": "String"
+      }
+    }
+  },
+  "manufacturerSettingsEmuiTitle": "Настройки EMUI для стабильной работы",
+  "@manufacturerSettingsEmuiTitle": {
+    "description": "Заголовок для настроек производителя EMUI"
+  },
+  "manufacturerSettingsEmuiMessage": "На устройствах Huawei/Honor необходимо настроить следующие параметры:",
+  "@manufacturerSettingsEmuiMessage": {
+    "description": "Сообщение для настроек производителя EMUI"
+  },
+  "manufacturerSettingsEmuiStep1": "1. Защита приложений: Настройки → Приложения → Защита приложений → {appName} → Включите автозапуск",
+  "@manufacturerSettingsEmuiStep1": {
+    "description": "Шаг 1 для настроек EMUI",
+    "placeholders": {
+      "appName": {
+        "type": "String"
+      }
+    }
+  },
+  "manufacturerSettingsEmuiStep2": "2. Управление батареей: Настройки → Батарея → Управление батареей → {appName} → Не оптимизировать",
+  "@manufacturerSettingsEmuiStep2": {
+    "description": "Шаг 2 для настроек EMUI",
+    "placeholders": {
+      "appName": {
+        "type": "String"
+      }
+    }
+  },
+  "manufacturerSettingsEmuiStep3": "3. Фоновая активность: Настройки → Приложения → {appName} → Батарея → Разрешить фоновую активность",
+  "@manufacturerSettingsEmuiStep3": {
+    "description": "Шаг 3 для настроек EMUI",
+    "placeholders": {
+      "appName": {
+        "type": "String"
+      }
+    }
+  },
+  "manufacturerSettingsColorosTitle": "Настройки ColorOS/RealmeUI для стабильной работы",
+  "@manufacturerSettingsColorosTitle": {
+    "description": "Заголовок для настроек производителя ColorOS/RealmeUI"
+  },
+  "manufacturerSettingsColorosMessage": "На устройствах Oppo/Realme необходимо настроить следующие параметры:",
+  "@manufacturerSettingsColorosMessage": {
+    "description": "Сообщение для настроек производителя ColorOS/RealmeUI"
+  },
+  "manufacturerSettingsColorosStep1": "1. Автозапуск: Настройки → Приложения → Автозапуск → Включите для {appName}",
+  "@manufacturerSettingsColorosStep1": {
+    "description": "Шаг 1 для настроек ColorOS/RealmeUI",
+    "placeholders": {
+      "appName": {
+        "type": "String"
+      }
+    }
+  },
+  "manufacturerSettingsColorosStep2": "2. Оптимизация батареи: Настройки → Батарея → Оптимизация батареи → {appName} → Не оптимизировать",
+  "@manufacturerSettingsColorosStep2": {
+    "description": "Шаг 2 для настроек ColorOS/RealmeUI",
+    "placeholders": {
+      "appName": {
+        "type": "String"
+      }
+    }
+  },
+  "manufacturerSettingsColorosStep3": "3. Фоновая активность: Настройки → Приложения → {appName} → Батарея → Разрешить фоновую активность",
+  "@manufacturerSettingsColorosStep3": {
+    "description": "Шаг 3 для настроек ColorOS/RealmeUI",
+    "placeholders": {
+      "appName": {
+        "type": "String"
+      }
+    }
+  },
+  "manufacturerSettingsOxygenosTitle": "Настройки OxygenOS для стабильной работы",
+  "@manufacturerSettingsOxygenosTitle": {
+    "description": "Заголовок для настроек производителя OxygenOS"
+  },
+  "manufacturerSettingsOxygenosMessage": "На устройствах OnePlus необходимо настроить следующие параметры:",
+  "@manufacturerSettingsOxygenosMessage": {
+    "description": "Сообщение для настроек производителя OxygenOS"
+  },
+  "manufacturerSettingsOxygenosStep1": "1. Автозапуск: Настройки → Приложения → Автозапуск → Включите для {appName}",
+  "@manufacturerSettingsOxygenosStep1": {
+    "description": "Шаг 1 для настроек OxygenOS",
+    "placeholders": {
+      "appName": {
+        "type": "String"
+      }
+    }
+  },
+  "manufacturerSettingsOxygenosStep2": "2. Оптимизация батареи: Настройки → Батарея → Оптимизация батареи → {appName} → Не оптимизировать",
+  "@manufacturerSettingsOxygenosStep2": {
+    "description": "Шаг 2 для настроек OxygenOS",
+    "placeholders": {
+      "appName": {
+        "type": "String"
+      }
+    }
+  },
+  "manufacturerSettingsOxygenosStep3": "3. Фоновая активность: Настройки → Приложения → {appName} → Батарея → Разрешить фоновую активность",
+  "@manufacturerSettingsOxygenosStep3": {
+    "description": "Шаг 3 для настроек OxygenOS",
+    "placeholders": {
+      "appName": {
+        "type": "String"
+      }
+    }
+  },
+  "manufacturerSettingsFuntouchosTitle": "Настройки FuntouchOS/OriginOS для стабильной работы",
+  "@manufacturerSettingsFuntouchosTitle": {
+    "description": "Заголовок для настроек производителя FuntouchOS/OriginOS"
+  },
+  "manufacturerSettingsFuntouchosMessage": "На устройствах Vivo необходимо настроить следующие параметры:",
+  "@manufacturerSettingsFuntouchosMessage": {
+    "description": "Сообщение для настроек производителя FuntouchOS/OriginOS"
+  },
+  "manufacturerSettingsFuntouchosStep1": "1. Автозапуск: Настройки → Приложения → Автозапуск → Включите для {appName}",
+  "@manufacturerSettingsFuntouchosStep1": {
+    "description": "Шаг 1 для настроек FuntouchOS/OriginOS",
+    "placeholders": {
+      "appName": {
+        "type": "String"
+      }
+    }
+  },
+  "manufacturerSettingsFuntouchosStep2": "2. Оптимизация батареи: Настройки → Батарея → Оптимизация батареи → {appName} → Не оптимизировать",
+  "@manufacturerSettingsFuntouchosStep2": {
+    "description": "Шаг 2 для настроек FuntouchOS/OriginOS",
+    "placeholders": {
+      "appName": {
+        "type": "String"
+      }
+    }
+  },
+  "manufacturerSettingsFuntouchosStep3": "3. Фоновая активность: Настройки → Приложения → {appName} → Батарея → Разрешить фоновую активность",
+  "@manufacturerSettingsFuntouchosStep3": {
+    "description": "Шаг 3 для настроек FuntouchOS/OriginOS",
+    "placeholders": {
+      "appName": {
+        "type": "String"
+      }
+    }
+  },
+  "manufacturerSettingsFlymeTitle": "Настройки Flyme для стабильной работы",
+  "@manufacturerSettingsFlymeTitle": {
+    "description": "Заголовок для настроек производителя Flyme"
+  },
+  "manufacturerSettingsFlymeMessage": "На устройствах Meizu необходимо настроить следующие параметры:",
+  "@manufacturerSettingsFlymeMessage": {
+    "description": "Сообщение для настроек производителя Flyme"
+  },
+  "manufacturerSettingsFlymeStep1": "1. Автозапуск: Настройки → Приложения → Автозапуск → Включите для {appName}",
+  "@manufacturerSettingsFlymeStep1": {
+    "description": "Шаг 1 для настроек Flyme",
+    "placeholders": {
+      "appName": {
+        "type": "String"
+      }
+    }
+  },
+  "manufacturerSettingsFlymeStep2": "2. Оптимизация батареи: Настройки → Батарея → Оптимизация батареи → {appName} → Не оптимизировать",
+  "@manufacturerSettingsFlymeStep2": {
+    "description": "Шаг 2 для настроек Flyme",
+    "placeholders": {
+      "appName": {
+        "type": "String"
+      }
+    }
+  },
+  "manufacturerSettingsFlymeStep3": "3. Фоновая активность: Настройки → Приложения → {appName} → Батарея → Разрешить фоновую активность",
+  "@manufacturerSettingsFlymeStep3": {
+    "description": "Шаг 3 для настроек Flyme",
+    "placeholders": {
+      "appName": {
+        "type": "String"
+      }
+    }
+  },
+  "manufacturerSettingsOneuiTitle": "Настройки One UI для стабильной работы",
+  "@manufacturerSettingsOneuiTitle": {
+    "description": "Заголовок для настроек производителя One UI"
+  },
+  "manufacturerSettingsOneuiMessage": "На устройствах Samsung рекомендуется настроить следующие параметры:",
+  "@manufacturerSettingsOneuiMessage": {
+    "description": "Сообщение для настроек производителя One UI"
+  },
+  "manufacturerSettingsOneuiStep1": "1. Оптимизация батареи: Настройки → Приложения → {appName} → Батарея → Не оптимизировать",
+  "@manufacturerSettingsOneuiStep1": {
+    "description": "Шаг 1 для настроек One UI",
+    "placeholders": {
+      "appName": {
+        "type": "String"
+      }
+    }
+  },
+  "manufacturerSettingsOneuiStep2": "2. Фоновая активность: Настройки → Приложения → {appName} → Батарея → Фоновая активность → Разрешить",
+  "@manufacturerSettingsOneuiStep2": {
+    "description": "Шаг 2 для настроек One UI",
+    "placeholders": {
+      "appName": {
+        "type": "String"
+      }
+    }
+  },
+  "manufacturerSettingsOneuiStep3": "3. Автозапуск: Обычно не требуется на Samsung, но можно проверить в настройках приложения",
+  "@manufacturerSettingsOneuiStep3": {
+    "description": "Шаг 3 для настроек One UI"
   }
 }

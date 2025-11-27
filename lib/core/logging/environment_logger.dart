@@ -14,6 +14,7 @@
 
 import 'dart:developer' as developer;
 import 'package:flutter/foundation.dart';
+import 'package:jabook/core/config/app_config.dart';
 
 /// Environment-aware logger for the application.
 ///
@@ -85,16 +86,17 @@ class EnvironmentLogger {
         time: DateTime.now(),
         error: error,
         stackTrace: stackTrace,
-        name: 'JaBook',
+        name: AppConfig().displayAppName,
       );
     } else {
       // Release mode - use developer.log for consistency
-      developer.log(formattedMessage, name: 'JaBook');
+      final loggerName = AppConfig().displayAppName;
+      developer.log(formattedMessage, name: loggerName);
       if (error != null) {
-        developer.log('Error: $error', name: 'JaBook');
+        developer.log('Error: $error', name: loggerName);
       }
       if (stackTrace != null) {
-        developer.log('Stack trace: $stackTrace', name: 'JaBook');
+        developer.log('Stack trace: $stackTrace', name: loggerName);
       }
     }
 
@@ -140,14 +142,15 @@ class EnvironmentLogger {
     // This could integrate with Firebase Crashlytics, Sentry, or other services
 
     // For now, just log to console in release builds
+    final loggerName = AppConfig().displayAppName;
     developer.log('[CRASH_REPORTING] Level: $level, Message: $message',
-        name: 'JaBook');
+        name: loggerName);
     if (error != null) {
-      developer.log('[CRASH_REPORTING] Error: $error', name: 'JaBook');
+      developer.log('[CRASH_REPORTING] Error: $error', name: loggerName);
     }
     if (stackTrace != null) {
       developer.log('[CRASH_REPORTING] Stack trace: $stackTrace',
-          name: 'JaBook');
+          name: loggerName);
     }
   }
 
@@ -155,10 +158,12 @@ class EnvironmentLogger {
   void initialize() {
     if (kDebugMode) {
       // In debug mode, enable verbose logging
-      developer.log('Logger initialized in debug mode', name: 'JaBook');
+      developer.log('Logger initialized in debug mode',
+          name: AppConfig().displayAppName);
     } else {
       // In release mode, log initialization at info level
-      developer.log('Logger initialized in release mode', name: 'JaBook');
+      developer.log('Logger initialized in release mode',
+          name: AppConfig().displayAppName);
     }
   }
 

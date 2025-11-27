@@ -5260,6 +5260,258 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Scanning library...'**
   String get scanningLibrary;
+
+  /// Title when manufacturer settings are not available
+  ///
+  /// In en, this message translates to:
+  /// **'Settings Not Available'**
+  String get manufacturerSettingsNotAvailable;
+
+  /// Message when manufacturer settings are not available
+  ///
+  /// In en, this message translates to:
+  /// **'Manufacturer-specific settings are only available on Android devices.'**
+  String get manufacturerSettingsNotAvailableMessage;
+
+  /// Default title for manufacturer settings instructions
+  ///
+  /// In en, this message translates to:
+  /// **'Settings for Stable Operation'**
+  String get manufacturerSettingsDefaultTitle;
+
+  /// Default message for manufacturer settings instructions
+  ///
+  /// In en, this message translates to:
+  /// **'To ensure stable operation, you need to configure the following settings:'**
+  String get manufacturerSettingsDefaultMessage;
+
+  /// Default step 1 for manufacturer settings
+  ///
+  /// In en, this message translates to:
+  /// **'1. Enable application autostart'**
+  String get manufacturerSettingsDefaultStep1;
+
+  /// Default step 2 for manufacturer settings
+  ///
+  /// In en, this message translates to:
+  /// **'2. Disable battery optimization for the application'**
+  String get manufacturerSettingsDefaultStep2;
+
+  /// Default step 3 for manufacturer settings
+  ///
+  /// In en, this message translates to:
+  /// **'3. Allow background activity'**
+  String get manufacturerSettingsDefaultStep3;
+
+  /// Title for MIUI manufacturer settings
+  ///
+  /// In en, this message translates to:
+  /// **'MIUI Settings for Stable Operation'**
+  String get manufacturerSettingsMiuiTitle;
+
+  /// Message for MIUI manufacturer settings
+  ///
+  /// In en, this message translates to:
+  /// **'On Xiaomi/Redmi/Poco devices, you need to configure the following settings:'**
+  String get manufacturerSettingsMiuiMessage;
+
+  /// Step 1 for MIUI settings
+  ///
+  /// In en, this message translates to:
+  /// **'1. Autostart: Settings → Apps → Permission management → Autostart → Enable for {appName}'**
+  String manufacturerSettingsMiuiStep1(String appName);
+
+  /// Step 2 for MIUI settings
+  ///
+  /// In en, this message translates to:
+  /// **'2. Battery optimization: Settings → Battery → Battery optimization → Select {appName} → Don\'t optimize'**
+  String manufacturerSettingsMiuiStep2(String appName);
+
+  /// Step 3 for MIUI settings
+  ///
+  /// In en, this message translates to:
+  /// **'3. Background activity: Settings → Apps → {appName} → Battery → Background activity → Allow'**
+  String manufacturerSettingsMiuiStep3(String appName);
+
+  /// Title for EMUI manufacturer settings
+  ///
+  /// In en, this message translates to:
+  /// **'EMUI Settings for Stable Operation'**
+  String get manufacturerSettingsEmuiTitle;
+
+  /// Message for EMUI manufacturer settings
+  ///
+  /// In en, this message translates to:
+  /// **'On Huawei/Honor devices, you need to configure the following settings:'**
+  String get manufacturerSettingsEmuiMessage;
+
+  /// Step 1 for EMUI settings
+  ///
+  /// In en, this message translates to:
+  /// **'1. App protection: Settings → Apps → App protection → {appName} → Enable autostart'**
+  String manufacturerSettingsEmuiStep1(String appName);
+
+  /// Step 2 for EMUI settings
+  ///
+  /// In en, this message translates to:
+  /// **'2. Battery management: Settings → Battery → Battery management → {appName} → Don\'t optimize'**
+  String manufacturerSettingsEmuiStep2(String appName);
+
+  /// Step 3 for EMUI settings
+  ///
+  /// In en, this message translates to:
+  /// **'3. Background activity: Settings → Apps → {appName} → Battery → Allow background activity'**
+  String manufacturerSettingsEmuiStep3(String appName);
+
+  /// Title for ColorOS/RealmeUI manufacturer settings
+  ///
+  /// In en, this message translates to:
+  /// **'ColorOS/RealmeUI Settings for Stable Operation'**
+  String get manufacturerSettingsColorosTitle;
+
+  /// Message for ColorOS/RealmeUI manufacturer settings
+  ///
+  /// In en, this message translates to:
+  /// **'On Oppo/Realme devices, you need to configure the following settings:'**
+  String get manufacturerSettingsColorosMessage;
+
+  /// Step 1 for ColorOS/RealmeUI settings
+  ///
+  /// In en, this message translates to:
+  /// **'1. Autostart: Settings → Apps → Autostart → Enable for {appName}'**
+  String manufacturerSettingsColorosStep1(String appName);
+
+  /// Step 2 for ColorOS/RealmeUI settings
+  ///
+  /// In en, this message translates to:
+  /// **'2. Battery optimization: Settings → Battery → Battery optimization → {appName} → Don\'t optimize'**
+  String manufacturerSettingsColorosStep2(String appName);
+
+  /// Step 3 for ColorOS/RealmeUI settings
+  ///
+  /// In en, this message translates to:
+  /// **'3. Background activity: Settings → Apps → {appName} → Battery → Allow background activity'**
+  String manufacturerSettingsColorosStep3(String appName);
+
+  /// Title for OxygenOS manufacturer settings
+  ///
+  /// In en, this message translates to:
+  /// **'OxygenOS Settings for Stable Operation'**
+  String get manufacturerSettingsOxygenosTitle;
+
+  /// Message for OxygenOS manufacturer settings
+  ///
+  /// In en, this message translates to:
+  /// **'On OnePlus devices, you need to configure the following settings:'**
+  String get manufacturerSettingsOxygenosMessage;
+
+  /// Step 1 for OxygenOS settings
+  ///
+  /// In en, this message translates to:
+  /// **'1. Autostart: Settings → Apps → Autostart → Enable for {appName}'**
+  String manufacturerSettingsOxygenosStep1(String appName);
+
+  /// Step 2 for OxygenOS settings
+  ///
+  /// In en, this message translates to:
+  /// **'2. Battery optimization: Settings → Battery → Battery optimization → {appName} → Don\'t optimize'**
+  String manufacturerSettingsOxygenosStep2(String appName);
+
+  /// Step 3 for OxygenOS settings
+  ///
+  /// In en, this message translates to:
+  /// **'3. Background activity: Settings → Apps → {appName} → Battery → Allow background activity'**
+  String manufacturerSettingsOxygenosStep3(String appName);
+
+  /// Title for FuntouchOS/OriginOS manufacturer settings
+  ///
+  /// In en, this message translates to:
+  /// **'FuntouchOS/OriginOS Settings for Stable Operation'**
+  String get manufacturerSettingsFuntouchosTitle;
+
+  /// Message for FuntouchOS/OriginOS manufacturer settings
+  ///
+  /// In en, this message translates to:
+  /// **'On Vivo devices, you need to configure the following settings:'**
+  String get manufacturerSettingsFuntouchosMessage;
+
+  /// Step 1 for FuntouchOS/OriginOS settings
+  ///
+  /// In en, this message translates to:
+  /// **'1. Autostart: Settings → Apps → Autostart → Enable for {appName}'**
+  String manufacturerSettingsFuntouchosStep1(String appName);
+
+  /// Step 2 for FuntouchOS/OriginOS settings
+  ///
+  /// In en, this message translates to:
+  /// **'2. Battery optimization: Settings → Battery → Battery optimization → {appName} → Don\'t optimize'**
+  String manufacturerSettingsFuntouchosStep2(String appName);
+
+  /// Step 3 for FuntouchOS/OriginOS settings
+  ///
+  /// In en, this message translates to:
+  /// **'3. Background activity: Settings → Apps → {appName} → Battery → Allow background activity'**
+  String manufacturerSettingsFuntouchosStep3(String appName);
+
+  /// Title for Flyme manufacturer settings
+  ///
+  /// In en, this message translates to:
+  /// **'Flyme Settings for Stable Operation'**
+  String get manufacturerSettingsFlymeTitle;
+
+  /// Message for Flyme manufacturer settings
+  ///
+  /// In en, this message translates to:
+  /// **'On Meizu devices, you need to configure the following settings:'**
+  String get manufacturerSettingsFlymeMessage;
+
+  /// Step 1 for Flyme settings
+  ///
+  /// In en, this message translates to:
+  /// **'1. Autostart: Settings → Apps → Autostart → Enable for {appName}'**
+  String manufacturerSettingsFlymeStep1(String appName);
+
+  /// Step 2 for Flyme settings
+  ///
+  /// In en, this message translates to:
+  /// **'2. Battery optimization: Settings → Battery → Battery optimization → {appName} → Don\'t optimize'**
+  String manufacturerSettingsFlymeStep2(String appName);
+
+  /// Step 3 for Flyme settings
+  ///
+  /// In en, this message translates to:
+  /// **'3. Background activity: Settings → Apps → {appName} → Battery → Allow background activity'**
+  String manufacturerSettingsFlymeStep3(String appName);
+
+  /// Title for One UI manufacturer settings
+  ///
+  /// In en, this message translates to:
+  /// **'One UI Settings for Stable Operation'**
+  String get manufacturerSettingsOneuiTitle;
+
+  /// Message for One UI manufacturer settings
+  ///
+  /// In en, this message translates to:
+  /// **'On Samsung devices, it is recommended to configure the following settings:'**
+  String get manufacturerSettingsOneuiMessage;
+
+  /// Step 1 for One UI settings
+  ///
+  /// In en, this message translates to:
+  /// **'1. Battery optimization: Settings → Apps → {appName} → Battery → Don\'t optimize'**
+  String manufacturerSettingsOneuiStep1(String appName);
+
+  /// Step 2 for One UI settings
+  ///
+  /// In en, this message translates to:
+  /// **'2. Background activity: Settings → Apps → {appName} → Battery → Background activity → Allow'**
+  String manufacturerSettingsOneuiStep2(String appName);
+
+  /// Step 3 for One UI settings
+  ///
+  /// In en, this message translates to:
+  /// **'3. Autostart: Usually not required on Samsung, but you can check in app settings'**
+  String get manufacturerSettingsOneuiStep3;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

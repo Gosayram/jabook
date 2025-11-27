@@ -17,6 +17,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart'
     show debugPrint, kReleaseMode; // debugPrint
+import 'package:jabook/core/config/app_config.dart';
 import 'package:jabook/core/errors/failures.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
@@ -572,10 +573,11 @@ class StructuredLogger {
       await tempFile.writeAsString(logContent, flush: true);
 
       // New API: SharePlus.instance.share with ShareParams
+      final appName = AppConfig().displayAppName;
       final params = ShareParams(
         files: [XFile(tempFile.path)],
-        subject: 'JaBook Logs',
-        text: 'Here are the exported JaBook logs.',
+        subject: '$appName Logs',
+        text: 'Here are the exported $appName logs.',
         // tip: on iPad you should also pass sharePositionOrigin from a widget context
       );
 

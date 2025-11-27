@@ -35,6 +35,7 @@ import 'package:jabook/core/parse/category_parser.dart' as category_parser;
 import 'package:jabook/core/parse/rutracker_parser.dart';
 import 'package:jabook/core/search/search_history_service.dart';
 import 'package:jabook/core/services/cookie_service.dart';
+import 'package:jabook/core/utils/app_title_utils.dart';
 import 'package:jabook/core/utils/responsive_utils.dart';
 import 'package:jabook/core/utils/safe_async.dart';
 import 'package:jabook/data/db/app_database.dart';
@@ -1957,8 +1958,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     );
     return Scaffold(
       appBar: AppBar(
-        title: Text(AppLocalizations.of(context)?.searchAudiobooks ??
-            'Search Audiobooks'),
+        title: Text((AppLocalizations.of(context)?.searchAudiobooks ??
+                'Search Audiobooks')
+            .withFlavorSuffix()),
         actions: [
           if (_activeHost != null)
             Padding(

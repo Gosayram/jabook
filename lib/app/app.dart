@@ -983,7 +983,7 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
         // This prevents any null check errors during early initialization on new Android
         try {
           return MaterialApp(
-            title: 'JaBook',
+            title: AppConfig().displayAppName,
             debugShowCheckedModeBanner: false,
             home: Builder(
               builder: (context) => const Scaffold(
@@ -1225,7 +1225,7 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
       logger.e('Error in build method: $e', stackTrace: stackTrace);
       // Ultimate fallback
       return MaterialApp(
-        title: 'JaBook',
+        title: AppConfig().displayAppName,
         home: Scaffold(
           body: Center(
             child: Text(

@@ -19,14 +19,15 @@ import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:jabook/core/animations/dialog_utils.dart';
+import 'package:jabook/core/config/app_config.dart';
 import 'package:jabook/core/logging/structured_logger.dart';
 import 'package:jabook/core/permissions/manufacturer_permissions_service.dart';
 import 'package:jabook/core/utils/device_info_utils.dart';
 import 'package:jabook/core/utils/storage_path_utils.dart';
 import 'package:jabook/l10n/app_localizations.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:permission_handler/permission_handler.dart' as ph
     show openAppSettings;
+import 'package:permission_handler/permission_handler.dart';
 
 /// Service for managing app permissions.
 ///
@@ -1508,13 +1509,14 @@ class PermissionService {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Permissions Required'),
-        content: const Column(
+        content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('JaBook needs the following permissions to work properly:'),
-            SizedBox(height: 16),
-            Row(
+            Text(
+                '${AppConfig().displayAppName} needs the following permissions to work properly:'),
+            const SizedBox(height: 16),
+            const Row(
               children: [
                 Icon(Icons.folder, color: Colors.blue),
                 SizedBox(width: 8),
@@ -1524,8 +1526,8 @@ class PermissionService {
                 ),
               ],
             ),
-            SizedBox(height: 8),
-            Row(
+            const SizedBox(height: 8),
+            const Row(
               children: [
                 Icon(Icons.notifications, color: Colors.orange),
                 SizedBox(width: 8),

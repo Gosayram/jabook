@@ -17,6 +17,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:jabook/core/background/background_compatibility_checker.dart';
+import 'package:jabook/core/config/app_config.dart';
 import 'package:jabook/core/logging/structured_logger.dart';
 import 'package:jabook/core/utils/device_info_utils.dart';
 import 'package:jabook/l10n/app_localizations.dart';
@@ -475,7 +476,7 @@ class ManufacturerPermissionsService {
         'message': localizations?.storagePermissionGuidanceMessage ??
             'To access audio files, you need to grant file access permission.',
         'step1': localizations?.storagePermissionGuidanceStep1 ??
-            '1. Open JaBook app settings',
+            '1. Open ${AppConfig().displayAppName} app settings',
         'step2': localizations?.storagePermissionGuidanceStep2 ??
             '2. Go to Permissions section',
         'step3': localizations?.storagePermissionGuidanceStep3 ??
@@ -490,7 +491,7 @@ class ManufacturerPermissionsService {
           'message': localizations?.storagePermissionGuidanceMiuiMessage ??
               'On Xiaomi/Redmi/Poco (MIUI) devices, you need to grant file access permission:',
           'step1': localizations?.storagePermissionGuidanceMiuiStep1 ??
-              '1. Open Settings → Apps → JaBook → Permissions',
+              '1. Open Settings → Apps → ${AppConfig().displayAppName} → Permissions',
           'step2': localizations?.storagePermissionGuidanceMiuiStep2 ??
               '2. Enable "Files and media" or "Storage" permission',
           'step3': localizations?.storagePermissionGuidanceMiuiStep3 ??
@@ -505,7 +506,7 @@ class ManufacturerPermissionsService {
           'message': localizations?.storagePermissionGuidanceColorosMessage ??
               'On Oppo/Realme (ColorOS/RealmeUI) devices, you need to grant file access permission:',
           'step1': localizations?.storagePermissionGuidanceColorosStep1 ??
-              '1. Open Settings → Apps → JaBook → Permissions',
+              '1. Open Settings → Apps → ${AppConfig().displayAppName} → Permissions',
           'step2': localizations?.storagePermissionGuidanceColorosStep2 ??
               '2. Enable "Files and media" permission',
           'step3': localizations?.storagePermissionGuidanceColorosStep3 ??
@@ -541,7 +542,7 @@ class ManufacturerPermissionsService {
         'message': localizations?.storagePermissionGuidanceMessage ??
             'To access audio files, you need to grant file access permission.',
         'step1': localizations?.storagePermissionGuidanceStep1 ??
-            '1. Open JaBook app settings',
+            '1. Open ${AppConfig().displayAppName} app settings',
         'step2': localizations?.storagePermissionGuidanceStep2 ??
             '2. Go to Permissions section',
         'step3': localizations?.storagePermissionGuidanceStep3 ??
@@ -553,12 +554,23 @@ class ManufacturerPermissionsService {
   /// Gets manufacturer-specific instructions for the user.
   ///
   /// Returns a map with instructions tailored to the device's manufacturer and ROM.
-  Future<Map<String, String>> getManufacturerSpecificInstructions() async {
+  ///
+  /// [context] is used to get localized strings. If null, English defaults are used.
+  Future<Map<String, String>> getManufacturerSpecificInstructions(
+    BuildContext? context,
+  ) async {
+    // Get localizations before async operations to avoid BuildContext issues
+    final localizations = context != null && context.mounted
+        ? AppLocalizations.of(context)
+        : null;
+    final appName = AppConfig().displayAppName;
+
     try {
       if (!Platform.isAndroid) {
         return {
-          'title': 'Settings Not Available',
-          'message':
+          'title': localizations?.manufacturerSettingsNotAvailable ??
+              'Settings Not Available',
+          'message': localizations?.manufacturerSettingsNotAvailableMessage ??
               'Manufacturer-specific settings are only available on Android devices.',
         };
       }
@@ -568,98 +580,109 @@ class ManufacturerPermissionsService {
 
       // Default instructions
       var instructions = <String, String>{
-        'title': 'Настройки для стабильной работы',
-        'message':
-            'Для стабильной работы приложения необходимо настроить следующие параметры:',
-        'step1': '1. Включите автозапуск приложения',
-        'step2': '2. Отключите оптимизацию батареи для приложения',
-        'step3': '3. Разрешите фоновую активность',
+        'title': localizations?.manufacturerSettingsDefaultTitle ??
+            'Settings for Stable Operation',
+        'message': localizations?.manufacturerSettingsDefaultMessage ??
+            'To ensure stable operation, you need to configure the following settings:',
+        'step1': localizations?.manufacturerSettingsDefaultStep1 ??
+            '1. Enable application autostart',
+        'step2': localizations?.manufacturerSettingsDefaultStep2 ??
+            '2. Disable battery optimization for the application',
+        'step3': localizations?.manufacturerSettingsDefaultStep3 ??
+            '3. Allow background activity',
       };
 
       // Manufacturer-specific instructions
       if (customRom == 'MIUI') {
         instructions = {
-          'title': 'Настройки MIUI для стабильной работы',
-          'message':
-              'На устройствах Xiaomi/Redmi/Poco необходимо настроить следующие параметры:',
-          'step1':
-              '1. Автозапуск: Настройки → Приложения → Управление разрешениями → Автозапуск → Включите для JaBook',
-          'step2':
-              '2. Оптимизация батареи: Настройки → Батарея → Оптимизация батареи → Выберите JaBook → Не оптимизировать',
-          'step3':
-              '3. Фоновая активность: Настройки → Приложения → JaBook → Батарея → Фоновая активность → Разрешить',
+          'title': localizations?.manufacturerSettingsMiuiTitle ??
+              'MIUI Settings for Stable Operation',
+          'message': localizations?.manufacturerSettingsMiuiMessage ??
+              'On Xiaomi/Redmi/Poco devices, you need to configure the following settings:',
+          'step1': localizations?.manufacturerSettingsMiuiStep1(appName) ??
+              '1. Autostart: Settings → Apps → Permission management → Autostart → Enable for $appName',
+          'step2': localizations?.manufacturerSettingsMiuiStep2(appName) ??
+              '2. Battery optimization: Settings → Battery → Battery optimization → Select $appName → Don\'t optimize',
+          'step3': localizations?.manufacturerSettingsMiuiStep3(appName) ??
+              '3. Background activity: Settings → Apps → $appName → Battery → Background activity → Allow',
         };
       } else if (customRom == 'EMUI') {
         instructions = {
-          'title': 'Настройки EMUI для стабильной работы',
-          'message':
-              'На устройствах Huawei/Honor необходимо настроить следующие параметры:',
-          'step1':
-              '1. Защита приложений: Настройки → Приложения → Защита приложений → JaBook → Включите автозапуск',
-          'step2':
-              '2. Управление батареей: Настройки → Батарея → Управление батареей → JaBook → Не оптимизировать',
-          'step3':
-              '3. Фоновая активность: Настройки → Приложения → JaBook → Батарея → Разрешить фоновую активность',
+          'title': localizations?.manufacturerSettingsEmuiTitle ??
+              'EMUI Settings for Stable Operation',
+          'message': localizations?.manufacturerSettingsEmuiMessage ??
+              'On Huawei/Honor devices, you need to configure the following settings:',
+          'step1': localizations?.manufacturerSettingsEmuiStep1(appName) ??
+              '1. App protection: Settings → Apps → App protection → $appName → Enable autostart',
+          'step2': localizations?.manufacturerSettingsEmuiStep2(appName) ??
+              '2. Battery management: Settings → Battery → Battery management → $appName → Don\'t optimize',
+          'step3': localizations?.manufacturerSettingsEmuiStep3(appName) ??
+              '3. Background activity: Settings → Apps → $appName → Battery → Allow background activity',
         };
       } else if (customRom == 'ColorOS' || customRom == 'RealmeUI') {
         instructions = {
-          'title': 'Настройки ColorOS/RealmeUI для стабильной работы',
-          'message':
-              'На устройствах Oppo/Realme необходимо настроить следующие параметры:',
-          'step1':
-              '1. Автозапуск: Настройки → Приложения → Автозапуск → Включите для JaBook',
-          'step2':
-              '2. Оптимизация батареи: Настройки → Батарея → Оптимизация батареи → JaBook → Не оптимизировать',
-          'step3':
-              '3. Фоновая активность: Настройки → Приложения → JaBook → Батарея → Разрешить фоновую активность',
+          'title': localizations?.manufacturerSettingsColorosTitle ??
+              'ColorOS/RealmeUI Settings for Stable Operation',
+          'message': localizations?.manufacturerSettingsColorosMessage ??
+              'On Oppo/Realme devices, you need to configure the following settings:',
+          'step1': localizations?.manufacturerSettingsColorosStep1(appName) ??
+              '1. Autostart: Settings → Apps → Autostart → Enable for $appName',
+          'step2': localizations?.manufacturerSettingsColorosStep2(appName) ??
+              '2. Battery optimization: Settings → Battery → Battery optimization → $appName → Don\'t optimize',
+          'step3': localizations?.manufacturerSettingsColorosStep3(appName) ??
+              '3. Background activity: Settings → Apps → $appName → Battery → Allow background activity',
         };
       } else if (customRom == 'OxygenOS') {
         instructions = {
-          'title': 'Настройки OxygenOS для стабильной работы',
-          'message':
-              'На устройствах OnePlus необходимо настроить следующие параметры:',
-          'step1':
-              '1. Автозапуск: Настройки → Приложения → Автозапуск → Включите для JaBook',
-          'step2':
-              '2. Оптимизация батареи: Настройки → Батарея → Оптимизация батареи → JaBook → Не оптимизировать',
-          'step3':
-              '3. Фоновая активность: Настройки → Приложения → JaBook → Батарея → Разрешить фоновую активность',
+          'title': localizations?.manufacturerSettingsOxygenosTitle ??
+              'OxygenOS Settings for Stable Operation',
+          'message': localizations?.manufacturerSettingsOxygenosMessage ??
+              'On OnePlus devices, you need to configure the following settings:',
+          'step1': localizations?.manufacturerSettingsOxygenosStep1(appName) ??
+              '1. Autostart: Settings → Apps → Autostart → Enable for $appName',
+          'step2': localizations?.manufacturerSettingsOxygenosStep2(appName) ??
+              '2. Battery optimization: Settings → Battery → Battery optimization → $appName → Don\'t optimize',
+          'step3': localizations?.manufacturerSettingsOxygenosStep3(appName) ??
+              '3. Background activity: Settings → Apps → $appName → Battery → Allow background activity',
         };
       } else if (customRom == 'FuntouchOS') {
         instructions = {
-          'title': 'Настройки FuntouchOS/OriginOS для стабильной работы',
-          'message':
-              'На устройствах Vivo необходимо настроить следующие параметры:',
-          'step1':
-              '1. Автозапуск: Настройки → Приложения → Автозапуск → Включите для JaBook',
-          'step2':
-              '2. Оптимизация батареи: Настройки → Батарея → Оптимизация батареи → JaBook → Не оптимизировать',
-          'step3':
-              '3. Фоновая активность: Настройки → Приложения → JaBook → Батарея → Разрешить фоновую активность',
+          'title': localizations?.manufacturerSettingsFuntouchosTitle ??
+              'FuntouchOS/OriginOS Settings for Stable Operation',
+          'message': localizations?.manufacturerSettingsFuntouchosMessage ??
+              'On Vivo devices, you need to configure the following settings:',
+          'step1': localizations?.manufacturerSettingsFuntouchosStep1(appName) ??
+              '1. Autostart: Settings → Apps → Autostart → Enable for $appName',
+          'step2': localizations?.manufacturerSettingsFuntouchosStep2(appName) ??
+              '2. Battery optimization: Settings → Battery → Battery optimization → $appName → Don\'t optimize',
+          'step3': localizations?.manufacturerSettingsFuntouchosStep3(appName) ??
+              '3. Background activity: Settings → Apps → $appName → Battery → Allow background activity',
         };
       } else if (customRom == 'Flyme') {
         instructions = {
-          'title': 'Настройки Flyme для стабильной работы',
-          'message':
-              'На устройствах Meizu необходимо настроить следующие параметры:',
-          'step1':
-              '1. Автозапуск: Настройки → Приложения → Автозапуск → Включите для JaBook',
-          'step2':
-              '2. Оптимизация батареи: Настройки → Батарея → Оптимизация батареи → JaBook → Не оптимизировать',
-          'step3':
-              '3. Фоновая активность: Настройки → Приложения → JaBook → Батарея → Разрешить фоновую активность',
+          'title': localizations?.manufacturerSettingsFlymeTitle ??
+              'Flyme Settings for Stable Operation',
+          'message': localizations?.manufacturerSettingsFlymeMessage ??
+              'On Meizu devices, you need to configure the following settings:',
+          'step1': localizations?.manufacturerSettingsFlymeStep1(appName) ??
+              '1. Autostart: Settings → Apps → Autostart → Enable for $appName',
+          'step2': localizations?.manufacturerSettingsFlymeStep2(appName) ??
+              '2. Battery optimization: Settings → Battery → Battery optimization → $appName → Don\'t optimize',
+          'step3': localizations?.manufacturerSettingsFlymeStep3(appName) ??
+              '3. Background activity: Settings → Apps → $appName → Battery → Allow background activity',
         };
       } else if (customRom == 'One UI') {
         instructions = {
-          'title': 'Настройки One UI для стабильной работы',
-          'message':
-              'На устройствах Samsung рекомендуется настроить следующие параметры:',
-          'step1':
-              '1. Оптимизация батареи: Настройки → Приложения → JaBook → Батарея → Не оптимизировать',
-          'step2':
-              '2. Фоновая активность: Настройки → Приложения → JaBook → Батарея → Фоновая активность → Разрешить',
-          'step3':
-              '3. Автозапуск: Обычно не требуется на Samsung, но можно проверить в настройках приложения',
+          'title': localizations?.manufacturerSettingsOneuiTitle ??
+              'One UI Settings for Stable Operation',
+          'message': localizations?.manufacturerSettingsOneuiMessage ??
+              'On Samsung devices, it is recommended to configure the following settings:',
+          'step1': localizations?.manufacturerSettingsOneuiStep1(appName) ??
+              '1. Battery optimization: Settings → Apps → $appName → Battery → Don\'t optimize',
+          'step2': localizations?.manufacturerSettingsOneuiStep2(appName) ??
+              '2. Background activity: Settings → Apps → $appName → Battery → Background activity → Allow',
+          'step3': localizations?.manufacturerSettingsOneuiStep3 ??
+              '3. Autostart: Usually not required on Samsung, but you can check in app settings',
         };
       }
 
@@ -681,14 +704,18 @@ class ManufacturerPermissionsService {
         message: 'Error getting manufacturer-specific instructions',
         cause: e.toString(),
       );
-      // Return default instructions on error
+      // Return default instructions on error (using localizations obtained before async)
       return {
-        'title': 'Настройки для стабильной работы',
-        'message':
-            'Для стабильной работы приложения необходимо настроить следующие параметры:',
-        'step1': '1. Включите автозапуск приложения',
-        'step2': '2. Отключите оптимизацию батареи для приложения',
-        'step3': '3. Разрешите фоновую активность',
+        'title': localizations?.manufacturerSettingsDefaultTitle ??
+            'Settings for Stable Operation',
+        'message': localizations?.manufacturerSettingsDefaultMessage ??
+            'To ensure stable operation, you need to configure the following settings:',
+        'step1': localizations?.manufacturerSettingsDefaultStep1 ??
+            '1. Enable application autostart',
+        'step2': localizations?.manufacturerSettingsDefaultStep2 ??
+            '2. Disable battery optimization for the application',
+        'step3': localizations?.manufacturerSettingsDefaultStep3 ??
+            '3. Allow background activity',
       };
     }
   }

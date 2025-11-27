@@ -33,6 +33,7 @@ import 'package:jabook/core/torrent/audiobook_torrent_manager.dart';
 import 'package:jabook/core/torrent/audiobook_torrent_manager_provider.dart';
 import 'package:jabook/core/torrent/external_torrent_handler.dart';
 import 'package:jabook/core/torrent/torrent_parser_service.dart';
+import 'package:jabook/core/utils/app_title_utils.dart';
 import 'package:jabook/core/utils/responsive_utils.dart';
 import 'package:jabook/features/downloads/presentation/widgets/download_status_bar.dart';
 import 'package:jabook/l10n/app_localizations.dart';
@@ -257,7 +258,7 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(
           title: Text(
-              '${AppLocalizations.of(context)?.topicTitle ?? 'Topic'}: ${widget.topicId}'),
+              '${(AppLocalizations.of(context)?.topicTitle ?? 'Topic').withFlavorSuffix()}: ${widget.topicId}'),
           actions: [
             _buildFavoriteButton(),
             if (_isFromCache)

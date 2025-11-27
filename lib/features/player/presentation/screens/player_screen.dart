@@ -24,6 +24,7 @@ import 'package:jabook/core/net/dio_client.dart';
 import 'package:jabook/core/parse/rutracker_parser.dart';
 import 'package:jabook/core/player/player_state_provider.dart';
 import 'package:jabook/core/stream/local_stream_server.dart';
+import 'package:jabook/core/utils/app_title_utils.dart';
 import 'package:jabook/core/utils/responsive_utils.dart';
 import 'package:jabook/data/db/app_database.dart';
 import 'package:jabook/l10n/app_localizations.dart';
@@ -402,7 +403,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(
           title: Text(
-              '${AppLocalizations.of(context)?.playerTitle ?? 'Player'}: ${widget.bookId}'),
+              '${(AppLocalizations.of(context)?.playerTitle ?? 'Player').withFlavorSuffix()}: ${widget.bookId}'),
           actions: [
             _buildFavoriteButton(),
             IconButton(

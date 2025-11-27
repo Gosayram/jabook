@@ -24,6 +24,7 @@ import 'package:jabook/core/logging/structured_logger.dart';
 import 'package:jabook/core/net/dio_client.dart';
 import 'package:jabook/core/net/user_agent_manager.dart';
 import 'package:jabook/core/services/cookie_service.dart';
+import 'package:jabook/core/utils/app_title_utils.dart';
 import 'package:jabook/core/utils/safe_async.dart';
 import 'package:jabook/data/db/app_database.dart';
 import 'package:jabook/features/webview/webview_cloudflare_handler.dart';
@@ -1506,7 +1507,8 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(
           title: Text(
-            AppLocalizations.of(context)?.webViewTitle ?? 'RuTracker',
+            (AppLocalizations.of(context)?.webViewTitle ?? 'RuTracker')
+                .withFlavorSuffix(),
           ),
           automaticallyImplyLeading: false,
           actions: [

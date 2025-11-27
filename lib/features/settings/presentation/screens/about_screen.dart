@@ -19,6 +19,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:jabook/core/config/app_config.dart';
 import 'package:jabook/core/constants/about_constants.dart';
+import 'package:jabook/core/utils/app_title_utils.dart';
 import 'package:jabook/l10n/app_localizations.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -95,7 +96,7 @@ class _AboutScreenState extends State<AboutScreen> {
     final config = AppConfig();
     final appName = _packageInfo!.appName.isNotEmpty
         ? _packageInfo!.appName
-        : config.appName;
+        : config.displayAppName;
     final version = _packageInfo!.version;
     final buildNumber = _packageInfo!.buildNumber;
     final packageName = _packageInfo!.packageName;
@@ -169,9 +170,11 @@ class _AboutScreenState extends State<AboutScreen> {
       final deviceInfo = _deviceModel ?? (localizations?.unknown ?? 'Unknown');
       final androidVersion =
           _androidVersion ?? (localizations?.unknown ?? 'Unknown');
+      final displayAppName = AppConfig().displayAppName;
       final subject =
-          localizations?.emailFeedbackSubject ?? 'JaBook - Feedback';
-      final appLabel = localizations?.emailFeedbackApp ?? 'App: JaBook';
+          localizations?.emailFeedbackSubject ?? '$displayAppName - Feedback';
+      final appLabel =
+          localizations?.emailFeedbackApp ?? 'App: $displayAppName';
       final versionLabel = localizations?.emailFeedbackVersion ?? 'Version:';
       final deviceLabel = localizations?.emailFeedbackDevice ?? 'Device:';
       final androidLabel = localizations?.emailFeedbackAndroid ?? 'Android:';
@@ -230,7 +233,7 @@ $descriptionLabel
     if (mounted) {
       showLicensePage(
         context: context,
-        applicationName: _packageInfo?.appName ?? AppConfig().appName,
+        applicationName: _packageInfo?.appName ?? AppConfig().displayAppName,
         applicationVersion: _packageInfo?.version ??
             (AppLocalizations.of(context)?.unknown ?? 'Unknown'),
         applicationLegalese: 'Copyright 2025 Jabook Contributors',
@@ -250,7 +253,7 @@ $descriptionLabel
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(localizations?.aboutTitle ?? 'About'),
+        title: Text((localizations?.aboutTitle ?? 'About').withFlavorSuffix()),
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -362,7 +365,7 @@ $descriptionLabel
         ),
         const SizedBox(height: 16),
         Text(
-          _packageInfo?.appName ?? config.appName,
+          _packageInfo?.appName ?? config.displayAppName,
           style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
@@ -497,7 +500,7 @@ $descriptionLabel
           const SizedBox(height: 8),
           Text(
             localizations?.licenseDescription ??
-                'JaBook is distributed under the Apache 2.0 license.',
+                '${AppConfig().displayAppName} is distributed under the Apache 2.0 license.',
             style: theme.textTheme.bodyMedium,
           ),
           const SizedBox(height: 16),
@@ -675,7 +678,7 @@ $descriptionLabel
           const SizedBox(height: 8),
           Text(
             localizations?.aboutDeveloperText ??
-                'JaBook is developed by Jabook Contributors team.',
+                '${AppConfig().displayAppName} is developed by Jabook Contributors team.',
             style: theme.textTheme.bodyMedium,
             textAlign: TextAlign.center,
             softWrap: true,
