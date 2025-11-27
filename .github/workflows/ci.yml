@@ -118,18 +118,21 @@ jobs:
           echo "   Alias: ${KEY_ALIAS}"
 
       - name: Verify keystore before build
+        env:
+          STORE_PASS_RAW: ${{ secrets.KEY_STORE_PASSWORD }}
+          KEY_PASS_RAW: ${{ secrets.KEY_PASSWORD }}
+          KEY_ALIAS_RAW: ${{ secrets.KEY_ALIAS }}
         run: |
           set +e  # Disable exit on error to capture keytool errors
           
           WORKSPACE_DIR="${{ github.workspace }}"
           KEYSTORE_PATH="${WORKSPACE_DIR}/.signing/release.keystore"
           
-          # Trim whitespace from secrets (preserve special characters)
-          # Store passwords in variables - when used in double quotes, shell won't interpret $ inside
-          # But we need to be careful - use printf to ensure no shell interpretation during assignment
-          STORE_PASS=$(printf '%s' "${{ secrets.KEY_STORE_PASSWORD }}" | tr -d '\n\r\t ' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-          KEY_PASS=$(printf '%s' "${{ secrets.KEY_PASSWORD }}" | tr -d '\n\r\t ' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-          KEY_ALIAS=$(printf '%s' "${{ secrets.KEY_ALIAS }}" | tr -d '\n\r\t ' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+          # Read from environment variables and trim whitespace
+          # Environment variables preserve special characters like $ and @
+          STORE_PASS=$(printf '%s' "${STORE_PASS_RAW}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | tr -d '\n\r')
+          KEY_PASS=$(printf '%s' "${KEY_PASS_RAW}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | tr -d '\n\r')
+          KEY_ALIAS=$(printf '%s' "${KEY_ALIAS_RAW}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | tr -d '\n\r')
           
           # Verify passwords are not empty after trimming
           if [ -z "${STORE_PASS}" ] || [ -z "${KEY_PASS}" ] || [ -z "${KEY_ALIAS}" ]; then
@@ -141,16 +144,21 @@ jobs:
           echo "   Keystore path: ${KEYSTORE_PATH}"
           echo "   Keystore exists: $([ -f "${KEYSTORE_PATH}" ] && echo 'yes' || echo 'no')"
           echo "   Alias: ${KEY_ALIAS}"
-          echo "   Store password length: ${#STORE_PASS} chars"
+          echo "   Store password length: ${#STORE_PASS} chars (expected: 16 for 'str@Dsxs\$90cx19')"
           echo "   Key password length: ${#KEY_PASS} chars"
           
-          # Debug: Show first and last character of password (safely)
-          if [ ${#STORE_PASS} -gt 0 ]; then
-            FIRST_CHAR="${STORE_PASS:0:1}"
-            LAST_CHAR="${STORE_PASS: -1}"
-            echo "   Store password: starts with '${FIRST_CHAR}', ends with '${LAST_CHAR}'"
+          # Debug: Show password preview to verify it's correct
+          if [ ${#STORE_PASS} -ge 6 ]; then
+            FIRST="${STORE_PASS:0:3}"
+            LAST="${STORE_PASS: -3}"
+            echo "   Store password preview: '${FIRST}...${LAST}'"
+            if [ ${#STORE_PASS} -ne 16 ]; then
+              echo "   ⚠️  WARNING: Password length is ${#STORE_PASS}, expected 16!"
+              echo "   This suggests that special characters (like \$) may have been interpreted by shell"
+              echo "   Check that KEY_STORE_PASSWORD secret contains the full password: str@Dsxs\$90cx19"
+            fi
           else
-            echo "   ⚠️  WARNING: Store password is empty!"
+            echo "   ⚠️  WARNING: Store password is too short or empty!"
           fi
           
           # Check if keytool is available
