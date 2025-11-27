@@ -2689,6 +2689,15 @@ class AppLocalizationsRu extends AppLocalizations {
   String get forwardDurationTitle => 'Длительность перемотки вперед';
 
   @override
+  String get inactivityTimeoutTitle => 'Таймаут неактивности';
+
+  @override
+  String get inactivityTimeoutLabel => 'Установить таймаут неактивности';
+
+  @override
+  String get minute => 'минута';
+
+  @override
   String get rewind => 'Назад';
 
   @override

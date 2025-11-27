@@ -2689,6 +2689,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get forwardDurationTitle => 'Forward Duration';
 
   @override
+  String get inactivityTimeoutTitle => 'Inactivity Timeout';
+
+  @override
+  String get inactivityTimeoutLabel => 'Set inactivity timeout';
+
+  @override
+  String get minute => 'minute';
+
+  @override
   String get rewind => 'Rewind';
 
   @override

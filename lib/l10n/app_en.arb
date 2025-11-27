@@ -3847,6 +3847,18 @@
   "@forwardDurationTitle": {
     "description": "Title for forward duration setting"
   },
+  "inactivityTimeoutTitle": "Inactivity Timeout",
+  "@inactivityTimeoutTitle": {
+    "description": "Title for inactivity timeout setting"
+  },
+  "inactivityTimeoutLabel": "Set inactivity timeout",
+  "@inactivityTimeoutLabel": {
+    "description": "Label for inactivity timeout setting"
+  },
+  "minute": "minute",
+  "@minute": {
+    "description": "Singular form of minute"
+  },
   "rewind": "Rewind",
   "@rewind": {
     "description": "Label for rewind action"

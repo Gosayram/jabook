@@ -883,12 +883,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         // Inactivity timeout selection
         Semantics(
           button: true,
-          label: 'Set inactivity timeout',
+          label: localizations?.inactivityTimeoutLabel ?? 'Set inactivity timeout',
           child: ListTile(
             leading: const Icon(Icons.timer_outlined),
-            title: const Text('Inactivity Timeout'),
+            title: Text(localizations?.inactivityTimeoutTitle ?? 'Inactivity Timeout'),
             subtitle: Text(
-              '${audioSettings.inactivityTimeoutMinutes} ${audioSettings.inactivityTimeoutMinutes == 1 ? 'minute' : 'minutes'}',
+              '${audioSettings.inactivityTimeoutMinutes} ${audioSettings.inactivityTimeoutMinutes == 1 ? (localizations?.minute ?? 'minute') : (localizations?.minutes ?? 'minutes')}',
             ),
             onTap: () {
               _showInactivityTimeoutDialog(
@@ -1009,20 +1009,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     int currentTimeout,
     AudioSettingsNotifier audioNotifier,
   ) async {
+    final localizations = AppLocalizations.of(context);
     // Generate list of timeout options: 10, 15, 20, 30, 45, 60, 90, 120, 150, 180 minutes
     final timeouts = [10, 15, 20, 30, 45, 60, 90, 120, 150, 180];
 
     final result = await showDialog<int>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Inactivity Timeout'),
+        title: Text(localizations?.inactivityTimeoutTitle ?? 'Inactivity Timeout'),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: timeouts
                 .map((timeout) => RadioListTile<int>(
                       title: Text(
-                        '$timeout ${timeout == 1 ? 'minute' : 'minutes'}',
+                        '$timeout ${timeout == 1 ? (localizations?.minute ?? 'minute') : (localizations?.minutes ?? 'minutes')}',
                       ),
                       value: timeout,
                       // ignore: deprecated_member_use

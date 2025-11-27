@@ -5015,6 +5015,24 @@ abstract class AppLocalizations {
   /// **'Forward Duration'**
   String get forwardDurationTitle;
 
+  /// Title for inactivity timeout setting
+  ///
+  /// In en, this message translates to:
+  /// **'Inactivity Timeout'**
+  String get inactivityTimeoutTitle;
+
+  /// Label for inactivity timeout setting
+  ///
+  /// In en, this message translates to:
+  /// **'Set inactivity timeout'**
+  String get inactivityTimeoutLabel;
+
+  /// Singular form of minute
+  ///
+  /// In en, this message translates to:
+  /// **'minute'**
+  String get minute;
+
   /// Label for rewind action
   ///
   /// In en, this message translates to:

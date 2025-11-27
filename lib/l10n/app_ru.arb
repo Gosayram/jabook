@@ -3832,6 +3832,18 @@
   "@forwardDurationTitle": {
     "description": "Заголовок настройки длительности перемотки вперед"
   },
+  "inactivityTimeoutTitle": "Таймаут неактивности",
+  "@inactivityTimeoutTitle": {
+    "description": "Заголовок настройки таймаута неактивности"
+  },
+  "inactivityTimeoutLabel": "Установить таймаут неактивности",
+  "@inactivityTimeoutLabel": {
+    "description": "Метка для настройки таймаута неактивности"
+  },
+  "minute": "минута",
+  "@minute": {
+    "description": "Единственное число слова минута"
+  },
   "rewind": "Назад",
   "@rewind": {
     "description": "Метка для действия перемотки назад"
