@@ -220,3 +220,22 @@ jobs:
           fail_on_unmatched_files: false
           generate_release_notes: false
           make_latest: false
+
+      - name: Send Telegram notification
+        if: steps.release.outcome == 'success'
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.JABOOK_CHAT_ID }}
+          token: ${{ secrets.TG_RELEASER_TOKEN }}
+          format: markdownv2
+          message: |
+            🚀 *Новый beta\-релиз Jabook*
+
+            *Версия:* `${{ env.VERSION }}\-beta`
+            *Тег:* `${{ github.ref_name }}`
+            *Репозиторий:* `${{ github.repository }}`
+            *Автор:* `${{ github.actor }}`
+
+            📦 [Скачать релиз](https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }})
+
+            ✅ Релиз успешно создан и готов к использованию\!
