@@ -227,15 +227,15 @@ jobs:
         with:
           to: ${{ secrets.JABOOK_CHAT_ID }}
           token: ${{ secrets.TG_RELEASER_TOKEN }}
-          format: markdownv2
+          format: html
           message: |
-            🚀 *Новый beta\-релиз Jabook*
+            🚀 <b>Новый beta-релиз Jabook</b>
 
-            *Версия:* `${{ env.VERSION }}\-beta`
-            *Тег:* `${{ github.ref_name }}`
-            *Репозиторий:* `${{ github.repository }}`
-            *Автор:* `${{ github.actor }}`
+            <b>Версия:</b> <code>${{ env.VERSION }}-beta</code>
+            <b>Тег:</b> <code>${{ github.ref_name }}</code>
+            <b>Репозиторий:</b> <code>${{ github.repository }}</code>
+            <b>Автор:</b> <code>${{ github.actor }}</code>
 
-            📦 [Скачать релиз](https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }})
+            📦 <a href="https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }}">Скачать релиз</a>
 
-            ✅ Релиз успешно создан и готов к использованию\!
+            ✅ Релиз успешно создан и готов к использованию!
