@@ -18,10 +18,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Bump release
-
-## [1.2.4] - 2025-11-27
-
-### Changed
 - Bump actions/checkout from 5.0.1 to 6.0.0 (#30)
 - Ignore issue docs
 - Improve playback speed control and seek feedback (#35)
