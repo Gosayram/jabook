@@ -134,7 +134,17 @@ jobs:
           echo "   Keystore path: ${KEYSTORE_PATH}"
           echo "   Keystore exists: $([ -f "${KEYSTORE_PATH}" ] && echo 'yes' || echo 'no')"
           echo "   Alias: ${KEY_ALIAS}"
-          echo "   Password length: ${#STORE_PASS} chars"
+          echo "   Store password length: ${#STORE_PASS} chars"
+          echo "   Key password length: ${#KEY_PASS} chars"
+          
+          # Debug: Show first and last character of password (safely)
+          if [ ${#STORE_PASS} -gt 0 ]; then
+            FIRST_CHAR="${STORE_PASS:0:1}"
+            LAST_CHAR="${STORE_PASS: -1}"
+            echo "   Store password: starts with '${FIRST_CHAR}', ends with '${LAST_CHAR}'"
+          else
+            echo "   ⚠️  WARNING: Store password is empty!"
+          fi
           
           # Check if keytool is available
           if ! command -v keytool &> /dev/null; then
@@ -148,20 +158,26 @@ jobs:
           KEYTOOL_OUTPUT=""
           KEYTOOL_EXIT_CODE=1
           
-          # Escape special characters for shell to prevent interpretation
-          # printf '%q' properly escapes $, @, spaces, and other special chars
-          ESCAPED_STORE_PASS=$(printf '%q' "${STORE_PASS}")
+          # Create temporary password file to avoid shell interpretation issues
+          # This is the safest way to pass passwords with special characters
+          STORE_PASS_FILE=$(mktemp)
+          printf '%s' "${STORE_PASS}" > "${STORE_PASS_FILE}"
+          chmod 600 "${STORE_PASS_FILE}"
           
           # Try PKCS12 first (most common for modern keystores)
-          KEYTOOL_OUTPUT=$(eval "keytool -list -keystore \"${KEYSTORE_PATH}\" -storetype PKCS12 -storepass ${ESCAPED_STORE_PASS}" 2>&1)
+          # Use stdin to pass password (keytool reads password from stdin when -storepass is not provided)
+          KEYTOOL_OUTPUT=$(printf '%s\n' "${STORE_PASS}" | keytool -list -keystore "${KEYSTORE_PATH}" -storetype PKCS12 2>&1)
           KEYTOOL_EXIT_CODE=$?
           
           # If PKCS12 fails, try default type (JKS)
           if [ $KEYTOOL_EXIT_CODE -ne 0 ]; then
             echo "   PKCS12 failed, trying default storetype (JKS)..."
-            KEYTOOL_OUTPUT=$(eval "keytool -list -keystore \"${KEYSTORE_PATH}\" -storepass ${ESCAPED_STORE_PASS}" 2>&1)
+            KEYTOOL_OUTPUT=$(printf '%s\n' "${STORE_PASS}" | keytool -list -keystore "${KEYSTORE_PATH}" 2>&1)
             KEYTOOL_EXIT_CODE=$?
           fi
+          
+          # Clean up temp file
+          rm -f "${STORE_PASS_FILE}"
           
           if [ $KEYTOOL_EXIT_CODE -ne 0 ]; then
             echo "❌ ERROR: Keystore password verification failed"
@@ -187,19 +203,26 @@ jobs:
           KEYTOOL_ALIAS_OUTPUT=""
           KEYTOOL_ALIAS_EXIT_CODE=1
           
-          # Escape passwords for shell to prevent interpretation of special characters
-          ESCAPED_STORE_PASS=$(printf '%q' "${STORE_PASS}")
-          ESCAPED_KEY_PASS=$(printf '%q' "${KEY_PASS}")
+          # Create temporary password files to avoid shell interpretation issues
+          STORE_PASS_FILE=$(mktemp)
+          KEY_PASS_FILE=$(mktemp)
+          printf '%s' "${STORE_PASS}" > "${STORE_PASS_FILE}"
+          printf '%s' "${KEY_PASS}" > "${KEY_PASS_FILE}"
+          chmod 600 "${STORE_PASS_FILE}" "${KEY_PASS_FILE}"
           
           # Try PKCS12 first
-          KEYTOOL_ALIAS_OUTPUT=$(eval "keytool -list -v -keystore \"${KEYSTORE_PATH}\" -storetype PKCS12 -storepass ${ESCAPED_STORE_PASS} -alias \"${KEY_ALIAS}\" -keypass ${ESCAPED_KEY_PASS}" 2>&1)
+          # Pass passwords via stdin (keytool prompts for passwords when not provided)
+          KEYTOOL_ALIAS_OUTPUT=$(printf '%s\n%s\n' "${STORE_PASS}" "${KEY_PASS}" | keytool -list -v -keystore "${KEYSTORE_PATH}" -storetype PKCS12 -alias "${KEY_ALIAS}" 2>&1)
           KEYTOOL_ALIAS_EXIT_CODE=$?
           
           # If PKCS12 fails, try default type
           if [ $KEYTOOL_ALIAS_EXIT_CODE -ne 0 ]; then
-            KEYTOOL_ALIAS_OUTPUT=$(eval "keytool -list -v -keystore \"${KEYSTORE_PATH}\" -storepass ${ESCAPED_STORE_PASS} -alias \"${KEY_ALIAS}\" -keypass ${ESCAPED_KEY_PASS}" 2>&1)
+            KEYTOOL_ALIAS_OUTPUT=$(printf '%s\n%s\n' "${STORE_PASS}" "${KEY_PASS}" | keytool -list -v -keystore "${KEYSTORE_PATH}" -alias "${KEY_ALIAS}" 2>&1)
             KEYTOOL_ALIAS_EXIT_CODE=$?
           fi
+          
+          # Clean up temp files
+          rm -f "${STORE_PASS_FILE}" "${KEY_PASS_FILE}"
           
           if [ $KEYTOOL_ALIAS_EXIT_CODE -ne 0 ]; then
             echo "❌ ERROR: Alias '${KEY_ALIAS}' or key password verification failed"
