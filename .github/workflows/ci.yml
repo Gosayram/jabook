@@ -93,12 +93,17 @@ jobs:
           fi
           
           # Create android/key.properties file with absolute path
+          # Trim whitespace from secrets to avoid issues
+          STORE_PASS=$(echo -n "${{ secrets.KEY_STORE_PASSWORD }}" | tr -d '\n\r\t ')
+          KEY_PASS=$(echo -n "${{ secrets.KEY_PASSWORD }}" | tr -d '\n\r\t ')
+          KEY_ALIAS=$(echo -n "${{ secrets.KEY_ALIAS }}" | tr -d '\n\r\t ')
+          
           mkdir -p android
           cat > android/key.properties <<EOF
           storeFile=${KEYSTORE_PATH}
-          storePassword=${{ secrets.KEY_STORE_PASSWORD }}
-          keyPassword=${{ secrets.KEY_PASSWORD }}
-          keyAlias=${{ secrets.KEY_ALIAS }}
+          storePassword=${STORE_PASS}
+          keyPassword=${KEY_PASS}
+          keyAlias=${KEY_ALIAS}
           EOF
           
           # Verify key.properties was created
@@ -110,7 +115,86 @@ jobs:
           echo "✅ Android signing configured"
           echo "   Keystore: ${KEYSTORE_PATH} (${KEYSTORE_SIZE} bytes)"
           echo "   Key properties: android/key.properties"
-          echo "   Note: Gradle will verify keystore during build"
+          echo "   Alias: ${KEY_ALIAS}"
+
+      - name: Verify keystore before build
+        run: |
+          WORKSPACE_DIR="${{ github.workspace }}"
+          KEYSTORE_PATH="${WORKSPACE_DIR}/.signing/release.keystore"
+          
+          # Trim whitespace from secrets
+          STORE_PASS=$(echo -n "${{ secrets.KEY_STORE_PASSWORD }}" | tr -d '\n\r\t ')
+          KEY_PASS=$(echo -n "${{ secrets.KEY_PASSWORD }}" | tr -d '\n\r\t ')
+          KEY_ALIAS=$(echo -n "${{ secrets.KEY_ALIAS }}" | tr -d '\n\r\t ')
+          
+          echo "🔍 Verifying keystore before build..."
+          
+          # Check if keytool is available
+          if ! command -v keytool &> /dev/null; then
+            echo "❌ ERROR: keytool is not available. Cannot verify keystore."
+            exit 1
+          fi
+          
+          # Step 1: Verify keystore password and list aliases
+          echo "Step 1: Verifying keystore password..."
+          KEYTOOL_OUTPUT=""
+          KEYTOOL_EXIT_CODE=1
+          
+          # Try PKCS12 first (most common for modern keystores)
+          KEYTOOL_OUTPUT=$(keytool -list -keystore "${KEYSTORE_PATH}" -storetype PKCS12 -storepass "${STORE_PASS}" 2>&1)
+          KEYTOOL_EXIT_CODE=$?
+          
+          # If PKCS12 fails, try default type (JKS)
+          if [ $KEYTOOL_EXIT_CODE -ne 0 ]; then
+            echo "   PKCS12 failed, trying default storetype..."
+            KEYTOOL_OUTPUT=$(keytool -list -keystore "${KEYSTORE_PATH}" -storepass "${STORE_PASS}" 2>&1)
+            KEYTOOL_EXIT_CODE=$?
+          fi
+          
+          if [ $KEYTOOL_EXIT_CODE -ne 0 ]; then
+            echo "❌ ERROR: Keystore password verification failed"
+            echo "   Error: $(echo "$KEYTOOL_OUTPUT" | head -3)"
+            echo "   Check that KEY_STORE_PASSWORD secret matches the keystore password"
+            exit 1
+          fi
+          
+          echo "✅ Keystore password is correct"
+          echo "   Available aliases:"
+          echo "$KEYTOOL_OUTPUT" | grep -E '^[a-zA-Z0-9_-]+,' | sed 's/^/     /' || echo "$KEYTOOL_OUTPUT" | grep -i alias | sed 's/^/     /' || echo "     (Could not parse aliases)"
+          
+          # Step 2: Verify specific alias exists and key password
+          echo "Step 2: Verifying alias '${KEY_ALIAS}' and key password..."
+          KEYTOOL_ALIAS_OUTPUT=""
+          KEYTOOL_ALIAS_EXIT_CODE=1
+          
+          # Try PKCS12 first
+          KEYTOOL_ALIAS_OUTPUT=$(keytool -list -v -keystore "${KEYSTORE_PATH}" -storetype PKCS12 -storepass "${STORE_PASS}" -alias "${KEY_ALIAS}" -keypass "${KEY_PASS}" 2>&1)
+          KEYTOOL_ALIAS_EXIT_CODE=$?
+          
+          # If PKCS12 fails, try default type
+          if [ $KEYTOOL_ALIAS_EXIT_CODE -ne 0 ]; then
+            KEYTOOL_ALIAS_OUTPUT=$(keytool -list -v -keystore "${KEYSTORE_PATH}" -storepass "${STORE_PASS}" -alias "${KEY_ALIAS}" -keypass "${KEY_PASS}" 2>&1)
+            KEYTOOL_ALIAS_EXIT_CODE=$?
+          fi
+          
+          if [ $KEYTOOL_ALIAS_EXIT_CODE -ne 0 ]; then
+            echo "❌ ERROR: Alias '${KEY_ALIAS}' or key password verification failed"
+            echo "   Error: $(echo "$KEYTOOL_ALIAS_OUTPUT" | head -3)"
+            echo "   Check that:"
+            echo "     - KEY_ALIAS secret matches an alias in the keystore"
+            echo "     - KEY_PASSWORD secret matches the key password for this alias"
+            exit 1
+          fi
+          
+          echo "✅ Alias '${KEY_ALIAS}' and key password are correct"
+          
+          # Step 3: Display certificate info
+          echo "Step 3: Certificate information:"
+          echo "$KEYTOOL_ALIAS_OUTPUT" | grep -E "(Owner:|Issuer:|Valid from)" | sed 's/^/     /' || true
+          
+          echo ""
+          echo "✅ Keystore verification completed successfully"
+          echo "   Ready to proceed with build"
 
       - name: Build beta APK
         env:
