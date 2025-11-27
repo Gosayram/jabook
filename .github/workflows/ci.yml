@@ -97,8 +97,6 @@ jobs:
             printf 'keyPassword=%s\n' "${KEY_PASS}"
             printf 'keyAlias=%s\n' "${KEY_ALIAS}"
           } > android/key.properties
-          
-          echo "✅ Android signing configured"
 
       - name: Build beta APK
         env:
