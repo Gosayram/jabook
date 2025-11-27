@@ -147,12 +147,67 @@ jobs:
             echo "EOF" >> $GITHUB_OUTPUT
           fi
 
+      - name: Rename APK files
+        if: steps.verify-apk.outputs.has_files == 'true'
+        id: rename-apk
+        run: |
+          mkdir -p release-apks
+          RENAMED_APKS=""
+          
+          # Rename universal APK
+          if [ -f "build/app/outputs/flutter-apk/app-beta-release.apk" ]; then
+            cp "build/app/outputs/flutter-apk/app-beta-release.apk" "release-apks/Jabook_${VERSION}_beta_universal.apk"
+            RENAMED_APKS="${RENAMED_APKS}release-apks/Jabook_${VERSION}_beta_universal.apk"$'\n'
+          elif [ -f "build/app/outputs/apk/release/app-beta-release.apk" ]; then
+            cp "build/app/outputs/apk/release/app-beta-release.apk" "release-apks/Jabook_${VERSION}_beta_universal.apk"
+            RENAMED_APKS="${RENAMED_APKS}release-apks/Jabook_${VERSION}_beta_universal.apk"$'\n'
+          fi
+          
+          # Rename architecture-specific APKs
+          if [ -f "build/app/outputs/flutter-apk/app-armeabi-v7a-beta-release.apk" ]; then
+            cp "build/app/outputs/flutter-apk/app-armeabi-v7a-beta-release.apk" "release-apks/Jabook_${VERSION}_beta_v7a.apk"
+            RENAMED_APKS="${RENAMED_APKS}release-apks/Jabook_${VERSION}_beta_v7a.apk"$'\n'
+          elif [ -f "build/app/outputs/apk/release/app-armeabi-v7a-beta-release.apk" ]; then
+            cp "build/app/outputs/apk/release/app-armeabi-v7a-beta-release.apk" "release-apks/Jabook_${VERSION}_beta_v7a.apk"
+            RENAMED_APKS="${RENAMED_APKS}release-apks/Jabook_${VERSION}_beta_v7a.apk"$'\n'
+          fi
+          
+          if [ -f "build/app/outputs/flutter-apk/app-arm64-v8a-beta-release.apk" ]; then
+            cp "build/app/outputs/flutter-apk/app-arm64-v8a-beta-release.apk" "release-apks/Jabook_${VERSION}_beta_v8a.apk"
+            RENAMED_APKS="${RENAMED_APKS}release-apks/Jabook_${VERSION}_beta_v8a.apk"$'\n'
+          elif [ -f "build/app/outputs/apk/release/app-arm64-v8a-beta-release.apk" ]; then
+            cp "build/app/outputs/apk/release/app-arm64-v8a-beta-release.apk" "release-apks/Jabook_${VERSION}_beta_v8a.apk"
+            RENAMED_APKS="${RENAMED_APKS}release-apks/Jabook_${VERSION}_beta_v8a.apk"$'\n'
+          fi
+          
+          if [ -f "build/app/outputs/flutter-apk/app-x86_64-beta-release.apk" ]; then
+            cp "build/app/outputs/flutter-apk/app-x86_64-beta-release.apk" "release-apks/Jabook_${VERSION}_beta_x86_64.apk"
+            RENAMED_APKS="${RENAMED_APKS}release-apks/Jabook_${VERSION}_beta_x86_64.apk"$'\n'
+          elif [ -f "build/app/outputs/apk/release/app-x86_64-beta-release.apk" ]; then
+            cp "build/app/outputs/apk/release/app-x86_64-beta-release.apk" "release-apks/Jabook_${VERSION}_beta_x86_64.apk"
+            RENAMED_APKS="${RENAMED_APKS}release-apks/Jabook_${VERSION}_beta_x86_64.apk"$'\n'
+          fi
+          
+          RENAMED_APKS=$(echo "$RENAMED_APKS" | sed '/^$/d')
+          
+          if [ -z "$RENAMED_APKS" ]; then
+            echo "⚠️  Warning: No APK files to rename!"
+            echo "has_files=false" >> $GITHUB_OUTPUT
+          else
+            echo "✅ Renamed APK files:"
+            echo "$RENAMED_APKS"
+            echo "has_files=true" >> $GITHUB_OUTPUT
+            echo "files<<EOF" >> $GITHUB_OUTPUT
+            echo "$RENAMED_APKS" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          fi
+
       - name: Generate changelog
         if: steps.verify-apk.outputs.has_files == 'true'
         run: make changelog
 
       - name: Create GitHub Prerelease
-        if: steps.verify-apk.outputs.has_files == 'true'
+        if: steps.rename-apk.outputs.has_files == 'true'
         id: release
         uses: softprops/action-gh-release@5be0e66d93ac7ed76da52eca8bb058f665c3a5fe # v2.4.2
         with:
@@ -161,7 +216,7 @@ jobs:
           body_path: CHANGELOG.md
           draft: false
           prerelease: true
-          files: ${{ steps.verify-apk.outputs.files }}
+          files: ${{ steps.rename-apk.outputs.files }}
           fail_on_unmatched_files: false
           generate_release_notes: false
           make_latest: false
