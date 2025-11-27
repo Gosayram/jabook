@@ -125,10 +125,17 @@ jobs:
           KEYSTORE_PATH="${WORKSPACE_DIR}/.signing/release.keystore"
           
           # Trim whitespace from secrets (preserve special characters)
-          # Use printf to safely handle special characters
+          # Store passwords in variables - when used in double quotes, shell won't interpret $ inside
+          # But we need to be careful - use printf to ensure no shell interpretation during assignment
           STORE_PASS=$(printf '%s' "${{ secrets.KEY_STORE_PASSWORD }}" | tr -d '\n\r\t ' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
           KEY_PASS=$(printf '%s' "${{ secrets.KEY_PASSWORD }}" | tr -d '\n\r\t ' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
           KEY_ALIAS=$(printf '%s' "${{ secrets.KEY_ALIAS }}" | tr -d '\n\r\t ' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+          
+          # Verify passwords are not empty after trimming
+          if [ -z "${STORE_PASS}" ] || [ -z "${KEY_PASS}" ] || [ -z "${KEY_ALIAS}" ]; then
+            echo "❌ ERROR: One or more secrets are empty after trimming"
+            exit 1
+          fi
           
           echo "🔍 Verifying keystore before build..."
           echo "   Keystore path: ${KEYSTORE_PATH}"
@@ -155,29 +162,29 @@ jobs:
           # Step 1: Verify keystore password and list aliases
           echo ""
           echo "Step 1: Verifying keystore password..."
+          
+          # Debug: Show password characters (first 3 and last 3) to verify it's correct
+          if [ ${#STORE_PASS} -ge 6 ]; then
+            FIRST="${STORE_PASS:0:3}"
+            LAST="${STORE_PASS: -3}"
+            echo "   Password preview: '${FIRST}...${LAST}' (length: ${#STORE_PASS})"
+          fi
+          
           KEYTOOL_OUTPUT=""
           KEYTOOL_EXIT_CODE=1
           
-          # Create temporary password file to avoid shell interpretation issues
-          # This is the safest way to pass passwords with special characters
-          STORE_PASS_FILE=$(mktemp)
-          printf '%s' "${STORE_PASS}" > "${STORE_PASS_FILE}"
-          chmod 600 "${STORE_PASS_FILE}"
-          
+          # Use passwords directly in double quotes - shell won't interpret $ inside double-quoted variables
+          # This matches exactly how it's done in key.properties file
           # Try PKCS12 first (most common for modern keystores)
-          # Use stdin to pass password (keytool reads password from stdin when -storepass is not provided)
-          KEYTOOL_OUTPUT=$(printf '%s\n' "${STORE_PASS}" | keytool -list -keystore "${KEYSTORE_PATH}" -storetype PKCS12 2>&1)
+          KEYTOOL_OUTPUT=$(keytool -list -keystore "${KEYSTORE_PATH}" -storetype PKCS12 -storepass "${STORE_PASS}" 2>&1)
           KEYTOOL_EXIT_CODE=$?
           
           # If PKCS12 fails, try default type (JKS)
           if [ $KEYTOOL_EXIT_CODE -ne 0 ]; then
             echo "   PKCS12 failed, trying default storetype (JKS)..."
-            KEYTOOL_OUTPUT=$(printf '%s\n' "${STORE_PASS}" | keytool -list -keystore "${KEYSTORE_PATH}" 2>&1)
+            KEYTOOL_OUTPUT=$(keytool -list -keystore "${KEYSTORE_PATH}" -storepass "${STORE_PASS}" 2>&1)
             KEYTOOL_EXIT_CODE=$?
           fi
-          
-          # Clean up temp file
-          rm -f "${STORE_PASS_FILE}"
           
           if [ $KEYTOOL_EXIT_CODE -ne 0 ]; then
             echo "❌ ERROR: Keystore password verification failed"
@@ -203,26 +210,17 @@ jobs:
           KEYTOOL_ALIAS_OUTPUT=""
           KEYTOOL_ALIAS_EXIT_CODE=1
           
-          # Create temporary password files to avoid shell interpretation issues
-          STORE_PASS_FILE=$(mktemp)
-          KEY_PASS_FILE=$(mktemp)
-          printf '%s' "${STORE_PASS}" > "${STORE_PASS_FILE}"
-          printf '%s' "${KEY_PASS}" > "${KEY_PASS_FILE}"
-          chmod 600 "${STORE_PASS_FILE}" "${KEY_PASS_FILE}"
-          
+          # Use passwords directly (same as in key.properties)
+          # Double quotes prevent shell from interpreting $ inside the variable value
           # Try PKCS12 first
-          # Pass passwords via stdin (keytool prompts for passwords when not provided)
-          KEYTOOL_ALIAS_OUTPUT=$(printf '%s\n%s\n' "${STORE_PASS}" "${KEY_PASS}" | keytool -list -v -keystore "${KEYSTORE_PATH}" -storetype PKCS12 -alias "${KEY_ALIAS}" 2>&1)
+          KEYTOOL_ALIAS_OUTPUT=$(keytool -list -v -keystore "${KEYSTORE_PATH}" -storetype PKCS12 -storepass "${STORE_PASS}" -alias "${KEY_ALIAS}" -keypass "${KEY_PASS}" 2>&1)
           KEYTOOL_ALIAS_EXIT_CODE=$?
           
           # If PKCS12 fails, try default type
           if [ $KEYTOOL_ALIAS_EXIT_CODE -ne 0 ]; then
-            KEYTOOL_ALIAS_OUTPUT=$(printf '%s\n%s\n' "${STORE_PASS}" "${KEY_PASS}" | keytool -list -v -keystore "${KEYSTORE_PATH}" -alias "${KEY_ALIAS}" 2>&1)
+            KEYTOOL_ALIAS_OUTPUT=$(keytool -list -v -keystore "${KEYSTORE_PATH}" -storepass "${STORE_PASS}" -alias "${KEY_ALIAS}" -keypass "${KEY_PASS}" 2>&1)
             KEYTOOL_ALIAS_EXIT_CODE=$?
           fi
-          
-          # Clean up temp files
-          rm -f "${STORE_PASS_FILE}" "${KEY_PASS_FILE}"
           
           if [ $KEYTOOL_ALIAS_EXIT_CODE -ne 0 ]; then
             echo "❌ ERROR: Alias '${KEY_ALIAS}' or key password verification failed"
