@@ -63,12 +63,17 @@ jobs:
           distribution: 'temurin'
 
       - name: Setup Android signing
+        env:
+          KEYSTORE_BASE64_RAW: ${{ secrets.KEYSTORE_BASE64 }}
+          STORE_PASS_RAW: ${{ secrets.KEY_STORE_PASSWORD }}
+          KEY_PASS_RAW: ${{ secrets.KEY_PASSWORD }}
+          KEY_ALIAS_RAW: ${{ secrets.KEY_ALIAS }}
         run: |
           WORKSPACE_DIR="${{ github.workspace }}"
           KEYSTORE_PATH="${WORKSPACE_DIR}/.signing/release.keystore"
           
           mkdir -p .signing
-          echo "${{ secrets.KEYSTORE_BASE64 }}" | tr -d '\n\r\t ' | base64 -d > "${KEYSTORE_PATH}"
+          echo "${KEYSTORE_BASE64_RAW}" | tr -d '\n\r\t ' | base64 -d > "${KEYSTORE_PATH}"
           
           if [ ! -f "${KEYSTORE_PATH}" ]; then
             echo "ERROR: Keystore file was not created"
@@ -81,17 +86,17 @@ jobs:
             exit 1
           fi
           
-          STORE_PASS=$(echo -n "${{ secrets.KEY_STORE_PASSWORD }}" | tr -d '\n\r\t ')
-          KEY_PASS=$(echo -n "${{ secrets.KEY_PASSWORD }}" | tr -d '\n\r\t ')
-          KEY_ALIAS=$(echo -n "${{ secrets.KEY_ALIAS }}" | tr -d '\n\r\t ')
+          STORE_PASS=$(printf '%s' "${STORE_PASS_RAW}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | tr -d '\n\r')
+          KEY_PASS=$(printf '%s' "${KEY_PASS_RAW}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | tr -d '\n\r')
+          KEY_ALIAS=$(printf '%s' "${KEY_ALIAS_RAW}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | tr -d '\n\r')
           
           mkdir -p android
-          cat > android/key.properties <<EOF
-          storeFile=${KEYSTORE_PATH}
-          storePassword=${STORE_PASS}
-          keyPassword=${KEY_PASS}
-          keyAlias=${KEY_ALIAS}
-          EOF
+          {
+            echo "storeFile=${KEYSTORE_PATH}"
+            printf 'storePassword=%s\n' "${STORE_PASS}"
+            printf 'keyPassword=%s\n' "${KEY_PASS}"
+            printf 'keyAlias=%s\n' "${KEY_ALIAS}"
+          } > android/key.properties
           
           echo "✅ Android signing configured"
 
