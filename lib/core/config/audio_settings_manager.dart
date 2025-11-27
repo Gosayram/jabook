@@ -35,6 +35,10 @@ class AudioSettingsManager {
   static const String _defaultForwardDurationKey =
       'audio_default_forward_duration';
 
+  /// Key for storing inactivity timeout in SharedPreferences.
+  static const String _inactivityTimeoutMinutesKey =
+      'audio_inactivity_timeout_minutes';
+
   /// Default playback speed.
   static const double defaultPlaybackSpeed = 1.0;
 
@@ -43,6 +47,15 @@ class AudioSettingsManager {
 
   /// Default forward duration in seconds.
   static const int defaultForwardDuration = 30;
+
+  /// Default inactivity timeout in minutes (60 minutes = 1 hour).
+  static const int defaultInactivityTimeoutMinutes = 60;
+
+  /// Minimum inactivity timeout in minutes.
+  static const int minInactivityTimeoutMinutes = 10;
+
+  /// Maximum inactivity timeout in minutes (3 hours).
+  static const int maxInactivityTimeoutMinutes = 180;
 
   /// Playback speed step for fine control.
   static const double playbackSpeedStep = 0.05;
@@ -114,12 +127,32 @@ class AudioSettingsManager {
     await prefs.setInt(_defaultForwardDurationKey, seconds);
   }
 
+  /// Gets the inactivity timeout in minutes.
+  Future<int> getInactivityTimeoutMinutes() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt(_inactivityTimeoutMinutesKey) ??
+        defaultInactivityTimeoutMinutes;
+  }
+
+  /// Sets the inactivity timeout in minutes.
+  Future<void> setInactivityTimeoutMinutes(int minutes) async {
+    if (minutes < minInactivityTimeoutMinutes ||
+        minutes > maxInactivityTimeoutMinutes) {
+      throw ArgumentError(
+          'Timeout must be between $minInactivityTimeoutMinutes and $maxInactivityTimeoutMinutes minutes');
+    }
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_inactivityTimeoutMinutesKey, minutes);
+  }
+
   /// Resets audio settings to defaults.
   Future<void> resetToDefaults() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setDouble(_defaultPlaybackSpeedKey, defaultPlaybackSpeed);
     await prefs.setInt(_defaultRewindDurationKey, defaultRewindDuration);
     await prefs.setInt(_defaultForwardDurationKey, defaultForwardDuration);
+    await prefs.setInt(
+        _inactivityTimeoutMinutesKey, defaultInactivityTimeoutMinutes);
   }
 
   /// Formats playback speed for display in UI.

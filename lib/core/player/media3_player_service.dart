@@ -268,6 +268,21 @@ class Media3PlayerService {
     }
   }
 
+  /// Sets the inactivity timeout in minutes.
+  ///
+  /// [minutes] is the timeout in minutes (10-180).
+  ///
+  /// Throws [AudioFailure] if setting fails.
+  Future<void> setInactivityTimeoutMinutes(int minutes) async {
+    try {
+      await _player.setInactivityTimeoutMinutes(minutes);
+    } on AudioFailure {
+      rethrow;
+    } on Exception catch (e) {
+      throw AudioFailure('Failed to set inactivity timeout: ${e.toString()}');
+    }
+  }
+
   /// Skips to next track.
   ///
   /// Throws [AudioFailure] if skipping fails.

@@ -1,7 +1,9 @@
 package com.jabook.app.jabook
 
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
@@ -10,6 +12,7 @@ import android.provider.Settings
 import android.webkit.CookieManager
 import androidx.annotation.RequiresApi
 import com.jabook.app.jabook.audio.AudioPlayerMethodHandler
+import com.jabook.app.jabook.audio.AudioPlayerService
 import com.jabook.app.jabook.download.DownloadServiceMethodHandler
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -17,6 +20,7 @@ import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
     private var directoryPickerResult: MethodChannel.Result? = null
+    private var positionSaveReceiver: BroadcastReceiver? = null
 
     companion object {
         private const val REQUEST_CODE_OPEN_DIRECTORY = 1001
@@ -367,6 +371,9 @@ class MainActivity : FlutterActivity() {
             AudioPlayerMethodHandler(this),
         )
 
+        // Register BroadcastReceiver for saving position before unload
+        registerPositionSaveReceiver(flutterEngine, audioPlayerChannel)
+
         // Register notification intent handler channel
         val notificationChannel =
             MethodChannel(
@@ -678,6 +685,110 @@ class MainActivity : FlutterActivity() {
                 channel.invokeMethod("openPlayer", null)
             }
         }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        // Unregister position save receiver
+        unregisterPositionSaveReceiver()
+    }
+
+    /**
+     * Registers BroadcastReceiver for saving position before player unload.
+     *
+     * This receiver listens for ACTION_SAVE_POSITION_BEFORE_UNLOAD broadcast
+     * from AudioPlayerService and triggers position saving through MethodChannel.
+     */
+    private fun registerPositionSaveReceiver(
+        flutterEngine: FlutterEngine,
+        @Suppress("UNUSED_PARAMETER") audioPlayerChannel: MethodChannel,
+    ) {
+        positionSaveReceiver =
+            object : BroadcastReceiver() {
+                override fun onReceive(
+                    context: Context,
+                    intent: Intent,
+                ) {
+                    if (intent.action == AudioPlayerService.ACTION_SAVE_POSITION_BEFORE_UNLOAD) {
+                        val trackIndex = intent.getIntExtra(AudioPlayerService.EXTRA_TRACK_INDEX, -1)
+                        val positionMs = intent.getLongExtra(AudioPlayerService.EXTRA_POSITION_MS, -1L)
+
+                        android.util.Log.d(
+                            "MainActivity",
+                            "Received position save broadcast: track=$trackIndex, position=${positionMs}ms",
+                        )
+
+                        // Call Flutter method to save position
+                        // Note: This is a fire-and-forget call - we don't wait for result
+                        // Position is already saved periodically, this is just an additional safety measure
+                        try {
+                            // Get MethodChannel from flutterEngine to ensure it's available
+                            val messenger = flutterEngine.dartExecutor.binaryMessenger
+                            val channel = MethodChannel(messenger, "com.jabook.app.jabook/audio_player")
+                            channel.invokeMethod(
+                                "saveCurrentPosition",
+                                null,
+                                object : MethodChannel.Result {
+                                    override fun success(result: Any?) {
+                                        android.util.Log.d(
+                                            "MainActivity",
+                                            "Position save triggered successfully via MethodChannel",
+                                        )
+                                    }
+
+                                    override fun error(
+                                        errorCode: String,
+                                        errorMessage: String?,
+                                        errorDetails: Any?,
+                                    ) {
+                                        android.util.Log.w(
+                                            "MainActivity",
+                                            "Failed to trigger position save via MethodChannel: $errorCode - $errorMessage",
+                                        )
+                                        // Not critical - position is already saved periodically
+                                    }
+
+                                    override fun notImplemented() {
+                                        android.util.Log.w(
+                                            "MainActivity",
+                                            "saveCurrentPosition method not implemented in Flutter",
+                                        )
+                                    }
+                                },
+                            )
+                        } catch (e: Exception) {
+                            android.util.Log.w("MainActivity", "Failed to invoke saveCurrentPosition method", e)
+                            // Not critical - position is already saved periodically
+                        }
+                    }
+                }
+            }
+
+        // Register receiver for local broadcasts
+        val filter = IntentFilter(AudioPlayerService.ACTION_SAVE_POSITION_BEFORE_UNLOAD)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(positionSaveReceiver, filter, RECEIVER_NOT_EXPORTED)
+        } else {
+            @Suppress("DEPRECATION")
+            registerReceiver(positionSaveReceiver, filter)
+        }
+
+        android.util.Log.d("MainActivity", "Position save receiver registered")
+    }
+
+    /**
+     * Unregisters position save receiver.
+     */
+    private fun unregisterPositionSaveReceiver() {
+        positionSaveReceiver?.let { receiver ->
+            try {
+                unregisterReceiver(receiver)
+                android.util.Log.d("MainActivity", "Position save receiver unregistered")
+            } catch (e: Exception) {
+                android.util.Log.w("MainActivity", "Failed to unregister position save receiver", e)
+            }
+        }
+        positionSaveReceiver = null
     }
 
     /**

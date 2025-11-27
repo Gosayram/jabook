@@ -616,6 +616,20 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
         );
       }
 
+      // Update inactivity timeout
+      try {
+        final playerService = ref.read(media3PlayerServiceProvider);
+        await playerService.setInactivityTimeoutMinutes(
+            audioSettings.inactivityTimeoutMinutes);
+      } on Exception catch (e) {
+        await _logger.log(
+          level: 'warning',
+          subsystem: 'audio',
+          message: 'Failed to set inactivity timeout',
+          cause: e.toString(),
+        );
+      }
+
       await _logger.log(
         level: 'info',
         subsystem: 'audio',

@@ -880,6 +880,25 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             },
           ),
         ),
+        // Inactivity timeout selection
+        Semantics(
+          button: true,
+          label: 'Set inactivity timeout',
+          child: ListTile(
+            leading: const Icon(Icons.timer_outlined),
+            title: const Text('Inactivity Timeout'),
+            subtitle: Text(
+              '${audioSettings.inactivityTimeoutMinutes} ${audioSettings.inactivityTimeoutMinutes == 1 ? 'minute' : 'minutes'}',
+            ),
+            onTap: () {
+              _showInactivityTimeoutDialog(
+                context,
+                audioSettings.inactivityTimeoutMinutes,
+                audioNotifier,
+              );
+            },
+          ),
+        ),
         const Divider(),
         // Reset all book settings button
         ListTile(
@@ -984,6 +1003,48 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
   }
 
+  /// Shows dialog for selecting inactivity timeout.
+  Future<void> _showInactivityTimeoutDialog(
+    BuildContext context,
+    int currentTimeout,
+    AudioSettingsNotifier audioNotifier,
+  ) async {
+    // Generate list of timeout options: 10, 15, 20, 30, 45, 60, 90, 120, 150, 180 minutes
+    final timeouts = [10, 15, 20, 30, 45, 60, 90, 120, 150, 180];
+
+    final result = await showDialog<int>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Inactivity Timeout'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: timeouts
+                .map((timeout) => RadioListTile<int>(
+                      title: Text(
+                        '$timeout ${timeout == 1 ? 'minute' : 'minutes'}',
+                      ),
+                      value: timeout,
+                      // ignore: deprecated_member_use
+                      groupValue: currentTimeout,
+                      // ignore: deprecated_member_use
+                      onChanged: (value) {
+                        Navigator.of(context).pop(value);
+                      },
+                    ))
+                .toList(),
+          ),
+        ),
+      ),
+    );
+
+    if (result != null) {
+      await audioNotifier.setInactivityTimeoutMinutes(result);
+      // Update inactivity timeout if player is active
+      await _updateInactivityTimeout();
+    }
+  }
+
   /// Updates skip durations in MediaSessionManager if player is active.
   Future<void> _updateMediaSessionSkipDurations() async {
     try {
@@ -999,6 +1060,23 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       }
     } on Exception {
       // Ignore errors - MediaSessionManager update is not critical
+    }
+  }
+
+  /// Updates inactivity timeout if player is active.
+  Future<void> _updateInactivityTimeout() async {
+    try {
+      final playerState = ref.read(playerStateProvider);
+      // Only update if player is initialized
+      if (playerState.playbackState != 0) {
+        final audioSettings = ref.read(audioSettingsProvider);
+        final playerService = ref.read(media3PlayerServiceProvider);
+        await playerService.setInactivityTimeoutMinutes(
+          audioSettings.inactivityTimeoutMinutes,
+        );
+      }
+    } on Exception {
+      // Ignore errors - inactivity timeout update is not critical
     }
   }
 

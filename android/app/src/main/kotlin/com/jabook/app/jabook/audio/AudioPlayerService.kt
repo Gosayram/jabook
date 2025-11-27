@@ -67,6 +67,7 @@ class AudioPlayerService : MediaSessionService() {
     private var notificationManager: NotificationManager? = null
     private var mediaSessionManager: MediaSessionManager? = null
     private var playbackTimer: PlaybackTimer? = null
+    private var inactivityTimer: InactivityTimer? = null
     private var currentMetadata: Map<String, String>? = null
     private var embeddedArtworkPath: String? = null // Path to saved embedded artwork
 
@@ -80,6 +81,15 @@ class AudioPlayerService : MediaSessionService() {
 
     companion object {
         private const val NOTIFICATION_ID = 1
+
+        /**
+         * Action for saving position before unload.
+         * This broadcast will be handled by MainActivity or AudioPlayerMethodHandler
+         * to trigger position saving through MethodChannel.
+         */
+        const val ACTION_SAVE_POSITION_BEFORE_UNLOAD = "com.jabook.app.jabook.audio.SAVE_POSITION_BEFORE_UNLOAD"
+        const val EXTRA_TRACK_INDEX = "trackIndex"
+        const val EXTRA_POSITION_MS = "positionMs"
 
         @Volatile
         private var instance: AudioPlayerService? = null
@@ -349,6 +359,22 @@ class AudioPlayerService : MediaSessionService() {
             // Initialize playback timer (inspired by lissen-android)
             playbackTimer = PlaybackTimer(this, exoPlayer)
 
+            // Initialize inactivity timer for automatic resource cleanup
+            inactivityTimer =
+                InactivityTimer(
+                    context = this,
+                    player = exoPlayer,
+                    onTimerExpired = {
+                        android.util.Log.i("AudioPlayerService", "Inactivity timer expired, unloading player")
+                        // Check if service is still alive before unloading
+                        if (instance != null && isFullyInitializedFlag) {
+                            unloadPlayerDueToInactivity()
+                        } else {
+                            android.util.Log.w("AudioPlayerService", "Service already destroyed, skipping unload")
+                        }
+                    },
+                )
+
             // ExoPlayer manages AudioFocus automatically when handleAudioFocus=true
             // No need for manual AudioFocus management
 
@@ -450,15 +476,32 @@ class AudioPlayerService : MediaSessionService() {
 
         // Handle actions from notification and timer
         when (intent?.action) {
-            com.jabook.app.jabook.audio.NotificationManager.ACTION_PLAY -> play()
-            com.jabook.app.jabook.audio.NotificationManager.ACTION_PAUSE -> pause()
-            com.jabook.app.jabook.audio.NotificationManager.ACTION_NEXT -> next()
-            com.jabook.app.jabook.audio.NotificationManager.ACTION_PREVIOUS -> previous()
+            com.jabook.app.jabook.audio.NotificationManager.ACTION_PLAY -> {
+                android.util.Log.d("AudioPlayerService", "User action detected from notification: PLAY, resetting inactivity timer")
+                play()
+            }
+            com.jabook.app.jabook.audio.NotificationManager.ACTION_PAUSE -> {
+                android.util.Log.d("AudioPlayerService", "User action detected from notification: PAUSE, resetting inactivity timer")
+                pause()
+            }
+            com.jabook.app.jabook.audio.NotificationManager.ACTION_NEXT -> {
+                android.util.Log.d("AudioPlayerService", "User action detected from notification: NEXT, resetting inactivity timer")
+                next()
+            }
+            com.jabook.app.jabook.audio.NotificationManager.ACTION_PREVIOUS -> {
+                android.util.Log.d("AudioPlayerService", "User action detected from notification: PREVIOUS, resetting inactivity timer")
+                previous()
+            }
 
             // Handle timer actions (inspired by lissen-android)
             PlaybackTimer.ACTION_TIMER_EXPIRED -> {
                 // Timer expired - playback should already be paused by PlaybackTimer
                 android.util.Log.d("AudioPlayerService", "Timer expired, playback paused")
+            }
+            InactivityTimer.ACTION_INACTIVITY_TIMER_EXPIRED -> {
+                // Inactivity timer expired - unload player
+                android.util.Log.i("AudioPlayerService", "Inactivity timer expired, unloading player")
+                unloadPlayerDueToInactivity()
             }
         }
 
@@ -713,6 +756,9 @@ class AudioPlayerService : MediaSessionService() {
             val playWhenReadyBeforeSeek = player.playWhenReady
             player.seekTo(trackIndex, positionMs)
 
+            // Reset inactivity timer (user action)
+            inactivityTimer?.resetTimer()
+
             if (playWhenReadyBeforeSeek) {
                 playerServiceScope.launch {
                     delay(100)
@@ -870,14 +916,19 @@ class AudioPlayerService : MediaSessionService() {
 
         if (!::exoPlayer.isInitialized) {
             android.util.Log.w("AudioPlayerService", "Cannot play: ExoPlayer is not initialized")
+            // Service might have been unloaded - state will be restored when playlist is set
             return
         }
 
         val player = exoPlayer
         if (player.mediaItemCount == 0) {
             android.util.Log.w("AudioPlayerService", "Cannot play: no media items loaded")
+            // Service might have been unloaded - state will be restored when playlist is set
             return
         }
+
+        // Note: If service was unloaded and recreated, state should be restored
+        // by Media3PlayerService before calling play()
 
         // Match lissen-android: simple approach - just set playWhenReady=true in coroutine
         // ExoPlayer will handle AudioFocus automatically
@@ -893,6 +944,9 @@ class AudioPlayerService : MediaSessionService() {
                 // ExoPlayer manages AudioFocus automatically when handleAudioFocus=true
                 player.playWhenReady = true
                 android.util.Log.d("AudioPlayerService", "play() - set playWhenReady=true, letting ExoPlayer handle AudioFocus")
+
+                // Reset inactivity timer (user action)
+                inactivityTimer?.resetTimer()
             } catch (e: Exception) {
                 android.util.Log.e("AudioPlayerService", "Failed to start playback", e)
                 e.printStackTrace()
@@ -915,6 +969,9 @@ class AudioPlayerService : MediaSessionService() {
                 exoPlayer.playWhenReady = false
                 // Note: We don't abandon AudioFocus on pause - we keep it for quick resume
                 // AudioFocus will be abandoned when service is stopped
+
+                // Reset inactivity timer (user action - pause is also an interaction)
+                inactivityTimer?.resetTimer()
             } catch (e: Exception) {
                 ErrorHandler.handleGeneralError("AudioPlayerService", e, "Pause method execution")
             }
@@ -971,6 +1028,9 @@ class AudioPlayerService : MediaSessionService() {
 
             player.seekTo(seekPosition)
 
+            // Reset inactivity timer (user action)
+            inactivityTimer?.resetTimer()
+
             if (playWhenReadyBeforeSeek) {
                 playerServiceScope.launch {
                     delay(100)
@@ -993,6 +1053,8 @@ class AudioPlayerService : MediaSessionService() {
      */
     fun setSpeed(speed: Float) {
         exoPlayer.setPlaybackSpeed(speed)
+        // Reset inactivity timer (user action)
+        inactivityTimer?.resetTimer()
     }
 
     /**
@@ -1006,6 +1068,8 @@ class AudioPlayerService : MediaSessionService() {
     fun setRepeatMode(repeatMode: Int) {
         exoPlayer.repeatMode = repeatMode
         android.util.Log.d("AudioPlayerService", "Repeat mode set to: $repeatMode")
+        // Reset inactivity timer (user action)
+        inactivityTimer?.resetTimer()
     }
 
     /**
@@ -1023,6 +1087,8 @@ class AudioPlayerService : MediaSessionService() {
     fun setShuffleModeEnabled(shuffleModeEnabled: Boolean) {
         exoPlayer.shuffleModeEnabled = shuffleModeEnabled
         android.util.Log.d("AudioPlayerService", "Shuffle mode set to: $shuffleModeEnabled")
+        // Reset inactivity timer (user action)
+        inactivityTimer?.resetTimer()
     }
 
     /**
@@ -1038,6 +1104,8 @@ class AudioPlayerService : MediaSessionService() {
     fun next() {
         exoPlayer.seekToNextMediaItem()
         android.util.Log.d("AudioPlayerService", "Skipping to next track")
+        // Reset inactivity timer (user action)
+        inactivityTimer?.resetTimer()
     }
 
     /**
@@ -1046,6 +1114,8 @@ class AudioPlayerService : MediaSessionService() {
     fun previous() {
         exoPlayer.seekToPreviousMediaItem()
         android.util.Log.d("AudioPlayerService", "Skipping to previous track")
+        // Reset inactivity timer (user action)
+        inactivityTimer?.resetTimer()
     }
 
     /**
@@ -1059,6 +1129,9 @@ class AudioPlayerService : MediaSessionService() {
         if (index >= 0 && index < player.mediaItemCount) {
             val playWhenReadyBeforeSeek = player.playWhenReady
             player.seekTo(index, 0L)
+
+            // Reset inactivity timer (user action)
+            inactivityTimer?.resetTimer()
 
             if (playWhenReadyBeforeSeek) {
                 playerServiceScope.launch {
@@ -1169,6 +1242,8 @@ class AudioPlayerService : MediaSessionService() {
         val newPosition = (currentPosition - seconds * 1000L).coerceAtLeast(0L)
         player.seekTo(newPosition)
         android.util.Log.d("AudioPlayerService", "Rewind: ${seconds}s (from ${currentPosition}ms to ${newPosition}ms)")
+        // Reset inactivity timer (user action)
+        inactivityTimer?.resetTimer()
     }
 
     /**
@@ -1185,6 +1260,8 @@ class AudioPlayerService : MediaSessionService() {
             val newPosition = (currentPosition + seconds * 1000L).coerceAtMost(duration)
             player.seekTo(newPosition)
             android.util.Log.d("AudioPlayerService", "Forward: ${seconds}s (from ${currentPosition}ms to ${newPosition}ms)")
+            // Reset inactivity timer (user action)
+            inactivityTimer?.resetTimer()
         }
     }
 
@@ -1221,6 +1298,19 @@ class AudioPlayerService : MediaSessionService() {
      * @return Duration in milliseconds, or 0 if unknown
      */
     fun getDuration(): Long = exoPlayer.duration
+
+    /**
+     * Sets the inactivity timeout in minutes.
+     *
+     * @param minutes Timeout in minutes (10-180)
+     */
+    fun setInactivityTimeoutMinutes(minutes: Int) {
+        inactivityTimer?.setInactivityTimeoutMinutes(minutes)
+        android.util.Log.d(
+            "AudioPlayerService",
+            "Inactivity timeout set to $minutes minutes",
+        )
+    }
 
     /**
      * Gets current player state.
@@ -1799,6 +1889,132 @@ class AudioPlayerService : MediaSessionService() {
             }
         }
 
+    /**
+     * Unloads player due to inactivity timer expiration.
+     *
+     * This method:
+     * 1. Saves current position (position is already saved periodically and on pause)
+     * 2. Stops ExoPlayer and clears MediaItems
+     * 3. Releases MediaSession and other resources
+     * 4. Removes notification
+     * 5. Stops foreground service
+     * 6. Stops the service itself
+     *
+     * Note: Position saving is handled by Media3PlayerService (Dart) which saves
+     * periodically and on app lifecycle events. This method focuses on resource cleanup.
+     */
+    fun unloadPlayerDueToInactivity() {
+        android.util.Log.i("AudioPlayerService", "Unloading player due to inactivity")
+
+        try {
+            // Log memory usage before unloading (for debugging)
+            val runtime = Runtime.getRuntime()
+            val usedMemory = (runtime.totalMemory() - runtime.freeMemory()) / 1024 / 1024 // MB
+            val maxMemory = runtime.maxMemory() / 1024 / 1024 // MB
+            android.util.Log.d(
+                "AudioPlayerService",
+                "Memory usage before unload: ${usedMemory}MB / ${maxMemory}MB",
+            )
+
+            // Save position before unloading (attempt to trigger save through broadcast)
+            if (::exoPlayer.isInitialized) {
+                val currentIndex = exoPlayer.currentMediaItemIndex
+                val currentPosition = exoPlayer.currentPosition
+                android.util.Log.d(
+                    "AudioPlayerService",
+                    "Saving position before unload: track=$currentIndex, position=${currentPosition}ms",
+                )
+
+                // Broadcast intent to trigger position saving through MethodChannel
+                // This will be handled by MainActivity or AudioPlayerMethodHandler if available
+                try {
+                    val saveIntent =
+                        Intent(ACTION_SAVE_POSITION_BEFORE_UNLOAD).apply {
+                            putExtra(EXTRA_TRACK_INDEX, currentIndex)
+                            putExtra(EXTRA_POSITION_MS, currentPosition)
+                            setPackage(packageName) // Set package for explicit broadcast
+                        }
+                    sendBroadcast(saveIntent)
+                    android.util.Log.d(
+                        "AudioPlayerService",
+                        "Broadcast sent to trigger position save: track=$currentIndex, position=${currentPosition}ms",
+                    )
+                } catch (e: Exception) {
+                    android.util.Log.w("AudioPlayerService", "Failed to send save position broadcast", e)
+                    // Continue with unload even if broadcast fails - position is already saved periodically
+                }
+
+                // Note: Position is also saved periodically by Media3PlayerService (every 10-15 seconds)
+                // and will be saved on next app resume/pause event, so this is an additional safety measure
+            }
+
+            // Stop ExoPlayer and clear MediaItems
+            if (::exoPlayer.isInitialized) {
+                exoPlayer.stop()
+                exoPlayer.clearMediaItems()
+                android.util.Log.d("AudioPlayerService", "ExoPlayer stopped and MediaItems cleared")
+            }
+
+            // Release MediaSession
+            mediaSession?.release()
+            mediaSession = null
+            android.util.Log.d("AudioPlayerService", "MediaSession released")
+
+            // Release MediaSessionManager
+            mediaSessionManager?.release()
+            mediaSessionManager = null
+            android.util.Log.d("AudioPlayerService", "MediaSessionManager released")
+
+            // Release timers
+            inactivityTimer?.release()
+            inactivityTimer = null
+            playbackTimer?.release()
+            playbackTimer = null
+            android.util.Log.d("AudioPlayerService", "Timers released")
+
+            // Remove notification
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    stopForeground(STOP_FOREGROUND_REMOVE)
+                    android.util.Log.d("AudioPlayerService", "Foreground service stopped and notification removed")
+                } else {
+                    // Use AndroidNotificationManager to cancel notification
+                    val androidNotificationManager =
+                        getSystemService(Context.NOTIFICATION_SERVICE) as AndroidNotificationManager
+                    androidNotificationManager.cancel(NOTIFICATION_ID)
+                    android.util.Log.d("AudioPlayerService", "Notification cancelled")
+                }
+            } catch (e: Exception) {
+                android.util.Log.w("AudioPlayerService", "Failed to remove notification", e)
+            }
+
+            // Clear metadata
+            currentMetadata = null
+            embeddedArtworkPath = null
+
+            // Stop the service
+            android.util.Log.i("AudioPlayerService", "Stopping service due to inactivity")
+
+            // Log memory usage after cleanup (for debugging)
+            val runtimeAfter = Runtime.getRuntime()
+            val usedMemoryAfter = (runtimeAfter.totalMemory() - runtimeAfter.freeMemory()) / 1024 / 1024 // MB
+            android.util.Log.d(
+                "AudioPlayerService",
+                "Memory usage after cleanup: ${usedMemoryAfter}MB / ${runtimeAfter.maxMemory() / 1024 / 1024}MB",
+            )
+
+            stopSelf()
+        } catch (e: Exception) {
+            android.util.Log.e("AudioPlayerService", "Error unloading player due to inactivity", e)
+            // Still try to stop the service even if there was an error
+            try {
+                stopSelf()
+            } catch (e2: Exception) {
+                android.util.Log.e("AudioPlayerService", "Failed to stop service", e2)
+            }
+        }
+    }
+
     override fun onDestroy() {
         instance = null
         isFullyInitializedFlag = false
@@ -1820,6 +2036,7 @@ class AudioPlayerService : MediaSessionService() {
         mediaSession = null
         mediaSessionManager?.release()
         playbackTimer?.release()
+        inactivityTimer?.release()
         super.onDestroy()
     }
 }

@@ -326,6 +326,22 @@ class AudioPlayerMethodHandler(
                         },
                     )
                 }
+                "setInactivityTimeoutMinutes" -> {
+                    val minutes = call.argument<Int>("minutes")
+                    if (minutes == null) {
+                        result.error("INVALID_ARGUMENT", "minutes is required", null)
+                        return
+                    }
+                    executeWithRetry(
+                        action = {
+                            getService()?.setInactivityTimeoutMinutes(minutes)
+                            result.success(true)
+                        },
+                        onError = { e ->
+                            result.error("EXCEPTION", e.message ?: "Failed to set inactivity timeout", null)
+                        },
+                    )
+                }
                 "setRepeatMode" -> {
                     val repeatMode = call.argument<Int>("repeatMode") ?: 0
                     executeWithRetry(
@@ -538,6 +554,27 @@ class AudioPlayerMethodHandler(
                         },
                         onError = { e ->
                             result.error("EXCEPTION", e.message ?: "Failed to stop timer", null)
+                        },
+                    )
+                }
+                "saveCurrentPosition" -> {
+                    // Save current playback position
+                    // This is called from broadcast receiver when inactivity timer expires
+                    // or from Flutter when app lifecycle changes
+                    executeWithRetry(
+                        action = {
+                            // Position is saved by Media3PlayerService (Dart) which saves periodically
+                            // This method just acknowledges the call - actual saving happens in Dart
+                            android.util.Log.d(
+                                "AudioPlayerMethodHandler",
+                                "saveCurrentPosition called - position saving handled by Media3PlayerService",
+                            )
+                            result.success(true)
+                        },
+                        onError = { e ->
+                            android.util.Log.w("AudioPlayerMethodHandler", "Failed to acknowledge saveCurrentPosition", e)
+                            // Not critical - position is already saved periodically
+                            result.success(true) // Still return success as position saving is not critical
                         },
                     )
                 }

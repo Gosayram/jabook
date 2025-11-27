@@ -505,6 +505,26 @@ class NativeAudioPlayer {
     }
   }
 
+  /// Sets the inactivity timeout in minutes.
+  ///
+  /// [minutes] is the timeout in minutes (10-180).
+  ///
+  /// Throws [AudioFailure] if setting fails.
+  Future<void> setInactivityTimeoutMinutes(int minutes) async {
+    try {
+      await _channel.invokeMethod(
+        'setInactivityTimeoutMinutes',
+        {'minutes': minutes},
+      );
+    } on PlatformException catch (e) {
+      throw AudioFailure(
+        'Failed to set inactivity timeout: ${e.message ?? e.code}',
+      );
+    } on Exception catch (e) {
+      throw AudioFailure('Failed to set inactivity timeout: ${e.toString()}');
+    }
+  }
+
   /// Gets current playback position.
   ///
   /// Returns current position in milliseconds.

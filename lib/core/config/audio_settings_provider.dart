@@ -22,6 +22,8 @@ class AudioSettings {
     this.defaultPlaybackSpeed = AudioSettingsManager.defaultPlaybackSpeed,
     this.defaultRewindDuration = AudioSettingsManager.defaultRewindDuration,
     this.defaultForwardDuration = AudioSettingsManager.defaultForwardDuration,
+    this.inactivityTimeoutMinutes =
+        AudioSettingsManager.defaultInactivityTimeoutMinutes,
   });
 
   /// Default playback speed.
@@ -33,11 +35,15 @@ class AudioSettings {
   /// Default forward duration in seconds.
   final int defaultForwardDuration;
 
+  /// Inactivity timeout in minutes (time before player unloads when paused).
+  final int inactivityTimeoutMinutes;
+
   /// Creates a copy with updated fields.
   AudioSettings copyWith({
     double? defaultPlaybackSpeed,
     int? defaultRewindDuration,
     int? defaultForwardDuration,
+    int? inactivityTimeoutMinutes,
   }) =>
       AudioSettings(
         defaultPlaybackSpeed: defaultPlaybackSpeed ?? this.defaultPlaybackSpeed,
@@ -45,6 +51,8 @@ class AudioSettings {
             defaultRewindDuration ?? this.defaultRewindDuration,
         defaultForwardDuration:
             defaultForwardDuration ?? this.defaultForwardDuration,
+        inactivityTimeoutMinutes:
+            inactivityTimeoutMinutes ?? this.inactivityTimeoutMinutes,
       );
 }
 
@@ -72,10 +80,13 @@ class AudioSettingsNotifier extends StateNotifier<AudioSettings> {
           await _audioSettingsManager.getDefaultRewindDuration();
       final forwardDuration =
           await _audioSettingsManager.getDefaultForwardDuration();
+      final inactivityTimeout =
+          await _audioSettingsManager.getInactivityTimeoutMinutes();
       state = AudioSettings(
         defaultPlaybackSpeed: playbackSpeed,
         defaultRewindDuration: rewindDuration,
         defaultForwardDuration: forwardDuration,
+        inactivityTimeoutMinutes: inactivityTimeout,
       );
     } on Object {
       // Use default settings on error
@@ -109,6 +120,17 @@ class AudioSettingsNotifier extends StateNotifier<AudioSettings> {
     }
     await _audioSettingsManager.setDefaultForwardDuration(seconds);
     state = state.copyWith(defaultForwardDuration: seconds);
+  }
+
+  /// Sets the inactivity timeout in minutes.
+  Future<void> setInactivityTimeoutMinutes(int minutes) async {
+    if (minutes < AudioSettingsManager.minInactivityTimeoutMinutes ||
+        minutes > AudioSettingsManager.maxInactivityTimeoutMinutes) {
+      throw ArgumentError(
+          'Timeout must be between ${AudioSettingsManager.minInactivityTimeoutMinutes} and ${AudioSettingsManager.maxInactivityTimeoutMinutes} minutes');
+    }
+    await _audioSettingsManager.setInactivityTimeoutMinutes(minutes);
+    state = state.copyWith(inactivityTimeoutMinutes: minutes);
   }
 
   /// Resets audio settings to defaults.
