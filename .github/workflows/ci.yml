@@ -32,23 +32,23 @@ jobs:
           cache-key: 'flutter-sdk-3.38.3-stable-x64'
           pub-cache-key: 'flutter-pub-cache-v1'
 
-      # - name: Verify Flutter installation
-      #   run: flutter doctor -v
+      - name: Verify Flutter installation
+        run: flutter doctor -v
 
-      # - name: Install dependencies
-      #   run: make install
+      - name: Install dependencies
+        run: make install
 
-      # - name: Check localization files
-      #   run: make check-l10n
+      - name: Check localization files
+        run: make check-l10n
 
-      # - name: Verify code formatting
-      #   run: make fmt-check
+      - name: Verify code formatting
+        run: make fmt-check
 
-      # - name: Analyze code
-      #   run: make analyze
+      - name: Analyze code
+        run: make analyze
 
-      # - name: Check copyright headers
-      #   run: make check-copyright
+      - name: Check copyright headers
+        run: make check-copyright
 
       - name: Extract version from pubspec.yaml
         run: |
@@ -64,36 +64,23 @@ jobs:
 
       - name: Setup Android signing
         run: |
-          # Get absolute path to workspace
           WORKSPACE_DIR="${{ github.workspace }}"
           KEYSTORE_PATH="${WORKSPACE_DIR}/.signing/release.keystore"
           
-          # Create .signing directory
           mkdir -p .signing
-          
-          # Decode keystore from base64 secret (remove any whitespace/newlines)
           echo "${{ secrets.KEYSTORE_BASE64 }}" | tr -d '\n\r\t ' | base64 -d > "${KEYSTORE_PATH}"
           
-          # Verify keystore file was created and has reasonable size
           if [ ! -f "${KEYSTORE_PATH}" ]; then
-            echo "ERROR: Keystore file was not created at ${KEYSTORE_PATH}"
+            echo "ERROR: Keystore file was not created"
             exit 1
           fi
           
           KEYSTORE_SIZE=$(stat -f%z "${KEYSTORE_PATH}" 2>/dev/null || stat -c%s "${KEYSTORE_PATH}" 2>/dev/null)
           if [ "$KEYSTORE_SIZE" -lt 1000 ]; then
-            echo "ERROR: Keystore file seems too small (${KEYSTORE_SIZE} bytes). Check KEYSTORE_BASE64 secret."
+            echo "ERROR: Keystore file too small (${KEYSTORE_SIZE} bytes)"
             exit 1
           fi
           
-          # Verify secrets are not empty
-          if [ -z "${{ secrets.KEY_STORE_PASSWORD }}" ] || [ -z "${{ secrets.KEY_PASSWORD }}" ] || [ -z "${{ secrets.KEY_ALIAS }}" ]; then
-            echo "ERROR: One or more signing secrets are empty"
-            exit 1
-          fi
-          
-          # Create android/key.properties file with absolute path
-          # Trim whitespace from secrets to avoid issues
           STORE_PASS=$(echo -n "${{ secrets.KEY_STORE_PASSWORD }}" | tr -d '\n\r\t ')
           KEY_PASS=$(echo -n "${{ secrets.KEY_PASSWORD }}" | tr -d '\n\r\t ')
           KEY_ALIAS=$(echo -n "${{ secrets.KEY_ALIAS }}" | tr -d '\n\r\t ')
@@ -106,177 +93,25 @@ jobs:
           keyAlias=${KEY_ALIAS}
           EOF
           
-          # Verify key.properties was created
-          if [ ! -f android/key.properties ]; then
-            echo "ERROR: key.properties file was not created"
-            exit 1
-          fi
-          
           echo "✅ Android signing configured"
-          echo "   Keystore: ${KEYSTORE_PATH} (${KEYSTORE_SIZE} bytes)"
-          echo "   Key properties: android/key.properties"
-          echo "   Alias: ${KEY_ALIAS}"
-
-      - name: Verify keystore before build
-        env:
-          STORE_PASS_RAW: ${{ secrets.KEY_STORE_PASSWORD }}
-          KEY_PASS_RAW: ${{ secrets.KEY_PASSWORD }}
-          KEY_ALIAS_RAW: ${{ secrets.KEY_ALIAS }}
-        run: |
-          set +e  # Disable exit on error to capture keytool errors
-          
-          WORKSPACE_DIR="${{ github.workspace }}"
-          KEYSTORE_PATH="${WORKSPACE_DIR}/.signing/release.keystore"
-          
-          # Read from environment variables and trim whitespace
-          # Environment variables preserve special characters like $ and @
-          STORE_PASS=$(printf '%s' "${STORE_PASS_RAW}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | tr -d '\n\r')
-          KEY_PASS=$(printf '%s' "${KEY_PASS_RAW}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | tr -d '\n\r')
-          KEY_ALIAS=$(printf '%s' "${KEY_ALIAS_RAW}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | tr -d '\n\r')
-          
-          # Verify passwords are not empty after trimming
-          if [ -z "${STORE_PASS}" ] || [ -z "${KEY_PASS}" ] || [ -z "${KEY_ALIAS}" ]; then
-            echo "❌ ERROR: One or more secrets are empty after trimming"
-            exit 1
-          fi
-          
-          echo "🔍 Verifying keystore before build..."
-          echo "   Keystore path: ${KEYSTORE_PATH}"
-          echo "   Keystore exists: $([ -f "${KEYSTORE_PATH}" ] && echo 'yes' || echo 'no')"
-          echo "   Alias: ${KEY_ALIAS}"
-          echo "   Store password length: ${#STORE_PASS} chars (expected: 16 for 'str@Dsxs\$90cx19')"
-          echo "   Key password length: ${#KEY_PASS} chars"
-          
-          # Debug: Show password preview to verify it's correct
-          if [ ${#STORE_PASS} -ge 6 ]; then
-            FIRST="${STORE_PASS:0:3}"
-            LAST="${STORE_PASS: -3}"
-            echo "   Store password preview: '${FIRST}...${LAST}'"
-            if [ ${#STORE_PASS} -ne 16 ]; then
-              echo "   ⚠️  WARNING: Password length is ${#STORE_PASS}, expected 16!"
-              echo "   This suggests that special characters (like \$) may have been interpreted by shell"
-              echo "   Check that KEY_STORE_PASSWORD secret contains the full password: str@Dsxs\$90cx19"
-            fi
-          else
-            echo "   ⚠️  WARNING: Store password is too short or empty!"
-          fi
-          
-          # Check if keytool is available
-          if ! command -v keytool &> /dev/null; then
-            echo "❌ ERROR: keytool is not available. Cannot verify keystore."
-            exit 1
-          fi
-          
-          # Step 1: Verify keystore password and list aliases
-          echo ""
-          echo "Step 1: Verifying keystore password..."
-          
-          # Debug: Show password characters (first 3 and last 3) to verify it's correct
-          if [ ${#STORE_PASS} -ge 6 ]; then
-            FIRST="${STORE_PASS:0:3}"
-            LAST="${STORE_PASS: -3}"
-            echo "   Password preview: '${FIRST}...${LAST}' (length: ${#STORE_PASS})"
-          fi
-          
-          KEYTOOL_OUTPUT=""
-          KEYTOOL_EXIT_CODE=1
-          
-          # Use passwords directly in double quotes - shell won't interpret $ inside double-quoted variables
-          # This matches exactly how it's done in key.properties file
-          # Try PKCS12 first (most common for modern keystores)
-          KEYTOOL_OUTPUT=$(keytool -list -keystore "${KEYSTORE_PATH}" -storetype PKCS12 -storepass "${STORE_PASS}" 2>&1)
-          KEYTOOL_EXIT_CODE=$?
-          
-          # If PKCS12 fails, try default type (JKS)
-          if [ $KEYTOOL_EXIT_CODE -ne 0 ]; then
-            echo "   PKCS12 failed, trying default storetype (JKS)..."
-            KEYTOOL_OUTPUT=$(keytool -list -keystore "${KEYSTORE_PATH}" -storepass "${STORE_PASS}" 2>&1)
-            KEYTOOL_EXIT_CODE=$?
-          fi
-          
-          if [ $KEYTOOL_EXIT_CODE -ne 0 ]; then
-            echo "❌ ERROR: Keystore password verification failed"
-            echo ""
-            echo "   Full error output:"
-            echo "$KEYTOOL_OUTPUT" | sed 's/^/     /'
-            echo ""
-            echo "   Troubleshooting:"
-            echo "     - Check that KEY_STORE_PASSWORD secret matches the keystore password"
-            echo "     - Ensure there are no extra spaces or newlines in the secret"
-            echo "     - Verify the keystore file is not corrupted"
-            set -e
-            exit 1
-          fi
-          
-          echo "✅ Keystore password is correct"
-          echo "   Available aliases:"
-          echo "$KEYTOOL_OUTPUT" | grep -E '^[a-zA-Z0-9_-]+,' | sed 's/^/     /' || echo "$KEYTOOL_OUTPUT" | grep -i alias | sed 's/^/     /' || echo "     (Could not parse aliases)"
-          
-          # Step 2: Verify specific alias exists and key password
-          echo ""
-          echo "Step 2: Verifying alias '${KEY_ALIAS}' and key password..."
-          KEYTOOL_ALIAS_OUTPUT=""
-          KEYTOOL_ALIAS_EXIT_CODE=1
-          
-          # Use passwords directly (same as in key.properties)
-          # Double quotes prevent shell from interpreting $ inside the variable value
-          # Try PKCS12 first
-          KEYTOOL_ALIAS_OUTPUT=$(keytool -list -v -keystore "${KEYSTORE_PATH}" -storetype PKCS12 -storepass "${STORE_PASS}" -alias "${KEY_ALIAS}" -keypass "${KEY_PASS}" 2>&1)
-          KEYTOOL_ALIAS_EXIT_CODE=$?
-          
-          # If PKCS12 fails, try default type
-          if [ $KEYTOOL_ALIAS_EXIT_CODE -ne 0 ]; then
-            KEYTOOL_ALIAS_OUTPUT=$(keytool -list -v -keystore "${KEYSTORE_PATH}" -storepass "${STORE_PASS}" -alias "${KEY_ALIAS}" -keypass "${KEY_PASS}" 2>&1)
-            KEYTOOL_ALIAS_EXIT_CODE=$?
-          fi
-          
-          if [ $KEYTOOL_ALIAS_EXIT_CODE -ne 0 ]; then
-            echo "❌ ERROR: Alias '${KEY_ALIAS}' or key password verification failed"
-            echo ""
-            echo "   Full error output:"
-            echo "$KEYTOOL_ALIAS_OUTPUT" | sed 's/^/     /'
-            echo ""
-            echo "   Troubleshooting:"
-            echo "     - Check that KEY_ALIAS secret matches an alias in the keystore (see aliases above)"
-            echo "     - Check that KEY_PASSWORD secret matches the key password for this alias"
-            echo "     - Ensure there are no extra spaces or newlines in the secrets"
-            set -e
-            exit 1
-          fi
-          
-          echo "✅ Alias '${KEY_ALIAS}' and key password are correct"
-          
-          # Step 3: Display certificate info
-          echo ""
-          echo "Step 3: Certificate information:"
-          echo "$KEYTOOL_ALIAS_OUTPUT" | grep -E "(Owner:|Issuer:|Valid from)" | sed 's/^/     /' || true
-          
-          set -e  # Re-enable exit on error
-          echo ""
-          echo "✅ Keystore verification completed successfully"
-          echo "   Ready to proceed with build"
 
       - name: Build beta APK
         env:
-          # Increase Gradle memory for CI builds
           GRADLE_OPTS: "-Xmx4g -XX:MaxMetaspaceSize=1g -XX:ReservedCodeCacheSize=1g"
         run: make build-android-beta-ci
 
       - name: Verify APK files exist
         id: verify-apk
         run: |
-          # Check for APK files in both possible locations
           UNIVERSAL_APK=""
           SPLIT_APKS=""
           
-          # Universal APK
           if [ -f "build/app/outputs/flutter-apk/app-beta-release.apk" ]; then
             UNIVERSAL_APK="build/app/outputs/flutter-apk/app-beta-release.apk"
           elif [ -f "build/app/outputs/apk/release/app-beta-release.apk" ]; then
             UNIVERSAL_APK="build/app/outputs/apk/release/app-beta-release.apk"
           fi
           
-          # Split APKs
           for arch in arm64-v8a armeabi-v7a x86_64; do
             if [ -f "build/app/outputs/flutter-apk/app-${arch}-beta-release.apk" ]; then
               SPLIT_APKS="${SPLIT_APKS}build/app/outputs/flutter-apk/app-${arch}-beta-release.apk"$'\n'
@@ -285,10 +120,8 @@ jobs:
             fi
           done
           
-          # Remove trailing newline
           SPLIT_APKS=$(echo "$SPLIT_APKS" | sed '/^$/d')
           
-          # Combine all APKs
           ALL_APKS=""
           if [ -n "$UNIVERSAL_APK" ]; then
             ALL_APKS="${UNIVERSAL_APK}"$'\n'
@@ -297,7 +130,6 @@ jobs:
             ALL_APKS="${ALL_APKS}${SPLIT_APKS}"
           fi
           
-          # Remove trailing newline
           ALL_APKS=$(echo "$ALL_APKS" | sed '/^$/d')
           
           if [ -z "$ALL_APKS" ]; then
@@ -316,17 +148,17 @@ jobs:
         if: steps.verify-apk.outputs.has_files == 'true'
         run: make changelog
 
-      # - name: Create GitHub Prerelease
-      #   if: steps.verify-apk.outputs.has_files == 'true'
-      #   id: release
-      #   uses: softprops/action-gh-release@5be0e66d93ac7ed76da52eca8bb058f665c3a5fe # v2.4.2
-      #   with:
-      #     tag_name: ${{ github.ref_name }}
-      #     name: Release ${{ env.VERSION }}-beta
-      #     body_path: CHANGELOG.md
-      #     draft: false
-      #     prerelease: true
-      #     files: ${{ steps.verify-apk.outputs.files }}
-      #     fail_on_unmatched_files: false
-      #     generate_release_notes: false
-      #     make_latest: false
+      - name: Create GitHub Prerelease
+        if: steps.verify-apk.outputs.has_files == 'true'
+        id: release
+        uses: softprops/action-gh-release@5be0e66d93ac7ed76da52eca8bb058f665c3a5fe # v2.4.2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ env.VERSION }}-beta
+          body_path: CHANGELOG.md
+          draft: false
+          prerelease: true
+          files: ${{ steps.verify-apk.outputs.files }}
+          fail_on_unmatched_files: false
+          generate_release_notes: false
+          make_latest: false
