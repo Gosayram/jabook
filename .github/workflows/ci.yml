@@ -125,6 +125,7 @@ jobs:
           KEYSTORE_PATH="${WORKSPACE_DIR}/.signing/release.keystore"
           
           # Trim whitespace from secrets (preserve special characters)
+          # Use printf to safely handle special characters
           STORE_PASS=$(printf '%s' "${{ secrets.KEY_STORE_PASSWORD }}" | tr -d '\n\r\t ' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
           KEY_PASS=$(printf '%s' "${{ secrets.KEY_PASSWORD }}" | tr -d '\n\r\t ' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
           KEY_ALIAS=$(printf '%s' "${{ secrets.KEY_ALIAS }}" | tr -d '\n\r\t ' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
@@ -147,14 +148,18 @@ jobs:
           KEYTOOL_OUTPUT=""
           KEYTOOL_EXIT_CODE=1
           
+          # Escape special characters for shell to prevent interpretation
+          # printf '%q' properly escapes $, @, spaces, and other special chars
+          ESCAPED_STORE_PASS=$(printf '%q' "${STORE_PASS}")
+          
           # Try PKCS12 first (most common for modern keystores)
-          KEYTOOL_OUTPUT=$(keytool -list -keystore "${KEYSTORE_PATH}" -storetype PKCS12 -storepass "${STORE_PASS}" 2>&1)
+          KEYTOOL_OUTPUT=$(eval "keytool -list -keystore \"${KEYSTORE_PATH}\" -storetype PKCS12 -storepass ${ESCAPED_STORE_PASS}" 2>&1)
           KEYTOOL_EXIT_CODE=$?
           
           # If PKCS12 fails, try default type (JKS)
           if [ $KEYTOOL_EXIT_CODE -ne 0 ]; then
             echo "   PKCS12 failed, trying default storetype (JKS)..."
-            KEYTOOL_OUTPUT=$(keytool -list -keystore "${KEYSTORE_PATH}" -storepass "${STORE_PASS}" 2>&1)
+            KEYTOOL_OUTPUT=$(eval "keytool -list -keystore \"${KEYSTORE_PATH}\" -storepass ${ESCAPED_STORE_PASS}" 2>&1)
             KEYTOOL_EXIT_CODE=$?
           fi
           
@@ -182,13 +187,17 @@ jobs:
           KEYTOOL_ALIAS_OUTPUT=""
           KEYTOOL_ALIAS_EXIT_CODE=1
           
+          # Escape passwords for shell to prevent interpretation of special characters
+          ESCAPED_STORE_PASS=$(printf '%q' "${STORE_PASS}")
+          ESCAPED_KEY_PASS=$(printf '%q' "${KEY_PASS}")
+          
           # Try PKCS12 first
-          KEYTOOL_ALIAS_OUTPUT=$(keytool -list -v -keystore "${KEYSTORE_PATH}" -storetype PKCS12 -storepass "${STORE_PASS}" -alias "${KEY_ALIAS}" -keypass "${KEY_PASS}" 2>&1)
+          KEYTOOL_ALIAS_OUTPUT=$(eval "keytool -list -v -keystore \"${KEYSTORE_PATH}\" -storetype PKCS12 -storepass ${ESCAPED_STORE_PASS} -alias \"${KEY_ALIAS}\" -keypass ${ESCAPED_KEY_PASS}" 2>&1)
           KEYTOOL_ALIAS_EXIT_CODE=$?
           
           # If PKCS12 fails, try default type
           if [ $KEYTOOL_ALIAS_EXIT_CODE -ne 0 ]; then
-            KEYTOOL_ALIAS_OUTPUT=$(keytool -list -v -keystore "${KEYSTORE_PATH}" -storepass "${STORE_PASS}" -alias "${KEY_ALIAS}" -keypass "${KEY_PASS}" 2>&1)
+            KEYTOOL_ALIAS_OUTPUT=$(eval "keytool -list -v -keystore \"${KEYSTORE_PATH}\" -storepass ${ESCAPED_STORE_PASS} -alias \"${KEY_ALIAS}\" -keypass ${ESCAPED_KEY_PASS}" 2>&1)
             KEYTOOL_ALIAS_EXIT_CODE=$?
           fi
           
