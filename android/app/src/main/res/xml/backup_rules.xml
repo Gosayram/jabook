@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Backup rules for Android Auto Backup (Android 6.0+)
+    
+    This file defines what data should be backed up and restored.
+    For security, sensitive data like passwords and tokens are excluded.
+-->
+<full-backup-content>
+    <!-- Include app-specific directories -->
+    <include domain="file" path="." />
+    
+    <!-- Include shared preferences (except sensitive data) -->
+    <include domain="sharedpref" path="." />
+    
+    <!-- Exclude sensitive data directories -->
+    <exclude domain="file" path="cache/" />
+    <exclude domain="file" path="code_cache/" />
+    
+    <!-- Exclude database files that may contain sensitive data -->
+    <!-- Note: User data like audiobook metadata can be re-downloaded -->
+    <exclude domain="database" path="." />
+    
+    <!-- Exclude external storage (audiobooks are user's files) -->
+    <exclude domain="external" path="." />
+</full-backup-content>

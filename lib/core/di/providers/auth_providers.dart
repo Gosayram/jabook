@@ -13,18 +13,42 @@
 // limitations under the License.
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:jabook/core/auth/rutracker_auth.dart';
+import 'package:jabook/core/data/auth/datasources/auth_local_datasource.dart';
+import 'package:jabook/core/data/auth/datasources/auth_remote_datasource.dart';
+import 'package:jabook/core/data/auth/repositories/auth_repository_impl.dart';
 import 'package:jabook/core/domain/auth/entities/auth_status.dart';
 import 'package:jabook/core/domain/auth/repositories/auth_repository.dart';
 
+/// Provider for RuTrackerAuth instance.
+///
+/// This provider requires a BuildContext and should be overridden
+/// in the widget tree with proper context.
+final rutrackerAuthProvider = Provider<RuTrackerAuth>((ref) {
+  throw Exception(
+      'rutrackerAuthProvider must be overridden with proper context');
+});
+
+/// Provider for AuthRemoteDataSource instance.
+final authRemoteDataSourceProvider =
+    Provider<AuthRemoteDataSource>((ref) {
+  final auth = ref.watch(rutrackerAuthProvider);
+  return AuthRemoteDataSourceImpl(auth);
+});
+
+/// Provider for AuthLocalDataSource instance.
+final authLocalDataSourceProvider = Provider<AuthLocalDataSource>((ref) {
+  final auth = ref.watch(rutrackerAuthProvider);
+  return AuthLocalDataSourceImpl(auth);
+});
+
 /// Provider for AuthRepository instance.
 ///
-/// @deprecated Use authRepositoryProvider from core/di/providers/auth_providers.dart instead.
-/// This provider is kept for backward compatibility and will be removed in a future version.
-@Deprecated('Use authRepositoryProvider from core/di/providers/auth_providers.dart')
+/// This provider creates an AuthRepositoryImpl using remote and local data sources.
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
-  // This provider should be overridden in the widget tree with proper context
-  throw Exception(
-      'AuthRepositoryProvider must be overridden with proper context');
+  final remoteDataSource = ref.watch(authRemoteDataSourceProvider);
+  final localDataSource = ref.watch(authLocalDataSourceProvider);
+  return AuthRepositoryImpl(remoteDataSource, localDataSource);
 });
 
 /// Provider for authentication status.
@@ -44,3 +68,4 @@ final hasStoredCredentialsProvider = FutureProvider<bool>((ref) {
   final repository = ref.watch(authRepositoryProvider);
   return repository.hasStoredCredentials();
 });
+

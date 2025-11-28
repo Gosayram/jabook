@@ -883,10 +883,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         // Inactivity timeout selection
         Semantics(
           button: true,
-          label: localizations?.inactivityTimeoutLabel ?? 'Set inactivity timeout',
+          label:
+              localizations?.inactivityTimeoutLabel ?? 'Set inactivity timeout',
           child: ListTile(
             leading: const Icon(Icons.timer_outlined),
-            title: Text(localizations?.inactivityTimeoutTitle ?? 'Inactivity Timeout'),
+            title: Text(
+                localizations?.inactivityTimeoutTitle ?? 'Inactivity Timeout'),
             subtitle: Text(
               '${audioSettings.inactivityTimeoutMinutes} ${audioSettings.inactivityTimeoutMinutes == 1 ? (localizations?.minute ?? 'minute') : (localizations?.minutes ?? 'minutes')}',
             ),
@@ -1016,7 +1018,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final result = await showDialog<int>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(localizations?.inactivityTimeoutTitle ?? 'Inactivity Timeout'),
+        title:
+            Text(localizations?.inactivityTimeoutTitle ?? 'Inactivity Timeout'),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -2073,17 +2076,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       final androidInfo = await DeviceInfoPlugin().androidInfo;
       final sdkInt = androidInfo.version.sdkInt;
 
-      if (sdkInt >= 33) {
+      // Show hint dialog for Android 11+ (SAF is required)
+      if (sdkInt >= 30) {
         if (!mounted) return;
-        // Show instruction dialog for Android 13+
+        // Show instruction dialog with checkbox hint
         // Use savedContext which was captured before async operations
-        final dialogTitle =
-            localizations?.selectFolderDialogTitle ?? 'Select Download Folder';
-        final dialogMessage = localizations?.selectFolderDialogMessage ??
-            'To select a download folder:\n\n'
-                '1. Navigate to the desired folder in the file manager\n'
-                '2. Tap "Use this folder" button in the top right corner\n\n'
-                'The selected folder will be used to save downloaded audiobooks.';
+        final dialogTitle = localizations?.safFolderPickerHintTitle ??
+            'Important: Check the checkbox';
+        final dialogMessage = localizations?.safFolderPickerHintMessage ??
+            'When selecting a folder, please make sure to check the \'Allow access to this folder\' checkbox in the file picker dialog. Without this checkbox, the app cannot access the selected folder.';
         final cancelText = localizations?.cancel ?? 'Cancel';
 
         // Check if context is still mounted before using it
@@ -2102,9 +2103,29 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ],
             ),
             content: SingleChildScrollView(
-              child: Text(
-                dialogMessage,
-                style: Theme.of(dialogContext).textTheme.bodyMedium,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    dialogMessage,
+                    style: Theme.of(dialogContext).textTheme.bodyMedium,
+                  ),
+                  if (sdkInt >= 30) ...[
+                    const SizedBox(height: 16),
+                    Text(
+                      localizations?.safAndroidDataObbWarning ??
+                          'Note: Access to Android/data and Android/obb folders is blocked on Android 11+ devices with security updates from March 2024. Please select a different folder.',
+                      style: Theme.of(dialogContext)
+                          .textTheme
+                          .bodySmall
+                          ?.copyWith(
+                            fontStyle: FontStyle.italic,
+                            color: Theme.of(dialogContext).colorScheme.error,
+                          ),
+                    ),
+                  ],
+                ],
               ),
             ),
             actions: [
@@ -2139,19 +2160,38 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
         if (isContentUri) {
           // Check access via ContentResolver for content URIs
+          // Use retry logic as some devices may have delayed permission persistence
           try {
             final contentUriService = ContentUriService();
-            isAccessible = await contentUriService.checkUriAccess(selectedPath);
+            var hasAccess =
+                await contentUriService.checkUriAccess(selectedPath);
+
+            // Retry after delay if first check fails (some devices have delayed persistence)
+            if (!hasAccess) {
+              debugPrint('First access check failed, retrying after 500ms...');
+              await Future.delayed(const Duration(milliseconds: 500));
+              hasAccess = await contentUriService.checkUriAccess(selectedPath);
+            }
+
+            // Second retry with longer delay if still no access
+            if (!hasAccess) {
+              debugPrint('Second access check failed, retrying after 1s...');
+              await Future.delayed(const Duration(milliseconds: 1000));
+              hasAccess = await contentUriService.checkUriAccess(selectedPath);
+            }
+
+            isAccessible = hasAccess;
+
             if (!isAccessible) {
               if (mounted) {
                 messenger.showSnackBar(
                   SnackBar(
                     content: Text(
-                      localizations?.permissionDeniedMessage ??
-                          'No access to selected folder. Please grant permission in the file picker.',
+                      localizations?.safNoAccessMessage ??
+                          'No access to selected folder. Please check the \'Allow access to this folder\' checkbox in the file picker and try again.',
                     ),
                     backgroundColor: Colors.orange,
-                    duration: const Duration(seconds: 3),
+                    duration: const Duration(seconds: 5),
                   ),
                 );
               }
@@ -2409,14 +2449,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final localizations = AppLocalizations.of(savedContext);
     final messenger = ScaffoldMessenger.of(savedContext);
 
-    // Check Android version to show instruction dialog for Android 13+
+    // Show hint dialog for Android 11+ (SAF is required)
     if (Platform.isAndroid) {
       final androidInfo = await DeviceInfoPlugin().androidInfo;
       final sdkInt = androidInfo.version.sdkInt;
 
-      if (sdkInt >= 33) {
+      if (sdkInt >= 30) {
         if (!mounted) return;
         final dialogContext = context;
+        final dialogTitle = localizations?.safFolderPickerHintTitle ??
+            'Important: Check the checkbox';
+        final dialogMessage = localizations?.safFolderPickerHintMessage ??
+            'When selecting a folder, please make sure to check the \'Allow access to this folder\' checkbox in the file picker dialog. Without this checkbox, the app cannot access the selected folder.';
         final shouldProceed = await showDialog<bool>(
           // ignore: use_build_context_synchronously
           context: dialogContext,
@@ -2428,21 +2472,29 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   color: Theme.of(dialogContext).colorScheme.primary,
                 ),
                 const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    localizations?.selectLibraryFolderDialogTitle ??
-                        'Select Library Folder',
-                  ),
-                ),
+                Expanded(child: Text(dialogTitle)),
               ],
             ),
             content: SingleChildScrollView(
-              child: Text(
-                localizations?.selectLibraryFolderDialogMessage ??
-                    'To select a library folder:\n\n'
-                        '1. Navigate to the desired folder in the file manager\n'
-                        '2. Tap "Use this folder" button in the top right corner\n\n'
-                        'The selected folder will be used to scan for audiobooks.',
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    dialogMessage,
+                    style: Theme.of(dialogContext).textTheme.bodyMedium,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    localizations?.safAndroidDataObbWarning ??
+                        'Note: Access to Android/data and Android/obb folders is blocked on Android 11+ devices with security updates from March 2024. Please select a different folder.',
+                    style:
+                        Theme.of(dialogContext).textTheme.bodySmall?.copyWith(
+                              fontStyle: FontStyle.italic,
+                              color: Theme.of(dialogContext).colorScheme.error,
+                            ),
+                  ),
+                ],
               ),
             ),
             actions: [
@@ -2453,7 +2505,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ElevatedButton.icon(
                 onPressed: () => Navigator.of(dialogContext).pop(true),
                 icon: const Icon(Icons.folder_open),
-                label: const Text('Select Folder'),
+                label: const Text('Continue'),
               ),
             ],
           ),
@@ -2478,19 +2530,38 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
         if (isContentUri) {
           // Check access via ContentResolver for content URIs
+          // Use retry logic as some devices may have delayed permission persistence
           try {
             final contentUriService = ContentUriService();
-            isAccessible = await contentUriService.checkUriAccess(selectedPath);
+            var hasAccess =
+                await contentUriService.checkUriAccess(selectedPath);
+
+            // Retry after delay if first check fails (some devices have delayed persistence)
+            if (!hasAccess) {
+              debugPrint('First access check failed, retrying after 500ms...');
+              await Future.delayed(const Duration(milliseconds: 500));
+              hasAccess = await contentUriService.checkUriAccess(selectedPath);
+            }
+
+            // Second retry with longer delay if still no access
+            if (!hasAccess) {
+              debugPrint('Second access check failed, retrying after 1s...');
+              await Future.delayed(const Duration(milliseconds: 1000));
+              hasAccess = await contentUriService.checkUriAccess(selectedPath);
+            }
+
+            isAccessible = hasAccess;
+
             if (!isAccessible) {
               if (mounted) {
                 messenger.showSnackBar(
                   SnackBar(
                     content: Text(
-                      localizations?.permissionDeniedMessage ??
-                          'No access to selected folder. Please grant permission in the file picker.',
+                      localizations?.safNoAccessMessage ??
+                          'No access to selected folder. Please check the \'Allow access to this folder\' checkbox in the file picker and try again.',
                     ),
                     backgroundColor: Colors.orange,
-                    duration: const Duration(seconds: 3),
+                    duration: const Duration(seconds: 5),
                   ),
                 );
               }
@@ -2652,6 +2723,75 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final localizations = AppLocalizations.of(savedContext);
     final messenger = ScaffoldMessenger.of(savedContext);
 
+    // Show hint dialog for Android 11+ (SAF is required)
+    if (Platform.isAndroid) {
+      final androidInfo = await DeviceInfoPlugin().androidInfo;
+      final sdkInt = androidInfo.version.sdkInt;
+
+      if (sdkInt >= 30) {
+        if (!mounted) return;
+        // Check if context is still mounted before using it
+        if (!savedContext.mounted) return;
+        final dialogTitle = localizations?.safFolderPickerHintTitle ??
+            'Important: Check the checkbox';
+        final dialogMessage = localizations?.safFolderPickerHintMessage ??
+            'When selecting a folder, please make sure to check the \'Allow access to this folder\' checkbox in the file picker dialog. Without this checkbox, the app cannot access the selected folder.';
+        final shouldProceed = await showDialog<bool>(
+          context: savedContext,
+          builder: (dialogContext) => AlertDialog(
+            title: Row(
+              children: [
+                Icon(
+                  Icons.info_outline,
+                  color: Theme.of(dialogContext).colorScheme.primary,
+                ),
+                const SizedBox(width: 8),
+                Expanded(child: Text(dialogTitle)),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    dialogMessage,
+                    style: Theme.of(dialogContext).textTheme.bodyMedium,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    localizations?.safAndroidDataObbWarning ??
+                        'Note: Access to Android/data and Android/obb folders is blocked on Android 11+ devices with security updates from March 2024. Please select a different folder.',
+                    style:
+                        Theme.of(dialogContext).textTheme.bodySmall?.copyWith(
+                              fontStyle: FontStyle.italic,
+                              color: Theme.of(dialogContext).colorScheme.error,
+                            ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(false),
+                child: Text(localizations?.cancel ?? 'Cancel'),
+              ),
+              ElevatedButton.icon(
+                onPressed: () => Navigator.of(dialogContext).pop(true),
+                icon: const Icon(Icons.folder_open),
+                label: const Text('Continue'),
+              ),
+            ],
+          ),
+        );
+
+        if (!mounted) return;
+        if (shouldProceed != true) {
+          return; // User cancelled
+        }
+      }
+    }
+
     try {
       final selectedPath = await file_picker_utils.pickDirectory();
 
@@ -2663,19 +2803,38 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
         if (isContentUri) {
           // Check access via ContentResolver for content URIs
+          // Use retry logic as some devices may have delayed permission persistence
           try {
             final contentUriService = ContentUriService();
-            isAccessible = await contentUriService.checkUriAccess(selectedPath);
+            var hasAccess =
+                await contentUriService.checkUriAccess(selectedPath);
+
+            // Retry after delay if first check fails (some devices have delayed persistence)
+            if (!hasAccess) {
+              debugPrint('First access check failed, retrying after 500ms...');
+              await Future.delayed(const Duration(milliseconds: 500));
+              hasAccess = await contentUriService.checkUriAccess(selectedPath);
+            }
+
+            // Second retry with longer delay if still no access
+            if (!hasAccess) {
+              debugPrint('Second access check failed, retrying after 1s...');
+              await Future.delayed(const Duration(milliseconds: 1000));
+              hasAccess = await contentUriService.checkUriAccess(selectedPath);
+            }
+
+            isAccessible = hasAccess;
+
             if (!isAccessible) {
               if (mounted) {
                 messenger.showSnackBar(
                   SnackBar(
                     content: Text(
-                      localizations?.permissionDeniedMessage ??
-                          'No access to selected folder. Please grant permission in the file picker.',
+                      localizations?.safNoAccessMessage ??
+                          'No access to selected folder. Please check the \'Allow access to this folder\' checkbox in the file picker and try again.',
                     ),
                     backgroundColor: Colors.orange,
-                    duration: const Duration(seconds: 3),
+                    duration: const Duration(seconds: 5),
                   ),
                 );
               }
@@ -2736,13 +2895,37 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
         if (mounted) {
           if (added) {
+            // For content URIs, verify access one more time after adding
+            // This ensures the permission was properly persisted
+            if (isContentUri) {
+              try {
+                final contentUriService = ContentUriService();
+                final finalCheck =
+                    await contentUriService.checkUriAccess(selectedPath);
+                if (!finalCheck) {
+                  debugPrint(
+                      'Warning: Access check failed after adding folder, but folder was added');
+                  // Still show success, but log warning
+                  // The scanner will handle access errors during scanning
+                }
+              } on Exception catch (e) {
+                debugPrint('Error in final access check: $e');
+                // Continue anyway - folder was added
+              }
+            }
+
             messenger.showSnackBar(
               SnackBar(
                 content: Text(
                   localizations?.libraryFolderAddedSuccessMessage ??
-                      'Library folder added successfully',
+                      'Library folder added successfully. Please refresh the library to scan for new files.',
                 ),
                 backgroundColor: Colors.green,
+                action: SnackBarAction(
+                  label: 'OK',
+                  textColor: Colors.white,
+                  onPressed: () {},
+                ),
               ),
             );
           } else {

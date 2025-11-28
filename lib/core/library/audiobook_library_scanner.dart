@@ -321,27 +321,69 @@ class AudiobookLibraryScanner {
           _contentUriService != null) {
         // Use ContentResolver for content URIs on Android
         try {
-          final hasAccess =
+          // Check access with retry (some devices may have delayed permission persistence)
+          var hasAccess =
               await _contentUriService.checkUriAccess(directoryPath);
+          if (!hasAccess) {
+            await _logger.log(
+              level: 'warning',
+              subsystem: 'library_scanner',
+              message: 'First access check failed, retrying...',
+              extra: {'uri': directoryPath},
+            );
+            // Retry after a short delay
+            await Future.delayed(const Duration(milliseconds: 500));
+            hasAccess = await _contentUriService.checkUriAccess(directoryPath);
+          }
+
           if (!hasAccess) {
             await _logger.log(
               level: 'error',
               subsystem: 'library_scanner',
-              message: 'No access to content URI',
+              message: 'No access to content URI after retry',
+              extra: {
+                'uri': directoryPath,
+                'note':
+                    'Permission may not be persisted. User may need to re-select the folder.',
+              },
+            );
+            // Still try to scan - the actual scan may work even if check fails
+            // This handles edge cases where permission check fails but access is actually available
+            await _logger.log(
+              level: 'info',
+              subsystem: 'library_scanner',
+              message: 'Attempting to scan despite access check failure',
               extra: {'uri': directoryPath},
             );
-            return audiobooks;
           }
 
           // Scan using ContentResolver
-          return await _scanDirectoryViaContentResolver(
-              directoryPath, recursive);
+          try {
+            return await _scanDirectoryViaContentResolver(
+                directoryPath, recursive);
+          } on Exception catch (scanError) {
+            await _logger.log(
+              level: 'error',
+              subsystem: 'library_scanner',
+              message: 'Failed to scan via ContentResolver',
+              extra: {
+                'uri': directoryPath,
+                'error': scanError.toString(),
+                'errorType': scanError.runtimeType.toString(),
+              },
+            );
+            // Fall through to try file path conversion
+          }
         } on Exception catch (e) {
           await _logger.log(
             level: 'error',
             subsystem: 'library_scanner',
-            message: 'Failed to scan via ContentResolver, trying file path',
-            extra: {'uri': directoryPath, 'error': e.toString()},
+            message: 'Exception during content URI access check',
+            extra: {
+              'uri': directoryPath,
+              'error': e.toString(),
+              'errorType': e.runtimeType.toString(),
+            },
           );
           // Fall through to try file path conversion
         }
@@ -485,7 +527,24 @@ class AudiobookLibraryScanner {
         extra: {'uri': uri, 'recursive': recursive},
       );
 
-      final entries = await _contentUriService.listDirectory(uri);
+      List<ContentUriEntry> entries;
+      try {
+        entries = await _contentUriService.listDirectory(uri);
+      } on Exception catch (e) {
+        await _logger.log(
+          level: 'error',
+          subsystem: 'library_scanner',
+          message: 'Failed to list directory via ContentResolver',
+          extra: {
+            'uri': uri,
+            'error': e.toString(),
+            'errorType': e.runtimeType.toString(),
+            'note':
+                'This may indicate permission issues. User may need to re-select the folder.',
+          },
+        );
+        rethrow;
+      }
 
       for (final entry in entries) {
         try {

@@ -12,38 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import 'package:jabook/core/auth/captcha_detector.dart';
-import 'package:jabook/core/domain/auth/entities/auth_status.dart';
+import 'package:jabook/core/auth/rutracker_auth.dart';
 
-/// Repository interface for authentication operations.
-abstract class AuthRepository {
-  /// Checks if the user is currently authenticated.
-  Future<bool> isLoggedIn();
-
-  /// Logs in with the provided credentials.
-  ///
-  /// Returns [true] if login was successful, [false] otherwise.
-  Future<bool> login(String username, String password);
-
-  /// Logs in with the provided credentials and captcha code.
-  ///
-  /// Returns [true] if login was successful, [false] otherwise.
-  Future<bool> loginWithCaptcha(
-    String username,
-    String password,
-    String captchaCode,
-    RutrackerCaptchaData captchaData,
-  );
-
-  /// Logs out the current user.
-  Future<void> logout();
-
+/// Local data source for authentication operations.
+///
+/// This class handles local storage of credentials and biometric authentication.
+abstract class AuthLocalDataSource {
   /// Checks if stored credentials are available.
   Future<bool> hasStoredCredentials();
 
   /// Attempts to login using stored credentials with optional biometric authentication.
-  ///
-  /// Returns [true] if login was successful, [false] otherwise.
   Future<bool> loginWithStoredCredentials({bool useBiometric = false});
 
   /// Checks if biometric authentication is available on the device.
@@ -58,10 +36,38 @@ abstract class AuthRepository {
 
   /// Clears all stored credentials.
   Future<void> clearStoredCredentials();
-
-  /// Gets the current authentication status.
-  Stream<AuthStatus> get authStatus;
-
-  /// Refreshes the authentication status.
-  Future<void> refreshAuthStatus();
 }
+
+/// Implementation of AuthLocalDataSource using RuTrackerAuth.
+class AuthLocalDataSourceImpl implements AuthLocalDataSource {
+  /// Creates a new AuthLocalDataSourceImpl instance.
+  AuthLocalDataSourceImpl(this._auth);
+
+  final RuTrackerAuth _auth;
+
+  @override
+  Future<bool> hasStoredCredentials() => _auth.hasStoredCredentials();
+
+  @override
+  Future<bool> loginWithStoredCredentials({bool useBiometric = false}) =>
+      _auth.loginWithStoredCredentials(useBiometric: useBiometric);
+
+  @override
+  Future<bool> isBiometricAvailable() => _auth.isBiometricAvailable();
+
+  @override
+  Future<void> saveCredentials({
+    required String username,
+    required String password,
+    bool rememberMe = true,
+  }) =>
+      _auth.saveCredentials(
+        username: username,
+        password: password,
+        rememberMe: rememberMe,
+      );
+
+  @override
+  Future<void> clearStoredCredentials() => _auth.clearStoredCredentials();
+}
+

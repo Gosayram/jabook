@@ -13,26 +13,30 @@
 // limitations under the License.
 
 import 'dart:async';
+
 import 'package:jabook/core/auth/captcha_detector.dart';
-import 'package:jabook/core/auth/rutracker_auth.dart';
+import 'package:jabook/core/data/auth/datasources/auth_local_datasource.dart';
+import 'package:jabook/core/data/auth/datasources/auth_remote_datasource.dart';
 import 'package:jabook/core/domain/auth/entities/auth_status.dart';
 import 'package:jabook/core/domain/auth/repositories/auth_repository.dart';
 
-/// Implementation of AuthRepository using RuTrackerAuth.
+/// Implementation of AuthRepository using data sources.
 class AuthRepositoryImpl implements AuthRepository {
   /// Creates a new AuthRepositoryImpl instance.
-  AuthRepositoryImpl(this._auth);
+  AuthRepositoryImpl(
+    this._remoteDataSource,
+    this._localDataSource,
+  );
 
-  final RuTrackerAuth _auth;
+  final AuthRemoteDataSource _remoteDataSource;
+  final AuthLocalDataSource _localDataSource;
 
   @override
-  Future<bool> isLoggedIn() => _auth.isLoggedIn;
+  Future<bool> isLoggedIn() => _remoteDataSource.isLoggedIn();
 
   @override
   Future<bool> login(String username, String password) =>
-      // Use direct HTTP authentication (no WebView)
-      // The login() method in RuTrackerAuth now uses DirectAuthService
-      _auth.login(username, password);
+      _remoteDataSource.login(username, password);
 
   @override
   Future<bool> loginWithCaptcha(
@@ -41,7 +45,7 @@ class AuthRepositoryImpl implements AuthRepository {
     String captchaCode,
     RutrackerCaptchaData captchaData,
   ) =>
-      _auth.loginViaHttpWithCaptcha(
+      _remoteDataSource.loginWithCaptcha(
         username,
         password,
         captchaCode,
@@ -49,17 +53,21 @@ class AuthRepositoryImpl implements AuthRepository {
       );
 
   @override
-  Future<void> logout() => _auth.logout();
+  Future<void> logout() => _remoteDataSource.logout();
 
   @override
-  Future<bool> hasStoredCredentials() => _auth.hasStoredCredentials();
+  Future<bool> hasStoredCredentials() =>
+      _localDataSource.hasStoredCredentials();
 
   @override
   Future<bool> loginWithStoredCredentials({bool useBiometric = false}) =>
-      _auth.loginWithStoredCredentials(useBiometric: useBiometric);
+      _localDataSource.loginWithStoredCredentials(
+        useBiometric: useBiometric,
+      );
 
   @override
-  Future<bool> isBiometricAvailable() => _auth.isBiometricAvailable();
+  Future<bool> isBiometricAvailable() =>
+      _localDataSource.isBiometricAvailable();
 
   @override
   Future<void> saveCredentials({
@@ -67,14 +75,15 @@ class AuthRepositoryImpl implements AuthRepository {
     required String password,
     bool rememberMe = true,
   }) =>
-      _auth.saveCredentials(
+      _localDataSource.saveCredentials(
         username: username,
         password: password,
         rememberMe: rememberMe,
       );
 
   @override
-  Future<void> clearStoredCredentials() => _auth.clearStoredCredentials();
+  Future<void> clearStoredCredentials() =>
+      _localDataSource.clearStoredCredentials();
 
   @override
   Stream<AuthStatus> get authStatus async* {
@@ -85,7 +94,7 @@ class AuthRepositoryImpl implements AuthRepository {
     // Listen for auth status changes
     // Always verify current status when we receive a change event
     // This ensures we have the latest status even if event was sent before subscription
-    await for (final _ in _auth.authStatusChanges) {
+    await for (final _ in _remoteDataSource.authStatusChanges) {
       // Verify current status to ensure we have the latest value
       final currentStatus = await isLoggedIn();
       yield currentStatus
@@ -95,9 +104,6 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
-  Future<void> refreshAuthStatus() async {
-    // Delegate to RuTrackerAuth to check status and update stream
-    // This ensures the authStatusChanges stream emits the current status
-    await _auth.refreshAuthStatus();
-  }
+  Future<void> refreshAuthStatus() => _remoteDataSource.refreshAuthStatus();
 }
+

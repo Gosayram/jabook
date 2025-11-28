@@ -40,7 +40,7 @@ import 'package:jabook/core/utils/responsive_utils.dart';
 import 'package:jabook/core/utils/safe_async.dart';
 import 'package:jabook/data/db/app_database.dart';
 import 'package:jabook/features/auth/data/providers/auth_provider.dart';
-import 'package:jabook/features/auth/domain/entities/auth_status.dart';
+import 'package:jabook/core/domain/auth/entities/auth_status.dart';
 import 'package:jabook/features/search/presentation/widgets/audiobook_card_skeleton.dart';
 import 'package:jabook/features/search/presentation/widgets/grouped_audiobook_list.dart';
 import 'package:jabook/features/search/presentation/widgets/recommended_audiobooks_widget.dart';

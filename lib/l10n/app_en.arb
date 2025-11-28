@@ -1780,6 +1780,26 @@
   "@safFallbackMessage": {
     "description": "Message for SAF fallback dialog"
   },
+  "safPermissionCheckboxMessage": "Please check the 'Allow access to this folder' checkbox in the file picker dialog and try again. Without this checkbox, the app cannot access the selected folder.",
+  "@safPermissionCheckboxMessage": {
+    "description": "Message when user didn't check the permission checkbox in SAF folder picker"
+  },
+  "safNoAccessMessage": "No access to selected folder. Please check the 'Allow access to this folder' checkbox in the file picker and try again.",
+  "@safNoAccessMessage": {
+    "description": "Message when folder access check fails after selection"
+  },
+  "safFolderPickerHintTitle": "Important: Check the checkbox",
+  "@safFolderPickerHintTitle": {
+    "description": "Title for hint dialog before folder picker"
+  },
+  "safFolderPickerHintMessage": "When selecting a folder, please make sure to check the 'Allow access to this folder' checkbox in the file picker dialog. Without this checkbox, the app cannot access the selected folder.",
+  "@safFolderPickerHintMessage": {
+    "description": "Message for hint dialog before folder picker"
+  },
+  "safAndroidDataObbWarning": "Note: Access to Android/data and Android/obb folders is blocked on Android 11+ devices with security updates from March 2024. Please select a different folder.",
+  "@safAndroidDataObbWarning": {
+    "description": "Warning about blocked Android/data and Android/obb folders"
+  },
   "safFallbackBenefits": "Benefits of using SAF:\n• Works on all Android devices\n• No special permissions needed\n• You choose which folders to access",
   "@safFallbackBenefits": {
     "description": "Benefits of using SAF fallback"

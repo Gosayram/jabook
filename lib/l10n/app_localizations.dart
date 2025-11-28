@@ -2459,6 +2459,36 @@ abstract class AppLocalizations {
   /// **'File access permissions are not working properly on your device. You can use the Storage Access Framework (SAF) to select folders manually. This method works without requiring special permissions.'**
   String get safFallbackMessage;
 
+  /// Message when user didn't check the permission checkbox in SAF folder picker
+  ///
+  /// In en, this message translates to:
+  /// **'Please check the \'Allow access to this folder\' checkbox in the file picker dialog and try again. Without this checkbox, the app cannot access the selected folder.'**
+  String get safPermissionCheckboxMessage;
+
+  /// Message when folder access check fails after selection
+  ///
+  /// In en, this message translates to:
+  /// **'No access to selected folder. Please check the \'Allow access to this folder\' checkbox in the file picker and try again.'**
+  String get safNoAccessMessage;
+
+  /// Title for hint dialog before folder picker
+  ///
+  /// In en, this message translates to:
+  /// **'Important: Check the checkbox'**
+  String get safFolderPickerHintTitle;
+
+  /// Message for hint dialog before folder picker
+  ///
+  /// In en, this message translates to:
+  /// **'When selecting a folder, please make sure to check the \'Allow access to this folder\' checkbox in the file picker dialog. Without this checkbox, the app cannot access the selected folder.'**
+  String get safFolderPickerHintMessage;
+
+  /// Warning about blocked Android/data and Android/obb folders
+  ///
+  /// In en, this message translates to:
+  /// **'Note: Access to Android/data and Android/obb folders is blocked on Android 11+ devices with security updates from March 2024. Please select a different folder.'**
+  String get safAndroidDataObbWarning;
+
   /// Benefits of using SAF fallback
   ///
   /// In en, this message translates to:

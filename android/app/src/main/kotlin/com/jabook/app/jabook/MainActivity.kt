@@ -455,11 +455,55 @@ class MainActivity : FlutterActivity() {
 
             // Use DocumentsContract for tree URIs
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                val childrenUri =
-                    DocumentsContract.buildChildDocumentsUriUsingTree(
-                        uri,
-                        DocumentsContract.getTreeDocumentId(uri),
-                    )
+                val childrenUri: Uri =
+                    run {
+                        // Check if this is a tree URI
+                        if (DocumentsContract.isTreeUri(uri)) {
+                            // For tree URIs, use buildChildDocumentsUriUsingTree
+                            val treeDocumentId = DocumentsContract.getTreeDocumentId(uri)
+                            android.util.Log.d("MainActivity", "Listing tree URI, tree document ID: $treeDocumentId")
+                            DocumentsContract.buildChildDocumentsUriUsingTree(uri, treeDocumentId)
+                        } else {
+                            // For document URIs, try to get the document ID and build children URI
+                            // First, check if we can get document ID
+                            try {
+                                val documentId = DocumentsContract.getDocumentId(uri)
+                                android.util.Log.d("MainActivity", "Listing document URI, document ID: $documentId")
+                                // Try to find the tree URI from persisted permissions
+                                val persistedPermissions = contentResolver.persistedUriPermissions
+                                val treeUri =
+                                    persistedPermissions
+                                        .firstOrNull { perm ->
+                                            DocumentsContract.isTreeUri(perm.uri) &&
+                                                (
+                                                    documentId.startsWith("${DocumentsContract.getTreeDocumentId(perm.uri)}/") ||
+                                                        documentId == DocumentsContract.getTreeDocumentId(perm.uri)
+                                                )
+                                        }?.uri
+
+                                if (treeUri != null) {
+                                    DocumentsContract.buildChildDocumentsUriUsingTree(treeUri, documentId)
+                                } else {
+                                    // Fallback: try to use the URI directly as a document URI
+                                    android.util.Log.w("MainActivity", "No tree URI found for document, trying direct query")
+                                    DocumentsContract.buildChildDocumentsUri(uri.authority ?: "", documentId)
+                                }
+                            } catch (e: Exception) {
+                                android.util.Log.e("MainActivity", "Cannot get document ID, trying direct query: ${e.message}")
+                                // Fallback: try to use the URI directly - but we need document ID
+                                try {
+                                    val documentId = DocumentsContract.getDocumentId(uri)
+                                    DocumentsContract.buildChildDocumentsUri(uri.authority ?: "", documentId)
+                                } catch (e2: Exception) {
+                                    android.util.Log.e("MainActivity", "Cannot build children URI: ${e2.message}")
+                                    throw Exception("Cannot list directory: ${e.message}", e)
+                                }
+                            }
+                        }
+                    }
+
+                android.util.Log.d("MainActivity", "Querying children URI: $childrenUri")
+                android.util.Log.d("MainActivity", "Original URI: $uri")
 
                 val cursor =
                     contentResolver.query(
@@ -475,19 +519,52 @@ class MainActivity : FlutterActivity() {
                         null,
                     )
 
-                cursor?.use {
+                if (cursor == null) {
+                    android.util.Log.w("MainActivity", "Query returned null for URI: $childrenUri")
+                    android.util.Log.w("MainActivity", "This may indicate permission issues or invalid URI")
+                    return files
+                }
+
+                var entryCount = 0
+                cursor.use {
                     val idColumn = it.getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_DOCUMENT_ID)
                     val nameColumn = it.getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_DISPLAY_NAME)
                     val mimeColumn = it.getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_MIME_TYPE)
                     val sizeColumn = it.getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_SIZE)
 
+                    android.util.Log.d("MainActivity", "Cursor has ${it.count} entries")
+
                     while (it.moveToNext()) {
+                        entryCount++
                         val documentId = it.getString(idColumn)
                         val name = it.getString(nameColumn)
                         val mimeType = it.getString(mimeColumn)
                         val size = it.getLong(sizeColumn)
 
-                        val childUri = DocumentsContract.buildDocumentUriUsingTree(uri, documentId)
+                        android.util.Log.d(
+                            "MainActivity",
+                            "Entry $entryCount: name=$name, mimeType=$mimeType, isDir=${mimeType == DocumentsContract.Document.MIME_TYPE_DIR}",
+                        )
+
+                        // Build child URI - use tree URI if available, otherwise use document URI
+                        val childUri =
+                            if (DocumentsContract.isTreeUri(uri)) {
+                                DocumentsContract.buildDocumentUriUsingTree(uri, documentId)
+                            } else {
+                                // Try to find tree URI from persisted permissions
+                                val persistedPermissions = contentResolver.persistedUriPermissions
+                                val treeUri =
+                                    persistedPermissions
+                                        .firstOrNull { perm ->
+                                            DocumentsContract.isTreeUri(perm.uri)
+                                        }?.uri
+
+                                if (treeUri != null) {
+                                    DocumentsContract.buildDocumentUriUsingTree(treeUri, documentId)
+                                } else {
+                                    DocumentsContract.buildDocumentUri(uri.authority ?: "", documentId)
+                                }
+                            }
 
                         files.add(
                             mapOf(
@@ -499,21 +576,31 @@ class MainActivity : FlutterActivity() {
                             ),
                         )
                     }
+
+                    android.util.Log.d("MainActivity", "Listed $entryCount entries, returning ${files.size} files")
                 }
             }
         } catch (e: Exception) {
             android.util.Log.e("MainActivity", "Error listing directory via ContentResolver", e)
+            android.util.Log.e("MainActivity", "URI that caused error: $uri", e)
+            android.util.Log.e("MainActivity", "Error type: ${e.javaClass.simpleName}", e)
             throw e
         }
 
+        android.util.Log.d("MainActivity", "Returning ${files.size} files from listDirectoryViaContentResolver")
         return files
     }
 
     /**
      * Checks if the app has access to a content URI.
+     *
+     * This method checks access in multiple ways:
+     * 1. Exact URI match in persisted permissions
+     * 2. Tree URI match (if URI is part of a tree)
+     * 3. Real access verification by attempting to query the URI
      */
     @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
-    private fun checkUriAccess(uri: Uri): Boolean =
+    private fun checkUriAccess(uri: Uri): Boolean {
         try {
             val contentResolver = this.contentResolver
             val persistedUriPermissions = contentResolver.persistedUriPermissions
@@ -521,12 +608,16 @@ class MainActivity : FlutterActivity() {
             android.util.Log.d("MainActivity", "Checking URI access for: $uri")
             android.util.Log.d("MainActivity", "Persisted permissions count: ${persistedUriPermissions.size}")
 
-            // Check if we have persistable permission for this URI
-            // Check both read and write permissions
-            val hasPermission =
+            // Normalize URI for comparison (handles encoding differences)
+            val normalizedUri = uri.normalizeScheme()
+
+            // Step 1: Check if we have persistable permission for this exact URI
+            var hasPermission =
                 persistedUriPermissions.any {
-                    val uriMatches = it.uri == uri
+                    val persistedUri = it.uri.normalizeScheme()
+                    val uriMatches = persistedUri == normalizedUri
                     val hasReadOrWrite = it.isReadPermission || it.isWritePermission
+
                     if (uriMatches) {
                         android.util.Log.d(
                             "MainActivity",
@@ -536,8 +627,103 @@ class MainActivity : FlutterActivity() {
                     uriMatches && hasReadOrWrite
                 }
 
+            // Step 2: If not found by exact match, check if URI is part of a tree
+            // Tree URIs grant access to all child documents
+            if (!hasPermission && Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                try {
+                    // Check if the requested URI is a tree URI or part of one
+                    val isTreeUri = DocumentsContract.isTreeUri(uri)
+                    if (isTreeUri) {
+                        val treeDocumentId = DocumentsContract.getTreeDocumentId(uri)
+                        android.util.Log.d("MainActivity", "Checking tree URI access, tree document ID: $treeDocumentId")
+
+                        hasPermission =
+                            persistedUriPermissions.any { perm ->
+                                if (DocumentsContract.isTreeUri(perm.uri)) {
+                                    val persistedTreeId = DocumentsContract.getTreeDocumentId(perm.uri)
+                                    // Check if requested tree is the same as persisted tree
+                                    // or if requested tree is a child of persisted tree
+                                    val isPartOfTree =
+                                        treeDocumentId == persistedTreeId ||
+                                            treeDocumentId.startsWith("$persistedTreeId/")
+                                    val hasReadOrWrite = perm.isReadPermission || perm.isWritePermission
+
+                                    if (isPartOfTree && hasReadOrWrite) {
+                                        android.util.Log.d(
+                                            "MainActivity",
+                                            "Found tree URI permission: persistedTree=$persistedTreeId, requestedTree=$treeDocumentId",
+                                        )
+                                    }
+                                    isPartOfTree && hasReadOrWrite
+                                } else {
+                                    false
+                                }
+                            }
+                    } else {
+                        // Not a tree URI, might be a document URI - check if it's under any persisted tree
+                        try {
+                            val documentId = DocumentsContract.getDocumentId(uri)
+                            android.util.Log.d("MainActivity", "Checking document URI access, document ID: $documentId")
+
+                            hasPermission =
+                                persistedUriPermissions.any { perm ->
+                                    if (DocumentsContract.isTreeUri(perm.uri)) {
+                                        val persistedTreeId = DocumentsContract.getTreeDocumentId(perm.uri)
+                                        // Check if document is under the persisted tree
+                                        val isUnderTree =
+                                            documentId.startsWith("$persistedTreeId/") ||
+                                                documentId == persistedTreeId
+                                        val hasReadOrWrite = perm.isReadPermission || perm.isWritePermission
+
+                                        if (isUnderTree && hasReadOrWrite) {
+                                            android.util.Log.d(
+                                                "MainActivity",
+                                                "Found document under tree: tree=$persistedTreeId, document=$documentId",
+                                            )
+                                        }
+                                        isUnderTree && hasReadOrWrite
+                                    } else {
+                                        false
+                                    }
+                                }
+                        } catch (e: Exception) {
+                            android.util.Log.d("MainActivity", "Cannot get document ID from URI: ${e.message}")
+                        }
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.d("MainActivity", "Error checking tree URI access: ${e.message}")
+                }
+            }
+
+            // Step 3: If still not found, verify access by attempting to query the URI
+            // This is the most reliable way to check actual access
             if (!hasPermission) {
-                android.util.Log.w("MainActivity", "No persistable permission found for URI: $uri")
+                try {
+                    android.util.Log.d("MainActivity", "Attempting to verify access by querying URI")
+                    val cursor =
+                        contentResolver.query(
+                            uri,
+                            arrayOf(DocumentsContract.Document.COLUMN_DOCUMENT_ID),
+                            null,
+                            null,
+                            null,
+                        )
+                    if (cursor != null) {
+                        cursor.close()
+                        android.util.Log.d("MainActivity", "URI access verified by query: $uri")
+                        hasPermission = true
+                    } else {
+                        android.util.Log.d("MainActivity", "Query returned null, no access")
+                    }
+                } catch (e: SecurityException) {
+                    android.util.Log.d("MainActivity", "SecurityException when querying URI: ${e.message}")
+                } catch (e: Exception) {
+                    android.util.Log.d("MainActivity", "Exception when querying URI: ${e.message}")
+                }
+            }
+
+            if (!hasPermission) {
+                android.util.Log.w("MainActivity", "No access found for URI: $uri")
                 // Log all persisted permissions for debugging
                 persistedUriPermissions.forEach { perm ->
                     android.util.Log.d(
@@ -545,13 +731,16 @@ class MainActivity : FlutterActivity() {
                         "Persisted permission: ${perm.uri}, read=${perm.isReadPermission}, write=${perm.isWritePermission}",
                     )
                 }
+            } else {
+                android.util.Log.d("MainActivity", "Access granted for URI: $uri")
             }
 
-            hasPermission
+            return hasPermission
         } catch (e: Exception) {
             android.util.Log.e("MainActivity", "Error checking URI access", e)
-            false
+            return false
         }
+    }
 
     @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
     private fun openDirectoryPicker() {
@@ -589,39 +778,133 @@ class MainActivity : FlutterActivity() {
                             contentResolver.takePersistableUriPermission(treeUri, flags)
                             android.util.Log.d("MainActivity", "Persistable URI permission taken successfully")
                         } catch (e: SecurityException) {
-                            android.util.Log.e("MainActivity", "SecurityException taking persistable URI permission: ${e.message}")
-                            // This can happen if user didn't grant permission properly
-                            // Still try to return URI, but log the issue
+                            android.util.Log.e("MainActivity", "SecurityException taking persistable URI permission: ${e.message}", e)
+                            // This happens when user didn't check the "Allow access to this folder" checkbox
+                            // in the file picker dialog. The checkbox must be checked for persistable permission.
+                            val errorMessage =
+                                buildString {
+                                    append(
+                                        "Please check the 'Allow access to this folder' checkbox " +
+                                            "in the file picker dialog and try again. ",
+                                    )
+                                    append("Without this checkbox, the app cannot access the selected folder. ")
+                                    append("If you already checked it, try selecting the folder again.")
+                                }
                             directoryPickerResult?.error(
                                 "PERMISSION_DENIED",
-                                "Failed to take persistable URI permission. User may need to grant permission in the file picker dialog.",
+                                errorMessage,
+                                null,
+                            )
+                            return
+                        } catch (e: IllegalArgumentException) {
+                            android.util.Log.e(
+                                "MainActivity",
+                                "IllegalArgumentException taking persistable URI permission: ${e.message}",
+                                e,
+                            )
+                            // This can happen if the URI is invalid or if FLAG_GRANT_PERSISTABLE_URI_PERMISSION was not set in Intent
+                            val errorMessage =
+                                buildString {
+                                    append("Invalid folder selection. ")
+                                    append("Please try selecting the folder again. ")
+                                    append("If the problem persists, the folder may not be accessible.")
+                                }
+                            directoryPickerResult?.error(
+                                "INVALID_URI",
+                                errorMessage,
                                 null,
                             )
                             return
                         } catch (e: Exception) {
                             android.util.Log.e("MainActivity", "Exception taking persistable URI permission: ${e.message}", e)
+                            val errorMessage =
+                                buildString {
+                                    append("Failed to save folder access permission: ${e.message}. ")
+                                    append("Please try selecting the folder again. ")
+                                    append("If the problem persists, check your device settings.")
+                                }
                             directoryPickerResult?.error(
                                 "PERMISSION_ERROR",
-                                "Failed to take persistable URI permission: ${e.message}",
+                                errorMessage,
                                 null,
                             )
                             return
                         }
 
                         // Verify permission was actually granted
+                        // Use normalized URI for comparison (same as in checkUriAccess)
+                        val normalizedTreeUri = treeUri.normalizeScheme()
                         val persistedPermissions = contentResolver.persistedUriPermissions
-                        val hasPermission =
+
+                        android.util.Log.d("MainActivity", "Verifying permission for URI: $treeUri (normalized: $normalizedTreeUri)")
+                        android.util.Log.d("MainActivity", "Persisted permissions count: ${persistedPermissions.size}")
+
+                        var hasPermission =
                             persistedPermissions.any {
-                                it.uri == treeUri && (it.isReadPermission || it.isWritePermission)
+                                val persistedUri = it.uri.normalizeScheme()
+                                val uriMatches = persistedUri == normalizedTreeUri
+                                val hasReadOrWrite = it.isReadPermission || it.isWritePermission
+
+                                if (uriMatches) {
+                                    android.util.Log.d(
+                                        "MainActivity",
+                                        "Found matching persisted permission: read=${it.isReadPermission}, write=${it.isWritePermission}",
+                                    )
+                                }
+                                uriMatches && hasReadOrWrite
                             }
+
+                        // If not found, wait a bit and check again (some devices have delayed persistence)
+                        // Try multiple times with increasing delays for devices with slow permission persistence
+                        if (!hasPermission) {
+                            val retryDelays = listOf(200L, 500L, 1000L) // 200ms, 500ms, 1s
+                            var retryCount = 0
+
+                            for (delay in retryDelays) {
+                                android.util.Log.d(
+                                    "MainActivity",
+                                    "Permission not found, waiting ${delay}ms and retrying (attempt ${retryCount + 1}/${retryDelays.size})...",
+                                )
+                                Thread.sleep(delay)
+
+                                val retryPermissions = contentResolver.persistedUriPermissions
+                                hasPermission =
+                                    retryPermissions.any {
+                                        val persistedUri = it.uri.normalizeScheme()
+                                        val uriMatches = persistedUri == normalizedTreeUri
+                                        val hasReadOrWrite = it.isReadPermission || it.isWritePermission
+                                        uriMatches && hasReadOrWrite
+                                    }
+
+                                if (hasPermission) {
+                                    android.util.Log.d("MainActivity", "Permission found after retry (attempt ${retryCount + 1})")
+                                    break
+                                }
+                                retryCount++
+                            }
+                        }
 
                         if (!hasPermission) {
                             android.util.Log.w(
                                 "MainActivity",
-                                "Warning: URI permission not found in persisted permissions after takePersistableUriPermission",
+                                "Warning: URI permission not found in persisted permissions after takePersistableUriPermission and retries",
                             )
-                            // Still return URI, but log warning
-                            // Some devices may have delayed permission persistence
+                            // Log all persisted permissions for debugging
+                            persistedPermissions.forEach { perm ->
+                                android.util.Log.d(
+                                    "MainActivity",
+                                    "Persisted permission: ${perm.uri} (normalized: ${perm.uri.normalizeScheme()}), read=${perm.isReadPermission}, write=${perm.isWritePermission}",
+                                )
+                            }
+                            // Log the requested URI for comparison
+                            android.util.Log.d(
+                                "MainActivity",
+                                "Requested URI (normalized): $normalizedTreeUri",
+                            )
+                            // Still return URI - the permission might be granted but not yet persisted
+                            // Some devices (especially custom ROMs) may have delayed persistence
+                            // The checkUriAccess method will handle this with retry logic
+                            android.util.Log.d("MainActivity", "Returning URI anyway - permission may be granted but not yet persisted")
                         } else {
                             android.util.Log.d("MainActivity", "URI permission verified in persisted permissions")
                         }

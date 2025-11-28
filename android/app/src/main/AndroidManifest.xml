@@ -72,7 +72,15 @@
         android:name=".JabookApplication"
         android:icon="@mipmap/ic_launcher"
         android:usesCleartextTraffic="true"
-        android:networkSecurityConfig="@xml/network_security_config">
+        android:networkSecurityConfig="@xml/network_security_config"
+        android:allowBackup="true"
+        android:hasFragileUserData="true"
+        android:enableOnBackInvokedCallback="true"
+        android:largeHeap="true"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:manageSpaceActivity=".DataManagementActivity"
+        tools:targetApi="34">
         
         <!-- requestLegacyExternalStorage removed: not supported on Android 11+ (API 30+) -->
         <!-- App uses app-specific directory which doesn't require this attribute -->
@@ -100,6 +108,15 @@
             </intent-filter>
         </activity>
 
+        <!-- Data Management Activity for storage management -->
+        <!-- This activity is called by the system when user wants to manage app storage -->
+        <!-- Required for apps that use MANAGE_EXTERNAL_STORAGE permission -->
+        <activity
+            android:name=".DataManagementActivity"
+            android:exported="true"
+            android:theme="@style/Theme.Transparent"
+            tools:ignore="LockedOrientationActivity" />
+
         <!-- Native Media3 audio player service -->
         <service
             android:name=".audio.AudioPlayerService"
@@ -107,6 +124,10 @@
             android:foregroundServiceType="mediaPlayback">
             <intent-filter>
                 <action android:name="android.media.browse.MediaBrowserService" />
+                <!-- Media3 session service support -->
+                <action android:name="androidx.media3.session.MediaSessionService" />
+                <action android:name="androidx.media3.session.MediaLibraryService" />
+                <action android:name="android.media.action.MEDIA_PLAY_FROM_SEARCH" />
             </intent-filter>
         </service>
 
