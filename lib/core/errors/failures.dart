@@ -12,6 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+/// @deprecated Use failures from core/infrastructure/errors/failures.dart instead.
+/// This file is kept for backward compatibility and will be removed in a future version.
+library;
+
+export 'package:jabook/core/infrastructure/errors/failures.dart';
+
 /// Base failure class for all domain errors.
 abstract class Failure implements Exception {
   /// Creates a new Failure instance.

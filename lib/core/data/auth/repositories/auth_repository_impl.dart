@@ -106,4 +106,3 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<void> refreshAuthStatus() => _remoteDataSource.refreshAuthStatus();
 }
-

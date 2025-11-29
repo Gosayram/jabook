@@ -24,8 +24,5 @@ class CheckAuthStatusUseCase {
   /// Executes the check auth status use case.
   ///
   /// Returns [true] if user is authenticated, [false] otherwise.
-  Future<bool> call() {
-    return _repository.isLoggedIn();
-  }
+  Future<bool> call() => _repository.isLoggedIn();
 }
-

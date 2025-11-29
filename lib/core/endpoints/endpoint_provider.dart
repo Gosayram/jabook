@@ -12,15 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:jabook/core/endpoints/endpoint_manager.dart';
-import 'package:jabook/data/db/app_database.dart';
+/// @deprecated Use endpoint_provider from core/infrastructure/endpoints/endpoint_provider.dart instead.
+/// This file is kept for backward compatibility and will be removed in a future version.
+library;
 
-/// Provider for EndpointManager instance
-final endpointManagerProvider = Provider<EndpointManager>((ref) {
-  final appDatabase = ref.watch(appDatabaseProvider);
-  return EndpointManager(appDatabase.database);
-}, dependencies: [appDatabaseProvider]);
-
-/// Provider for AppDatabase instance
-final appDatabaseProvider = Provider<AppDatabase>((ref) => AppDatabase());
+export 'package:jabook/core/infrastructure/endpoints/endpoint_provider.dart';

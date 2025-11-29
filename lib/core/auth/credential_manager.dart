@@ -18,15 +18,15 @@ import 'package:local_auth/local_auth.dart';
 
 /// Manages secure storage and retrieval of user credentials.
 /// Supports biometric authentication for accessing stored credentials.
+///
+/// This class can be instantiated directly or through a provider.
+/// For dependency injection, use [credentialManagerProvider] from
+/// [core/di/providers/auth_infrastructure_providers.dart].
 class CredentialManager {
-  /// Private constructor for singleton pattern.
-  CredentialManager._();
-
-  /// Factory constructor to get the singleton instance.
-  factory CredentialManager() => _instance;
-
-  /// Singleton instance of the CredentialManager.
-  static final CredentialManager _instance = CredentialManager._();
+  /// Creates a new CredentialManager instance.
+  ///
+  /// For dependency injection, prefer using [credentialManagerProvider].
+  CredentialManager();
 
   /// Secure storage for credentials.
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();

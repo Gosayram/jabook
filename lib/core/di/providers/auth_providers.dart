@@ -30,8 +30,7 @@ final rutrackerAuthProvider = Provider<RuTrackerAuth>((ref) {
 });
 
 /// Provider for AuthRemoteDataSource instance.
-final authRemoteDataSourceProvider =
-    Provider<AuthRemoteDataSource>((ref) {
+final authRemoteDataSourceProvider = Provider<AuthRemoteDataSource>((ref) {
   final auth = ref.watch(rutrackerAuthProvider);
   return AuthRemoteDataSourceImpl(auth);
 });
@@ -68,4 +67,3 @@ final hasStoredCredentialsProvider = FutureProvider<bool>((ref) {
   final repository = ref.watch(authRepositoryProvider);
   return repository.hasStoredCredentials();
 });
-

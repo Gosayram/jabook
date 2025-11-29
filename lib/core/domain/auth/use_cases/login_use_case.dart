@@ -24,8 +24,6 @@ class LoginUseCase {
   /// Executes the login use case.
   ///
   /// Returns [true] if login was successful, [false] otherwise.
-  Future<bool> call(String username, String password) {
-    return _repository.login(username, password);
-  }
+  Future<bool> call(String username, String password) =>
+      _repository.login(username, password);
 }
-

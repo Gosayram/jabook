@@ -65,4 +65,3 @@ abstract class AuthRepository {
   /// Refreshes the authentication status.
   Future<void> refreshAuthStatus();
 }
-

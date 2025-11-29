@@ -37,35 +37,22 @@ import 'package:jabook/data/db/app_database.dart';
 /// including saving, restoring, validating, and synchronizing cookies
 /// between WebView and Dio client.
 ///
-/// This class uses singleton pattern to ensure only one instance exists
-/// throughout the application lifecycle.
+/// This class can be instantiated directly or through a provider.
+/// For dependency injection, use [sessionManagerProvider] from
+/// [core/di/providers/auth_infrastructure_providers.dart].
 class SessionManager {
-  /// Factory constructor that returns the singleton instance.
+  /// Creates a new SessionManager instance.
   ///
-  /// The [rutrackerAuth] parameter is optional and will be created if not provided.
-  /// On first call, creates a new instance. Subsequent calls return the same instance.
-  factory SessionManager({
+  /// The [rutrackerAuth] parameter is optional but recommended for full functionality.
+  /// For dependency injection, prefer using [sessionManagerProvider].
+  SessionManager({
     RuTrackerAuth? rutrackerAuth,
-  }) {
-    _instance ??= SessionManager._internal(rutrackerAuth: rutrackerAuth);
-    final instance = _instance;
-    if (instance == null) {
-      throw StateError('SessionManager instance is null after creation');
-    }
-    return instance;
-  }
-
-  /// Private constructor for singleton pattern.
-  SessionManager._internal({
-    RuTrackerAuth? rutrackerAuth,
+    CredentialManager? credentialManager,
   })  : _rutrackerAuth = rutrackerAuth,
         _sessionStorage = const SessionStorage(),
         _sessionValidator = const SessionValidator(),
         _cookieSyncService = const CookieSyncService(),
-        _credentialManager = CredentialManager();
-
-  /// Singleton instance.
-  static SessionManager? _instance;
+        _credentialManager = credentialManager ?? CredentialManager();
 
   /// RuTracker authentication instance.
   final RuTrackerAuth? _rutrackerAuth;

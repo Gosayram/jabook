@@ -30,13 +30,11 @@ class LoginWithCaptchaUseCase {
     String password,
     String captchaCode,
     RutrackerCaptchaData captchaData,
-  ) {
-    return _repository.loginWithCaptcha(
-      username,
-      password,
-      captchaCode,
-      captchaData,
-    );
-  }
+  ) =>
+      _repository.loginWithCaptcha(
+        username,
+        password,
+        captchaCode,
+        captchaData,
+      );
 }
-

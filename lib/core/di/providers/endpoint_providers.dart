@@ -14,7 +14,7 @@
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:jabook/core/di/providers/database_providers.dart';
-import 'package:jabook/core/endpoints/endpoint_manager.dart';
+import 'package:jabook/core/infrastructure/endpoints/endpoint_manager.dart';
 
 /// Provider for EndpointManager instance.
 ///
@@ -23,4 +23,3 @@ final endpointManagerProvider = Provider<EndpointManager>((ref) {
   final appDatabase = ref.watch(appDatabaseProvider);
   return EndpointManager(appDatabase.database);
 });
-

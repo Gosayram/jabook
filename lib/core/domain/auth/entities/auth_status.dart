@@ -52,4 +52,3 @@ extension AuthStatusExtension on AuthStatus {
   /// Returns whether authentication has failed.
   bool get hasFailed => this == AuthStatus.failed;
 }
-

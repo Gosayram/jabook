@@ -29,6 +29,10 @@ import 'package:jabook/core/config/app_config.dart';
 import 'package:jabook/core/config/language_manager.dart';
 import 'package:jabook/core/config/language_provider.dart';
 import 'package:jabook/core/config/theme_provider.dart';
+import 'package:jabook/core/data/auth/datasources/auth_local_datasource.dart';
+import 'package:jabook/core/data/auth/datasources/auth_remote_datasource.dart';
+import 'package:jabook/core/data/auth/repositories/auth_repository_impl.dart';
+import 'package:jabook/core/di/providers/auth_providers.dart';
 import 'package:jabook/core/download/download_foreground_service.dart';
 import 'package:jabook/core/endpoints/endpoint_health_scheduler.dart';
 import 'package:jabook/core/endpoints/endpoint_manager.dart';
@@ -45,10 +49,6 @@ import 'package:jabook/core/utils/first_launch.dart';
 import 'package:jabook/core/utils/safe_async.dart';
 import 'package:jabook/core/utils/storage_path_utils.dart';
 import 'package:jabook/data/db/app_database.dart';
-import 'package:jabook/core/data/auth/datasources/auth_local_datasource.dart';
-import 'package:jabook/core/data/auth/datasources/auth_remote_datasource.dart';
-import 'package:jabook/core/data/auth/repositories/auth_repository_impl.dart';
-import 'package:jabook/core/di/providers/auth_providers.dart';
 import 'package:jabook/features/permissions/presentation/widgets/permissions_onboarding_dialog.dart';
 import 'package:jabook/l10n/app_localizations.dart';
 import 'package:responsive_framework/responsive_framework.dart';
@@ -1084,7 +1084,8 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
                 // Use new data sources architecture
                 final remoteDataSource = AuthRemoteDataSourceImpl(auth);
                 final localDataSource = AuthLocalDataSourceImpl(auth);
-                _authRepository = AuthRepositoryImpl(remoteDataSource, localDataSource);
+                _authRepository =
+                    AuthRepositoryImpl(remoteDataSource, localDataSource);
                 if (_authRepository == null) {
                   throw StateError('AuthRepositoryImpl creation returned null');
                 }

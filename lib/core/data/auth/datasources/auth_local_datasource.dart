@@ -70,4 +70,3 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
   @override
   Future<void> clearStoredCredentials() => _auth.clearStoredCredentials();
 }
-

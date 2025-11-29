@@ -22,8 +22,5 @@ class LogoutUseCase {
   final AuthRepository _repository;
 
   /// Executes the logout use case.
-  Future<void> call() {
-    return _repository.logout();
-  }
+  Future<void> call() => _repository.logout();
 }
-

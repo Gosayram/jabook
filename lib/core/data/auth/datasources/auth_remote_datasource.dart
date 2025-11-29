@@ -80,4 +80,3 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   @override
   Stream<bool> get authStatusChanges => _auth.authStatusChanges;
 }
-
