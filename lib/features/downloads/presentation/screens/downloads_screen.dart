@@ -15,18 +15,21 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:jabook/core/config/app_config.dart';
+import 'package:jabook/core/domain/downloads/entities/download_item.dart';
+import 'package:jabook/core/domain/torrent/entities/torrent_progress.dart';
 import 'package:jabook/core/logging/environment_logger.dart';
-import 'package:jabook/core/torrent/audiobook_torrent_manager.dart';
 import 'package:jabook/core/utils/app_title_utils.dart';
+import 'package:jabook/features/downloads/data/providers/downloads_providers.dart';
 import 'package:jabook/l10n/app_localizations.dart';
 
 /// Screen for displaying all active downloads.
 ///
 /// This screen shows a list of all active torrent downloads
 /// with their progress, speed, and controls.
-class DownloadsScreen extends StatefulWidget {
+class DownloadsScreen extends ConsumerStatefulWidget {
   /// Creates a new DownloadsScreen instance.
   ///
   /// If [highlightDownloadId] is provided, the screen will scroll to
@@ -40,13 +43,12 @@ class DownloadsScreen extends StatefulWidget {
   final String? highlightDownloadId;
 
   @override
-  State<DownloadsScreen> createState() => _DownloadsScreenState();
+  ConsumerState<DownloadsScreen> createState() => _DownloadsScreenState();
 }
 
-class _DownloadsScreenState extends State<DownloadsScreen> {
-  final AudiobookTorrentManager _torrentManager = AudiobookTorrentManager();
+class _DownloadsScreenState extends ConsumerState<DownloadsScreen> {
   Timer? _refreshTimer;
-  List<Map<String, dynamic>> _downloads = [];
+  List<DownloadItem> _downloads = [];
   final Map<String, TorrentProgress> _progressMap = {};
   final ScrollController _scrollController = ScrollController();
   bool _hasScrolledToHighlight = false;
@@ -83,10 +85,11 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
   Future<void> _loadDownloads() async {
     try {
       EnvironmentLogger().i('DownloadsScreen: Starting to load downloads');
-      final downloads = await _torrentManager.getActiveDownloads();
+      final getDownloadsUseCase = ref.read(getDownloadsUseCaseProvider);
+      final downloads = await getDownloadsUseCase();
 
       EnvironmentLogger().d(
-        'DownloadsScreen: Loaded ${downloads.length} downloads (active: ${downloads.where((d) => d['isActive'] as bool? ?? false).length}, restored: ${downloads.where((d) => d['status'] == 'restored').length})',
+        'DownloadsScreen: Loaded ${downloads.length} downloads (active: ${downloads.where((d) => d.isActive).length}, restored: ${downloads.where((d) => d.isRestored).length})',
       );
 
       // Update progress for each download using StreamBuilder approach
@@ -146,7 +149,7 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
     if (_hasScrolledToHighlight) return;
 
     final index = _downloads.indexWhere(
-      (download) => download['id'] == downloadId,
+      (download) => download.id == downloadId,
     );
 
     if (index != -1 && _scrollController.hasClients) {
@@ -259,8 +262,7 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
           body: Column(
             children: [
               // Warning banner about downloads stopping when app closes
-              if (_downloads.isNotEmpty &&
-                  _downloads.any((d) => d['isActive'] as bool? ?? false))
+              if (_downloads.isNotEmpty && _downloads.any((d) => d.isActive))
                 Container(
                   width: double.infinity,
                   margin: const EdgeInsets.all(8),
@@ -344,21 +346,20 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                           itemCount: _downloads.length,
                           itemBuilder: (context, index) {
                             final download = _downloads[index];
-                            final downloadId = download['id'] as String? ?? '';
-                            final title =
-                                download['name'] as String? ?? 'Unknown';
-                            final savePath = download['savePath'] as String?;
-                            final status = download['status'] as String? ?? '';
-                            final isActive =
-                                download['isActive'] as bool? ?? true;
-                            final isRestored = status == 'restored';
+                            final downloadId = download.id;
+                            final title = download.name;
+                            final savePath = download.savePath;
+                            final isActive = download.isActive;
+                            final isRestored = download.isRestored;
 
                             // Get current progress from stream (only for active downloads)
                             Stream<TorrentProgress>? progressStream;
                             if (isActive) {
                               try {
-                                progressStream = _torrentManager
-                                    .getProgressStream(downloadId);
+                                final getProgressStreamUseCase = ref.read(
+                                    getDownloadProgressStreamUseCaseProvider);
+                                progressStream =
+                                    getProgressStreamUseCase(downloadId);
                                 EnvironmentLogger().d(
                                   'DownloadsScreen: Successfully obtained progress stream for download $downloadId',
                                 );
@@ -446,18 +447,21 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                                           ScaffoldMessenger.of(context);
                                       try {
                                         if (value == 'resume') {
-                                          await _torrentManager
-                                              .resumeRestoredDownload(
-                                                  downloadId);
+                                          final useCase = ref.read(
+                                              resumeRestoredDownloadUseCaseProvider);
+                                          await useCase(downloadId);
                                         } else if (value == 'restart') {
-                                          await _torrentManager
-                                              .restartDownload(downloadId);
+                                          final useCase = ref.read(
+                                              restartDownloadUseCaseProvider);
+                                          await useCase(downloadId);
                                         } else if (value == 'redownload') {
-                                          await _torrentManager
-                                              .redownload(downloadId);
+                                          final useCase = ref
+                                              .read(redownloadUseCaseProvider);
+                                          await useCase(downloadId);
                                         } else if (value == 'remove') {
-                                          await _torrentManager
-                                              .removeDownload(downloadId);
+                                          final useCase = ref.read(
+                                              removeDownloadUseCaseProvider);
+                                          await useCase(downloadId);
                                         }
                                         await _loadDownloads();
                                       } on Exception catch (e) {
@@ -524,11 +528,10 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
 
                             // Handle downloads without progress stream (completed or error)
                             if (progressStream == null && !isRestored) {
-                              // Fallback to static data from download map
-                              final staticProgress =
-                                  download['progress'] as double? ?? 0.0;
-                              final isCompleted = staticProgress >= 100.0;
-                              final isError = status.contains('error');
+                              // Fallback to static data from download item
+                              final staticProgress = download.progress;
+                              final isCompleted = download.isCompleted;
+                              final isError = download.hasError;
                               return Card(
                                 margin: const EdgeInsets.symmetric(
                                     horizontal: 8, vertical: 4),
@@ -558,14 +561,17 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                                           ScaffoldMessenger.of(context);
                                       try {
                                         if (value == 'restart') {
-                                          await _torrentManager
-                                              .restartDownload(downloadId);
+                                          final useCase = ref.read(
+                                              restartDownloadUseCaseProvider);
+                                          await useCase(downloadId);
                                         } else if (value == 'redownload') {
-                                          await _torrentManager
-                                              .redownload(downloadId);
+                                          final useCase = ref
+                                              .read(redownloadUseCaseProvider);
+                                          await useCase(downloadId);
                                         } else if (value == 'remove') {
-                                          await _torrentManager
-                                              .removeDownload(downloadId);
+                                          final useCase = ref.read(
+                                              removeDownloadUseCaseProvider);
+                                          await useCase(downloadId);
                                         }
                                         await _loadDownloads();
                                       } on Exception catch (e) {
@@ -798,13 +804,13 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                                                   ScaffoldMessenger.of(context);
                                               try {
                                                 if (isPaused) {
-                                                  await _torrentManager
-                                                      .resumeDownload(
-                                                          downloadId);
+                                                  final useCase = ref.read(
+                                                      resumeDownloadUseCaseProvider);
+                                                  await useCase(downloadId);
                                                 } else {
-                                                  await _torrentManager
-                                                      .pauseDownload(
-                                                          downloadId);
+                                                  final useCase = ref.read(
+                                                      pauseDownloadUseCaseProvider);
+                                                  await useCase(downloadId);
                                                 }
                                                 await _loadDownloads();
                                               } on Exception catch (e) {
@@ -832,16 +838,18 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                                                 ScaffoldMessenger.of(context);
                                             try {
                                               if (value == 'restart') {
-                                                await _torrentManager
-                                                    .restartDownload(
-                                                        downloadId);
+                                                final useCase = ref.read(
+                                                    restartDownloadUseCaseProvider);
+                                                await useCase(downloadId);
                                               } else if (value ==
                                                   'redownload') {
-                                                await _torrentManager
-                                                    .redownload(downloadId);
+                                                final useCase = ref.read(
+                                                    redownloadUseCaseProvider);
+                                                await useCase(downloadId);
                                               } else if (value == 'remove') {
-                                                await _torrentManager
-                                                    .removeDownload(downloadId);
+                                                final useCase = ref.read(
+                                                    removeDownloadUseCaseProvider);
+                                                await useCase(downloadId);
                                               }
                                               await _loadDownloads();
                                             } on Exception catch (e) {

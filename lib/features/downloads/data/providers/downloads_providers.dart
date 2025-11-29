@@ -13,24 +13,40 @@
 // limitations under the License.
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:jabook/core/di/providers/torrent_providers.dart'
-    as core_torrent;
+import 'package:jabook/core/di/providers/downloads_providers.dart'
+    as core_downloads;
 
-/// Provider for GetActiveTasksUseCase instance.
+/// Provider for GetDownloadsUseCase instance.
 ///
-/// This provider re-exports the use case from core torrent providers
+/// This provider re-exports the use case from core downloads providers
 /// for use in the downloads feature.
-final getActiveTasksUseCaseProvider =
-    Provider((ref) => ref.watch(core_torrent.getActiveTasksUseCaseProvider));
+final getDownloadsUseCaseProvider =
+    Provider((ref) => ref.watch(core_downloads.getDownloadsUseCaseProvider));
 
-/// Provider for PauseTorrentUseCase instance.
-final pauseTorrentUseCaseProvider =
-    Provider((ref) => ref.watch(core_torrent.pauseTorrentUseCaseProvider));
+/// Provider for PauseDownloadUseCase instance.
+final pauseDownloadUseCaseProvider =
+    Provider((ref) => ref.watch(core_downloads.pauseDownloadUseCaseProvider));
 
-/// Provider for ResumeTorrentUseCase instance.
-final resumeTorrentUseCaseProvider =
-    Provider((ref) => ref.watch(core_torrent.resumeTorrentUseCaseProvider));
+/// Provider for ResumeDownloadUseCase instance.
+final resumeDownloadUseCaseProvider =
+    Provider((ref) => ref.watch(core_downloads.resumeDownloadUseCaseProvider));
 
-/// Provider for CancelTorrentUseCase instance.
-final cancelTorrentUseCaseProvider =
-    Provider((ref) => ref.watch(core_torrent.cancelTorrentUseCaseProvider));
+/// Provider for ResumeRestoredDownloadUseCase instance.
+final resumeRestoredDownloadUseCaseProvider = Provider(
+    (ref) => ref.watch(core_downloads.resumeRestoredDownloadUseCaseProvider));
+
+/// Provider for RestartDownloadUseCase instance.
+final restartDownloadUseCaseProvider =
+    Provider((ref) => ref.watch(core_downloads.restartDownloadUseCaseProvider));
+
+/// Provider for RedownloadUseCase instance.
+final redownloadUseCaseProvider =
+    Provider((ref) => ref.watch(core_downloads.redownloadUseCaseProvider));
+
+/// Provider for RemoveDownloadUseCase instance.
+final removeDownloadUseCaseProvider =
+    Provider((ref) => ref.watch(core_downloads.removeDownloadUseCaseProvider));
+
+/// Provider for GetDownloadProgressStreamUseCase instance.
+final getDownloadProgressStreamUseCaseProvider = Provider((ref) =>
+    ref.watch(core_downloads.getDownloadProgressStreamUseCaseProvider));
