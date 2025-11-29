@@ -25,12 +25,14 @@ import 'package:jabook/core/auth/simple_cookie_manager.dart';
 import 'package:jabook/core/cache/rutracker_cache_service.dart';
 import 'package:jabook/core/constants/category_constants.dart';
 import 'package:jabook/core/di/providers/auth_providers.dart';
+import 'package:jabook/core/di/providers/database_providers.dart'
+    as db_providers;
 import 'package:jabook/core/domain/auth/entities/auth_status.dart';
-import 'package:jabook/core/endpoints/endpoint_provider.dart';
-import 'package:jabook/core/errors/failures.dart';
 import 'package:jabook/core/favorites/favorites_provider.dart';
-import 'package:jabook/core/logging/environment_logger.dart';
-import 'package:jabook/core/logging/structured_logger.dart';
+import 'package:jabook/core/infrastructure/endpoints/endpoint_provider.dart';
+import 'package:jabook/core/infrastructure/errors/failures.dart';
+import 'package:jabook/core/infrastructure/logging/environment_logger.dart';
+import 'package:jabook/core/infrastructure/logging/structured_logger.dart';
 import 'package:jabook/core/metadata/audiobook_metadata_service.dart';
 import 'package:jabook/core/net/dio_client.dart';
 import 'package:jabook/core/parse/category_parser.dart' as category_parser;
@@ -40,7 +42,6 @@ import 'package:jabook/core/services/cookie_service.dart';
 import 'package:jabook/core/utils/app_title_utils.dart';
 import 'package:jabook/core/utils/responsive_utils.dart';
 import 'package:jabook/core/utils/safe_async.dart';
-import 'package:jabook/data/db/app_database.dart';
 import 'package:jabook/features/search/presentation/widgets/audiobook_card_skeleton.dart';
 import 'package:jabook/features/search/presentation/widgets/grouped_audiobook_list.dart';
 import 'package:jabook/features/search/presentation/widgets/recommended_audiobooks_widget.dart';
@@ -251,7 +252,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
   Future<void> _initializeMetadataService() async {
     try {
-      final appDatabase = AppDatabase();
+      final appDatabase = ref.read(db_providers.appDatabaseProvider);
       await appDatabase.initialize();
       _metadataService = AudiobookMetadataService(appDatabase.database);
       _historyService = SearchHistoryService(appDatabase.database);
@@ -556,7 +557,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         },
       );
 
-      final cookieDbService = CookieDatabaseService(AppDatabase());
+      final cookieDbService =
+          CookieDatabaseService(ref.read(db_providers.appDatabaseProvider));
       final cookieHeader =
           await cookieDbService.getCookiesForAnyEndpoint(activeEndpoint);
 

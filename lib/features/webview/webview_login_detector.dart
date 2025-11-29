@@ -15,7 +15,7 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
-import 'package:jabook/core/logging/structured_logger.dart';
+import 'package:jabook/core/infrastructure/logging/structured_logger.dart';
 
 /// Detects successful login in WebView by checking cookies and page content.
 class WebViewLoginDetector {

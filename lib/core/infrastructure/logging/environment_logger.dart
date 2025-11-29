@@ -20,14 +20,18 @@ import 'package:jabook/core/infrastructure/config/app_config.dart';
 ///
 /// This logger provides different log levels based on the build flavor
 /// and supports both debug and release logging.
+///
+/// Note: This class is no longer a singleton. Use [environmentLoggerProvider]
+/// to get an instance via dependency injection.
 class EnvironmentLogger {
-  /// Private constructor for singleton pattern.
-  EnvironmentLogger._();
+  /// Constructor for EnvironmentLogger.
+  ///
+  /// [appConfig] is optional - if not provided, a new AppConfig instance will be created.
+  /// Use [environmentLoggerProvider] to get an instance via dependency injection.
+  EnvironmentLogger({AppConfig? appConfig})
+      : _appConfig = appConfig ?? AppConfig();
 
-  /// Factory constructor to get the instance.
-  factory EnvironmentLogger() => _instance;
-
-  static final EnvironmentLogger _instance = EnvironmentLogger._();
+  final AppConfig _appConfig;
 
   /// Logs a verbose message.
   void v(String message, {dynamic error, StackTrace? stackTrace}) {
@@ -86,11 +90,11 @@ class EnvironmentLogger {
         time: DateTime.now(),
         error: error,
         stackTrace: stackTrace,
-        name: AppConfig().displayAppName,
+        name: _appConfig.displayAppName,
       );
     } else {
       // Release mode - use developer.log for consistency
-      final loggerName = AppConfig().displayAppName;
+      final loggerName = _appConfig.displayAppName;
       developer.log(formattedMessage, name: loggerName);
       if (error != null) {
         developer.log('Error: $error', name: loggerName);

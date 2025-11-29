@@ -20,15 +20,14 @@ import 'package:sembast/sembast.dart';
 ///
 /// This class provides methods to store and retrieve cached data with
 /// automatic expiration based on TTL values.
+///
+/// Note: This class is no longer a singleton. Use [cacheManagerProvider]
+/// to get an instance via dependency injection.
 class CacheManager {
-  /// Private constructor for singleton pattern.
-  CacheManager._();
-
-  /// Factory constructor to get the singleton instance.
-  factory CacheManager() => _instance;
-
-  /// Singleton instance of the CacheManager.
-  static final CacheManager _instance = CacheManager._();
+  /// Constructor for CacheManager.
+  ///
+  /// Use [cacheManagerProvider] to get an instance via dependency injection.
+  CacheManager();
 
   /// Database instance for cache operations.
   Database? _db;

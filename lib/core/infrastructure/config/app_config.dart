@@ -16,14 +16,14 @@
 ///
 /// This class provides access to configuration values that change
 /// based on the build flavor (dev, stage, prod).
+///
+/// Note: This class is no longer a singleton. Use [appConfigProvider]
+/// to get an instance via dependency injection.
 class AppConfig {
-  /// Private constructor for singleton pattern.
-  AppConfig._();
-
-  /// Factory constructor to get the instance.
-  factory AppConfig() => _instance;
-
-  static final AppConfig _instance = AppConfig._();
+  /// Constructor for AppConfig.
+  ///
+  /// Use [appConfigProvider] to get an instance via dependency injection.
+  AppConfig();
 
   /// Gets the current build flavor.
   String get flavor =>

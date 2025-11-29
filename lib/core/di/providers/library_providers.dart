@@ -16,6 +16,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:jabook/core/data/library/datasources/library_local_datasource.dart';
 import 'package:jabook/core/data/library/repositories/library_repository_impl.dart';
 import 'package:jabook/core/domain/library/repositories/library_repository.dart';
+import 'package:jabook/core/domain/library/use_cases/get_library_groups_use_case.dart';
+import 'package:jabook/core/domain/library/use_cases/scan_directory_use_case.dart';
+import 'package:jabook/core/domain/library/use_cases/scan_library_use_case.dart';
 import 'package:jabook/core/library/audiobook_library_scanner.dart';
 
 /// Provider for AudiobookLibraryScanner instance.
@@ -34,4 +37,23 @@ final libraryLocalDataSourceProvider = Provider<LibraryLocalDataSource>((ref) {
 final libraryRepositoryProvider = Provider<LibraryRepository>((ref) {
   final localDataSource = ref.watch(libraryLocalDataSourceProvider);
   return LibraryRepositoryImpl(localDataSource);
+});
+
+/// Provider for GetLibraryGroupsUseCase instance.
+final getLibraryGroupsUseCaseProvider =
+    Provider<GetLibraryGroupsUseCase>((ref) {
+  final repository = ref.watch(libraryRepositoryProvider);
+  return GetLibraryGroupsUseCase(repository);
+});
+
+/// Provider for ScanLibraryUseCase instance.
+final scanLibraryUseCaseProvider = Provider<ScanLibraryUseCase>((ref) {
+  final repository = ref.watch(libraryRepositoryProvider);
+  return ScanLibraryUseCase(repository);
+});
+
+/// Provider for ScanDirectoryUseCase instance.
+final scanDirectoryUseCaseProvider = Provider<ScanDirectoryUseCase>((ref) {
+  final repository = ref.watch(libraryRepositoryProvider);
+  return ScanDirectoryUseCase(repository);
 });

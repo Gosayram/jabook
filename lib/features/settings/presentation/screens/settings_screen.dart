@@ -22,25 +22,26 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:jabook/core/backup/backup_service.dart';
 import 'package:jabook/core/cache/rutracker_cache_service.dart';
-import 'package:jabook/core/config/app_config.dart';
-import 'package:jabook/core/config/audio_settings_manager.dart';
-import 'package:jabook/core/config/audio_settings_provider.dart';
-import 'package:jabook/core/config/book_audio_settings_service.dart';
-import 'package:jabook/core/config/language_manager.dart';
-import 'package:jabook/core/config/language_provider.dart';
-import 'package:jabook/core/config/theme_provider.dart';
+import 'package:jabook/core/di/providers/database_providers.dart';
+import 'package:jabook/core/di/providers/utils_providers.dart';
+import 'package:jabook/core/infrastructure/config/app_config.dart';
+import 'package:jabook/core/infrastructure/config/audio_settings_manager.dart';
+import 'package:jabook/core/infrastructure/config/audio_settings_provider.dart';
+import 'package:jabook/core/infrastructure/config/book_audio_settings_service.dart';
+import 'package:jabook/core/infrastructure/config/language_manager.dart';
+import 'package:jabook/core/infrastructure/config/language_provider.dart';
+import 'package:jabook/core/infrastructure/config/theme_provider.dart';
+import 'package:jabook/core/infrastructure/permissions/permission_service.dart';
 import 'package:jabook/core/library/library_migration_service.dart';
 import 'package:jabook/core/metadata/audiobook_metadata_service.dart';
 import 'package:jabook/core/metadata/metadata_sync_scheduler.dart';
 import 'package:jabook/core/net/dio_client.dart';
-import 'package:jabook/core/permissions/permission_service.dart';
 import 'package:jabook/core/player/player_state_provider.dart';
 import 'package:jabook/core/session/session_manager.dart';
 import 'package:jabook/core/utils/app_title_utils.dart';
 import 'package:jabook/core/utils/content_uri_service.dart';
 import 'package:jabook/core/utils/file_picker_utils.dart' as file_picker_utils;
 import 'package:jabook/core/utils/storage_path_utils.dart';
-import 'package:jabook/data/db/app_database.dart';
 import 'package:jabook/features/settings/presentation/screens/background_compatibility_screen.dart';
 import 'package:jabook/features/settings/presentation/screens/mirror_settings_screen.dart';
 import 'package:jabook/l10n/app_localizations.dart';
@@ -93,7 +94,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   Future<void> _loadDownloadFolder() async {
     // Use StoragePathUtils to get default path if not set
-    final storageUtils = StoragePathUtils();
+    final storageUtils = ref.read(storagePathUtilsProvider);
     final path = await storageUtils.getDefaultAudiobookPath();
     if (mounted) {
       setState(() {
@@ -103,7 +104,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Future<void> _loadLibraryFolders() async {
-    final storageUtils = StoragePathUtils();
+    final storageUtils = ref.read(storagePathUtilsProvider);
     final path = await storageUtils.getLibraryFolderPath();
     final folders = await storageUtils.getLibraryFolders();
     if (mounted) {
@@ -596,7 +597,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   Future<Map<String, dynamic>> _loadMetadataStats() async {
     try {
-      final db = AppDatabase().database;
+      final db = ref.read(appDatabaseProvider).database;
       final metadataService = AudiobookMetadataService(db);
       final scheduler = MetadataSyncScheduler(db, metadataService);
 
@@ -623,7 +624,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       // Show updating indicator
       setState(() {});
 
-      final db = AppDatabase().database;
+      final db = ref.read(appDatabaseProvider).database;
       final metadataService = AudiobookMetadataService(db);
       final scheduler = MetadataSyncScheduler(db, metadataService);
 
@@ -1361,21 +1362,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Future<Map<String, dynamic>> _loadCacheStats() async {
-    final db = AppDatabase().database;
+    final db = ref.read(appDatabaseProvider).database;
     final cache = RuTrackerCacheService();
     await cache.initialize(db);
     return cache.getStatistics();
   }
 
   Future<void> _clearExpiredCache() async {
-    final db = AppDatabase().database;
+    final db = ref.read(appDatabaseProvider).database;
     final cache = RuTrackerCacheService();
     await cache.initialize(db);
     await cache.clearExpired();
   }
 
   Future<void> _clearAllCache() async {
-    final db = AppDatabase().database;
+    final appDatabase = ref.read(appDatabaseProvider);
+    final db = appDatabase.database;
     final cache = RuTrackerCacheService();
     await cache.initialize(db);
     await cache.clearSearchResultsCache();
@@ -1890,7 +1892,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       );
 
     try {
-      final appDatabase = AppDatabase();
+      final appDatabase = ref.read(appDatabaseProvider);
       await appDatabase.initialize();
       final backupService = BackupService(appDatabase.database);
 
@@ -1975,7 +1977,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
         );
 
-        final appDatabase = AppDatabase();
+        final appDatabase = ref.read(appDatabaseProvider);
         await appDatabase.initialize();
         final backupService = BackupService(appDatabase.database);
 
@@ -2229,7 +2231,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         }
 
         // Save selected path using StoragePathUtils
-        final storageUtils = StoragePathUtils();
+        final storageUtils = ref.read(storagePathUtilsProvider);
         await storageUtils.setDownloadFolderPath(selectedPath);
 
         if (mounted) {
@@ -2644,7 +2646,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         }
 
         // Save selected path
-        final storageUtils = StoragePathUtils();
+        final storageUtils = ref.read(storagePathUtilsProvider);
         await storageUtils.setLibraryFolderPath(selectedPath);
         await _loadLibraryFolders();
 
@@ -2889,7 +2891,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         }
 
         // Add folder
-        final storageUtils = StoragePathUtils();
+        final storageUtils = ref.read(storagePathUtilsProvider);
         final added = await storageUtils.addLibraryFolder(selectedPath);
         await _loadLibraryFolders();
 
@@ -2991,7 +2993,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     if (confirmed != true) return;
 
     // Remove folder
-    final storageUtils = StoragePathUtils();
+    final storageUtils = ref.read(storagePathUtilsProvider);
     final removed = await storageUtils.removeLibraryFolder(folder);
     await _loadLibraryFolders();
 

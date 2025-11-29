@@ -31,16 +31,14 @@ import 'package:jabook/features/library/domain/entities/audiobook_category.dart'
 /// 3. Loads all audiobooks from each forum
 /// 4. Caches them in memory
 /// 5. Provides methods to refresh/clear the cache
+///
+/// Note: This class is no longer a singleton. Use [audiobooksCategoryCacheServiceProvider]
+/// to get an instance via dependency injection.
 class AudiobooksCategoryCacheService {
-  /// Private constructor for singleton pattern.
-  AudiobooksCategoryCacheService._();
-
-  /// Factory constructor to get the singleton instance.
-  factory AudiobooksCategoryCacheService() => _instance;
-
-  /// Singleton instance.
-  static final AudiobooksCategoryCacheService _instance =
-      AudiobooksCategoryCacheService._();
+  /// Constructor for AudiobooksCategoryCacheService.
+  ///
+  /// Use [audiobooksCategoryCacheServiceProvider] to get an instance via dependency injection.
+  AudiobooksCategoryCacheService();
 
   /// Cached categories with their forums and subforums.
   List<AudiobookCategory>? _cachedCategories;

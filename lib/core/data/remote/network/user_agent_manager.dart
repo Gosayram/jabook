@@ -27,15 +27,14 @@ import 'package:webview_flutter/webview_flutter.dart';
 /// Android version (inspired by lissen-android), extracting it from WebView
 /// as fallback, storing it in the database, and applying it to Dio requests
 /// for consistent browser identification.
+///
+/// Note: This class is no longer a singleton. Use [userAgentManagerProvider]
+/// to get an instance via dependency injection.
 class UserAgentManager {
-  /// Private constructor for singleton pattern.
-  UserAgentManager._();
-
-  /// Factory constructor to get the singleton instance.
-  factory UserAgentManager() => _instance;
-
-  /// Singleton instance of the UserAgentManager.
-  static final UserAgentManager _instance = UserAgentManager._();
+  /// Constructor for UserAgentManager.
+  ///
+  /// Use [userAgentManagerProvider] to get an instance via dependency injection.
+  UserAgentManager();
 
   /// Key for storing User-Agent in the database.
   static const String _userAgentKey = 'user_agent';

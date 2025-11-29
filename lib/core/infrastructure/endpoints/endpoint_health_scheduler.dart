@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import 'package:jabook/core/infrastructure/endpoints/endpoint_manager.dart';
-import 'package:jabook/core/logging/structured_logger.dart';
+import 'package:jabook/core/infrastructure/logging/structured_logger.dart';
 import 'package:sembast/sembast.dart';
 
 /// Scheduler for managing automatic endpoint health checks.

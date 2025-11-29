@@ -16,10 +16,12 @@ import 'dart:io';
 
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:jabook/core/background/background_compatibility_checker.dart';
-import 'package:jabook/core/background/workmanager_diagnostics_service.dart';
-import 'package:jabook/core/permissions/manufacturer_permissions_service.dart';
+import 'package:jabook/core/di/providers/utils_providers.dart';
+import 'package:jabook/core/infrastructure/background/background_compatibility_checker.dart';
+import 'package:jabook/core/infrastructure/background/workmanager_diagnostics_service.dart';
+import 'package:jabook/core/infrastructure/permissions/manufacturer_permissions_service.dart';
 import 'package:jabook/core/utils/app_title_utils.dart';
 import 'package:jabook/core/utils/device_info_utils.dart';
 import 'package:jabook/features/permissions/presentation/widgets/manufacturer_settings_dialog.dart';
@@ -29,22 +31,22 @@ import 'package:jabook/l10n/app_localizations.dart';
 ///
 /// This screen shows device information, compatibility status, and provides
 /// tools to configure manufacturer-specific settings for stable background operation.
-class BackgroundCompatibilityScreen extends StatefulWidget {
+class BackgroundCompatibilityScreen extends ConsumerStatefulWidget {
   /// Creates a new BackgroundCompatibilityScreen.
   const BackgroundCompatibilityScreen({super.key});
 
   @override
-  State<BackgroundCompatibilityScreen> createState() =>
+  ConsumerState<BackgroundCompatibilityScreen> createState() =>
       _BackgroundCompatibilityScreenState();
 }
 
 class _BackgroundCompatibilityScreenState
-    extends State<BackgroundCompatibilityScreen> {
+    extends ConsumerState<BackgroundCompatibilityScreen> {
   final BackgroundCompatibilityChecker _checker =
       BackgroundCompatibilityChecker();
   final ManufacturerPermissionsService _manufacturerService =
       ManufacturerPermissionsService();
-  final DeviceInfoUtils _deviceInfo = DeviceInfoUtils.instance;
+  DeviceInfoUtils get _deviceInfo => ref.read(deviceInfoUtilsProvider);
   final WorkManagerDiagnosticsService _diagnosticsService =
       WorkManagerDiagnosticsService();
 

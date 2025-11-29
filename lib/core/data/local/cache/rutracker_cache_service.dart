@@ -20,18 +20,19 @@ import 'package:sembast/sembast.dart';
 ///
 /// This service provides TTL-based caching for search results (1 hour)
 /// and topic details (24 hours) to reduce network requests.
+///
+/// Note: This class is no longer a singleton. Use [rutrackerCacheServiceProvider]
+/// to get an instance via dependency injection.
 class RuTrackerCacheService {
-  /// Private constructor for singleton pattern.
-  RuTrackerCacheService._();
-
-  /// Factory constructor to get the singleton instance.
-  factory RuTrackerCacheService() => _instance;
-
-  /// Singleton instance of the RuTrackerCacheService.
-  static final RuTrackerCacheService _instance = RuTrackerCacheService._();
+  /// Constructor for RuTrackerCacheService.
+  ///
+  /// [cacheManager] is optional - if not provided, a new CacheManager instance will be created.
+  /// Use [rutrackerCacheServiceProvider] to get an instance via dependency injection.
+  RuTrackerCacheService({CacheManager? cacheManager})
+      : _cacheManager = cacheManager ?? CacheManager();
 
   /// Cache manager instance.
-  final CacheManager _cacheManager = CacheManager();
+  final CacheManager _cacheManager;
 
   /// Session storage for getting session ID.
   final SessionStorage _sessionStorage = const SessionStorage();

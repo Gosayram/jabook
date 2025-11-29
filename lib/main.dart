@@ -20,7 +20,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:jabook/app/app.dart';
-import 'package:jabook/core/logging/environment_logger.dart';
+import 'package:jabook/core/infrastructure/logging/environment_logger.dart';
 import 'package:jabook/core/net/dio_client.dart';
 
 void main() {

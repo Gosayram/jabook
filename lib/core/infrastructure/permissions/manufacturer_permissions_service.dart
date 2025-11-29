@@ -28,15 +28,16 @@ import 'package:jabook/l10n/app_localizations.dart';
 /// for autostart, battery optimization, and background restrictions.
 /// It works with [DeviceInfoUtils] to detect the device manufacturer
 /// and uses native Android code to open the appropriate settings screens.
+///
+/// Note: This class is no longer a singleton. Use [manufacturerPermissionsServiceProvider]
+/// to get an instance via dependency injection.
 class ManufacturerPermissionsService {
-  ManufacturerPermissionsService._();
-
-  /// Factory constructor to get the singleton instance.
-  factory ManufacturerPermissionsService() => _instance;
-
-  /// Singleton instance
-  static final ManufacturerPermissionsService _instance =
-      ManufacturerPermissionsService._();
+  /// Constructor for ManufacturerPermissionsService.
+  ///
+  /// [deviceInfo] is optional - if not provided, a new DeviceInfoUtils instance will be created.
+  /// Use [manufacturerPermissionsServiceProvider] to get an instance via dependency injection.
+  ManufacturerPermissionsService({DeviceInfoUtils? deviceInfo})
+      : _deviceInfo = deviceInfo ?? DeviceInfoUtils();
 
   /// Method channel for manufacturer settings operations
   static const MethodChannel _channel =
@@ -46,7 +47,7 @@ class ManufacturerPermissionsService {
   final StructuredLogger _logger = StructuredLogger();
 
   /// Device info utils instance
-  final DeviceInfoUtils _deviceInfo = DeviceInfoUtils.instance;
+  final DeviceInfoUtils _deviceInfo;
 
   /// Opens autostart settings for the app.
   ///
@@ -57,7 +58,7 @@ class ManufacturerPermissionsService {
   Future<bool> openAutostartSettings() async {
     // Log analytics event
     try {
-      final deviceInfo = DeviceInfoUtils.instance;
+      final deviceInfo = _deviceInfo;
       final manufacturer = await deviceInfo.getManufacturer();
       final customRom = await deviceInfo.getCustomRom();
       final romVersion = await deviceInfo.getRomVersion();
@@ -125,7 +126,7 @@ class ManufacturerPermissionsService {
   Future<bool> openBatteryOptimizationSettings() async {
     // Log analytics event
     try {
-      final deviceInfo = DeviceInfoUtils.instance;
+      final deviceInfo = _deviceInfo;
       final manufacturer = await deviceInfo.getManufacturer();
       final customRom = await deviceInfo.getCustomRom();
       final romVersion = await deviceInfo.getRomVersion();
@@ -195,7 +196,7 @@ class ManufacturerPermissionsService {
   Future<bool> openBackgroundRestrictionsSettings() async {
     // Log analytics event
     try {
-      final deviceInfo = DeviceInfoUtils.instance;
+      final deviceInfo = _deviceInfo;
       final manufacturer = await deviceInfo.getManufacturer();
       final customRom = await deviceInfo.getCustomRom();
       final romVersion = await deviceInfo.getRomVersion();

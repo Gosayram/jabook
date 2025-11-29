@@ -19,8 +19,8 @@ import 'dart:io' as io;
 import 'package:flutter_cookie_bridge/session_manager.dart' as bridge_session;
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
-import 'package:jabook/core/endpoints/endpoint_manager.dart';
-import 'package:jabook/core/logging/structured_logger.dart';
+import 'package:jabook/core/infrastructure/endpoints/endpoint_manager.dart';
+import 'package:jabook/core/infrastructure/logging/structured_logger.dart';
 import 'package:jabook/core/net/dio_client.dart';
 import 'package:jabook/core/services/cookie_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';

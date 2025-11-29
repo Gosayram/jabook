@@ -16,6 +16,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:jabook/core/data/player/datasources/player_local_datasource.dart';
 import 'package:jabook/core/data/player/repositories/player_repository_impl.dart';
 import 'package:jabook/core/domain/player/repositories/player_repository.dart';
+import 'package:jabook/core/domain/player/use_cases/pause_use_case.dart';
+import 'package:jabook/core/domain/player/use_cases/play_use_case.dart';
+import 'package:jabook/core/domain/player/use_cases/seek_use_case.dart';
 import 'package:jabook/core/player/media3_player_service.dart';
 
 /// Provider for Media3PlayerService instance.
@@ -37,4 +40,22 @@ final playerLocalDataSourceProvider = Provider<PlayerLocalDataSource>((ref) {
 final playerRepositoryProvider = Provider<PlayerRepository>((ref) {
   final localDataSource = ref.watch(playerLocalDataSourceProvider);
   return PlayerRepositoryImpl(localDataSource);
+});
+
+/// Provider for PlayUseCase instance.
+final playUseCaseProvider = Provider<PlayUseCase>((ref) {
+  final repository = ref.watch(playerRepositoryProvider);
+  return PlayUseCase(repository);
+});
+
+/// Provider for PauseUseCase instance.
+final pauseUseCaseProvider = Provider<PauseUseCase>((ref) {
+  final repository = ref.watch(playerRepositoryProvider);
+  return PauseUseCase(repository);
+});
+
+/// Provider for SeekUseCase instance.
+final seekUseCaseProvider = Provider<SeekUseCase>((ref) {
+  final repository = ref.watch(playerRepositoryProvider);
+  return SeekUseCase(repository);
 });

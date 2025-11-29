@@ -14,9 +14,9 @@
 
 import 'dart:async';
 
-import 'package:jabook/core/errors/failures.dart';
+import 'package:jabook/core/infrastructure/errors/failures.dart';
+import 'package:jabook/core/infrastructure/logging/structured_logger.dart';
 import 'package:jabook/core/library/playback_position_service.dart';
-import 'package:jabook/core/logging/structured_logger.dart';
 import 'package:jabook/core/player/native_audio_player.dart';
 import 'package:jabook/core/player/player_state_persistence_service.dart';
 

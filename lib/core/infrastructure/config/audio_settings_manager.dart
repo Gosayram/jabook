@@ -15,14 +15,14 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Manages global audio settings and preferences for the application.
+///
+/// Note: This class is no longer a singleton. Use [audioSettingsManagerProvider]
+/// to get an instance via dependency injection.
 class AudioSettingsManager {
-  /// Private constructor for singleton pattern.
-  AudioSettingsManager._();
-
-  /// Factory constructor to get the instance.
-  factory AudioSettingsManager() => _instance;
-
-  static final AudioSettingsManager _instance = AudioSettingsManager._();
+  /// Constructor for AudioSettingsManager.
+  ///
+  /// Use [audioSettingsManagerProvider] to get an instance via dependency injection.
+  AudioSettingsManager();
 
   /// Key for storing default playback speed in SharedPreferences.
   static const String _defaultPlaybackSpeedKey = 'audio_default_playback_speed';

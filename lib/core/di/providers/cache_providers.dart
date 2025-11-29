@@ -13,10 +13,29 @@
 // limitations under the License.
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:jabook/core/data/local/cache/audiobooks_category_cache_service.dart';
+import 'package:jabook/core/data/local/cache/cache_manager.dart';
 import 'package:jabook/core/data/local/cache/rutracker_cache_service.dart';
+
+/// Provider for CacheManager instance.
+///
+/// This provider creates a CacheManager instance that can be used
+/// throughout the application for cache management.
+final cacheManagerProvider = Provider<CacheManager>((ref) => CacheManager());
 
 /// Provider for RuTrackerCacheService instance.
 ///
-/// This provider creates a singleton instance of RuTrackerCacheService.
-final rutrackerCacheServiceProvider =
-    Provider<RuTrackerCacheService>((ref) => RuTrackerCacheService());
+/// This provider creates a RuTrackerCacheService instance that can be used
+/// throughout the application for RuTracker cache management.
+final rutrackerCacheServiceProvider = Provider<RuTrackerCacheService>((ref) {
+  final cacheManager = ref.read(cacheManagerProvider);
+  return RuTrackerCacheService(cacheManager: cacheManager);
+});
+
+/// Provider for AudiobooksCategoryCacheService instance.
+///
+/// This provider creates an AudiobooksCategoryCacheService instance that can be used
+/// throughout the application for audiobooks category cache management.
+final audiobooksCategoryCacheServiceProvider =
+    Provider<AudiobooksCategoryCacheService>(
+        (ref) => AudiobooksCategoryCacheService());

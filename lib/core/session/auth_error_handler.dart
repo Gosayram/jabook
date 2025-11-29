@@ -14,8 +14,8 @@
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-import 'package:jabook/core/errors/failures.dart';
-import 'package:jabook/core/logging/structured_logger.dart';
+import 'package:jabook/core/infrastructure/errors/failures.dart';
+import 'package:jabook/core/infrastructure/logging/structured_logger.dart';
 import 'package:jabook/l10n/app_localizations.dart';
 
 /// Centralized handler for authentication errors.

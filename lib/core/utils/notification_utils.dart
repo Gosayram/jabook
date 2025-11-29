@@ -14,7 +14,7 @@
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
-import 'package:jabook/core/logging/structured_logger.dart';
+import 'package:jabook/core/infrastructure/logging/structured_logger.dart';
 
 /// Utility functions for handling notifications without requiring POST_NOTIFICATIONS permission.
 ///

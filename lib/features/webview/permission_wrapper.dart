@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import 'package:flutter/material.dart';
-import 'package:jabook/core/permissions/permission_service_v2.dart';
+import 'package:jabook/core/infrastructure/permissions/permission_service_v2.dart';
 import 'package:jabook/l10n/app_localizations.dart';
 
 /// A wrapper widget that ensures required permissions are granted

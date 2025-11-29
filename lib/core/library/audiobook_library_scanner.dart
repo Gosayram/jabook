@@ -15,9 +15,9 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:jabook/core/infrastructure/logging/structured_logger.dart';
 import 'package:jabook/core/library/folder_filter_service.dart';
 import 'package:jabook/core/library/local_audiobook.dart';
-import 'package:jabook/core/logging/structured_logger.dart';
 import 'package:jabook/core/utils/content_uri_service.dart';
 import 'package:jabook/core/utils/storage_path_utils.dart';
 import 'package:path/path.dart' as path;

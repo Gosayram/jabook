@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import 'package:jabook/core/config/app_config.dart';
+import 'package:jabook/core/infrastructure/config/app_config.dart';
 
 /// Extension for adding flavor suffix to app titles.
 extension AppTitleExtension on String {

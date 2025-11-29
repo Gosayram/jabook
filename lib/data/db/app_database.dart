@@ -19,15 +19,15 @@ import 'package:sembast/sembast_io.dart';
 ///
 /// This class provides access to all database stores used throughout the app,
 /// including user preferences, authentication data, and cached content.
+///
+/// Note: This class is no longer a singleton. Use [appDatabaseProvider]
+/// from `core/di/providers/database_providers.dart` to get an instance.
 class AppDatabase {
-  /// Factory constructor to create a singleton instance.
-  factory AppDatabase() => _instance ??= AppDatabase._();
-
-  /// Private constructor to prevent direct instantiation.
-  AppDatabase._();
-
-  /// Singleton instance of the database.
-  static AppDatabase? _instance;
+  /// Creates a new AppDatabase instance.
+  ///
+  /// Use [appDatabaseProvider] to get an instance instead of calling
+  /// this constructor directly.
+  AppDatabase();
 
   /// Database instance for all operations.
   Database? _db;

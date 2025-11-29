@@ -14,7 +14,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:jabook/core/animations/dialog_utils.dart';
-import 'package:jabook/core/config/app_config.dart';
+import 'package:jabook/core/infrastructure/config/app_config.dart';
 import 'package:jabook/l10n/app_localizations.dart';
 
 /// Onboarding dialog that explains why permissions are needed.

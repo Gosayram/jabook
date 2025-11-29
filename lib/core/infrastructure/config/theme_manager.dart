@@ -16,14 +16,14 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Manages theme settings and preferences for the application.
+///
+/// Note: This class is no longer a singleton. Use [themeManagerProvider]
+/// to get an instance via dependency injection.
 class ThemeManager {
-  /// Private constructor for singleton pattern.
-  ThemeManager._();
-
-  /// Factory constructor to get the instance.
-  factory ThemeManager() => _instance;
-
-  static final ThemeManager _instance = ThemeManager._();
+  /// Constructor for ThemeManager.
+  ///
+  /// Use [themeManagerProvider] to get an instance via dependency injection.
+  ThemeManager();
 
   /// Key for storing theme follow system preference in SharedPreferences.
   static const String _followSystemKey = 'theme_follow_system';

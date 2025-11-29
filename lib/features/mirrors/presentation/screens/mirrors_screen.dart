@@ -17,8 +17,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:jabook/core/endpoints/endpoint_provider.dart';
-import 'package:jabook/core/logging/structured_logger.dart';
+import 'package:jabook/core/infrastructure/endpoints/endpoint_provider.dart';
+import 'package:jabook/core/infrastructure/logging/structured_logger.dart';
 import 'package:jabook/core/utils/app_title_utils.dart';
 import 'package:jabook/l10n/app_localizations.dart';
 

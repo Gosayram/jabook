@@ -18,11 +18,12 @@ import 'dart:io' as io;
 import 'package:flutter/material.dart';
 import 'package:flutter_cookie_bridge/session_manager.dart' as bridge_session;
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:jabook/core/auth/cookie_database_service.dart';
-import 'package:jabook/core/endpoints/endpoint_manager.dart';
-import 'package:jabook/core/logging/structured_logger.dart';
+import 'package:jabook/core/di/providers/utils_providers.dart';
+import 'package:jabook/core/infrastructure/endpoints/endpoint_manager.dart';
+import 'package:jabook/core/infrastructure/logging/structured_logger.dart';
 import 'package:jabook/core/net/dio_client.dart';
-import 'package:jabook/core/net/user_agent_manager.dart';
 import 'package:jabook/core/services/cookie_service.dart';
 import 'package:jabook/core/utils/app_title_utils.dart';
 import 'package:jabook/core/utils/safe_async.dart';
@@ -41,16 +42,18 @@ import 'package:url_launcher/url_launcher.dart';
 /// and automatically extracts cookies for use with the HTTP client.
 /// It uses modular handlers for cookies, navigation, login detection,
 /// Cloudflare challenges, and state management.
-class SecureRutrackerWebView extends StatefulWidget {
+class SecureRutrackerWebView extends ConsumerStatefulWidget {
   /// Creates a new SecureRutrackerWebView instance.
   const SecureRutrackerWebView({super.key});
 
   @override
-  State<SecureRutrackerWebView> createState() => _SecureRutrackerWebViewState();
+  ConsumerState<SecureRutrackerWebView> createState() =>
+      _SecureRutrackerWebViewState();
 }
 
 /// State class for SecureRutrackerWebView widget.
-class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
+class _SecureRutrackerWebViewState
+    extends ConsumerState<SecureRutrackerWebView> {
   InAppWebViewController? _webViewController;
   InAppWebViewSettings? _settings;
 
@@ -83,7 +86,7 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
       _initialUrl = await WebViewNavigationHandler.resolveInitialUrl();
 
       // Get user agent
-      final userAgentManager = UserAgentManager();
+      final userAgentManager = ref.read(userAgentManagerProvider);
       final userAgent = await userAgentManager.getUserAgent();
 
       // Configure WebView settings

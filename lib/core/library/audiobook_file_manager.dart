@@ -14,10 +14,10 @@
 
 import 'dart:io';
 
+import 'package:jabook/core/infrastructure/logging/structured_logger.dart';
 import 'package:jabook/core/library/local_audiobook.dart';
 import 'package:jabook/core/library/playback_position_service.dart';
 import 'package:jabook/core/library/trash_service.dart';
-import 'package:jabook/core/logging/structured_logger.dart';
 import 'package:jabook/core/player/native_audio_player.dart';
 import 'package:path/path.dart' as path;
 

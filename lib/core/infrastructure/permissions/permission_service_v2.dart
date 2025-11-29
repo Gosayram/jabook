@@ -24,15 +24,14 @@ import 'package:jabook/core/utils/notification_utils.dart'
 ///
 /// This service uses system APIs (Photo Picker, SAF, system camera, etc.)
 /// to avoid requiring explicit permissions in AndroidManifest.xml.
+///
+/// Note: This class is no longer a singleton. Use [permissionServiceV2Provider]
+/// to get an instance via dependency injection.
 class PermissionServiceV2 {
-  /// Private constructor for singleton pattern.
-  PermissionServiceV2._();
-
-  /// Factory constructor to get the singleton instance.
-  factory PermissionServiceV2() => _instance;
-
-  /// Singleton instance of the PermissionServiceV2.
-  static final PermissionServiceV2 _instance = PermissionServiceV2._();
+  /// Constructor for PermissionServiceV2.
+  ///
+  /// Use [permissionServiceV2Provider] to get an instance via dependency injection.
+  PermissionServiceV2();
 
   /// Logger instance for structured logging.
   final StructuredLogger _logger = StructuredLogger();

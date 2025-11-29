@@ -96,7 +96,7 @@ class BackgroundCompatibilityChecker {
   final StructuredLogger _logger = StructuredLogger();
 
   /// Device info utils instance
-  final DeviceInfoUtils _deviceInfo = DeviceInfoUtils.instance;
+  final DeviceInfoUtils _deviceInfo = DeviceInfoUtils();
 
   /// Stream controller for compatibility events
   final _eventController = StreamController<CompatibilityEvent>.broadcast();

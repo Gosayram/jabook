@@ -14,7 +14,7 @@
 
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:jabook/core/errors/failures.dart';
+import 'package:jabook/core/infrastructure/errors/failures.dart';
 import 'package:jabook/core/session/auth_error_handler.dart';
 
 void main() {

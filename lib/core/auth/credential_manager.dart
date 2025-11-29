@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:jabook/core/errors/failures.dart';
+import 'package:jabook/core/infrastructure/errors/failures.dart';
 import 'package:local_auth/local_auth.dart';
 
 /// Manages secure storage and retrieval of user credentials.

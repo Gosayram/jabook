@@ -15,10 +15,10 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:jabook/core/infrastructure/logging/structured_logger.dart';
 import 'package:jabook/core/library/audiobook_library_scanner.dart';
 import 'package:jabook/core/library/folder_filter_service.dart';
 import 'package:jabook/core/library/local_audiobook.dart';
-import 'package:jabook/core/logging/structured_logger.dart';
 import 'package:jabook/core/utils/storage_path_utils.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 

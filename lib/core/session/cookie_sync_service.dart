@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import 'package:cookie_jar/cookie_jar.dart';
-import 'package:jabook/core/logging/structured_logger.dart';
+import 'package:jabook/core/infrastructure/logging/structured_logger.dart';
 
 /// Handles synchronization of cookies between WebView and Dio client.
 ///

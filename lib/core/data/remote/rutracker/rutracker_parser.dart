@@ -19,7 +19,7 @@ import 'package:dio/dio.dart';
 import 'package:html/dom.dart';
 import 'package:html/parser.dart' as parser;
 import 'package:jabook/core/data/remote/network/dio_client.dart';
-import 'package:jabook/core/errors/failures.dart';
+import 'package:jabook/core/infrastructure/errors/failures.dart';
 import 'package:jabook/core/infrastructure/logging/environment_logger.dart';
 import 'package:jabook/core/infrastructure/logging/structured_logger.dart';
 import 'package:jabook/core/torrent/torrent_parser_service.dart';

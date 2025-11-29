@@ -16,10 +16,10 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:device_info_plus/device_info_plus.dart';
-import 'package:jabook/core/config/audio_settings_manager.dart';
-import 'package:jabook/core/config/language_manager.dart';
 import 'package:jabook/core/favorites/favorites_service.dart';
-import 'package:jabook/core/logging/structured_logger.dart';
+import 'package:jabook/core/infrastructure/config/audio_settings_manager.dart';
+import 'package:jabook/core/infrastructure/config/language_manager.dart';
+import 'package:jabook/core/infrastructure/logging/structured_logger.dart';
 import 'package:jabook/core/metadata/audiobook_metadata_service.dart';
 import 'package:jabook/core/parse/rutracker_parser.dart';
 import 'package:jabook/core/search/search_history_service.dart';

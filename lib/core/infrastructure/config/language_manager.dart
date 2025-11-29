@@ -16,14 +16,14 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Manages language settings and preferences for the application.
+///
+/// Note: This class is no longer a singleton. Use [languageManagerProvider]
+/// to get an instance via dependency injection.
 class LanguageManager {
-  /// Private constructor for singleton pattern.
-  LanguageManager._();
-
-  /// Factory constructor to get the instance.
-  factory LanguageManager() => _instance;
-
-  static final LanguageManager _instance = LanguageManager._();
+  /// Constructor for LanguageManager.
+  ///
+  /// Use [languageManagerProvider] to get an instance via dependency injection.
+  LanguageManager();
 
   /// Key for storing language preference in SharedPreferences.
   static const String _languageKey = 'app_language';

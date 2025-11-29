@@ -33,29 +33,34 @@ import 'package:permission_handler/permission_handler.dart';
 ///
 /// This service handles requesting and checking various permissions
 /// required for the app to function properly.
+///
+/// Note: This class is no longer a singleton. Use [permissionServiceProvider]
+/// to get an instance via dependency injection.
 class PermissionService {
-  /// Factory constructor to get the singleton instance.
-  factory PermissionService() => _instance;
-
-  /// Private constructor for singleton pattern.
-  PermissionService._();
+  /// Constructor for PermissionService.
+  ///
+  /// [deviceInfo] and [manufacturerPermissionsService] are optional - if not provided,
+  /// new instances will be created. Use [permissionServiceProvider] to get an instance
+  /// via dependency injection.
+  PermissionService({
+    DeviceInfoUtils? deviceInfo,
+    ManufacturerPermissionsService? manufacturerPermissionsService,
+  })  : _deviceInfo = deviceInfo ?? DeviceInfoUtils(),
+        _manufacturerPermissionsService =
+            manufacturerPermissionsService ?? ManufacturerPermissionsService();
 
   /// Method channel for native permission operations
   static const MethodChannel _permissionChannel =
       MethodChannel('permission_channel');
 
-  /// Singleton instance of the PermissionService.
-  static final PermissionService _instance = PermissionService._();
-
   /// Logger instance for structured logging.
   final StructuredLogger _logger = StructuredLogger();
 
   /// Manufacturer permissions service instance
-  final ManufacturerPermissionsService _manufacturerPermissionsService =
-      ManufacturerPermissionsService();
+  final ManufacturerPermissionsService _manufacturerPermissionsService;
 
   /// Device info utils instance
-  final DeviceInfoUtils _deviceInfo = DeviceInfoUtils.instance;
+  final DeviceInfoUtils _deviceInfo;
 
   /// Completer for synchronizing permission requests.
   /// Prevents multiple simultaneous permission requests.

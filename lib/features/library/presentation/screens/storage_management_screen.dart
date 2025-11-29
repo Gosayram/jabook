@@ -15,8 +15,10 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:jabook/core/cache/cache_cleanup_service.dart';
+import 'package:jabook/core/di/providers/utils_providers.dart';
 import 'package:jabook/core/library/audiobook_file_manager.dart';
 import 'package:jabook/core/library/audiobook_library_scanner.dart';
 import 'package:jabook/core/library/local_audiobook.dart';
@@ -28,23 +30,25 @@ import 'package:jabook/features/library/presentation/widgets/delete_confirmation
 import 'package:jabook/l10n/app_localizations.dart';
 
 /// Screen for managing storage, including library size, cache, and file deletion.
-class StorageManagementScreen extends StatefulWidget {
+class StorageManagementScreen extends ConsumerStatefulWidget {
   /// Creates a new StorageManagementScreen instance.
   const StorageManagementScreen({super.key});
 
   @override
-  State<StorageManagementScreen> createState() =>
+  ConsumerState<StorageManagementScreen> createState() =>
       _StorageManagementScreenState();
 }
 
-class _StorageManagementScreenState extends State<StorageManagementScreen> {
+class _StorageManagementScreenState
+    extends ConsumerState<StorageManagementScreen> {
   final AudiobookLibraryScanner _scanner = AudiobookLibraryScanner();
   final AudiobookFileManager _fileManager = AudiobookFileManager();
   final CacheCleanupService _cacheService = CacheCleanupService();
-  final StoragePathUtils _storageUtils = StoragePathUtils();
   final TrashService _trashService = TrashService();
   final StorageStatisticsService _statisticsService =
       StorageStatisticsService();
+
+  StoragePathUtils get _storageUtils => ref.read(storagePathUtilsProvider);
 
   List<LocalAudiobookGroup> _audiobookGroups = [];
   Map<String, int> _folderSizes = {};

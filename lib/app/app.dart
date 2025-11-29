@@ -22,33 +22,35 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:jabook/app/router/app_router.dart';
 import 'package:jabook/app/theme/app_theme.dart';
 import 'package:jabook/core/auth/rutracker_auth.dart';
-import 'package:jabook/core/background/background_compatibility_checker.dart';
-import 'package:jabook/core/background/download_background_service.dart';
 import 'package:jabook/core/cache/rutracker_cache_service.dart';
-import 'package:jabook/core/config/app_config.dart';
-import 'package:jabook/core/config/language_manager.dart';
-import 'package:jabook/core/config/language_provider.dart';
-import 'package:jabook/core/config/theme_provider.dart';
 import 'package:jabook/core/data/auth/datasources/auth_local_datasource.dart';
 import 'package:jabook/core/data/auth/datasources/auth_remote_datasource.dart';
 import 'package:jabook/core/data/auth/repositories/auth_repository_impl.dart';
 import 'package:jabook/core/di/providers/auth_providers.dart';
+import 'package:jabook/core/di/providers/cache_providers.dart';
+import 'package:jabook/core/di/providers/config_providers.dart';
+import 'package:jabook/core/di/providers/database_providers.dart';
+import 'package:jabook/core/di/providers/utils_providers.dart';
 import 'package:jabook/core/download/download_foreground_service.dart';
-import 'package:jabook/core/endpoints/endpoint_health_scheduler.dart';
-import 'package:jabook/core/endpoints/endpoint_manager.dart';
-import 'package:jabook/core/logging/environment_logger.dart';
-import 'package:jabook/core/logging/structured_logger.dart';
+import 'package:jabook/core/infrastructure/background/background_compatibility_checker.dart';
+import 'package:jabook/core/infrastructure/background/download_background_service.dart';
+import 'package:jabook/core/infrastructure/config/app_config.dart';
+import 'package:jabook/core/infrastructure/config/language_manager.dart';
+import 'package:jabook/core/infrastructure/config/language_provider.dart';
+import 'package:jabook/core/infrastructure/config/theme_provider.dart';
+import 'package:jabook/core/infrastructure/endpoints/endpoint_health_scheduler.dart';
+import 'package:jabook/core/infrastructure/endpoints/endpoint_manager.dart';
+import 'package:jabook/core/infrastructure/logging/environment_logger.dart';
+import 'package:jabook/core/infrastructure/logging/structured_logger.dart';
+import 'package:jabook/core/infrastructure/notifications/download_notification_service.dart';
+import 'package:jabook/core/infrastructure/permissions/permission_service.dart';
 import 'package:jabook/core/net/dio_client.dart';
-import 'package:jabook/core/notifications/download_notification_service.dart';
-import 'package:jabook/core/permissions/permission_service.dart';
 import 'package:jabook/core/player/player_state_persistence_service.dart';
 import 'package:jabook/core/player/player_state_provider.dart';
 import 'package:jabook/core/session/session_manager.dart';
 import 'package:jabook/core/torrent/audiobook_torrent_manager.dart';
 import 'package:jabook/core/utils/first_launch.dart';
 import 'package:jabook/core/utils/safe_async.dart';
-import 'package:jabook/core/utils/storage_path_utils.dart';
-import 'package:jabook/data/db/app_database.dart';
 import 'package:jabook/features/permissions/presentation/widgets/permissions_onboarding_dialog.dart';
 import 'package:jabook/l10n/app_localizations.dart';
 import 'package:responsive_framework/responsive_framework.dart';
@@ -75,11 +77,11 @@ class JaBookApp extends ConsumerStatefulWidget {
 /// and logging for the application lifecycle.
 class _JaBookAppState extends ConsumerState<JaBookApp>
     with WidgetsBindingObserver {
-  final AppConfig config = AppConfig();
-  final EnvironmentLogger logger = EnvironmentLogger();
-  final AppDatabase database = AppDatabase();
-  final RuTrackerCacheService cacheService = RuTrackerCacheService();
-  final LanguageManager languageManager = LanguageManager();
+  AppConfig get config => ref.read(appConfigProvider);
+  EnvironmentLogger get logger => ref.read(environmentLoggerProvider);
+  RuTrackerCacheService get cacheService =>
+      ref.read(rutrackerCacheServiceProvider);
+  LanguageManager get languageManager => ref.read(languageManagerProvider);
   RuTrackerAuth? _rutrackerAuth;
   AuthRepositoryImpl? _authRepository;
 
@@ -194,6 +196,7 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
       final torrentManager = AudiobookTorrentManager();
 
       // Ensure torrent manager is initialized with database
+      final database = ref.read(appDatabaseProvider);
       if (database.isInitialized) {
         await torrentManager.initialize(database.database);
       }
@@ -333,7 +336,7 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
       final envInitStart = DateTime.now();
       await Future.wait([
         _initializeEnvironment(),
-        StoragePathUtils().initializeDefaultPath(),
+        ref.read(storagePathUtilsProvider).initializeDefaultPath(),
         _initializeBackgroundService(),
         _initializeNotificationService(),
         _setupNotificationChannel(),
@@ -469,6 +472,7 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
     final dbStartTime = DateTime.now();
     final structuredLogger = StructuredLogger();
     logger.i('Initializing database...');
+    final database = ref.read(appDatabaseProvider);
     await database.initialize();
     final dbInitDuration =
         DateTime.now().difference(dbStartTime).inMilliseconds;

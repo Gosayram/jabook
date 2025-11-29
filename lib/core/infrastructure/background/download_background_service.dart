@@ -82,7 +82,7 @@ class DownloadBackgroundService {
 
     try {
       // Check if device is from a Chinese manufacturer
-      final deviceInfo = DeviceInfoUtils.instance;
+      final deviceInfo = DeviceInfoUtils();
       final isChineseDevice = await deviceInfo.isChineseManufacturer();
       final customRom = await deviceInfo.getCustomRom();
 
@@ -243,7 +243,7 @@ void callbackDispatcher() {
       );
 
       // Check if device is from a Chinese manufacturer for logging
-      final deviceInfo = DeviceInfoUtils.instance;
+      final deviceInfo = DeviceInfoUtils();
       final isChineseDevice = await deviceInfo.isChineseManufacturer();
       final customRom = await deviceInfo.getCustomRom();
 
@@ -411,7 +411,7 @@ void callbackDispatcher() {
 
       // Log device info for diagnostics with error reason
       try {
-        final deviceInfo = DeviceInfoUtils.instance;
+        final deviceInfo = DeviceInfoUtils();
         final manufacturer = await deviceInfo.getManufacturer();
         final customRom = await deviceInfo.getCustomRom();
         final romVersion = await deviceInfo.getRomVersion();

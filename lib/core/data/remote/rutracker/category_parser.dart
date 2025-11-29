@@ -17,7 +17,7 @@ import 'dart:convert';
 import 'package:html/dom.dart';
 import 'package:html/parser.dart' as parser;
 import 'package:jabook/core/constants/category_constants.dart';
-import 'package:jabook/core/errors/failures.dart';
+import 'package:jabook/core/infrastructure/errors/failures.dart';
 import 'package:jabook/core/infrastructure/logging/environment_logger.dart';
 import 'package:jabook/core/infrastructure/logging/structured_logger.dart';
 import 'package:windows1251/windows1251.dart';

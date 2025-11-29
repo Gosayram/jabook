@@ -15,8 +15,8 @@
 import 'dart:async';
 
 import 'package:flutter/services.dart';
-import 'package:jabook/core/errors/failures.dart';
-import 'package:jabook/core/logging/structured_logger.dart';
+import 'package:jabook/core/infrastructure/errors/failures.dart';
+import 'package:jabook/core/infrastructure/logging/structured_logger.dart';
 
 /// Native audio player state.
 class AudioPlayerState {
