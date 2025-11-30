@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'package:jabook/core/data/local/database/app_database.dart';
 import 'package:jabook/core/infrastructure/logging/structured_logger.dart';
-import 'package:jabook/data/db/app_database.dart';
 import 'package:sembast/sembast.dart';
 
 /// Service for managing cookies in the database.

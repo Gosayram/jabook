@@ -20,6 +20,7 @@ import 'package:dio_cookie_manager/dio_cookie_manager.dart';
 import 'package:jabook/core/auth/credential_manager.dart';
 import 'package:jabook/core/auth/rutracker_auth.dart';
 import 'package:jabook/core/cache/rutracker_cache_service.dart';
+import 'package:jabook/core/data/local/database/app_database.dart';
 import 'package:jabook/core/infrastructure/endpoints/endpoint_manager.dart';
 import 'package:jabook/core/infrastructure/errors/failures.dart';
 import 'package:jabook/core/infrastructure/logging/structured_logger.dart';
@@ -29,7 +30,6 @@ import 'package:jabook/core/session/session_storage.dart';
 import 'package:jabook/core/session/session_validator.dart';
 import 'package:jabook/core/utils/notification_utils.dart'
     as notification_utils;
-import 'package:jabook/data/db/app_database.dart';
 
 /// Centralized manager for session and cookie management.
 ///

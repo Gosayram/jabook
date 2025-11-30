@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:jabook/data/db/app_database.dart';
+import 'package:jabook/core/data/local/database/app_database.dart';
 
 /// Provider for AppDatabase instance.
 ///

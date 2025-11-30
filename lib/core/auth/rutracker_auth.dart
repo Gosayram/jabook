@@ -20,16 +20,16 @@ import 'package:dio_cookie_manager/dio_cookie_manager.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:jabook/core/auth/captcha_detector.dart';
-import 'package:jabook/core/auth/cookie_database_service.dart';
 import 'package:jabook/core/auth/credential_manager.dart';
 import 'package:jabook/core/auth/direct_auth_service.dart';
 import 'package:jabook/core/auth/simple_cookie_manager.dart';
+import 'package:jabook/core/data/local/database/app_database.dart';
+import 'package:jabook/core/data/local/database/cookie_database_service.dart';
 import 'package:jabook/core/infrastructure/endpoints/endpoint_manager.dart';
 import 'package:jabook/core/infrastructure/errors/failures.dart';
 import 'package:jabook/core/infrastructure/logging/structured_logger.dart';
 import 'package:jabook/core/net/dio_client.dart';
 import 'package:jabook/core/session/session_manager.dart';
-import 'package:jabook/data/db/app_database.dart';
 
 /// Handles authentication with RuTracker forum.
 ///

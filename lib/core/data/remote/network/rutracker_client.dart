@@ -13,9 +13,9 @@
 // limitations under the License.
 
 import 'package:dio/dio.dart';
+import 'package:jabook/core/data/local/database/app_database.dart';
 import 'package:jabook/core/data/remote/network/dio_client.dart';
 import 'package:jabook/core/infrastructure/endpoints/endpoint_manager.dart';
-import 'package:jabook/data/db/app_database.dart';
 
 /// Unified HTTP client for RuTracker API requests.
 ///

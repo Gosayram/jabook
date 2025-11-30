@@ -16,6 +16,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:device_info_plus/device_info_plus.dart';
+import 'package:jabook/core/data/local/database/app_database.dart';
 import 'package:jabook/core/favorites/favorites_service.dart';
 import 'package:jabook/core/infrastructure/config/audio_settings_manager.dart';
 import 'package:jabook/core/infrastructure/config/language_manager.dart';
@@ -24,7 +25,6 @@ import 'package:jabook/core/metadata/audiobook_metadata_service.dart';
 import 'package:jabook/core/parse/rutracker_parser.dart';
 import 'package:jabook/core/search/search_history_service.dart';
 import 'package:jabook/core/utils/storage_path_utils.dart';
-import 'package:jabook/data/db/app_database.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sembast/sembast.dart';

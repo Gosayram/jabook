@@ -15,11 +15,10 @@
 import 'dart:io' as io;
 
 import 'package:dio/dio.dart';
-
+import 'package:jabook/core/data/local/database/app_database.dart';
 import 'package:jabook/core/infrastructure/endpoints/endpoint_manager.dart';
 import 'package:jabook/core/infrastructure/logging/structured_logger.dart';
 import 'package:jabook/core/net/dio_client.dart';
-import 'package:jabook/data/db/app_database.dart';
 
 /// Handles URL resolution and navigation for WebView.
 class WebViewNavigationHandler {

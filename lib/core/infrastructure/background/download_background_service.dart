@@ -15,13 +15,13 @@
 import 'dart:async';
 
 import 'package:device_info_plus/device_info_plus.dart';
+import 'package:jabook/core/data/local/database/app_database.dart';
 import 'package:jabook/core/infrastructure/background/background_compatibility_checker.dart';
 import 'package:jabook/core/infrastructure/background/workmanager_diagnostics_service.dart';
 import 'package:jabook/core/infrastructure/logging/environment_logger.dart';
 import 'package:jabook/core/infrastructure/logging/structured_logger.dart';
 import 'package:jabook/core/torrent/audiobook_torrent_manager.dart';
 import 'package:jabook/core/utils/device_info_utils.dart';
-import 'package:jabook/data/db/app_database.dart';
 import 'package:workmanager/workmanager.dart';
 
 /// Background service for managing torrent downloads.

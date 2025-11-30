@@ -18,13 +18,13 @@ import 'dart:io' as io;
 
 import 'package:cookie_jar/cookie_jar.dart';
 import 'package:dio/dio.dart';
-import 'package:jabook/core/auth/cookie_database_service.dart';
 import 'package:jabook/core/auth/simple_cookie_manager.dart';
+import 'package:jabook/core/data/local/database/app_database.dart';
+import 'package:jabook/core/data/local/database/cookie_database_service.dart';
 import 'package:jabook/core/data/remote/network/dio_client.dart';
 import 'package:jabook/core/infrastructure/endpoints/endpoint_manager.dart';
 import 'package:jabook/core/infrastructure/logging/structured_logger.dart';
 import 'package:jabook/core/services/cookie_service.dart';
-import 'package:jabook/data/db/app_database.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Manages cookie synchronization between WebView, Dio CookieJar, and SessionManager.

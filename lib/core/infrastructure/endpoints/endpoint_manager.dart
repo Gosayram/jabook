@@ -15,13 +15,13 @@
 import 'dart:async';
 
 import 'package:dio/dio.dart';
+import 'package:jabook/core/data/local/database/app_database.dart';
 import 'package:jabook/core/infrastructure/errors/failures.dart';
 import 'package:jabook/core/infrastructure/logging/structured_logger.dart';
 import 'package:jabook/core/net/dio_client.dart';
 import 'package:jabook/core/net/user_agent_manager.dart';
 import 'package:jabook/core/utils/dns_lookup.dart';
 import 'package:jabook/core/utils/safe_async.dart';
-import 'package:jabook/data/db/app_database.dart';
 import 'package:sembast/sembast.dart';
 
 /// Manages RuTracker endpoint configuration and health monitoring.

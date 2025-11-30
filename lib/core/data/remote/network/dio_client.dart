@@ -22,6 +22,7 @@ import 'package:dio_cookie_manager/dio_cookie_manager.dart' as dio_cookie;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:jabook/core/auth/simple_cookie_manager.dart';
+import 'package:jabook/core/data/local/database/app_database.dart';
 import 'package:jabook/core/data/remote/network/dio_cookie_manager.dart';
 import 'package:jabook/core/data/remote/network/dio_interceptors.dart';
 import 'package:jabook/core/data/remote/network/user_agent_manager.dart';
@@ -30,7 +31,6 @@ import 'package:jabook/core/infrastructure/logging/structured_logger.dart';
 import 'package:jabook/core/services/cookie_service.dart';
 import 'package:jabook/core/session/session_interceptor.dart';
 import 'package:jabook/core/session/session_manager.dart';
-import 'package:jabook/data/db/app_database.dart';
 
 /// HTTP client for making requests to RuTracker APIs.
 ///

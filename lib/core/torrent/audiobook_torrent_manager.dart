@@ -22,6 +22,7 @@ import 'package:dio/dio.dart';
 import 'package:dtorrent_common/dtorrent_common.dart'; // PeerSource is used in addPeer call
 import 'package:dtorrent_parser/dtorrent_parser.dart';
 import 'package:dtorrent_task_v2/dtorrent_task_v2.dart';
+import 'package:jabook/core/data/local/database/app_database.dart';
 import 'package:jabook/core/download/download_foreground_service.dart';
 import 'package:jabook/core/infrastructure/background/download_background_service.dart';
 import 'package:jabook/core/infrastructure/errors/failures.dart';
@@ -37,7 +38,6 @@ import 'package:jabook/core/utils/content_uri_service.dart';
 import 'package:jabook/core/utils/network_utils.dart';
 import 'package:jabook/core/utils/safe_async.dart';
 import 'package:jabook/core/utils/storage_path_utils.dart';
-import 'package:jabook/data/db/app_database.dart';
 import 'package:path/path.dart' as path;
 import 'package:sembast/sembast.dart';
 
