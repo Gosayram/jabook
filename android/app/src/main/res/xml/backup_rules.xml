@@ -18,8 +18,8 @@
     
     <!-- Exclude database files that may contain sensitive data -->
     <!-- Note: User data like audiobook metadata can be re-downloaded -->
-    <exclude domain="database" path="." />
+    <!-- Database domain is excluded by default (not included above) -->
     
     <!-- Exclude external storage (audiobooks are user's files) -->
-    <exclude domain="external" path="." />
+    <!-- External domain is excluded by default (not included above) -->
 </full-backup-content>

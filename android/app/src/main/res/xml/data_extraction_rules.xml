@@ -16,10 +16,10 @@
         <exclude domain="file" path="code_cache/" />
         
         <!-- Exclude database files (user data can be re-synced) -->
-        <exclude domain="database" path="." />
+        <!-- Database domain is excluded by default (not included above) -->
         
         <!-- Exclude external storage (user's audiobook files) -->
-        <exclude domain="external" path="." />
+        <!-- External domain is excluded by default (not included above) -->
     </cloud-backup>
     
     <device-transfer>
@@ -32,9 +32,9 @@
         <exclude domain="file" path="code_cache/" />
         
         <!-- Exclude database files (user data can be re-synced) -->
-        <exclude domain="database" path="." />
+        <!-- Database domain is excluded by default (not included above) -->
         
         <!-- Exclude external storage (user's audiobook files) -->
-        <exclude domain="external" path="." />
+        <!-- External domain is excluded by default (not included above) -->
     </device-transfer>
 </data-extraction-rules>

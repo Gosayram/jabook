@@ -212,6 +212,9 @@ dependencies {
     // Desugaring for flutter_local_notifications
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 
+    // AppCompat for AppCompatActivity and AlertDialog
+    implementation("androidx.appcompat:appcompat:1.7.1")
+
     // Dagger Hilt - Dependency Injection (version 2.57.2, same as lissen-android)
     implementation("com.google.dagger:hilt-android:2.57.2")
     kapt("com.google.dagger:hilt-android-compiler:2.57.2")
