@@ -67,4 +67,19 @@ class SearchRepositoryImpl implements SearchRepository {
 
   @override
   Future<void> clearHistory() => _localDataSource.clearHistory();
+
+  @override
+  Stream<List<Map<String, dynamic>>> watchCachedResults(String query) async* {
+    // Emit initial cached results if available
+    final cachedResults = await _remoteDataSource.getCachedResults(query);
+    if (cachedResults != null) {
+      yield cachedResults;
+    } else {
+      yield [];
+    }
+
+    // TODO: Implement reactive updates when cache changes
+    // This would require adding a Stream to CacheManager or using
+    // a periodic check with reasonable intervals
+  }
 }

@@ -74,4 +74,14 @@ abstract class LibraryRepository {
   ///
   /// Returns a list of LocalAudiobook instances found via MediaStore.
   Future<List<LocalAudiobook>> scanViaMediaStore();
+
+  /// Watches library groups for changes.
+  ///
+  /// Returns a stream that emits library groups whenever they change.
+  /// This is part of the offline-first architecture - the stream provides
+  /// reactive updates when library data is available.
+  ///
+  /// The stream emits the current library groups immediately, and then
+  /// emits updates when the library is rescanned or files are added/removed.
+  Stream<List<LocalAudiobookGroup>> watchLibraryGroups();
 }

@@ -76,4 +76,16 @@ class TorrentRepositoryImpl implements TorrentRepository {
       return null;
     }
   }
+
+  @override
+  Stream<List<TorrentTask>> watchActiveTasks() async* {
+    // Emit initial active tasks
+    final tasks = await getActiveTasks();
+    yield tasks;
+
+    // TODO: Implement reactive updates when tasks change
+    // This would require periodic polling or event-based updates from
+    // AudiobookTorrentManager. For now, this provides the initial snapshot
+    // for offline-first architecture.
+  }
 }

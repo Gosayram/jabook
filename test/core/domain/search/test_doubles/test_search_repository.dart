@@ -127,4 +127,10 @@ class TestSearchRepository implements SearchRepository {
     _searchHistory.clear();
     _shouldFail = false;
   }
+
+  @override
+  Stream<List<Map<String, dynamic>>> watchCachedResults(String query) async* {
+    final results = _searchResults[query] ?? [];
+    yield results;
+  }
 }

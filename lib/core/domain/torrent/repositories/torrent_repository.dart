@@ -89,4 +89,14 @@ abstract class TorrentRepository {
   ///
   /// Returns the TorrentTask if found, null otherwise.
   Future<TorrentTask?> getTask(String taskId);
+
+  /// Watches active torrent tasks for changes.
+  ///
+  /// Returns a stream that emits active tasks whenever they change.
+  /// This is part of the offline-first architecture - the stream provides
+  /// reactive updates when task data is available.
+  ///
+  /// The stream emits the current active tasks immediately, and then
+  /// emits updates when tasks are added, removed, or their status changes.
+  Stream<List<TorrentTask>> watchActiveTasks();
 }

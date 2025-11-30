@@ -613,11 +613,12 @@ class DioCookieManager {
     try {
       // Step 0: Check database FIRST - this is the most reliable source
       try {
-        final db = AppDatabase().database;
-        final endpointManager = EndpointManager(db);
+        final appDb = AppDatabase.getInstance();
+        final db = appDb.database;
+        final endpointManager = EndpointManager(db, appDb);
         final activeBase = await endpointManager.getActiveEndpoint();
 
-        final cookieDbService = CookieDatabaseService(AppDatabase());
+        final cookieDbService = CookieDatabaseService(appDb);
         final cookieHeader =
             await cookieDbService.getCookiesForAnyEndpoint(activeBase);
 
@@ -690,8 +691,9 @@ class DioCookieManager {
       try {
         final jar = await DioClient.getCookieJar();
         if (jar != null) {
-          final db = AppDatabase().database;
-          final endpointManager = EndpointManager(db);
+          final appDb = AppDatabase.getInstance();
+          final db = appDb.database;
+          final endpointManager = EndpointManager(db, appDb);
           final activeBase = await endpointManager.getActiveEndpoint();
           final uri = Uri.parse(activeBase);
           final cookies = await jar.loadForRequest(uri);
@@ -734,8 +736,9 @@ class DioCookieManager {
 
       // Step 3: Check SecureStorage (fallback) - cookies may be here after direct HTTP login
       try {
-        final db = AppDatabase().database;
-        final endpointManager = EndpointManager(db);
+        final appDb = AppDatabase.getInstance();
+        final db = appDb.database;
+        final endpointManager = EndpointManager(db, appDb);
         final activeBase = await endpointManager.getActiveEndpoint();
         final simpleCookieManager = SimpleCookieManager();
         final cookieString = await simpleCookieManager.getCookie(activeBase);
@@ -888,8 +891,9 @@ class DioCookieManager {
       // This prevents unnecessary syncs when cookies are already synced
       try {
         final jar = cookieJar ?? CookieJar();
-        final db = AppDatabase().database;
-        final endpointManager = EndpointManager(db);
+        final appDb = AppDatabase.getInstance();
+        final db = appDb.database;
+        final endpointManager = EndpointManager(db, appDb);
         final activeBase = await endpointManager.getActiveEndpoint();
         final uri = Uri.parse(activeBase);
 
@@ -1048,8 +1052,9 @@ class DioCookieManager {
       }
 
       // Make a lightweight test request to check authentication
-      final db = AppDatabase().database;
-      final endpointManager = EndpointManager(db);
+      final appDb = AppDatabase.getInstance();
+      final db = appDb.database;
+      final endpointManager = EndpointManager(db, appDb);
       final activeBase = await endpointManager.getActiveEndpoint();
       // Use root URL instead of index.php - more reliable
       final testUrl = activeBase.endsWith('/') ? activeBase : '$activeBase/';

@@ -128,8 +128,9 @@ class RuTrackerAuth {
     _isLoggingIn = true;
     try {
       // Get active endpoint (mirror)
-      final db = AppDatabase().database;
-      final endpointManager = EndpointManager(db);
+      final appDb = AppDatabase.getInstance();
+      final db = appDb.database;
+      final endpointManager = EndpointManager(db, appDb);
       final activeBase = await endpointManager.getActiveEndpoint();
       final dio = await DioClient.instance;
 
@@ -171,7 +172,8 @@ class RuTrackerAuth {
                 cookies.map((c) => '${c.name}=${c.value}').join('; ');
 
             // Save to database - most reliable storage
-            final cookieDbService = CookieDatabaseService(AppDatabase());
+            final appDb = AppDatabase.getInstance();
+            final cookieDbService = CookieDatabaseService(appDb);
             final savedToDb =
                 await cookieDbService.saveCookies(activeBase, cookieHeader);
 
@@ -265,7 +267,8 @@ class RuTrackerAuth {
                 cookies.map((c) => '${c.name}=${c.value}').join('; ');
 
             // Save to database - most reliable storage
-            final cookieDbService = CookieDatabaseService(AppDatabase());
+            final appDb = AppDatabase.getInstance();
+            final cookieDbService = CookieDatabaseService(appDb);
             final savedToDb =
                 await cookieDbService.saveCookies(activeBase, cookieHeader);
 
@@ -873,8 +876,9 @@ class RuTrackerAuth {
     _isLoggingIn = true;
     try {
       // Get active endpoint (mirror)
-      final db = AppDatabase().database;
-      final endpointManager = EndpointManager(db);
+      final appDb = AppDatabase.getInstance();
+      final db = appDb.database;
+      final endpointManager = EndpointManager(db, appDb);
       final activeBase = await endpointManager.getActiveEndpoint();
       final dio = await DioClient.instance;
 
@@ -919,7 +923,8 @@ class RuTrackerAuth {
                 cookies.map((c) => '${c.name}=${c.value}').join('; ');
 
             // Save to database - most reliable storage
-            final cookieDbService = CookieDatabaseService(AppDatabase());
+            final appDb = AppDatabase.getInstance();
+            final cookieDbService = CookieDatabaseService(appDb);
             final savedToDb =
                 await cookieDbService.saveCookies(activeBase, cookieHeader);
 
@@ -1160,7 +1165,8 @@ class RuTrackerAuth {
 
       // CRITICAL: Clear cookies from database FIRST - this is the primary storage
       try {
-        final cookieDbService = CookieDatabaseService(AppDatabase());
+        final appDb = AppDatabase.getInstance();
+        final cookieDbService = CookieDatabaseService(appDb);
         final cleared = await cookieDbService.clearCookies();
 
         await logger.log(
@@ -1198,8 +1204,9 @@ class RuTrackerAuth {
       await sessionManager.clearSession();
 
       // Clear cookies from SimpleCookieManager
-      final db = AppDatabase().database;
-      final endpointManager = EndpointManager(db);
+      final appDb = AppDatabase.getInstance();
+      final db = appDb.database;
+      final endpointManager = EndpointManager(db, appDb);
       final activeBase = await endpointManager.getActiveEndpoint();
       final dio = await DioClient.instance;
       final cookieJar = await _getCookieJar(dio);
@@ -1277,8 +1284,9 @@ class RuTrackerAuth {
 
     try {
       // Use active endpoint instead of static URL
-      final db = AppDatabase().database;
-      final endpointManager = EndpointManager(db);
+      final appDb = AppDatabase.getInstance();
+      final db = appDb.database;
+      final endpointManager = EndpointManager(db, appDb);
       final activeEndpoint = await endpointManager.getActiveEndpoint();
       final profileUrl = '$activeEndpoint/forum/profile.php';
 

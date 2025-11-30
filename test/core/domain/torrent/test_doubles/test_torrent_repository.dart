@@ -189,4 +189,10 @@ class TestTorrentRepository implements TorrentRepository {
   void dispose() {
     clear();
   }
+
+  @override
+  Stream<List<TorrentTask>> watchActiveTasks() async* {
+    final tasks = _tasks.values.toList();
+    yield tasks;
+  }
 }

@@ -69,4 +69,15 @@ class LibraryRepositoryImpl implements LibraryRepository {
   @override
   Future<List<LocalAudiobook>> scanViaMediaStore() =>
       _localDataSource.scanViaMediaStore();
+
+  @override
+  Stream<List<LocalAudiobookGroup>> watchLibraryGroups() async* {
+    // Emit initial library groups
+    final groups = await scanAllLibraryFolders();
+    yield groups;
+
+    // TODO: Implement reactive updates when library changes
+    // This would require file system watchers or periodic checks
+    // For now, this provides the initial snapshot for offline-first architecture
+  }
 }

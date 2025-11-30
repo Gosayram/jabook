@@ -22,12 +22,28 @@ import 'package:sembast/sembast_io.dart';
 ///
 /// Note: This class is no longer a singleton. Use [appDatabaseProvider]
 /// from `core/di/providers/database_providers.dart` to get an instance.
+///
+/// For migration purposes, a cached instance is maintained for backward compatibility.
+/// New code should use [appDatabaseProvider] instead of calling [getInstance()] directly.
 class AppDatabase {
   /// Creates a new AppDatabase instance.
   ///
   /// Use [appDatabaseProvider] to get an instance instead of calling
   /// this constructor directly.
   AppDatabase();
+
+  /// Cached instance for backward compatibility during migration.
+  /// This will be removed once all code uses providers.
+  static AppDatabase? _cachedInstance;
+
+  /// Gets a cached instance of AppDatabase for backward compatibility.
+  ///
+  /// **DEPRECATED**: Use [appDatabaseProvider] from `core/di/providers/database_providers.dart` instead.
+  ///
+  /// This method maintains a cached instance to avoid creating multiple instances
+  /// during the migration period. Once all code uses providers, this will be removed.
+  // ignore: prefer_constructors_over_static_methods
+  static AppDatabase getInstance() => _cachedInstance ??= AppDatabase();
 
   /// Database instance for all operations.
   Database? _db;

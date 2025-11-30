@@ -2629,7 +2629,7 @@ class AudiobookTorrentManager {
     }
 
     try {
-      final store = AppDatabase().downloadsStore;
+      final store = AppDatabase.getInstance().downloadsStore;
       await store.record(downloadId).put(_db!, metadata);
       logger.d(
           '_saveDownloadMetadata: Successfully saved metadata for downloadId: $downloadId');
@@ -2646,7 +2646,7 @@ class AudiobookTorrentManager {
     if (_db == null) return;
 
     try {
-      final store = AppDatabase().downloadsStore;
+      final store = AppDatabase.getInstance().downloadsStore;
       await store.record(downloadId).delete(_db!);
     } on Exception {
       // Ignore errors - persistence is optional
@@ -2658,7 +2658,7 @@ class AudiobookTorrentManager {
     if (_db == null) return;
 
     try {
-      final store = AppDatabase().downloadsStore;
+      final store = AppDatabase.getInstance().downloadsStore;
       final records = await store.find(_db!);
 
       for (final record in records) {

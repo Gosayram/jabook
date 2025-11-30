@@ -56,4 +56,15 @@ abstract class SearchRepository {
 
   /// Clears all search history.
   Future<void> clearHistory();
+
+  /// Watches cached search results for a query.
+  ///
+  /// The [query] parameter is the search query text.
+  ///
+  /// Returns a stream that emits cached search results whenever they change.
+  /// This is part of the offline-first architecture - the stream provides
+  /// reactive updates when cached data is available.
+  ///
+  /// Returns an empty list if no cached results are available.
+  Stream<List<Map<String, dynamic>>> watchCachedResults(String query);
 }

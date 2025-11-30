@@ -32,10 +32,17 @@ class SessionInterceptor extends Interceptor {
   /// Creates a new SessionInterceptor instance.
   ///
   /// The [sessionManager] parameter is required for session management.
-  SessionInterceptor(this.sessionManager);
+  /// The [appDatabase] parameter is optional - if not provided, will use AppDatabase() directly.
+  SessionInterceptor(
+    this.sessionManager, {
+    AppDatabase? appDatabase,
+  }) : _appDatabase = appDatabase;
 
   /// Session manager instance for validating and refreshing sessions.
   final SessionManager sessionManager;
+
+  /// AppDatabase instance for database operations.
+  final AppDatabase? _appDatabase;
 
   /// Last time session was checked in this interceptor.
   static DateTime? _lastCheck;
@@ -67,8 +74,9 @@ class SessionInterceptor extends Interceptor {
         // This is more legitimate than blocking requests based on cached validation
         final cookieJar = await DioClient.getCookieJar();
         if (cookieJar != null) {
-          final db = AppDatabase().database;
-          final endpointManager = EndpointManager(db);
+          final appDb = _appDatabase ?? AppDatabase.getInstance();
+          final db = appDb.database;
+          final endpointManager = EndpointManager(db, appDb);
           final activeBase = await endpointManager.getActiveEndpoint();
           final uri = Uri.parse(activeBase);
           final cookies = await cookieJar.loadForRequest(uri);

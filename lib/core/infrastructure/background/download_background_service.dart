@@ -254,7 +254,7 @@ void callbackDispatcher() {
       }
 
       // Initialize database for background task
-      final appDatabase = AppDatabase();
+      final appDatabase = AppDatabase.getInstance();
       try {
         await appDatabase.initialize();
         if (!appDatabase.isInitialized) {

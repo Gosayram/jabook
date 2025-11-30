@@ -25,7 +25,13 @@ import 'package:jabook/data/db/app_database.dart';
 /// and authentication is active.
 class SessionValidator {
   /// Creates a new SessionValidator instance.
-  const SessionValidator();
+  ///
+  /// The [appDatabase] parameter is optional - if not provided, will use AppDatabase() directly.
+  const SessionValidator({AppDatabase? appDatabase})
+      : _appDatabase = appDatabase;
+
+  /// AppDatabase instance for database operations.
+  final AppDatabase? _appDatabase;
 
   /// Validates session cookies by making a lightweight test request.
   ///
@@ -53,8 +59,9 @@ class SessionValidator {
         context: 'session_validation',
       );
 
-      final db = AppDatabase().database;
-      final endpointManager = EndpointManager(db);
+      final appDb = _appDatabase ?? AppDatabase.getInstance();
+      final db = appDb.database;
+      final endpointManager = EndpointManager(db, appDb);
       final activeBase = await endpointManager.getActiveEndpoint();
       final testUrl = '$activeBase/index.php';
 

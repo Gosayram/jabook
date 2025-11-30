@@ -363,8 +363,9 @@ class DioInterceptors {
               );
 
               try {
-                final db = AppDatabase().database;
-                final endpointManager = EndpointManager(db);
+                final appDb = AppDatabase.getInstance();
+                final db = appDb.database;
+                final endpointManager = EndpointManager(db, appDb);
                 final currentEndpoint = error.requestOptions.baseUrl;
 
                 // Try to switch to another endpoint

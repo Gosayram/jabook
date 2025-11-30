@@ -67,8 +67,9 @@ class DioClient {
     await userAgentManager.applyUserAgentToDio(dio);
 
     // Resolve active RuTracker endpoint dynamically
-    final db = AppDatabase().database;
-    final endpointManager = EndpointManager(db);
+    final appDb = AppDatabase.getInstance();
+    final db = appDb.database;
+    final endpointManager = EndpointManager(db, appDb);
     final activeBase = await endpointManager.getActiveEndpoint();
 
     // Get User-Agent from WebView to ensure consistency (important for Cloudflare)

@@ -636,8 +636,9 @@ class _SecureRutrackerWebViewState
       );
 
       // CRITICAL: Get the active endpoint first - we need to sync cookies for the active domain
-      final db = AppDatabase().database;
-      final endpointManager = EndpointManager(db);
+      final appDb = AppDatabase.getInstance();
+      final db = appDb.database;
+      final endpointManager = EndpointManager(db, appDb);
       String activeEndpoint;
       try {
         activeEndpoint = await endpointManager.getActiveEndpoint();
@@ -864,7 +865,8 @@ class _SecureRutrackerWebViewState
               // CRITICAL: Save cookies to database FIRST - this is the primary storage
               final cookieHeader =
                   dioCookies.map((c) => '${c.name}=${c.value}').join('; ');
-              final cookieDbService = CookieDatabaseService(AppDatabase());
+              final appDb = AppDatabase.getInstance();
+              final cookieDbService = CookieDatabaseService(appDb);
               final savedToDb = await cookieDbService.saveCookies(
                   activeEndpointBaseUrl, cookieHeader);
 
@@ -1006,8 +1008,8 @@ class _SecureRutrackerWebViewState
                             .join('; ');
 
                         // CRITICAL: Save cookies to database FIRST - this is the primary storage
-                        final cookieDbService =
-                            CookieDatabaseService(AppDatabase());
+                        final appDb = AppDatabase.getInstance();
+                        final cookieDbService = CookieDatabaseService(appDb);
                         final savedToDb = await cookieDbService.saveCookies(
                             activeEndpointBaseUrl, cookieHeader);
 
@@ -1308,7 +1310,8 @@ class _SecureRutrackerWebViewState
 
       // CRITICAL: Save cookies to database FIRST - this is the primary storage
       // Database is reliable and can be used anywhere in the app
-      final cookieDbService = CookieDatabaseService(AppDatabase());
+      // Reuse appDb from earlier in the function
+      final cookieDbService = CookieDatabaseService(appDb);
       final savedToDb = await cookieDbService.saveCookies(
           activeEndpointBaseUrl, cookieHeader);
 

@@ -396,7 +396,7 @@ class BackupService {
   /// Exports forum resolver cache.
   Future<List<Map<String, dynamic>>> _exportForumResolverCache() async {
     try {
-      final store = AppDatabase().forumResolverCacheStore;
+      final store = AppDatabase.getInstance().forumResolverCacheStore;
       final records = await store.find(_db);
       return records.map((record) => record.value).toList();
     } on Exception {
@@ -628,7 +628,7 @@ class BackupService {
       final itemsList = cacheData['items'] as List<dynamic>?;
       if (itemsList == null) return 0;
 
-      final store = AppDatabase().forumResolverCacheStore;
+      final store = AppDatabase.getInstance().forumResolverCacheStore;
       var imported = 0;
       for (final item in itemsList) {
         final map = item as Map<String, dynamic>;

@@ -15,6 +15,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:jabook/core/auth/credential_manager.dart';
 import 'package:jabook/core/di/providers/auth_providers.dart';
+import 'package:jabook/core/di/providers/database_providers.dart';
 import 'package:jabook/core/session/session_manager.dart';
 
 /// Provider for CredentialManager instance.
@@ -34,5 +35,9 @@ final credentialManagerProvider =
 /// a proper context in the widget tree.
 final sessionManagerProvider = Provider<SessionManager>((ref) {
   final rutrackerAuth = ref.watch(rutrackerAuthProvider);
-  return SessionManager(rutrackerAuth: rutrackerAuth);
+  final appDatabase = ref.watch(appDatabaseProvider);
+  return SessionManager(
+    rutrackerAuth: rutrackerAuth,
+    appDatabase: appDatabase,
+  );
 });

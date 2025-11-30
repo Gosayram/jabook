@@ -21,5 +21,5 @@ import 'package:jabook/core/infrastructure/endpoints/endpoint_manager.dart';
 /// This provider creates an EndpointManager instance using the app database.
 final endpointManagerProvider = Provider<EndpointManager>((ref) {
   final appDatabase = ref.watch(appDatabaseProvider);
-  return EndpointManager(appDatabase.database);
+  return EndpointManager(appDatabase.database, appDatabase);
 });

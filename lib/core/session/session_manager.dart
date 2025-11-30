@@ -44,15 +44,18 @@ class SessionManager {
   /// Creates a new SessionManager instance.
   ///
   /// The [rutrackerAuth] parameter is optional but recommended for full functionality.
+  /// The [appDatabase] parameter is optional - if not provided, will use AppDatabase() directly.
   /// For dependency injection, prefer using [sessionManagerProvider].
   SessionManager({
     RuTrackerAuth? rutrackerAuth,
     CredentialManager? credentialManager,
+    AppDatabase? appDatabase,
   })  : _rutrackerAuth = rutrackerAuth,
         _sessionStorage = const SessionStorage(),
-        _sessionValidator = const SessionValidator(),
+        _sessionValidator = SessionValidator(appDatabase: appDatabase),
         _cookieSyncService = const CookieSyncService(),
-        _credentialManager = credentialManager ?? CredentialManager();
+        _credentialManager = credentialManager ?? CredentialManager(),
+        _appDatabase = appDatabase;
 
   /// RuTracker authentication instance.
   final RuTrackerAuth? _rutrackerAuth;
@@ -68,6 +71,9 @@ class SessionManager {
 
   /// Credential manager for accessing stored credentials.
   final CredentialManager _credentialManager;
+
+  /// AppDatabase instance for database operations.
+  final AppDatabase? _appDatabase;
 
   /// Timer for periodic session monitoring.
   Timer? _sessionCheckTimer;
@@ -164,7 +170,8 @@ class SessionManager {
       final dio = await DioClient.instance;
       final cookieJar = await _getCookieJar(dio);
 
-      final db = AppDatabase().database;
+      final appDb = _appDatabase ?? AppDatabase.getInstance();
+      final db = appDb.database;
       final endpointManager = EndpointManager(db);
       final activeBase = await endpointManager.getActiveEndpoint();
       final uri = Uri.parse(activeBase);

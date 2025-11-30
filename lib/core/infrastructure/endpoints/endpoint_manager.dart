@@ -30,15 +30,20 @@ import 'package:sembast/sembast.dart';
 /// RuTracker mirror endpoints, ensuring optimal performance and availability.
 class EndpointManager {
   /// Private constructor for singleton pattern.
-  EndpointManager._(this._db);
+  EndpointManager._(this._db, this._appDatabase);
 
   /// Factory constructor to create a new instance of EndpointManager.
   ///
   /// The [db] parameter is the Sembast database instance for storing endpoint data.
-  factory EndpointManager(Database db) => EndpointManager._(db);
+  /// The [appDatabase] parameter is optional - if not provided, will use AppDatabase() directly.
+  factory EndpointManager(Database db, [AppDatabase? appDatabase]) =>
+      EndpointManager._(db, appDatabase);
 
   /// Database instance for persistent storage.
   final Database _db;
+
+  /// AppDatabase instance for initialization checks.
+  final AppDatabase? _appDatabase;
 
   /// Store reference for endpoint data storage.
   final StoreRef<String, Map<String, dynamic>> _store = StoreRef.main();
@@ -122,7 +127,7 @@ class EndpointManager {
   /// Performs initial health checks on all endpoints
   Future<void> _performInitialHealthChecks() async {
     // Wait for database to be ready (with timeout)
-    final db = AppDatabase();
+    final db = _appDatabase ?? AppDatabase.getInstance();
     var retries = 0;
     const maxRetries = 15; // Increased retries for slow devices
     const retryDelay = Duration(milliseconds: 100);
