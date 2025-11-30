@@ -22,10 +22,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:jabook/core/cache/rutracker_cache_service.dart';
-import 'package:jabook/core/endpoints/endpoint_provider.dart';
-import 'package:jabook/core/errors/failures.dart';
 import 'package:jabook/core/favorites/favorites_provider.dart';
-import 'package:jabook/core/logging/environment_logger.dart';
+import 'package:jabook/core/infrastructure/endpoints/endpoint_provider.dart';
+import 'package:jabook/core/infrastructure/errors/failures.dart';
+import 'package:jabook/core/infrastructure/logging/environment_logger.dart';
 import 'package:jabook/core/net/dio_client.dart';
 import 'package:jabook/core/parse/rutracker_parser.dart';
 import 'package:jabook/core/session/auth_error_handler.dart';
@@ -33,6 +33,7 @@ import 'package:jabook/core/torrent/audiobook_torrent_manager.dart';
 import 'package:jabook/core/torrent/audiobook_torrent_manager_provider.dart';
 import 'package:jabook/core/torrent/external_torrent_handler.dart';
 import 'package:jabook/core/torrent/torrent_parser_service.dart';
+import 'package:jabook/core/utils/app_title_utils.dart';
 import 'package:jabook/core/utils/responsive_utils.dart';
 import 'package:jabook/features/downloads/presentation/widgets/download_status_bar.dart';
 import 'package:jabook/l10n/app_localizations.dart';
@@ -257,7 +258,7 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(
           title: Text(
-              '${AppLocalizations.of(context)?.topicTitle ?? 'Topic'}: ${widget.topicId}'),
+              '${(AppLocalizations.of(context)?.topicTitle ?? 'Topic').withFlavorSuffix()}: ${widget.topicId}'),
           actions: [
             _buildFavoriteButton(),
             if (_isFromCache)

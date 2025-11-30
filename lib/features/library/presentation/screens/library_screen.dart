@@ -19,6 +19,8 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:jabook/core/di/providers/database_providers.dart';
+import 'package:jabook/core/di/providers/utils_providers.dart';
 import 'package:jabook/core/favorites/favorites_service.dart';
 import 'package:jabook/core/library/audiobook_file_manager.dart';
 import 'package:jabook/core/library/audiobook_library_scanner.dart';
@@ -26,11 +28,10 @@ import 'package:jabook/core/library/folder_filter_service.dart';
 import 'package:jabook/core/library/local_audiobook.dart';
 import 'package:jabook/core/library/smart_scanner_service.dart';
 import 'package:jabook/core/player/native_audio_player.dart';
+import 'package:jabook/core/utils/app_title_utils.dart';
 import 'package:jabook/core/utils/content_uri_service.dart';
 import 'package:jabook/core/utils/file_picker_utils.dart' as file_picker_utils;
 import 'package:jabook/core/utils/responsive_utils.dart';
-import 'package:jabook/core/utils/storage_path_utils.dart';
-import 'package:jabook/data/db/app_database.dart';
 import 'package:jabook/features/library/presentation/widgets/delete_confirmation_dialog.dart';
 import 'package:jabook/features/library/providers/library_provider.dart';
 import 'package:jabook/l10n/app_localizations.dart';
@@ -106,9 +107,9 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
 
   Future<void> _initializeService() async {
     try {
-      // Use singleton AppDatabase instance - it should already be initialized
+      // Use AppDatabase from provider - it should already be initialized
       // by app.dart, but handle the case where it's not ready yet
-      final appDatabase = AppDatabase();
+      final appDatabase = ref.read(appDatabaseProvider);
 
       // Wait a bit for database to be initialized by app.dart
       // This is a workaround for race condition on new Android
@@ -310,8 +311,9 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
         },
         child: Scaffold(
           appBar: AppBar(
-            title:
-                Text(AppLocalizations.of(context)?.libraryTitle ?? 'Library'),
+            title: Text(
+                (AppLocalizations.of(context)?.libraryTitle ?? 'Library')
+                    .withFlavorSuffix()),
             actions: [
               Stack(
                 clipBehavior: Clip.none,
@@ -1070,7 +1072,7 @@ class _LibraryContentState extends ConsumerState<_LibraryContent> {
   Future<int> _copyAudioFilesToLibrary(List<PlatformFile> files) async {
     var importedCount = 0;
     // Use default audiobook path from StoragePathUtils
-    final storageUtils = StoragePathUtils();
+    final storageUtils = ref.read(storagePathUtilsProvider);
     final libraryDir = await storageUtils.getDefaultAudiobookPath();
     final audiobooksDir = Directory(libraryDir);
 

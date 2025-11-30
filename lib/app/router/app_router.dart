@@ -16,9 +16,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:jabook/core/animations/motion.dart';
-import 'package:jabook/core/config/app_config.dart';
+import 'package:jabook/core/infrastructure/config/app_config.dart';
+import 'package:jabook/core/infrastructure/logging/environment_logger.dart';
 import 'package:jabook/core/library/local_audiobook.dart';
-import 'package:jabook/core/logging/environment_logger.dart';
+import 'package:jabook/core/utils/app_title_utils.dart';
 import 'package:jabook/features/auth/presentation/screens/auth_screen.dart';
 import 'package:jabook/features/debug/presentation/screens/debug_screen.dart';
 import 'package:jabook/features/downloads/presentation/screens/downloads_screen.dart';
@@ -156,7 +157,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           // Fallback if group is not provided
           final localizations = AppLocalizations.of(context);
           return Scaffold(
-            appBar: AppBar(title: Text(localizations?.error ?? 'Error')),
+            appBar: AppBar(
+                title:
+                    Text((localizations?.error ?? 'Error').withFlavorSuffix())),
             body: Center(
                 child: Text(localizations?.noAudiobookGroupProvided ??
                     'No audiobook group provided')),

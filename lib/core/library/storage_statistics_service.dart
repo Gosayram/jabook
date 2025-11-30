@@ -15,10 +15,10 @@
 import 'dart:io';
 
 import 'package:jabook/core/cache/cache_cleanup_service.dart';
+import 'package:jabook/core/infrastructure/logging/structured_logger.dart';
 import 'package:jabook/core/library/audiobook_file_manager.dart';
 import 'package:jabook/core/library/audiobook_library_scanner.dart';
 import 'package:jabook/core/library/trash_service.dart';
-import 'package:jabook/core/logging/structured_logger.dart';
 import 'package:jabook/core/utils/storage_path_utils.dart';
 import 'package:path_provider/path_provider.dart';
 

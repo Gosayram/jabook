@@ -14,9 +14,9 @@
 
 import 'dart:async';
 
-import 'package:jabook/core/errors/failures.dart';
+import 'package:jabook/core/infrastructure/errors/failures.dart';
+import 'package:jabook/core/infrastructure/logging/structured_logger.dart';
 import 'package:jabook/core/library/playback_position_service.dart';
-import 'package:jabook/core/logging/structured_logger.dart';
 import 'package:jabook/core/player/native_audio_player.dart';
 import 'package:jabook/core/player/player_state_persistence_service.dart';
 
@@ -265,6 +265,21 @@ class Media3PlayerService {
       rethrow;
     } on Exception catch (e) {
       throw AudioFailure('Failed to update skip durations: ${e.toString()}');
+    }
+  }
+
+  /// Sets the inactivity timeout in minutes.
+  ///
+  /// [minutes] is the timeout in minutes (10-180).
+  ///
+  /// Throws [AudioFailure] if setting fails.
+  Future<void> setInactivityTimeoutMinutes(int minutes) async {
+    try {
+      await _player.setInactivityTimeoutMinutes(minutes);
+    } on AudioFailure {
+      rethrow;
+    } on Exception catch (e) {
+      throw AudioFailure('Failed to set inactivity timeout: ${e.toString()}');
     }
   }
 

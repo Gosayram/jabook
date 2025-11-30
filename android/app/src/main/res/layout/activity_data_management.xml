@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="32dp">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Storage Management"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:paddingBottom="24dp" />
+
+    <TextView
+        android:id="@+id/cache_size_text"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Cache: Calculating..."
+        android:textSize="16sp"
+        android:paddingTop="8dp"
+        android:paddingBottom="8dp" />
+
+    <TextView
+        android:id="@+id/data_size_text"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Data: Calculating..."
+        android:textSize="16sp"
+        android:paddingTop="8dp"
+        android:paddingBottom="8dp" />
+
+    <TextView
+        android:id="@+id/total_size_text"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Total: Calculating..."
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:paddingTop="16dp"
+        android:paddingBottom="24dp" />
+
+    <ProgressBar
+        android:id="@+id/progress_bar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:indeterminate="true"
+        android:visibility="visible" />
+
+    <Button
+        android:id="@+id/clear_cache_button"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Clear Cache"
+        android:layout_marginTop="16dp" />
+
+    <Button
+        android:id="@+id/open_app_button"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Open App"
+        android:layout_marginTop="8dp" />
+
+</LinearLayout>

@@ -18,14 +18,16 @@ import 'dart:io' as io;
 import 'package:flutter/material.dart';
 import 'package:flutter_cookie_bridge/session_manager.dart' as bridge_session;
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
-import 'package:jabook/core/auth/cookie_database_service.dart';
-import 'package:jabook/core/endpoints/endpoint_manager.dart';
-import 'package:jabook/core/logging/structured_logger.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:jabook/core/data/local/database/app_database.dart';
+import 'package:jabook/core/data/local/database/cookie_database_service.dart';
+import 'package:jabook/core/di/providers/utils_providers.dart';
+import 'package:jabook/core/infrastructure/endpoints/endpoint_manager.dart';
+import 'package:jabook/core/infrastructure/logging/structured_logger.dart';
 import 'package:jabook/core/net/dio_client.dart';
-import 'package:jabook/core/net/user_agent_manager.dart';
 import 'package:jabook/core/services/cookie_service.dart';
+import 'package:jabook/core/utils/app_title_utils.dart';
 import 'package:jabook/core/utils/safe_async.dart';
-import 'package:jabook/data/db/app_database.dart';
 import 'package:jabook/features/webview/webview_cloudflare_handler.dart';
 import 'package:jabook/features/webview/webview_cookie_manager.dart';
 import 'package:jabook/features/webview/webview_login_detector.dart';
@@ -40,16 +42,18 @@ import 'package:url_launcher/url_launcher.dart';
 /// and automatically extracts cookies for use with the HTTP client.
 /// It uses modular handlers for cookies, navigation, login detection,
 /// Cloudflare challenges, and state management.
-class SecureRutrackerWebView extends StatefulWidget {
+class SecureRutrackerWebView extends ConsumerStatefulWidget {
   /// Creates a new SecureRutrackerWebView instance.
   const SecureRutrackerWebView({super.key});
 
   @override
-  State<SecureRutrackerWebView> createState() => _SecureRutrackerWebViewState();
+  ConsumerState<SecureRutrackerWebView> createState() =>
+      _SecureRutrackerWebViewState();
 }
 
 /// State class for SecureRutrackerWebView widget.
-class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
+class _SecureRutrackerWebViewState
+    extends ConsumerState<SecureRutrackerWebView> {
   InAppWebViewController? _webViewController;
   InAppWebViewSettings? _settings;
 
@@ -82,7 +86,7 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
       _initialUrl = await WebViewNavigationHandler.resolveInitialUrl();
 
       // Get user agent
-      final userAgentManager = UserAgentManager();
+      final userAgentManager = ref.read(userAgentManagerProvider);
       final userAgent = await userAgentManager.getUserAgent();
 
       // Configure WebView settings
@@ -632,8 +636,9 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
       );
 
       // CRITICAL: Get the active endpoint first - we need to sync cookies for the active domain
-      final db = AppDatabase().database;
-      final endpointManager = EndpointManager(db);
+      final appDb = AppDatabase.getInstance();
+      final db = appDb.database;
+      final endpointManager = EndpointManager(db, appDb);
       String activeEndpoint;
       try {
         activeEndpoint = await endpointManager.getActiveEndpoint();
@@ -860,7 +865,8 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
               // CRITICAL: Save cookies to database FIRST - this is the primary storage
               final cookieHeader =
                   dioCookies.map((c) => '${c.name}=${c.value}').join('; ');
-              final cookieDbService = CookieDatabaseService(AppDatabase());
+              final appDb = AppDatabase.getInstance();
+              final cookieDbService = CookieDatabaseService(appDb);
               final savedToDb = await cookieDbService.saveCookies(
                   activeEndpointBaseUrl, cookieHeader);
 
@@ -1002,8 +1008,8 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
                             .join('; ');
 
                         // CRITICAL: Save cookies to database FIRST - this is the primary storage
-                        final cookieDbService =
-                            CookieDatabaseService(AppDatabase());
+                        final appDb = AppDatabase.getInstance();
+                        final cookieDbService = CookieDatabaseService(appDb);
                         final savedToDb = await cookieDbService.saveCookies(
                             activeEndpointBaseUrl, cookieHeader);
 
@@ -1304,7 +1310,8 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
 
       // CRITICAL: Save cookies to database FIRST - this is the primary storage
       // Database is reliable and can be used anywhere in the app
-      final cookieDbService = CookieDatabaseService(AppDatabase());
+      // Reuse appDb from earlier in the function
+      final cookieDbService = CookieDatabaseService(appDb);
       final savedToDb = await cookieDbService.saveCookies(
           activeEndpointBaseUrl, cookieHeader);
 
@@ -1506,7 +1513,8 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(
           title: Text(
-            AppLocalizations.of(context)?.webViewTitle ?? 'RuTracker',
+            (AppLocalizations.of(context)?.webViewTitle ?? 'RuTracker')
+                .withFlavorSuffix(),
           ),
           automaticallyImplyLeading: false,
           actions: [

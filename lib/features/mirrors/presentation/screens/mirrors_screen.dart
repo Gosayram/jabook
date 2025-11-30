@@ -17,8 +17,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:jabook/core/endpoints/endpoint_provider.dart';
-import 'package:jabook/core/logging/structured_logger.dart';
+import 'package:jabook/core/infrastructure/endpoints/endpoint_provider.dart';
+import 'package:jabook/core/infrastructure/logging/structured_logger.dart';
+import 'package:jabook/core/utils/app_title_utils.dart';
 import 'package:jabook/l10n/app_localizations.dart';
 
 /// Screen for displaying and managing RuTracker mirror URLs.
@@ -159,8 +160,9 @@ class _MirrorsScreenState extends ConsumerState<MirrorsScreen> {
   @override
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(
-          title: Text(AppLocalizations.of(context)?.mirrorsScreenTitle ??
-              'RuTracker Mirrors'),
+          title: Text(
+              (AppLocalizations.of(context)?.mirrorsScreenTitle ?? 'Mirrors')
+                  .withFlavorSuffix()),
           actions: [
             IconButton(
               icon: const Icon(Icons.refresh),

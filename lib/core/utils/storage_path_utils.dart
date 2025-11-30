@@ -14,8 +14,8 @@
 
 import 'dart:io';
 
-import 'package:jabook/core/logging/environment_logger.dart';
-import 'package:jabook/core/permissions/permission_service.dart';
+import 'package:jabook/core/infrastructure/logging/environment_logger.dart';
+import 'package:jabook/core/infrastructure/permissions/permission_service.dart';
 import 'package:jabook/core/utils/content_uri_service.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -25,14 +25,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// This class provides methods to get and set the default download path
 /// for audiobooks. On Android 11+ (API 30+), uses app-specific directory
 /// which works WITHOUT permissions.
+///
+/// Note: This class is no longer a singleton. Use [storagePathUtilsProvider]
+/// to get an instance via dependency injection.
 class StoragePathUtils {
-  /// Private constructor for singleton pattern.
-  StoragePathUtils._();
-
-  /// Factory constructor to get the singleton instance.
-  factory StoragePathUtils() => _instance;
-
-  static final StoragePathUtils _instance = StoragePathUtils._();
+  /// Constructor for StoragePathUtils.
+  ///
+  /// Use [storagePathUtilsProvider] to get an instance via dependency injection.
+  StoragePathUtils();
 
   /// Default path for audiobooks storage.
   /// This is the user-accessible directory that requires MANAGE_EXTERNAL_STORAGE

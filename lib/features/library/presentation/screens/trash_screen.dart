@@ -17,6 +17,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:jabook/core/library/trash_service.dart';
+import 'package:jabook/core/utils/app_title_utils.dart';
 import 'package:jabook/l10n/app_localizations.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -323,7 +324,7 @@ class _TrashScreenState extends State<TrashScreen> {
   @override
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(
-          title: const Text('Trash'),
+          title: Text('Trash'.withFlavorSuffix()),
           actions: [
             if (_trashItems.isNotEmpty)
               PopupMenuButton<String>(

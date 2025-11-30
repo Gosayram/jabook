@@ -18,7 +18,7 @@ import 'dart:isolate';
 import 'package:crypto/crypto.dart';
 import 'package:dtorrent_parser/dtorrent_parser.dart';
 import 'package:dtorrent_task_v2/dtorrent_task_v2.dart';
-import 'package:jabook/core/logging/structured_logger.dart';
+import 'package:jabook/core/infrastructure/logging/structured_logger.dart';
 
 /// Messages sent to the torrent isolate
 abstract class TorrentIsolateMessage {}

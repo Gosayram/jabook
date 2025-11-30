@@ -15,11 +15,10 @@
 import 'dart:io' as io;
 
 import 'package:dio/dio.dart';
-
-import 'package:jabook/core/endpoints/endpoint_manager.dart';
-import 'package:jabook/core/logging/structured_logger.dart';
+import 'package:jabook/core/data/local/database/app_database.dart';
+import 'package:jabook/core/infrastructure/endpoints/endpoint_manager.dart';
+import 'package:jabook/core/infrastructure/logging/structured_logger.dart';
 import 'package:jabook/core/net/dio_client.dart';
-import 'package:jabook/data/db/app_database.dart';
 
 /// Handles URL resolution and navigation for WebView.
 class WebViewNavigationHandler {
@@ -28,8 +27,9 @@ class WebViewNavigationHandler {
 
   /// Resolves the initial URL for WebView with fallback support.
   static Future<String> resolveInitialUrl() async {
-    final db = AppDatabase().database;
-    final endpointManager = EndpointManager(db);
+    final appDb = AppDatabase.getInstance();
+    final db = appDb.database;
+    final endpointManager = EndpointManager(db, appDb);
 
     // List of endpoints to try in order of preference
     final fallbackEndpoints = EndpointManager.getDefaultEndpointUrls();
@@ -202,8 +202,9 @@ class WebViewNavigationHandler {
       // If all fails, try one more time with hardcoded fallback
       try {
         final hardcodedFallback = EndpointManager.getPrimaryFallbackEndpoint();
-        final db = AppDatabase().database;
-        final endpointManager = EndpointManager(db);
+        final appDb = AppDatabase.getInstance();
+        final db = appDb.database;
+        final endpointManager = EndpointManager(db, appDb);
         final isAvailable =
             await endpointManager.quickAvailabilityCheck(hardcodedFallback);
 
@@ -243,8 +244,9 @@ class WebViewNavigationHandler {
             .timeout(const Duration(seconds: 2));
 
         // Quick availability check
-        final db = AppDatabase().database;
-        final endpointManager = EndpointManager(db);
+        final appDb = AppDatabase.getInstance();
+        final db = appDb.database;
+        final endpointManager = EndpointManager(db, appDb);
         final isAvailable =
             await endpointManager.quickAvailabilityCheck(fallback);
 

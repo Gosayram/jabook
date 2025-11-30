@@ -15,7 +15,8 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:jabook/core/utils/device_info_utils.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:jabook/core/di/providers/utils_providers.dart';
 import 'package:jabook/core/utils/first_launch.dart';
 import 'package:jabook/features/permissions/presentation/widgets/manufacturer_settings_dialog.dart';
 import 'package:jabook/l10n/app_localizations.dart';
@@ -26,17 +27,17 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// This banner appears non-intrusively at the top of the screen on problematic
 /// devices (Chinese manufacturers) to guide users to configure manufacturer-specific
 /// settings for stable background operation.
-class BackgroundCompatibilityBanner extends StatefulWidget {
+class BackgroundCompatibilityBanner extends ConsumerStatefulWidget {
   /// Creates a new BackgroundCompatibilityBanner.
   const BackgroundCompatibilityBanner({super.key});
 
   @override
-  State<BackgroundCompatibilityBanner> createState() =>
+  ConsumerState<BackgroundCompatibilityBanner> createState() =>
       _BackgroundCompatibilityBannerState();
 }
 
 class _BackgroundCompatibilityBannerState
-    extends State<BackgroundCompatibilityBanner> {
+    extends ConsumerState<BackgroundCompatibilityBanner> {
   bool _shouldShow = false;
   bool _isDismissed = false;
   bool _isLoading = true;
@@ -88,7 +89,7 @@ class _BackgroundCompatibilityBannerState
       }
 
       // Check if device needs aggressive guidance
-      final deviceInfo = DeviceInfoUtils.instance;
+      final deviceInfo = ref.read(deviceInfoUtilsProvider);
       final needsGuidance = await deviceInfo.needsAggressiveGuidance();
 
       if (mounted) {

@@ -15,7 +15,7 @@
 import 'dart:convert';
 
 import 'package:html/parser.dart' as html_parser;
-import 'package:jabook/core/logging/structured_logger.dart';
+import 'package:jabook/core/infrastructure/logging/structured_logger.dart';
 import 'package:windows1251/windows1251.dart';
 
 /// Type of captcha detected in the response.

@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import 'package:flutter/services.dart';
-import 'package:jabook/core/logging/structured_logger.dart';
+import 'package:jabook/core/infrastructure/logging/structured_logger.dart';
 
 /// Service for managing download foreground service.
 ///

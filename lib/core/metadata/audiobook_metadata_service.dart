@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import 'package:dio/dio.dart';
-import 'package:jabook/core/logging/structured_logger.dart';
+import 'package:jabook/core/infrastructure/logging/structured_logger.dart';
 import 'package:jabook/core/net/dio_client.dart';
 import 'package:jabook/core/parse/rutracker_parser.dart';
 import 'package:jabook/core/rutracker/forum_resolver.dart';

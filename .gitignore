@@ -247,7 +247,7 @@ android/signing/
 *.p12
 
 # Test folders
-test_results/
+test_results/**
 
 # Issue docs
 issue*.md

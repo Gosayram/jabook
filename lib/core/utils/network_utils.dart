@@ -15,18 +15,18 @@
 import 'dart:io';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:jabook/core/logging/environment_logger.dart';
+import 'package:jabook/core/infrastructure/logging/environment_logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Utility class for network connectivity checks.
+///
+/// Note: This class is no longer a singleton. Use [networkUtilsProvider]
+/// to get an instance via dependency injection.
 class NetworkUtils {
-  /// Private constructor for singleton pattern.
-  NetworkUtils._();
-
-  /// Factory constructor to get the singleton instance.
-  factory NetworkUtils() => _instance;
-
-  static final NetworkUtils _instance = NetworkUtils._();
+  /// Constructor for NetworkUtils.
+  ///
+  /// Use [networkUtilsProvider] to get an instance via dependency injection.
+  NetworkUtils();
 
   final Connectivity _connectivity = Connectivity();
 

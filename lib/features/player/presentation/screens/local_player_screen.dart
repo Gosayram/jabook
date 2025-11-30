@@ -18,13 +18,13 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:jabook/core/config/audio_settings_manager.dart';
-import 'package:jabook/core/config/audio_settings_provider.dart';
-import 'package:jabook/core/config/book_audio_settings_service.dart';
-import 'package:jabook/core/errors/failures.dart';
+import 'package:jabook/core/infrastructure/config/audio_settings_manager.dart';
+import 'package:jabook/core/infrastructure/config/audio_settings_provider.dart';
+import 'package:jabook/core/infrastructure/config/book_audio_settings_service.dart';
+import 'package:jabook/core/infrastructure/errors/failures.dart';
+import 'package:jabook/core/infrastructure/logging/structured_logger.dart';
+import 'package:jabook/core/infrastructure/permissions/permission_service.dart';
 import 'package:jabook/core/library/local_audiobook.dart';
-import 'package:jabook/core/logging/structured_logger.dart';
-import 'package:jabook/core/permissions/permission_service.dart';
 import 'package:jabook/core/player/native_audio_player.dart';
 import 'package:jabook/core/player/playback_settings_provider.dart';
 import 'package:jabook/core/player/player_state_provider.dart';
@@ -612,6 +612,20 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
           level: 'warning',
           subsystem: 'audio',
           message: 'Failed to update skip durations in MediaSessionManager',
+          cause: e.toString(),
+        );
+      }
+
+      // Update inactivity timeout
+      try {
+        final playerService = ref.read(media3PlayerServiceProvider);
+        await playerService.setInactivityTimeoutMinutes(
+            audioSettings.inactivityTimeoutMinutes);
+      } on Exception catch (e) {
+        await _logger.log(
+          level: 'warning',
+          subsystem: 'audio',
+          message: 'Failed to set inactivity timeout',
           cause: e.toString(),
         );
       }
@@ -1561,7 +1575,7 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
                   else
                     const SizedBox(width: 20),
                   const SizedBox(width: 8),
-                  Text('${speed}x'),
+                  Text(AudioSettingsManager.formatPlaybackSpeed(speed)),
                 ],
               ),
             );
@@ -1595,7 +1609,8 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
         },
         child: Chip(
           avatar: const Icon(Icons.speed, size: 18),
-          label: Text('${state.playbackSpeed}x'),
+          label: Text(
+              AudioSettingsManager.formatPlaybackSpeed(state.playbackSpeed)),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         ),
       );

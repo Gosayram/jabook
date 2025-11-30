@@ -15,7 +15,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:jabook/core/logging/structured_logger.dart';
+import 'package:jabook/core/infrastructure/logging/structured_logger.dart';
 
 /// Sleep timer service for automatically pausing playback.
 ///

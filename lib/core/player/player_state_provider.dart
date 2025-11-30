@@ -15,7 +15,7 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:jabook/core/errors/failures.dart';
+import 'package:jabook/core/infrastructure/errors/failures.dart';
 import 'package:jabook/core/library/local_audiobook.dart';
 import 'package:jabook/core/player/media3_player_service.dart';
 import 'package:jabook/core/player/native_audio_player.dart';

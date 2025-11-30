@@ -15,8 +15,8 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:jabook/core/errors/failures.dart';
-import 'package:jabook/core/logging/structured_logger.dart';
+import 'package:jabook/core/infrastructure/errors/failures.dart';
+import 'package:jabook/core/infrastructure/logging/structured_logger.dart';
 import 'package:mime/mime.dart' as mime;
 import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart';

@@ -14,10 +14,10 @@
 
 import 'package:cookie_jar/cookie_jar.dart';
 import 'package:dio/dio.dart';
-import 'package:jabook/core/endpoints/endpoint_manager.dart';
-import 'package:jabook/core/errors/failures.dart';
-import 'package:jabook/core/logging/structured_logger.dart';
-import 'package:jabook/data/db/app_database.dart';
+import 'package:jabook/core/data/local/database/app_database.dart';
+import 'package:jabook/core/infrastructure/endpoints/endpoint_manager.dart';
+import 'package:jabook/core/infrastructure/errors/failures.dart';
+import 'package:jabook/core/infrastructure/logging/structured_logger.dart';
 
 /// Validates session cookies by making test requests to RuTracker.
 ///
@@ -25,7 +25,13 @@ import 'package:jabook/data/db/app_database.dart';
 /// and authentication is active.
 class SessionValidator {
   /// Creates a new SessionValidator instance.
-  const SessionValidator();
+  ///
+  /// The [appDatabase] parameter is optional - if not provided, will use AppDatabase() directly.
+  const SessionValidator({AppDatabase? appDatabase})
+      : _appDatabase = appDatabase;
+
+  /// AppDatabase instance for database operations.
+  final AppDatabase? _appDatabase;
 
   /// Validates session cookies by making a lightweight test request.
   ///
@@ -53,8 +59,9 @@ class SessionValidator {
         context: 'session_validation',
       );
 
-      final db = AppDatabase().database;
-      final endpointManager = EndpointManager(db);
+      final appDb = _appDatabase ?? AppDatabase.getInstance();
+      final db = appDb.database;
+      final endpointManager = EndpointManager(db, appDb);
       final activeBase = await endpointManager.getActiveEndpoint();
       final testUrl = '$activeBase/index.php';
 

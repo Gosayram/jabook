@@ -17,6 +17,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:jabook/core/favorites/favorites_provider.dart';
 import 'package:jabook/core/parse/rutracker_parser.dart';
+import 'package:jabook/core/utils/app_title_utils.dart';
 import 'package:jabook/l10n/app_localizations.dart';
 
 /// Screen for displaying user's favorite audiobooks.
@@ -280,7 +281,8 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
                   '${_selectedIds.length} ${AppLocalizations.of(context)?.selected ?? 'selected'}',
                 )
               : Text(
-                  AppLocalizations.of(context)?.favoritesTitle ?? 'Favorites',
+                  (AppLocalizations.of(context)?.favoritesTitle ?? 'Favorites')
+                      .withFlavorSuffix(),
                 ),
           leading: _isSelectionMode
               ? IconButton(

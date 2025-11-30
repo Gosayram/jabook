@@ -22,23 +22,26 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:jabook/core/backup/backup_service.dart';
 import 'package:jabook/core/cache/rutracker_cache_service.dart';
-import 'package:jabook/core/config/audio_settings_manager.dart';
-import 'package:jabook/core/config/audio_settings_provider.dart';
-import 'package:jabook/core/config/book_audio_settings_service.dart';
-import 'package:jabook/core/config/language_manager.dart';
-import 'package:jabook/core/config/language_provider.dart';
-import 'package:jabook/core/config/theme_provider.dart';
+import 'package:jabook/core/di/providers/database_providers.dart';
+import 'package:jabook/core/di/providers/utils_providers.dart';
+import 'package:jabook/core/infrastructure/config/app_config.dart';
+import 'package:jabook/core/infrastructure/config/audio_settings_manager.dart';
+import 'package:jabook/core/infrastructure/config/audio_settings_provider.dart';
+import 'package:jabook/core/infrastructure/config/book_audio_settings_service.dart';
+import 'package:jabook/core/infrastructure/config/language_manager.dart';
+import 'package:jabook/core/infrastructure/config/language_provider.dart';
+import 'package:jabook/core/infrastructure/config/theme_provider.dart';
+import 'package:jabook/core/infrastructure/permissions/permission_service.dart';
 import 'package:jabook/core/library/library_migration_service.dart';
 import 'package:jabook/core/metadata/audiobook_metadata_service.dart';
 import 'package:jabook/core/metadata/metadata_sync_scheduler.dart';
 import 'package:jabook/core/net/dio_client.dart';
-import 'package:jabook/core/permissions/permission_service.dart';
 import 'package:jabook/core/player/player_state_provider.dart';
 import 'package:jabook/core/session/session_manager.dart';
+import 'package:jabook/core/utils/app_title_utils.dart';
 import 'package:jabook/core/utils/content_uri_service.dart';
 import 'package:jabook/core/utils/file_picker_utils.dart' as file_picker_utils;
 import 'package:jabook/core/utils/storage_path_utils.dart';
-import 'package:jabook/data/db/app_database.dart';
 import 'package:jabook/features/settings/presentation/screens/background_compatibility_screen.dart';
 import 'package:jabook/features/settings/presentation/screens/mirror_settings_screen.dart';
 import 'package:jabook/l10n/app_localizations.dart';
@@ -91,7 +94,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   Future<void> _loadDownloadFolder() async {
     // Use StoragePathUtils to get default path if not set
-    final storageUtils = StoragePathUtils();
+    final storageUtils = ref.read(storagePathUtilsProvider);
     final path = await storageUtils.getDefaultAudiobookPath();
     if (mounted) {
       setState(() {
@@ -101,7 +104,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Future<void> _loadLibraryFolders() async {
-    final storageUtils = StoragePathUtils();
+    final storageUtils = ref.read(storagePathUtilsProvider);
     final path = await storageUtils.getLibraryFolderPath();
     final folders = await storageUtils.getLibraryFolders();
     if (mounted) {
@@ -182,7 +185,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(localizations?.settingsTitle ?? 'Settings'),
+        title: Text(
+            (localizations?.settingsTitle ?? 'Settings').withFlavorSuffix()),
       ),
       body: ListView(
         padding: const EdgeInsets.all(16.0),
@@ -593,7 +597,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   Future<Map<String, dynamic>> _loadMetadataStats() async {
     try {
-      final db = AppDatabase().database;
+      final db = ref.read(appDatabaseProvider).database;
       final metadataService = AudiobookMetadataService(db);
       final scheduler = MetadataSyncScheduler(db, metadataService);
 
@@ -620,7 +624,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       // Show updating indicator
       setState(() {});
 
-      final db = AppDatabase().database;
+      final db = ref.read(appDatabaseProvider).database;
       final metadataService = AudiobookMetadataService(db);
       final scheduler = MetadataSyncScheduler(db, metadataService);
 
@@ -828,7 +832,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             title: Text(localizations?.playbackSpeedTitle ??
                 localizations?.playbackSpeed ??
                 'Playback Speed'),
-            subtitle: Text('${audioSettings.defaultPlaybackSpeed}x'),
+            subtitle: Text(AudioSettingsManager.formatPlaybackSpeed(
+                audioSettings.defaultPlaybackSpeed)),
             onTap: () {
               _showPlaybackSpeedDialog(context, audioSettings, audioNotifier);
             },
@@ -876,6 +881,27 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             },
           ),
         ),
+        // Inactivity timeout selection
+        Semantics(
+          button: true,
+          label:
+              localizations?.inactivityTimeoutLabel ?? 'Set inactivity timeout',
+          child: ListTile(
+            leading: const Icon(Icons.timer_outlined),
+            title: Text(
+                localizations?.inactivityTimeoutTitle ?? 'Inactivity Timeout'),
+            subtitle: Text(
+              '${audioSettings.inactivityTimeoutMinutes} ${audioSettings.inactivityTimeoutMinutes == 1 ? (localizations?.minute ?? 'minute') : (localizations?.minutes ?? 'minutes')}',
+            ),
+            onTap: () {
+              _showInactivityTimeoutDialog(
+                context,
+                audioSettings.inactivityTimeoutMinutes,
+                audioNotifier,
+              );
+            },
+          ),
+        ),
         const Divider(),
         // Reset all book settings button
         ListTile(
@@ -915,7 +941,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               mainAxisSize: MainAxisSize.min,
               children: speeds
                   .map((speed) => RadioListTile<double>(
-                        title: Text('${speed}x'),
+                        title: Text(
+                            AudioSettingsManager.formatPlaybackSpeed(speed)),
                         value: speed,
                         // ignore: deprecated_member_use
                         groupValue: selectedSpeed,
@@ -979,6 +1006,50 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
   }
 
+  /// Shows dialog for selecting inactivity timeout.
+  Future<void> _showInactivityTimeoutDialog(
+    BuildContext context,
+    int currentTimeout,
+    AudioSettingsNotifier audioNotifier,
+  ) async {
+    final localizations = AppLocalizations.of(context);
+    // Generate list of timeout options: 10, 15, 20, 30, 45, 60, 90, 120, 150, 180 minutes
+    final timeouts = [10, 15, 20, 30, 45, 60, 90, 120, 150, 180];
+
+    final result = await showDialog<int>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title:
+            Text(localizations?.inactivityTimeoutTitle ?? 'Inactivity Timeout'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: timeouts
+                .map((timeout) => RadioListTile<int>(
+                      title: Text(
+                        '$timeout ${timeout == 1 ? (localizations?.minute ?? 'minute') : (localizations?.minutes ?? 'minutes')}',
+                      ),
+                      value: timeout,
+                      // ignore: deprecated_member_use
+                      groupValue: currentTimeout,
+                      // ignore: deprecated_member_use
+                      onChanged: (value) {
+                        Navigator.of(context).pop(value);
+                      },
+                    ))
+                .toList(),
+          ),
+        ),
+      ),
+    );
+
+    if (result != null) {
+      await audioNotifier.setInactivityTimeoutMinutes(result);
+      // Update inactivity timeout if player is active
+      await _updateInactivityTimeout();
+    }
+  }
+
   /// Updates skip durations in MediaSessionManager if player is active.
   Future<void> _updateMediaSessionSkipDurations() async {
     try {
@@ -994,6 +1065,23 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       }
     } on Exception {
       // Ignore errors - MediaSessionManager update is not critical
+    }
+  }
+
+  /// Updates inactivity timeout if player is active.
+  Future<void> _updateInactivityTimeout() async {
+    try {
+      final playerState = ref.read(playerStateProvider);
+      // Only update if player is initialized
+      if (playerState.playbackState != 0) {
+        final audioSettings = ref.read(audioSettingsProvider);
+        final playerService = ref.read(media3PlayerServiceProvider);
+        await playerService.setInactivityTimeoutMinutes(
+          audioSettings.inactivityTimeoutMinutes,
+        );
+      }
+    } on Exception {
+      // Ignore errors - inactivity timeout update is not critical
     }
   }
 
@@ -1274,21 +1362,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Future<Map<String, dynamic>> _loadCacheStats() async {
-    final db = AppDatabase().database;
+    final db = ref.read(appDatabaseProvider).database;
     final cache = RuTrackerCacheService();
     await cache.initialize(db);
     return cache.getStatistics();
   }
 
   Future<void> _clearExpiredCache() async {
-    final db = AppDatabase().database;
+    final db = ref.read(appDatabaseProvider).database;
     final cache = RuTrackerCacheService();
     await cache.initialize(db);
     await cache.clearExpired();
   }
 
   Future<void> _clearAllCache() async {
-    final db = AppDatabase().database;
+    final appDatabase = ref.read(appDatabaseProvider);
+    final db = appDatabase.database;
     final cache = RuTrackerCacheService();
     await cache.initialize(db);
     await cache.clearSearchResultsCache();
@@ -1455,7 +1544,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       title: AppLocalizations.of(context)?.storagePermissionName ??
           'Storage Permission',
       message: AppLocalizations.of(context)?.storagePermissionDescription ??
-          'JaBook needs storage permission to save audiobook files and cache data. '
+          '${AppConfig().displayAppName} needs storage permission to save audiobook files and cache data. '
               'This allows you to download and play audiobooks offline.',
     );
 
@@ -1557,7 +1646,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           'Notification Permission',
       message: AppLocalizations.of(context)
               ?.notificationsPermissionDescription ??
-          'JaBook needs notification permission to show playback controls and updates. '
+          '${AppConfig().displayAppName} needs notification permission to show playback controls and updates. '
               'This allows you to control playback from the notification panel.',
     );
 
@@ -1803,7 +1892,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       );
 
     try {
-      final appDatabase = AppDatabase();
+      final appDatabase = ref.read(appDatabaseProvider);
       await appDatabase.initialize();
       final backupService = BackupService(appDatabase.database);
 
@@ -1816,8 +1905,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         // ignore: deprecated_member_use
         await Share.shareXFiles(
           [XFile(filePath)],
-          subject: 'JaBook Backup',
-          text: 'JaBook data backup',
+          subject: '${AppConfig().displayAppName} Backup',
+          text: '${AppConfig().displayAppName} data backup',
         );
 
         if (!mounted) return;
@@ -1888,7 +1977,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
         );
 
-        final appDatabase = AppDatabase();
+        final appDatabase = ref.read(appDatabaseProvider);
         await appDatabase.initialize();
         final backupService = BackupService(appDatabase.database);
 
@@ -1989,17 +2078,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       final androidInfo = await DeviceInfoPlugin().androidInfo;
       final sdkInt = androidInfo.version.sdkInt;
 
-      if (sdkInt >= 33) {
+      // Show hint dialog for Android 11+ (SAF is required)
+      if (sdkInt >= 30) {
         if (!mounted) return;
-        // Show instruction dialog for Android 13+
+        // Show instruction dialog with checkbox hint
         // Use savedContext which was captured before async operations
-        final dialogTitle =
-            localizations?.selectFolderDialogTitle ?? 'Select Download Folder';
-        final dialogMessage = localizations?.selectFolderDialogMessage ??
-            'To select a download folder:\n\n'
-                '1. Navigate to the desired folder in the file manager\n'
-                '2. Tap "Use this folder" button in the top right corner\n\n'
-                'The selected folder will be used to save downloaded audiobooks.';
+        final dialogTitle = localizations?.safFolderPickerHintTitle ??
+            'Important: Check the checkbox';
+        final dialogMessage = localizations?.safFolderPickerHintMessage ??
+            'When selecting a folder, please make sure to check the \'Allow access to this folder\' checkbox in the file picker dialog. Without this checkbox, the app cannot access the selected folder.';
         final cancelText = localizations?.cancel ?? 'Cancel';
 
         // Check if context is still mounted before using it
@@ -2018,9 +2105,29 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ],
             ),
             content: SingleChildScrollView(
-              child: Text(
-                dialogMessage,
-                style: Theme.of(dialogContext).textTheme.bodyMedium,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    dialogMessage,
+                    style: Theme.of(dialogContext).textTheme.bodyMedium,
+                  ),
+                  if (sdkInt >= 30) ...[
+                    const SizedBox(height: 16),
+                    Text(
+                      localizations?.safAndroidDataObbWarning ??
+                          'Note: Access to Android/data and Android/obb folders is blocked on Android 11+ devices with security updates from March 2024. Please select a different folder.',
+                      style: Theme.of(dialogContext)
+                          .textTheme
+                          .bodySmall
+                          ?.copyWith(
+                            fontStyle: FontStyle.italic,
+                            color: Theme.of(dialogContext).colorScheme.error,
+                          ),
+                    ),
+                  ],
+                ],
               ),
             ),
             actions: [
@@ -2055,19 +2162,38 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
         if (isContentUri) {
           // Check access via ContentResolver for content URIs
+          // Use retry logic as some devices may have delayed permission persistence
           try {
             final contentUriService = ContentUriService();
-            isAccessible = await contentUriService.checkUriAccess(selectedPath);
+            var hasAccess =
+                await contentUriService.checkUriAccess(selectedPath);
+
+            // Retry after delay if first check fails (some devices have delayed persistence)
+            if (!hasAccess) {
+              debugPrint('First access check failed, retrying after 500ms...');
+              await Future.delayed(const Duration(milliseconds: 500));
+              hasAccess = await contentUriService.checkUriAccess(selectedPath);
+            }
+
+            // Second retry with longer delay if still no access
+            if (!hasAccess) {
+              debugPrint('Second access check failed, retrying after 1s...');
+              await Future.delayed(const Duration(milliseconds: 1000));
+              hasAccess = await contentUriService.checkUriAccess(selectedPath);
+            }
+
+            isAccessible = hasAccess;
+
             if (!isAccessible) {
               if (mounted) {
                 messenger.showSnackBar(
                   SnackBar(
                     content: Text(
-                      localizations?.permissionDeniedMessage ??
-                          'No access to selected folder. Please grant permission in the file picker.',
+                      localizations?.safNoAccessMessage ??
+                          'No access to selected folder. Please check the \'Allow access to this folder\' checkbox in the file picker and try again.',
                     ),
                     backgroundColor: Colors.orange,
-                    duration: const Duration(seconds: 3),
+                    duration: const Duration(seconds: 5),
                   ),
                 );
               }
@@ -2105,7 +2231,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         }
 
         // Save selected path using StoragePathUtils
-        final storageUtils = StoragePathUtils();
+        final storageUtils = ref.read(storagePathUtilsProvider);
         await storageUtils.setDownloadFolderPath(selectedPath);
 
         if (mounted) {
@@ -2325,14 +2451,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final localizations = AppLocalizations.of(savedContext);
     final messenger = ScaffoldMessenger.of(savedContext);
 
-    // Check Android version to show instruction dialog for Android 13+
+    // Show hint dialog for Android 11+ (SAF is required)
     if (Platform.isAndroid) {
       final androidInfo = await DeviceInfoPlugin().androidInfo;
       final sdkInt = androidInfo.version.sdkInt;
 
-      if (sdkInt >= 33) {
+      if (sdkInt >= 30) {
         if (!mounted) return;
         final dialogContext = context;
+        final dialogTitle = localizations?.safFolderPickerHintTitle ??
+            'Important: Check the checkbox';
+        final dialogMessage = localizations?.safFolderPickerHintMessage ??
+            'When selecting a folder, please make sure to check the \'Allow access to this folder\' checkbox in the file picker dialog. Without this checkbox, the app cannot access the selected folder.';
         final shouldProceed = await showDialog<bool>(
           // ignore: use_build_context_synchronously
           context: dialogContext,
@@ -2344,21 +2474,29 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   color: Theme.of(dialogContext).colorScheme.primary,
                 ),
                 const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    localizations?.selectLibraryFolderDialogTitle ??
-                        'Select Library Folder',
-                  ),
-                ),
+                Expanded(child: Text(dialogTitle)),
               ],
             ),
             content: SingleChildScrollView(
-              child: Text(
-                localizations?.selectLibraryFolderDialogMessage ??
-                    'To select a library folder:\n\n'
-                        '1. Navigate to the desired folder in the file manager\n'
-                        '2. Tap "Use this folder" button in the top right corner\n\n'
-                        'The selected folder will be used to scan for audiobooks.',
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    dialogMessage,
+                    style: Theme.of(dialogContext).textTheme.bodyMedium,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    localizations?.safAndroidDataObbWarning ??
+                        'Note: Access to Android/data and Android/obb folders is blocked on Android 11+ devices with security updates from March 2024. Please select a different folder.',
+                    style:
+                        Theme.of(dialogContext).textTheme.bodySmall?.copyWith(
+                              fontStyle: FontStyle.italic,
+                              color: Theme.of(dialogContext).colorScheme.error,
+                            ),
+                  ),
+                ],
               ),
             ),
             actions: [
@@ -2369,7 +2507,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ElevatedButton.icon(
                 onPressed: () => Navigator.of(dialogContext).pop(true),
                 icon: const Icon(Icons.folder_open),
-                label: const Text('Select Folder'),
+                label: const Text('Continue'),
               ),
             ],
           ),
@@ -2394,19 +2532,38 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
         if (isContentUri) {
           // Check access via ContentResolver for content URIs
+          // Use retry logic as some devices may have delayed permission persistence
           try {
             final contentUriService = ContentUriService();
-            isAccessible = await contentUriService.checkUriAccess(selectedPath);
+            var hasAccess =
+                await contentUriService.checkUriAccess(selectedPath);
+
+            // Retry after delay if first check fails (some devices have delayed persistence)
+            if (!hasAccess) {
+              debugPrint('First access check failed, retrying after 500ms...');
+              await Future.delayed(const Duration(milliseconds: 500));
+              hasAccess = await contentUriService.checkUriAccess(selectedPath);
+            }
+
+            // Second retry with longer delay if still no access
+            if (!hasAccess) {
+              debugPrint('Second access check failed, retrying after 1s...');
+              await Future.delayed(const Duration(milliseconds: 1000));
+              hasAccess = await contentUriService.checkUriAccess(selectedPath);
+            }
+
+            isAccessible = hasAccess;
+
             if (!isAccessible) {
               if (mounted) {
                 messenger.showSnackBar(
                   SnackBar(
                     content: Text(
-                      localizations?.permissionDeniedMessage ??
-                          'No access to selected folder. Please grant permission in the file picker.',
+                      localizations?.safNoAccessMessage ??
+                          'No access to selected folder. Please check the \'Allow access to this folder\' checkbox in the file picker and try again.',
                     ),
                     backgroundColor: Colors.orange,
-                    duration: const Duration(seconds: 3),
+                    duration: const Duration(seconds: 5),
                   ),
                 );
               }
@@ -2489,7 +2646,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         }
 
         // Save selected path
-        final storageUtils = StoragePathUtils();
+        final storageUtils = ref.read(storagePathUtilsProvider);
         await storageUtils.setLibraryFolderPath(selectedPath);
         await _loadLibraryFolders();
 
@@ -2568,6 +2725,75 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final localizations = AppLocalizations.of(savedContext);
     final messenger = ScaffoldMessenger.of(savedContext);
 
+    // Show hint dialog for Android 11+ (SAF is required)
+    if (Platform.isAndroid) {
+      final androidInfo = await DeviceInfoPlugin().androidInfo;
+      final sdkInt = androidInfo.version.sdkInt;
+
+      if (sdkInt >= 30) {
+        if (!mounted) return;
+        // Check if context is still mounted before using it
+        if (!savedContext.mounted) return;
+        final dialogTitle = localizations?.safFolderPickerHintTitle ??
+            'Important: Check the checkbox';
+        final dialogMessage = localizations?.safFolderPickerHintMessage ??
+            'When selecting a folder, please make sure to check the \'Allow access to this folder\' checkbox in the file picker dialog. Without this checkbox, the app cannot access the selected folder.';
+        final shouldProceed = await showDialog<bool>(
+          context: savedContext,
+          builder: (dialogContext) => AlertDialog(
+            title: Row(
+              children: [
+                Icon(
+                  Icons.info_outline,
+                  color: Theme.of(dialogContext).colorScheme.primary,
+                ),
+                const SizedBox(width: 8),
+                Expanded(child: Text(dialogTitle)),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    dialogMessage,
+                    style: Theme.of(dialogContext).textTheme.bodyMedium,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    localizations?.safAndroidDataObbWarning ??
+                        'Note: Access to Android/data and Android/obb folders is blocked on Android 11+ devices with security updates from March 2024. Please select a different folder.',
+                    style:
+                        Theme.of(dialogContext).textTheme.bodySmall?.copyWith(
+                              fontStyle: FontStyle.italic,
+                              color: Theme.of(dialogContext).colorScheme.error,
+                            ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(false),
+                child: Text(localizations?.cancel ?? 'Cancel'),
+              ),
+              ElevatedButton.icon(
+                onPressed: () => Navigator.of(dialogContext).pop(true),
+                icon: const Icon(Icons.folder_open),
+                label: const Text('Continue'),
+              ),
+            ],
+          ),
+        );
+
+        if (!mounted) return;
+        if (shouldProceed != true) {
+          return; // User cancelled
+        }
+      }
+    }
+
     try {
       final selectedPath = await file_picker_utils.pickDirectory();
 
@@ -2579,19 +2805,38 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
         if (isContentUri) {
           // Check access via ContentResolver for content URIs
+          // Use retry logic as some devices may have delayed permission persistence
           try {
             final contentUriService = ContentUriService();
-            isAccessible = await contentUriService.checkUriAccess(selectedPath);
+            var hasAccess =
+                await contentUriService.checkUriAccess(selectedPath);
+
+            // Retry after delay if first check fails (some devices have delayed persistence)
+            if (!hasAccess) {
+              debugPrint('First access check failed, retrying after 500ms...');
+              await Future.delayed(const Duration(milliseconds: 500));
+              hasAccess = await contentUriService.checkUriAccess(selectedPath);
+            }
+
+            // Second retry with longer delay if still no access
+            if (!hasAccess) {
+              debugPrint('Second access check failed, retrying after 1s...');
+              await Future.delayed(const Duration(milliseconds: 1000));
+              hasAccess = await contentUriService.checkUriAccess(selectedPath);
+            }
+
+            isAccessible = hasAccess;
+
             if (!isAccessible) {
               if (mounted) {
                 messenger.showSnackBar(
                   SnackBar(
                     content: Text(
-                      localizations?.permissionDeniedMessage ??
-                          'No access to selected folder. Please grant permission in the file picker.',
+                      localizations?.safNoAccessMessage ??
+                          'No access to selected folder. Please check the \'Allow access to this folder\' checkbox in the file picker and try again.',
                     ),
                     backgroundColor: Colors.orange,
-                    duration: const Duration(seconds: 3),
+                    duration: const Duration(seconds: 5),
                   ),
                 );
               }
@@ -2646,19 +2891,43 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         }
 
         // Add folder
-        final storageUtils = StoragePathUtils();
+        final storageUtils = ref.read(storagePathUtilsProvider);
         final added = await storageUtils.addLibraryFolder(selectedPath);
         await _loadLibraryFolders();
 
         if (mounted) {
           if (added) {
+            // For content URIs, verify access one more time after adding
+            // This ensures the permission was properly persisted
+            if (isContentUri) {
+              try {
+                final contentUriService = ContentUriService();
+                final finalCheck =
+                    await contentUriService.checkUriAccess(selectedPath);
+                if (!finalCheck) {
+                  debugPrint(
+                      'Warning: Access check failed after adding folder, but folder was added');
+                  // Still show success, but log warning
+                  // The scanner will handle access errors during scanning
+                }
+              } on Exception catch (e) {
+                debugPrint('Error in final access check: $e');
+                // Continue anyway - folder was added
+              }
+            }
+
             messenger.showSnackBar(
               SnackBar(
                 content: Text(
                   localizations?.libraryFolderAddedSuccessMessage ??
-                      'Library folder added successfully',
+                      'Library folder added successfully. Please refresh the library to scan for new files.',
                 ),
                 backgroundColor: Colors.green,
+                action: SnackBarAction(
+                  label: 'OK',
+                  textColor: Colors.white,
+                  onPressed: () {},
+                ),
               ),
             );
           } else {
@@ -2724,7 +2993,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     if (confirmed != true) return;
 
     // Remove folder
-    final storageUtils = StoragePathUtils();
+    final storageUtils = ref.read(storagePathUtilsProvider);
     final removed = await storageUtils.removeLibraryFolder(folder);
     await _loadLibraryFolders();
 

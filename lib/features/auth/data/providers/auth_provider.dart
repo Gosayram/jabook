@@ -13,15 +13,8 @@
 // limitations under the License.
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:jabook/features/auth/domain/entities/auth_status.dart';
-import 'package:jabook/features/auth/domain/repositories/auth_repository.dart';
-
-/// Provider for AuthRepository instance.
-final authRepositoryProvider = Provider<AuthRepository>((ref) {
-  // This provider should be overridden in the widget tree with proper context
-  throw Exception(
-      'AuthRepositoryProvider must be overridden with proper context');
-});
+import 'package:jabook/core/di/providers/auth_providers.dart';
+import 'package:jabook/core/domain/auth/entities/auth_status.dart';
 
 /// Provider for authentication status.
 final authStatusProvider = StreamProvider<AuthStatus>((ref) {

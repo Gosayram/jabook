@@ -52,6 +52,9 @@ help:
 	@echo "  make fmt                           - Format code"
 	@echo "  make fmt-check                     - Check code formatting (for CI)"
 	@echo "  make lint                          - Run linting"
+	@echo "  make lint-kotlin                   - Lint Kotlin code (ktlint check)"
+	@echo "  make fmt-kotlin                    - Format Kotlin code (ktlint format)"
+	@echo "  make compile                       - Compile Kotlin code (for syntax checking)"
 	@echo "  make l10n                          - Generate localization files (flutter gen-l10n)"
 	@echo "  make check-l10n         			- Check for duplicate keys in ARB files"
 	@echo "  make analyze-size                  - Analyze APK size with detailed breakdown"
@@ -446,6 +449,43 @@ fmt:
 .PHONY: lint
 lint:
 	flutter analyze
+
+.PHONY: compile
+compile:
+	@echo "Compiling Kotlin code for all flavors..."
+	@(cd android && ./gradlew :app:compileDevDebugKotlin :app:compileBetaDebugKotlin :app:compileProdDebugKotlin :app:compileStageDebugKotlin --no-daemon); \
+	EXIT_CODE=$$?; \
+	if [ $$EXIT_CODE -eq 0 ]; then \
+		echo "✅ Kotlin compilation successful for all flavors"; \
+	else \
+		echo "❌ Kotlin compilation failed with exit code $$EXIT_CODE"; \
+	fi; \
+	exit $$EXIT_CODE
+
+.PHONY: lint-kotlin
+lint-kotlin:
+	@echo "Linting Kotlin code with ktlint..."
+	@(cd android && ./gradlew :app:ktlintCheck --no-daemon); \
+	EXIT_CODE=$$?; \
+	if [ $$EXIT_CODE -eq 0 ]; then \
+		echo "✅ Kotlin linting passed"; \
+	else \
+		echo "❌ Kotlin linting failed with exit code $$EXIT_CODE"; \
+		echo "Run 'make fmt-kotlin' to auto-fix issues"; \
+	fi; \
+	exit $$EXIT_CODE
+
+.PHONY: fmt-kotlin
+fmt-kotlin:
+	@echo "Formatting Kotlin code with ktlint..."
+	@(cd android && ./gradlew :app:ktlintFormat --no-daemon); \
+	EXIT_CODE=$$?; \
+	if [ $$EXIT_CODE -eq 0 ]; then \
+		echo "✅ Kotlin code formatted successfully"; \
+	else \
+		echo "❌ Kotlin formatting failed with exit code $$EXIT_CODE"; \
+	fi; \
+	exit $$EXIT_CODE
 
 # Release commands
 .PHONY: release-android

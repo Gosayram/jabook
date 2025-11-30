@@ -14,7 +14,7 @@
 
 import 'dart:async';
 
-import 'package:jabook/core/logging/environment_logger.dart';
+import 'package:jabook/core/infrastructure/logging/environment_logger.dart';
 
 /// Safely executes a future without awaiting it, with error handling.
 ///

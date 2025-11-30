@@ -22,22 +22,22 @@ import 'package:dio/dio.dart';
 import 'package:dtorrent_common/dtorrent_common.dart'; // PeerSource is used in addPeer call
 import 'package:dtorrent_parser/dtorrent_parser.dart';
 import 'package:dtorrent_task_v2/dtorrent_task_v2.dart';
-import 'package:jabook/core/background/download_background_service.dart';
+import 'package:jabook/core/data/local/database/app_database.dart';
 import 'package:jabook/core/download/download_foreground_service.dart';
-import 'package:jabook/core/errors/failures.dart';
+import 'package:jabook/core/infrastructure/background/download_background_service.dart';
+import 'package:jabook/core/infrastructure/errors/failures.dart';
+import 'package:jabook/core/infrastructure/logging/environment_logger.dart';
+import 'package:jabook/core/infrastructure/logging/structured_logger.dart';
+import 'package:jabook/core/infrastructure/notifications/download_notification_service.dart';
+import 'package:jabook/core/infrastructure/permissions/permission_service.dart';
 import 'package:jabook/core/library/audiobook_library_scanner.dart';
 import 'package:jabook/core/library/folder_filter_service.dart';
 import 'package:jabook/core/library/smart_scanner_service.dart';
-import 'package:jabook/core/logging/environment_logger.dart';
-import 'package:jabook/core/logging/structured_logger.dart';
 import 'package:jabook/core/net/dio_client.dart';
-import 'package:jabook/core/notifications/download_notification_service.dart';
-import 'package:jabook/core/permissions/permission_service.dart';
 import 'package:jabook/core/utils/content_uri_service.dart';
 import 'package:jabook/core/utils/network_utils.dart';
 import 'package:jabook/core/utils/safe_async.dart';
 import 'package:jabook/core/utils/storage_path_utils.dart';
-import 'package:jabook/data/db/app_database.dart';
 import 'package:path/path.dart' as path;
 import 'package:sembast/sembast.dart';
 
@@ -2629,7 +2629,7 @@ class AudiobookTorrentManager {
     }
 
     try {
-      final store = AppDatabase().downloadsStore;
+      final store = AppDatabase.getInstance().downloadsStore;
       await store.record(downloadId).put(_db!, metadata);
       logger.d(
           '_saveDownloadMetadata: Successfully saved metadata for downloadId: $downloadId');
@@ -2646,7 +2646,7 @@ class AudiobookTorrentManager {
     if (_db == null) return;
 
     try {
-      final store = AppDatabase().downloadsStore;
+      final store = AppDatabase.getInstance().downloadsStore;
       await store.record(downloadId).delete(_db!);
     } on Exception {
       // Ignore errors - persistence is optional
@@ -2658,7 +2658,7 @@ class AudiobookTorrentManager {
     if (_db == null) return;
 
     try {
-      final store = AppDatabase().downloadsStore;
+      final store = AppDatabase.getInstance().downloadsStore;
       final records = await store.find(_db!);
 
       for (final record in records) {

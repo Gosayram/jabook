@@ -18,7 +18,7 @@ import android.os.CountDownTimer
 
 /**
  * Suspendable countdown timer that supports pause and resume operations.
- * 
+ *
  * Inspired by lissen-android implementation for better timer control.
  * This allows the timer to pause when playback pauses and resume when playback resumes.
  */
@@ -42,7 +42,7 @@ class SuspendableCountDownTimer(
 
     /**
      * Pauses the timer and returns remaining milliseconds.
-     * 
+     *
      * @return Remaining milliseconds
      */
     fun pause(): Long {
@@ -52,7 +52,7 @@ class SuspendableCountDownTimer(
 
     /**
      * Resumes the timer with remaining milliseconds.
-     * 
+     *
      * @return New SuspendableCountDownTimer instance
      */
     fun resume(): SuspendableCountDownTimer {
@@ -61,4 +61,3 @@ class SuspendableCountDownTimer(
         return timer
     }
 }
-

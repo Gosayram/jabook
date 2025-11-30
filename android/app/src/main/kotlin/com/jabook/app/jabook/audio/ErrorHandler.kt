@@ -14,47 +14,50 @@
 
 package com.jabook.app.jabook.audio
 
-import android.os.Build
 import android.content.Context
+import android.os.Build
 import androidx.media3.common.PlaybackException
 import kotlinx.coroutines.CoroutineExceptionHandler
 
 /**
  * Centralized error handler for audio player components.
- * 
+ *
  * This class provides consistent error handling and logging across
  * all audio player components, with special handling for Android 14+.
  */
 object ErrorHandler {
-    
     /**
      * Handles playback errors with Android 14+ specific considerations.
-     * 
+     *
      * @param tag Log tag for error identification
      * @param error The playback exception that occurred
      * @param context Additional context information
      */
-    fun handlePlaybackError(tag: String, error: PlaybackException?, context: String? = null) {
+    fun handlePlaybackError(
+        tag: String,
+        error: PlaybackException?,
+        context: String? = null,
+    ) {
         val errorMessage = error?.message ?: "Unknown error"
         // Use 0 as default error code (unknown error) if error is null
         val errorCode = error?.errorCode ?: 0
-        
+
         android.util.Log.e(tag, "Playback error: $errorMessage (code: $errorCode)", error)
-        
+
         // Android 14+ specific error handling
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             handleAndroid14SpecificError(tag, errorCode, errorMessage, context)
         }
-        
+
         // Log additional context if provided
         context?.let {
             android.util.Log.e(tag, "Error context: $it")
         }
     }
-    
+
     /**
      * Handles Android 14+ specific errors.
-     * 
+     *
      * @param tag Log tag
      * @param errorCode Error code from PlaybackException
      * @param errorMessage Error message
@@ -64,11 +67,12 @@ object ErrorHandler {
         tag: String,
         errorCode: Int,
         errorMessage: String,
-        context: String?
+        context: String?,
     ) {
         when (errorCode) {
             PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED,
-            PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT -> {
+            PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT,
+            -> {
                 android.util.Log.w(tag, "Android 14+ network error: $errorMessage")
                 // Android 14+ has stricter network requirements
                 logAndroid14NetworkIssues(tag)
@@ -78,16 +82,17 @@ object ErrorHandler {
                 // Android 14+ may have additional HTTP restrictions
             }
             PlaybackException.ERROR_CODE_AUDIO_TRACK_INIT_FAILED,
-            PlaybackException.ERROR_CODE_AUDIO_TRACK_WRITE_FAILED -> {
+            PlaybackException.ERROR_CODE_AUDIO_TRACK_WRITE_FAILED,
+            -> {
                 android.util.Log.w(tag, "Android 14+ audio track error: $errorMessage")
                 // Android 14+ has stricter audio focus management
             }
         }
     }
-    
+
     /**
      * Logs Android 14+ specific network issues.
-     * 
+     *
      * @param tag Log tag
      */
     private fun logAndroid14NetworkIssues(tag: String) {
@@ -96,32 +101,36 @@ object ErrorHandler {
         android.util.Log.w(tag, "- Verify cleartext traffic policy")
         android.util.Log.w(tag, "- Check foreground service restrictions")
     }
-    
+
     /**
      * Handles general exceptions with Android 14+ considerations.
-     * 
+     *
      * @param tag Log tag
      * @param exception The exception that occurred
      * @param context Additional context information
      */
-    fun handleGeneralError(tag: String, exception: Exception, context: String? = null) {
+    fun handleGeneralError(
+        tag: String,
+        exception: Exception,
+        context: String? = null,
+    ) {
         val errorMessage = exception.message ?: "Unknown exception"
         android.util.Log.e(tag, "General error: $errorMessage", exception)
-        
+
         // Android 14+ specific error handling
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             handleAndroid14SpecificException(tag, exception, context)
         }
-        
+
         // Log additional context if provided
         context?.let {
             android.util.Log.e(tag, "Error context: $it")
         }
     }
-    
+
     /**
      * Handles Android 14+ specific exceptions.
-     * 
+     *
      * @param tag Log tag
      * @param exception The exception that occurred
      * @param context Additional context
@@ -129,7 +138,7 @@ object ErrorHandler {
     private fun handleAndroid14SpecificException(
         tag: String,
         exception: Exception,
-        context: String?
+        context: String?,
     ) {
         when (exception) {
             is SecurityException -> {
@@ -145,10 +154,10 @@ object ErrorHandler {
             // If OutOfMemoryError handling is needed, it should be done at a higher level
         }
     }
-    
+
     /**
      * Logs Android 14+ specific security issues.
-     * 
+     *
      * @param tag Log tag
      */
     private fun logAndroid14SecurityIssues(tag: String) {
@@ -157,26 +166,25 @@ object ErrorHandler {
         android.util.Log.w(tag, "- Verify notification permissions")
         android.util.Log.w(tag, "- Check media session permissions")
     }
-    
+
     /**
      * Creates a coroutine exception handler for Android 14+.
-     * 
+     *
      * @param tag Log tag for error identification
      * @return CoroutineExceptionHandler
      */
-    fun createCoroutineExceptionHandler(tag: String): CoroutineExceptionHandler {
-        return CoroutineExceptionHandler { _, exception ->
+    fun createCoroutineExceptionHandler(tag: String): CoroutineExceptionHandler =
+        CoroutineExceptionHandler { _, exception ->
             // Convert Throwable to Exception if needed
             when (exception) {
                 is Exception -> handleGeneralError(tag, exception, "Coroutine exception")
                 else -> handleGeneralError(tag, Exception(exception), "Coroutine exception (converted from Throwable)")
             }
         }
-    }
-    
+
     /**
      * Validates Android 14+ specific requirements.
-     * 
+     *
      * @param context Application context
      * @return true if all requirements are met, false otherwise
      */
@@ -184,18 +192,21 @@ object ErrorHandler {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             return true // Not Android 14+, no special requirements
         }
-        
+
         android.util.Log.d("ErrorHandler", "Validating Android 14+ requirements")
-        
+
         // Check notification permission
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-            val notificationManager = context.getSystemService(android.content.Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+            val notificationManager =
+                context.getSystemService(
+                    android.content.Context.NOTIFICATION_SERVICE,
+                ) as android.app.NotificationManager
             if (!notificationManager.areNotificationsEnabled()) {
                 android.util.Log.e("ErrorHandler", "Android 14+: Notifications are disabled")
                 return false
             }
         }
-        
+
         // Check foreground service permission
         // Note: FOREGROUND_SERVICE_MEDIA_PLAYBACK doesn't exist in Android 14
         // Use basic FOREGROUND_SERVICE permission check instead
@@ -203,43 +214,48 @@ object ErrorHandler {
             android.util.Log.e("ErrorHandler", "Android 14+: Missing FOREGROUND_SERVICE permission")
             return false
         }
-        
+
         android.util.Log.d("ErrorHandler", "Android 14+ requirements validated successfully")
         return true
     }
-    
+
     /**
      * Checks if the app has a specific permission.
-     * 
+     *
      * @param context Application context
      * @param permission Permission to check
      * @return true if permission is granted, false otherwise
      */
-    private fun hasPermission(context: android.content.Context, permission: String): Boolean {
-        return context.checkSelfPermission(permission) == android.content.pm.PackageManager.PERMISSION_GRANTED
-    }
-    
+    private fun hasPermission(
+        context: android.content.Context,
+        permission: String,
+    ): Boolean = context.checkSelfPermission(permission) == android.content.pm.PackageManager.PERMISSION_GRANTED
+
     /**
      * Checks if device is running Color OS (Oppo/OnePlus/Realme).
      * Color OS has additional restrictions on background services and requires special handling.
-     * 
+     *
      * @return true if device is running Color OS, false otherwise
      */
     fun isColorOS(): Boolean {
-        val manufacturer = android.os.Build.MANUFACTURER.lowercase()
-        val brand = android.os.Build.BRAND.lowercase()
-        
-        return manufacturer == "oppo" || 
-               manufacturer == "oneplus" || 
-               brand == "realme" ||
-               brand == "oppo" ||
-               brand == "oneplus"
+        val manufacturer =
+            android.os.Build.MANUFACTURER
+                .lowercase()
+        val brand =
+            android.os.Build.BRAND
+                .lowercase()
+
+        return manufacturer == "oppo" ||
+            manufacturer == "oneplus" ||
+            brand == "realme" ||
+            brand == "oppo" ||
+            brand == "oneplus"
     }
-    
+
     /**
      * Validates Color OS specific requirements.
      * Color OS has stricter requirements for foreground services.
-     * 
+     *
      * @param context Application context
      * @return true if Color OS requirements are met, false otherwise
      */
@@ -247,24 +263,27 @@ object ErrorHandler {
         if (!isColorOS()) {
             return true // Not Color OS, no special requirements
         }
-        
+
         android.util.Log.d("ErrorHandler", "Validating Color OS specific requirements")
-        
+
         // Color OS requires explicit notification permission
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            val notificationManager = context.getSystemService(android.content.Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+            val notificationManager =
+                context.getSystemService(
+                    android.content.Context.NOTIFICATION_SERVICE,
+                ) as android.app.NotificationManager
             if (!notificationManager.areNotificationsEnabled()) {
                 android.util.Log.e("ErrorHandler", "Color OS: Notifications are disabled")
                 return false
             }
         }
-        
+
         // Color OS requires foreground service permission
         if (!hasPermission(context, android.Manifest.permission.FOREGROUND_SERVICE)) {
             android.util.Log.e("ErrorHandler", "Color OS: Missing FOREGROUND_SERVICE permission")
             return false
         }
-        
+
         // Color OS 13+ requires media playback foreground service permission
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             if (!hasPermission(context, android.Manifest.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK)) {
@@ -272,7 +291,7 @@ object ErrorHandler {
                 return false
             }
         }
-        
+
         android.util.Log.d("ErrorHandler", "Color OS requirements validated successfully")
         return true
     }
