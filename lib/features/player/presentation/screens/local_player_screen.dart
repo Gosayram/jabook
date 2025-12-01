@@ -57,7 +57,7 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
   final StructuredLogger _logger = StructuredLogger();
   final SleepTimerService _sleepTimerService = SleepTimerService();
   Timer? _sleepTimerUpdateTimer;
-  bool _isInitialized = false;
+  bool _isPlayerLoading = false; // Player is being initialized
   bool _hasError = false;
   String? _errorMessage;
   // Local state for slider during dragging
@@ -65,15 +65,22 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
   bool _isDragging = false;
   int? _initialPositionMs; // Initial position when dragging starts
   String? _embeddedArtworkPath; // Path to embedded artwork from metadata
+  String?
+      _groupArtworkPath; // First found artwork path for the group (global setting)
 
   @override
   void initState() {
     super.initState();
+    // UI is ready to show immediately (no need for _isInitialized flag)
+    // Player initialization will happen asynchronously in background
     // Store current group in provider for mini player navigation
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(currentAudiobookGroupProvider.notifier).state = widget.group;
+      // Load first available artwork from group files (global setting)
+      _loadGroupArtwork();
+      // Start player initialization asynchronously (non-blocking)
+      _initializePlayer();
     });
-    _initializePlayer();
     // Listen to player state changes to update metadata when track changes
     _setupMetadataListener();
   }
@@ -84,14 +91,18 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
     // If group changed, reinitialize player
     if (oldWidget.group.groupPath != widget.group.groupPath) {
       setState(() {
-        _isInitialized = false;
+        _isPlayerLoading = true;
         _hasError = false;
         _errorMessage = null;
+        _embeddedArtworkPath = null;
+        _groupArtworkPath = null;
       });
       // Stop previous playback before switching
       ref.read(playerStateProvider.notifier).stop();
       // Update current group
       ref.read(currentAudiobookGroupProvider.notifier).state = widget.group;
+      // Load first available artwork from new group
+      _loadGroupArtwork();
       // Reinitialize with new group
       _initializePlayer();
     }
@@ -113,11 +124,80 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
     });
   }
 
-  Future<void> _checkEmbeddedArtwork() async {
+  /// Loads the first available artwork from group files (global setting).
+  /// This ensures we always use the first found artwork, even if the first file doesn't have one.
+  Future<void> _loadGroupArtwork() async {
     try {
-      // Get current media item info which includes artworkPath
+      // Try group coverPath first
+      if (widget.group.coverPath != null) {
+        final coverFile = File(widget.group.coverPath!);
+        if (coverFile.existsSync()) {
+          setState(() {
+            _groupArtworkPath = widget.group.coverPath;
+          });
+          return;
+        }
+      }
+
+      // Try to extract artwork from files in order until found
       final nativePlayer = NativeAudioPlayer();
-      final mediaInfo = await nativePlayer.getCurrentMediaItemInfo();
+      String? artworkPath;
+
+      for (final file in widget.group.files) {
+        try {
+          artworkPath = await nativePlayer.extractArtworkFromFile(
+            file.filePath,
+          );
+
+          if (artworkPath != null) {
+            final artworkFile = File(artworkPath);
+            if (artworkFile.existsSync()) {
+              // Found artwork, stop searching and use this as group artwork
+              if (mounted) {
+                setState(() {
+                  _groupArtworkPath = artworkPath;
+                });
+              }
+              return;
+            } else {
+              artworkPath = null;
+            }
+          }
+        } on Exception catch (e) {
+          // Continue to next file if this one fails
+          debugPrint('Failed to extract artwork from ${file.filePath}: $e');
+          artworkPath = null;
+        }
+      }
+    } on Exception catch (e) {
+      // Silently fail - embedded artwork is optional
+      safeUnawaited(_logger.log(
+        level: 'debug',
+        subsystem: 'player',
+        message: 'Failed to load group artwork',
+        cause: e.toString(),
+      ));
+    }
+  }
+
+  Future<void> _checkEmbeddedArtwork() async {
+    // Use group artwork (first found) as primary source (global setting)
+    // Only check current track artwork if group artwork is not available
+    if (_groupArtworkPath != null) {
+      final artworkFile = File(_groupArtworkPath!);
+      if (artworkFile.existsSync()) {
+        setState(() {
+          _embeddedArtworkPath = _groupArtworkPath;
+        });
+        return;
+      }
+    }
+
+    try {
+      // Fallback: Get current media item info which includes artworkPath
+      // Use Media3PlayerService through provider to ensure singleton instance
+      final playerService = ref.read(media3PlayerServiceProvider);
+      final mediaInfo = await playerService.getCurrentMediaItemInfo();
       final artworkPath = mediaInfo['artworkPath'] as String?;
       if (artworkPath != null && artworkPath.isNotEmpty) {
         final artworkFile = File(artworkPath);
@@ -139,6 +219,15 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
   }
 
   Future<void> _initializePlayer() async {
+    // Mark player as loading (UI is already shown)
+    if (mounted) {
+      setState(() {
+        _isPlayerLoading = true;
+        _hasError = false;
+        _errorMessage = null;
+      });
+    }
+
     try {
       final playerNotifier = ref.read(playerStateProvider.notifier);
       final currentState = ref.read(playerStateProvider);
@@ -160,11 +249,13 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
             'current_track': currentState.currentIndex,
           },
         );
-        setState(() {
-          _isInitialized = true;
-          _hasError = false;
-          _errorMessage = null;
-        });
+        if (mounted) {
+          setState(() {
+            _isPlayerLoading = false;
+            _hasError = false;
+            _errorMessage = null;
+          });
+        }
         return;
       }
 
@@ -176,128 +267,168 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
         // Ignore errors when stopping (might not be playing)
       }
 
-      // Initialize player service
-      await playerNotifier.initialize();
+      // Initialize player service (only if not already initialized)
+      // Media3PlayerService checks _isInitialized internally, but we can skip if already ready
+      if (currentState.playbackState == 0) {
+        await playerNotifier.initialize();
+      }
 
-      // Restore saved position before loading
-      final savedPosition = await playerNotifier.restorePosition(
-        widget.group.groupPath,
-      );
+      // CRITICAL OPTIMIZATION: Get saved position FIRST to determine initialTrackIndex
+      // This allows us to load only the needed track synchronously, others load asynchronously
+      // This dramatically speeds up player startup for large playlists
+      Map<String, int>? savedPosition;
+      int? initialTrackIndex;
+      try {
+        savedPosition = await playerNotifier
+            .restorePosition(widget.group.groupPath)
+            .timeout(
+          const Duration(milliseconds: 500),
+          onTimeout: () {
+            // Log timeout (non-blocking, don't await)
+            _logger.log(
+              level: 'info',
+              subsystem: 'audio',
+              message:
+                  'Position restore timeout (500ms), starting from beginning',
+            );
+            return null;
+          },
+        );
 
-      // Load audio sources
-      await _loadAudioSources();
-
-      // Wait for player to be ready before enabling controls
-      await _waitForPlayerReady();
-
-      // Apply audio settings (speed and skip duration)
-      await _applyAudioSettings();
-
-      // Restore position if available - automatically continue from saved position
-      // Only restore if we actually loaded new sources (not if player was already playing)
-      if (savedPosition != null && mounted) {
-        final trackIndex = savedPosition['trackIndex']!;
-        final positionMs = savedPosition['positionMs']!;
-        if (trackIndex >= 0 &&
-            trackIndex < widget.group.files.length &&
-            positionMs > 0) {
-          // Wait for player to be ready (check state)
-          var attempts = 0;
-          while (attempts < 20 && mounted) {
-            final state = ref.read(playerStateProvider);
-            if (state.playbackState == 2) {
-              // 2 = ready
-              break;
-            }
-            await Future.delayed(const Duration(milliseconds: 100));
-            attempts++;
+        // Extract initialTrackIndex from savedPosition if valid
+        if (savedPosition != null) {
+          final trackIndex = savedPosition['trackIndex'];
+          final positionMs = savedPosition['positionMs'];
+          if (trackIndex != null &&
+              trackIndex >= 0 &&
+              trackIndex < widget.group.files.length &&
+              positionMs != null &&
+              positionMs > 0) {
+            initialTrackIndex = trackIndex;
+            await _logger.log(
+              level: 'info',
+              subsystem: 'audio',
+              message: 'Using saved position for initial track loading',
+              extra: {
+                'initial_track_index': initialTrackIndex,
+                'position_ms': positionMs,
+              },
+            );
+          } else {
+            savedPosition = null; // Invalid saved position
           }
+        }
+      } on Exception catch (e) {
+        await _logger.log(
+          level: 'warning',
+          subsystem: 'audio',
+          message: 'Failed to restore position, starting from beginning',
+          cause: e.toString(),
+        );
+        savedPosition = null;
+      }
 
-          if (mounted) {
+      // Load audio sources with initialTrackIndex optimization
+      // Only the initial track (or first track) is loaded synchronously
+      // Remaining tracks load asynchronously in background for fast startup
+      await _loadAudioSources(initialTrackIndex: initialTrackIndex);
+
+      // Apply audio settings (speed and skip duration) in parallel with waiting for ready
+      // This speeds up initialization
+      await Future.wait([
+        _waitForPlayerReady(),
+        _applyAudioSettings(),
+      ]);
+
+      // Start playback - either from saved position or from beginning
+      if (mounted) {
+        final currentState = ref.read(playerStateProvider);
+
+        // Check if we have valid saved position
+        if (savedPosition != null) {
+          final trackIndex = savedPosition['trackIndex']!;
+          final positionMs = savedPosition['positionMs']!;
+
+          if (trackIndex >= 0 &&
+              trackIndex < widget.group.files.length &&
+              positionMs > 0) {
+            // Valid saved position - restore it
             try {
-              // Use optimized method to seek to track and position at once
-              await playerNotifier.seekToTrackAndPosition(
-                trackIndex,
-                Duration(milliseconds: positionMs),
-              );
-
-              // Check if player is already playing - if not, start playback
-              final currentState = ref.read(playerStateProvider);
-              if (!currentState.isPlaying) {
-                // Automatically start playback from restored position
-                await playerNotifier.play();
+              // Player should already be ready from _waitForPlayerReady() above
+              // Just do a quick check (max 500ms) to ensure it's ready
+              var attempts = 0;
+              while (attempts < 5 && mounted) {
+                final state = ref.read(playerStateProvider);
+                if (state.playbackState == 2) {
+                  // 2 = ready
+                  break;
+                }
+                await Future.delayed(const Duration(milliseconds: 100));
+                attempts++;
               }
 
-              await _logger.log(
-                level: 'info',
-                subsystem: 'audio',
-                message: 'Restored playback position',
-                extra: {
-                  'track_index': trackIndex,
-                  'position_ms': positionMs,
-                  'was_playing': currentState.isPlaying,
-                },
-              );
+              if (mounted) {
+                // Use optimized method to seek to track and position at once
+                await playerNotifier.seekToTrackAndPosition(
+                  trackIndex,
+                  Duration(milliseconds: positionMs),
+                );
+
+                // Start playback if not already playing
+                if (!currentState.isPlaying) {
+                  await playerNotifier.play();
+                }
+
+                await _logger.log(
+                  level: 'info',
+                  subsystem: 'audio',
+                  message: 'Restored playback position',
+                  extra: {
+                    'track_index': trackIndex,
+                    'position_ms': positionMs,
+                  },
+                );
+              }
             } on Exception catch (e) {
               await _logger.log(
                 level: 'warning',
                 subsystem: 'audio',
-                message: 'Failed to restore position, continuing anyway',
+                message: 'Failed to restore position, starting from beginning',
                 cause: e.toString(),
               );
-              // Ignore seek errors, continue playback from start
+              // Fall through to start from beginning
+              savedPosition = null; // Mark as invalid to start from beginning
             }
-          }
-        } else {
-          // Invalid saved position, start playback from beginning
-          if (mounted) {
-            await _logger.log(
-              level: 'info',
-              subsystem: 'audio',
-              message:
-                  'No valid saved position, starting playback from beginning',
-            );
-            // Wait a bit for player to be ready
-            await Future.delayed(const Duration(milliseconds: 200));
-            final currentState = ref.read(playerStateProvider);
-            if (!currentState.isPlaying && mounted) {
-              await playerNotifier.play();
-            }
+          } else {
+            // Invalid saved position
+            savedPosition = null;
           }
         }
-      } else {
-        // No saved position, start playback from beginning
-        if (mounted) {
+
+        // If no valid saved position, start from beginning
+        if (savedPosition == null && mounted) {
           await _logger.log(
             level: 'info',
             subsystem: 'audio',
-            message: 'No saved position, starting playback from beginning',
+            message: 'Starting playback from beginning',
           );
-          // Wait a bit for player to be ready
-          await Future.delayed(const Duration(milliseconds: 200));
-          final currentState = ref.read(playerStateProvider);
-          if (!currentState.isPlaying && mounted) {
-            await _logger.log(
-              level: 'info',
-              subsystem: 'audio',
-              message: 'Calling play() to start playback',
-              extra: {
-                'playbackState': currentState.playbackState,
-                'isPlaying': currentState.isPlaying,
-              },
-            );
+
+          // Player should already be ready from _waitForPlayerReady() above
+          // No need to wait - start playback immediately
+          final state = ref.read(playerStateProvider);
+          if (!state.isPlaying && mounted) {
             try {
               await playerNotifier.play();
               await _logger.log(
                 level: 'info',
                 subsystem: 'audio',
-                message: 'play() call completed',
+                message: 'Playback started from beginning',
               );
             } on Exception catch (e) {
               await _logger.log(
                 level: 'error',
                 subsystem: 'audio',
-                message: 'Failed to call play()',
+                message: 'Failed to start playback',
                 cause: e.toString(),
               );
             }
@@ -339,13 +470,15 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
         }
       }
 
-      // Clear any previous errors before marking as initialized
-      // This ensures error state is reset on successful initialization
-      setState(() {
-        _isInitialized = true;
-        _hasError = false;
-        _errorMessage = null;
-      });
+      // Clear any previous errors and mark player as ready
+      // UI was already shown, now player is ready
+      if (mounted) {
+        setState(() {
+          _isPlayerLoading = false;
+          _hasError = false;
+          _errorMessage = null;
+        });
+      }
     } on AudioFailure catch (e) {
       await _logger.log(
         level: 'error',
@@ -353,9 +486,7 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
         message: 'Failed to initialize player',
         cause: e.toString(),
       );
-      setState(() {
-        _isInitialized = true;
-        _hasError = true;
+      if (mounted) {
         final localizations = AppLocalizations.of(context);
         var errorMessage = e.message;
 
@@ -398,8 +529,12 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
               e.message;
         }
 
-        _errorMessage = errorMessage;
-      });
+        setState(() {
+          _isPlayerLoading = false;
+          _hasError = true;
+          _errorMessage = errorMessage;
+        });
+      }
     } on Exception catch (e) {
       await _logger.log(
         level: 'error',
@@ -407,17 +542,24 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
         message: 'Unexpected error during player initialization',
         cause: e.toString(),
       );
-      setState(() {
-        _isInitialized = true;
-        _hasError = true;
-        _errorMessage =
-            AppLocalizations.of(context)?.failedToLoadAudioMessage ??
-                'Failed to load audio: ${e.toString()}';
-      });
+      if (mounted) {
+        setState(() {
+          _isPlayerLoading = false; // Loading finished (with error)
+          _hasError = true;
+          _errorMessage =
+              AppLocalizations.of(context)?.failedToLoadAudioMessage ??
+                  'Failed to load audio: ${e.toString()}';
+        });
+      }
     }
   }
 
-  Future<void> _loadAudioSources() async {
+  /// Loads audio sources with optimized lazy loading.
+  ///
+  /// [initialTrackIndex] is optional track index to load first (for saved position optimization).
+  /// If provided, only this track is loaded synchronously, others load asynchronously in background.
+  /// This dramatically speeds up player startup for large playlists.
+  Future<void> _loadAudioSources({int? initialTrackIndex}) async {
     try {
       // Check permissions first
       final hasPermission = await _permissionService.hasStoragePermission();
@@ -443,22 +585,32 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
         }
       }
 
-      // Verify files exist and are accessible
+      // Verify files exist and are accessible (check in parallel for faster startup)
       final filePaths = widget.group.files.map((f) => f.filePath).toList();
-      final accessibleFiles = <String>[];
 
-      for (final filePath in filePaths) {
-        final file = File(filePath);
-        if (await file.exists()) {
-          accessibleFiles.add(filePath);
-        } else {
-          await _logger.log(
-            level: 'warning',
-            subsystem: 'audio',
-            message: 'File not found, skipping',
-            extra: {'path': filePath},
-          );
-        }
+      // Check all files in parallel for faster startup
+      final fileChecks = await Future.wait(
+        filePaths.map((filePath) async {
+          final file = File(filePath);
+          final exists = await file.exists();
+          return exists ? filePath : null;
+        }),
+      );
+
+      final accessibleFiles = fileChecks.whereType<String>().toList();
+
+      // Log missing files (non-blocking)
+      if (accessibleFiles.length < filePaths.length) {
+        final missingCount = filePaths.length - accessibleFiles.length;
+        await _logger.log(
+          level: 'warning',
+          subsystem: 'audio',
+          message: 'Some files not found, skipping',
+          extra: {
+            'missing_count': missingCount,
+            'total_files': filePaths.length
+          },
+        );
       }
 
       if (accessibleFiles.isEmpty) {
@@ -482,10 +634,13 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
         extra: {
           'accessible_files': accessibleFiles.length,
           'total_files': filePaths.length,
+          'initial_track_index': initialTrackIndex,
         },
       );
 
-      // Load audio sources
+      // Load audio sources with initialTrackIndex optimization
+      // Only the initial track (or first track) is loaded synchronously
+      // Remaining tracks load asynchronously in background for fast startup
       final metadata = <String, String>{
         'title': widget.group.groupName,
         if (widget.group.files.firstOrNull?.author != null)
@@ -499,7 +654,12 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
         accessibleFiles,
         metadata: metadata,
         groupPath: widget.group.groupPath,
+        initialTrackIndex: initialTrackIndex,
       );
+
+      // Update currentAudiobookGroupProvider to ensure all UI components are synchronized
+      // This ensures mini player, notification, and main player all use the same data source
+      ref.read(currentAudiobookGroupProvider.notifier).state = widget.group;
 
       // Update metadata after playlist is set
       _updateMetadata();
@@ -815,9 +975,11 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
   @override
   Widget build(BuildContext context) {
     final playerState = ref.watch(playerStateProvider);
+    // Show loading indicator only when player is being initialized or buffering
+    // UI (cover, interface) is shown immediately
     final isLoading =
-        !_isInitialized || playerState.playbackState == 1; // 1 = buffering
-    // Only show error if initialization is complete and not loading
+        _isPlayerLoading || playerState.playbackState == 1; // 1 = buffering
+    // Only show error if player initialization is complete and not loading
     // This prevents showing error messages during initial loading
     final hasError = !isLoading && (_hasError || playerState.error != null);
     final errorMessage = _errorMessage ?? playerState.error;
@@ -874,7 +1036,7 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
                       ElevatedButton(
                         onPressed: () {
                           setState(() {
-                            _isInitialized = false;
+                            _isPlayerLoading = true;
                             _hasError = false;
                             _errorMessage = null;
                           });
@@ -886,10 +1048,12 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
                   ),
                 ),
               )
-            : isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : SingleChildScrollView(
-                    child: Padding(
+            : SingleChildScrollView(
+                // Show UI immediately, loading overlay on top if needed
+                child: Stack(
+                  children: [
+                    // Main UI content (always visible)
+                    Padding(
                       padding: ResponsiveUtils.getCompactPadding(context),
                       child: Column(
                         children: [
@@ -903,12 +1067,20 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
                           ),
                           // Track info
                           Text(
-                            widget.group.hasMultiFolderStructure
-                                ? widget.group.files[playerState.currentIndex]
-                                    .getDisplayNameWithPart(
-                                        widget.group.groupPath)
-                                : widget.group.files[playerState.currentIndex]
-                                    .displayName,
+                            widget.group.files.isNotEmpty &&
+                                    playerState.currentIndex >= 0 &&
+                                    playerState.currentIndex <
+                                        widget.group.files.length
+                                ? (widget.group.hasMultiFolderStructure
+                                    ? widget
+                                        .group.files[playerState.currentIndex]
+                                        .getDisplayNameWithPart(
+                                            widget.group.groupPath)
+                                    : widget
+                                        .group
+                                        .files[playerState.currentIndex]
+                                        .displayName)
+                                : widget.group.groupName,
                             style: Theme.of(context).textTheme.titleLarge,
                             textAlign: TextAlign.center,
                           ),
@@ -976,7 +1148,19 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
                         ],
                       ),
                     ),
-                  ),
+                    // Loading overlay (only when player is initializing)
+                    if (isLoading)
+                      Positioned.fill(
+                        child: ColoredBox(
+                          color: Colors.black.withValues(alpha: 0.3),
+                          child: const Center(
+                            child: CircularProgressIndicator(),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
       ),
     );
   }
@@ -1263,9 +1447,20 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
   /// Waits for player to be ready (playbackState == 2).
   ///
   /// This ensures that seek controls are enabled only when player is fully initialized.
+  /// Optimized for fast startup - only waits up to 1 second.
   Future<void> _waitForPlayerReady() async {
+    // Check current state first - if already ready, don't wait
+    final initialState = ref.read(playerStateProvider);
+    if (initialState.playbackState == 2) {
+      return; // Already ready
+    }
+    if (initialState.error != null) {
+      return; // Error occurred, don't wait
+    }
+
+    // Wait for player to become ready with shorter timeout (1 second max)
     var attempts = 0;
-    const maxAttempts = 50; // 5 seconds max wait
+    const maxAttempts = 10; // 1 second max wait (10 * 100ms)
     while (attempts < maxAttempts && mounted) {
       final state = ref.read(playerStateProvider);
       if (state.playbackState == 2) {
@@ -1281,6 +1476,7 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
     }
     // If we reach here, player didn't become ready in time
     // This is not necessarily an error - player might still be loading
+    // Continue anyway to allow playback to start
   }
 
   Widget _buildPlaybackControls(PlayerStateModel state) {

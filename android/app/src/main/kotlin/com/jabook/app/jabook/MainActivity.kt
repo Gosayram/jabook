@@ -5,10 +5,12 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.net.Uri
+import android.os.BatteryManager
 import android.os.Build
 import android.os.Environment
 import android.provider.DocumentsContract
 import android.provider.Settings
+import android.view.KeyEvent
 import android.webkit.CookieManager
 import androidx.annotation.RequiresApi
 import com.jabook.app.jabook.audio.AudioPlayerMethodHandler
@@ -353,6 +355,31 @@ class MainActivity : FlutterActivity() {
                         result.success(enabled)
                     } catch (e: Exception) {
                         result.error("CHECK_AUTOSTART_ERROR", "Failed to check autostart status: ${e.message}", null)
+                    }
+                }
+                else -> {
+                    result.notImplemented()
+                }
+            }
+        }
+
+        // Register BatteryChannel for battery level monitoring
+        val batteryChannel =
+            MethodChannel(
+                flutterEngine.dartExecutor.binaryMessenger,
+                "com.jabook.app.jabook/battery",
+            )
+
+        batteryChannel.setMethodCallHandler { call, result ->
+            when (call.method) {
+                "getBatteryLevel" -> {
+                    try {
+                        val batteryManager = getSystemService(Context.BATTERY_SERVICE) as BatteryManager
+                        val batteryLevel = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
+                        result.success(batteryLevel)
+                    } catch (e: Exception) {
+                        android.util.Log.e("MainActivity", "Failed to get battery level: ${e.message}")
+                        result.error("BATTERY_ERROR", "Failed to get battery level: ${e.message}", null)
                     }
                 }
                 else -> {
@@ -974,6 +1001,75 @@ class MainActivity : FlutterActivity() {
         super.onDestroy()
         // Unregister position save receiver
         unregisterPositionSaveReceiver()
+    }
+
+    /**
+     * Handles key events, including media button events from headphones.
+     *
+     * When Activity is in foreground, it receives key events first.
+     * For media buttons, we return false to let the system handle them
+     * through MediaSession (which works when app is in background).
+     * This ensures media buttons work consistently whether app is foreground or background.
+     *
+     * Note: MediaSessionService automatically handles media buttons when app is in background.
+     * When app is in foreground, we need to delegate media buttons to MediaSession.
+     */
+    override fun onKeyDown(
+        keyCode: Int,
+        event: KeyEvent?,
+    ): Boolean {
+        // Check if this is a media button
+        when (keyCode) {
+            KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE,
+            KeyEvent.KEYCODE_MEDIA_PLAY,
+            KeyEvent.KEYCODE_MEDIA_PAUSE,
+            KeyEvent.KEYCODE_MEDIA_STOP,
+            KeyEvent.KEYCODE_MEDIA_NEXT,
+            KeyEvent.KEYCODE_MEDIA_PREVIOUS,
+            KeyEvent.KEYCODE_MEDIA_FAST_FORWARD,
+            KeyEvent.KEYCODE_MEDIA_REWIND,
+            -> {
+                // Don't handle media buttons in Activity - let system route them to MediaSession
+                // This ensures MediaSessionService handles them consistently
+                android.util.Log.d(
+                    "MainActivity",
+                    "Media button pressed (keyCode=$keyCode), delegating to MediaSession",
+                )
+                return false // Let system handle via MediaSession
+            }
+        }
+        // For non-media buttons, use default handling
+        return super.onKeyDown(keyCode, event)
+    }
+
+    /**
+     * Handles key up events for media buttons.
+     * Returns false to let system handle via MediaSession.
+     */
+    override fun onKeyUp(
+        keyCode: Int,
+        event: KeyEvent?,
+    ): Boolean {
+        // Check if this is a media button
+        when (keyCode) {
+            KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE,
+            KeyEvent.KEYCODE_MEDIA_PLAY,
+            KeyEvent.KEYCODE_MEDIA_PAUSE,
+            KeyEvent.KEYCODE_MEDIA_STOP,
+            KeyEvent.KEYCODE_MEDIA_NEXT,
+            KeyEvent.KEYCODE_MEDIA_PREVIOUS,
+            KeyEvent.KEYCODE_MEDIA_FAST_FORWARD,
+            KeyEvent.KEYCODE_MEDIA_REWIND,
+            -> {
+                android.util.Log.d(
+                    "MainActivity",
+                    "Media button released (keyCode=$keyCode), delegating to MediaSession",
+                )
+                return false // Let system handle via MediaSession
+            }
+        }
+        // For non-media buttons, use default handling
+        return super.onKeyUp(keyCode, event)
     }
 
     /**

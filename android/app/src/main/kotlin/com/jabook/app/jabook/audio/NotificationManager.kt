@@ -23,6 +23,7 @@ import android.graphics.BitmapFactory
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.media.app.NotificationCompat.MediaStyle
+import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaSession
 import com.jabook.app.jabook.MainActivity
@@ -140,8 +141,10 @@ class NotificationManager(
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
             )
 
+        // Use playWhenReady instead of isPlaying for immediate UI feedback
+        // playWhenReady changes synchronously, while isPlaying may lag
         val playPauseAction =
-            if (player.isPlaying) {
+            if (player.playWhenReady && player.playbackState != Player.STATE_ENDED) {
                 NotificationCompat.Action(
                     android.R.drawable.ic_media_pause,
                     "Pause",
@@ -268,22 +271,87 @@ class NotificationManager(
             MediaStyle()
                 .setShowActionsInCompactView(0, 1, 2)
 
-        // Integrate with MediaSession if available
-        // This enables system controls (lockscreen, Android Auto, Wear OS, headset buttons)
+        // CRITICAL: Set MediaSession token for proper integration with system controls
+        // This enables controls in Quick Settings, lockscreen, Android Auto, Wear OS, headset buttons
+        // Without this, buttons in Quick Settings won't work
+        // Note: androidx.media.app.NotificationCompat.MediaStyle requires MediaSessionCompat.Token
+        // but Media3 uses SessionToken. We need to convert or use reflection to get the underlying token
+        if (mediaSession != null) {
+            try {
+                // Media3 MediaSession: use public getToken() method to get SessionToken
+                // For androidx.media.app.NotificationCompat.MediaStyle, we need to get the underlying
+                // android.media.session.MediaSession.Token from SessionToken
+                val sessionToken = mediaSession.getToken()
+
+                // Try to get the underlying native token using reflection
+                // SessionToken wraps the native android.media.session.MediaSession.Token
+                try {
+                    val sessionTokenClass = sessionToken.javaClass
+                    val getTokenMethod = sessionTokenClass.getMethod("getToken")
+                    val nativeToken = getTokenMethod.invoke(sessionToken) as? android.media.session.MediaSession.Token
+
+                    if (nativeToken != null) {
+                        // Create MediaSessionCompat.Token from native token using reflection
+                        // According to documentation: MediaSessionCompat.Token.fromToken(token: Any!)
+                        // accepts android.media.session.MediaSession.Token and returns MediaSessionCompat.Token
+                        try {
+                            // Get MediaSessionCompat.Token class
+                            val compatTokenClass = Class.forName("androidx.media.session.MediaSessionCompat\$Token")
+                            // Get static method fromToken(token: Any!)
+                            val fromTokenMethod = compatTokenClass.getMethod("fromToken", Any::class.java)
+                            // Call fromToken with native token to create MediaSessionCompat.Token
+                            val compatToken = fromTokenMethod.invoke(null, nativeToken)
+                            // Use reflection to call setMediaSession() with MediaSessionCompat.Token
+                            // This is needed because reflection returns Any! but setMediaSession expects MediaSessionCompat.Token!
+                            val setMediaSessionMethod = mediaStyle.javaClass.getMethod("setMediaSession", compatTokenClass)
+                            setMediaSessionMethod.invoke(mediaStyle, compatToken)
+                            android.util.Log.d("NotificationManager", "MediaStyle configured with MediaSession token for system controls")
+                        } catch (e: Exception) {
+                            android.util.Log.e("NotificationManager", "Failed to create or set MediaSessionCompat.Token: ${e.message}", e)
+                            // Fallback: try to set native token directly (may not work but worth trying)
+                            try {
+                                val setMediaSessionMethod =
+                                    mediaStyle.javaClass.getMethod(
+                                        "setMediaSession",
+                                        android.media.session.MediaSession.Token::class.java,
+                                    )
+                                setMediaSessionMethod.invoke(mediaStyle, nativeToken)
+                                android.util.Log.d(
+                                    "NotificationManager",
+                                    "MediaStyle configured with native token using reflection fallback",
+                                )
+                            } catch (e2: Exception) {
+                                android.util.Log.e("NotificationManager", "Failed to set native token: ${e2.message}")
+                            }
+                        }
+                    } else {
+                        android.util.Log.w("NotificationManager", "Failed to get native token from SessionToken")
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.w("NotificationManager", "Failed to extract native token, trying direct approach: ${e.message}")
+                    // Fallback: try to use SessionToken directly (may work in some Media3 versions)
+                    // This will likely fail but worth trying
+                    try {
+                        val sessionTokenField = mediaStyle.javaClass.getDeclaredField("mToken")
+                        sessionTokenField.isAccessible = true
+                        sessionTokenField.set(mediaStyle, sessionToken)
+                        android.util.Log.d("NotificationManager", "MediaStyle configured with SessionToken using reflection")
+                    } catch (e2: Exception) {
+                        android.util.Log.e("NotificationManager", "Failed to set MediaSession token: ${e2.message}")
+                    }
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("NotificationManager", "Failed to set MediaSession token in MediaStyle: ${e.message}", e)
+            }
+        } else {
+            android.util.Log.w("NotificationManager", "MediaSession is null, MediaStyle won't work with system controls")
+        }
+
         // For Android 13+ (API 33+), SeekBar in notification appears automatically
-        // when MediaSessionService is properly configured (which it is)
-        // Media3 MediaSessionService automatically provides SessionToken to MediaStyle
-        // The MediaStyle notification will work with system controls because MediaSession
-        // is connected to the Player through MediaSessionService
-        // Note: MediaSessionService automatically handles SessionToken integration
-        // SeekBar support is enabled automatically for Android 13+ when using MediaSessionService
+        // when MediaSessionService is properly configured with SessionToken
         if (mediaSession != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             android.util.Log.d("NotificationManager", "SeekBar support enabled for Android 13+ via MediaSessionService")
         }
-
-        // Media3 MediaSession integrates automatically with Player through MediaSessionManager
-        // The MediaStyle notification will work with system controls because MediaSession
-        // is connected to the Player, which provides the necessary integration
 
         // Determine small icon - use cover image if available, otherwise use app icon
         var smallIcon: android.graphics.drawable.Icon? = null
@@ -367,13 +435,15 @@ class NotificationManager(
                                 createPlaybackAction(NotificationManager.ACTION_PREVIOUS),
                             ).build()
 
+                    // Use playWhenReady for immediate UI feedback
+                    val isPlayingState = player.playWhenReady && player.playbackState != Player.STATE_ENDED
                     val playPauseActionCompat =
                         NotificationCompat.Action
                             .Builder(
-                                if (player.isPlaying) android.R.drawable.ic_media_pause else android.R.drawable.ic_media_play,
-                                if (player.isPlaying) "Pause" else "Play",
+                                if (isPlayingState) android.R.drawable.ic_media_pause else android.R.drawable.ic_media_play,
+                                if (isPlayingState) "Pause" else "Play",
                                 createPlaybackAction(
-                                    if (player.isPlaying) NotificationManager.ACTION_PAUSE else NotificationManager.ACTION_PLAY,
+                                    if (isPlayingState) NotificationManager.ACTION_PAUSE else NotificationManager.ACTION_PLAY,
                                 ),
                             ).build()
 
@@ -398,19 +468,21 @@ class NotificationManager(
                                 previousActionCompat.actionIntent ?: createPlaybackAction(NotificationManager.ACTION_PREVIOUS),
                             ).build()
 
+                    // Use playWhenReady for immediate UI feedback (same as playPauseActionCompat above)
+                    // Reuse isPlayingState from above
                     val playPauseIcon =
                         android.graphics.drawable.Icon.createWithResource(
                             context,
-                            if (player.isPlaying) android.R.drawable.ic_media_pause else android.R.drawable.ic_media_play,
+                            if (isPlayingState) android.R.drawable.ic_media_pause else android.R.drawable.ic_media_play,
                         )
                     val playPauseActionNative =
                         Notification.Action
                             .Builder(
                                 playPauseIcon,
-                                playPauseActionCompat.title ?: if (player.isPlaying) "Pause" else "Play",
+                                playPauseActionCompat.title ?: if (isPlayingState) "Pause" else "Play",
                                 playPauseActionCompat.actionIntent
                                     ?: createPlaybackAction(
-                                        if (player.isPlaying) NotificationManager.ACTION_PAUSE else NotificationManager.ACTION_PLAY,
+                                        if (isPlayingState) NotificationManager.ACTION_PAUSE else NotificationManager.ACTION_PLAY,
                                     ),
                             ).build()
 
@@ -449,16 +521,54 @@ class NotificationManager(
                                 )
                             setShowActionsInCompactViewMethod.invoke(nativeMediaStyle, intArrayOf(0, 1, 2))
 
-                            // Set media session token for system integration
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                            // Set media session token for system integration (CRITICAL for Quick Settings)
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP && mediaSession != null) {
                                 try {
-                                    // MediaSession from Media3 uses androidx.media3.session.MediaSession
-                                    // We need to get the underlying android.media.session.MediaSession.Token
-                                    // Media3 MediaSession doesn't expose sessionCompatToken directly
-                                    // We'll skip setting the token - MediaSession will still work through the system
-                                    android.util.Log.d("NotificationManager", "MediaSession token setting skipped (Media3 MediaSession)")
+                                    // Media3 MediaSession: use public getToken() method to get SessionToken
+                                    // Reference: https://developer.android.com/reference/kotlin/androidx/media3/session/SessionToken
+                                    val sessionToken = mediaSession.getToken()
+
+                                    // Get the underlying android.media.session.MediaSession.Token
+                                    // Media3 SessionToken wraps the native token - use reflection to get native token
+                                    // for native MediaStyle which requires android.media.session.MediaSession.Token
+                                    val setMediaSessionMethod =
+                                        mediaStyleClass.getMethod(
+                                            "setMediaSession",
+                                            android.media.session.MediaSession.Token::class.java,
+                                        )
+
+                                    // Media3 SessionToken has a getToken() method that returns the native token
+                                    // This requires reflection as it's an internal API
+                                    val sessionTokenClass = sessionToken.javaClass
+                                    val getNativeTokenMethod = sessionTokenClass.getMethod("getToken")
+                                    val nativeToken = getNativeTokenMethod.invoke(sessionToken)
+                                    setMediaSessionMethod.invoke(nativeMediaStyle, nativeToken)
+
+                                    android.util.Log.d("NotificationManager", "MediaSession token set successfully for native MediaStyle")
                                 } catch (e: Exception) {
-                                    android.util.Log.w("NotificationManager", "Failed to set MediaSession token: ${e.message}", e)
+                                    android.util.Log.w(
+                                        "NotificationManager",
+                                        "Failed to set MediaSession token in native MediaStyle: ${e.message}",
+                                        e,
+                                    )
+                                    // Try alternative approach: try to use SessionToken directly
+                                    try {
+                                        // Alternative: try to use SessionToken as-is (may work in some cases)
+                                        val sessionToken = mediaSession.getToken()
+                                        val setMediaSessionMethod =
+                                            mediaStyleClass.getMethod(
+                                                "setMediaSession",
+                                                android.media.session.MediaSession.Token::class.java,
+                                            )
+                                        // This will likely fail, but worth trying
+                                        setMediaSessionMethod.invoke(nativeMediaStyle, sessionToken)
+                                        android.util.Log.d("NotificationManager", "MediaSession token set using alternative method")
+                                    } catch (e2: Exception) {
+                                        android.util.Log.w(
+                                            "NotificationManager",
+                                            "Alternative MediaSession token method also failed: ${e2.message}",
+                                        )
+                                    }
                                 }
                             }
 

@@ -31,6 +31,7 @@ import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.cache.Cache
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.MediaSource
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
@@ -45,6 +46,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.yield
 import java.io.File
 import javax.inject.Inject
 import android.app.NotificationManager as AndroidNotificationManager
@@ -73,14 +75,31 @@ class AudioPlayerService : MediaSessionService() {
     private var currentMetadata: Map<String, String>? = null
     private var embeddedArtworkPath: String? = null // Path to saved embedded artwork
 
+    // Store current playlist state for restoration after player recreation
+    private var currentFilePaths: List<String>? = null
+    private var savedPlaybackState: SavedPlaybackState? = null
+
     // Audio processing settings (default: all disabled except normalization)
     private var audioProcessingSettings: AudioProcessingSettings = AudioProcessingSettings.defaults()
+
+    /**
+     * Data class to store playback state before player recreation.
+     */
+    private data class SavedPlaybackState(
+        val currentIndex: Int,
+        val currentPosition: Long,
+        val isPlaying: Boolean,
+    )
 
     // Custom ExoPlayer with processors (if audio processing is enabled)
     // Note: We keep the singleton exoPlayer for cases without processing
     private var customExoPlayer: ExoPlayer? = null
 
     private val playerServiceScope = MainScope()
+
+    // Limited dispatcher for MediaItem creation (max 4 parallel tasks)
+    // This prevents overwhelming the system with too many concurrent I/O operations
+    private val mediaItemDispatcher = Dispatchers.IO.limitedParallelism(4)
 
     // Manual AudioFocus management
     private var audioManager: AudioManager? = null
@@ -227,6 +246,7 @@ class AudioPlayerService : MediaSessionService() {
         super.onCreate()
         instance = this
 
+        val onCreateStartTime = System.currentTimeMillis()
         android.util.Log.d("AudioPlayerService", "onCreate started")
 
         // CRITICAL FIX: Call startForeground() IMMEDIATELY for ALL Android 8.0+ (O and above)
@@ -289,27 +309,39 @@ class AudioPlayerService : MediaSessionService() {
         try {
             // Check Hilt initialization before using @Inject fields
             // This prevents crashes if Hilt is not ready
+            // CRITICAL: For local files, we don't need cache, so we can proceed even if cache is slow
             try {
-                if (!::exoPlayer.isInitialized || !::mediaCache.isInitialized) {
-                    android.util.Log.w("AudioPlayerService", "Hilt dependencies not initialized, waiting...")
-                    throw IllegalStateException("Hilt dependencies not ready")
+                if (!::exoPlayer.isInitialized) {
+                    android.util.Log.w("AudioPlayerService", "ExoPlayer not initialized, waiting...")
+                    throw IllegalStateException("ExoPlayer not ready")
+                }
+                // Cache is optional - for local files it's not used, so we don't block on it
+                // But we still check it to ensure Hilt is ready
+                if (!::mediaCache.isInitialized) {
+                    android.util.Log.w("AudioPlayerService", "MediaCache not initialized yet (may be slow), but continuing for local files")
+                    // Don't throw - cache is not needed for local files
                 }
             } catch (e: UninitializedPropertyAccessException) {
                 ErrorHandler.handleGeneralError("AudioPlayerService", e, "Hilt not initialized")
                 throw IllegalStateException("Hilt dependencies not ready", e)
             }
 
-            // Validate Android 14+ requirements before initialization
-            if (!ErrorHandler.validateAndroid14Requirements(this)) {
-                android.util.Log.e("AudioPlayerService", "Android 14+ requirements validation failed")
-                throw IllegalStateException("Android 14+ requirements not met")
+            // Validate Android 14+ requirements before initialization (fast check)
+            // These checks are lightweight and should not block initialization
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                if (!ErrorHandler.validateAndroid14Requirements(this)) {
+                    android.util.Log.e("AudioPlayerService", "Android 14+ requirements validation failed")
+                    throw IllegalStateException("Android 14+ requirements not met")
+                }
             }
 
-            // Validate Color OS specific requirements (if applicable)
+            // Validate Color OS specific requirements (if applicable) - fast check
             if (ErrorHandler.isColorOS()) {
-                if (!ErrorHandler.validateColorOSRequirements(this)) {
-                    android.util.Log.e("AudioPlayerService", "Color OS requirements validation failed")
-                    throw IllegalStateException("Color OS requirements not met")
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                    if (!ErrorHandler.validateColorOSRequirements(this)) {
+                        android.util.Log.e("AudioPlayerService", "Color OS requirements validation failed")
+                        throw IllegalStateException("Color OS requirements not met")
+                    }
                 }
                 android.util.Log.d("AudioPlayerService", "Color OS detected, special handling enabled")
             }
@@ -322,10 +354,22 @@ class AudioPlayerService : MediaSessionService() {
             // This is lightweight - just adding listener and setting flags
             configurePlayer()
 
-            // Create MediaSessionManager with callbacks for rewind/forward
-            // Callbacks will use current skip durations from settings
-            // Note: MediaSessionManager will use getActivePlayer() internally
-            mediaSessionManager = MediaSessionManager(this, getActivePlayer())
+            // Create MediaSessionManager with callbacks for play/pause and rewind/forward
+            // Note: MediaSession automatically handles play/pause through Player,
+            // but we intercept these commands to ensure notification is updated
+            mediaSessionManager =
+                MediaSessionManager(
+                    this,
+                    getActivePlayer(),
+                    playCallback = {
+                        android.util.Log.d("AudioPlayerService", "MediaSession play callback called")
+                        play()
+                    },
+                    pauseCallback = {
+                        android.util.Log.d("AudioPlayerService", "MediaSession pause callback called")
+                        pause()
+                    },
+                )
             mediaSessionManager?.setCallbacks(
                 rewindCallback = {
                     // Use current rewind duration from MediaSessionManager
@@ -356,13 +400,17 @@ class AudioPlayerService : MediaSessionService() {
 
             // Update notification with full media controls after MediaSession is created
             // This replaces the minimal notification used for startForeground()
+            // Do this asynchronously to avoid blocking onCreate() - notification update can happen in background
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                try {
-                    notificationManager?.updateNotification()
-                    android.util.Log.d("AudioPlayerService", "Notification updated with media controls")
-                } catch (e: Exception) {
-                    android.util.Log.w("AudioPlayerService", "Failed to update notification, using minimal notification", e)
-                    // Continue with minimal notification - service is still functional
+                // Post notification update to handler to avoid blocking onCreate()
+                android.os.Handler(android.os.Looper.getMainLooper()).post {
+                    try {
+                        notificationManager?.updateNotification()
+                        android.util.Log.d("AudioPlayerService", "Notification updated with media controls")
+                    } catch (e: Exception) {
+                        android.util.Log.w("AudioPlayerService", "Failed to update notification, using minimal notification", e)
+                        // Continue with minimal notification - service is still functional
+                    }
                 }
             }
 
@@ -389,9 +437,14 @@ class AudioPlayerService : MediaSessionService() {
             // No need for manual AudioFocus management
 
             // Mark service as fully initialized after all components are ready
+            // MediaSession is created, so service is ready to use
             isFullyInitializedFlag = true
 
-            android.util.Log.i("AudioPlayerService", "Service onCreate completed successfully, fully initialized: $isFullyInitializedFlag")
+            val onCreateDuration = System.currentTimeMillis() - onCreateStartTime
+            android.util.Log.i(
+                "AudioPlayerService",
+                "Service onCreate completed successfully in ${onCreateDuration}ms, fully initialized: $isFullyInitializedFlag",
+            )
         } catch (e: Exception) {
             ErrorHandler.handleGeneralError("AudioPlayerService", e, "Service initialization failed")
             isFullyInitializedFlag = false
@@ -489,10 +542,16 @@ class AudioPlayerService : MediaSessionService() {
             com.jabook.app.jabook.audio.NotificationManager.ACTION_PLAY -> {
                 android.util.Log.d("AudioPlayerService", "User action detected from notification: PLAY, resetting inactivity timer")
                 play()
+                // Immediately update notification to show pause button
+                // This provides instant feedback before player state actually changes
+                notificationManager?.updateNotification()
             }
             com.jabook.app.jabook.audio.NotificationManager.ACTION_PAUSE -> {
                 android.util.Log.d("AudioPlayerService", "User action detected from notification: PAUSE, resetting inactivity timer")
                 pause()
+                // Immediately update notification to show play button
+                // This provides instant feedback before player state actually changes
+                notificationManager?.updateNotification()
             }
             com.jabook.app.jabook.audio.NotificationManager.ACTION_NEXT -> {
                 android.util.Log.d("AudioPlayerService", "User action detected from notification: NEXT, resetting inactivity timer")
@@ -604,6 +663,27 @@ class AudioPlayerService : MediaSessionService() {
                     "processors=${processors.size}",
             )
 
+            // Save current playback state before recreating player
+            val activePlayer = getActivePlayer()
+            val wasPlaying = activePlayer.isPlaying
+            val currentIndex = activePlayer.currentMediaItemIndex
+            val currentPosition = activePlayer.currentPosition
+            val hasPlaylist = activePlayer.mediaItemCount > 0
+
+            // Save state if we have a playlist
+            if (hasPlaylist && currentFilePaths != null && currentFilePaths!!.isNotEmpty()) {
+                savedPlaybackState =
+                    SavedPlaybackState(
+                        currentIndex = currentIndex,
+                        currentPosition = currentPosition,
+                        isPlaying = wasPlaying,
+                    )
+                android.util.Log.d(
+                    "AudioPlayerService",
+                    "Saved playback state before player recreation: index=$currentIndex, position=$currentPosition, isPlaying=$wasPlaying",
+                )
+            }
+
             // If processors are needed, create custom ExoPlayer
             if (processors.isNotEmpty()) {
                 // Release old custom player if exists
@@ -626,6 +706,62 @@ class AudioPlayerService : MediaSessionService() {
                 customExoPlayer = null
                 android.util.Log.d("AudioPlayerService", "No processors needed, using singleton ExoPlayer")
             }
+
+            // Restore playlist and position if we had a playlist before
+            if (savedPlaybackState != null && currentFilePaths != null && currentFilePaths!!.isNotEmpty()) {
+                val savedState = savedPlaybackState!!
+                android.util.Log.d(
+                    "AudioPlayerService",
+                    "Restoring playlist and position: ${currentFilePaths!!.size} items, index=${savedState.currentIndex}, position=${savedState.currentPosition}",
+                )
+
+                // Restore playlist asynchronously
+                playerServiceScope.launch {
+                    try {
+                        preparePlaybackOptimized(
+                            currentFilePaths!!,
+                            currentMetadata,
+                            savedState.currentIndex,
+                        )
+
+                        // Wait for player to be ready
+                        var attempts = 0
+                        while (attempts < 50) {
+                            val newPlayer = getActivePlayer()
+                            if (newPlayer.playbackState == Player.STATE_READY || newPlayer.playbackState == Player.STATE_BUFFERING) {
+                                break
+                            }
+                            delay(100)
+                            attempts++
+                        }
+
+                        // Restore position
+                        val newPlayer = getActivePlayer()
+                        if (newPlayer.mediaItemCount > savedState.currentIndex) {
+                            newPlayer.seekTo(savedState.currentIndex, savedState.currentPosition)
+                            android.util.Log.d(
+                                "AudioPlayerService",
+                                "Restored position: index=${savedState.currentIndex}, position=${savedState.currentPosition}",
+                            )
+
+                            // Restore playback state
+                            if (savedState.isPlaying) {
+                                newPlayer.playWhenReady = true
+                                android.util.Log.d("AudioPlayerService", "Restored playback: playing")
+                            }
+                        }
+
+                        // Clear saved state
+                        savedPlaybackState = null
+
+                        // Update notification to reflect new player state
+                        notificationManager?.updateNotification()
+                    } catch (e: Exception) {
+                        android.util.Log.e("AudioPlayerService", "Failed to restore playlist after player recreation", e)
+                        savedPlaybackState = null
+                    }
+                }
+            }
         } catch (e: Exception) {
             android.util.Log.e("AudioPlayerService", "Failed to configure ExoPlayer with processors", e)
         }
@@ -645,21 +781,28 @@ class AudioPlayerService : MediaSessionService() {
      * CRITICAL: This method is asynchronous and uses coroutines to avoid blocking.
      * Flutter should wait for completion via MethodChannel.Result callback.
      *
+     * OPTIMIZATION: For fast startup, only the first MediaItem (or saved position track) is created
+     * synchronously. Remaining items are added asynchronously in background.
+     *
      * @param filePaths List of absolute file paths or HTTP(S) URLs to audio files
      * @param metadata Optional metadata map (title, artist, album, etc.)
+     * @param initialTrackIndex Optional track index to load first (for saved position). If null, loads first track.
      * @param callback Optional callback to notify when playlist is ready (for Flutter)
      */
     fun setPlaylist(
         filePaths: List<String>,
         metadata: Map<String, String>? = null,
+        initialTrackIndex: Int? = null,
         callback: ((Boolean, Exception?) -> Unit)? = null,
     ) {
+        // Store file paths for potential restoration after player recreation
+        currentFilePaths = filePaths
         currentMetadata = metadata
-        android.util.Log.d("AudioPlayerService", "Setting playlist with ${filePaths.size} items")
+        android.util.Log.d("AudioPlayerService", "Setting playlist with ${filePaths.size} items, initialTrackIndex=$initialTrackIndex")
 
         playerServiceScope.launch {
             try {
-                preparePlayback(filePaths, metadata)
+                preparePlaybackOptimized(filePaths, metadata, initialTrackIndex)
                 android.util.Log.d("AudioPlayerService", "Playlist prepared successfully")
                 withContext(Dispatchers.Main) {
                     callback?.invoke(true, null)
@@ -675,134 +818,265 @@ class AudioPlayerService : MediaSessionService() {
     }
 
     /**
-     * Prepares playback asynchronously.
+     * Prepares playback asynchronously with optimized lazy loading.
+     *
+     * CRITICAL OPTIMIZATION: Only creates the first MediaItem (or saved position track) synchronously.
+     * Remaining items are added asynchronously in background to avoid blocking startup.
+     * This dramatically speeds up player initialization, especially for large playlists.
      *
      * @param filePaths List of file paths or URLs
      * @param metadata Optional metadata
+     * @param initialTrackIndex Optional track index to load first (for saved position). If null, loads first track (index 0).
      */
     @OptIn(UnstableApi::class)
-    private suspend fun preparePlayback(
+    private suspend fun preparePlaybackOptimized(
         filePaths: List<String>,
         metadata: Map<String, String>?,
+        initialTrackIndex: Int? = null,
     ) = withContext(Dispatchers.IO) {
         try {
             val dataSourceFactory = MediaDataSourceFactory(this@AudioPlayerService, mediaCache)
 
-            val mediaSources =
-                filePaths.mapIndexed { index, path ->
-                    try {
-                        // Determine if path is a URL or file path
-                        val isUrl = path.startsWith("http://") || path.startsWith("https://")
-                        val uri: Uri
+            // Determine which track to load first (saved position or first track)
+            val firstTrackIndex = initialTrackIndex?.coerceIn(0, filePaths.size - 1) ?: 0
+            android.util.Log.d("AudioPlayerService", "Loading first track: index=$firstTrackIndex (total=${filePaths.size})")
 
-                        if (isUrl) {
-                            // Handle HTTP(S) URL
-                            uri = Uri.parse(path)
-                            android.util.Log.d("AudioPlayerService", "Creating MediaItem $index from URL: $path")
-                            // For URLs, ExoPlayer will extract metadata automatically
-                        } else {
-                            // Handle local file path
-                            val file = File(path)
-                            if (!file.exists()) {
-                                android.util.Log.w("AudioPlayerService", "File does not exist: $path")
-                            }
-                            uri = Uri.fromFile(file)
-                            android.util.Log.d("AudioPlayerService", "Creating MediaItem $index from file: $path (uri: $uri)")
+            // CRITICAL: Create only the first MediaSource synchronously for fast startup
+            // This allows player to start immediately while other tracks load in background
+            val firstMediaSource =
+                createMediaSourceForIndex(
+                    filePaths,
+                    firstTrackIndex,
+                    metadata,
+                    dataSourceFactory,
+                )
 
-                            // CRITICAL: Do NOT use MediaMetadataRetriever here - it blocks main thread!
-                            // For 286 files, this would cause ANR on Android 16.
-                            // ExoPlayer will extract metadata (including artwork) asynchronously when loading the file.
-                            // This is much faster and doesn't block the UI thread.
-                            // Only extract artwork for the first file if needed (optional optimization)
-                            if (index == 0 && metadata?.get("artworkUri") == null) {
-                                // Optional: extract artwork only for first file as preview
-                                // But skip it to avoid blocking - ExoPlayer will do it anyway
-                                android.util.Log.d(
-                                    "AudioPlayerService",
-                                    "Skipping artwork extraction for file $index - ExoPlayer will extract it asynchronously",
-                                )
-                            }
-                        }
-
-                        val metadataBuilder =
-                            androidx.media3.common.MediaMetadata
-                                .Builder()
-
-                        val fileName =
-                            if (isUrl) {
-                                val urlPath = Uri.parse(path).lastPathSegment ?: "Track ${index + 1}"
-                                urlPath.substringBeforeLast('.', urlPath)
-                            } else {
-                                File(path).nameWithoutExtension
-                            }
-                        val providedTitle = metadata?.get("title") ?: metadata?.get("trackTitle")
-                        val providedArtist = metadata?.get("artist") ?: metadata?.get("author")
-                        val providedAlbum = metadata?.get("album") ?: metadata?.get("bookTitle")
-
-                        // Get flavor suffix for title
-                        val flavorSuffix = Companion.getFlavorSuffix(this@AudioPlayerService)
-                        val flavorText = if (flavorSuffix.isEmpty()) "" else " - $flavorSuffix"
-
-                        // Always add flavor suffix to title for quick settings player
-                        val baseTitle = providedTitle ?: fileName.ifEmpty { "Track ${index + 1}" }
-                        val titleWithFlavor = if (flavorText.isEmpty()) baseTitle else "$baseTitle$flavorText"
-                        metadataBuilder.setTitle(titleWithFlavor)
-
-                        if (providedArtist != null) {
-                            metadataBuilder.setArtist(providedArtist)
-                        }
-
-                        if (providedAlbum != null) {
-                            metadataBuilder.setAlbumTitle(providedAlbum)
-                        }
-
-                        val artworkUriString = metadata?.get("artworkUri")?.takeIf { it.isNotEmpty() }
-                        if (artworkUriString != null) {
-                            try {
-                                val artworkUri = android.net.Uri.parse(artworkUriString)
-                                metadataBuilder.setArtworkUri(artworkUri)
-                            } catch (e: Exception) {
-                                android.util.Log.w("AudioPlayerService", "Failed to parse artwork URI: $artworkUriString", e)
-                            }
-                        }
-
-                        val mediaItem =
-                            MediaItem
-                                .Builder()
-                                .setUri(uri)
-                                .setMediaMetadata(metadataBuilder.build())
-                                .build()
-
-                        val sourceFactory = dataSourceFactory.createDataSourceFactoryForUri(uri)
-                        ProgressiveMediaSource
-                            .Factory(sourceFactory)
-                            .createMediaSource(mediaItem)
-                    } catch (e: Exception) {
-                        android.util.Log.e("AudioPlayerService", "Failed to create MediaItem for path: $path", e)
-                        throw e
-                    }
-                }
-
+            // Set first MediaSource and prepare player immediately
             withContext(Dispatchers.Main) {
                 val activePlayer = getActivePlayer()
                 activePlayer.playWhenReady = false
-                activePlayer.setMediaSources(mediaSources)
+
+                // Clear any existing items first
+                activePlayer.clearMediaItems()
+
+                // Add first item and prepare - this allows immediate playback
+                activePlayer.addMediaSource(firstMediaSource)
                 activePlayer.prepare()
+
+                // Seek to saved position if needed (will be done after prepare completes)
+                if (initialTrackIndex != null && initialTrackIndex != 0) {
+                    // Seek will be handled by caller after player is ready
+                    android.util.Log.d("AudioPlayerService", "First track loaded, will seek to index $initialTrackIndex after ready")
+                }
 
                 notificationManager?.updateNotification()
 
                 android.util.Log.i(
                     "AudioPlayerService",
-                    "Playlist set: ${mediaSources.size} sources, ${activePlayer.mediaItemCount} items, " +
+                    "First MediaItem loaded and prepared: index=$firstTrackIndex, " +
                         "state=${activePlayer.playbackState}, " +
-                        "usingCustomPlayer=${customExoPlayer != null}",
+                        "remaining items will load asynchronously",
                 )
+            }
+
+            // Load remaining MediaSources asynchronously in background (non-blocking)
+            // This doesn't block playback startup
+            // OPTIMIZATION: Use limited dispatcher to control parallel MediaItem creation (max 4)
+            playerServiceScope.launch(mediaItemDispatcher) {
+                try {
+                    val remainingIndices = filePaths.indices.filter { it != firstTrackIndex }
+                    val totalItems = filePaths.size
+                    val isLargePlaylist = totalItems > 100
+                    android.util.Log.d(
+                        "AudioPlayerService",
+                        "Loading ${remainingIndices.size} remaining MediaItems asynchronously (large playlist: $isLargePlaylist)",
+                    )
+
+                    // OPTIMIZATION: If initialTrackIndex > 0, prioritize loading tracks before it
+                    // This ensures smooth navigation if user wants to go back
+                    val priorityIndices =
+                        if (firstTrackIndex > 0) {
+                            (0 until firstTrackIndex).toList()
+                        } else {
+                            emptyList()
+                        }
+                    val otherIndices = remainingIndices.filter { it !in priorityIndices }
+
+                    // Load priority indices first (tracks before initialTrackIndex)
+                    for ((priorityIndex, index) in priorityIndices.withIndex()) {
+                        try {
+                            val mediaSource =
+                                createMediaSourceForIndex(
+                                    filePaths,
+                                    index,
+                                    metadata,
+                                    dataSourceFactory,
+                                )
+
+                            // Add to player asynchronously (non-blocking)
+                            withContext(Dispatchers.Main) {
+                                val activePlayer = getActivePlayer()
+                                // Insert at correct position to maintain order
+                                activePlayer.addMediaSource(index, mediaSource)
+                            }
+
+                            // Yield for large playlists to prevent blocking
+                            if (isLargePlaylist && priorityIndex % 10 == 0) {
+                                yield()
+                            }
+
+                            // Small delay to avoid overwhelming the system
+                            kotlinx.coroutines.delay(5) // 5ms delay for priority items
+                        } catch (e: Exception) {
+                            android.util.Log.w("AudioPlayerService", "Failed to create MediaItem $index, skipping: ${e.message}")
+                            // Continue with other items - one failure shouldn't stop the rest
+                        }
+                    }
+
+                    // Load other indices (tracks after initialTrackIndex)
+                    for ((otherIndex, index) in otherIndices.withIndex()) {
+                        try {
+                            val mediaSource =
+                                createMediaSourceForIndex(
+                                    filePaths,
+                                    index,
+                                    metadata,
+                                    dataSourceFactory,
+                                )
+
+                            // Add to player asynchronously (non-blocking)
+                            withContext(Dispatchers.Main) {
+                                val activePlayer = getActivePlayer()
+                                activePlayer.addMediaSource(mediaSource)
+                            }
+
+                            // Yield for large playlists to prevent blocking (every 10 items)
+                            if (isLargePlaylist && otherIndex % 10 == 0) {
+                                yield()
+                            }
+
+                            // Small delay to avoid overwhelming the system
+                            if (otherIndex % 10 == 0) {
+                                kotlinx.coroutines.delay(10) // 10ms delay every 10 items
+                            }
+                        } catch (e: Exception) {
+                            android.util.Log.w("AudioPlayerService", "Failed to create MediaItem $index, skipping: ${e.message}")
+                            // Continue with other items - one failure shouldn't stop the rest
+                        }
+                    }
+
+                    android.util.Log.i(
+                        "AudioPlayerService",
+                        "All ${filePaths.size} MediaItems loaded asynchronously (priority: ${priorityIndices.size}, other: ${otherIndices.size})",
+                    )
+                } catch (e: Exception) {
+                    android.util.Log.e("AudioPlayerService", "Error loading remaining MediaItems asynchronously", e)
+                    // Don't throw - player is already working with first item
+                }
             }
         } catch (e: Exception) {
             android.util.Log.e("AudioPlayerService", "Failed to prepare playback", e)
             throw e
         }
     }
+
+    /**
+     * Creates a MediaSource for a specific file index.
+     * Helper method to avoid code duplication.
+     */
+    @OptIn(UnstableApi::class)
+    private fun createMediaSourceForIndex(
+        filePaths: List<String>,
+        index: Int,
+        metadata: Map<String, String>?,
+        dataSourceFactory: MediaDataSourceFactory,
+    ): MediaSource {
+        val path = filePaths[index]
+
+        // Determine if path is a URL or file path
+        val isUrl = path.startsWith("http://") || path.startsWith("https://")
+        val uri: Uri
+
+        if (isUrl) {
+            // Handle HTTP(S) URL
+            uri = Uri.parse(path)
+            android.util.Log.d("AudioPlayerService", "Creating MediaItem $index from URL: $path")
+        } else {
+            // Handle local file path
+            val file = File(path)
+            if (!file.exists()) {
+                android.util.Log.w("AudioPlayerService", "File does not exist: $path")
+            }
+            uri = Uri.fromFile(file)
+            android.util.Log.d("AudioPlayerService", "Creating MediaItem $index from file: $path")
+        }
+
+        val metadataBuilder =
+            androidx.media3.common.MediaMetadata
+                .Builder()
+
+        val fileName =
+            if (isUrl) {
+                val urlPath = Uri.parse(path).lastPathSegment ?: "Track ${index + 1}"
+                urlPath.substringBeforeLast('.', urlPath)
+            } else {
+                File(path).nameWithoutExtension
+            }
+        val providedTitle = metadata?.get("title") ?: metadata?.get("trackTitle")
+        val providedArtist = metadata?.get("artist") ?: metadata?.get("author")
+        val providedAlbum = metadata?.get("album") ?: metadata?.get("bookTitle")
+
+        // Get flavor suffix for title
+        val flavorSuffix = Companion.getFlavorSuffix(this)
+        val flavorText = if (flavorSuffix.isEmpty()) "" else " - $flavorSuffix"
+
+        // Always add flavor suffix to title for quick settings player
+        val baseTitle = providedTitle ?: fileName.ifEmpty { "Track ${index + 1}" }
+        val titleWithFlavor = if (flavorText.isEmpty()) baseTitle else "$baseTitle$flavorText"
+        metadataBuilder.setTitle(titleWithFlavor)
+
+        if (providedArtist != null) {
+            metadataBuilder.setArtist(providedArtist)
+        }
+
+        if (providedAlbum != null) {
+            metadataBuilder.setAlbumTitle(providedAlbum)
+        }
+
+        val artworkUriString = metadata?.get("artworkUri")?.takeIf { it.isNotEmpty() }
+        if (artworkUriString != null) {
+            try {
+                val artworkUri = android.net.Uri.parse(artworkUriString)
+                metadataBuilder.setArtworkUri(artworkUri)
+            } catch (e: Exception) {
+                android.util.Log.w("AudioPlayerService", "Failed to parse artwork URI: $artworkUriString", e)
+            }
+        }
+
+        val mediaItem =
+            MediaItem
+                .Builder()
+                .setUri(uri)
+                .setMediaMetadata(metadataBuilder.build())
+                .build()
+
+        val sourceFactory = dataSourceFactory.createDataSourceFactoryForUri(uri)
+        return ProgressiveMediaSource
+            .Factory(sourceFactory)
+            .createMediaSource(mediaItem)
+    }
+
+    /**
+     * Prepares playback asynchronously (legacy method - kept for compatibility).
+     *
+     * @deprecated Use preparePlaybackOptimized() instead for better performance
+     */
+    @OptIn(UnstableApi::class)
+    @Deprecated("Use preparePlaybackOptimized() for better performance with large playlists")
+    private suspend fun preparePlayback(
+        filePaths: List<String>,
+        metadata: Map<String, String>?,
+    ) = preparePlaybackOptimized(filePaths, metadata, null)
 
     /**
      * Seeks to specific track and position.

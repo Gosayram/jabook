@@ -30,6 +30,7 @@ import 'package:jabook/core/infrastructure/logging/environment_logger.dart';
 import 'package:jabook/core/infrastructure/logging/structured_logger.dart';
 import 'package:jabook/core/infrastructure/notifications/download_notification_service.dart';
 import 'package:jabook/core/infrastructure/permissions/permission_service.dart';
+import 'package:jabook/core/infrastructure/task_manager/task_manager.dart';
 import 'package:jabook/core/library/audiobook_library_scanner.dart';
 import 'package:jabook/core/library/folder_filter_service.dart';
 import 'package:jabook/core/library/smart_scanner_service.dart';
@@ -419,61 +420,87 @@ class AudiobookTorrentManager {
       var metadataBytes =
           await MetadataDownloader.loadFromCache(magnet.infoHashString);
 
-      // Store metadata downloader and peers for later transfer
-      MetadataDownloader? metadataDownloader;
+      // Store peers for later transfer
       List<Peer>? metadataPeers;
 
       // If not in cache, download metadata
       if (metadataBytes == null) {
-        // Create metadata downloader
-        metadataDownloader = MetadataDownloader.fromMagnet(magnetUrl);
-        _metadataDownloaders[downloadId] = metadataDownloader;
-        final metadataListener = metadataDownloader.createListener();
+        // Use TaskManager with MEDIUM priority to limit concurrent metadata downloads
+        // This provides better control, monitoring, and priority management
+        // Store magnetUrl in local variable to avoid null-safety issues in closure
+        // Create a new String from the parameter to ensure type safety in closure
+        final magnetUrlValue = magnetUrl;
+        // Store downloadId in local variable to avoid null-safety issues in closure
+        // downloadId is guaranteed to be non-null at this point (assigned on line 219)
+        final downloadIdValue = downloadId;
+        // Create a function that uses the local variable
+        Future<({Uint8List bytes, List<Peer> peers})> downloadMetadata() async {
+          // Create metadata downloader
+          // magnetUrlValue is a new String created from non-nullable parameter, so it's safe to use
+          final downloader = MetadataDownloader.fromMagnet(magnetUrlValue);
+          _metadataDownloaders[downloadIdValue] = downloader;
+          final metadataListener = downloader.createListener();
 
-        // Wait for metadata download with timeout
-        final metadataCompleter = Completer<Uint8List>();
-        metadataListener
-          ..on<MetaDataDownloadProgress>((event) {
-            // Emit metadata download progress
-            final progress = TorrentProgress(
-              progress: event.progress * 100,
-              downloadSpeed: 0.0,
-              uploadSpeed: 0.0,
-              downloadedBytes: 0,
-              totalBytes: 0,
-              seeders: 0,
-              leechers: 0,
-              status: 'downloading_metadata',
+          // Wait for metadata download with timeout
+          final metadataCompleter = Completer<Uint8List>();
+          metadataListener
+            ..on<MetaDataDownloadProgress>((event) {
+              // Emit metadata download progress
+              final progress = TorrentProgress(
+                progress: event.progress * 100,
+                downloadSpeed: 0.0,
+                uploadSpeed: 0.0,
+                downloadedBytes: 0,
+                totalBytes: 0,
+                seeders: 0,
+                leechers: 0,
+                status: 'downloading_metadata',
+              );
+              if (!progressController.isClosed) {
+                progressController.add(progress);
+              }
+            })
+            ..on<MetaDataDownloadComplete>((event) {
+              if (!metadataCompleter.isCompleted) {
+                metadataCompleter.complete(Uint8List.fromList(event.data));
+              }
+            });
+
+          // Start metadata download
+          safeUnawaited(downloader.startDownload());
+
+          try {
+            // Wait for metadata with timeout (180 seconds)
+            final result = await metadataCompleter.future.timeout(
+              const Duration(seconds: 180),
+              onTimeout: () {
+                throw const TorrentFailure(
+                    'Metadata download timeout after 180 seconds');
+              },
             );
-            if (!progressController.isClosed) {
-              progressController.add(progress);
-            }
-          })
-          ..on<MetaDataDownloadComplete>((event) {
-            if (!metadataCompleter.isCompleted) {
-              metadataCompleter.complete(Uint8List.fromList(event.data));
-            }
-          });
 
-        // Start metadata download
-        safeUnawaited(metadataDownloader.startDownload());
+            // Save peers before cleanup
+            final peers = downloader.activePeers.toList();
 
-        // Wait for metadata with timeout (180 seconds)
-        try {
-          metadataBytes = await metadataCompleter.future.timeout(
-            const Duration(seconds: 180),
-            onTimeout: () {
-              throw const TorrentFailure(
-                  'Metadata download timeout after 180 seconds');
-            },
-          );
-          // Save peers before cleanup
-          metadataPeers = metadataDownloader.activePeers.toList();
-        } finally {
-          // Clean up metadata downloader
-          _metadataDownloaders.remove(downloadId);
-          await metadataDownloader.stop();
+            return (bytes: result, peers: peers);
+          } finally {
+            // Clean up metadata downloader
+            _metadataDownloaders.remove(downloadIdValue);
+            await downloader.stop();
+          }
         }
+
+        final downloadResult = await TaskManager.instance.submit<
+            ({
+              Uint8List bytes,
+              List<Peer> peers,
+            })>(
+          priority: TaskPriority.medium,
+          task: downloadMetadata,
+        );
+
+        metadataBytes = downloadResult.bytes;
+        metadataPeers = downloadResult.peers;
       }
 
       // Parse torrent from metadata
@@ -2586,14 +2613,20 @@ class AudiobookTorrentManager {
       }
       _progressTimers.clear();
 
-      // Stop all metadata downloaders
-      await Future.wait(_metadataDownloaders.values.map((metadata) async {
-        try {
-          await metadata.stop();
-        } on Exception {
-          // Ignore errors during shutdown
-        }
-      }));
+      // Stop all metadata downloaders with limited parallelism (max 4)
+      // This prevents overwhelming the system during shutdown
+      const maxConcurrentShutdown = 4;
+      final metadataList = _metadataDownloaders.values.toList();
+      for (var i = 0; i < metadataList.length; i += maxConcurrentShutdown) {
+        final batch = metadataList.skip(i).take(maxConcurrentShutdown).toList();
+        await Future.wait(batch.map((metadata) async {
+          try {
+            await metadata.stop();
+          } on Exception {
+            // Ignore errors during shutdown
+          }
+        }));
+      }
       _metadataDownloaders.clear();
 
       // Close all progress controllers safely

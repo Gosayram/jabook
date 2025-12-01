@@ -47,8 +47,9 @@ import 'package:jabook/core/infrastructure/logging/environment_logger.dart';
 import 'package:jabook/core/infrastructure/logging/structured_logger.dart';
 import 'package:jabook/core/infrastructure/notifications/download_notification_service.dart';
 import 'package:jabook/core/infrastructure/permissions/permission_service.dart';
+import 'package:jabook/core/infrastructure/task_manager/task_manager.dart';
+import 'package:jabook/core/infrastructure/task_manager/task_monitor.dart';
 import 'package:jabook/core/net/dio_client.dart';
-import 'package:jabook/core/player/player_state_persistence_service.dart';
 import 'package:jabook/core/player/player_state_provider.dart';
 import 'package:jabook/core/torrent/audiobook_torrent_manager_provider.dart';
 import 'package:jabook/core/utils/first_launch.dart';
@@ -85,7 +86,6 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
       ref.read(rutrackerCacheServiceProvider);
   LanguageManager get languageManager => ref.read(languageManagerProvider);
   RuTrackerAuth? _rutrackerAuth;
-  AuthRepositoryImpl? _authRepository;
 
   // Avoid recreating the key on every build.
   final GlobalKey<ScaffoldMessengerState> _scaffoldMessengerKey =
@@ -164,6 +164,8 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
       case AppLifecycleState.resumed:
         // App returned to foreground
         logger.i('App resumed - checking download status');
+        // Resume non-critical tasks
+        safeUnawaited(TaskManager.instance.resume());
         _onAppResumed();
         break;
       case AppLifecycleState.paused:
@@ -288,12 +290,18 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
   /// Handles app pause event.
   ///
   /// Saves download state and playback position to ensure persistence.
+  /// Pauses non-critical tasks for energy efficiency.
   Future<void> _onAppPaused() async {
     try {
+      // Pause non-critical tasks for energy efficiency
+      await TaskManager.instance.pauseNonCritical();
+
       // Save download state to database
       // Downloads will continue in background if they're active
       // State is already saved via _saveDownloadMetadata during download progress
-      logger.i('App paused - download state saved');
+      logger
+        ..i('App paused - non-critical tasks paused')
+        ..i('App paused - download state saved');
 
       // Save playback position when app goes to background
       try {
@@ -313,6 +321,9 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
   /// Saves final download state and playback position before app termination.
   Future<void> _onAppDetached() async {
     try {
+      // Stop task monitoring
+      TaskMonitor.instance.stopReporting();
+
       // Final save of download state
       // Note: We don't call shutdown() here as it would stop all downloads
       // Downloads should continue in background if possible
@@ -353,6 +364,10 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
       await _initializeDatabase();
       final dbInitDuration =
           DateTime.now().difference(dbInitStart).inMilliseconds;
+
+      // Initialize TaskManager for centralized task management
+      await TaskManager.initialize();
+      TaskMonitor.instance.startReporting();
 
       // Initialize configuration based on flavor (lightweight, can run in parallel)
       // Initialize default storage path
@@ -652,9 +667,9 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
     try {
       logger.i('Checking for saved player state to restore');
 
-      // Import here to avoid circular dependencies
-      final playerStatePersistenceService = PlayerStatePersistenceService();
-      final savedState = await playerStatePersistenceService.restoreState();
+      // Use Media3PlayerService through provider to ensure singleton instance
+      final playerService = ref.read(media3PlayerServiceProvider);
+      final savedState = await playerService.restoreFullState();
 
       if (savedState == null) {
         logger.i('No saved player state found');
@@ -678,7 +693,7 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
         logger.w(
           'Some files from saved state no longer exist, clearing saved state',
         );
-        await playerStatePersistenceService.clearState();
+        await playerService.clearSavedState();
         return;
       }
 
@@ -981,6 +996,26 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
           if (mounted) {
             try {
               final router = ref.read(appRouterProvider);
+              final playerState = ref.read(playerStateProvider);
+
+              // Check if player is already playing - if yes, use current group
+              // This ensures we don't reinitialize if player is already active
+              if (playerState.playbackState != 0 &&
+                  playerState.currentGroupPath != null) {
+                // Player is active - try to get current group from provider
+                final currentGroup = ref.read(currentAudiobookGroupProvider);
+
+                // If provider has group with matching path, use it
+                if (currentGroup != null &&
+                    currentGroup.groupPath == playerState.currentGroupPath) {
+                  await router.push('/local-player', extra: currentGroup);
+                  logger.i(
+                      'Opened player from notification (using current group)');
+                  return null;
+                }
+              }
+
+              // Fallback: try to get group from provider
               final currentGroup = ref.read(currentAudiobookGroupProvider);
               if (currentGroup != null) {
                 await router.push('/local-player', extra: currentGroup);
@@ -1073,22 +1108,17 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
 
       return ProviderScope(
         overrides: [
-          // Override AuthRepositoryProvider with actual implementation
-          // Use lazy initialization to avoid issues during app startup
-          authRepositoryProvider.overrideWith((ref) {
+          // Override rutrackerAuthProvider first (required by auth data sources)
+          rutrackerAuthProvider.overrideWith((ref) {
             // Lazy initialization - only create when actually needed
-            // Use a try-catch to handle any initialization errors gracefully
             try {
               // Double-check that widget is still mounted
               if (!mounted) {
-                logger.w('Widget not mounted when creating auth repository');
+                logger.w('Widget not mounted when creating rutracker auth');
                 throw StateError(
                     'Widget is not mounted, cannot create RuTrackerAuth');
               }
 
-              // On Android 16, context may not be fully ready during early initialization
-              // Additional check: verify that context is still mounted
-              // This is especially important on Android 16 where lifecycle is stricter
               final buildContext = context;
               if (!buildContext.mounted) {
                 throw StateError(
@@ -1096,8 +1126,6 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
               }
 
               if (_rutrackerAuth == null) {
-                // Create RuTrackerAuth with context
-                // On Android 16, wrap in try-catch to handle any initialization issues
                 try {
                   final sessionManager = ref.read(sessionManagerProvider);
                   _rutrackerAuth = RuTrackerAuth(
@@ -1113,31 +1141,31 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
                 }
               }
 
-              if (_authRepository == null) {
-                final auth = _rutrackerAuth;
-                if (auth == null) {
-                  throw StateError('RuTrackerAuth is null');
-                }
-                // Use new data sources architecture
-                final remoteDataSource = AuthRemoteDataSourceImpl(auth);
-                final localDataSource = AuthLocalDataSourceImpl(auth);
-                _authRepository =
-                    AuthRepositoryImpl(remoteDataSource, localDataSource);
-                if (_authRepository == null) {
-                  throw StateError('AuthRepositoryImpl creation returned null');
-                }
+              final auth = _rutrackerAuth;
+              if (auth == null) {
+                throw StateError('RuTrackerAuth is null');
               }
+              return auth;
+            } catch (e, stackTrace) {
+              logger.e('Failed to initialize rutracker auth: $e',
+                  stackTrace: stackTrace);
+              rethrow;
+            }
+          }),
+          // Override AuthRepositoryProvider with actual implementation
+          // Now rutrackerAuthProvider is already overridden above, so we can use it
+          authRepositoryProvider.overrideWith((ref) {
+            try {
+              // Get RuTrackerAuth from the overridden provider
+              final auth = ref.watch(rutrackerAuthProvider);
 
-              final repository = _authRepository;
-              if (repository == null) {
-                throw StateError('AuthRepository is null after initialization');
-              }
-              return repository;
+              // Use new data sources architecture
+              final remoteDataSource = AuthRemoteDataSourceImpl(auth);
+              final localDataSource = AuthLocalDataSourceImpl(auth);
+              return AuthRepositoryImpl(remoteDataSource, localDataSource);
             } catch (e, stackTrace) {
               logger.e('Failed to initialize auth repository: $e',
                   stackTrace: stackTrace);
-              // On new Android, try to continue with a fallback instead of crashing
-              // This allows the app to start even if auth initialization fails
               rethrow;
             }
           }),

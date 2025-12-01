@@ -210,6 +210,7 @@ class AudioPlayerMethodHandler(
                 "setPlaylist" -> {
                     val filePaths = call.argument<List<String>>("filePaths") ?: emptyList()
                     val metadata = call.argument<Map<String, String>>("metadata")
+                    val initialTrackIndex = call.argument<Int?>("initialTrackIndex")
                     if (filePaths.isEmpty()) {
                         result.error("INVALID_ARGUMENT", "File paths list cannot be empty", null)
                         return
@@ -221,9 +222,12 @@ class AudioPlayerMethodHandler(
                         return
                     }
 
-                    service.setPlaylist(filePaths, metadata) { success, exception ->
+                    service.setPlaylist(filePaths, metadata, initialTrackIndex) { success, exception ->
                         if (success) {
-                            android.util.Log.d("AudioPlayerMethodHandler", "Playlist set successfully via callback")
+                            android.util.Log.d(
+                                "AudioPlayerMethodHandler",
+                                "Playlist set successfully via callback (initialTrackIndex=$initialTrackIndex)",
+                            )
                             result.success(true)
                         } else {
                             val errorMessage = exception?.message ?: "Failed to set playlist"

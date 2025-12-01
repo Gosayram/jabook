@@ -140,6 +140,14 @@ class StorageForecast {
 /// Service for collecting and analyzing storage statistics.
 class StorageStatisticsService {
   /// Creates a new StorageStatisticsService instance.
+  ///
+  /// The [scanner] parameter is optional - if not provided, a new instance will be created.
+  /// The [fileManager] parameter is optional - if not provided, a new instance will be created.
+  /// Note: If creating a new fileManager, it won't have Media3PlayerService, which is less ideal.
+  /// For dependency injection, prefer passing an initialized AudiobookFileManager with Media3PlayerService.
+  /// The [cacheService] parameter is optional - if not provided, a new instance will be created.
+  /// The [trashService] parameter is optional - if not provided, a new instance will be created.
+  /// The [storageUtils] parameter is optional - if not provided, a new instance will be created.
   StorageStatisticsService({
     AudiobookLibraryScanner? scanner,
     AudiobookFileManager? fileManager,
@@ -160,20 +168,35 @@ class StorageStatisticsService {
   final StructuredLogger _logger = StructuredLogger();
 
   /// Gets storage breakdown by category.
+  ///
+  /// Uses parallel processing for different categories (library, cache, trash)
+  /// to improve performance. This is a low-priority operation that shouldn't
+  /// block UI or other critical operations.
   Future<StorageBreakdown> getStorageBreakdown() async {
     try {
-      // Get library size
+      // Get groups first (needed for library size calculation)
       final groups = await _scanner.scanAllLibraryFolders();
-      var librarySize = 0;
-      for (final group in groups) {
-        librarySize += await _fileManager.calculateGroupSize(group);
-      }
 
-      // Get cache size
-      final cacheSize = await _cacheService.getTotalCacheSize();
+      // Process library, cache, and trash sizes in parallel (max 3 concurrent)
+      // This significantly improves performance for large storage
+      final results = await Future.wait([
+        // Calculate library size
+        () async {
+          var librarySize = 0;
+          for (final group in groups) {
+            librarySize += await _fileManager.calculateGroupSize(group);
+          }
+          return librarySize;
+        }(),
+        // Get cache size
+        _cacheService.getTotalCacheSize(),
+        // Get trash size
+        _trashService.getTrashSize(),
+      ]);
 
-      // Get trash size
-      final trashSize = await _trashService.getTrashSize();
+      final librarySize = results[0];
+      final cacheSize = results[1];
+      final trashSize = results[2];
 
       // Calculate other size (app data, logs, etc.)
       var otherSize = 0;
@@ -348,17 +371,26 @@ class StorageStatisticsService {
   }
 
   /// Calculates directory size recursively.
+  ///
+  /// For large directories, yields periodically to prevent blocking other operations.
   Future<int> _calculateDirectorySize(String path) async {
     try {
       final dir = Directory(path);
       if (!await dir.exists()) return 0;
 
       var totalSize = 0;
+      var fileCount = 0;
       await for (final entity in dir.list(recursive: true)) {
         if (entity is File) {
           try {
             final stat = await entity.stat();
             totalSize = (totalSize + stat.size).toInt();
+            fileCount++;
+
+            // Yield every 1000 files for large directories to prevent blocking
+            if (fileCount % 1000 == 0) {
+              await Future.microtask(() {});
+            }
           } on Exception {
             // Continue with other files
           }

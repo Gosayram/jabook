@@ -19,6 +19,7 @@ import 'package:jabook/core/infrastructure/logging/structured_logger.dart';
 import 'package:jabook/core/library/playback_position_service.dart';
 import 'package:jabook/core/player/native_audio_player.dart';
 import 'package:jabook/core/player/player_state_persistence_service.dart';
+import 'package:path/path.dart' as path;
 
 /// Service for managing Media3 audio player.
 ///
@@ -121,12 +122,15 @@ class Media3PlayerService {
   /// Supports both local files and network streaming.
   /// [metadata] is optional metadata (title, artist, album, artworkUri).
   /// [groupPath] is the unique path for saving playback positions.
+  /// [initialTrackIndex] is optional track index to load first (for saved position optimization).
+  /// If provided, only this track is loaded synchronously, others load asynchronously for fast startup.
   ///
   /// Throws [AudioFailure] if setting playlist fails.
   Future<void> setPlaylist(
     List<String> filePaths, {
     Map<String, String>? metadata,
     String? groupPath,
+    int? initialTrackIndex,
   }) async {
     if (!_isInitialized) {
       await initialize();
@@ -140,10 +144,15 @@ class Media3PlayerService {
         extra: {
           'file_count': filePaths.length,
           'group_path': groupPath,
+          'initial_track_index': initialTrackIndex,
         },
       );
 
-      await _player.setPlaylist(filePaths, metadata: metadata);
+      await _player.setPlaylist(
+        filePaths,
+        metadata: metadata,
+        initialTrackIndex: initialTrackIndex,
+      );
       _currentGroupPath = groupPath;
 
       // Start periodic position saving if group path is provided
@@ -392,6 +401,71 @@ class Media3PlayerService {
       rethrow;
     } on Exception catch (e) {
       throw AudioFailure('Failed to get state: ${e.toString()}');
+    }
+  }
+
+  /// Gets information about current media item.
+  ///
+  /// Returns a map with current media item information, or empty map if no item.
+  /// Includes uri, title, artist, artworkPath, etc.
+  Future<Map<String, dynamic>> getCurrentMediaItemInfo() async {
+    try {
+      return await _player.getCurrentMediaItemInfo();
+    } on AudioFailure {
+      rethrow;
+    } on Exception catch (e) {
+      throw AudioFailure(
+        'Failed to get current media item info: ${e.toString()}',
+      );
+    }
+  }
+
+  /// Checks if a file is currently playing.
+  ///
+  /// [filePath] is the file path to check.
+  ///
+  /// Returns true if the file is currently playing, false otherwise.
+  Future<bool> isFilePlaying(String filePath) async {
+    try {
+      final state = await getState();
+      if (!state.isPlaying) {
+        return false;
+      }
+
+      final currentMediaItem = await getCurrentMediaItemInfo();
+      if (currentMediaItem.isEmpty) {
+        return false;
+      }
+
+      final currentUri = currentMediaItem['uri'] as String?;
+      if (currentUri == null) {
+        return false;
+      }
+
+      // Normalize paths for comparison
+      final normalizedFilePath = path.normalize(filePath);
+      // Remove file:// prefix if present
+      var normalizedCurrentUri = currentUri;
+      if (normalizedCurrentUri.startsWith('file://')) {
+        normalizedCurrentUri = normalizedCurrentUri.substring(7);
+      }
+      normalizedCurrentUri = path.normalize(normalizedCurrentUri);
+
+      // Check if the current playing file matches the file path
+      return normalizedFilePath == normalizedCurrentUri ||
+          currentUri.contains(filePath);
+    } on Exception catch (e) {
+      await _logger.log(
+        level: 'warning',
+        subsystem: 'audio',
+        message: 'Failed to check if file is playing',
+        extra: {
+          'filePath': filePath,
+          'error': e.toString(),
+        },
+      );
+      // If we can't check, assume file is not playing to allow deletion
+      return false;
     }
   }
 

@@ -20,6 +20,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:jabook/core/di/providers/database_providers.dart';
+import 'package:jabook/core/di/providers/player_providers.dart';
 import 'package:jabook/core/di/providers/utils_providers.dart';
 import 'package:jabook/core/favorites/favorites_service.dart';
 import 'package:jabook/core/library/audiobook_file_manager.dart';
@@ -415,7 +416,7 @@ class _LibraryContentState extends ConsumerState<_LibraryContent> {
     folderFilterService: _folderFilterService,
     contentUriService: Platform.isAndroid ? ContentUriService() : null,
   );
-  final AudiobookFileManager _fileManager = AudiobookFileManager();
+  late final AudiobookFileManager _fileManager;
   bool _hasInitialLoad = false;
 
   @override
@@ -427,6 +428,15 @@ class _LibraryContentState extends ConsumerState<_LibraryContent> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    // Initialize file manager with Media3PlayerService from provider
+    // This ensures we use the singleton player instance for file playing checks
+    // Initialize here to ensure ref is available
+    if (!_hasInitialLoad) {
+      final playerService = ref.read(media3PlayerServiceProvider);
+      _fileManager = AudiobookFileManager(
+        media3PlayerService: playerService,
+      );
+    }
     // Always scan on first load to ensure library is up-to-date
     // This ensures that deleted files are removed and new files are added
     if (!_hasInitialLoad) {
@@ -699,8 +709,15 @@ class _LibraryContentState extends ConsumerState<_LibraryContent> {
                                 ),
                       ),
                     ),
-                    ...groups.map(
-                        (group) => _buildAudiobookGroupTile(context, group)),
+                    ...groups
+                        .expand(
+                          (group) => [
+                            _buildAudiobookGroupTile(context, group),
+                            const SizedBox(height: 8),
+                          ],
+                        )
+                        .toList()
+                      ..removeLast(), // Remove last SizedBox
                   ],
                 );
               },
@@ -713,8 +730,9 @@ class _LibraryContentState extends ConsumerState<_LibraryContent> {
           context,
           RefreshIndicator(
             onRefresh: _refreshLibrary,
-            child: ListView.builder(
+            child: ListView.separated(
               itemCount: groupsToShow.length,
+              separatorBuilder: (context, index) => const SizedBox(height: 8),
               itemBuilder: (context, index) {
                 final group = groupsToShow[index];
                 return _buildAudiobookGroupTile(context, group);
@@ -1104,7 +1122,9 @@ class _LibraryContentState extends ConsumerState<_LibraryContent> {
   ) =>
       // Build cover widget with caching optimization
       // Try embedded artwork from metadata if no coverPath
+      // Use unique key based on groupPath to prevent widget reuse and cover mix-ups
       _AudiobookGroupTile(
+        key: ValueKey('audiobook_group_${group.groupPath}'),
         group: group,
         onPlay: () {
           // Navigate to local player screen
@@ -1121,6 +1141,7 @@ class _LibraryContentState extends ConsumerState<_LibraryContent> {
 /// Widget for displaying an audiobook group tile with embedded artwork support.
 class _AudiobookGroupTile extends ConsumerStatefulWidget {
   const _AudiobookGroupTile({
+    super.key,
     required this.group,
     required this.onPlay,
     required this.onTap,
@@ -1138,8 +1159,16 @@ class _AudiobookGroupTile extends ConsumerStatefulWidget {
 }
 
 class _AudiobookGroupTileState extends ConsumerState<_AudiobookGroupTile> {
+  // Constants for layout
+  static const double _coverSize = 80.0;
+  static const double _cardPadding = 12.0;
+  static const double _coverTextSpacing = 10.0;
+  static const double _textButtonSpacing = 10.0;
+  static const double _buttonMinSize = 48.0;
+
   String? _embeddedArtworkPath;
   bool _isLoadingArtwork = false;
+  bool _isExpanded = false;
 
   @override
   void initState() {
@@ -1150,17 +1179,53 @@ class _AudiobookGroupTileState extends ConsumerState<_AudiobookGroupTile> {
     }
   }
 
+  @override
+  void didUpdateWidget(_AudiobookGroupTile oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Reset embedded artwork if group changed
+    if (oldWidget.group.groupPath != widget.group.groupPath ||
+        oldWidget.group.files.length != widget.group.files.length) {
+      setState(() {
+        _embeddedArtworkPath = null;
+        _isLoadingArtwork = false;
+      });
+      // Reload artwork if no coverPath
+      if (widget.group.coverPath == null && widget.group.files.isNotEmpty) {
+        _loadEmbeddedArtwork();
+      }
+    }
+  }
+
   Future<void> _loadEmbeddedArtwork() async {
     if (_isLoadingArtwork) return;
     _isLoadingArtwork = true;
 
     try {
-      // Try to extract artwork from first file in group
-      final firstFile = widget.group.files.first;
+      // Try to extract artwork from files in order until found
       final nativePlayer = NativeAudioPlayer();
-      final artworkPath = await nativePlayer.extractArtworkFromFile(
-        firstFile.filePath,
-      );
+      String? artworkPath;
+
+      for (final file in widget.group.files) {
+        try {
+          artworkPath = await nativePlayer.extractArtworkFromFile(
+            file.filePath,
+          );
+
+          if (artworkPath != null) {
+            final artworkFile = File(artworkPath);
+            if (artworkFile.existsSync()) {
+              // Found artwork, stop searching
+              break;
+            } else {
+              artworkPath = null;
+            }
+          }
+        } on Exception catch (e) {
+          // Continue to next file if this one fails
+          debugPrint('Failed to extract artwork from ${file.filePath}: $e');
+          artworkPath = null;
+        }
+      }
 
       if (artworkPath != null && mounted) {
         final artworkFile = File(artworkPath);
@@ -1183,46 +1248,61 @@ class _AudiobookGroupTileState extends ConsumerState<_AudiobookGroupTile> {
   }
 
   Widget _buildCoverWidget() {
-    const coverSize = 56.0;
+    Widget coverImage;
 
     // Try embedded artwork first (if available)
     if (_embeddedArtworkPath != null) {
       final embeddedFile = File(_embeddedArtworkPath!);
       if (embeddedFile.existsSync()) {
-        return RepaintBoundary(
+        coverImage = RepaintBoundary(
           child: Image.file(
             embeddedFile,
-            width: coverSize,
-            height: coverSize,
+            width: _coverSize,
+            height: _coverSize,
             fit: BoxFit.cover,
-            cacheWidth: 112, // 2x for retina displays
+            cacheWidth: 160, // 2x for retina displays (80 * 2)
             errorBuilder: (context, error, stackTrace) =>
-                _buildGroupCover(coverSize),
+                _buildGroupCover(_coverSize),
           ),
         );
+      } else {
+        coverImage = _buildGroupCover(_coverSize);
       }
-    }
-
-    // Fallback to group cover path
-    if (widget.group.coverPath != null) {
+    } else if (widget.group.coverPath != null) {
+      // Fallback to group cover path
       final coverFile = File(widget.group.coverPath!);
       if (coverFile.existsSync()) {
-        return RepaintBoundary(
+        coverImage = RepaintBoundary(
           child: Image.file(
             coverFile,
-            width: coverSize,
-            height: coverSize,
+            width: _coverSize,
+            height: _coverSize,
             fit: BoxFit.cover,
-            cacheWidth: 112, // 2x for retina displays
+            cacheWidth: 160, // 2x for retina displays
             errorBuilder: (context, error, stackTrace) =>
-                const Icon(Icons.audiotrack, size: 56),
+                const Icon(Icons.audiotrack, size: 80),
           ),
         );
+      } else {
+        coverImage = const Icon(Icons.audiotrack, size: 80);
       }
+    } else {
+      // Default icon
+      coverImage = const Icon(Icons.audiotrack, size: 80);
     }
 
-    // Default icon
-    return const Icon(Icons.audiotrack, size: 56);
+    // Make cover clickable
+    return GestureDetector(
+      onTap: widget.onTap,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(4),
+        child: SizedBox(
+          width: _coverSize,
+          height: _coverSize,
+          child: coverImage,
+        ),
+      ),
+    );
   }
 
   Widget _buildGroupCover(double coverSize) {
@@ -1235,105 +1315,164 @@ class _AudiobookGroupTileState extends ConsumerState<_AudiobookGroupTile> {
             width: coverSize,
             height: coverSize,
             fit: BoxFit.cover,
-            cacheWidth: 112,
+            cacheWidth: 160,
             errorBuilder: (context, error, stackTrace) =>
-                const Icon(Icons.audiotrack, size: 56),
+                const Icon(Icons.audiotrack, size: 80),
           ),
         );
       }
     }
-    return const Icon(Icons.audiotrack, size: 56);
+    return const Icon(Icons.audiotrack, size: 80);
+  }
+
+  Widget _buildTextBlock() => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // First line: Title (main heading)
+          Text(
+            widget.group.groupName,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w500,
+                ),
+            maxLines: _isExpanded ? null : 2,
+            overflow:
+                _isExpanded ? TextOverflow.visible : TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 4),
+          // Second line: Additional info (files, size)
+          Text(
+            '${widget.group.fileCount} ${widget.group.fileCount == 1 ? 'file' : 'files'} • ${widget.group.formattedTotalSize}',
+            style: Theme.of(context).textTheme.bodySmall,
+            maxLines: _isExpanded ? null : 1,
+            overflow:
+                _isExpanded ? TextOverflow.visible : TextOverflow.ellipsis,
+          ),
+        ],
+      );
+
+  Widget _buildActionButtons() {
+    if (ref.watch(isScanningProvider)) {
+      return const SizedBox(
+        width: 20,
+        height: 20,
+        child: CircularProgressIndicator(strokeWidth: 2),
+      );
+    }
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        // Play button
+        IconButton(
+          icon: const Icon(Icons.play_arrow),
+          onPressed: widget.onPlay,
+          tooltip: 'Play',
+          constraints: const BoxConstraints(
+            minWidth: _buttonMinSize,
+            minHeight: _buttonMinSize,
+          ),
+        ),
+        // Menu button
+        PopupMenuButton<String>(
+          icon: const Icon(Icons.more_vert),
+          tooltip: 'More options',
+          constraints: const BoxConstraints(
+            minWidth: _buttonMinSize,
+            minHeight: _buttonMinSize,
+          ),
+          onSelected: (value) {
+            widget.onMenuAction?.call(context, widget.group, value);
+          },
+          itemBuilder: (context) => [
+            PopupMenuItem(
+              value: 'info',
+              child: Row(
+                children: [
+                  const Icon(Icons.info_outline, size: 20),
+                  const SizedBox(width: 8),
+                  Text(
+                    AppLocalizations.of(context)?.showInfoButton ?? 'Show Info',
+                  ),
+                ],
+              ),
+            ),
+            PopupMenuItem(
+              value: 'remove',
+              child: Row(
+                children: [
+                  const Icon(Icons.remove_circle_outline, size: 20),
+                  const SizedBox(width: 8),
+                  Text(
+                    AppLocalizations.of(context)?.removeFromLibraryButton ??
+                        'Remove from Library',
+                  ),
+                ],
+              ),
+            ),
+            PopupMenuItem(
+              value: 'delete',
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.delete_outline,
+                    size: 20,
+                    color: Theme.of(context).colorScheme.error,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    AppLocalizations.of(context)?.deleteFilesButton ??
+                        'Delete Files',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
   }
 
   @override
-  Widget build(BuildContext context) {
-    final coverWidget = _buildCoverWidget();
-
-    return ListTile(
-      leading: ClipRRect(
-        borderRadius: BorderRadius.circular(4),
-        child: coverWidget,
-      ),
-      title: Text(widget.group.groupName),
-      subtitle: Text(
-        '${widget.group.fileCount} ${widget.group.fileCount == 1 ? 'file' : 'files'} • ${widget.group.formattedTotalSize}',
-      ),
-      trailing: ref.watch(isScanningProvider)
-          ? const SizedBox(
-              width: 20,
-              height: 20,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            )
-          : Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.play_arrow),
-                  onPressed: widget.onPlay,
-                  tooltip: 'Play',
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.all(_cardPadding),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Cover image (clickable)
+            _buildCoverWidget(),
+            const SizedBox(width: _coverTextSpacing),
+            // Text block (expandable)
+            Expanded(
+              child: GestureDetector(
+                onTap: () {
+                  if (!_isExpanded) {
+                    // If collapsed, expand
+                    setState(() {
+                      _isExpanded = true;
+                    });
+                  } else {
+                    // If expanded, navigate to player
+                    widget.onTap();
+                  }
+                },
+                child: AnimatedSize(
+                  duration: const Duration(milliseconds: 200),
+                  curve: Curves.easeInOut,
+                  child: _buildTextBlock(),
                 ),
-                PopupMenuButton<String>(
-                  icon: const Icon(Icons.more_vert),
-                  tooltip: 'More options',
-                  onSelected: (value) {
-                    // Pass context and group to parent for handling
-                    widget.onMenuAction?.call(context, widget.group, value);
-                  },
-                  itemBuilder: (context) => [
-                    PopupMenuItem(
-                      value: 'info',
-                      child: Row(
-                        children: [
-                          const Icon(Icons.info_outline, size: 20),
-                          const SizedBox(width: 8),
-                          Text(
-                            AppLocalizations.of(context)?.showInfoButton ??
-                                'Show Info',
-                          ),
-                        ],
-                      ),
-                    ),
-                    PopupMenuItem(
-                      value: 'remove',
-                      child: Row(
-                        children: [
-                          const Icon(Icons.remove_circle_outline, size: 20),
-                          const SizedBox(width: 8),
-                          Text(
-                            AppLocalizations.of(context)
-                                    ?.removeFromLibraryButton ??
-                                'Remove from Library',
-                          ),
-                        ],
-                      ),
-                    ),
-                    PopupMenuItem(
-                      value: 'delete',
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.delete_outline,
-                            size: 20,
-                            color: Theme.of(context).colorScheme.error,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            AppLocalizations.of(context)?.deleteFilesButton ??
-                                'Delete Files',
-                            style: TextStyle(
-                              color: Theme.of(context).colorScheme.error,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+              ),
             ),
-      onTap: widget.onTap,
-    );
-  }
+            const SizedBox(width: _textButtonSpacing),
+            // Action buttons (vertical column)
+            _buildActionButtons(),
+          ],
+        ),
+      );
 }
 
 extension _LibraryContentStateExtension on _LibraryContentState {

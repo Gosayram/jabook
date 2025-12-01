@@ -20,6 +20,7 @@ import 'package:jabook/core/library/local_audiobook.dart';
 import 'package:jabook/core/player/media3_player_service.dart';
 import 'package:jabook/core/player/native_audio_player.dart';
 import 'package:jabook/core/player/player_state_persistence_service.dart';
+import 'package:jabook/core/utils/safe_async.dart';
 import 'package:riverpod/legacy.dart';
 
 /// Player state model.
@@ -157,12 +158,28 @@ class PlayerStateNotifier extends StateNotifier<PlayerStateModel> {
       (audioState) {
         // Preserve metadata when updating from stream
         final newState = PlayerStateModel.fromAudioPlayerState(audioState);
+
+        // Check if track index changed - if so, update cover path from current media item
+        final trackChanged = state.currentIndex != newState.currentIndex;
+        final playbackStateChanged =
+            state.playbackState != newState.playbackState;
+        final updatedCoverPath =
+            newState.currentCoverPath ?? state.currentCoverPath;
+
+        // Update state immediately
         state = newState.copyWith(
           currentTitle: newState.currentTitle ?? state.currentTitle,
           currentArtist: newState.currentArtist ?? state.currentArtist,
-          currentCoverPath: newState.currentCoverPath ?? state.currentCoverPath,
+          currentCoverPath: updatedCoverPath,
           currentGroupPath: newState.currentGroupPath ?? state.currentGroupPath,
         );
+
+        // If track changed or playback state changed to ready (initial load), update cover path
+        if (trackChanged ||
+            (playbackStateChanged && newState.playbackState == 2)) {
+          // playbackState 2 = ready, means player is ready and we should have artwork
+          safeUnawaited(_updateCoverPathFromMediaItem());
+        }
       },
       onError: (error) {
         state = state.copyWith(
@@ -170,6 +187,19 @@ class PlayerStateNotifier extends StateNotifier<PlayerStateModel> {
         );
       },
     );
+  }
+
+  /// Updates cover path from current media item info.
+  Future<void> _updateCoverPathFromMediaItem() async {
+    try {
+      final mediaInfo = await _service.getCurrentMediaItemInfo();
+      final artworkPath = mediaInfo['artworkPath'] as String?;
+      if (artworkPath != null && artworkPath.isNotEmpty) {
+        state = state.copyWith(currentCoverPath: artworkPath);
+      }
+    } on Exception {
+      // Silently fail - keep existing cover path
+    }
   }
 
   /// Initializes the player service.
@@ -192,18 +222,25 @@ class PlayerStateNotifier extends StateNotifier<PlayerStateModel> {
   /// [filePaths] is a list of absolute file paths to audio files.
   /// [metadata] is optional metadata (title, artist, album, coverPath).
   /// [groupPath] is the unique path for saving playback positions.
+  /// [initialTrackIndex] is optional track index to load first (for saved position optimization).
+  /// If provided, only this track is loaded synchronously, others load asynchronously for fast startup.
+  ///
+  /// Note: Caller should update currentAudiobookGroupProvider after calling this method
+  /// to ensure all UI components (mini player, notification handler) are synchronized.
   ///
   /// Throws [AudioFailure] if setting playlist fails.
   Future<void> setPlaylist(
     List<String> filePaths, {
     Map<String, String>? metadata,
     String? groupPath,
+    int? initialTrackIndex,
   }) async {
     try {
       await _service.setPlaylist(
         filePaths,
         metadata: metadata,
         groupPath: groupPath,
+        initialTrackIndex: initialTrackIndex,
       );
       // Update state with metadata
       state = state.copyWith(

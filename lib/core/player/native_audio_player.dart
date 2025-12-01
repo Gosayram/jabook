@@ -277,12 +277,15 @@ class NativeAudioPlayer {
   /// [filePaths] is a list of absolute file paths or HTTP(S) URLs to audio files.
   /// Supports both local files and network streaming.
   /// [metadata] is optional metadata (title, artist, album, artworkUri).
+  /// [initialTrackIndex] is optional track index to load first (for saved position optimization).
+  /// If provided, only this track is loaded synchronously, others load asynchronously.
   ///
   /// Throws [AudioFailure] if setting playlist fails.
   /// Uses retry logic for SERVICE_UNAVAILABLE errors.
   Future<void> setPlaylist(
     List<String> filePaths, {
     Map<String, String>? metadata,
+    int? initialTrackIndex,
   }) async {
     if (!_isInitialized) {
       await initialize();
@@ -293,7 +296,10 @@ class NativeAudioPlayer {
         level: 'info',
         subsystem: 'audio',
         message: 'Setting playlist',
-        extra: {'file_count': filePaths.length},
+        extra: {
+          'file_count': filePaths.length,
+          'initial_track_index': initialTrackIndex,
+        },
       );
 
       // Use retry mechanism for setPlaylist
@@ -302,6 +308,7 @@ class NativeAudioPlayer {
         arguments: {
           'filePaths': filePaths,
           'metadata': metadata,
+          if (initialTrackIndex != null) 'initialTrackIndex': initialTrackIndex,
         },
         maxRetries: 2, // Fewer retries for setPlaylist
       ).timeout(

@@ -24,6 +24,7 @@ import android.view.KeyEvent.KEYCODE_MEDIA_NEXT
 import android.view.KeyEvent.KEYCODE_MEDIA_PREVIOUS
 import androidx.annotation.OptIn
 import androidx.media3.common.C
+import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.CommandButton
@@ -62,12 +63,15 @@ import com.jabook.app.jabook.MainActivity
 class MediaSessionManager(
     private val context: Context,
     private val player: ExoPlayer,
+    private var playCallback: (() -> Unit)? = null,
+    private var pauseCallback: (() -> Unit)? = null,
 ) {
     private var mediaSession: MediaSession? = null
     private var rewindCallback: (() -> Unit)? = null
     private var forwardCallback: (() -> Unit)? = null
     private var rewindSeconds: Long = 15L
     private var forwardSeconds: Long = 30L
+    private var lastPlayWhenReady: Boolean = player.playWhenReady
 
     companion object {
         private const val REWIND_COMMAND = "com.jabook.app.jabook.audio.REWIND"
@@ -91,7 +95,41 @@ class MediaSessionManager(
     init {
         rewindSeconds = DEFAULT_REWIND_SECONDS
         forwardSeconds = DEFAULT_FORWARD_SECONDS
+        lastPlayWhenReady = player.playWhenReady
+        setupPlayerListener()
         initializeMediaSession()
+    }
+
+    /**
+     * Sets up Player listener to intercept play/pause commands from MediaSession.
+     * When playWhenReady changes due to user action (Quick Settings, notification, etc.),
+     * we call our callbacks to ensure notification is updated and timers are reset.
+     */
+    private fun setupPlayerListener() {
+        player.addListener(
+            object : Player.Listener {
+                override fun onPlayWhenReadyChanged(
+                    playWhenReady: Boolean,
+                    reason: Int,
+                ) {
+                    // Only call callbacks if the change was triggered by user action
+                    // PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST = 1 means user explicitly requested play/pause
+                    // This happens when user clicks button in Quick Settings, notification, or lockscreen
+                    if (reason == Player.PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST) {
+                        if (playWhenReady && !lastPlayWhenReady) {
+                            // User requested play via MediaSession (Quick Settings, notification, etc.)
+                            android.util.Log.d("MediaSessionManager", "Play command detected from MediaSession, calling playCallback")
+                            playCallback?.invoke()
+                        } else if (!playWhenReady && lastPlayWhenReady) {
+                            // User requested pause via MediaSession (Quick Settings, notification, etc.)
+                            android.util.Log.d("MediaSessionManager", "Pause command detected from MediaSession, calling pauseCallback")
+                            pauseCallback?.invoke()
+                        }
+                    }
+                    lastPlayWhenReady = playWhenReady
+                }
+            },
+        )
     }
 
     /**
@@ -238,6 +276,10 @@ class MediaSessionManager(
                                     .setCustomLayout(listOf(rewindButton, forwardButton))
                                     .build()
                             }
+
+                            // Note: Media3 MediaSession.Callback doesn't have onPlay/onPause methods
+                            // MediaSession automatically delegates play/pause commands to Player
+                            // We use Player listener to intercept state changes and call callbacks if needed
 
                             override fun onCustomCommand(
                                 session: MediaSession,

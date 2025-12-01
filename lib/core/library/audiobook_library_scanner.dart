@@ -612,22 +612,30 @@ class AudiobookLibraryScanner {
     bool recursive,
   ) async {
     final audioFiles = <File>[];
+    var fileCount = 0;
 
     try {
+      // Collect all entities first (files and subdirectories)
+      final subdirs = <Directory>[];
+
       await for (final entity in dir.list()) {
         try {
           if (entity is File) {
             if (_isAudioFile(entity.path)) {
               audioFiles.add(entity);
+              fileCount++;
+
+              // Yield every 100 files for large libraries to prevent blocking
+              if (fileCount % 100 == 0) {
+                await Future.microtask(() {});
+              }
             }
           } else if (entity is Directory && recursive) {
             // Check if directory should be scanned (folder filter)
             final shouldScan = _folderFilterService == null ||
                 await _folderFilterService.shouldScanDirectory(entity);
             if (shouldScan) {
-              // Recursively scan subdirectories
-              final subFiles = await _scanDirectoryRecursive(entity, recursive);
-              audioFiles.addAll(subFiles);
+              subdirs.add(entity);
             }
           }
         } on Exception catch (e) {
@@ -641,6 +649,26 @@ class AudiobookLibraryScanner {
               'error': e.toString(),
             },
           );
+        }
+      }
+
+      // Process subdirectories in parallel (max 4 concurrently)
+      // This significantly improves performance for large directory trees
+      const maxConcurrent = 4;
+      for (var i = 0; i < subdirs.length; i += maxConcurrent) {
+        final batch = subdirs.skip(i).take(maxConcurrent).toList();
+        final results = await Future.wait(
+          batch.map((subdir) => _scanDirectoryRecursive(subdir, recursive)),
+        );
+
+        for (final subFiles in results) {
+          audioFiles.addAll(subFiles);
+          fileCount += subFiles.length;
+
+          // Yield every 100 files for large libraries
+          if (fileCount % 100 == 0) {
+            await Future.microtask(() {});
+          }
         }
       }
     } on Exception catch (e) {

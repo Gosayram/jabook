@@ -54,53 +54,64 @@ object MediaModule {
     ): Cache {
         val initStart = System.currentTimeMillis()
 
-        // Optimize cache directory selection (avoid slow StatFs on main thread)
-        val baseFolder =
-            try {
-                context.externalCacheDir?.takeIf { it.exists() && it.canWrite() }
-                    ?: context.cacheDir
-            } catch (e: Exception) {
-                android.util.Log.w("MediaModule", "Error getting cache dir, using fallback: ${e.message}")
-                context.cacheDir
-            }
+        // CRITICAL OPTIMIZATION: Minimize blocking operations during cache creation
+        // For local files, cache is NOT used, so we can optimize for fast initialization
+        // Only network streams use cache, so we can use defaults and avoid slow operations
 
+        // Use default cache dir immediately - no need to check external cache or permissions
+        val baseFolder = context.cacheDir
         val cacheDir = File(baseFolder, "playback_cache")
 
-        // Use fixed cache limit to avoid slow StatFs call on main thread
-        // StatFs can be slow and cause ANR, so we use a reasonable default
-        // Inspired by lissen-android: minimize synchronous I/O operations
-        val cacheLimit =
-            try {
-                // Try to get available space, but with timeout protection
-                val stat = android.os.StatFs(baseFolder.path)
-                val available = stat.availableBytes
-                val dynamicCap = (available - KEEP_FREE_BYTES).coerceAtLeast(MIN_CACHE_BYTES)
-                minOf(MAX_CACHE_BYTES, dynamicCap)
-            } catch (e: Exception) {
-                android.util.Log.w("MediaModule", "Error calculating cache limit, using default: ${e.message}")
-                // Use default if StatFs fails (prevents ANR)
-                DEFAULT_CACHE_BYTES
-            }
+        // CRITICAL: Use default cache limit immediately - NO StatFs call
+        // StatFs can be VERY slow on some devices (especially with large storage or slow I/O)
+        // and can block initialization for several seconds. This is unacceptable for fast startup.
+        // For local files, cache is not used anyway, so we don't need optimal cache size.
+        // If StatFs is needed for network streams, it should be done asynchronously later.
+        val cacheLimit = DEFAULT_CACHE_BYTES
 
         android.util.Log.d(
             "MediaModule",
-            "Providing Media Cache: ${cacheDir.absolutePath}, limit: ${cacheLimit / (1024 * 1024)} MB",
+            "Providing Media Cache: ${cacheDir.absolutePath}, limit: ${cacheLimit / (1024 * 1024)} MB (using default to avoid slow StatFs)",
         )
+
+        // CRITICAL: Create StandaloneDatabaseProvider - this may initialize DB synchronously
+        // If cache has many entries, DB initialization can be slow.
+        // However, for local files, cache is not used, so this won't affect playback startup.
+        // The DB initialization happens here, but it's necessary for cache to work.
+        // We accept this because:
+        // 1. Local files don't use cache, so this doesn't affect local playback startup
+        // 2. Network streams need cache, and DB initialization is necessary
+        // 3. DB initialization is usually fast (<100ms) unless cache is corrupted
+        //
+        // OPTIMIZATION: Create database provider - this is lightweight, DB is initialized lazily
+        val databaseProvider = StandaloneDatabaseProvider(context)
 
         val cache =
             try {
+                // SimpleCache creation is fast - it just creates the object
+                // Actual DB operations happen lazily when cache is first used
                 SimpleCache(
                     cacheDir,
                     LeastRecentlyUsedCacheEvictor(cacheLimit),
-                    StandaloneDatabaseProvider(context),
+                    databaseProvider,
                 )
             } catch (e: Exception) {
                 android.util.Log.e("MediaModule", "Error creating SimpleCache: ${e.message}", e)
+                // If cache creation fails, we can still work without cache (for local files)
+                // But we need to throw to prevent using broken cache
                 throw e
             }
 
         val initDuration = System.currentTimeMillis() - initStart
         android.util.Log.d("MediaModule", "Media Cache provided (${initDuration}ms)")
+
+        // Log warning if cache initialization took too long
+        if (initDuration > 500) {
+            android.util.Log.w(
+                "MediaModule",
+                "Cache initialization took ${initDuration}ms (slow). Consider cleaning cache if this persists.",
+            )
+        }
 
         return cache
     }
