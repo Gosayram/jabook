@@ -107,7 +107,7 @@ run:
 run-profile:
 	@echo "Running app with profiling (output saved to startup_profile.log)..."
 	@echo "Note: DevTools can be accessed via 'flutter pub global run devtools' if needed"
-	flutter run --flavor dev --verbose --trace-startup --profile > startup_profile.log 2>&1
+	flutter run --flavor beta --dart-define=FLAVOR=beta --verbose --trace-startup --profile > startup_profile.log 2>&1
 	@echo "Profile run complete. Check startup_profile.log for details."
 
 # Android build commands
