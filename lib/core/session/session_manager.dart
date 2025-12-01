@@ -171,7 +171,7 @@ class SessionManager {
       final cookieJar = await _getCookieJar(dio);
 
       final appDb = _appDatabase ?? AppDatabase.getInstance();
-      final db = appDb.database;
+      final db = await appDb.ensureInitialized();
       final endpointManager = EndpointManager(db);
       final activeBase = await endpointManager.getActiveEndpoint();
       final uri = Uri.parse(activeBase);

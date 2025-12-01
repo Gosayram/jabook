@@ -4166,7 +4166,7 @@ abstract class AppLocalizations {
   /// Description for file access permission
   ///
   /// In en, this message translates to:
-  /// **'Needed to save and play audiobooks.'**
+  /// **'Needed to save and play audiobooks. On Android 11+, you\'ll need to enable \"All files access\" in system settings.'**
   String get fileAccessPermissionDescription;
 
   /// Title for notifications permission

@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:async';
+
+import 'package:jabook/core/infrastructure/config/app_config.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sembast/sembast_io.dart';
 
@@ -49,6 +52,14 @@ class AppDatabase {
   Database? _db;
   bool _isInitialized = false;
 
+  /// Flag to track if initialization is in progress.
+  /// Used to prevent concurrent initialization attempts.
+  bool _isInitializing = false;
+
+  /// Completer for initialization future.
+  /// Used to wait for ongoing initialization to complete.
+  Completer<void>? _initializationCompleter;
+
   /// Gets the database instance for direct operations.
   /// Throws StateError if database is not initialized.
   Database get database {
@@ -61,18 +72,85 @@ class AppDatabase {
   /// Checks if database is initialized.
   bool get isInitialized => _isInitialized && _db != null;
 
+  /// Ensures database is initialized and returns the database instance.
+  ///
+  /// This method waits for initialization if it's in progress or initializes
+  /// the database if it's not initialized yet. This is the safe way to
+  /// access the database from code that might run before app initialization.
+  ///
+  /// Throws StateError if initialization fails after maximum retries.
+  Future<Database> ensureInitialized() async {
+    if (_isInitialized && _db != null) {
+      return _db!;
+    }
+
+    // Wait for initialization if in progress
+    if (_isInitializing && _initializationCompleter != null) {
+      await _initializationCompleter!.future;
+      if (_isInitialized && _db != null) {
+        return _db!;
+      }
+    }
+
+    // Initialize if not already initialized
+    await initialize();
+    if (!_isInitialized || _db == null) {
+      throw StateError('Database initialization failed');
+    }
+    return _db!;
+  }
+
   /// Initializes the database and creates all necessary stores.
   ///
   /// This method should be called once when the app starts.
+  /// It's thread-safe and can be called multiple times safely.
   Future<void> initialize() async {
+    // Fast path: already initialized
     if (_isInitialized && _db != null) {
-      return; // Already initialized
+      return;
     }
-    final appDocumentDir = await getApplicationDocumentsDirectory();
-    final dbPath = '${appDocumentDir.path}/jabook.db';
 
-    _db = await databaseFactoryIo.openDatabase(dbPath);
-    _isInitialized = true;
+    // If initialization is in progress, wait for it to complete
+    if (_isInitializing && _initializationCompleter != null) {
+      return _initializationCompleter!.future;
+    }
+
+    // Start initialization
+    _isInitializing = true;
+    _initializationCompleter = Completer<void>();
+
+    try {
+      // Double-check after acquiring lock
+      if (_isInitialized && _db != null) {
+        _isInitializing = false;
+        _initializationCompleter!.complete();
+        _initializationCompleter = null;
+        return;
+      }
+
+      final appDocumentDir = await getApplicationDocumentsDirectory();
+
+      // Use different database file names based on flavor
+      // For prod: jabook.db
+      // For other flavors: jabook-{flavor}.db (e.g., jabook-beta.db, jabook-dev.db)
+      final config = AppConfig();
+      final dbFileName =
+          config.isProd ? 'jabook.db' : 'jabook-${config.flavor}.db';
+      final dbPath = '${appDocumentDir.path}/$dbFileName';
+
+      _db = await databaseFactoryIo.openDatabase(dbPath);
+      _isInitialized = true;
+
+      _initializationCompleter!.complete();
+    } catch (e) {
+      _isInitializing = false;
+      _initializationCompleter!.completeError(e);
+      _initializationCompleter = null;
+      rethrow;
+    } finally {
+      _isInitializing = false;
+      _initializationCompleter = null;
+    }
   }
 
   /// Gets the user preferences store.
@@ -140,6 +218,8 @@ class AppDatabase {
       await _db!.close();
       _db = null;
       _isInitialized = false;
+      _isInitializing = false;
+      _initializationCompleter = null;
     }
   }
 }

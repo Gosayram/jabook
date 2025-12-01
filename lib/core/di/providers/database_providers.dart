@@ -19,4 +19,8 @@ import 'package:jabook/core/data/local/database/app_database.dart';
 ///
 /// This provider creates a singleton AppDatabase instance that is shared
 /// throughout the application lifecycle.
-final appDatabaseProvider = Provider<AppDatabase>((ref) => AppDatabase());
+///
+/// Uses [AppDatabase.getInstance()] to ensure backward compatibility
+/// with code that still uses the static getInstance() method.
+final appDatabaseProvider =
+    Provider<AppDatabase>((ref) => AppDatabase.getInstance());

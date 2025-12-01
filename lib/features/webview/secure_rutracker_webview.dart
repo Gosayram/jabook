@@ -637,7 +637,7 @@ class _SecureRutrackerWebViewState
 
       // CRITICAL: Get the active endpoint first - we need to sync cookies for the active domain
       final appDb = AppDatabase.getInstance();
-      final db = appDb.database;
+      final db = await appDb.ensureInitialized();
       final endpointManager = EndpointManager(db, appDb);
       String activeEndpoint;
       try {

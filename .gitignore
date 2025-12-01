@@ -212,7 +212,6 @@ outputs/
 *.dylib
 
 # Web
-lib/generated_plugin_registrant.dart
 
 # Crashlytics / Firebase
 *.log

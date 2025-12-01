@@ -21,6 +21,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:jabook/core/di/providers/database_providers.dart';
 import 'package:jabook/core/favorites/favorites_provider.dart';
 import 'package:jabook/core/infrastructure/endpoints/endpoint_manager.dart';
+import 'package:jabook/core/infrastructure/logging/structured_logger.dart';
 import 'package:jabook/core/net/dio_client.dart';
 import 'package:jabook/core/parse/rutracker_parser.dart';
 import 'package:jabook/core/player/player_state_provider.dart';
@@ -209,7 +210,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 
   Future<void> _loadAudiobookFromRutracker() async {
     try {
-      final db = ref.read(appDatabaseProvider).database;
+      final appDatabase = ref.read(appDatabaseProvider);
+      final db = await appDatabase.ensureInitialized();
       final endpointManager = EndpointManager(db);
       final base = await endpointManager.getActiveEndpoint();
       final dio = await DioClient.instance;
@@ -249,6 +251,30 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     }
 
     try {
+      // Check if files are downloaded locally before using LocalStreamServer
+      final hasFiles = await _streamServer.hasFiles(widget.bookId);
+      if (!hasFiles) {
+        await StructuredLogger().log(
+          level: 'warning',
+          subsystem: 'player',
+          message: 'Files not found locally for RuTracker audiobook',
+          extra: {
+            'bookId': widget.bookId,
+            'title': _audiobook!.title,
+          },
+        );
+
+        // Show error message to user
+        if (mounted) {
+          setState(() {
+            _hasError = true;
+            _errorMessage =
+                'Files are not downloaded. Please download the audiobook first to play it.';
+          });
+        }
+        return;
+      }
+
       // Ensure stream server is running
       if (!_streamServer.isRunning) {
         await _streamServer.start();
@@ -284,17 +310,41 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         metadata: metadata,
         groupPath: widget.bookId,
       );
-    } on Exception catch (_) {
-      // Fallback to demo audio on error
-      final playerNotifier = ref.read(playerStateProvider.notifier);
-      await playerNotifier.setPlaylist(
-        ['https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3'],
-        metadata: {
-          'title': 'Demo Audio',
-          'artist': 'SoundHelix',
-        },
-        groupPath: widget.bookId,
+    } on StreamFailure catch (e) {
+      // Log the specific stream failure
+      await StructuredLogger().log(
+        level: 'error',
+        subsystem: 'player',
+        message: 'Failed to load audio sources from local stream server',
+        cause: e.toString(),
+        extra: {'bookId': widget.bookId},
       );
+
+      // Show error message to user
+      if (mounted) {
+        setState(() {
+          _hasError = true;
+          _errorMessage =
+              'Failed to load audio files. Please check if files are downloaded.';
+        });
+      }
+    } on Exception catch (e) {
+      // Log error for debugging
+      await StructuredLogger().log(
+        level: 'error',
+        subsystem: 'player',
+        message: 'Failed to load audio source',
+        cause: e.toString(),
+        extra: {'bookId': widget.bookId},
+      );
+
+      // Show error message to user
+      if (mounted) {
+        setState(() {
+          _hasError = true;
+          _errorMessage = 'Failed to load audio. Please try again.';
+        });
+      }
     }
   }
 

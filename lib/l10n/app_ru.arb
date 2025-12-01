@@ -3091,7 +3091,7 @@
   "@fileAccessPermissionTitle": {
     "description": "Заголовок разрешения доступа к файлам"
   },
-  "fileAccessPermissionDescription": "Нужен для сохранения и воспроизведения аудиокниг.",
+  "fileAccessPermissionDescription": "Нужен для сохранения и воспроизведения аудиокниг. На Android 11+ потребуется включить \"Доступ ко всем файлам\" в настройках системы.",
   "@fileAccessPermissionDescription": {
     "description": "Описание разрешения доступа к файлам"
   },

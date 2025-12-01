@@ -28,7 +28,7 @@ class WebViewNavigationHandler {
   /// Resolves the initial URL for WebView with fallback support.
   static Future<String> resolveInitialUrl() async {
     final appDb = AppDatabase.getInstance();
-    final db = appDb.database;
+    final db = await appDb.ensureInitialized();
     final endpointManager = EndpointManager(db, appDb);
 
     // List of endpoints to try in order of preference
@@ -203,7 +203,7 @@ class WebViewNavigationHandler {
       try {
         final hardcodedFallback = EndpointManager.getPrimaryFallbackEndpoint();
         final appDb = AppDatabase.getInstance();
-        final db = appDb.database;
+        final db = await appDb.ensureInitialized();
         final endpointManager = EndpointManager(db, appDb);
         final isAvailable =
             await endpointManager.quickAvailabilityCheck(hardcodedFallback);
@@ -245,7 +245,7 @@ class WebViewNavigationHandler {
 
         // Quick availability check
         final appDb = AppDatabase.getInstance();
-        final db = appDb.database;
+        final db = await appDb.ensureInitialized();
         final endpointManager = EndpointManager(db, appDb);
         final isAvailable =
             await endpointManager.quickAvailabilityCheck(fallback);

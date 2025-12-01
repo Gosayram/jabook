@@ -66,6 +66,39 @@ class CookieDatabaseService {
         return false;
       }
 
+      // Ensure database is initialized before using it
+      if (!_appDb.isInitialized) {
+        await logger.log(
+          level: 'warning',
+          subsystem: 'cookies',
+          message: 'Database not initialized, waiting for initialization',
+          operationId: operationId,
+          context: 'cookie_database_save',
+        );
+
+        // Wait for database initialization
+        var retries = 0;
+        const maxRetries = 50;
+        const retryDelay = Duration(milliseconds: 100);
+
+        while (!_appDb.isInitialized && retries < maxRetries) {
+          await Future.delayed(retryDelay);
+          retries++;
+        }
+
+        if (!_appDb.isInitialized) {
+          await logger.log(
+            level: 'error',
+            subsystem: 'cookies',
+            message: 'Database not initialized after waiting',
+            operationId: operationId,
+            context: 'cookie_database_save',
+            durationMs: DateTime.now().difference(startTime).inMilliseconds,
+          );
+          return false;
+        }
+      }
+
       final store = _appDb.cookiesStore;
       final db = _appDb.database;
       final cookieData = {
@@ -138,6 +171,39 @@ class CookieDatabaseService {
           'endpoint': endpoint,
         },
       );
+
+      // Ensure database is initialized before using it
+      if (!_appDb.isInitialized) {
+        await logger.log(
+          level: 'warning',
+          subsystem: 'cookies',
+          message: 'Database not initialized, waiting for initialization',
+          operationId: operationId,
+          context: 'cookie_database_get',
+        );
+
+        // Wait for database initialization
+        var retries = 0;
+        const maxRetries = 50;
+        const retryDelay = Duration(milliseconds: 100);
+
+        while (!_appDb.isInitialized && retries < maxRetries) {
+          await Future.delayed(retryDelay);
+          retries++;
+        }
+
+        if (!_appDb.isInitialized) {
+          await logger.log(
+            level: 'error',
+            subsystem: 'cookies',
+            message: 'Database not initialized after waiting',
+            operationId: operationId,
+            context: 'cookie_database_get',
+            durationMs: DateTime.now().difference(startTime).inMilliseconds,
+          );
+          return null;
+        }
+      }
 
       final store = _appDb.cookiesStore;
       final db = _appDb.database;
@@ -324,6 +390,39 @@ class CookieDatabaseService {
         operationId: operationId,
         context: 'cookie_database_clear',
       );
+
+      // Ensure database is initialized before using it
+      if (!_appDb.isInitialized) {
+        await logger.log(
+          level: 'warning',
+          subsystem: 'cookies',
+          message: 'Database not initialized, waiting for initialization',
+          operationId: operationId,
+          context: 'cookie_database_clear',
+        );
+
+        // Wait for database initialization
+        var retries = 0;
+        const maxRetries = 50;
+        const retryDelay = Duration(milliseconds: 100);
+
+        while (!_appDb.isInitialized && retries < maxRetries) {
+          await Future.delayed(retryDelay);
+          retries++;
+        }
+
+        if (!_appDb.isInitialized) {
+          await logger.log(
+            level: 'error',
+            subsystem: 'cookies',
+            message: 'Database not initialized after waiting',
+            operationId: operationId,
+            context: 'cookie_database_clear',
+            durationMs: DateTime.now().difference(startTime).inMilliseconds,
+          );
+          return false;
+        }
+      }
 
       final store = _appDb.cookiesStore;
       final db = _appDb.database;

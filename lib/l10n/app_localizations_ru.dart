@@ -2195,7 +2195,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get fileAccessPermissionTitle => 'Доступ к файлам';
 
   @override
-  String get fileAccessPermissionDescription => 'Нужен для сохранения и воспроизведения аудиокниг.';
+  String get fileAccessPermissionDescription => 'Нужен для сохранения и воспроизведения аудиокниг. На Android 11+ потребуется включить \"Доступ ко всем файлам\" в настройках системы.';
 
   @override
   String get notificationsPermissionTitle => 'Уведомления';

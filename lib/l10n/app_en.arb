@@ -3106,7 +3106,7 @@
   "@fileAccessPermissionTitle": {
     "description": "Title for file access permission"
   },
-  "fileAccessPermissionDescription": "Needed to save and play audiobooks.",
+  "fileAccessPermissionDescription": "Needed to save and play audiobooks. On Android 11+, you'll need to enable \"All files access\" in system settings.",
   "@fileAccessPermissionDescription": {
     "description": "Description for file access permission"
   },

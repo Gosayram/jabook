@@ -2195,7 +2195,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get fileAccessPermissionTitle => 'File Access';
 
   @override
-  String get fileAccessPermissionDescription => 'Needed to save and play audiobooks.';
+  String get fileAccessPermissionDescription => 'Needed to save and play audiobooks. On Android 11+, you\'ll need to enable \"All files access\" in system settings.';
 
   @override
   String get notificationsPermissionTitle => 'Notifications';

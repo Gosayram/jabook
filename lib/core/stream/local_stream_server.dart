@@ -17,7 +17,9 @@ import 'dart:io';
 
 import 'package:jabook/core/infrastructure/errors/failures.dart';
 import 'package:jabook/core/infrastructure/logging/structured_logger.dart';
+import 'package:jabook/core/utils/storage_path_utils.dart';
 import 'package:mime/mime.dart' as mime;
+import 'package:path/path.dart' as path;
 import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart';
 import 'package:shelf_static/shelf_static.dart';
@@ -185,10 +187,38 @@ class LocalStreamServer {
         return Response.badRequest(body: 'Invalid file index parameter');
       }
 
-      final filePath = _getFilePath(bookId, fileIndex);
+      // Find the file path (searches in download directories)
+      String filePath;
+      try {
+        filePath = await _getFilePath(bookId, fileIndex);
+      } on FileSystemException catch (e) {
+        await StructuredLogger().log(
+          level: 'warning',
+          subsystem: 'stream',
+          message: 'File not found for streaming request',
+          cause: e.toString(),
+          extra: {
+            'bookId': bookId,
+            'fileIndex': fileIndex,
+            'path': request.url.toString(),
+          },
+        );
+        return Response.notFound('File not found: ${e.message}');
+      }
 
-      if (!await File(filePath).exists()) {
-        return Response.notFound('File not found');
+      final file = File(filePath);
+      if (!await file.exists()) {
+        await StructuredLogger().log(
+          level: 'warning',
+          subsystem: 'stream',
+          message: 'File path resolved but file does not exist',
+          extra: {
+            'bookId': bookId,
+            'fileIndex': fileIndex,
+            'filePath': filePath,
+          },
+        );
+        return Response.notFound('File not found at resolved path');
       }
 
       // Resolve content type by extension with sensible default
@@ -196,7 +226,7 @@ class LocalStreamServer {
 
       // HEAD requests: return headers only
       if (request.method.toUpperCase() == 'HEAD') {
-        final stat = await File(filePath).stat();
+        final stat = await file.stat();
         return Response(
           200,
           headers: {
@@ -214,7 +244,6 @@ class LocalStreamServer {
       }
 
       // Serve full file
-      final file = File(filePath);
       final stat = await file.stat();
       final stream = file.openRead();
       return Response(
@@ -226,8 +255,25 @@ class LocalStreamServer {
           HttpHeaders.acceptRangesHeader: 'bytes',
         },
       );
-    } on Exception {
-      return Response.internalServerError(body: 'Streaming error');
+    } on FileSystemException catch (e) {
+      await StructuredLogger().log(
+        level: 'error',
+        subsystem: 'stream',
+        message: 'File system error during streaming',
+        cause: e.toString(),
+        extra: {'path': request.url.toString()},
+      );
+      return Response.notFound('File not found: ${e.message}');
+    } on Exception catch (e) {
+      await StructuredLogger().log(
+        level: 'error',
+        subsystem: 'stream',
+        message: 'Unexpected error during streaming',
+        cause: e.toString(),
+        extra: {'path': request.url.toString()},
+      );
+      return Response.internalServerError(
+          body: 'Streaming error: ${e.toString()}');
     }
   }
 
@@ -318,17 +364,153 @@ class LocalStreamServer {
 
   /// Gets the file path for the specified audiobook file.
   ///
-  /// This method should be implemented to resolve the actual file path
-  /// based on the book ID and file index. Currently returns a placeholder.
+  /// This method searches for downloaded files in the download directory
+  /// based on the book ID (topicId) and file index.
   ///
-  /// The [bookId] parameter is the unique identifier for the audiobook.
+  /// The [bookId] parameter is the unique identifier for the audiobook (topicId).
   /// The [fileIndex] parameter is the index of the file within the audiobook.
   ///
-  /// Returns the file path as a string.
-  String _getFilePath(String bookId, int fileIndex) =>
-      // TODO: Implement actual file path resolution based on book ID and file index
-      // This is a placeholder implementation
-      '/path/to/downloads/$bookId/file_$fileIndex.mp3';
+  /// Returns the file path as a string, or throws if file not found.
+  Future<String> _getFilePath(String bookId, int fileIndex) async {
+    try {
+      final storageUtils = StoragePathUtils();
+      final downloadDir = await storageUtils.getDefaultAudiobookPath();
+
+      // Files are typically saved in: $downloadDir/$bookId/
+      // TorrentTask may save files in subdirectories, so we need to search
+      final possibleBasePaths = [
+        path.join(downloadDir, bookId),
+        downloadDir, // Also check root download directory
+      ];
+
+      // Supported audio file extensions
+      const audioExtensions = [
+        '.mp3',
+        '.m4a',
+        '.m4b',
+        '.aac',
+        '.flac',
+        '.wav',
+        '.ogg',
+        '.oga'
+      ];
+
+      for (final basePath in possibleBasePaths) {
+        try {
+          final baseDir = Directory(basePath);
+          if (!await baseDir.exists()) {
+            await StructuredLogger().log(
+              level: 'debug',
+              subsystem: 'stream',
+              message: 'Directory does not exist, skipping',
+              extra: {'basePath': basePath, 'bookId': bookId},
+            );
+            continue;
+          }
+
+          // List all files in the directory (recursively)
+          // This may fail if we don't have permission to access the directory
+          final files = <File>[];
+          try {
+            await for (final entity in baseDir.list(recursive: true)) {
+              if (entity is File) {
+                final ext = path.extension(entity.path).toLowerCase();
+                if (audioExtensions.contains(ext)) {
+                  files.add(entity);
+                }
+              }
+            }
+          } on FileSystemException catch (e) {
+            // Permission denied or other file system error
+            await StructuredLogger().log(
+              level: 'warning',
+              subsystem: 'stream',
+              message: 'Cannot access directory (permission issue?)',
+              cause: e.toString(),
+              extra: {
+                'basePath': basePath,
+                'bookId': bookId,
+                'osError': e.osError?.message,
+              },
+            );
+            continue; // Try next path
+          }
+
+          // Sort files by path to ensure consistent ordering
+          files.sort((a, b) => a.path.compareTo(b.path));
+
+          // Return file at the specified index
+          if (fileIndex >= 0 && fileIndex < files.length) {
+            final filePath = files[fileIndex].path;
+            await StructuredLogger().log(
+              level: 'debug',
+              subsystem: 'stream',
+              message: 'Found file for streaming',
+              extra: {
+                'bookId': bookId,
+                'fileIndex': fileIndex,
+                'filePath': filePath,
+                'basePath': basePath,
+                'totalFiles': files.length,
+              },
+            );
+            return filePath;
+          } else {
+            await StructuredLogger().log(
+              level: 'debug',
+              subsystem: 'stream',
+              message: 'File index out of range',
+              extra: {
+                'basePath': basePath,
+                'bookId': bookId,
+                'fileIndex': fileIndex,
+                'totalFiles': files.length,
+              },
+            );
+          }
+        } on FileSystemException catch (e) {
+          // Permission denied or other file system error when checking directory
+          await StructuredLogger().log(
+            level: 'warning',
+            subsystem: 'stream',
+            message: 'Cannot access directory path',
+            cause: e.toString(),
+            extra: {
+              'basePath': basePath,
+              'bookId': bookId,
+              'osError': e.osError?.message,
+            },
+          );
+          continue; // Try next path
+        }
+      }
+
+      // File not found - log and throw
+      await StructuredLogger().log(
+        level: 'warning',
+        subsystem: 'stream',
+        message: 'File not found for streaming',
+        extra: {
+          'bookId': bookId,
+          'fileIndex': fileIndex,
+          'searchedPaths': possibleBasePaths,
+        },
+      );
+      throw FileSystemException(
+          'File not found', 'bookId: $bookId, fileIndex: $fileIndex');
+    } on FileSystemException {
+      rethrow;
+    } on Exception catch (e) {
+      await StructuredLogger().log(
+        level: 'error',
+        subsystem: 'stream',
+        message: 'Error finding file path',
+        cause: e.toString(),
+        extra: {'bookId': bookId, 'fileIndex': fileIndex},
+      );
+      throw FileSystemException('Error finding file', e.toString());
+    }
+  }
 
   /// Gets the streaming URL for the specified audiobook file.
   ///
@@ -341,6 +523,65 @@ class LocalStreamServer {
   /// Returns the streaming URL as a string.
   String getStreamUrl(String bookId, int fileIndex) =>
       'http://$_host:$_port/stream?id=$bookId&file=$fileIndex';
+
+  /// Checks if files for the specified audiobook exist locally.
+  ///
+  /// This method checks if at least one file for the audiobook is available
+  /// in the download directory. This is useful to determine if LocalStreamServer
+  /// can be used for streaming.
+  ///
+  /// The [bookId] parameter is the unique identifier for the audiobook.
+  ///
+  /// Returns `true` if at least one file exists, `false` otherwise.
+  Future<bool> hasFiles(String bookId) async {
+    try {
+      final storageUtils = StoragePathUtils();
+      final downloadDir = await storageUtils.getDefaultAudiobookPath();
+
+      final possibleBasePaths = [
+        path.join(downloadDir, bookId),
+        downloadDir,
+      ];
+
+      const audioExtensions = [
+        '.mp3',
+        '.m4a',
+        '.m4b',
+        '.aac',
+        '.flac',
+        '.wav',
+        '.ogg',
+        '.oga'
+      ];
+
+      for (final basePath in possibleBasePaths) {
+        try {
+          final baseDir = Directory(basePath);
+          if (!await baseDir.exists()) {
+            continue;
+          }
+
+          // Check if any audio files exist
+          await for (final entity in baseDir.list(recursive: true)) {
+            if (entity is File) {
+              final ext = path.extension(entity.path).toLowerCase();
+              if (audioExtensions.contains(ext)) {
+                // At least one file exists
+                return true;
+              }
+            }
+          }
+        } on FileSystemException {
+          // Permission denied or other error - continue to next path
+          continue;
+        }
+      }
+
+      return false;
+    } on Exception {
+      return false;
+    }
+  }
 
   String _resolveContentType(String path) {
     final type = mime.lookupMimeType(path);

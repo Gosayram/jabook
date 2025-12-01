@@ -15,6 +15,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -188,9 +189,40 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
   /// Handles app resume event.
   ///
   /// Checks download status and automatically resumes restored downloads.
+  /// Also checks if MANAGE_EXTERNAL_STORAGE permission was granted after returning from settings.
   Future<void> _onAppResumed() async {
     try {
-      logger.i('App resumed - checking for restored downloads to resume');
+      logger.i('App resumed - checking for restored downloads and permissions');
+
+      // Check if MANAGE_EXTERNAL_STORAGE permission was granted after returning from settings
+      try {
+        final permissionService = PermissionService();
+        if (Platform.isAndroid) {
+          final androidInfo = await DeviceInfoPlugin().androidInfo;
+          if (androidInfo.version.sdkInt >= 30) {
+            final hasManageStorage =
+                await permissionService.hasManageExternalStoragePermission();
+            if (hasManageStorage) {
+              logger.i(
+                'MANAGE_EXTERNAL_STORAGE permission granted after returning from settings',
+              );
+              // Verify permission actually works
+              final verified =
+                  await permissionService.verifyStoragePermission();
+              if (verified) {
+                logger.i(
+                    'MANAGE_EXTERNAL_STORAGE permission verified successfully');
+              } else {
+                logger.w(
+                  'MANAGE_EXTERNAL_STORAGE reported as granted but verification failed',
+                );
+              }
+            }
+          }
+        }
+      } on Exception catch (e) {
+        logger.w('Error checking MANAGE_EXTERNAL_STORAGE on resume: $e');
+      }
 
       // Get torrent manager instance
       final torrentManager = AudiobookTorrentManager();

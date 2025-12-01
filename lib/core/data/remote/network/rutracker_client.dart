@@ -51,7 +51,7 @@ class RutrackerClient {
   /// Gets the active RuTracker endpoint URL.
   Future<String> _getActiveEndpoint() async {
     final appDb = AppDatabase.getInstance();
-    final db = appDb.database;
+    final db = await appDb.ensureInitialized();
     final endpointManager = EndpointManager(db, appDb);
     return endpointManager.getActiveEndpoint();
   }

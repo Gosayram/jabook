@@ -633,7 +633,51 @@ class RuTrackerParser {
       // But don't throw error yet - let's check if there are actual results
 
       // Parse actual RuTracker topic rows structure
-      final topicRows = document.querySelectorAll(_rowSelector);
+      // Try primary selector first
+      var topicRows = document.querySelectorAll(_rowSelector);
+
+      // If no rows found with primary selector, try alternative selectors
+      // RuTracker may have changed structure or use different classes
+      if (topicRows.isEmpty) {
+        await logger.log(
+          level: 'debug',
+          subsystem: 'parser',
+          message:
+              'Primary selector found no rows, trying alternative selectors',
+          context: 'parse_search_results',
+          extra: {
+            'primary_selector': _rowSelector,
+            'html_preview': decodedHtml.length > 500
+                ? decodedHtml.substring(0, 500)
+                : decodedHtml,
+          },
+        );
+
+        // Try alternative selectors
+        final alternativeSelectors = [
+          'tr[data-topic_id]', // Rows with data-topic_id attribute
+          'table.forumline tr', // Any row in forumline table
+          'tr.hl-tr, tr[id^="t-"]', // Primary + ID-based selector
+          'table.forumline tbody tr', // Rows in tbody
+        ];
+
+        for (final selector in alternativeSelectors) {
+          topicRows = document.querySelectorAll(selector);
+          if (topicRows.isNotEmpty) {
+            await logger.log(
+              level: 'info',
+              subsystem: 'parser',
+              message: 'Found rows using alternative selector',
+              context: 'parse_search_results',
+              extra: {
+                'selector': selector,
+                'row_count': topicRows.length,
+              },
+            );
+            break;
+          }
+        }
+      }
 
       // If no rows found, check if page structure is unexpected
       if (topicRows.isEmpty) {
@@ -674,6 +718,22 @@ class RuTrackerParser {
         // If it's index page, it's also valid (just no search was performed)
         if (hasSearchForm || hasSearchPageElements || isIndexPage) {
           // Empty results are valid - return empty list
+          await logger.log(
+            level: 'info',
+            subsystem: 'parser',
+            message:
+                'No search result rows found, but page structure is valid (empty results)',
+            context: 'parse_search_results',
+            extra: {
+              'has_search_form': hasSearchForm,
+              'has_search_page_elements': hasSearchPageElements,
+              'is_index_page': isIndexPage,
+              'html_length': decodedHtml.length,
+              'html_preview': decodedHtml.length > 1000
+                  ? decodedHtml.substring(0, 1000)
+                  : decodedHtml,
+            },
+          );
           return results;
         }
 
@@ -1089,7 +1149,7 @@ class RuTrackerParser {
 
       // Also log via StructuredLogger for better visibility
       await logger.log(
-        level: 'info',
+        level: results.isEmpty ? 'warning' : 'info',
         subsystem: 'parser',
         message: 'Search results parsing completed',
         context: 'parse_search_results',
@@ -1098,8 +1158,32 @@ class RuTrackerParser {
           'cover_urls_found': coverUrlCount,
           'cover_urls_empty': emptyCoverUrlCount,
           'base_url': baseUrl,
+          'rows_found': topicRows.length,
+          'rows_processed': results.length,
         },
       );
+
+      // If no results but rows were found, log warning with sample HTML
+      if (results.isEmpty && topicRows.isNotEmpty) {
+        await logger.log(
+          level: 'warning',
+          subsystem: 'parser',
+          message: 'Found rows but parsed no results - possible parsing issue',
+          context: 'parse_search_results',
+          extra: {
+            'rows_found': topicRows.length,
+            'base_url': baseUrl,
+            'sample_row_html': topicRows.isNotEmpty
+                ? topicRows.first.outerHtml.substring(
+                    0,
+                    topicRows.first.outerHtml.length > 500
+                        ? 500
+                        : topicRows.first.outerHtml.length,
+                  )
+                : null,
+          },
+        );
+      }
 
       return results;
     } on ParsingFailure {

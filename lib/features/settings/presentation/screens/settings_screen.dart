@@ -606,7 +606,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   Future<Map<String, dynamic>> _loadMetadataStats() async {
     try {
-      final db = ref.read(appDatabaseProvider).database;
+      final appDatabase = ref.read(appDatabaseProvider);
+      final db = await appDatabase.ensureInitialized();
       final metadataService = AudiobookMetadataService(db);
       final scheduler = MetadataSyncScheduler(db, metadataService);
 
@@ -633,7 +634,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       // Show updating indicator
       setState(() {});
 
-      final db = ref.read(appDatabaseProvider).database;
+      final appDatabase = ref.read(appDatabaseProvider);
+      final db = await appDatabase.ensureInitialized();
       final metadataService = AudiobookMetadataService(db);
       final scheduler = MetadataSyncScheduler(db, metadataService);
 
@@ -1652,7 +1654,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   Future<void> _clearAllCache() async {
     final appDatabase = ref.read(appDatabaseProvider);
-    final db = appDatabase.database;
+    final db = await appDatabase.ensureInitialized();
     final cache = RuTrackerCacheService();
     await cache.initialize(db);
     await cache.clearSearchResultsCache();
@@ -2168,8 +2170,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
     try {
       final appDatabase = ref.read(appDatabaseProvider);
-      await appDatabase.initialize();
-      final backupService = BackupService(appDatabase.database);
+      final db = await appDatabase.ensureInitialized();
+      final backupService = BackupService(db);
 
       // Export to file
       final filePath = await backupService.exportToFile();

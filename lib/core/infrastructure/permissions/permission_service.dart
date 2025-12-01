@@ -655,14 +655,18 @@ class PermissionService {
             level: 'info',
             subsystem: 'permissions',
             message:
-                'System settings opened for MANAGE_EXTERNAL_STORAGE. User needs to grant permission manually.',
+                'System settings opened for MANAGE_EXTERNAL_STORAGE. User needs to grant permission manually by enabling "All files access" toggle.',
             extra: {
               'manufacturer': manufacturer,
               'custom_rom': customRom,
+              'instruction':
+                  'User should enable "All files access" toggle in the opened settings screen',
             },
           );
           // Wait a bit for user to potentially grant permission
-          await Future.delayed(const Duration(seconds: 1));
+          // Note: User needs to manually enable "All files access" toggle in settings
+          // The main check will happen when app resumes from settings
+          await Future.delayed(const Duration(seconds: 3));
           // Check again if user granted permission
           final hasPermission = await _hasManageExternalStoragePermission();
           if (hasPermission) {
@@ -2155,6 +2159,19 @@ class PermissionService {
       return false;
     }
   }
+
+  /// Public method to check if MANAGE_EXTERNAL_STORAGE permission is granted.
+  ///
+  /// This can be called when app resumes to check if user granted permission
+  /// after returning from settings.
+  Future<bool> hasManageExternalStoragePermission() async =>
+      _hasManageExternalStoragePermission();
+
+  /// Public method to verify storage permission actually works.
+  ///
+  /// This can be called to verify that MANAGE_EXTERNAL_STORAGE permission
+  /// is not just reported as granted, but actually works.
+  Future<bool> verifyStoragePermission() async => _verifyStoragePermission();
 
   /// Checks if MANAGE_EXTERNAL_STORAGE permission is granted using native method.
   ///
