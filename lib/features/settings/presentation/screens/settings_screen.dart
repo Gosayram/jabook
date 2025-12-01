@@ -258,6 +258,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
           const SizedBox(height: 24),
 
+          // Audio Enhancement Section
+          Semantics(
+            container: true,
+            label: 'Audio enhancement settings',
+            child: _buildAudioEnhancementSection(context),
+          ),
+
+          const SizedBox(height: 24),
+
           // Download Settings Section
           Semantics(
             container: true,
@@ -918,6 +927,272 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ),
       ],
     );
+  }
+
+  Widget _buildAudioEnhancementSection(BuildContext context) {
+    final localizations = AppLocalizations.of(context);
+    final audioSettings = ref.watch(audioSettingsProvider);
+    final audioNotifier = ref.read(audioSettingsProvider.notifier);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '🔊 ${localizations?.audioEnhancementTitle ?? 'Audio Enhancement'}',
+          style: Theme.of(context).textTheme.titleLarge,
+        ),
+        const SizedBox(height: 8),
+        Text(
+          localizations?.audioEnhancementDescription ??
+              'Improve audio quality and volume consistency',
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+        const SizedBox(height: 16),
+        // Normalize Volume switch
+        SwitchListTile(
+          secondary: const Icon(Icons.equalizer),
+          title: Text(
+            localizations?.normalizeVolumeTitle ?? 'Normalize Volume',
+          ),
+          subtitle: Text(
+            localizations?.normalizeVolumeDescription ??
+                'Maintain consistent volume across different audiobooks',
+          ),
+          value: audioSettings.normalizeVolume,
+          onChanged: (value) async {
+            await audioNotifier.setNormalizeVolume(value);
+            // Apply settings to active player
+            await _applyAudioProcessingSettings(
+              audioSettings.copyWith(normalizeVolume: value),
+            );
+          },
+        ),
+        // Volume Boost selection
+        Semantics(
+          button: true,
+          label: 'Set volume boost level',
+          child: ListTile(
+            leading: const Icon(Icons.volume_up),
+            title: Text(
+              localizations?.volumeBoostTitle ?? 'Volume Boost',
+            ),
+            subtitle:
+                Text(_getVolumeBoostLabel(audioSettings.volumeBoostLevel)),
+            onTap: () {
+              _showVolumeBoostDialog(
+                context,
+                audioSettings,
+                audioNotifier,
+              );
+            },
+          ),
+        ),
+        // DRC Level selection
+        Semantics(
+          button: true,
+          label: 'Set DRC level',
+          child: ListTile(
+            leading: const Icon(Icons.compress),
+            title: Text(
+              localizations?.drcLevelTitle ?? 'Dynamic Range Compression',
+            ),
+            subtitle: Text(_getDRCLevelLabel(audioSettings.drcLevel)),
+            onTap: () {
+              _showDRCLevelDialog(
+                context,
+                audioSettings,
+                audioNotifier,
+              );
+            },
+          ),
+        ),
+        // Speech Enhancer switch
+        SwitchListTile(
+          secondary: const Icon(Icons.record_voice_over),
+          title: Text(
+            localizations?.speechEnhancerTitle ?? 'Speech Enhancer',
+          ),
+          subtitle: Text(
+            localizations?.speechEnhancerDescription ??
+                'Improve speech clarity and reduce sibilance',
+          ),
+          value: audioSettings.speechEnhancer,
+          onChanged: (value) async {
+            await audioNotifier.setSpeechEnhancer(value);
+            // Apply settings to active player
+            await _applyAudioProcessingSettings(
+              audioSettings.copyWith(speechEnhancer: value),
+            );
+          },
+        ),
+        // Auto Volume Leveling switch
+        SwitchListTile(
+          secondary: const Icon(Icons.trending_flat),
+          title: Text(
+            localizations?.autoVolumeLevelingTitle ?? 'Auto Volume Leveling',
+          ),
+          subtitle: Text(
+            localizations?.autoVolumeLevelingDescription ??
+                'Automatically adjust volume to maintain consistent level',
+          ),
+          value: audioSettings.autoVolumeLeveling,
+          onChanged: (value) async {
+            await audioNotifier.setAutoVolumeLeveling(value);
+            // Apply settings to active player
+            await _applyAudioProcessingSettings(
+              audioSettings.copyWith(autoVolumeLeveling: value),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  String _getVolumeBoostLabel(String level) {
+    switch (level) {
+      case 'Off':
+        return 'Off';
+      case 'Boost50':
+        return '+50%';
+      case 'Boost100':
+        return '+100%';
+      case 'Boost200':
+        return '+200%';
+      case 'Auto':
+        return 'Auto';
+      default:
+        return level;
+    }
+  }
+
+  String _getDRCLevelLabel(String level) {
+    switch (level) {
+      case 'Off':
+        return 'Off';
+      case 'Gentle':
+        return 'Gentle';
+      case 'Medium':
+        return 'Medium';
+      case 'Strong':
+        return 'Strong';
+      default:
+        return level;
+    }
+  }
+
+  Future<void> _showVolumeBoostDialog(
+    BuildContext context,
+    AudioSettings audioSettings,
+    AudioSettingsNotifier audioNotifier,
+  ) async {
+    final levels = ['Off', 'Boost50', 'Boost100', 'Boost200', 'Auto'];
+    final selectedLevel = audioSettings.volumeBoostLevel;
+
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          AppLocalizations.of(context)?.volumeBoostTitle ?? 'Volume Boost',
+        ),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: levels
+                  .map((level) => RadioListTile<String>(
+                        title: Text(_getVolumeBoostLabel(level)),
+                        value: level,
+                        // ignore: deprecated_member_use
+                        groupValue: selectedLevel,
+                        // ignore: deprecated_member_use
+                        onChanged: (value) {
+                          Navigator.of(context).pop(value);
+                        },
+                      ))
+                  .toList(),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    if (result != null) {
+      await audioNotifier.setVolumeBoostLevel(result);
+      // Apply settings to active player
+      await _applyAudioProcessingSettings(
+        audioSettings.copyWith(volumeBoostLevel: result),
+      );
+    }
+  }
+
+  Future<void> _showDRCLevelDialog(
+    BuildContext context,
+    AudioSettings audioSettings,
+    AudioSettingsNotifier audioNotifier,
+  ) async {
+    final levels = ['Off', 'Gentle', 'Medium', 'Strong'];
+    final selectedLevel = audioSettings.drcLevel;
+
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          AppLocalizations.of(context)?.drcLevelTitle ??
+              'Dynamic Range Compression',
+        ),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: levels
+                  .map((level) => RadioListTile<String>(
+                        title: Text(_getDRCLevelLabel(level)),
+                        value: level,
+                        // ignore: deprecated_member_use
+                        groupValue: selectedLevel,
+                        // ignore: deprecated_member_use
+                        onChanged: (value) {
+                          Navigator.of(context).pop(value);
+                        },
+                      ))
+                  .toList(),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    if (result != null) {
+      await audioNotifier.setDRCLevel(result);
+      // Apply settings to active player
+      await _applyAudioProcessingSettings(
+        audioSettings.copyWith(drcLevel: result),
+      );
+    }
+  }
+
+  Future<void> _applyAudioProcessingSettings(
+    AudioSettings settings,
+  ) async {
+    try {
+      final playerState = ref.read(playerStateProvider);
+      // Only apply if player is active
+      if (playerState.playbackState != 0) {
+        final playerService = ref.read(media3PlayerServiceProvider);
+        await playerService.configureAudioProcessing(
+          normalizeVolume: settings.normalizeVolume,
+          volumeBoostLevel: settings.volumeBoostLevel,
+          drcLevel: settings.drcLevel,
+          speechEnhancer: settings.speechEnhancer,
+          autoVolumeLeveling: settings.autoVolumeLeveling,
+        );
+      }
+    } on Exception catch (e) {
+      // Log error but don't show to user (settings are saved anyway)
+      debugPrint('Failed to apply audio processing settings: $e');
+    }
   }
 
   /// Shows dialog for selecting playback speed.

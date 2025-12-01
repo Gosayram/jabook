@@ -24,6 +24,11 @@ class AudioSettings {
     this.defaultForwardDuration = AudioSettingsManager.defaultForwardDuration,
     this.inactivityTimeoutMinutes =
         AudioSettingsManager.defaultInactivityTimeoutMinutes,
+    this.normalizeVolume = true,
+    this.volumeBoostLevel = 'Off',
+    this.drcLevel = 'Off',
+    this.speechEnhancer = false,
+    this.autoVolumeLeveling = false,
   });
 
   /// Default playback speed.
@@ -38,12 +43,32 @@ class AudioSettings {
   /// Inactivity timeout in minutes (time before player unloads when paused).
   final int inactivityTimeoutMinutes;
 
+  /// Whether volume normalization is enabled.
+  final bool normalizeVolume;
+
+  /// Volume boost level: 'Off', 'Boost50', 'Boost100', 'Boost200', 'Auto'.
+  final String volumeBoostLevel;
+
+  /// DRC (Dynamic Range Compression) level: 'Off', 'Gentle', 'Medium', 'Strong'.
+  final String drcLevel;
+
+  /// Whether speech enhancer is enabled.
+  final bool speechEnhancer;
+
+  /// Whether auto volume leveling is enabled.
+  final bool autoVolumeLeveling;
+
   /// Creates a copy with updated fields.
   AudioSettings copyWith({
     double? defaultPlaybackSpeed,
     int? defaultRewindDuration,
     int? defaultForwardDuration,
     int? inactivityTimeoutMinutes,
+    bool? normalizeVolume,
+    String? volumeBoostLevel,
+    String? drcLevel,
+    bool? speechEnhancer,
+    bool? autoVolumeLeveling,
   }) =>
       AudioSettings(
         defaultPlaybackSpeed: defaultPlaybackSpeed ?? this.defaultPlaybackSpeed,
@@ -53,6 +78,11 @@ class AudioSettings {
             defaultForwardDuration ?? this.defaultForwardDuration,
         inactivityTimeoutMinutes:
             inactivityTimeoutMinutes ?? this.inactivityTimeoutMinutes,
+        normalizeVolume: normalizeVolume ?? this.normalizeVolume,
+        volumeBoostLevel: volumeBoostLevel ?? this.volumeBoostLevel,
+        drcLevel: drcLevel ?? this.drcLevel,
+        speechEnhancer: speechEnhancer ?? this.speechEnhancer,
+        autoVolumeLeveling: autoVolumeLeveling ?? this.autoVolumeLeveling,
       );
 }
 
@@ -82,11 +112,23 @@ class AudioSettingsNotifier extends StateNotifier<AudioSettings> {
           await _audioSettingsManager.getDefaultForwardDuration();
       final inactivityTimeout =
           await _audioSettingsManager.getInactivityTimeoutMinutes();
+      final normalizeVolume = await _audioSettingsManager.getNormalizeVolume();
+      final volumeBoostLevel =
+          await _audioSettingsManager.getVolumeBoostLevel();
+      final drcLevel = await _audioSettingsManager.getDRCLevel();
+      final speechEnhancer = await _audioSettingsManager.getSpeechEnhancer();
+      final autoVolumeLeveling =
+          await _audioSettingsManager.getAutoVolumeLeveling();
       state = AudioSettings(
         defaultPlaybackSpeed: playbackSpeed,
         defaultRewindDuration: rewindDuration,
         defaultForwardDuration: forwardDuration,
         inactivityTimeoutMinutes: inactivityTimeout,
+        normalizeVolume: normalizeVolume,
+        volumeBoostLevel: volumeBoostLevel,
+        drcLevel: drcLevel,
+        speechEnhancer: speechEnhancer,
+        autoVolumeLeveling: autoVolumeLeveling,
       );
     } on Object {
       // Use default settings on error
@@ -131,6 +173,36 @@ class AudioSettingsNotifier extends StateNotifier<AudioSettings> {
     }
     await _audioSettingsManager.setInactivityTimeoutMinutes(minutes);
     state = state.copyWith(inactivityTimeoutMinutes: minutes);
+  }
+
+  /// Sets whether volume normalization is enabled.
+  Future<void> setNormalizeVolume(bool enabled) async {
+    await _audioSettingsManager.setNormalizeVolume(enabled);
+    state = state.copyWith(normalizeVolume: enabled);
+  }
+
+  /// Sets the volume boost level.
+  Future<void> setVolumeBoostLevel(String level) async {
+    await _audioSettingsManager.setVolumeBoostLevel(level);
+    state = state.copyWith(volumeBoostLevel: level);
+  }
+
+  /// Sets the DRC (Dynamic Range Compression) level.
+  Future<void> setDRCLevel(String level) async {
+    await _audioSettingsManager.setDRCLevel(level);
+    state = state.copyWith(drcLevel: level);
+  }
+
+  /// Sets whether speech enhancer is enabled.
+  Future<void> setSpeechEnhancer(bool enabled) async {
+    await _audioSettingsManager.setSpeechEnhancer(enabled);
+    state = state.copyWith(speechEnhancer: enabled);
+  }
+
+  /// Sets whether auto volume leveling is enabled.
+  Future<void> setAutoVolumeLeveling(bool enabled) async {
+    await _audioSettingsManager.setAutoVolumeLeveling(enabled);
+    state = state.copyWith(autoVolumeLeveling: enabled);
   }
 
   /// Resets audio settings to defaults.

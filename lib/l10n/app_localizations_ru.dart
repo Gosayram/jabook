@@ -348,6 +348,36 @@ class AppLocalizationsRu extends AppLocalizations {
   String get audioDescription => 'Настройки аудио';
 
   @override
+  String get audioEnhancementTitle => 'Улучшение звука';
+
+  @override
+  String get audioEnhancementDescription => 'Улучшение качества звука и стабильности громкости';
+
+  @override
+  String get normalizeVolumeTitle => 'Нормализация громкости';
+
+  @override
+  String get normalizeVolumeDescription => 'Поддержание стабильной громкости для разных аудиокниг';
+
+  @override
+  String get volumeBoostTitle => 'Усиление громкости';
+
+  @override
+  String get drcLevelTitle => 'Компрессия динамического диапазона';
+
+  @override
+  String get speechEnhancerTitle => 'Улучшение речи';
+
+  @override
+  String get speechEnhancerDescription => 'Улучшение четкости речи и уменьшение шипящих звуков';
+
+  @override
+  String get autoVolumeLevelingTitle => 'Автоматическое выравнивание громкости';
+
+  @override
+  String get autoVolumeLevelingDescription => 'Автоматическая регулировка громкости для поддержания стабильного уровня';
+
+  @override
   String get playbackSpeed => 'Скорость воспроизведения';
 
   @override

@@ -24,6 +24,7 @@ import androidx.media3.datasource.cache.Cache
 import androidx.media3.datasource.cache.LeastRecentlyUsedCacheEvictor
 import androidx.media3.datasource.cache.SimpleCache
 import androidx.media3.exoplayer.ExoPlayer
+import com.jabook.app.jabook.audio.processors.AudioProcessingSettings
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -113,6 +114,8 @@ object MediaModule {
         android.util.Log.d("MediaModule", "Creating ExoPlayer singleton...")
 
         // Match lissen-android configuration exactly
+        // Note: AudioProcessors are configured dynamically in AudioPlayerService
+        // based on user settings, not here in the singleton
         val player =
             try {
                 ExoPlayer
@@ -133,6 +136,64 @@ object MediaModule {
 
         val initDuration = System.currentTimeMillis() - initStart
         android.util.Log.d("MediaModule", "ExoPlayer singleton provided (${initDuration}ms)")
+
+        return player
+    }
+
+    /**
+     * Creates ExoPlayer with AudioProcessors based on settings.
+     *
+     * This method is used by AudioPlayerService to create a player instance
+     * with audio processing enabled. The player is not a singleton and should
+     * be released when done.
+     *
+     * @param context Application context
+     * @param settings Audio processing settings
+     * @return Configured ExoPlayer instance
+     */
+    @OptIn(UnstableApi::class)
+    fun createExoPlayerWithProcessors(
+        context: Context,
+        settings: AudioProcessingSettings,
+    ): ExoPlayer {
+        val initStart = System.currentTimeMillis()
+
+        android.util.Log.d("MediaModule", "Creating ExoPlayer with AudioProcessors...")
+
+        // Create processor chain
+        val processors =
+            com.jabook.app.jabook.audio.processors.AudioProcessorFactory
+                .createProcessorChain(settings)
+
+        val player =
+            try {
+                val builder =
+                    ExoPlayer
+                        .Builder(context)
+                        .setHandleAudioBecomingNoisy(true)
+                        .setAudioAttributes(
+                            AudioAttributes
+                                .Builder()
+                                .setUsage(C.USAGE_MEDIA)
+                                .setContentType(C.AUDIO_CONTENT_TYPE_SPEECH)
+                                .build(),
+                            true, // handleAudioFocus=true
+                        )
+
+                // Add AudioProcessors if any are enabled
+                if (processors.isNotEmpty()) {
+                    builder.setAudioProcessors(processors)
+                    android.util.Log.d("MediaModule", "Added ${processors.size} AudioProcessors to ExoPlayer")
+                }
+
+                builder.build()
+            } catch (e: Exception) {
+                android.util.Log.e("MediaModule", "Error creating ExoPlayer with processors: ${e.message}", e)
+                throw e
+            }
+
+        val initDuration = System.currentTimeMillis() - initStart
+        android.util.Log.d("MediaModule", "ExoPlayer with processors provided (${initDuration}ms)")
 
         return player
     }

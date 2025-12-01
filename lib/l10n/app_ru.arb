@@ -450,6 +450,46 @@
   "@audioDescription": {
     "description": "Описание настройки аудио"
   },
+  "audioEnhancementTitle": "Улучшение звука",
+  "@audioEnhancementTitle": {
+    "description": "Заголовок настроек улучшения звука"
+  },
+  "audioEnhancementDescription": "Улучшение качества звука и стабильности громкости",
+  "@audioEnhancementDescription": {
+    "description": "Описание настроек улучшения звука"
+  },
+  "normalizeVolumeTitle": "Нормализация громкости",
+  "@normalizeVolumeTitle": {
+    "description": "Заголовок настройки нормализации громкости"
+  },
+  "normalizeVolumeDescription": "Поддержание стабильной громкости для разных аудиокниг",
+  "@normalizeVolumeDescription": {
+    "description": "Описание настройки нормализации громкости"
+  },
+  "volumeBoostTitle": "Усиление громкости",
+  "@volumeBoostTitle": {
+    "description": "Заголовок настройки усиления громкости"
+  },
+  "drcLevelTitle": "Компрессия динамического диапазона",
+  "@drcLevelTitle": {
+    "description": "Заголовок настройки уровня компрессии"
+  },
+  "speechEnhancerTitle": "Улучшение речи",
+  "@speechEnhancerTitle": {
+    "description": "Заголовок настройки улучшения речи"
+  },
+  "speechEnhancerDescription": "Улучшение четкости речи и уменьшение шипящих звуков",
+  "@speechEnhancerDescription": {
+    "description": "Описание настройки улучшения речи"
+  },
+  "autoVolumeLevelingTitle": "Автоматическое выравнивание громкости",
+  "@autoVolumeLevelingTitle": {
+    "description": "Заголовок настройки автоматического выравнивания громкости"
+  },
+  "autoVolumeLevelingDescription": "Автоматическая регулировка громкости для поддержания стабильного уровня",
+  "@autoVolumeLevelingDescription": {
+    "description": "Описание настройки автоматического выравнивания громкости"
+  },
   "playbackSpeed": "Скорость воспроизведения",
   "@playbackSpeed": {
     "description": "Метка для скорости воспроизведения"

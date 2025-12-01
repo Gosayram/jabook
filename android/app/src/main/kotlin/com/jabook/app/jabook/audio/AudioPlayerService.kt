@@ -35,6 +35,8 @@ import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import com.jabook.app.jabook.MainActivity
+import com.jabook.app.jabook.audio.processors.AudioProcessingSettings
+import com.jabook.app.jabook.audio.processors.AudioProcessorFactory
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.MainScope
@@ -70,6 +72,13 @@ class AudioPlayerService : MediaSessionService() {
     private var inactivityTimer: InactivityTimer? = null
     private var currentMetadata: Map<String, String>? = null
     private var embeddedArtworkPath: String? = null // Path to saved embedded artwork
+
+    // Audio processing settings (default: all disabled except normalization)
+    private var audioProcessingSettings: AudioProcessingSettings = AudioProcessingSettings.defaults()
+
+    // Custom ExoPlayer with processors (if audio processing is enabled)
+    // Note: We keep the singleton exoPlayer for cases without processing
+    private var customExoPlayer: ExoPlayer? = null
 
     private val playerServiceScope = MainScope()
 
@@ -315,7 +324,8 @@ class AudioPlayerService : MediaSessionService() {
 
             // Create MediaSessionManager with callbacks for rewind/forward
             // Callbacks will use current skip durations from settings
-            mediaSessionManager = MediaSessionManager(this, exoPlayer)
+            // Note: MediaSessionManager will use getActivePlayer() internally
+            mediaSessionManager = MediaSessionManager(this, getActivePlayer())
             mediaSessionManager?.setCallbacks(
                 rewindCallback = {
                     // Use current rewind duration from MediaSessionManager
@@ -338,7 +348,7 @@ class AudioPlayerService : MediaSessionService() {
             notificationManager =
                 NotificationManager(
                     this,
-                    exoPlayer,
+                    getActivePlayer(),
                     mediaSession,
                     currentMetadata,
                     embeddedArtworkPath,
@@ -357,13 +367,13 @@ class AudioPlayerService : MediaSessionService() {
             }
 
             // Initialize playback timer (inspired by lissen-android)
-            playbackTimer = PlaybackTimer(this, exoPlayer)
+            playbackTimer = PlaybackTimer(this, getActivePlayer())
 
             // Initialize inactivity timer for automatic resource cleanup
             inactivityTimer =
                 InactivityTimer(
                     context = this,
-                    player = exoPlayer,
+                    player = getActivePlayer(),
                     onTimerExpired = {
                         android.util.Log.i("AudioPlayerService", "Inactivity timer expired, unloading player")
                         // Check if service is still alive before unloading
@@ -548,14 +558,15 @@ class AudioPlayerService : MediaSessionService() {
         try {
             // Match lissen-android: just add listener, no additional configuration
             // ExoPlayer is already configured in MediaModule with AudioAttributes
-            exoPlayer.addListener(playerListener)
+            val activePlayer = getActivePlayer()
+            activePlayer.addListener(playerListener)
 
             // Match lissen-android: don't set WakeMode or ScrubbingMode
             // These may interfere with AudioFocus handling
 
             // Initialize repeat and shuffle modes (lissen-android doesn't set these either, but it's safe)
-            exoPlayer.repeatMode = Player.REPEAT_MODE_OFF
-            exoPlayer.shuffleModeEnabled = false
+            activePlayer.repeatMode = Player.REPEAT_MODE_OFF
+            activePlayer.shuffleModeEnabled = false
 
             android.util.Log.d("AudioPlayerService", "ExoPlayer configured (provided via Hilt)")
         } catch (e: Exception) {
@@ -563,6 +574,67 @@ class AudioPlayerService : MediaSessionService() {
             throw e
         }
     }
+
+    /**
+     * Configures ExoPlayer with AudioProcessors based on settings.
+     *
+     * In Media3, AudioProcessors must be set during ExoPlayer creation.
+     * This method creates a new ExoPlayer instance with processors if needed,
+     * or uses the singleton ExoPlayer if no processing is required.
+     *
+     * @param settings Audio processing settings
+     */
+    @OptIn(UnstableApi::class)
+    fun configureExoPlayer(settings: AudioProcessingSettings) {
+        try {
+            // Store settings
+            audioProcessingSettings = settings
+
+            // Create processor chain
+            val processors = AudioProcessorFactory.createProcessorChain(settings)
+
+            android.util.Log.d(
+                "AudioPlayerService",
+                "Audio processing settings updated: " +
+                    "normalizeVolume=${settings.normalizeVolume}, " +
+                    "volumeBoost=${settings.volumeBoostLevel}, " +
+                    "drc=${settings.drcLevel}, " +
+                    "speechEnhancer=${settings.speechEnhancer}, " +
+                    "autoLeveling=${settings.autoVolumeLeveling}, " +
+                    "processors=${processors.size}",
+            )
+
+            // If processors are needed, create custom ExoPlayer
+            if (processors.isNotEmpty()) {
+                // Release old custom player if exists
+                customExoPlayer?.release()
+                customExoPlayer = null
+
+                // Create new ExoPlayer with processors
+                customExoPlayer = MediaModule.createExoPlayerWithProcessors(this, settings)
+
+                // Copy listener from singleton player
+                customExoPlayer?.addListener(playerListener)
+
+                android.util.Log.i(
+                    "AudioPlayerService",
+                    "Created custom ExoPlayer with ${processors.size} AudioProcessors",
+                )
+            } else {
+                // No processors needed, release custom player if exists
+                customExoPlayer?.release()
+                customExoPlayer = null
+                android.util.Log.d("AudioPlayerService", "No processors needed, using singleton ExoPlayer")
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("AudioPlayerService", "Failed to configure ExoPlayer with processors", e)
+        }
+    }
+
+    /**
+     * Gets the active ExoPlayer instance (custom with processors or singleton).
+     */
+    private fun getActivePlayer(): ExoPlayer = customExoPlayer ?: exoPlayer
 
     /**
      * Sets playlist from file paths or URLs.
@@ -712,15 +784,18 @@ class AudioPlayerService : MediaSessionService() {
                 }
 
             withContext(Dispatchers.Main) {
-                exoPlayer.playWhenReady = false
-                exoPlayer.setMediaSources(mediaSources)
-                exoPlayer.prepare()
+                val activePlayer = getActivePlayer()
+                activePlayer.playWhenReady = false
+                activePlayer.setMediaSources(mediaSources)
+                activePlayer.prepare()
 
                 notificationManager?.updateNotification()
 
                 android.util.Log.i(
                     "AudioPlayerService",
-                    "Playlist set: ${mediaSources.size} sources, ${exoPlayer.mediaItemCount} items, state=${exoPlayer.playbackState}",
+                    "Playlist set: ${mediaSources.size} sources, ${activePlayer.mediaItemCount} items, " +
+                        "state=${activePlayer.playbackState}, " +
+                        "usingCustomPlayer=${customExoPlayer != null}",
                 )
             }
         } catch (e: Exception) {
@@ -739,8 +814,7 @@ class AudioPlayerService : MediaSessionService() {
         trackIndex: Int,
         positionMs: Long,
     ) {
-        if (!::exoPlayer.isInitialized) return
-        val player = exoPlayer
+        val player = getActivePlayer()
 
         if (trackIndex < 0 || trackIndex >= player.mediaItemCount) {
             android.util.Log.w("AudioPlayerService", "Invalid track index: $trackIndex (mediaItemCount: ${player.mediaItemCount})")
@@ -882,26 +956,27 @@ class AudioPlayerService : MediaSessionService() {
                 // AudioFocus regained - resume playback
                 android.util.Log.i("AudioPlayerService", "AudioFocus GAIN - resuming playback")
                 hasAudioFocus = true
-                if (exoPlayer.playbackState == Player.STATE_READY || exoPlayer.playbackState == Player.STATE_BUFFERING) {
-                    exoPlayer.playWhenReady = true
+                val player = getActivePlayer()
+                if (player.playbackState == Player.STATE_READY || player.playbackState == Player.STATE_BUFFERING) {
+                    player.playWhenReady = true
                 }
             }
             AudioManager.AUDIOFOCUS_LOSS -> {
                 // Permanent loss - pause playback
                 android.util.Log.i("AudioPlayerService", "AudioFocus LOSS - pausing playback")
                 hasAudioFocus = false
-                exoPlayer.playWhenReady = false
+                getActivePlayer().playWhenReady = false
             }
             AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
                 // Temporary loss - pause playback
                 android.util.Log.i("AudioPlayerService", "AudioFocus LOSS_TRANSIENT - pausing playback")
-                exoPlayer.playWhenReady = false
+                getActivePlayer().playWhenReady = false
             }
             AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
                 // Can duck - reduce volume
                 android.util.Log.i("AudioPlayerService", "AudioFocus LOSS_TRANSIENT_CAN_DUCK - reducing volume")
                 // For audiobooks, we pause instead of ducking
-                exoPlayer.playWhenReady = false
+                getActivePlayer().playWhenReady = false
             }
         }
     }
@@ -914,13 +989,12 @@ class AudioPlayerService : MediaSessionService() {
     fun play() {
         android.util.Log.i("AudioPlayerService", "play() called")
 
-        if (!::exoPlayer.isInitialized) {
-            android.util.Log.w("AudioPlayerService", "Cannot play: ExoPlayer is not initialized")
+        val player = getActivePlayer()
+        if (player.mediaItemCount == 0) {
+            android.util.Log.w("AudioPlayerService", "Cannot play: no media items loaded")
             // Service might have been unloaded - state will be restored when playlist is set
             return
         }
-
-        val player = exoPlayer
         if (player.mediaItemCount == 0) {
             android.util.Log.w("AudioPlayerService", "Cannot play: no media items loaded")
             // Service might have been unloaded - state will be restored when playlist is set
@@ -959,14 +1033,9 @@ class AudioPlayerService : MediaSessionService() {
      * Pauses playback.
      */
     fun pause() {
-        if (!::exoPlayer.isInitialized) {
-            android.util.Log.w("AudioPlayerService", "Cannot pause: ExoPlayer is not initialized")
-            return
-        }
-
         playerServiceScope.launch {
             try {
-                exoPlayer.playWhenReady = false
+                getActivePlayer().playWhenReady = false
                 // Note: We don't abandon AudioFocus on pause - we keep it for quick resume
                 // AudioFocus will be abandoned when service is stopped
 
@@ -982,12 +1051,7 @@ class AudioPlayerService : MediaSessionService() {
      * Stops playback and resets player.
      */
     fun stop() {
-        if (!::exoPlayer.isInitialized) {
-            android.util.Log.w("AudioPlayerService", "Cannot stop: ExoPlayer is not initialized")
-            return
-        }
-        val player = exoPlayer
-
+        val player = getActivePlayer()
         try {
             android.util.Log.d("AudioPlayerService", "stop() called, current playbackState: ${player.playbackState}")
             player.stop()
@@ -1003,8 +1067,7 @@ class AudioPlayerService : MediaSessionService() {
      * @param positionMs Position in milliseconds
      */
     fun seekTo(positionMs: Long) {
-        if (!::exoPlayer.isInitialized) return
-        val player = exoPlayer
+        val player = getActivePlayer()
 
         try {
             if (positionMs < 0) {
@@ -1052,7 +1115,7 @@ class AudioPlayerService : MediaSessionService() {
      * @param speed Playback speed (0.5x to 2.0x)
      */
     fun setSpeed(speed: Float) {
-        exoPlayer.setPlaybackSpeed(speed)
+        getActivePlayer().setPlaybackSpeed(speed)
         // Reset inactivity timer (user action)
         inactivityTimer?.resetTimer()
     }
@@ -1066,7 +1129,7 @@ class AudioPlayerService : MediaSessionService() {
      *   - REPEAT_MODE_ALL: Repeat all tracks
      */
     fun setRepeatMode(repeatMode: Int) {
-        exoPlayer.repeatMode = repeatMode
+        getActivePlayer().repeatMode = repeatMode
         android.util.Log.d("AudioPlayerService", "Repeat mode set to: $repeatMode")
         // Reset inactivity timer (user action)
         inactivityTimer?.resetTimer()
@@ -1077,7 +1140,7 @@ class AudioPlayerService : MediaSessionService() {
      *
      * @return Current repeat mode
      */
-    fun getRepeatMode(): Int = exoPlayer.repeatMode
+    fun getRepeatMode(): Int = getActivePlayer().repeatMode
 
     /**
      * Sets shuffle mode.
@@ -1085,7 +1148,7 @@ class AudioPlayerService : MediaSessionService() {
      * @param shuffleModeEnabled true to enable shuffle, false to disable
      */
     fun setShuffleModeEnabled(shuffleModeEnabled: Boolean) {
-        exoPlayer.shuffleModeEnabled = shuffleModeEnabled
+        getActivePlayer().shuffleModeEnabled = shuffleModeEnabled
         android.util.Log.d("AudioPlayerService", "Shuffle mode set to: $shuffleModeEnabled")
         // Reset inactivity timer (user action)
         inactivityTimer?.resetTimer()
@@ -1096,13 +1159,13 @@ class AudioPlayerService : MediaSessionService() {
      *
      * @return true if shuffle is enabled, false otherwise
      */
-    fun getShuffleModeEnabled(): Boolean = exoPlayer.shuffleModeEnabled
+    fun getShuffleModeEnabled(): Boolean = getActivePlayer().shuffleModeEnabled
 
     /**
      * Skips to next track.
      */
     fun next() {
-        exoPlayer.seekToNextMediaItem()
+        getActivePlayer().seekToNextMediaItem()
         android.util.Log.d("AudioPlayerService", "Skipping to next track")
         // Reset inactivity timer (user action)
         inactivityTimer?.resetTimer()
@@ -1112,7 +1175,7 @@ class AudioPlayerService : MediaSessionService() {
      * Skips to previous track.
      */
     fun previous() {
-        exoPlayer.seekToPreviousMediaItem()
+        getActivePlayer().seekToPreviousMediaItem()
         android.util.Log.d("AudioPlayerService", "Skipping to previous track")
         // Reset inactivity timer (user action)
         inactivityTimer?.resetTimer()
@@ -1124,8 +1187,7 @@ class AudioPlayerService : MediaSessionService() {
      * @param index Track index in playlist
      */
     fun seekToTrack(index: Int) {
-        if (!::exoPlayer.isInitialized) return
-        val player = exoPlayer
+        val player = getActivePlayer()
         if (index >= 0 && index < player.mediaItemCount) {
             val playWhenReadyBeforeSeek = player.playWhenReady
             player.seekTo(index, 0L)
@@ -1159,8 +1221,7 @@ class AudioPlayerService : MediaSessionService() {
         filePaths: List<String>,
         progressSeconds: Double?,
     ) {
-        if (!::exoPlayer.isInitialized) return
-        val player = exoPlayer
+        val player = getActivePlayer()
 
         if (filePaths.isEmpty() || player.mediaItemCount == 0) {
             android.util.Log.w("AudioPlayerService", "Cannot set playback progress: empty file list or no media items")
@@ -1236,8 +1297,7 @@ class AudioPlayerService : MediaSessionService() {
      * @param seconds Number of seconds to rewind (default: 15)
      */
     fun rewind(seconds: Int = 15) {
-        if (!::exoPlayer.isInitialized) return
-        val player = exoPlayer
+        val player = getActivePlayer()
         val currentPosition = player.currentPosition
         val newPosition = (currentPosition - seconds * 1000L).coerceAtLeast(0L)
         player.seekTo(newPosition)
@@ -1252,8 +1312,7 @@ class AudioPlayerService : MediaSessionService() {
      * @param seconds Number of seconds to forward (default: 30)
      */
     fun forward(seconds: Int = 30) {
-        if (!::exoPlayer.isInitialized) return
-        val player = exoPlayer
+        val player = getActivePlayer()
         val currentPosition = player.currentPosition
         val duration = player.duration
         if (duration != C.TIME_UNSET) {
@@ -1290,14 +1349,14 @@ class AudioPlayerService : MediaSessionService() {
      *
      * @return Current position in milliseconds
      */
-    fun getCurrentPosition(): Long = exoPlayer.currentPosition
+    fun getCurrentPosition(): Long = getActivePlayer().currentPosition
 
     /**
      * Gets total duration of current media.
      *
      * @return Duration in milliseconds, or 0 if unknown
      */
-    fun getDuration(): Long = exoPlayer.duration
+    fun getDuration(): Long = getActivePlayer().duration
 
     /**
      * Sets the inactivity timeout in minutes.
@@ -1318,8 +1377,7 @@ class AudioPlayerService : MediaSessionService() {
      * @return Map with player state information
      */
     fun getPlayerState(): Map<String, Any> {
-        if (!::exoPlayer.isInitialized) return emptyMap()
-        val player = exoPlayer
+        val player = getActivePlayer()
         return mapOf(
             "isPlaying" to player.isPlaying,
             "playWhenReady" to player.playWhenReady, // Added for debugging
@@ -1340,8 +1398,7 @@ class AudioPlayerService : MediaSessionService() {
      * @return Map with current media item information, or empty map if no item
      */
     fun getCurrentMediaItemInfo(): Map<String, Any?> {
-        if (!::exoPlayer.isInitialized) return emptyMap()
-        val player = exoPlayer
+        val player = getActivePlayer()
         val currentItem = player.currentMediaItem ?: return emptyMap()
         val metadata = currentItem.mediaMetadata
 
@@ -1419,8 +1476,7 @@ class AudioPlayerService : MediaSessionService() {
      * @return Map with playlist information
      */
     fun getPlaylistInfo(): Map<String, Any> {
-        if (!::exoPlayer.isInitialized) return emptyMap()
-        val player = exoPlayer
+        val player = getActivePlayer()
         return mapOf(
             "itemCount" to player.mediaItemCount,
             "currentIndex" to player.currentMediaItemIndex,
@@ -1594,7 +1650,7 @@ class AudioPlayerService : MediaSessionService() {
                                 // Retry after delay with exponential backoff
                                 val backoffDelay = retryDelayMs * retryCount
                                 android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                                    exoPlayer.prepare()
+                                    getActivePlayer().prepare()
                                     android.util.Log.d(
                                         "AudioPlayerService",
                                         "Retry attempt $retryCount after network error (delay: ${backoffDelay}ms)",
@@ -1611,7 +1667,7 @@ class AudioPlayerService : MediaSessionService() {
                                 android.util.Log.w("AudioPlayerService", "Network timeout, retrying ($retryCount/$maxRetries)...")
                                 val backoffDelay = retryDelayMs * retryCount
                                 android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                                    exoPlayer.prepare()
+                                    getActivePlayer().prepare()
                                 }, backoffDelay)
                                 return
                             }
@@ -1663,8 +1719,7 @@ class AudioPlayerService : MediaSessionService() {
              * Inspired by lissen-android's approach to handle missing files gracefully.
              */
             private fun handleFileNotFound() {
-                if (!::exoPlayer.isInitialized) return
-                val player = exoPlayer
+                val player = getActivePlayer()
                 val currentIndex = player.currentMediaItemIndex
                 val totalTracks = player.mediaItemCount
 
@@ -1707,7 +1762,7 @@ class AudioPlayerService : MediaSessionService() {
                 reason: Int,
             ) {
                 // This is also handled in onEvents, but kept for explicit handling if needed
-                val currentIndex = exoPlayer.currentMediaItemIndex
+                val currentIndex = getActivePlayer().currentMediaItemIndex
                 android.util.Log.d("AudioPlayerService", "Media item transition (explicit): index=$currentIndex, reason=$reason")
             }
 
@@ -1729,7 +1784,7 @@ class AudioPlayerService : MediaSessionService() {
 
                     // Inspired by lissen-android: check if current track is available
                     // If track is not available, try to find next available track
-                    val currentItem = exoPlayer.currentMediaItem
+                    val currentItem = getActivePlayer().currentMediaItem
                     if (currentItem != null) {
                         // Check if track URI is accessible
                         val uri = currentItem.localConfiguration?.uri
@@ -1762,8 +1817,7 @@ class AudioPlayerService : MediaSessionService() {
                 currentIndex: Int,
                 previousIndex: Int,
             ) {
-                if (!::exoPlayer.isInitialized) return
-                val player = exoPlayer
+                val player = getActivePlayer()
 
                 if (player.mediaItemCount <= 1) {
                     // Only one track or no tracks, can't skip
@@ -1917,9 +1971,10 @@ class AudioPlayerService : MediaSessionService() {
             )
 
             // Save position before unloading (attempt to trigger save through broadcast)
-            if (::exoPlayer.isInitialized) {
-                val currentIndex = exoPlayer.currentMediaItemIndex
-                val currentPosition = exoPlayer.currentPosition
+            val activePlayer = getActivePlayer()
+            if (activePlayer.mediaItemCount > 0) {
+                val currentIndex = activePlayer.currentMediaItemIndex
+                val currentPosition = activePlayer.currentPosition
                 android.util.Log.d(
                     "AudioPlayerService",
                     "Saving position before unload: track=$currentIndex, position=${currentPosition}ms",
@@ -1949,11 +2004,18 @@ class AudioPlayerService : MediaSessionService() {
             }
 
             // Stop ExoPlayer and clear MediaItems
-            if (::exoPlayer.isInitialized) {
-                exoPlayer.stop()
-                exoPlayer.clearMediaItems()
+            val activePlayer = getActivePlayer()
+            try {
+                activePlayer.stop()
+                activePlayer.clearMediaItems()
                 android.util.Log.d("AudioPlayerService", "ExoPlayer stopped and MediaItems cleared")
+            } catch (e: Exception) {
+                android.util.Log.w("AudioPlayerService", "Error stopping player", e)
             }
+
+            // Release custom player if exists
+            customExoPlayer?.release()
+            customExoPlayer = null
 
             // Release MediaSession
             mediaSession?.release()
@@ -2027,7 +2089,15 @@ class AudioPlayerService : MediaSessionService() {
         // IMPORTANT: Do NOT call exoPlayer.release() - it's a singleton via Hilt!
         // Hilt automatically manages the lifecycle of ExoPlayer
         // Just clear MediaItems, but don't release the player
-        exoPlayer.clearMediaItems()
+        try {
+            getActivePlayer().clearMediaItems()
+        } catch (e: Exception) {
+            android.util.Log.w("AudioPlayerService", "Error clearing media items", e)
+        }
+
+        // Release custom player if exists
+        customExoPlayer?.release()
+        customExoPlayer = null
 
         // Cleanup other resources
         // NOTE: Do NOT release mediaCache - it's a singleton via Hilt and will be managed by Hilt

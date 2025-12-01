@@ -525,6 +525,44 @@ class NativeAudioPlayer {
     }
   }
 
+  /// Configures audio processing settings.
+  ///
+  /// [normalizeVolume] enables volume normalization (default: true).
+  /// [volumeBoostLevel] is the volume boost level: 'Off', 'Boost50', 'Boost100', 'Boost200', 'Auto' (default: 'Off').
+  /// [drcLevel] is the dynamic range compression level: 'Off', 'Gentle', 'Medium', 'Strong' (default: 'Off').
+  /// [speechEnhancer] enables speech enhancement (default: false).
+  /// [autoVolumeLeveling] enables automatic volume leveling (default: false).
+  ///
+  /// Throws [AudioFailure] if configuration fails.
+  Future<void> configureAudioProcessing({
+    bool normalizeVolume = true,
+    String volumeBoostLevel = 'Off',
+    String drcLevel = 'Off',
+    bool speechEnhancer = false,
+    bool autoVolumeLeveling = false,
+  }) async {
+    try {
+      await _channel.invokeMethod(
+        'configureAudioProcessing',
+        {
+          'normalizeVolume': normalizeVolume,
+          'volumeBoostLevel': volumeBoostLevel,
+          'drcLevel': drcLevel,
+          'speechEnhancer': speechEnhancer,
+          'autoVolumeLeveling': autoVolumeLeveling,
+        },
+      );
+    } on PlatformException catch (e) {
+      throw AudioFailure(
+        'Failed to configure audio processing: ${e.message ?? e.code}',
+      );
+    } on Exception catch (e) {
+      throw AudioFailure(
+        'Failed to configure audio processing: ${e.toString()}',
+      );
+    }
+  }
+
   /// Gets current playback position.
   ///
   /// Returns current position in milliseconds.

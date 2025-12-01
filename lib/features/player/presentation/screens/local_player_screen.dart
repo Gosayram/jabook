@@ -630,6 +630,61 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
         );
       }
 
+      // Apply audio processing settings
+      try {
+        final audioSettingsManager = AudioSettingsManager();
+        final playerService = ref.read(media3PlayerServiceProvider);
+
+        // Get global settings
+        final normalizeVolume = await audioSettingsManager.getNormalizeVolume();
+        final volumeBoostLevel =
+            await audioSettingsManager.getVolumeBoostLevel();
+        final drcLevel = await audioSettingsManager.getDRCLevel();
+        final speechEnhancer = await audioSettingsManager.getSpeechEnhancer();
+        final autoVolumeLeveling =
+            await audioSettingsManager.getAutoVolumeLeveling();
+
+        // Override with book-specific settings if available
+        final finalNormalizeVolume =
+            bookSettings?.normalizeVolume ?? normalizeVolume;
+        final finalVolumeBoostLevel =
+            bookSettings?.volumeBoostLevel ?? volumeBoostLevel;
+        final finalDrcLevel = bookSettings?.drcLevel ?? drcLevel;
+        final finalSpeechEnhancer =
+            bookSettings?.speechEnhancer ?? speechEnhancer;
+        final finalAutoVolumeLeveling =
+            bookSettings?.autoVolumeLeveling ?? autoVolumeLeveling;
+
+        // Apply audio processing settings
+        await playerService.configureAudioProcessing(
+          normalizeVolume: finalNormalizeVolume,
+          volumeBoostLevel: finalVolumeBoostLevel,
+          drcLevel: finalDrcLevel,
+          speechEnhancer: finalSpeechEnhancer,
+          autoVolumeLeveling: finalAutoVolumeLeveling,
+        );
+
+        await _logger.log(
+          level: 'info',
+          subsystem: 'audio',
+          message: 'Applied audio processing settings',
+          extra: {
+            'normalizeVolume': finalNormalizeVolume,
+            'volumeBoostLevel': finalVolumeBoostLevel,
+            'drcLevel': finalDrcLevel,
+            'speechEnhancer': finalSpeechEnhancer,
+            'autoVolumeLeveling': finalAutoVolumeLeveling,
+          },
+        );
+      } on Exception catch (e) {
+        await _logger.log(
+          level: 'warning',
+          subsystem: 'audio',
+          message: 'Failed to apply audio processing settings',
+          cause: e.toString(),
+        );
+      }
+
       await _logger.log(
         level: 'info',
         subsystem: 'audio',

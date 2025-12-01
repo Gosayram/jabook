@@ -39,6 +39,21 @@ class AudioSettingsManager {
   static const String _inactivityTimeoutMinutesKey =
       'audio_inactivity_timeout_minutes';
 
+  /// Key for storing volume boost level in SharedPreferences.
+  static const String _volumeBoostLevelKey = 'audio_volume_boost_level';
+
+  /// Key for storing DRC level in SharedPreferences.
+  static const String _drcLevelKey = 'audio_drc_level';
+
+  /// Key for storing speech enhancer enabled state in SharedPreferences.
+  static const String _speechEnhancerKey = 'audio_speech_enhancer';
+
+  /// Key for storing auto volume leveling enabled state in SharedPreferences.
+  static const String _autoVolumeLevelingKey = 'audio_auto_volume_leveling';
+
+  /// Key for storing normalize volume enabled state in SharedPreferences.
+  static const String _normalizeVolumeKey = 'audio_normalize_volume';
+
   /// Default playback speed.
   static const double defaultPlaybackSpeed = 1.0;
 
@@ -145,6 +160,76 @@ class AudioSettingsManager {
     await prefs.setInt(_inactivityTimeoutMinutesKey, minutes);
   }
 
+  /// Gets the volume boost level.
+  Future<String> getVolumeBoostLevel() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_volumeBoostLevelKey) ?? 'Off';
+  }
+
+  /// Sets the volume boost level.
+  Future<void> setVolumeBoostLevel(String level) async {
+    final validLevels = ['Off', 'Boost50', 'Boost100', 'Boost200', 'Auto'];
+    if (!validLevels.contains(level)) {
+      throw ArgumentError(
+          'Volume boost level must be one of: ${validLevels.join(", ")}');
+    }
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_volumeBoostLevelKey, level);
+  }
+
+  /// Gets the DRC (Dynamic Range Compression) level.
+  Future<String> getDRCLevel() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_drcLevelKey) ?? 'Off';
+  }
+
+  /// Sets the DRC (Dynamic Range Compression) level.
+  Future<void> setDRCLevel(String level) async {
+    final validLevels = ['Off', 'Gentle', 'Medium', 'Strong'];
+    if (!validLevels.contains(level)) {
+      throw ArgumentError(
+          'DRC level must be one of: ${validLevels.join(", ")}');
+    }
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_drcLevelKey, level);
+  }
+
+  /// Gets whether speech enhancer is enabled.
+  Future<bool> getSpeechEnhancer() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_speechEnhancerKey) ?? false;
+  }
+
+  /// Sets whether speech enhancer is enabled.
+  Future<void> setSpeechEnhancer(bool enabled) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_speechEnhancerKey, enabled);
+  }
+
+  /// Gets whether auto volume leveling is enabled.
+  Future<bool> getAutoVolumeLeveling() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_autoVolumeLevelingKey) ?? false;
+  }
+
+  /// Sets whether auto volume leveling is enabled.
+  Future<void> setAutoVolumeLeveling(bool enabled) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_autoVolumeLevelingKey, enabled);
+  }
+
+  /// Gets whether volume normalization is enabled.
+  Future<bool> getNormalizeVolume() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_normalizeVolumeKey) ?? true; // Default: enabled
+  }
+
+  /// Sets whether volume normalization is enabled.
+  Future<void> setNormalizeVolume(bool enabled) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_normalizeVolumeKey, enabled);
+  }
+
   /// Resets audio settings to defaults.
   Future<void> resetToDefaults() async {
     final prefs = await SharedPreferences.getInstance();
@@ -153,6 +238,11 @@ class AudioSettingsManager {
     await prefs.setInt(_defaultForwardDurationKey, defaultForwardDuration);
     await prefs.setInt(
         _inactivityTimeoutMinutesKey, defaultInactivityTimeoutMinutes);
+    await prefs.setString(_volumeBoostLevelKey, 'Off');
+    await prefs.setString(_drcLevelKey, 'Off');
+    await prefs.setBool(_speechEnhancerKey, false);
+    await prefs.setBool(_autoVolumeLevelingKey, false);
+    await prefs.setBool(_normalizeVolumeKey, true);
   }
 
   /// Formats playback speed for display in UI.

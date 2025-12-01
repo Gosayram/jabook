@@ -773,6 +773,66 @@ abstract class AppLocalizations {
   /// **'Audio settings'**
   String get audioDescription;
 
+  /// Title for audio enhancement settings
+  ///
+  /// In en, this message translates to:
+  /// **'Audio Enhancement'**
+  String get audioEnhancementTitle;
+
+  /// Description for audio enhancement settings
+  ///
+  /// In en, this message translates to:
+  /// **'Improve audio quality and volume consistency'**
+  String get audioEnhancementDescription;
+
+  /// Title for normalize volume setting
+  ///
+  /// In en, this message translates to:
+  /// **'Normalize Volume'**
+  String get normalizeVolumeTitle;
+
+  /// Description for normalize volume setting
+  ///
+  /// In en, this message translates to:
+  /// **'Maintain consistent volume across different audiobooks'**
+  String get normalizeVolumeDescription;
+
+  /// Title for volume boost setting
+  ///
+  /// In en, this message translates to:
+  /// **'Volume Boost'**
+  String get volumeBoostTitle;
+
+  /// Title for DRC level setting
+  ///
+  /// In en, this message translates to:
+  /// **'Dynamic Range Compression'**
+  String get drcLevelTitle;
+
+  /// Title for speech enhancer setting
+  ///
+  /// In en, this message translates to:
+  /// **'Speech Enhancer'**
+  String get speechEnhancerTitle;
+
+  /// Description for speech enhancer setting
+  ///
+  /// In en, this message translates to:
+  /// **'Improve speech clarity and reduce sibilance'**
+  String get speechEnhancerDescription;
+
+  /// Title for auto volume leveling setting
+  ///
+  /// In en, this message translates to:
+  /// **'Auto Volume Leveling'**
+  String get autoVolumeLevelingTitle;
+
+  /// Description for auto volume leveling setting
+  ///
+  /// In en, this message translates to:
+  /// **'Automatically adjust volume to maintain consistent level'**
+  String get autoVolumeLevelingDescription;
+
   /// Label for playback speed
   ///
   /// In en, this message translates to:

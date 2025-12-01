@@ -450,6 +450,46 @@
   "@audioDescription": {
     "description": "Description for audio settings"
   },
+  "audioEnhancementTitle": "Audio Enhancement",
+  "@audioEnhancementTitle": {
+    "description": "Title for audio enhancement settings"
+  },
+  "audioEnhancementDescription": "Improve audio quality and volume consistency",
+  "@audioEnhancementDescription": {
+    "description": "Description for audio enhancement settings"
+  },
+  "normalizeVolumeTitle": "Normalize Volume",
+  "@normalizeVolumeTitle": {
+    "description": "Title for normalize volume setting"
+  },
+  "normalizeVolumeDescription": "Maintain consistent volume across different audiobooks",
+  "@normalizeVolumeDescription": {
+    "description": "Description for normalize volume setting"
+  },
+  "volumeBoostTitle": "Volume Boost",
+  "@volumeBoostTitle": {
+    "description": "Title for volume boost setting"
+  },
+  "drcLevelTitle": "Dynamic Range Compression",
+  "@drcLevelTitle": {
+    "description": "Title for DRC level setting"
+  },
+  "speechEnhancerTitle": "Speech Enhancer",
+  "@speechEnhancerTitle": {
+    "description": "Title for speech enhancer setting"
+  },
+  "speechEnhancerDescription": "Improve speech clarity and reduce sibilance",
+  "@speechEnhancerDescription": {
+    "description": "Description for speech enhancer setting"
+  },
+  "autoVolumeLevelingTitle": "Auto Volume Leveling",
+  "@autoVolumeLevelingTitle": {
+    "description": "Title for auto volume leveling setting"
+  },
+  "autoVolumeLevelingDescription": "Automatically adjust volume to maintain consistent level",
+  "@autoVolumeLevelingDescription": {
+    "description": "Description for auto volume leveling setting"
+  },
   "playbackSpeed": "Playback speed",
   "@playbackSpeed": {
     "description": "Label for playback speed"

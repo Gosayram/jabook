@@ -23,6 +23,11 @@ class BookAudioSettings {
         playbackSpeed: (json['playbackSpeed'] as num?)?.toDouble(),
         rewindDuration: json['rewindDuration'] as int?,
         forwardDuration: json['forwardDuration'] as int?,
+        volumeBoostLevel: json['volumeBoostLevel'] as String?,
+        drcLevel: json['drcLevel'] as String?,
+        speechEnhancer: json['speechEnhancer'] as bool?,
+        autoVolumeLeveling: json['autoVolumeLeveling'] as bool?,
+        normalizeVolume: json['normalizeVolume'] as bool?,
       );
 
   /// Creates a new BookAudioSettings instance.
@@ -30,6 +35,11 @@ class BookAudioSettings {
     this.playbackSpeed,
     this.rewindDuration,
     this.forwardDuration,
+    this.volumeBoostLevel,
+    this.drcLevel,
+    this.speechEnhancer,
+    this.autoVolumeLeveling,
+    this.normalizeVolume,
   });
 
   /// Playback speed for this book.
@@ -41,16 +51,41 @@ class BookAudioSettings {
   /// Forward duration in seconds for this book.
   final int? forwardDuration;
 
+  /// Volume boost level for this book (Off, Boost50, Boost100, Boost200, Auto).
+  final String? volumeBoostLevel;
+
+  /// DRC (Dynamic Range Compression) level for this book (Off, Gentle, Medium, Strong).
+  final String? drcLevel;
+
+  /// Whether speech enhancer is enabled for this book.
+  final bool? speechEnhancer;
+
+  /// Whether auto volume leveling is enabled for this book.
+  final bool? autoVolumeLeveling;
+
+  /// Whether volume normalization is enabled for this book.
+  final bool? normalizeVolume;
+
   /// Creates a copy with updated fields.
   BookAudioSettings copyWith({
     double? playbackSpeed,
     int? rewindDuration,
     int? forwardDuration,
+    String? volumeBoostLevel,
+    String? drcLevel,
+    bool? speechEnhancer,
+    bool? autoVolumeLeveling,
+    bool? normalizeVolume,
   }) =>
       BookAudioSettings(
         playbackSpeed: playbackSpeed ?? this.playbackSpeed,
         rewindDuration: rewindDuration ?? this.rewindDuration,
         forwardDuration: forwardDuration ?? this.forwardDuration,
+        volumeBoostLevel: volumeBoostLevel ?? this.volumeBoostLevel,
+        drcLevel: drcLevel ?? this.drcLevel,
+        speechEnhancer: speechEnhancer ?? this.speechEnhancer,
+        autoVolumeLeveling: autoVolumeLeveling ?? this.autoVolumeLeveling,
+        normalizeVolume: normalizeVolume ?? this.normalizeVolume,
       );
 
   /// Converts to JSON map.
@@ -58,6 +93,12 @@ class BookAudioSettings {
         if (playbackSpeed != null) 'playbackSpeed': playbackSpeed,
         if (rewindDuration != null) 'rewindDuration': rewindDuration,
         if (forwardDuration != null) 'forwardDuration': forwardDuration,
+        if (volumeBoostLevel != null) 'volumeBoostLevel': volumeBoostLevel,
+        if (drcLevel != null) 'drcLevel': drcLevel,
+        if (speechEnhancer != null) 'speechEnhancer': speechEnhancer,
+        if (autoVolumeLeveling != null)
+          'autoVolumeLeveling': autoVolumeLeveling,
+        if (normalizeVolume != null) 'normalizeVolume': normalizeVolume,
       };
 }
 
@@ -124,6 +165,14 @@ class BookAudioSettingsService {
             rewindDuration: settings.rewindDuration ?? existing.rewindDuration,
             forwardDuration:
                 settings.forwardDuration ?? existing.forwardDuration,
+            volumeBoostLevel:
+                settings.volumeBoostLevel ?? existing.volumeBoostLevel,
+            drcLevel: settings.drcLevel ?? existing.drcLevel,
+            speechEnhancer: settings.speechEnhancer ?? existing.speechEnhancer,
+            autoVolumeLeveling:
+                settings.autoVolumeLeveling ?? existing.autoVolumeLeveling,
+            normalizeVolume:
+                settings.normalizeVolume ?? existing.normalizeVolume,
           )
         : settings;
     await saveSettings(bookId, merged);

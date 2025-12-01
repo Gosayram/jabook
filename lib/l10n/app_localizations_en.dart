@@ -348,6 +348,36 @@ class AppLocalizationsEn extends AppLocalizations {
   String get audioDescription => 'Audio settings';
 
   @override
+  String get audioEnhancementTitle => 'Audio Enhancement';
+
+  @override
+  String get audioEnhancementDescription => 'Improve audio quality and volume consistency';
+
+  @override
+  String get normalizeVolumeTitle => 'Normalize Volume';
+
+  @override
+  String get normalizeVolumeDescription => 'Maintain consistent volume across different audiobooks';
+
+  @override
+  String get volumeBoostTitle => 'Volume Boost';
+
+  @override
+  String get drcLevelTitle => 'Dynamic Range Compression';
+
+  @override
+  String get speechEnhancerTitle => 'Speech Enhancer';
+
+  @override
+  String get speechEnhancerDescription => 'Improve speech clarity and reduce sibilance';
+
+  @override
+  String get autoVolumeLevelingTitle => 'Auto Volume Leveling';
+
+  @override
+  String get autoVolumeLevelingDescription => 'Automatically adjust volume to maintain consistent level';
+
+  @override
   String get playbackSpeed => 'Playback speed';
 
   @override

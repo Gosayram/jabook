@@ -16,6 +16,9 @@ package com.jabook.app.jabook.audio
 
 import android.content.Context
 import android.content.Intent
+import com.jabook.app.jabook.audio.processors.AudioProcessingSettings
+import com.jabook.app.jabook.audio.processors.DRCLevel
+import com.jabook.app.jabook.audio.processors.VolumeBoostLevel
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 
@@ -575,6 +578,62 @@ class AudioPlayerMethodHandler(
                             android.util.Log.w("AudioPlayerMethodHandler", "Failed to acknowledge saveCurrentPosition", e)
                             // Not critical - position is already saved periodically
                             result.success(true) // Still return success as position saving is not critical
+                        },
+                    )
+                }
+                "configureAudioProcessing" -> {
+                    // Configure audio processing settings (normalization, boost, DRC, etc.)
+                    val normalizeVolume = call.argument<Boolean>("normalizeVolume") ?: true
+                    val volumeBoostLevelStr = call.argument<String>("volumeBoostLevel") ?: "Off"
+                    val drcLevelStr = call.argument<String>("drcLevel") ?: "Off"
+                    val speechEnhancer = call.argument<Boolean>("speechEnhancer") ?: false
+                    val autoVolumeLeveling = call.argument<Boolean>("autoVolumeLeveling") ?: false
+
+                    // Parse enums
+                    val volumeBoostLevel =
+                        try {
+                            VolumeBoostLevel.valueOf(volumeBoostLevelStr)
+                        } catch (e: Exception) {
+                            android.util.Log.w("AudioPlayerMethodHandler", "Invalid volumeBoostLevel: $volumeBoostLevelStr, using Off")
+                            VolumeBoostLevel.Off
+                        }
+
+                    val drcLevel =
+                        try {
+                            DRCLevel.valueOf(drcLevelStr)
+                        } catch (e: Exception) {
+                            android.util.Log.w("AudioPlayerMethodHandler", "Invalid drcLevel: $drcLevelStr, using Off")
+                            DRCLevel.Off
+                        }
+
+                    val settings =
+                        AudioProcessingSettings(
+                            normalizeVolume = normalizeVolume,
+                            volumeBoostLevel = volumeBoostLevel,
+                            drcLevel = drcLevel,
+                            speechEnhancer = speechEnhancer,
+                            autoVolumeLeveling = autoVolumeLeveling,
+                        )
+
+                    executeWithRetry(
+                        action = {
+                            val service = getService()
+                            if (service != null) {
+                                service.configureExoPlayer(settings)
+                                android.util.Log.d(
+                                    "AudioPlayerMethodHandler",
+                                    "Audio processing configured: normalizeVolume=$normalizeVolume, " +
+                                        "volumeBoost=$volumeBoostLevelStr, drc=$drcLevelStr, " +
+                                        "speechEnhancer=$speechEnhancer, autoLeveling=$autoVolumeLeveling",
+                                )
+                                result.success(true)
+                            } else {
+                                result.error("SERVICE_UNAVAILABLE", "Audio service is not available", null)
+                            }
+                        },
+                        onError = { e ->
+                            android.util.Log.e("AudioPlayerMethodHandler", "Failed to configure audio processing", e)
+                            result.error("EXCEPTION", e.message ?: "Failed to configure audio processing", null)
                         },
                     )
                 }
