@@ -15,6 +15,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:jabook/core/cache/rutracker_cache_service.dart';
+import 'package:jabook/core/di/providers/cache_providers.dart';
 import 'package:jabook/core/di/providers/database_providers.dart';
 import 'package:jabook/core/infrastructure/config/app_config.dart';
 import 'package:jabook/core/infrastructure/endpoints/endpoint_manager.dart';
@@ -64,7 +65,7 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
 
   Future<void> _initializeServices() async {
     _logger = EnvironmentLogger();
-    _cacheService = RuTrackerCacheService();
+    _cacheService = ref.read(rutrackerCacheServiceProvider);
     // Initialize EndpointManager with database
     final appDatabase = ref.read(appDatabaseProvider);
     await appDatabase.initialize();

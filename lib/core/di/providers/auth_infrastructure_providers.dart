@@ -15,6 +15,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:jabook/core/auth/credential_manager.dart';
 import 'package:jabook/core/di/providers/auth_providers.dart';
+import 'package:jabook/core/di/providers/cache_providers.dart';
 import 'package:jabook/core/di/providers/database_providers.dart';
 import 'package:jabook/core/session/session_manager.dart';
 
@@ -36,8 +37,10 @@ final credentialManagerProvider =
 final sessionManagerProvider = Provider<SessionManager>((ref) {
   final rutrackerAuth = ref.watch(rutrackerAuthProvider);
   final appDatabase = ref.watch(appDatabaseProvider);
+  final cacheService = ref.watch(rutrackerCacheServiceProvider);
   return SessionManager(
     rutrackerAuth: rutrackerAuth,
     appDatabase: appDatabase,
+    cacheService: cacheService,
   );
 });

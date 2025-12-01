@@ -21,8 +21,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:jabook/core/backup/backup_service.dart';
-import 'package:jabook/core/cache/rutracker_cache_service.dart';
+import 'package:jabook/core/di/providers/auth_infrastructure_providers.dart';
+import 'package:jabook/core/di/providers/cache_providers.dart';
 import 'package:jabook/core/di/providers/database_providers.dart';
+import 'package:jabook/core/di/providers/player_providers.dart';
 import 'package:jabook/core/di/providers/utils_providers.dart';
 import 'package:jabook/core/infrastructure/config/app_config.dart';
 import 'package:jabook/core/infrastructure/config/audio_settings_manager.dart';
@@ -37,7 +39,6 @@ import 'package:jabook/core/metadata/audiobook_metadata_service.dart';
 import 'package:jabook/core/metadata/metadata_sync_scheduler.dart';
 import 'package:jabook/core/net/dio_client.dart';
 import 'package:jabook/core/player/player_state_provider.dart';
-import 'package:jabook/core/session/session_manager.dart';
 import 'package:jabook/core/utils/app_title_utils.dart';
 import 'package:jabook/core/utils/content_uri_service.dart';
 import 'package:jabook/core/utils/file_picker_utils.dart' as file_picker_utils;
@@ -507,7 +508,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               final messenger = ScaffoldMessenger.of(context);
               final localizations = AppLocalizations.of(context);
               try {
-                final sessionManager = SessionManager();
+                final sessionManager = ref.read(sessionManagerProvider);
                 await sessionManager.clearSession();
                 if (mounted) {
                   messenger.showSnackBar(
@@ -1639,24 +1640,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Future<Map<String, dynamic>> _loadCacheStats() async {
-    final db = ref.read(appDatabaseProvider).database;
-    final cache = RuTrackerCacheService();
-    await cache.initialize(db);
+    final cache = ref.read(rutrackerCacheServiceProvider);
     return cache.getStatistics();
   }
 
   Future<void> _clearExpiredCache() async {
-    final db = ref.read(appDatabaseProvider).database;
-    final cache = RuTrackerCacheService();
-    await cache.initialize(db);
+    final cache = ref.read(rutrackerCacheServiceProvider);
     await cache.clearExpired();
   }
 
   Future<void> _clearAllCache() async {
-    final appDatabase = ref.read(appDatabaseProvider);
-    final db = await appDatabase.ensureInitialized();
-    final cache = RuTrackerCacheService();
-    await cache.initialize(db);
+    final cache = ref.read(rutrackerCacheServiceProvider);
     await cache.clearSearchResultsCache();
     await cache.clearAllTopicDetailsCache();
   }

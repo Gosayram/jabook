@@ -89,14 +89,15 @@ class TorrentProgress {
 /// Manages torrent downloads for audiobooks.
 ///
 /// This class provides functionality to start, pause, resume, and monitor
-/// torrent downloads for audiobook files. It uses a singleton pattern
-/// to ensure consistent download management across the application.
+/// torrent downloads for audiobook files.
+///
+/// Note: This class is no longer a singleton. Use [audiobookTorrentManagerProvider]
+/// to get an instance via dependency injection.
 class AudiobookTorrentManager {
-  /// Private constructor for singleton pattern.
-  AudiobookTorrentManager._();
-
-  /// Factory constructor to get the singleton instance.
-  factory AudiobookTorrentManager() => AudiobookTorrentManager._();
+  /// Creates a new AudiobookTorrentManager instance.
+  ///
+  /// Use [audiobookTorrentManagerProvider] to get an instance via dependency injection.
+  AudiobookTorrentManager();
 
   /// Map of download progress controllers for active downloads.
   final Map<String, StreamController<TorrentProgress>> _progressControllers =

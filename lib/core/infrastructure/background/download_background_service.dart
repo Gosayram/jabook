@@ -268,6 +268,8 @@ void callbackDispatcher() {
       }
 
       // Get torrent manager instance and initialize with database
+      // Note: Background tasks run outside Riverpod context, so we create
+      // the instance directly. This is acceptable for background services.
       final torrentManager = AudiobookTorrentManager();
       if (appDatabase.isInitialized) {
         try {

@@ -45,17 +45,20 @@ class SessionManager {
   ///
   /// The [rutrackerAuth] parameter is optional but recommended for full functionality.
   /// The [appDatabase] parameter is optional - if not provided, will use AppDatabase() directly.
+  /// The [cacheService] parameter is optional - if not provided, will create a new instance.
   /// For dependency injection, prefer using [sessionManagerProvider].
   SessionManager({
     RuTrackerAuth? rutrackerAuth,
     CredentialManager? credentialManager,
     AppDatabase? appDatabase,
+    RuTrackerCacheService? cacheService,
   })  : _rutrackerAuth = rutrackerAuth,
         _sessionStorage = const SessionStorage(),
         _sessionValidator = SessionValidator(appDatabase: appDatabase),
         _cookieSyncService = const CookieSyncService(),
         _credentialManager = credentialManager ?? CredentialManager(),
-        _appDatabase = appDatabase;
+        _appDatabase = appDatabase,
+        _cacheService = cacheService;
 
   /// RuTracker authentication instance.
   final RuTrackerAuth? _rutrackerAuth;
@@ -74,6 +77,9 @@ class SessionManager {
 
   /// AppDatabase instance for database operations.
   final AppDatabase? _appDatabase;
+
+  /// Cache service for clearing session-bound cache.
+  final RuTrackerCacheService? _cacheService;
 
   /// Timer for periodic session monitoring.
   Timer? _sessionCheckTimer;
@@ -577,7 +583,7 @@ class SessionManager {
 
       // Clear session-bound cache
       try {
-        final cacheService = RuTrackerCacheService();
+        final cacheService = _cacheService ?? RuTrackerCacheService();
         await cacheService.clearCurrentSessionCache();
       } on Exception {
         // Ignore cache clearing errors

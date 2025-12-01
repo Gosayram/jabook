@@ -53,8 +53,19 @@ class DioClient {
   /// This instance is configured with appropriate timeouts, user agent,
   /// and cookie management for RuTracker API calls.
   ///
+  /// The [sessionManager] parameter is optional - if provided, will be used
+  /// instead of creating a new instance. For dependency injection, prefer
+  /// passing an instance from [sessionManagerProvider].
+  ///
   /// Returns a configured Dio instance ready for use.
-  static Future<Dio> get instance async {
+  static Future<Dio> get instance async => getInstance();
+
+  /// Gets the singleton Dio instance with optional SessionManager.
+  ///
+  /// The [sessionManager] parameter is optional - if provided, will be used
+  /// instead of creating a new instance. For dependency injection, prefer
+  /// passing an instance from [sessionManagerProvider].
+  static Future<Dio> getInstance({SessionManager? sessionManager}) async {
     // Return cached instance if already initialized
     if (_instance != null) {
       return _instance!;
@@ -145,8 +156,8 @@ class DioClient {
     }
 
     // Add SessionInterceptor for automatic session validation and refresh
-    // Use singleton SessionManager instance
-    _sessionManager ??= SessionManager();
+    // Use provided SessionManager or create a new one
+    _sessionManager ??= sessionManager ?? SessionManager();
     dio.interceptors.add(SessionInterceptor(_sessionManager!));
 
     // Cache and return the instance

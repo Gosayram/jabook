@@ -25,6 +25,7 @@ import 'package:jabook/core/cache/rutracker_cache_service.dart';
 import 'package:jabook/core/constants/category_constants.dart';
 import 'package:jabook/core/data/local/database/cookie_database_service.dart';
 import 'package:jabook/core/di/providers/auth_providers.dart';
+import 'package:jabook/core/di/providers/cache_providers.dart';
 import 'package:jabook/core/di/providers/database_providers.dart'
     as db_providers;
 import 'package:jabook/core/domain/auth/entities/auth_status.dart';
@@ -67,7 +68,7 @@ class SearchScreen extends ConsumerStatefulWidget {
 class _SearchScreenState extends ConsumerState<SearchScreen> {
   final TextEditingController _searchController = TextEditingController();
   final RuTrackerParser _parser = RuTrackerParser();
-  final RuTrackerCacheService _cacheService = RuTrackerCacheService();
+  late final RuTrackerCacheService _cacheService;
   AudiobookMetadataService? _metadataService;
   SearchHistoryService? _historyService;
   List<Map<String, dynamic>> _searchResults = [];
@@ -106,6 +107,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   void initState() {
     super.initState();
     EnvironmentLogger().d('SearchScreen.initState called');
+    // Get cache service from provider (already initialized in app.dart)
+    _cacheService = ref.read(rutrackerCacheServiceProvider);
     _initializeCache();
     _initializeMetadataService();
     _loadActiveHost();
@@ -246,16 +249,16 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   }
 
   Future<void> _initializeCache() async {
-    // Cache service initialization would typically happen at app startup
-    // For now, we'll handle it here
+    // Cache service is initialized in app.dart via provider
+    // No additional initialization needed here
   }
 
   Future<void> _initializeMetadataService() async {
     try {
       final appDatabase = ref.read(db_providers.appDatabaseProvider);
-      await appDatabase.initialize();
-      _metadataService = AudiobookMetadataService(appDatabase.database);
-      _historyService = SearchHistoryService(appDatabase.database);
+      final db = await appDatabase.ensureInitialized();
+      _metadataService = AudiobookMetadataService(db);
+      _historyService = SearchHistoryService(db);
       await _loadSearchHistory();
     } on Exception {
       // Metadata service optional - continue without it
@@ -410,7 +413,29 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   }
 
   Future<void> _performSearch() async {
-    if (_searchController.text.trim().isEmpty) return;
+    final structuredLogger = StructuredLogger();
+    final query = _searchController.text.trim();
+
+    await structuredLogger.log(
+      level: 'info',
+      subsystem: 'search',
+      message: '_performSearch called',
+      context: 'search_request',
+      extra: {
+        'query': query,
+        'query_is_empty': query.isEmpty,
+      },
+    );
+
+    if (query.isEmpty) {
+      await structuredLogger.log(
+        level: 'debug',
+        subsystem: 'search',
+        message: '_performSearch returning early - empty query',
+        context: 'search_request',
+      );
+      return;
+    }
 
     // Cancel any in-flight search
     _cancelToken?.cancel('superseded');
@@ -429,60 +454,132 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       _selectedCategories.clear(); // Reset filters on new search
     });
 
-    final query = _searchController.text.trim();
+    // Check local DB and cache in parallel for quick display, but don't block network search
+    // Network search is the primary source of truth
+    Future<List<Map<String, dynamic>>?>? localResultsFuture;
+    Future<List<Map<String, dynamic>>?>? cachedResultsFuture;
 
-    // First try local database search (offline mode)
+    // Start local DB check in background (non-blocking)
     if (_metadataService != null) {
-      try {
-        final localResults = await _metadataService!.searchLocally(query);
-        if (localResults.isNotEmpty) {
-          final localResultsMaps = localResults.map(_audiobookToMap).toList();
-          setState(() {
-            _searchResults = localResultsMaps;
-            _isLoading = false;
-            _isFromLocalDb = true;
-          });
-          // Save to search history
-          if (_historyService != null && query.isNotEmpty) {
-            await _historyService!.saveSearchQuery(query);
-            await _loadSearchHistory();
+      localResultsFuture = (() async {
+        try {
+          await structuredLogger.log(
+            level: 'debug',
+            subsystem: 'search',
+            message: 'Checking local database in background',
+            context: 'search_request',
+            extra: {'query': query},
+          );
+          final localResults = await _metadataService!.searchLocally(query);
+          if (localResults.isNotEmpty) {
+            await structuredLogger.log(
+              level: 'info',
+              subsystem: 'search',
+              message: 'Found local results in background',
+              context: 'search_request',
+              extra: {
+                'query': query,
+                'local_results_count': localResults.length,
+              },
+            );
+            return localResults.map(_audiobookToMap).toList();
           }
+        } on Exception catch (e) {
+          await structuredLogger.log(
+            level: 'debug',
+            subsystem: 'search',
+            message: 'Local search check failed',
+            context: 'search_request',
+            cause: e.toString(),
+          );
+        }
+        return null;
+      })();
+    }
 
-          // Update statistics for items that don't have them
-          safeUnawaited(_updateMissingStatistics(localResultsMaps));
-
-          // Still try to get network results in background for updates
-          safeUnawaited(
-            _performNetworkSearch(query, updateExisting: true),
-            onError: (e, stack) {
-              logger.w('Background network search failed: $e');
+    // Start cache check in background (non-blocking)
+    cachedResultsFuture = (() async {
+      try {
+        await structuredLogger.log(
+          level: 'debug',
+          subsystem: 'search',
+          message: 'Checking cache in background',
+          context: 'search_request',
+          extra: {'query': query},
+        );
+        final cachedResults =
+            await _cacheService.getCachedSearchResults(query).timeout(
+                  const Duration(seconds: 1),
+                  onTimeout: () => null,
+                );
+        if (cachedResults != null && cachedResults.isNotEmpty) {
+          await structuredLogger.log(
+            level: 'info',
+            subsystem: 'search',
+            message: 'Found cached results in background',
+            context: 'search_request',
+            extra: {
+              'query': query,
+              'cached_results_count': cachedResults.length,
             },
           );
-          return;
+          return cachedResults;
         }
-      } on Exception {
-        // Continue to network search if local search fails
+      } on Exception catch (e) {
+        await structuredLogger.log(
+          level: 'debug',
+          subsystem: 'search',
+          message: 'Cache check failed',
+          context: 'search_request',
+          cause: e.toString(),
+        );
       }
+      return null;
+    })();
+
+    // Perform network search immediately (primary source)
+    await structuredLogger.log(
+      level: 'info',
+      subsystem: 'search',
+      message: 'Starting network search immediately',
+      context: 'search_request',
+      extra: {'query': query},
+    );
+
+    // Wait for quick results from cache/local DB (with short timeout)
+    // If they arrive quickly, show them immediately, then update with network results
+    try {
+      final futures = <Future<List<Map<String, dynamic>>?>>[
+        cachedResultsFuture,
+        if (localResultsFuture != null) localResultsFuture,
+        Future.delayed(const Duration(milliseconds: 100))
+            .then((_) => null as List<Map<String, dynamic>>?),
+      ];
+
+      final quickResults =
+          await Future.any(futures).timeout(const Duration(milliseconds: 200));
+
+      if (quickResults != null && quickResults.isNotEmpty && mounted) {
+        await structuredLogger.log(
+          level: 'info',
+          subsystem: 'search',
+          message: 'Showing quick results while network search continues',
+          context: 'search_request',
+          extra: {
+            'query': query,
+            'quick_results_count': quickResults.length,
+          },
+        );
+        setState(() {
+          _searchResults = quickResults;
+          _isLoading = true; // Keep loading indicator for network update
+        });
+      }
+    } on Exception catch (_) {
+      // Ignore timeout or errors - just continue with network search
     }
 
-    // Second try to get from cache
-    final cachedResults = await _cacheService.getCachedSearchResults(query);
-    if (cachedResults != null) {
-      // Get expiration time
-      final expiration = await _cacheService.getSearchResultsExpiration(query);
-
-      setState(() {
-        _searchResults = cachedResults;
-        _isLoading = false;
-        _isFromCache = true;
-        _cacheExpirationTime = expiration;
-      });
-      // Update statistics for items that don't have them
-      safeUnawaited(_updateMissingStatistics(cachedResults));
-      return;
-    }
-
-    // Finally, try network search
+    // Perform network search (this will update results when complete)
     await _performNetworkSearch(query);
   }
 
@@ -839,6 +936,19 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         }
         return;
       }
+
+      // Log that we passed cookie check and will proceed with search
+      await structuredLogger.log(
+        level: 'info',
+        subsystem: 'search',
+        message: 'Cookie validation passed, proceeding with search',
+        context: 'search_request',
+        extra: {
+          'has_cookies': hasCookies,
+          'has_required_cookies': hasRequiredCookies,
+          'found_cookie_names': foundCookieNames,
+        },
+      );
     } on Exception catch (e) {
       await structuredLogger.log(
         level: 'error',
@@ -852,6 +962,18 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
     // Cookies exist, but they might be invalid - try search anyway
     // If search fails with auth error, we'll handle it in error handling
+
+    await structuredLogger.log(
+      level: 'info',
+      subsystem: 'search',
+      message:
+          'Proceeding to make HTTP request - cookies validated or check skipped',
+      context: 'search_request',
+      extra: {
+        'query': query,
+        'active_endpoint': activeEndpoint,
+      },
+    );
 
     // CRITICAL: Use ONLY the active endpoint for search - don't switch mirrors
     final dio = await DioClient.instance;
@@ -1087,20 +1209,36 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         }
       }
 
+      // Build full URL with query parameters for logging
+      final fullUrl = Uri.parse(requestUri)
+          .replace(
+            queryParameters: requestQueryParams
+                .map((key, value) => MapEntry(key, value.toString())),
+          )
+          .toString();
+
+      // Build cookie header string for logging (without sensitive values)
+      final cookieHeaderForLog =
+          finalCookies.map((c) => '${c.name}=***').join('; ');
+
       await structuredLogger.log(
         level: 'info',
         subsystem: 'search',
-        message: 'Making search HTTP request',
+        message: 'Making search HTTP request - REAL REQUEST DETAILS',
         context: 'search_request',
         extra: {
           'endpoint': endpoint,
           'request_uri': requestUri,
+          'full_url': fullUrl,
           'query_params': requestQueryParams,
           'method': 'GET',
           'cookies_count': finalCookies.length,
           'cookies_names': finalCookies.map((c) => c.name).toList(),
+          'cookie_header_preview': cookieHeaderForLog,
           'will_send_cookies': finalCookies.isNotEmpty,
           'request_start_time': requestStartTime.toIso8601String(),
+          'query': query,
+          'start_offset': _startOffset,
         },
       );
 
@@ -1119,26 +1257,47 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       final requestDuration =
           DateTime.now().difference(requestStartTime).inMilliseconds;
 
+      // Build full response URL for logging
+      final responseFullUrl = response.realUri.toString();
+      final requestFullUrl = response.requestOptions.uri.toString();
+      final isUrlChanged = requestFullUrl != responseFullUrl;
+
       await structuredLogger.log(
         level: response.statusCode == 200 ? 'info' : 'warning',
         subsystem: 'search',
-        message: 'Search HTTP response received',
+        message: 'Search HTTP response received - REAL RESPONSE DETAILS',
         context: 'search_request',
         durationMs: requestDuration,
         extra: {
           'endpoint': endpoint,
           'status_code': response.statusCode,
-          'response_size_bytes': response.data?.toString().length ?? 0,
-          'response_url': response.realUri.toString(),
+          'request_url': requestFullUrl,
+          'response_url': responseFullUrl,
+          'url_changed': isUrlChanged,
           'is_redirect': response.isRedirect,
           'redirect_location': response.headers.value('location'),
           'cookies_were_sent': finalCookies.isNotEmpty,
           'cookies_sent_count': finalCookies.length,
+          'response_size_bytes': response.data?.toString().length ?? 0,
+          'response_data_type': response.data.runtimeType.toString(),
           'response_headers': {
             'content-type': response.headers.value('content-type'),
+            'content-encoding': response.headers.value('content-encoding'),
+            'content-length': response.headers.value('content-length'),
             'server': response.headers.value('server'),
             'cf-ray': response.headers.value('cf-ray'),
+            'set-cookie': response.headers.value('set-cookie') != null
+                ? 'present'
+                : 'absent',
           },
+          'all_response_headers': response.headers.map.map((key, value) {
+            final headerValue = value.join(', ');
+            return MapEntry(
+                key,
+                headerValue.length > 100
+                    ? '${headerValue.substring(0, 100)}...'
+                    : headerValue);
+          }),
         },
       );
 
@@ -1369,6 +1528,18 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           );
 
           results = audiobookResults.map(_audiobookToMap).toList();
+
+          await structuredLogger.log(
+            level: 'info',
+            subsystem: 'search',
+            message: 'Results converted to maps, ready to cache',
+            context: 'search_request',
+            extra: {
+              'query': query,
+              'results_count': results.length,
+              'cancel_token_is_cancelled': _cancelToken?.isCancelled ?? false,
+            },
+          );
         } on ParsingFailure catch (e) {
           // Enhanced logging and recovery for parsing failures
           String? responseText;
@@ -1662,10 +1833,88 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
         // Cache the results
         // Results are already maps
-        await _cacheService.cacheSearchResults(query, results);
+        await structuredLogger.log(
+          level: 'info',
+          subsystem: 'search',
+          message: 'Caching search results',
+          context: 'search_request',
+          extra: {
+            'query': query,
+            'results_count': results.length,
+          },
+        );
+
+        try {
+          // Add timeout to prevent hanging on cache
+          await _cacheService.cacheSearchResults(query, results).timeout(
+            const Duration(seconds: 2),
+            onTimeout: () {
+              safeUnawaited(structuredLogger.log(
+                level: 'warning',
+                subsystem: 'search',
+                message: 'Cache operation timed out, continuing anyway',
+                context: 'search_request',
+                extra: {'query': query},
+              ));
+            },
+          );
+          await structuredLogger.log(
+            level: 'info',
+            subsystem: 'search',
+            message: 'Search results cached successfully',
+            context: 'search_request',
+            extra: {
+              'query': query,
+              'results_count': results.length,
+            },
+          );
+        } on TimeoutException {
+          await structuredLogger.log(
+            level: 'warning',
+            subsystem: 'search',
+            message: 'Cache operation timed out, continuing anyway',
+            context: 'search_request',
+            extra: {'query': query},
+          );
+          // Continue even if caching times out
+        } on Exception catch (e) {
+          await structuredLogger.log(
+            level: 'warning',
+            subsystem: 'search',
+            message: 'Failed to cache search results, continuing anyway',
+            context: 'search_request',
+            cause: e.toString(),
+            extra: {'query': query},
+          );
+          // Continue even if caching fails
+        }
+
+        await structuredLogger.log(
+          level: 'info',
+          subsystem: 'search',
+          message: 'Setting search results to state',
+          context: 'search_request',
+          extra: {
+            'query': query,
+            'results_count': results.length,
+            'update_existing': updateExisting,
+            'mounted': mounted,
+          },
+        );
 
         if (updateExisting && mounted) {
           // Update existing results (for background refresh from local DB)
+          await structuredLogger.log(
+            level: 'info',
+            subsystem: 'search',
+            message: 'Updating existing results (background refresh)',
+            context: 'search_request',
+            extra: {
+              'query': query,
+              'new_results_count': results.length,
+              'existing_results_count': _searchResults.length,
+            },
+          );
           setState(() {
             final networkResults = results;
             // Merge with existing, avoiding duplicates
@@ -1681,6 +1930,17 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             _hasMore = results.isNotEmpty;
           });
         } else {
+          await structuredLogger.log(
+            level: 'info',
+            subsystem: 'search',
+            message: 'Setting new search results to state',
+            context: 'search_request',
+            extra: {
+              'query': query,
+              'results_count': results.length,
+              'mounted': mounted,
+            },
+          );
           setState(() {
             // Results are already maps
             _searchResults = results;

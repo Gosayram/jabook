@@ -27,8 +27,15 @@ import 'package:jabook/core/parse/rutracker_parser.dart';
 /// and creates Chapter objects based on file names.
 /// It also caches parsed chapters to avoid re-parsing the same torrent.
 class TorrentParserService {
+  /// Creates a new TorrentParserService instance.
+  ///
+  /// The [cacheService] parameter is optional - if not provided, a new instance will be created.
+  /// For dependency injection, prefer passing an initialized instance from a provider.
+  TorrentParserService({RuTrackerCacheService? cacheService})
+      : _cacheService = cacheService ?? RuTrackerCacheService();
+
   /// Cache service for storing parsed chapters.
-  final RuTrackerCacheService _cacheService = RuTrackerCacheService();
+  final RuTrackerCacheService _cacheService;
 
   /// Audio file extensions to consider as chapters.
   static const List<String> audioExtensions = [

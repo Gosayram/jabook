@@ -14,7 +14,7 @@
 
 import 'dart:async';
 
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:jabook/core/di/providers/player_providers.dart';
 import 'package:jabook/core/infrastructure/errors/failures.dart';
 import 'package:jabook/core/library/local_audiobook.dart';
 import 'package:jabook/core/player/media3_player_service.dart';
@@ -112,12 +112,8 @@ class PlayerStateModel {
       );
 }
 
-/// Provider for Media3PlayerService instance.
-final media3PlayerServiceProvider = Provider<Media3PlayerService>((ref) {
-  final service = Media3PlayerService();
-  ref.onDispose(service.dispose);
-  return service;
-});
+// NOTE: media3PlayerServiceProvider is defined in lib/core/di/providers/player_providers.dart
+// Import it from there instead of defining it here to avoid duplication.
 
 /// Provider for current audiobook group being played.
 final currentAudiobookGroupProvider =

@@ -22,9 +22,19 @@ import 'package:jabook/core/domain/player/use_cases/seek_use_case.dart';
 import 'package:jabook/core/player/media3_player_service.dart';
 
 /// Provider for Media3PlayerService instance.
+///
+/// This provider ensures a single instance of Media3PlayerService
+/// is created and reused across the application (singleton pattern via provider).
+/// The service is disposed when the provider is disposed.
 final media3PlayerServiceProvider = Provider<Media3PlayerService>((ref) {
+  // Use keepAlive to ensure the service persists across widget rebuilds
+  // This is critical for player state consistency
+  ref.keepAlive();
+
   final service = Media3PlayerService();
-  ref.onDispose(service.dispose);
+  ref.onDispose(() async {
+    await service.dispose();
+  });
   return service;
 });
 

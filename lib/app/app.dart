@@ -27,10 +27,12 @@ import 'package:jabook/core/cache/rutracker_cache_service.dart';
 import 'package:jabook/core/data/auth/datasources/auth_local_datasource.dart';
 import 'package:jabook/core/data/auth/datasources/auth_remote_datasource.dart';
 import 'package:jabook/core/data/auth/repositories/auth_repository_impl.dart';
+import 'package:jabook/core/di/providers/auth_infrastructure_providers.dart';
 import 'package:jabook/core/di/providers/auth_providers.dart';
 import 'package:jabook/core/di/providers/cache_providers.dart';
 import 'package:jabook/core/di/providers/config_providers.dart';
 import 'package:jabook/core/di/providers/database_providers.dart';
+import 'package:jabook/core/di/providers/player_providers.dart';
 import 'package:jabook/core/di/providers/utils_providers.dart';
 import 'package:jabook/core/download/download_foreground_service.dart';
 import 'package:jabook/core/infrastructure/background/background_compatibility_checker.dart';
@@ -48,8 +50,7 @@ import 'package:jabook/core/infrastructure/permissions/permission_service.dart';
 import 'package:jabook/core/net/dio_client.dart';
 import 'package:jabook/core/player/player_state_persistence_service.dart';
 import 'package:jabook/core/player/player_state_provider.dart';
-import 'package:jabook/core/session/session_manager.dart';
-import 'package:jabook/core/torrent/audiobook_torrent_manager.dart';
+import 'package:jabook/core/torrent/audiobook_torrent_manager_provider.dart';
 import 'package:jabook/core/utils/first_launch.dart';
 import 'package:jabook/core/utils/safe_async.dart';
 import 'package:jabook/features/permissions/presentation/widgets/permissions_onboarding_dialog.dart';
@@ -224,14 +225,9 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
         logger.w('Error checking MANAGE_EXTERNAL_STORAGE on resume: $e');
       }
 
-      // Get torrent manager instance
-      final torrentManager = AudiobookTorrentManager();
-
-      // Ensure torrent manager is initialized with database
-      final database = ref.read(appDatabaseProvider);
-      if (database.isInitialized) {
-        await torrentManager.initialize(database.database);
-      }
+      // Get torrent manager instance from provider
+      final torrentManager =
+          await ref.read(audiobookTorrentManagerProvider.future);
 
       // Get all downloads (active and restored)
       final downloads = await torrentManager.getActiveDownloads();
@@ -587,7 +583,7 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
       () async {
         try {
           final sessionRestoreStart = DateTime.now();
-          final sessionManager = SessionManager();
+          final sessionManager = ref.read(sessionManagerProvider);
           final restored = await sessionManager.restoreSession();
           final sessionRestoreDuration =
               DateTime.now().difference(sessionRestoreStart).inMilliseconds;
@@ -835,7 +831,8 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
           try {
             // Wait a bit for torrent manager to be ready
             await Future.delayed(const Duration(seconds: 2));
-            final torrentManager = AudiobookTorrentManager();
+            final torrentManager =
+                await ref.read(audiobookTorrentManagerProvider.future);
             final activeDownloads = await torrentManager.getActiveDownloads();
             if (activeDownloads.isNotEmpty) {
               logger.i(
@@ -1102,7 +1099,11 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
                 // Create RuTrackerAuth with context
                 // On Android 16, wrap in try-catch to handle any initialization issues
                 try {
-                  _rutrackerAuth = RuTrackerAuth(buildContext);
+                  final sessionManager = ref.read(sessionManagerProvider);
+                  _rutrackerAuth = RuTrackerAuth(
+                    buildContext,
+                    sessionManager: sessionManager,
+                  );
                   if (_rutrackerAuth == null) {
                     throw StateError('RuTrackerAuth creation returned null');
                   }

@@ -22,6 +22,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:jabook/core/cache/rutracker_cache_service.dart';
+import 'package:jabook/core/di/providers/cache_providers.dart';
 import 'package:jabook/core/favorites/favorites_provider.dart';
 import 'package:jabook/core/infrastructure/endpoints/endpoint_provider.dart';
 import 'package:jabook/core/infrastructure/errors/failures.dart';
@@ -59,7 +60,7 @@ class TopicScreen extends ConsumerStatefulWidget {
 
 class _TopicScreenState extends ConsumerState<TopicScreen> {
   final RuTrackerParser _parser = RuTrackerParser();
-  final RuTrackerCacheService _cacheService = RuTrackerCacheService();
+  late final RuTrackerCacheService _cacheService;
 
   Map<String, dynamic>? _audiobook;
   bool _isLoading = true;
@@ -72,6 +73,8 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
   @override
   void initState() {
     super.initState();
+    // Get cache service from provider (already initialized in app.dart)
+    _cacheService = ref.read(rutrackerCacheServiceProvider);
     _initializeCache();
     _loadTopicDetails();
   }
@@ -83,7 +86,8 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
   }
 
   Future<void> _initializeCache() async {
-    // Cache service initialization would typically happen at app startup
+    // Cache service is initialized in app.dart via provider
+    // No additional initialization needed here
   }
 
   Future<void> _loadTopicDetails() async {
@@ -1570,7 +1574,7 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
       }
 
       // Parse chapters from torrent
-      final parserService = TorrentParserService();
+      final parserService = TorrentParserService(cacheService: _cacheService);
       final chapters = await parserService.extractChaptersFromTorrent(
         torrentBytes,
         forceRefresh: forceRefresh,

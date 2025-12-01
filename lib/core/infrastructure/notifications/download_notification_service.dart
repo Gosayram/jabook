@@ -431,6 +431,8 @@ class DownloadNotificationService {
   /// Resumes a download.
   void _resumeDownload(String downloadId) {
     try {
+      // Note: Notification service runs outside Riverpod context, so we create
+      // the instance directly. This is acceptable for notification services.
       final torrentManager = AudiobookTorrentManager();
       // Check if it's a restored download
       torrentManager.getActiveDownloads().then((downloads) {

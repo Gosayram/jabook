@@ -98,10 +98,19 @@ class DioInterceptors {
           }
         }
 
+        // Use 'info' level for search requests (tracker.php) to make them visible
+        final isSearchRequest =
+            request.uri.toString().contains('tracker.php') ||
+                request.uri.toString().contains('search.php');
+        final logLevel = isSearchRequest ? 'info' : 'debug';
+        final logMessage = isSearchRequest
+            ? 'HTTP request started - SEARCH REQUEST'
+            : 'HTTP request started';
+
         await logger.log(
-          level: 'debug',
+          level: logLevel,
           subsystem: 'network',
-          message: 'HTTP request started',
+          message: logMessage,
           operationId: operationId,
           context: 'http_request',
           extra: {
@@ -113,6 +122,7 @@ class DioInterceptors {
             'headers': request.headers,
             if (bodySize != null) 'request_body_size_bytes': bodySize,
             'content_type': request.contentType?.toString(),
+            'is_search_request': isSearchRequest,
           },
         );
         return handler.next(request);
@@ -167,14 +177,26 @@ class DioInterceptors {
         final isSlowRequest = duration != null && duration > 2000;
         final isVerySlowRequest = duration != null && duration > 5000;
 
+        // Use 'info' level for search requests (tracker.php) to make them visible
+        final isSearchRequest = requestUrl.contains('tracker.php') ||
+            requestUrl.contains('search.php');
+        final logLevel = isSearchRequest || isSlowRequest ? 'info' : 'debug';
+        final logMessage = isSearchRequest
+            ? (isSlowRequest
+                ? (isVerySlowRequest
+                    ? 'HTTP response received - SEARCH REQUEST (very slow)'
+                    : 'HTTP response received - SEARCH REQUEST (slow)')
+                : 'HTTP response received - SEARCH REQUEST')
+            : (isSlowRequest
+                ? (isVerySlowRequest
+                    ? 'HTTP response received (very slow)'
+                    : 'HTTP response received (slow)')
+                : 'HTTP response received');
+
         await logger.log(
-          level: 'info',
+          level: logLevel,
           subsystem: isSlowRequest ? 'performance' : 'network',
-          message: isSlowRequest
-              ? (isVerySlowRequest
-                  ? 'HTTP response received (very slow)'
-                  : 'HTTP response received (slow)')
-              : 'HTTP response received',
+          message: logMessage,
           operationId: operationId,
           context: 'http_request',
           durationMs: duration,
@@ -184,6 +206,7 @@ class DioInterceptors {
             'request_url': requestUrl,
             'response_url': responseUrl,
             'is_redirect': isRedirect,
+            'is_search_request': isSearchRequest,
             if (locationHeader.isNotEmpty) 'location': locationHeader,
             if (redirectChain != null) 'redirect_chain': redirectChain,
             if (responseSize != null) 'response_size_bytes': responseSize,
@@ -241,10 +264,19 @@ class DioInterceptors {
         final endpointRetry =
             error.requestOptions.extra['endpoint_retry'] as int?;
 
+        // Use 'info' level for search request errors to make them visible
+        final isSearchRequest =
+            error.requestOptions.uri.toString().contains('tracker.php') ||
+                error.requestOptions.uri.toString().contains('search.php');
+        final logLevel = isSearchRequest ? 'info' : 'error';
+        final logMessage = isSearchRequest
+            ? 'HTTP error occurred - SEARCH REQUEST ERROR'
+            : 'HTTP error occurred';
+
         await logger.log(
-          level: 'error',
+          level: logLevel,
           subsystem: 'network',
-          message: 'HTTP error occurred',
+          message: logMessage,
           operationId: operationId,
           context: 'http_request',
           durationMs: duration,
@@ -256,6 +288,7 @@ class DioInterceptors {
             'dio_error_type': error.type.toString(),
             'error_message': error.message,
             'is_dns_error': isDnsError,
+            'is_search_request': isSearchRequest,
             'status_code': error.response?.statusCode,
             if (retryCount != null) 'retry_count': retryCount,
             if (endpointRetry != null) 'endpoint_retry_count': endpointRetry,

@@ -38,12 +38,20 @@ import 'package:jabook/core/session/session_manager.dart';
 /// status using direct HTTP authentication (no WebView).
 class RuTrackerAuth {
   /// Private constructor for singleton pattern.
-  RuTrackerAuth._(this._context);
+  RuTrackerAuth._(this._context, {SessionManager? sessionManager})
+      : _sessionManager = sessionManager;
 
   /// Factory constructor to create a new instance of RuTrackerAuth.
   ///
   /// The [context] parameter is required for showing dialogs and navigation.
-  factory RuTrackerAuth(BuildContext context) => RuTrackerAuth._(context);
+  /// The [sessionManager] parameter is optional - if provided, will be used
+  /// instead of creating a new instance. For dependency injection, prefer
+  /// passing an instance from [sessionManagerProvider].
+  factory RuTrackerAuth(
+    BuildContext context, {
+    SessionManager? sessionManager,
+  }) =>
+      RuTrackerAuth._(context, sessionManager: sessionManager);
 
   /// Simple cookie manager for storing and managing cookies.
   final SimpleCookieManager _cookieManager = SimpleCookieManager();
@@ -70,8 +78,7 @@ class RuTrackerAuth {
   SessionManager get sessionManager {
     if (_sessionManager == null) {
       try {
-        // Create SessionManager with this instance
-        // SessionManager is a singleton, so this is safe
+        // Create SessionManager with this instance if not provided
         _sessionManager = SessionManager(rutrackerAuth: this);
         // Verify that the instance was created successfully
         if (_sessionManager == null) {

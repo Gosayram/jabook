@@ -21,12 +21,17 @@ import 'package:jabook/core/data/local/cache/rutracker_cache_service.dart';
 ///
 /// This provider creates a CacheManager instance that can be used
 /// throughout the application for cache management.
+/// Note: The instance must be initialized via initialize() method before use.
+/// Initialization typically happens in app.dart during app startup.
 final cacheManagerProvider = Provider<CacheManager>((ref) => CacheManager());
 
 /// Provider for RuTrackerCacheService instance.
 ///
 /// This provider creates a RuTrackerCacheService instance that can be used
 /// throughout the application for RuTracker cache management.
+/// Note: The instance must be initialized via initialize() method before use.
+/// Initialization typically happens in app.dart during app startup.
+/// This provider ensures the same instance is used throughout the app.
 final rutrackerCacheServiceProvider = Provider<RuTrackerCacheService>((ref) {
   final cacheManager = ref.read(cacheManagerProvider);
   return RuTrackerCacheService(cacheManager: cacheManager);

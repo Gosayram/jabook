@@ -50,7 +50,13 @@ class WebViewCookieManager {
   final bool Function() isMounted;
 
   /// Initializes FlutterCookieBridge SessionManager for automatic cookie synchronization.
-  static Future<bridge_session.SessionManager?> initCookieBridge() async {
+  ///
+  /// The [sessionManager] parameter is optional - if provided, will be used
+  /// instead of creating a new instance. For dependency injection, prefer
+  /// passing an instance from [sessionManagerProvider].
+  static Future<bridge_session.SessionManager?> initCookieBridge({
+    bridge_session.SessionManager? sessionManager,
+  }) async {
     final operationId =
         'cookie_bridge_init_${DateTime.now().millisecondsSinceEpoch}';
     final startTime = DateTime.now();
@@ -64,8 +70,8 @@ class WebViewCookieManager {
     );
 
     try {
-      // Initialize SessionManager (singleton, same instance as in DioClient)
-      final sessionManager = bridge_session.SessionManager();
+      // Use provided SessionManager or create a new one
+      final manager = sessionManager ?? bridge_session.SessionManager();
       await StructuredLogger().log(
         level: 'info',
         subsystem: 'cookies',
@@ -87,7 +93,7 @@ class WebViewCookieManager {
       await DioClient.instance;
 
       // Verify SessionManager is still available after DioClient init
-      final testCookies = await sessionManager.getSessionCookies();
+      final testCookies = await manager.getSessionCookies();
       await StructuredLogger().log(
         level: 'info',
         subsystem: 'cookies',
@@ -101,7 +107,7 @@ class WebViewCookieManager {
         },
       );
 
-      return sessionManager;
+      return manager;
     } on Exception catch (e) {
       await StructuredLogger().log(
         level: 'error',
