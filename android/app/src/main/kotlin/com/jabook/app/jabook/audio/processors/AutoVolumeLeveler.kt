@@ -18,6 +18,7 @@ import androidx.media3.common.audio.AudioProcessor
 import androidx.media3.common.util.UnstableApi
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import kotlin.math.pow
 
 /**
  * Audio processor for automatic volume leveling.
@@ -60,7 +61,7 @@ class AutoVolumeLeveler : AudioProcessor {
         windowSizeSamples = (sampleRate * windowSizeMs / 1000).toInt()
 
         // Calculate slew rate per sample
-        slewRatePerSample = kotlin.math.pow(10.0, (slewRateDbPerSecond / sampleRate) / 20.0).toFloat()
+        slewRatePerSample = 10.0.pow(((slewRateDbPerSecond / sampleRate) / 20.0).toDouble()).toFloat()
 
         // Initialize LUFS buffer
         lufsBuffer.clear()

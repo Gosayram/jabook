@@ -18,6 +18,7 @@ import androidx.media3.common.audio.AudioProcessor
 import androidx.media3.common.util.UnstableApi
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import kotlin.math.pow
 
 /**
  * Audio processor for volume boost with soft limiter protection.
@@ -44,7 +45,7 @@ class VolumeBoostProcessor(
 
     // Limiter threshold: -0.3 dBFS (soft knee)
     private val limiterThresholdDb = -0.3f
-    private val limiterThresholdLinear = kotlin.math.pow(10.0, limiterThresholdDb / 20.0).toFloat()
+    private val limiterThresholdLinear = 10.0.pow((limiterThresholdDb / 20.0).toDouble()).toFloat()
 
     // Look-ahead buffer size: 10ms
     private val lookAheadMs = 10

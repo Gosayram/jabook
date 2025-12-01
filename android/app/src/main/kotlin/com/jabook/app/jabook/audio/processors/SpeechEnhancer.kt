@@ -18,6 +18,7 @@ import androidx.media3.common.audio.AudioProcessor
 import androidx.media3.common.util.UnstableApi
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import kotlin.math.pow
 
 /**
  * Audio processor for speech enhancement.
@@ -47,14 +48,14 @@ class SpeechEnhancer : AudioProcessor {
     // Compression parameters (gentle)
     private val compressionThresholdDb = -28.0f
     private val compressionRatio = 2.0f
-    private val compressionThresholdLinear = kotlin.math.pow(10.0, compressionThresholdDb / 20.0).toFloat()
+    private val compressionThresholdLinear = 10.0.pow((compressionThresholdDb / 20.0).toDouble()).toFloat()
 
     // High-pass filter state (simple first-order IIR)
     private val highPassCoeff = mutableMapOf<Int, Float>() // Per channel
     private var highPassPrev = mutableMapOf<Int, Float>() // Previous sample per channel
 
     // Peak EQ state (simplified - using gain multiplier for target frequency range)
-    private val peakEqGainLinear = kotlin.math.pow(10.0, peakEqGainDb / 20.0).toFloat()
+    private val peakEqGainLinear = 10.0.pow((peakEqGainDb / 20.0).toDouble()).toFloat()
 
     // DeEsser state (dynamic suppression in 4-8 kHz range)
     private var deEsserGain = 1.0f

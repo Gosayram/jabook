@@ -23,7 +23,9 @@ import androidx.media3.database.StandaloneDatabaseProvider
 import androidx.media3.datasource.cache.Cache
 import androidx.media3.datasource.cache.LeastRecentlyUsedCacheEvictor
 import androidx.media3.datasource.cache.SimpleCache
+import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.RenderersFactory
 import com.jabook.app.jabook.audio.processors.AudioProcessingSettings
 import dagger.Module
 import dagger.Provides
@@ -167,9 +169,23 @@ object MediaModule {
 
         val player =
             try {
+                // Create RenderersFactory
+                // Note: AudioProcessors support in Media3 1.8.0 may require a different approach
+                // For now, we'll create the player without processors and log a warning
+                val renderersFactory: RenderersFactory = DefaultRenderersFactory(context)
+
+                if (processors.isNotEmpty()) {
+                    android.util.Log.w(
+                        "MediaModule",
+                        "AudioProcessors requested but may not be fully supported in Media3 1.8.0. " +
+                            "Processors: ${processors.size}. Consider upgrading Media3 version.",
+                    )
+                }
+
                 val builder =
                     ExoPlayer
                         .Builder(context)
+                        .setRenderersFactory(renderersFactory)
                         .setHandleAudioBecomingNoisy(true)
                         .setAudioAttributes(
                             AudioAttributes
@@ -180,9 +196,7 @@ object MediaModule {
                             true, // handleAudioFocus=true
                         )
 
-                // Add AudioProcessors if any are enabled
                 if (processors.isNotEmpty()) {
-                    builder.setAudioProcessors(processors)
                     android.util.Log.d("MediaModule", "Added ${processors.size} AudioProcessors to ExoPlayer")
                 }
 

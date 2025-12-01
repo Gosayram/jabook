@@ -2004,7 +2004,6 @@ class AudioPlayerService : MediaSessionService() {
             }
 
             // Stop ExoPlayer and clear MediaItems
-            val activePlayer = getActivePlayer()
             try {
                 activePlayer.stop()
                 activePlayer.clearMediaItems()

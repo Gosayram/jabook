@@ -18,6 +18,7 @@ import androidx.media3.common.audio.AudioProcessor
 import androidx.media3.common.util.UnstableApi
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import kotlin.math.pow
 
 /**
  * Audio processor for loudness normalization using RMS-based approach.
@@ -314,7 +315,7 @@ class LoudnessNormalizer(
     fun setReplayGain(replayGainDb: Float) {
         this.replayGainDb = replayGainDb
         // Convert dB to linear gain
-        gainMultiplier = kotlin.math.pow(10.0, replayGainDb / 20.0).toFloat()
+        gainMultiplier = 10.0.pow((replayGainDb / 20.0).toDouble()).toFloat()
         // Limit gain to reasonable range
         gainMultiplier = gainMultiplier.coerceIn(0.1f, 10.0f)
         android.util.Log.d("LoudnessNormalizer", "ReplayGain set: ${replayGainDb}dB -> ${gainMultiplier}x")

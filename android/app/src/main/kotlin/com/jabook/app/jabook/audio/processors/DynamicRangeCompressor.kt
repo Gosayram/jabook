@@ -18,6 +18,9 @@ import androidx.media3.common.audio.AudioProcessor
 import androidx.media3.common.util.UnstableApi
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import kotlin.math.exp
+import kotlin.math.pow
+import kotlin.math.sqrt
 
 /**
  * Audio processor for dynamic range compression.
@@ -108,7 +111,7 @@ class DynamicRangeCompressor(
             val sampleRate = inputAudioFormat.sampleRate
 
             // Convert threshold from dB to linear
-            thresholdLinear = kotlin.math.pow(10.0, thresholdDb / 20.0).toFloat()
+            thresholdLinear = 10.0.pow((thresholdDb / 20.0).toDouble()).toFloat()
 
             // Calculate attack and release coefficients
             // Using exponential smoothing: coeff = 1 - exp(-1 / (time * sampleRate))
