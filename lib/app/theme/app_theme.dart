@@ -40,8 +40,10 @@ mixin AppTheme {
   /// custom colors and styling.
   ///
   /// [highContrast] enables high contrast mode for better accessibility.
-  static ThemeData lightTheme({bool highContrast = false}) =>
-      _buildLightTheme(highContrast: highContrast);
+  /// [isBeta] enables beta color scheme when true.
+  static ThemeData lightTheme(
+          {bool highContrast = false, bool isBeta = false}) =>
+      _buildLightTheme(highContrast: highContrast, isBeta: isBeta);
 
   /// Gets the dark theme configuration.
   ///
@@ -49,23 +51,40 @@ mixin AppTheme {
   /// custom colors and styling.
   ///
   /// [highContrast] enables high contrast mode for better accessibility.
-  static ThemeData darkTheme({bool highContrast = false}) =>
-      _buildDarkTheme(highContrast: highContrast);
+  /// [isBeta] enables beta color scheme when true.
+  static ThemeData darkTheme(
+          {bool highContrast = false, bool isBeta = false}) =>
+      _buildDarkTheme(highContrast: highContrast, isBeta: isBeta);
 
-  static ThemeData _buildLightTheme({bool highContrast = false}) {
-    // High contrast colors for light theme
-    final primaryColor = highContrast
-        ? const Color(0xFF000000) // Black for high contrast
-        : _primaryColor;
-    final surfaceColor = highContrast
-        ? const Color(0xFFF5F5F5) // Light gray for high contrast
-        : _surfaceColor;
-    final onSurfaceColor = highContrast
-        ? const Color(0xFF000000) // Black text for high contrast
-        : _onSurfaceColor;
-    final accentColor = highContrast
-        ? const Color(0xFF0000FF) // Blue for high contrast
-        : _accentColor;
+  // Beta color scheme constants
+  static const Color _betaPrimaryColor = Color(0xFF263B52); // Graphite blue
+  static const Color _betaBackgroundColor = Color(0xFFA9B65F); // Olive green
+  static const Color _betaAccentColor = Color(0xFFD64545); // Bright red
+  static const Color _betaSurfaceColor = Color(0xFFF2E4C9); // Cream
+
+  static ThemeData _buildLightTheme(
+      {bool highContrast = false, bool isBeta = false}) {
+    // Beta color scheme takes precedence
+    final primaryColor = isBeta
+        ? _betaPrimaryColor
+        : (highContrast
+            ? const Color(0xFF000000) // Black for high contrast
+            : _primaryColor);
+    final surfaceColor = isBeta
+        ? _betaSurfaceColor
+        : (highContrast
+            ? const Color(0xFFF5F5F5) // Light gray for high contrast
+            : _surfaceColor);
+    final onSurfaceColor = isBeta
+        ? _betaPrimaryColor // Use primary color for text on beta surface
+        : (highContrast
+            ? const Color(0xFF000000) // Black text for high contrast
+            : _onSurfaceColor);
+    final accentColor = isBeta
+        ? _betaAccentColor
+        : (highContrast
+            ? const Color(0xFF0000FF) // Blue for high contrast
+            : _accentColor);
 
     return ThemeData(
       useMaterial3: true,
@@ -114,23 +133,34 @@ mixin AppTheme {
     );
   }
 
-  static ThemeData _buildDarkTheme({bool highContrast = false}) {
-    // High contrast colors for dark theme
-    final primaryColor = highContrast
-        ? const Color(0xFFFFFFFF) // White for high contrast
-        : _primaryColor;
-    final backgroundColor = highContrast
-        ? const Color(0xFF000000) // Black for high contrast
-        : _backgroundColor;
-    final surfaceColor = highContrast
-        ? const Color(0xFF1A1A1A) // Dark gray for high contrast
-        : _surfaceColor;
-    final onSurfaceColor = highContrast
-        ? const Color(0xFFFFFFFF) // White text for high contrast
-        : _onSurfaceColor;
-    final accentColor = highContrast
-        ? const Color(0xFFFFFF00) // Yellow for high contrast
-        : _accentColor;
+  static ThemeData _buildDarkTheme(
+      {bool highContrast = false, bool isBeta = false}) {
+    // Beta color scheme takes precedence
+    final primaryColor = isBeta
+        ? _betaPrimaryColor
+        : (highContrast
+            ? const Color(0xFFFFFFFF) // White for high contrast
+            : _primaryColor);
+    final backgroundColor = isBeta
+        ? _betaBackgroundColor
+        : (highContrast
+            ? const Color(0xFF000000) // Black for high contrast
+            : _backgroundColor);
+    final surfaceColor = isBeta
+        ? _betaSurfaceColor
+        : (highContrast
+            ? const Color(0xFF1A1A1A) // Dark gray for high contrast
+            : _surfaceColor);
+    final onSurfaceColor = isBeta
+        ? _betaPrimaryColor // Use primary color for text on beta surface
+        : (highContrast
+            ? const Color(0xFFFFFFFF) // White text for high contrast
+            : _onSurfaceColor);
+    final accentColor = isBeta
+        ? _betaAccentColor
+        : (highContrast
+            ? const Color(0xFFFFFF00) // Yellow for high contrast
+            : _accentColor);
 
     return ThemeData(
       useMaterial3: true,

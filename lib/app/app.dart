@@ -1120,9 +1120,11 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
                 title: config.appName,
                 theme: AppTheme.lightTheme(
                   highContrast: themeSettings.highContrastEnabled,
+                  isBeta: config.isBeta,
                 ),
                 darkTheme: AppTheme.darkTheme(
                   highContrast: themeSettings.highContrastEnabled,
+                  isBeta: config.isBeta,
                 ),
                 themeMode: themeSettings.themeMode,
                 routerConfig: router,

@@ -126,10 +126,13 @@ build-android-stage:
 
 .PHONY: build-android-beta
 build-android-beta:
+	@echo "Building beta APK with beta-specific icons from android/app/src/beta/res/"
+	@echo "Note: Beta icons should be generated with: scripts/generate-android-beta-icons.sh"
 	flutter build apk --flavor beta --target lib/main.dart --release \
 		--split-per-abi \
 		--tree-shake-icons
 	@echo "Android beta APK built at: build/app/outputs/apk/"
+	@echo "✅ Beta flavor uses icons from android/app/src/beta/res/ (automatically)"
 
 .PHONY: build-android-prod
 build-android-prod:
@@ -227,6 +230,10 @@ build-android-signed-apk: use-existing-android-cert patch-gradle-signing
 .PHONY: build-android-signed-apk-beta
 build-android-signed-apk-beta: use-existing-android-cert patch-gradle-signing
 	@echo "Building signed beta APK (with obfuscation for testing)..."
+	@echo "Using beta-specific icons from android/app/src/beta/res/"
+	@if [ ! -f "android/app/src/beta/res/mipmap-hdpi/ic_launcher.png" ]; then \
+		echo "⚠️  Warning: Beta icons not found. Run: scripts/generate-android-beta-icons.sh"; \
+	fi
 	@echo "Building split APKs per architecture..."
 	flutter build apk --flavor beta --target lib/main.dart --release \
 		--dart-define=FLAVOR=beta \
@@ -244,6 +251,7 @@ build-android-signed-apk-beta: use-existing-android-cert patch-gradle-signing
 	@echo "   - Split APKs: app-*-release.apk (per architecture)"
 	@echo "   - Universal APK: app-release.apk (all architectures)"
 	@echo "   - Debug symbols saved to: ./debug-info/"
+	@echo "   - Beta icons from android/app/src/beta/res/ should be used automatically"
 
 .PHONY: build-android-beta-ci
 build-android-beta-ci:

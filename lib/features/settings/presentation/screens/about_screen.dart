@@ -339,13 +339,17 @@ $descriptionLabel
   ) {
     final screenWidth = MediaQuery.of(context).size.width;
     final iconSize = screenWidth > 600 ? 96.0 : 64.0;
+    // Use beta logo for beta flavor, prod logo for others
+    final iconPath = config.isBeta
+        ? 'assets/icons/beta/app_icon.png'
+        : 'assets/icons/app_icon.png';
 
     return Column(
       children: [
         ClipRRect(
           borderRadius: BorderRadius.circular(16),
           child: Image.asset(
-            'assets/icons/app_icon.png',
+            iconPath,
             width: iconSize,
             height: iconSize,
             errorBuilder: (context, error, stackTrace) => Container(

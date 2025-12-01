@@ -93,6 +93,9 @@ flutter:
     - assets/icons/app_icon.png
     - assets/icons/app_icon_adaptive_bg.png
     - assets/icons/app_icon_adaptive_fg.png
+    - assets/icons/beta/app_icon.png
+    - assets/icons/beta/app_icon_adaptive_bg.png
+    - assets/icons/beta/app_icon_adaptive_fg.png
     - lib/l10n/app_en.arb
     - lib/l10n/app_ru.arb
 
