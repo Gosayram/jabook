@@ -3032,4 +3032,54 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get manufacturerSettingsOneuiStep3 => '3. Автозапуск: Обычно не требуется на Samsung, но можно проверить в настройках приложения';
+
+  @override
+  String trackOfTotal(int currentTrack, int totalTracks) {
+    return 'Трек $currentTrack из $totalTracks';
+  }
+
+  @override
+  String tracksTitle(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Треки',
+      one: 'Трек',
+      zero: 'Нет треков',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get noRepeat => 'Без повтора';
+
+  @override
+  String get repeatTrack => 'Повторять трек';
+
+  @override
+  String get repeatPlaylist => 'Повторять плейлист';
+
+  @override
+  String get timerLabel => 'Таймер';
+
+  @override
+  String get speedLabel => 'Скорость';
+
+  @override
+  String get rewindButton => 'Назад';
+
+  @override
+  String get forwardButton => 'Вперёд';
+
+  @override
+  String get playButton => 'Воспроизвести';
+
+  @override
+  String get pauseButton => 'Пауза';
+
+  @override
+  String get nextButton => 'Следующий';
+
+  @override
+  String get previousButton => 'Предыдущий';
 }

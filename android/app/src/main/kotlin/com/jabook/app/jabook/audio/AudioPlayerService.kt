@@ -389,13 +389,24 @@ class AudioPlayerService : MediaSessionService() {
             android.util.Log.i("AudioPlayerService", "MediaSession created, session: ${mediaSession != null}")
 
             // Create notification manager with MediaSession
+            // Get skip durations from MediaSessionManager (uses actual settings: book-specific or global)
+            // MediaSessionManager is initialized with defaults, but will be updated when settings are applied
+            val currentRewindSeconds =
+                mediaSessionManager?.getRewindDuration()
+                    ?: throw IllegalStateException("MediaSessionManager not initialized")
+            val currentForwardSeconds =
+                mediaSessionManager?.getForwardDuration()
+                    ?: throw IllegalStateException("MediaSessionManager not initialized")
+
             notificationManager =
                 NotificationManager(
-                    this,
-                    getActivePlayer(),
-                    mediaSession,
-                    currentMetadata,
-                    embeddedArtworkPath,
+                    context = this,
+                    player = getActivePlayer(),
+                    mediaSession = mediaSession,
+                    metadata = currentMetadata,
+                    embeddedArtworkPath = embeddedArtworkPath,
+                    rewindSeconds = currentRewindSeconds,
+                    forwardSeconds = currentForwardSeconds,
                 )
 
             // Update notification with full media controls after MediaSession is created
@@ -560,6 +571,22 @@ class AudioPlayerService : MediaSessionService() {
             com.jabook.app.jabook.audio.NotificationManager.ACTION_PREVIOUS -> {
                 android.util.Log.d("AudioPlayerService", "User action detected from notification: PREVIOUS, resetting inactivity timer")
                 previous()
+            }
+            com.jabook.app.jabook.audio.NotificationManager.ACTION_REWIND -> {
+                android.util.Log.d("AudioPlayerService", "User action detected from notification: REWIND, resetting inactivity timer")
+                val rewindSeconds = mediaSessionManager?.getRewindDuration()?.toInt() ?: 15
+                rewind(rewindSeconds)
+            }
+            com.jabook.app.jabook.audio.NotificationManager.ACTION_FORWARD -> {
+                android.util.Log.d("AudioPlayerService", "User action detected from notification: FORWARD, resetting inactivity timer")
+                val forwardSeconds = mediaSessionManager?.getForwardDuration()?.toInt() ?: 30
+                forward(forwardSeconds)
+            }
+            com.jabook.app.jabook.audio.NotificationManager.ACTION_STOP -> {
+                android.util.Log.d("AudioPlayerService", "User action detected from notification: STOP")
+                stop()
+                stopForeground(STOP_FOREGROUND_REMOVE)
+                stopSelf()
             }
 
             // Handle timer actions (inspired by lissen-android)
@@ -1599,6 +1626,27 @@ class AudioPlayerService : MediaSessionService() {
     }
 
     /**
+     * Stops playback and releases resources.
+     * Closes notification and stops service.
+     */
+    fun stopAndRelease() {
+        val player = getActivePlayer()
+        player.stop()
+        player.clearMediaItems()
+        playbackTimer?.stopTimer()
+        inactivityTimer?.stopTimer()
+
+        // Release MediaSession
+        mediaSessionManager?.release()
+        mediaSession = null
+
+        // Cancel notification
+        notificationManager = null
+
+        android.util.Log.d("AudioPlayerService", "Player stopped and resources released")
+    }
+
+    /**
      * Updates skip durations for MediaSessionManager.
      *
      * @param rewindSeconds Duration in seconds for rewind action
@@ -1609,6 +1657,11 @@ class AudioPlayerService : MediaSessionService() {
         forwardSeconds: Int,
     ) {
         mediaSessionManager?.updateSkipDurations(
+            rewindSeconds.toLong(),
+            forwardSeconds.toLong(),
+        )
+        // Update NotificationManager
+        notificationManager?.updateSkipDurations(
             rewindSeconds.toLong(),
             forwardSeconds.toLong(),
         )

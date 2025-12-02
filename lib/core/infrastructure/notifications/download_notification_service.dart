@@ -244,7 +244,9 @@ class DownloadNotificationService {
       final speedText = _formatSpeed(speed);
 
       // Build notification details
-      final progressPercent = progress.toInt();
+      // Use round() instead of toInt() to properly handle 99.5% -> 100% instead of 99%
+      // Clamp to 0-100 to ensure valid range
+      final progressPercent = progress.clamp(0.0, 100.0).round().clamp(0, 100);
       final progressText = status == 'completed'
           ? 'Completed'
           : status == 'paused'

@@ -185,43 +185,49 @@ class _AudiobookCardState extends State<AudiobookCard> {
                                   if (title.length > 50 ||
                                       _isTitleExpanded) ...[
                                     const SizedBox(height: 2),
-                                    GestureDetector(
-                                      onTap: () {
-                                        setState(() {
-                                          _isTitleExpanded = !_isTitleExpanded;
-                                        });
-                                      },
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Text(
-                                            _isTitleExpanded
-                                                ? (AppLocalizations.of(context)
-                                                        ?.showLess ??
-                                                    'Show less')
-                                                : (AppLocalizations.of(context)
-                                                        ?.showMore ??
-                                                    'Show more'),
-                                            style: Theme.of(context)
-                                                .textTheme
-                                                .bodySmall
-                                                ?.copyWith(
-                                                  color: Theme.of(context)
-                                                      .colorScheme
-                                                      .primary,
-                                                  fontSize: 11,
-                                                ),
-                                          ),
-                                          Icon(
-                                            _isTitleExpanded
-                                                ? Icons.expand_less
-                                                : Icons.expand_more,
-                                            size: 16,
-                                            color: Theme.of(context)
-                                                .colorScheme
-                                                .primary,
-                                          ),
-                                        ],
+                                    InkWell(
+                                      child: GestureDetector(
+                                        behavior: HitTestBehavior.opaque,
+                                        onTap: () {
+                                          setState(() {
+                                            _isTitleExpanded =
+                                                !_isTitleExpanded;
+                                          });
+                                        },
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Text(
+                                              _isTitleExpanded
+                                                  ? (AppLocalizations.of(
+                                                              context)
+                                                          ?.showLess ??
+                                                      'Show less')
+                                                  : (AppLocalizations.of(
+                                                              context)
+                                                          ?.showMore ??
+                                                      'Show more'),
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .bodySmall
+                                                  ?.copyWith(
+                                                    color: Theme.of(context)
+                                                        .colorScheme
+                                                        .primary,
+                                                    fontSize: 11,
+                                                  ),
+                                            ),
+                                            Icon(
+                                              _isTitleExpanded
+                                                  ? Icons.expand_less
+                                                  : Icons.expand_more,
+                                              size: 16,
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .primary,
+                                            ),
+                                          ],
+                                        ),
                                       ),
                                     ),
                                   ],
@@ -269,43 +275,46 @@ class _AudiobookCardState extends State<AudiobookCard> {
                               // Show expand/collapse button if text is long or expanded
                               if (author.length > 30 || _isAuthorExpanded) ...[
                                 const SizedBox(height: 2),
-                                GestureDetector(
-                                  onTap: () {
-                                    setState(() {
-                                      _isAuthorExpanded = !_isAuthorExpanded;
-                                    });
-                                  },
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Text(
-                                        _isAuthorExpanded
-                                            ? (AppLocalizations.of(context)
-                                                    ?.showLess ??
-                                                'Show less')
-                                            : (AppLocalizations.of(context)
-                                                    ?.showMore ??
-                                                'Show more'),
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .bodySmall
-                                            ?.copyWith(
-                                              color: Theme.of(context)
-                                                  .colorScheme
-                                                  .primary,
-                                              fontSize: 11,
-                                            ),
-                                      ),
-                                      Icon(
-                                        _isAuthorExpanded
-                                            ? Icons.expand_less
-                                            : Icons.expand_more,
-                                        size: 16,
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .primary,
-                                      ),
-                                    ],
+                                InkWell(
+                                  child: GestureDetector(
+                                    behavior: HitTestBehavior.opaque,
+                                    onTap: () {
+                                      setState(() {
+                                        _isAuthorExpanded = !_isAuthorExpanded;
+                                      });
+                                    },
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          _isAuthorExpanded
+                                              ? (AppLocalizations.of(context)
+                                                      ?.showLess ??
+                                                  'Show less')
+                                              : (AppLocalizations.of(context)
+                                                      ?.showMore ??
+                                                  'Show more'),
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .bodySmall
+                                              ?.copyWith(
+                                                color: Theme.of(context)
+                                                    .colorScheme
+                                                    .primary,
+                                                fontSize: 11,
+                                              ),
+                                        ),
+                                        Icon(
+                                          _isAuthorExpanded
+                                              ? Icons.expand_less
+                                              : Icons.expand_more,
+                                          size: 16,
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .primary,
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ),
                               ],

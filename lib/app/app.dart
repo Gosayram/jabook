@@ -24,9 +24,6 @@ import 'package:jabook/app/router/app_router.dart';
 import 'package:jabook/app/theme/app_theme.dart';
 import 'package:jabook/core/auth/rutracker_auth.dart';
 import 'package:jabook/core/cache/rutracker_cache_service.dart';
-import 'package:jabook/core/data/auth/datasources/auth_local_datasource.dart';
-import 'package:jabook/core/data/auth/datasources/auth_remote_datasource.dart';
-import 'package:jabook/core/data/auth/repositories/auth_repository_impl.dart';
 import 'package:jabook/core/di/providers/auth_infrastructure_providers.dart';
 import 'package:jabook/core/di/providers/auth_providers.dart';
 import 'package:jabook/core/di/providers/cache_providers.dart';
@@ -34,6 +31,7 @@ import 'package:jabook/core/di/providers/config_providers.dart';
 import 'package:jabook/core/di/providers/database_providers.dart';
 import 'package:jabook/core/di/providers/player_providers.dart';
 import 'package:jabook/core/di/providers/utils_providers.dart';
+import 'package:jabook/core/domain/auth/repositories/auth_repository.dart';
 import 'package:jabook/core/download/download_foreground_service.dart';
 import 'package:jabook/core/infrastructure/background/background_compatibility_checker.dart';
 import 'package:jabook/core/infrastructure/background/download_background_service.dart';
@@ -54,6 +52,7 @@ import 'package:jabook/core/player/player_state_provider.dart';
 import 'package:jabook/core/torrent/audiobook_torrent_manager_provider.dart';
 import 'package:jabook/core/utils/first_launch.dart';
 import 'package:jabook/core/utils/safe_async.dart';
+import 'package:jabook/features/auth/data/repositories/auth_repository_impl.dart';
 import 'package:jabook/features/permissions/presentation/widgets/permissions_onboarding_dialog.dart';
 import 'package:jabook/l10n/app_localizations.dart';
 import 'package:responsive_framework/responsive_framework.dart';
@@ -86,6 +85,7 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
       ref.read(rutrackerCacheServiceProvider);
   LanguageManager get languageManager => ref.read(languageManagerProvider);
   RuTrackerAuth? _rutrackerAuth;
+  AuthRepository? _authRepository;
 
   // Avoid recreating the key on every build.
   final GlobalKey<ScaffoldMessengerState> _scaffoldMessengerKey =
@@ -1111,6 +1111,19 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
           // Override rutrackerAuthProvider first (required by auth data sources)
           rutrackerAuthProvider.overrideWith((ref) {
             // Lazy initialization - only create when actually needed
+            safeUnawaited(
+              StructuredLogger().log(
+                level: 'info',
+                subsystem: 'auth',
+                message:
+                    'rutrackerAuthProvider accessed, starting initialization',
+                extra: {
+                  'mounted': mounted,
+                  '_rutrackerAuth_is_null': _rutrackerAuth == null,
+                },
+              ),
+            );
+
             try {
               // Double-check that widget is still mounted
               if (!mounted) {
@@ -1127,16 +1140,47 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
 
               if (_rutrackerAuth == null) {
                 try {
-                  final sessionManager = ref.read(sessionManagerProvider);
-                  _rutrackerAuth = RuTrackerAuth(
-                    buildContext,
-                    sessionManager: sessionManager,
-                  );
+                  // Create RuTrackerAuth without sessionManager (like in old version 1.2.5)
+                  // RuTrackerAuth will create its own SessionManager internally if needed
+                  // This avoids circular dependency issues
+                  _rutrackerAuth = RuTrackerAuth(buildContext);
+
+                  // Verify that RuTrackerAuth was created successfully
+                  // Verify that RuTrackerAuth was created successfully
+                  // Note: This check is necessary even though factory constructor shouldn't return null
                   if (_rutrackerAuth == null) {
                     throw StateError('RuTrackerAuth creation returned null');
                   }
-                } on Exception catch (authError) {
-                  logger.e('Failed to create RuTrackerAuth: $authError');
+
+                  // Log successful creation
+                  safeUnawaited(
+                    StructuredLogger().log(
+                      level: 'info',
+                      subsystem: 'auth',
+                      message: 'RuTrackerAuth created successfully in provider',
+                      extra: {
+                        'mounted': mounted,
+                        'context_mounted': buildContext.mounted,
+                      },
+                    ),
+                  );
+                } on Exception catch (authError, stackTrace) {
+                  logger.e('Failed to create RuTrackerAuth: $authError',
+                      stackTrace: stackTrace);
+                  // Log detailed error information (async, don't block)
+                  safeUnawaited(
+                    StructuredLogger().log(
+                      level: 'error',
+                      subsystem: 'auth',
+                      message: 'Failed to create RuTrackerAuth in provider',
+                      cause: authError.toString(),
+                      extra: {
+                        'error_type': authError.runtimeType.toString(),
+                        'mounted': mounted,
+                        'context_mounted': buildContext.mounted,
+                      },
+                    ),
+                  );
                   rethrow;
                 }
               }
@@ -1154,18 +1198,56 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
           }),
           // Override AuthRepositoryProvider with actual implementation
           // Now rutrackerAuthProvider is already overridden above, so we can use it
+          // The provider now uses features/auth implementation which works directly with RuTrackerAuth
+          // CRITICAL: Use ref.read(rutrackerAuthProvider) to ensure rutrackerAuthProvider is initialized first
           authRepositoryProvider.overrideWith((ref) {
             try {
-              // Get RuTrackerAuth from the overridden provider
-              final auth = ref.watch(rutrackerAuthProvider);
+              // Double-check that widget is still mounted
+              if (!mounted) {
+                logger.w('Widget not mounted when creating auth repository');
+                throw StateError(
+                    'Widget is not mounted, cannot create AuthRepository');
+              }
 
-              // Use new data sources architecture
-              final remoteDataSource = AuthRemoteDataSourceImpl(auth);
-              final localDataSource = AuthLocalDataSourceImpl(auth);
-              return AuthRepositoryImpl(remoteDataSource, localDataSource);
+              // On Android 16, context may not be fully ready during early initialization
+              // Additional check: verify that context is still mounted
+              final buildContext = context;
+              if (!buildContext.mounted) {
+                throw StateError(
+                    'BuildContext is not mounted, cannot create AuthRepository');
+              }
+
+              // CRITICAL: Use ref.read(rutrackerAuthProvider) to ensure rutrackerAuthProvider is initialized first
+              // This will trigger rutrackerAuthProvider initialization if it hasn't been called yet
+              final auth = ref.read(rutrackerAuthProvider);
+
+              // CRITICAL: Cache _authRepository to preserve state across rebuilds
+              // This ensures that auth status changes are properly tracked
+              // Only create if null - this preserves state across widget rebuilds
+              _authRepository ??= AuthRepositoryImpl(auth);
+
+              final repository = _authRepository;
+              if (repository == null) {
+                throw StateError('AuthRepository is null after initialization');
+              }
+              return repository;
             } catch (e, stackTrace) {
               logger.e('Failed to initialize auth repository: $e',
                   stackTrace: stackTrace);
+              // Log detailed error information
+              safeUnawaited(
+                StructuredLogger().log(
+                  level: 'error',
+                  subsystem: 'auth',
+                  message: 'Failed to initialize authRepositoryProvider',
+                  cause: e.toString(),
+                  extra: {
+                    'error_type': e.runtimeType.toString(),
+                    'mounted': mounted,
+                    '_rutrackerAuth_is_null': _rutrackerAuth == null,
+                  },
+                ),
+              );
               rethrow;
             }
           }),

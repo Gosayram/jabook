@@ -177,6 +177,9 @@ class DownloadForegroundService : Service() {
 
     /**
      * Creates notification channel for Android O+.
+     *
+     * This channel is used for a silent foreground service notification.
+     * Individual download notifications are handled by DownloadNotificationService.
      */
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -184,19 +187,23 @@ class DownloadForegroundService : Service() {
                 NotificationChannel(
                     CHANNEL_ID,
                     CHANNEL_NAME,
-                    AndroidNotificationManager.IMPORTANCE_LOW,
+                    AndroidNotificationManager.IMPORTANCE_MIN, // MIN importance = silent, hidden from tray
                 ).apply {
-                    description = "Download progress notifications"
+                    description = "Silent foreground service notification (not shown to user)"
                     setShowBadge(false)
+                    enableLights(false)
+                    enableVibration(false)
+                    setSound(null, null)
                 }
             notificationManager?.createNotificationChannel(channel)
         }
     }
 
     /**
-     * Creates minimal notification for foreground service.
+     * Creates silent notification for foreground service.
      *
-     * This notification is only used to keep the service alive in background.
+     * This notification is required for foreground service but is hidden from user.
+     * It uses IMPORTANCE_MIN channel which makes it silent and not shown in tray.
      * Individual download notifications are handled by DownloadNotificationService.
      */
     private fun createMinimalNotification(): Notification {
@@ -220,7 +227,10 @@ class DownloadForegroundService : Service() {
             .setContentIntent(pendingIntent)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
-            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setPriority(NotificationCompat.PRIORITY_MIN) // MIN priority = silent, hidden
+            .setSilent(true) // Explicitly mark as silent
+            .setShowWhen(false) // Don't show timestamp
+            .setCategory(NotificationCompat.CATEGORY_SERVICE)
             .build()
     }
 }

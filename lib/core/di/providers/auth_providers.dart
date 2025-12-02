@@ -14,11 +14,10 @@
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:jabook/core/auth/rutracker_auth.dart';
-import 'package:jabook/core/data/auth/datasources/auth_local_datasource.dart';
-import 'package:jabook/core/data/auth/datasources/auth_remote_datasource.dart';
-import 'package:jabook/core/data/auth/repositories/auth_repository_impl.dart';
 import 'package:jabook/core/domain/auth/entities/auth_status.dart';
 import 'package:jabook/core/domain/auth/repositories/auth_repository.dart';
+import 'package:jabook/core/infrastructure/logging/structured_logger.dart';
+import 'package:jabook/features/auth/data/repositories/auth_repository_impl.dart';
 
 /// Provider for RuTrackerAuth instance.
 ///
@@ -29,25 +28,28 @@ final rutrackerAuthProvider = Provider<RuTrackerAuth>((ref) {
       'rutrackerAuthProvider must be overridden with proper context');
 });
 
-/// Provider for AuthRemoteDataSource instance.
-final authRemoteDataSourceProvider = Provider<AuthRemoteDataSource>((ref) {
-  final auth = ref.watch(rutrackerAuthProvider);
-  return AuthRemoteDataSourceImpl(auth);
-});
-
-/// Provider for AuthLocalDataSource instance.
-final authLocalDataSourceProvider = Provider<AuthLocalDataSource>((ref) {
-  final auth = ref.watch(rutrackerAuthProvider);
-  return AuthLocalDataSourceImpl(auth);
-});
-
 /// Provider for AuthRepository instance.
 ///
-/// This provider creates an AuthRepositoryImpl using remote and local data sources.
+/// This provider creates an AuthRepositoryImpl using RuTrackerAuth directly.
+/// This is the preferred implementation as it simplifies the architecture
+/// and works directly with RuTrackerAuth without intermediate data sources.
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
-  final remoteDataSource = ref.watch(authRemoteDataSourceProvider);
-  final localDataSource = ref.watch(authLocalDataSourceProvider);
-  return AuthRepositoryImpl(remoteDataSource, localDataSource);
+  // Use ref.read instead of ref.watch to avoid unnecessary rebuilds
+  // and to handle errors more gracefully
+  try {
+    final auth = ref.read(rutrackerAuthProvider);
+    return AuthRepositoryImpl(auth);
+  } on Exception catch (e) {
+    // Log error but rethrow - provider must be in error state
+    // This allows callers to handle the error gracefully
+    StructuredLogger().log(
+      level: 'error',
+      subsystem: 'auth',
+      message: 'Failed to create AuthRepository - rutrackerAuthProvider error',
+      cause: e.toString(),
+    );
+    rethrow;
+  }
 });
 
 /// Provider for authentication status.

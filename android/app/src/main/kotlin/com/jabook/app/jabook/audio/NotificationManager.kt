@@ -42,6 +42,8 @@ class NotificationManager(
     private val mediaSession: androidx.media3.session.MediaSession? = null,
     private var metadata: Map<String, String>? = null,
     private var embeddedArtworkPath: String? = null, // Path to saved embedded artwork from AudioPlayerService
+    private var rewindSeconds: Long, // Must be provided from MediaSessionManager to use actual settings (book-specific or global)
+    private var forwardSeconds: Long, // Must be provided from MediaSessionManager to use actual settings (book-specific or global)
 ) {
     private val notificationManager: AndroidNotificationManager =
         context.getSystemService(Context.NOTIFICATION_SERVICE) as AndroidNotificationManager
@@ -80,6 +82,9 @@ class NotificationManager(
         const val ACTION_PAUSE = "com.jabook.app.jabook.audio.PAUSE"
         const val ACTION_NEXT = "com.jabook.app.jabook.audio.NEXT"
         const val ACTION_PREVIOUS = "com.jabook.app.jabook.audio.PREVIOUS"
+        const val ACTION_REWIND = "com.jabook.app.jabook.audio.REWIND"
+        const val ACTION_FORWARD = "com.jabook.app.jabook.audio.FORWARD"
+        const val ACTION_STOP = "com.jabook.app.jabook.audio.STOP"
     }
 
     init {
@@ -269,7 +274,8 @@ class NotificationManager(
 
         val mediaStyle =
             MediaStyle()
-                .setShowActionsInCompactView(0, 1, 2)
+                // Compact view: Rewind (1), Play/Pause (2), Forward (3)
+                .setShowActionsInCompactView(1, 2, 3)
 
         // CRITICAL: Set MediaSession token for proper integration with system controls
         // This enables controls in Quick Settings, lockscreen, Android Auto, Wear OS, headset buttons
@@ -455,6 +461,30 @@ class NotificationManager(
                                 createPlaybackAction(NotificationManager.ACTION_NEXT),
                             ).build()
 
+                    val rewindActionCompat =
+                        NotificationCompat.Action
+                            .Builder(
+                                android.R.drawable.ic_media_rew,
+                                "Rewind ${rewindSeconds}s",
+                                createPlaybackAction(NotificationManager.ACTION_REWIND),
+                            ).build()
+
+                    val forwardActionCompat =
+                        NotificationCompat.Action
+                            .Builder(
+                                android.R.drawable.ic_media_ff,
+                                "Forward ${forwardSeconds}s",
+                                createPlaybackAction(NotificationManager.ACTION_FORWARD),
+                            ).build()
+
+                    val stopActionCompat =
+                        NotificationCompat.Action
+                            .Builder(
+                                android.R.drawable.ic_menu_close_clear_cancel,
+                                "Stop",
+                                createPlaybackAction(NotificationManager.ACTION_STOP),
+                            ).build()
+
                     // Convert NotificationCompat.Action to Notification.Action using Icon
                     // Use resource IDs directly instead of deprecated icon field
                     val previousIcon =
@@ -497,9 +527,46 @@ class NotificationManager(
                                 nextActionCompat.actionIntent ?: createPlaybackAction(NotificationManager.ACTION_NEXT),
                             ).build()
 
-                    builder.addAction(previousAction)
-                    builder.addAction(playPauseActionNative)
-                    builder.addAction(nextAction)
+                    val rewindIcon =
+                        android.graphics.drawable.Icon
+                            .createWithResource(context, android.R.drawable.ic_media_rew)
+                    val rewindAction =
+                        Notification.Action
+                            .Builder(
+                                rewindIcon,
+                                rewindActionCompat.title ?: "Rewind",
+                                rewindActionCompat.actionIntent ?: createPlaybackAction(NotificationManager.ACTION_REWIND),
+                            ).build()
+
+                    val forwardIcon =
+                        android.graphics.drawable.Icon
+                            .createWithResource(context, android.R.drawable.ic_media_ff)
+                    val forwardAction =
+                        Notification.Action
+                            .Builder(
+                                forwardIcon,
+                                forwardActionCompat.title ?: "Forward",
+                                forwardActionCompat.actionIntent ?: createPlaybackAction(NotificationManager.ACTION_FORWARD),
+                            ).build()
+
+                    val stopIcon =
+                        android.graphics.drawable.Icon
+                            .createWithResource(context, android.R.drawable.ic_menu_close_clear_cancel)
+                    val stopAction =
+                        Notification.Action
+                            .Builder(
+                                stopIcon,
+                                stopActionCompat.title ?: "Stop",
+                                stopActionCompat.actionIntent ?: createPlaybackAction(NotificationManager.ACTION_STOP),
+                            ).build()
+
+                    // Add actions in order: Previous, Rewind, Play/Pause, Forward, Next, Stop
+                    builder.addAction(previousAction) // 0
+                    builder.addAction(rewindAction) // 1
+                    builder.addAction(playPauseActionNative) // 2
+                    builder.addAction(forwardAction) // 3
+                    builder.addAction(nextAction) // 4
+                    builder.addAction(stopAction) // 5
 
                     // Try to set MediaStyle using reflection for better integration
                     // This is needed for proper small icon display in expanded notification
@@ -513,13 +580,13 @@ class NotificationManager(
                             val mediaStyleConstructor = mediaStyleClass.getConstructor()
                             val nativeMediaStyle = mediaStyleConstructor.newInstance()
 
-                            // Set show actions in compact view (0, 1, 2 = previous, play/pause, next)
+                            // Set show actions in compact view (1, 2, 3 = rewind, play/pause, forward)
                             val setShowActionsInCompactViewMethod =
                                 mediaStyleClass.getMethod(
                                     "setShowActionsInCompactView",
                                     IntArray::class.java,
                                 )
-                            setShowActionsInCompactViewMethod.invoke(nativeMediaStyle, intArrayOf(0, 1, 2))
+                            setShowActionsInCompactViewMethod.invoke(nativeMediaStyle, intArrayOf(1, 2, 3))
 
                             // Set media session token for system integration (CRITICAL for Quick Settings)
                             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP && mediaSession != null) {
@@ -596,7 +663,16 @@ class NotificationManager(
                         e,
                     )
                     // Fallback to compat builder (won't have custom icon, but will work)
-                    createCompatNotification(displayTitle, displayArtist, pendingIntent, playPauseAction, mediaStyle, smallIconResId)
+                    createCompatNotification(
+                        displayTitle,
+                        displayArtist,
+                        pendingIntent,
+                        playPauseAction,
+                        mediaStyle,
+                        smallIconResId,
+                        rewindSeconds,
+                        forwardSeconds,
+                    )
                 }
             } else {
                 // Use NotificationCompat.Builder for older Android versions or when no custom icon
@@ -611,7 +687,16 @@ class NotificationManager(
                         "Android version ${Build.VERSION.SDK_INT} < 24, using NotificationCompat.Builder with fallback icon: $smallIconResId",
                     )
                 }
-                createCompatNotification(displayTitle, displayArtist, pendingIntent, playPauseAction, mediaStyle, smallIconResId)
+                createCompatNotification(
+                    displayTitle,
+                    displayArtist,
+                    pendingIntent,
+                    playPauseAction,
+                    mediaStyle,
+                    smallIconResId,
+                    rewindSeconds,
+                    forwardSeconds,
+                )
             }
 
         return notification
@@ -624,6 +709,8 @@ class NotificationManager(
         playPauseAction: NotificationCompat.Action,
         mediaStyle: MediaStyle,
         smallIconResId: Int,
+        rewindSeconds: Long,
+        forwardSeconds: Long,
         largeIconBitmap: android.graphics.Bitmap? = null, // Not used - user wants cover only in small icon
     ): Notification {
         // User wants cover image in small icon (logo), not in large icon (body)
@@ -636,18 +723,37 @@ class NotificationManager(
             .setContentText(displayArtist)
             .setContentIntent(pendingIntent)
             // Do NOT set large icon - user wants cover only in small icon (logo)
+            // Add actions in order: Previous, Rewind, Play/Pause, Forward, Next, Stop
             .addAction(
                 NotificationCompat.Action(
                     android.R.drawable.ic_media_previous,
                     "Previous",
                     createPlaybackAction(NotificationManager.ACTION_PREVIOUS),
                 ),
+            ).addAction(
+                NotificationCompat.Action(
+                    android.R.drawable.ic_media_rew,
+                    "Rewind ${rewindSeconds}s",
+                    createPlaybackAction(NotificationManager.ACTION_REWIND),
+                ),
             ).addAction(playPauseAction)
             .addAction(
+                NotificationCompat.Action(
+                    android.R.drawable.ic_media_ff,
+                    "Forward ${forwardSeconds}s",
+                    createPlaybackAction(NotificationManager.ACTION_FORWARD),
+                ),
+            ).addAction(
                 NotificationCompat.Action(
                     android.R.drawable.ic_media_next,
                     "Next",
                     createPlaybackAction(NotificationManager.ACTION_NEXT),
+                ),
+            ).addAction(
+                NotificationCompat.Action(
+                    android.R.drawable.ic_menu_close_clear_cancel,
+                    "Stop",
+                    createPlaybackAction(NotificationManager.ACTION_STOP),
                 ),
             ).setStyle(mediaStyle)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
@@ -697,6 +803,25 @@ class NotificationManager(
         } catch (e: Exception) {
             android.util.Log.e("NotificationManager", "Failed to update metadata", e)
         }
+    }
+
+    /**
+     * Updates skip durations for rewind and forward actions.
+     *
+     * This method is called when skip durations change (either book-specific or global settings).
+     * The notification is immediately updated to reflect the new values.
+     *
+     * @param rewindSeconds Duration in seconds for rewind action (from book settings or global settings)
+     * @param forwardSeconds Duration in seconds for forward action (from book settings or global settings)
+     */
+    fun updateSkipDurations(
+        rewindSeconds: Long,
+        forwardSeconds: Long,
+    ) {
+        this.rewindSeconds = rewindSeconds
+        this.forwardSeconds = forwardSeconds
+        // Immediately update notification to show new skip durations
+        updateNotification()
     }
 
     /**

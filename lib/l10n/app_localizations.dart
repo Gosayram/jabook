@@ -5620,6 +5620,84 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'3. Autostart: Usually not required on Samsung, but you can check in app settings'**
   String get manufacturerSettingsOneuiStep3;
+
+  /// Track position indicator
+  ///
+  /// In en, this message translates to:
+  /// **'Track {currentTrack} of {totalTracks}'**
+  String trackOfTotal(int currentTrack, int totalTracks);
+
+  /// Tracks section title with plural
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{No tracks} =1{Track} other{Tracks}}'**
+  String tracksTitle(int count);
+
+  /// No repeat mode
+  ///
+  /// In en, this message translates to:
+  /// **'No repeat'**
+  String get noRepeat;
+
+  /// Repeat current track mode
+  ///
+  /// In en, this message translates to:
+  /// **'Repeat track'**
+  String get repeatTrack;
+
+  /// Repeat entire playlist mode
+  ///
+  /// In en, this message translates to:
+  /// **'Repeat playlist'**
+  String get repeatPlaylist;
+
+  /// Sleep timer label
+  ///
+  /// In en, this message translates to:
+  /// **'Timer'**
+  String get timerLabel;
+
+  /// Playback speed label
+  ///
+  /// In en, this message translates to:
+  /// **'Speed'**
+  String get speedLabel;
+
+  /// Rewind button label
+  ///
+  /// In en, this message translates to:
+  /// **'Rewind'**
+  String get rewindButton;
+
+  /// Forward button label
+  ///
+  /// In en, this message translates to:
+  /// **'Forward'**
+  String get forwardButton;
+
+  /// Play button label
+  ///
+  /// In en, this message translates to:
+  /// **'Play'**
+  String get playButton;
+
+  /// Pause button label
+  ///
+  /// In en, this message translates to:
+  /// **'Pause'**
+  String get pauseButton;
+
+  /// Next track button label
+  ///
+  /// In en, this message translates to:
+  /// **'Next'**
+  String get nextButton;
+
+  /// Previous track button label
+  ///
+  /// In en, this message translates to:
+  /// **'Previous'**
+  String get previousButton;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

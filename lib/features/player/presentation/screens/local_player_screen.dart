@@ -53,6 +53,35 @@ class LocalPlayerScreen extends ConsumerStatefulWidget {
 }
 
 class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
+  // Spacing constants for consistent UI
+  static const double _kSpacingSmall = 8.0;
+  static const double _kSpacingMedium = 16.0;
+  static const double _kSpacingLarge = 24.0;
+
+  /// Gets compact spacing based on screen size.
+  ///
+  /// Returns smaller spacing for very small screens and larger for tablets.
+  double _getCompactSpacing(BuildContext context) {
+    if (ResponsiveUtils.isVerySmallScreen(context)) {
+      return 8.0;
+    } else if (ResponsiveUtils.isTablet(context)) {
+      return 20.0;
+    }
+    return 12.0;
+  }
+
+  /// Gets medium spacing based on screen size.
+  ///
+  /// Returns adaptive spacing for different screen sizes following MD3 guidelines.
+  double _getMediumSpacing(BuildContext context) {
+    if (ResponsiveUtils.isVerySmallScreen(context)) {
+      return 12.0;
+    } else if (ResponsiveUtils.isTablet(context)) {
+      return 20.0;
+    }
+    return 16.0;
+  }
+
   final PermissionService _permissionService = PermissionService();
   final StructuredLogger _logger = StructuredLogger();
   final SleepTimerService _sleepTimerService = SleepTimerService();
@@ -1017,7 +1046,7 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
                     children: [
                       const Icon(Icons.error_outline,
                           size: 64, color: Colors.red),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: _kSpacingMedium),
                       Text(
                         AppLocalizations.of(context)?.failedToLoadAudio ??
                             'Failed to load audio',
@@ -1025,14 +1054,14 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
                         textAlign: TextAlign.center,
                       ),
                       if (errorMessage != null) ...[
-                        const SizedBox(height: 8),
+                        const SizedBox(height: _kSpacingSmall),
                         Text(
                           errorMessage,
                           style: Theme.of(context).textTheme.bodyMedium,
                           textAlign: TextAlign.center,
                         ),
                       ],
-                      const SizedBox(height: 24),
+                      const SizedBox(height: _kSpacingLarge),
                       ElevatedButton(
                         onPressed: () {
                           setState(() {
@@ -1048,147 +1077,183 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
                   ),
                 ),
               )
-            : SingleChildScrollView(
+            : Stack(
                 // Show UI immediately, loading overlay on top if needed
-                child: Stack(
-                  children: [
-                    // Main UI content (always visible)
-                    Padding(
-                      padding: ResponsiveUtils.getCompactPadding(context),
-                      child: Column(
-                        children: [
-                          // Cover image
-                          _buildCoverImage(),
-                          SizedBox(
-                            height: ResponsiveUtils.getSpacing(
-                              context,
-                              baseSpacing: 24,
-                            ),
+                children: [
+                  // Main UI content with CustomScrollView for proper scrolling
+                  CustomScrollView(
+                    slivers: [
+                      // Top section: Cover + Player (always visible, min height = screen height)
+                      SliverToBoxAdapter(
+                        child: Container(
+                          // Ensure minimum height equals screen height so tracks are hidden initially
+                          constraints: BoxConstraints(
+                            minHeight: MediaQuery.of(context).size.height,
                           ),
-                          // Track info
-                          Text(
-                            widget.group.files.isNotEmpty &&
-                                    playerState.currentIndex >= 0 &&
-                                    playerState.currentIndex <
-                                        widget.group.files.length
-                                ? (widget.group.hasMultiFolderStructure
-                                    ? widget
-                                        .group.files[playerState.currentIndex]
-                                        .getDisplayNameWithPart(
-                                            widget.group.groupPath)
-                                    : widget
-                                        .group
-                                        .files[playerState.currentIndex]
-                                        .displayName)
-                                : widget.group.groupName,
-                            style: Theme.of(context).textTheme.titleLarge,
-                            textAlign: TextAlign.center,
-                          ),
-                          SizedBox(
-                            height: ResponsiveUtils.getSpacing(
-                              context,
-                            ),
-                          ),
-                          Text(
-                            widget.group.groupName,
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodyMedium
-                                ?.copyWith(
-                                  fontSize:
-                                      ResponsiveUtils.getBodyFontSize(context),
+                          child: Column(
+                            children: [
+                              // Cover image - full width, no side padding
+                              _buildCoverImage(),
+                              // Rest of content with padding
+                              Padding(
+                                padding:
+                                    ResponsiveUtils.getCompactPadding(context),
+                                child: Column(
+                                  children: [
+                                    SizedBox(
+                                        height: _getCompactSpacing(context)),
+                                    // Track info
+                                    Text(
+                                      widget.group.files.isNotEmpty &&
+                                              playerState.currentIndex >= 0 &&
+                                              playerState.currentIndex <
+                                                  widget.group.files.length
+                                          ? (widget
+                                                  .group.hasMultiFolderStructure
+                                              ? widget
+                                                  .group
+                                                  .files[
+                                                      playerState.currentIndex]
+                                                  .getDisplayNameWithPart(
+                                                      widget.group.groupPath)
+                                              : widget
+                                                  .group
+                                                  .files[
+                                                      playerState.currentIndex]
+                                                  .displayName)
+                                          : widget.group.groupName,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .titleLarge,
+                                      textAlign: TextAlign.center,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    const SizedBox(height: _kSpacingSmall),
+                                    Text(
+                                      widget.group.groupName,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodyMedium
+                                          ?.copyWith(
+                                            fontSize:
+                                                ResponsiveUtils.getBodyFontSize(
+                                                    context),
+                                          ),
+                                      textAlign: TextAlign.center,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    // Animated spacing before group progress
+                                    AnimatedContainer(
+                                      duration:
+                                          const Duration(milliseconds: 300),
+                                      curve: Curves.easeInOut,
+                                      height: widget.group.files.length > 1
+                                          ? _kSpacingSmall
+                                          : _kSpacingMedium,
+                                    ),
+                                    // Group progress indicator with animation
+                                    AnimatedSize(
+                                      duration:
+                                          const Duration(milliseconds: 300),
+                                      curve: Curves.easeInOut,
+                                      child: widget.group.files.length > 1
+                                          ? _buildGroupProgressIndicator(
+                                              playerState)
+                                          : const SizedBox.shrink(),
+                                    ),
+                                    // Animated spacing after group progress
+                                    AnimatedContainer(
+                                      duration:
+                                          const Duration(milliseconds: 300),
+                                      curve: Curves.easeInOut,
+                                      height: widget.group.files.length > 1
+                                          ? _kSpacingSmall
+                                          : _kSpacingMedium,
+                                    ),
+                                    // Progress slider
+                                    _buildProgressSlider(playerState),
+                                    const SizedBox(height: _kSpacingSmall),
+                                    // Time indicators
+                                    _buildTimeIndicators(playerState),
+                                    SizedBox(
+                                        height: _getMediumSpacing(context)),
+                                    // Playback controls
+                                    _buildPlaybackControls(playerState),
+                                    const SizedBox(height: _kSpacingMedium),
+                                    // Speed, repeat and sleep timer controls in one row
+                                    _buildControlsRow(playerState),
+                                  ],
                                 ),
-                            textAlign: TextAlign.center,
-                          ),
-                          SizedBox(
-                            height: ResponsiveUtils.getSpacing(
-                              context,
-                              baseSpacing: 32,
-                            ),
-                          ),
-                          // Group progress indicator
-                          if (widget.group.files.length > 1)
-                            _buildGroupProgressIndicator(playerState),
-                          SizedBox(
-                            height: ResponsiveUtils.getSpacing(
-                              context,
-                              baseSpacing: 16,
-                            ),
-                          ),
-                          // Progress slider
-                          _buildProgressSlider(playerState),
-                          SizedBox(
-                            height: ResponsiveUtils.getSpacing(
-                              context,
-                              baseSpacing: 16,
-                            ),
-                          ),
-                          // Time indicators
-                          _buildTimeIndicators(playerState),
-                          SizedBox(
-                            height: ResponsiveUtils.getSpacing(
-                              context,
-                              baseSpacing: 32,
-                            ),
-                          ),
-                          // Playback controls
-                          _buildPlaybackControls(playerState),
-                          SizedBox(
-                            height: ResponsiveUtils.getSpacing(
-                              context,
-                              baseSpacing: 16,
-                            ),
-                          ),
-                          // Speed, repeat and sleep timer controls in one row
-                          _buildControlsRow(playerState),
-                          const SizedBox(height: 32),
-                          // Track list
-                          if (widget.group.files.length > 1)
-                            _buildTrackList(playerState),
-                        ],
-                      ),
-                    ),
-                    // Loading overlay (only when player is initializing)
-                    if (isLoading)
-                      Positioned.fill(
-                        child: ColoredBox(
-                          color: Colors.black.withValues(alpha: 0.3),
-                          child: const Center(
-                            child: CircularProgressIndicator(),
+                              ),
+                            ],
                           ),
                         ),
                       ),
-                  ],
-                ),
+                      // Bottom section: Track list (appears only when scrolling down)
+                      if (widget.group.files.length > 1)
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: ResponsiveUtils.getCompactPadding(context),
+                            child: _buildTrackList(playerState),
+                          ),
+                        ),
+                    ],
+                  ),
+                  // Loading overlay (only when player is initializing)
+                  if (isLoading)
+                    Positioned.fill(
+                      child: ColoredBox(
+                        color: Colors.black.withValues(alpha: 0.3),
+                        child: const Center(
+                          child: CircularProgressIndicator(),
+                        ),
+                      ),
+                    ),
+                ],
               ),
       ),
     );
   }
 
   Widget _buildCoverImage() {
-    // Responsive cover size based on screen size
+    // Cover image stretches to full screen width (no side padding)
     final screenWidth = MediaQuery.of(context).size.width;
-    final coverSize = ResponsiveUtils.isVerySmallScreen(context)
-        ? 200.0
-        : (screenWidth < 400
-            ? 240.0
-            : (ResponsiveUtils.isTablet(context) ? 320.0 : 285.0));
+    final screenHeight = MediaQuery.of(context).size.height;
+    final availableWidth = screenWidth;
+
+    // Calculate max height based on screen size
+    // 60% for very small screens and tablets, 65% for medium screens
+    final maxHeight = ResponsiveUtils.isVerySmallScreen(context) ||
+            ResponsiveUtils.isTablet(context)
+        ? screenHeight * 0.60
+        : screenHeight * 0.65;
+
+    // Use aspect ratio 1.0 for square cover
+    // Height will be calculated automatically by AspectRatio widget
+    // but constrained by maxHeight
 
     // Try embedded artwork from metadata first (if available)
     if (_embeddedArtworkPath != null) {
       final embeddedFile = File(_embeddedArtworkPath!);
       if (embeddedFile.existsSync()) {
         return RepaintBoundary(
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: Image.file(
-              embeddedFile,
-              width: coverSize,
-              height: coverSize,
-              fit: BoxFit.cover,
-              cacheWidth: (coverSize * 2).round(), // 2x for retina displays
-              errorBuilder: (context, error, stackTrace) =>
-                  _buildGroupCover(coverSize),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: maxHeight,
+            ),
+            child: AspectRatio(
+              aspectRatio: 1.0,
+              child: Image.file(
+                embeddedFile,
+                width: availableWidth,
+                fit: BoxFit.cover,
+                cacheWidth:
+                    (availableWidth * 2).round(), // 2x for retina displays
+                errorBuilder: (context, error, stackTrace) =>
+                    _buildGroupCover(availableWidth, maxHeight),
+              ),
             ),
           ),
         );
@@ -1200,59 +1265,72 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
       final coverFile = File(widget.group.coverPath!);
       if (coverFile.existsSync()) {
         return RepaintBoundary(
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: Image.file(
-              coverFile,
-              width: coverSize,
-              height: coverSize,
-              fit: BoxFit.cover,
-              cacheWidth: (coverSize * 2).round(), // 2x for retina displays
-              errorBuilder: (context, error, stackTrace) =>
-                  _buildDefaultCover(),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: maxHeight,
+            ),
+            child: AspectRatio(
+              aspectRatio: 1.0,
+              child: Image.file(
+                coverFile,
+                width: availableWidth,
+                fit: BoxFit.cover,
+                cacheWidth:
+                    (availableWidth * 2).round(), // 2x for retina displays
+                errorBuilder: (context, error, stackTrace) =>
+                    _buildDefaultCover(availableWidth, maxHeight),
+              ),
             ),
           ),
         );
       }
     }
-    return _buildDefaultCover();
+    return _buildDefaultCover(availableWidth, maxHeight);
   }
 
-  Widget _buildGroupCover(double coverSize) {
+  Widget _buildGroupCover(double availableWidth, double maxHeight) {
     if (widget.group.coverPath != null) {
       final coverFile = File(widget.group.coverPath!);
       if (coverFile.existsSync()) {
         return RepaintBoundary(
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: Image.file(
-              coverFile,
-              width: coverSize,
-              height: coverSize,
-              fit: BoxFit.cover,
-              cacheWidth: (coverSize * 2).round(),
-              errorBuilder: (context, error, stackTrace) =>
-                  _buildDefaultCover(),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: maxHeight,
+            ),
+            child: AspectRatio(
+              aspectRatio: 1.0,
+              child: Image.file(
+                coverFile,
+                width: availableWidth,
+                fit: BoxFit.cover,
+                cacheWidth: (availableWidth * 2).round(),
+                errorBuilder: (context, error, stackTrace) =>
+                    _buildDefaultCover(availableWidth, maxHeight),
+              ),
             ),
           ),
         );
       }
     }
-    return _buildDefaultCover();
+    return _buildDefaultCover(availableWidth, maxHeight);
   }
 
-  Widget _buildDefaultCover() {
-    const coverSize = 285.0;
-    return Container(
-      width: coverSize,
-      height: coverSize,
-      decoration: BoxDecoration(
-        color: Colors.grey[300],
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: const Icon(Icons.audiotrack, size: 80, color: Colors.grey),
-    );
-  }
+  Widget _buildDefaultCover(double availableWidth, double maxHeight) =>
+      ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: maxHeight,
+        ),
+        child: AspectRatio(
+          aspectRatio: 1.0,
+          child: Container(
+            width: availableWidth,
+            decoration: BoxDecoration(
+              color: Colors.grey[300],
+            ),
+            child: const Icon(Icons.audiotrack, size: 80, color: Colors.grey),
+          ),
+        ),
+      );
 
   Widget _buildGroupProgressIndicator(PlayerStateModel state) {
     final totalTracks = widget.group.files.length;
@@ -1266,7 +1344,9 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              'Track $currentTrack of $totalTracks',
+              AppLocalizations.of(context)
+                      ?.trackOfTotal(currentTrack, totalTracks) ??
+                  'Track $currentTrack of $totalTracks',
               style: Theme.of(context).textTheme.bodySmall,
             ),
             Text(
@@ -1275,7 +1355,7 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
             ),
           ],
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: _kSpacingSmall / 2),
         LinearProgressIndicator(
           value: progress.clamp(0.0, 1.0),
           minHeight: 4,
@@ -1389,7 +1469,7 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
                       size: 16,
                       color: Theme.of(context).colorScheme.primary,
                     ),
-                    const SizedBox(width: 4),
+                    const SizedBox(width: _kSpacingSmall / 2),
                     Text(
                       '${isForward ? '+' : '-'}${_formatDuration(skipDuration)}',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -1419,7 +1499,7 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: _kSpacingSmall / 2),
           // Total duration
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
@@ -1497,9 +1577,9 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
               ),
               onPressed: state.currentIndex > 0 ? _prevTrack : null,
               tooltip: 'Previous track',
-              constraints: BoxConstraints(
-                minWidth: ResponsiveUtils.getMinTouchTarget(context),
-                minHeight: ResponsiveUtils.getMinTouchTarget(context),
+              constraints: const BoxConstraints(
+                minWidth: 48.0, // Material 3 minimum touch target
+                minHeight: 48.0,
               ),
             ),
             SizedBox(
@@ -1514,9 +1594,9 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
               ),
               onPressed: isLoading ? null : _rewind,
               tooltip: 'Rewind',
-              constraints: BoxConstraints(
-                minWidth: ResponsiveUtils.getMinTouchTarget(context),
-                minHeight: ResponsiveUtils.getMinTouchTarget(context),
+              constraints: const BoxConstraints(
+                minWidth: 48.0, // Material 3 minimum touch target
+                minHeight: 48.0,
               ),
             ),
             SizedBox(
@@ -1531,9 +1611,10 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
               ),
               onPressed: isLoading ? null : _playPause,
               tooltip: state.isPlaying ? 'Pause' : 'Play',
-              constraints: BoxConstraints(
-                minWidth: ResponsiveUtils.getMinTouchTarget(context) * 1.2,
-                minHeight: ResponsiveUtils.getMinTouchTarget(context) * 1.2,
+              constraints: const BoxConstraints(
+                minWidth:
+                    56.0, // Larger touch target for main play/pause button
+                minHeight: 56.0,
               ),
             ),
             SizedBox(
@@ -1548,9 +1629,9 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
               ),
               onPressed: isLoading ? null : _forward,
               tooltip: 'Forward',
-              constraints: BoxConstraints(
-                minWidth: ResponsiveUtils.getMinTouchTarget(context),
-                minHeight: ResponsiveUtils.getMinTouchTarget(context),
+              constraints: const BoxConstraints(
+                minWidth: 48.0, // Material 3 minimum touch target
+                minHeight: 48.0,
               ),
             ),
             SizedBox(
@@ -1567,9 +1648,9 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
                   ? _nextTrack
                   : null,
               tooltip: 'Next track',
-              constraints: BoxConstraints(
-                minWidth: ResponsiveUtils.getMinTouchTarget(context),
-                minHeight: ResponsiveUtils.getMinTouchTarget(context),
+              constraints: const BoxConstraints(
+                minWidth: 48.0, // Material 3 minimum touch target
+                minHeight: 48.0,
               ),
             ),
           ],
@@ -1664,7 +1745,7 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
                   size: 32,
                   color: Theme.of(context).colorScheme.primary,
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: _kSpacingMedium * 0.75),
                 Text(
                   isRewind
                       ? (AppLocalizations.of(context)?.rewind ?? 'Rewind')
@@ -1763,7 +1844,7 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Tracks (${widget.group.files.length})',
+          '${AppLocalizations.of(context)?.tracksTitle(widget.group.files.length) ?? 'Tracks'} (${widget.group.files.length})',
           style: Theme.of(context).textTheme.titleMedium,
         ),
         const SizedBox(height: 8),
@@ -1896,13 +1977,14 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
   }
 
   String _getRepeatModeTooltip(RepeatMode mode) {
+    final localizations = AppLocalizations.of(context);
     switch (mode) {
       case RepeatMode.none:
-        return 'No repeat';
+        return localizations?.noRepeat ?? 'No repeat';
       case RepeatMode.track:
-        return 'Repeat track';
+        return localizations?.repeatTrack ?? 'Repeat track';
       case RepeatMode.playlist:
-        return 'Repeat playlist';
+        return localizations?.repeatPlaylist ?? 'Repeat playlist';
     }
   }
 
@@ -2045,10 +2127,10 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
               'At end of chapter'),
         ),
       ],
-      child: const Chip(
-        avatar: Icon(Icons.timer_outlined, size: 18),
-        label: Text('Timer'),
-        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      child: Chip(
+        avatar: const Icon(Icons.timer_outlined, size: 18),
+        label: Text(AppLocalizations.of(context)?.timerLabel ?? 'Timer'),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       ),
     );
   }

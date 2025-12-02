@@ -16,11 +16,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:jabook/core/auth/captcha_detector.dart';
 import 'package:jabook/core/di/providers/auth_providers.dart';
-import 'package:jabook/core/infrastructure/endpoints/endpoint_provider.dart';
 import 'package:jabook/core/infrastructure/errors/failures.dart';
+import 'package:jabook/core/infrastructure/logging/structured_logger.dart';
 import 'package:jabook/core/net/dio_client.dart';
-import 'package:jabook/core/session/auth_error_handler.dart';
 import 'package:jabook/core/utils/app_title_utils.dart';
+import 'package:jabook/core/utils/safe_async.dart';
 import 'package:jabook/features/auth/presentation/widgets/captcha_dialog.dart';
 import 'package:jabook/features/webview/secure_rutracker_webview.dart';
 import 'package:jabook/l10n/app_localizations.dart';
@@ -48,17 +48,62 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   @override
   void initState() {
     super.initState();
-    // Initial status check
+    // Log that AuthScreen is being initialized
+    safeUnawaited(
+      StructuredLogger().log(
+        level: 'info',
+        subsystem: 'auth',
+        message: 'AuthScreen initState called',
+        context: 'auth_screen_init',
+      ),
+    );
+    // Initial status check - do it asynchronously after first frame
+    // Don't use ref.read() here as it can hang if provider is in error state
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(authRepositoryProvider).refreshAuthStatus();
+      // Use safeUnawaited to prevent blocking
+      safeUnawaited(
+        _refreshAuthStatusAsync(),
+        onError: (e, stack) {
+          // Log error but don't block UI
+          StructuredLogger().log(
+            level: 'warning',
+            subsystem: 'auth',
+            message: 'Failed to refresh auth status in initState',
+            cause: e.toString(),
+          );
+        },
+      );
     });
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Check auth status when screen is shown
-    ref.read(authRepositoryProvider).refreshAuthStatus();
+    // Check auth status when screen is shown (async, don't block)
+    // Use safeUnawaited to prevent blocking the UI
+    safeUnawaited(
+      _refreshAuthStatusAsync(),
+      onError: (e, stack) {
+        // Log error but don't block UI
+        StructuredLogger().log(
+          level: 'warning',
+          subsystem: 'auth',
+          message: 'Failed to refresh auth status in didChangeDependencies',
+          cause: e.toString(),
+        );
+      },
+    );
+  }
+
+  /// Refreshes auth status asynchronously without blocking UI
+  Future<void> _refreshAuthStatusAsync() async {
+    try {
+      final repository = ref.read(authRepositoryProvider);
+      await repository.refreshAuthStatus();
+    } on Exception {
+      // Ignore errors - we'll show default state
+      // This prevents UI blocking if provider is in error state
+    }
   }
 
   Future<void> _login() async {
@@ -100,75 +145,57 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
               ? (AppLocalizations.of(context)?.loginSuccessMessage ??
                   'Login successful!')
               : (AppLocalizations.of(context)?.loginFailedMessage ??
-                  AppLocalizations.of(context)?.loginFailedMessage ??
                   'Login failed. Please check credentials');
           _statusColor = success ? Colors.green : Colors.red;
           _isLoggingIn = false;
         });
 
         if (success) {
-          // Autofill service will automatically save credentials if configured
-          // The autofillHints in TextFields enable this functionality
-
-          // Test connection after successful login
           await _testConnection();
 
-          // Return true to indicate successful login
-          if (mounted) {
-            Navigator.of(context).pop(true);
-          }
+          // CRITICAL: Refresh auth status and invalidate providers to update cache
+          // This ensures all providers are updated after successful login
+          final repository = ref.read(authRepositoryProvider);
+          await repository.refreshAuthStatus();
+          ref.invalidate(isLoggedInProvider);
         }
       }
     } on AuthFailure catch (e) {
-      // Use AuthErrorHandler for authentication errors
-      if (mounted) {
-        AuthErrorHandler.showAuthErrorSnackBar(context, e);
+      if (!mounted) return;
+
+      // Check if this is a captcha required error
+      if (e.captchaType == null) {
+        // Not a captcha error, handle as regular error
         setState(() {
-          // Provide user-friendly error messages
-          if (e.message.contains('Invalid username or password') ||
-              e.message.contains('wrong username/password')) {
-            _statusMessage = AppLocalizations.of(context)?.loginFailedMessage ??
-                'Invalid username or password. Please check your credentials.';
-          } else if (e.message.contains('captcha')) {
-            _statusMessage =
-                AppLocalizations.of(context)?.captchaVerificationRequired ??
-                    'Captcha verification required. Please try again later.';
-            // Show captcha dialog with data from AuthFailure
-            _showCaptchaDialog(
-              context,
-              captchaType: e.captchaType as CaptchaType?,
-              rutrackerCaptchaData:
-                  e.rutrackerCaptchaData as RutrackerCaptchaData?,
-            );
-          } else {
-            _statusMessage = e.message;
-          }
+          _statusMessage = e.message;
           _statusColor = Colors.red;
           _isLoggingIn = false;
         });
+        return;
       }
+
+      final captchaType = e.captchaType;
+      final rutrackerCaptchaData = e.rutrackerCaptchaData;
+
+      setState(() {
+        _statusMessage =
+            AppLocalizations.of(context)?.captchaVerificationRequired ??
+                'Captcha verification required';
+        _statusColor = Colors.orange;
+        _isLoggingIn = false;
+      });
+
+      await _showCaptchaDialog(
+        context,
+        captchaType: captchaType,
+        rutrackerCaptchaData: rutrackerCaptchaData,
+      );
     } on Exception catch (e) {
       if (mounted) {
         setState(() {
-          // Provide user-friendly error messages
-          final errorMsg = e.toString().toLowerCase();
-          if (errorMsg.contains('timeout') || errorMsg.contains('connection')) {
-            _statusMessage = AppLocalizations.of(context)
-                    ?.networkErrorCheckConnection ??
-                'Network error. Please check your connection and try again.';
-          } else if (errorMsg.contains('authentication required') ||
-              errorMsg.contains('network null') ||
-              errorMsg.contains('null')) {
-            // Handle authentication errors that might show as "network null"
-            _statusMessage = AppLocalizations.of(context)
-                    ?.authenticationFailedMessage ??
-                'Authentication failed. Please check your credentials and try again.';
-          } else {
-            final errorString = e.toString();
-            _statusMessage = AppLocalizations.of(context)
-                    ?.loginFailedWithError(errorString) ??
-                'Login failed: $errorString';
-          }
+          _statusMessage = AppLocalizations.of(context)
+                  ?.loginFailedWithError(e.toString()) ??
+              'Login failed: ${e.toString()}';
           _statusColor = Colors.red;
           _isLoggingIn = false;
         });
@@ -281,32 +308,13 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
 
         if (success) {
           await _testConnection();
-          if (mounted) {
-            Navigator.of(context).pop(true);
-          }
+
+          // CRITICAL: Refresh auth status and invalidate providers to update cache
+          // This ensures all providers (authStatusProvider, isLoggedInProvider) are updated
+          final repository = ref.read(authRepositoryProvider);
+          await repository.refreshAuthStatus();
+          ref.invalidate(isLoggedInProvider);
         }
-      }
-    } on AuthFailure catch (e) {
-      if (mounted) {
-        AuthErrorHandler.showAuthErrorSnackBar(context, e);
-        setState(() {
-          if (e.message.contains('captcha')) {
-            _statusMessage =
-                AppLocalizations.of(context)?.captchaVerificationRequired ??
-                    'Captcha verification required. Please try again.';
-            // Show captcha dialog again with new data (if available)
-            _showCaptchaDialog(
-              context,
-              captchaType: e.captchaType as CaptchaType?,
-              rutrackerCaptchaData:
-                  e.rutrackerCaptchaData as RutrackerCaptchaData?,
-            );
-          } else {
-            _statusMessage = e.message;
-          }
-          _statusColor = Colors.red;
-          _isLoggingIn = false;
-        });
       }
     } on Exception catch (e) {
       if (mounted) {
@@ -361,30 +369,18 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
         return;
       }
 
-      // Test connection with real authentication check
-      final connectionSuccess = await _testConnection();
-      if (connectionSuccess && mounted) {
-        // CRITICAL: Refresh auth status to notify the app that user is authenticated
-        final repository = ref.read(authRepositoryProvider);
-        await repository.refreshAuthStatus();
+      // Test connection after cookie sync
+      await _testConnection();
 
-        navigator.pop(true);
-      } else if (mounted) {
-        // Connection test failed - cookies may not have synced properly
-        setState(() {
-          _statusMessage =
-              AppLocalizations.of(context)?.authenticationFailedMessage ??
-                  'Authentication validation failed. Please try again.';
-          _statusColor = Colors.red;
-        });
-      }
+      // CRITICAL: Refresh auth status and invalidate providers to update cache
+      // This ensures all providers are updated after successful WebView login
+      final repository = ref.read(authRepositoryProvider);
+      await repository.refreshAuthStatus();
+      ref.invalidate(isLoggedInProvider);
     }
   }
 
-  /// Tests connection and verifies authentication is working.
-  ///
-  /// Returns true if authentication is valid, false otherwise.
-  Future<bool> _testConnection() async {
+  Future<void> _testConnection() async {
     setState(() {
       _statusMessage = AppLocalizations.of(context)?.testingConnectionText ??
           'Testing connection...';
@@ -392,48 +388,26 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     });
 
     try {
-      // CRITICAL: Actually verify authentication by checking cookies
-      final hasValidCookies = await DioClient.hasValidCookies();
-
-      if (!hasValidCookies) {
+      final isValid = await DioClient.validateCookies();
+      if (mounted) {
         setState(() {
-          _statusMessage =
-              AppLocalizations.of(context)?.authenticationFailedMessage ??
-                  'Authentication failed. No valid cookies found.';
-          _statusColor = Colors.red;
+          _statusMessage = isValid
+              ? (AppLocalizations.of(context)?.loginSuccessMessage ??
+                  'Connection successful!')
+              : (AppLocalizations.of(context)?.loginFailedMessage ??
+                  'Connection failed. Please check your credentials.');
+          _statusColor = isValid ? Colors.green : Colors.red;
         });
-        return false;
-      }
-
-      // Also validate cookies by making a test request
-      final cookiesValid = await DioClient.validateCookies();
-
-      final endpointManager = ref.read(endpointManagerProvider);
-      final activeEndpoint = await endpointManager.getActiveEndpoint();
-
-      if (cookiesValid) {
-        setState(() {
-          _statusMessage = AppLocalizations.of(context)!
-              .connectionSuccessMessage(activeEndpoint);
-          _statusColor = Colors.green;
-        });
-        return true;
-      } else {
-        setState(() {
-          _statusMessage =
-              AppLocalizations.of(context)?.authenticationFailedMessage ??
-                  'Authentication validation failed. Cookies may be expired.';
-          _statusColor = Colors.red;
-        });
-        return false;
       }
     } on Exception catch (e) {
-      setState(() {
-        _statusMessage =
-            AppLocalizations.of(context)!.connectionFailedMessage(e.toString());
-        _statusColor = Colors.red;
-      });
-      return false;
+      if (mounted) {
+        setState(() {
+          _statusMessage = AppLocalizations.of(context)
+                  ?.loginFailedWithError(e.toString()) ??
+              'Connection failed: ${e.toString()}';
+          _statusColor = Colors.red;
+        });
+      }
     }
   }
 
@@ -467,8 +441,24 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final authStatus = ref.watch(authStatusProvider);
-    final isLoggedIn = ref.watch(isLoggedInProvider);
+    // Log that build is being called
+    safeUnawaited(
+      StructuredLogger().log(
+        level: 'info',
+        subsystem: 'auth',
+        message: 'AuthScreen build called',
+        context: 'auth_screen_build',
+      ),
+    );
+
+    // CRITICAL: Don't read providers in build() - they can hang and cause white screen!
+    // Use only local state (_statusMessage, _statusColor) for UI rendering
+    // This matches old version (1.2.5) behavior where providers were NOT read in build()
+    // Status will be updated asynchronously via _refreshAuthStatusAsync() and setState()
+    final isLoggedIn = _statusColor == Colors.green &&
+        _statusMessage.isNotEmpty &&
+        !_statusMessage.toLowerCase().contains('failed') &&
+        !_statusMessage.toLowerCase().contains('error');
 
     return Scaffold(
       appBar: AppBar(
@@ -491,22 +481,23 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                       Row(
                         children: [
                           Icon(
-                            isLoggedIn.value ?? false
-                                ? Icons.check_circle
-                                : Icons.error,
+                            isLoggedIn ? Icons.check_circle : Icons.error,
                             color: _statusColor,
                           ),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              _statusMessage,
+                              _statusMessage.isEmpty
+                                  ? (AppLocalizations.of(context)
+                                          ?.authScreenTitle ??
+                                      'RuTracker Connection')
+                                  : _statusMessage,
                               style: TextStyle(color: _statusColor),
                             ),
                           ),
                         ],
                       ),
-                      if (authStatus.isLoading || isLoggedIn.isLoading)
-                        const LinearProgressIndicator(),
+                      if (_isLoggingIn) const LinearProgressIndicator(),
                     ],
                   ),
                 ),
@@ -515,7 +506,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
               const SizedBox(height: 20),
 
               // Login form (only show when not logged in)
-              if (!(isLoggedIn.value ?? false)) ...[
+              // Use local state to determine if logged in
+              if (!isLoggedIn) ...[
                 AutofillGroup(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -535,7 +527,6 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                               AppLocalizations.of(context)?.usernameLabelText ??
                                   'Username',
                           border: const OutlineInputBorder(),
-                          hintText: 'Enter your RuTracker username',
                         ),
                       ),
                       const SizedBox(height: 16),
@@ -552,76 +543,58 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                               AppLocalizations.of(context)?.passwordLabelText ??
                                   'Password',
                           border: const OutlineInputBorder(),
-                          hintText: 'Enter your password',
                         ),
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Checkbox(
+                            value: _rememberMe,
+                            onChanged: (value) {
+                              setState(() {
+                                _rememberMe = value ?? true;
+                              });
+                            },
+                          ),
+                          Expanded(
+                            child: Text(
+                              AppLocalizations.of(context)?.rememberMeLabel ??
+                                  'Remember me',
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+                      ElevatedButton(
+                        onPressed: _isLoggingIn ? null : _login,
+                        child: Text(
+                            AppLocalizations.of(context)?.loginButtonText ??
+                                'Login'),
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Checkbox(
-                      value: _rememberMe,
-                      onChanged: (value) => setState(() {
-                        _rememberMe = value ?? true;
-                      }),
-                    ),
-                    Text(AppLocalizations.of(context)?.rememberMeLabelText ??
-                        'Remember me'),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                ElevatedButton(
-                  onPressed: _isLoggingIn ? null : _login,
-                  child: _isLoggingIn
-                      ? Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              AppLocalizations.of(context)?.loggingInText ??
-                                  'Logging in...',
-                            ),
-                          ],
-                        )
-                      : Text(AppLocalizations.of(context)?.loginButtonText ??
-                          'Login'),
-                ),
               ],
 
               // Logout and test buttons (when logged in)
-              if (isLoggedIn.value ?? false) ...[
+              if (isLoggedIn) ...[
                 ElevatedButton(
                   onPressed: _testConnection,
                   child: Text(
                       AppLocalizations.of(context)?.testConnectionButtonText ??
                           'Test Connection'),
                 ),
-                const SizedBox(height: 16),
-                OutlinedButton(
+                const SizedBox(height: 10),
+                ElevatedButton(
                   onPressed: _logout,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red,
+                    foregroundColor: Colors.white,
+                  ),
                   child: Text(AppLocalizations.of(context)?.logoutButtonText ??
                       'Logout'),
                 ),
               ],
-
-              const SizedBox(height: 20),
-
-              // Help text
-              Text(
-                AppLocalizations.of(context)?.authHelpText ??
-                    'Login to RuTracker to access audiobook search and downloads. Your credentials are stored securely.',
-                style: Theme.of(context).textTheme.bodySmall,
-                textAlign: TextAlign.center,
-              ),
             ],
           ),
         ),

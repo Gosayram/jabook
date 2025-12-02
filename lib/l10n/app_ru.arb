@@ -4340,5 +4340,70 @@
   "manufacturerSettingsOneuiStep3": "3. Автозапуск: Обычно не требуется на Samsung, но можно проверить в настройках приложения",
   "@manufacturerSettingsOneuiStep3": {
     "description": "Шаг 3 для настроек One UI"
+  },
+  "trackOfTotal": "Трек {currentTrack} из {totalTracks}",
+  "@trackOfTotal": {
+    "description": "Индикатор позиции трека",
+    "placeholders": {
+      "currentTrack": {
+        "type": "int"
+      },
+      "totalTracks": {
+        "type": "int"
+      }
+    }
+  },
+  "tracksTitle": "{count, plural, =0{Нет треков} =1{Трек} other{Треки}}",
+  "@tracksTitle": {
+    "description": "Заголовок секции треков с множественным числом",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "noRepeat": "Без повтора",
+  "@noRepeat": {
+    "description": "Режим без повтора"
+  },
+  "repeatTrack": "Повторять трек",
+  "@repeatTrack": {
+    "description": "Режим повтора текущего трека"
+  },
+  "repeatPlaylist": "Повторять плейлист",
+  "@repeatPlaylist": {
+    "description": "Режим повтора всего плейлиста"
+  },
+  "timerLabel": "Таймер",
+  "@timerLabel": {
+    "description": "Метка таймера сна"
+  },
+  "speedLabel": "Скорость",
+  "@speedLabel": {
+    "description": "Метка скорости воспроизведения"
+  },
+  "rewindButton": "Назад",
+  "@rewindButton": {
+    "description": "Метка кнопки перемотки назад"
+  },
+  "forwardButton": "Вперёд",
+  "@forwardButton": {
+    "description": "Метка кнопки перемотки вперёд"
+  },
+  "playButton": "Воспроизвести",
+  "@playButton": {
+    "description": "Метка кнопки воспроизведения"
+  },
+  "pauseButton": "Пауза",
+  "@pauseButton": {
+    "description": "Метка кнопки паузы"
+  },
+  "nextButton": "Следующий",
+  "@nextButton": {
+    "description": "Метка кнопки следующего трека"
+  },
+  "previousButton": "Предыдущий",
+  "@previousButton": {
+    "description": "Метка кнопки предыдущего трека"
   }
 }

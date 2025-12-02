@@ -29,6 +29,7 @@ import 'package:jabook/core/di/providers/cache_providers.dart';
 import 'package:jabook/core/di/providers/database_providers.dart'
     as db_providers;
 import 'package:jabook/core/domain/auth/entities/auth_status.dart';
+import 'package:jabook/core/domain/auth/repositories/auth_repository.dart';
 import 'package:jabook/core/favorites/favorites_provider.dart';
 import 'package:jabook/core/infrastructure/endpoints/endpoint_provider.dart';
 import 'package:jabook/core/infrastructure/errors/failures.dart';
@@ -325,11 +326,103 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
   /// Handles login with stored credentials or opens auth screen.
   Future<void> _handleLogin() async {
+    final operationId = 'handle_login_${DateTime.now().millisecondsSinceEpoch}';
     try {
-      final repository = ref.read(authRepositoryProvider);
+      await StructuredLogger().log(
+        level: 'info',
+        subsystem: 'search',
+        message: 'Login button pressed, starting login flow',
+        operationId: operationId,
+        context: 'login_flow',
+      );
+
+      // Try to get repository, but handle errors gracefully
+      AuthRepository? repository;
+      try {
+        repository = ref.read(authRepositoryProvider);
+      } on Exception catch (e) {
+        await StructuredLogger().log(
+          level: 'error',
+          subsystem: 'search',
+          message:
+              'Failed to get auth repository, opening auth screen directly',
+          operationId: operationId,
+          context: 'login_flow',
+          cause: e.toString(),
+        );
+        // If repository is not available, just open auth screen
+        if (!mounted) {
+          await StructuredLogger().log(
+            level: 'warning',
+            subsystem: 'search',
+            message: 'Widget not mounted, cannot navigate to auth screen',
+            operationId: operationId,
+            context: 'login_flow',
+          );
+          return;
+        }
+
+        await StructuredLogger().log(
+          level: 'info',
+          subsystem: 'search',
+          message: 'Navigating to /auth screen (after repository error)',
+          operationId: operationId,
+          context: 'login_flow',
+        );
+
+        if (!mounted) return;
+
+        try {
+          // ignore: use_build_context_synchronously
+          // context.push is safe here as we check mounted before and after async operation
+          final result = await context.push('/auth');
+          await StructuredLogger().log(
+            level: 'info',
+            subsystem: 'search',
+            message: 'Returned from /auth screen (after repository error)',
+            operationId: operationId,
+            context: 'login_flow',
+            extra: {'result': result?.toString() ?? 'null'},
+          );
+        } on Exception catch (navError, stackTrace) {
+          await StructuredLogger().log(
+            level: 'error',
+            subsystem: 'search',
+            message: 'Navigation to /auth failed',
+            operationId: operationId,
+            context: 'login_flow',
+            cause: navError.toString(),
+            extra: {'stack_trace': stackTrace.toString()},
+          );
+        }
+        return;
+      }
+
+      if (repository == null) {
+        await StructuredLogger().log(
+          level: 'warning',
+          subsystem: 'search',
+          message: 'Auth repository is null, opening auth screen directly',
+          operationId: operationId,
+          context: 'login_flow',
+        );
+        if (!mounted) return;
+        // ignore: use_build_context_synchronously
+        await context.push('/auth');
+        return;
+      }
 
       // Check if stored credentials are available
       final hasStored = await repository.hasStoredCredentials();
+
+      await StructuredLogger().log(
+        level: 'info',
+        subsystem: 'search',
+        message: 'Checked for stored credentials',
+        operationId: operationId,
+        context: 'login_flow',
+        extra: {'has_stored_credentials': hasStored},
+      );
 
       if (hasStored) {
         // Try to login with stored credentials first
@@ -372,7 +465,65 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
       // Open auth screen for manual login
       if (!mounted) return;
-      final result = await context.push('/auth');
+
+      await StructuredLogger().log(
+        level: 'info',
+        subsystem: 'search',
+        message: 'Opening auth screen for manual login',
+        operationId: operationId,
+        context: 'login_flow',
+      );
+
+      if (!mounted) return;
+
+      // Log before navigation
+      await StructuredLogger().log(
+        level: 'info',
+        subsystem: 'search',
+        message: 'Calling context.push(\'/auth\')',
+        operationId: operationId,
+        context: 'login_flow',
+      );
+
+      if (!mounted) return;
+
+      dynamic result;
+      try {
+        // ignore: use_build_context_synchronously
+        // context.push is safe here as we check mounted before and after async operation
+        result = await context.push('/auth');
+
+        // Log after navigation
+        await StructuredLogger().log(
+          level: 'info',
+          subsystem: 'search',
+          message: 'Returned from context.push(\'/auth\')',
+          operationId: operationId,
+          context: 'login_flow',
+          extra: {'result': result?.toString() ?? 'null'},
+        );
+      } on Exception catch (e, stackTrace) {
+        await StructuredLogger().log(
+          level: 'error',
+          subsystem: 'search',
+          message: 'Error during navigation to /auth',
+          operationId: operationId,
+          context: 'login_flow',
+          cause: e.toString(),
+          extra: {'stack_trace': stackTrace.toString()},
+        );
+        // Re-throw to show error to user
+        rethrow;
+      }
+
+      await StructuredLogger().log(
+        level: 'info',
+        subsystem: 'search',
+        message: 'Returned from auth screen',
+        operationId: operationId,
+        context: 'login_flow',
+        extra: {'result': result?.toString() ?? 'null'},
+      );
 
       // If login was successful, refresh and perform search
       if (result == true && mounted) {

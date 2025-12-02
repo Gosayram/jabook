@@ -4355,5 +4355,70 @@
   "manufacturerSettingsOneuiStep3": "3. Autostart: Usually not required on Samsung, but you can check in app settings",
   "@manufacturerSettingsOneuiStep3": {
     "description": "Step 3 for One UI settings"
+  },
+  "trackOfTotal": "Track {currentTrack} of {totalTracks}",
+  "@trackOfTotal": {
+    "description": "Track position indicator",
+    "placeholders": {
+      "currentTrack": {
+        "type": "int"
+      },
+      "totalTracks": {
+        "type": "int"
+      }
+    }
+  },
+  "tracksTitle": "{count, plural, =0{No tracks} =1{Track} other{Tracks}}",
+  "@tracksTitle": {
+    "description": "Tracks section title with plural",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "noRepeat": "No repeat",
+  "@noRepeat": {
+    "description": "No repeat mode"
+  },
+  "repeatTrack": "Repeat track",
+  "@repeatTrack": {
+    "description": "Repeat current track mode"
+  },
+  "repeatPlaylist": "Repeat playlist",
+  "@repeatPlaylist": {
+    "description": "Repeat entire playlist mode"
+  },
+  "timerLabel": "Timer",
+  "@timerLabel": {
+    "description": "Sleep timer label"
+  },
+  "speedLabel": "Speed",
+  "@speedLabel": {
+    "description": "Playback speed label"
+  },
+  "rewindButton": "Rewind",
+  "@rewindButton": {
+    "description": "Rewind button label"
+  },
+  "forwardButton": "Forward",
+  "@forwardButton": {
+    "description": "Forward button label"
+  },
+  "playButton": "Play",
+  "@playButton": {
+    "description": "Play button label"
+  },
+  "pauseButton": "Pause",
+  "@pauseButton": {
+    "description": "Pause button label"
+  },
+  "nextButton": "Next",
+  "@nextButton": {
+    "description": "Next track button label"
+  },
+  "previousButton": "Previous",
+  "@previousButton": {
+    "description": "Previous track button label"
   }
 }

@@ -14,6 +14,7 @@
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:jabook/core/auth/credential_manager.dart';
+import 'package:jabook/core/auth/rutracker_auth.dart';
 import 'package:jabook/core/di/providers/auth_providers.dart';
 import 'package:jabook/core/di/providers/cache_providers.dart';
 import 'package:jabook/core/di/providers/database_providers.dart';
@@ -32,10 +33,19 @@ final credentialManagerProvider =
 /// This provider creates a SessionManager instance that depends on RuTrackerAuth.
 /// The SessionManager is created lazily when first accessed.
 ///
-/// Note: This provider requires rutrackerAuthProvider to be overridden with
-/// a proper context in the widget tree.
+/// Note: RuTrackerAuth is optional - SessionManager can work without it for basic operations.
+/// This prevents circular dependency issues during initialization.
 final sessionManagerProvider = Provider<SessionManager>((ref) {
-  final rutrackerAuth = ref.watch(rutrackerAuthProvider);
+  // Try to get rutrackerAuth, but don't fail if it's not available
+  // This allows SessionManager to work even if rutrackerAuthProvider is not initialized
+  RuTrackerAuth? rutrackerAuth;
+  try {
+    rutrackerAuth = ref.read(rutrackerAuthProvider);
+  } on Exception {
+    // rutrackerAuthProvider not initialized yet - that's okay
+    // SessionManager can work without it for basic operations like clearSession
+  }
+
   final appDatabase = ref.watch(appDatabaseProvider);
   final cacheService = ref.watch(rutrackerCacheServiceProvider);
   return SessionManager(
