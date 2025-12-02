@@ -364,10 +364,14 @@ class AudioPlayerService : MediaSessionService() {
                     playCallback = {
                         android.util.Log.d("AudioPlayerService", "MediaSession play callback called")
                         play()
+                        // Update notification immediately to show pause button
+                        notificationManager?.updateNotification()
                     },
                     pauseCallback = {
                         android.util.Log.d("AudioPlayerService", "MediaSession pause callback called")
                         pause()
+                        // Update notification immediately to show play button
+                        notificationManager?.updateNotification()
                     },
                 )
             mediaSessionManager?.setCallbacks(
@@ -549,20 +553,45 @@ class AudioPlayerService : MediaSessionService() {
         }
 
         // Handle actions from notification and timer
-        when (intent?.action) {
+        // CRITICAL: Enhanced logging for Play/Pause to diagnose Samsung issues
+        val action = intent?.action
+        android.util.Log.d(
+            "AudioPlayerService",
+            "onStartCommand called with action: $action, intent: $intent, flags: $flags, startId: $startId",
+        )
+
+        when (action) {
             com.jabook.app.jabook.audio.NotificationManager.ACTION_PLAY -> {
-                android.util.Log.d("AudioPlayerService", "User action detected from notification: PLAY, resetting inactivity timer")
-                play()
-                // Immediately update notification to show pause button
-                // This provides instant feedback before player state actually changes
-                notificationManager?.updateNotification()
+                android.util.Log.i(
+                    "AudioPlayerService",
+                    "ACTION_PLAY received from notification. Current state: playWhenReady=${getActivePlayer().playWhenReady}, " +
+                        "playbackState=${getActivePlayer().playbackState}",
+                )
+                try {
+                    play()
+                    android.util.Log.d("AudioPlayerService", "play() called successfully, updating notification")
+                    // Immediately update notification to show pause button
+                    // This provides instant feedback before player state actually changes
+                    notificationManager?.updateNotification()
+                } catch (e: Exception) {
+                    android.util.Log.e("AudioPlayerService", "Failed to execute ACTION_PLAY", e)
+                }
             }
             com.jabook.app.jabook.audio.NotificationManager.ACTION_PAUSE -> {
-                android.util.Log.d("AudioPlayerService", "User action detected from notification: PAUSE, resetting inactivity timer")
-                pause()
-                // Immediately update notification to show play button
-                // This provides instant feedback before player state actually changes
-                notificationManager?.updateNotification()
+                android.util.Log.i(
+                    "AudioPlayerService",
+                    "ACTION_PAUSE received from notification. Current state: playWhenReady=${getActivePlayer().playWhenReady}, " +
+                        "playbackState=${getActivePlayer().playbackState}",
+                )
+                try {
+                    pause()
+                    android.util.Log.d("AudioPlayerService", "pause() called successfully, updating notification")
+                    // Immediately update notification to show play button
+                    // This provides instant feedback before player state actually changes
+                    notificationManager?.updateNotification()
+                } catch (e: Exception) {
+                    android.util.Log.e("AudioPlayerService", "Failed to execute ACTION_PAUSE", e)
+                }
             }
             com.jabook.app.jabook.audio.NotificationManager.ACTION_NEXT -> {
                 android.util.Log.d("AudioPlayerService", "User action detected from notification: NEXT, resetting inactivity timer")
@@ -584,7 +613,7 @@ class AudioPlayerService : MediaSessionService() {
             }
             com.jabook.app.jabook.audio.NotificationManager.ACTION_STOP -> {
                 android.util.Log.d("AudioPlayerService", "User action detected from notification: STOP")
-                stop()
+                stopAndCleanup()
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
             }
@@ -733,6 +762,10 @@ class AudioPlayerService : MediaSessionService() {
                 customExoPlayer = null
                 android.util.Log.d("AudioPlayerService", "No processors needed, using singleton ExoPlayer")
             }
+
+            // Update NotificationManager with new player reference
+            notificationManager?.updatePlayer(getActivePlayer())
+            android.util.Log.d("AudioPlayerService", "Updated NotificationManager with new player reference")
 
             // Restore playlist and position if we had a playlist before
             if (savedPlaybackState != null && currentFilePaths != null && currentFilePaths!!.isNotEmpty()) {
@@ -1350,6 +1383,9 @@ class AudioPlayerService : MediaSessionService() {
 
     /**
      * Stops playback and resets player.
+     *
+     * This method stops the player but does not release all resources.
+     * For full cleanup, use stopAndRelease() instead.
      */
     fun stop() {
         val player = getActivePlayer()
@@ -1359,6 +1395,36 @@ class AudioPlayerService : MediaSessionService() {
             // ExoPlayer manages AudioFocus automatically, no need to abandon manually
         } catch (e: Exception) {
             ErrorHandler.handleGeneralError("AudioPlayerService", e, "Stop method execution")
+        }
+    }
+
+    /**
+     * Stops playback and releases all resources.
+     * Closes notification and stops service.
+     *
+     * This is a complete cleanup method that should be called when
+     * playback is permanently stopped (e.g., from Stop button in notification).
+     */
+    fun stopAndCleanup() {
+        val player = getActivePlayer()
+        try {
+            android.util.Log.d("AudioPlayerService", "stopAndCleanup() called, stopping player and releasing resources")
+            player.stop()
+            player.clearMediaItems()
+            playbackTimer?.stopTimer()
+            inactivityTimer?.stopTimer()
+
+            // Release MediaSession
+            mediaSessionManager?.release()
+            mediaSession = null
+
+            // Cancel notification
+            notificationManager = null
+
+            android.util.Log.d("AudioPlayerService", "Player stopped and resources released")
+        } catch (e: Exception) {
+            android.util.Log.e("AudioPlayerService", "Failed to stop and cleanup", e)
+            ErrorHandler.handleGeneralError("AudioPlayerService", e, "Stop and cleanup execution")
         }
     }
 
@@ -1877,7 +1943,10 @@ class AudioPlayerService : MediaSessionService() {
                         "EVENT_PLAY_WHEN_READY_CHANGED: playWhenReady=${player.playWhenReady}, isPlaying=${player.isPlaying}, playbackState=${player.playbackState}, mediaItemCount=${player.mediaItemCount}",
                     )
                     // Match lissen-android: just log, don't interfere with ExoPlayer's AudioFocus handling
-                    notificationManager?.updateNotification()
+                    // Post notification update to main thread to ensure player state is fully updated
+                    android.os.Handler(android.os.Looper.getMainLooper()).post {
+                        notificationManager?.updateNotification()
+                    }
                 }
 
                 // Handle playing state changes
@@ -1900,7 +1969,10 @@ class AudioPlayerService : MediaSessionService() {
                     // Don't reset playWhenReady automatically - let ExoPlayer handle AudioFocus
                     // The previous check was too aggressive and was preventing playback from starting
 
-                    notificationManager?.updateNotification()
+                    // Post notification update to main thread to ensure player state is fully updated
+                    android.os.Handler(android.os.Looper.getMainLooper()).post {
+                        notificationManager?.updateNotification()
+                    }
                 }
 
                 // Handle media item transitions

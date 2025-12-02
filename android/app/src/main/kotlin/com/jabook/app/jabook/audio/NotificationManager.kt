@@ -23,7 +23,7 @@ import android.graphics.BitmapFactory
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.media.app.NotificationCompat.MediaStyle
-import androidx.media3.common.Player
+import androidx.media3.common.util.Util
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaSession
 import com.jabook.app.jabook.MainActivity
@@ -38,13 +38,21 @@ import android.app.NotificationManager as AndroidNotificationManager
  */
 class NotificationManager(
     private val context: Context,
-    private val player: ExoPlayer,
+    private var player: ExoPlayer, // Changed to var to allow updating player reference
     private val mediaSession: androidx.media3.session.MediaSession? = null,
     private var metadata: Map<String, String>? = null,
     private var embeddedArtworkPath: String? = null, // Path to saved embedded artwork from AudioPlayerService
     private var rewindSeconds: Long, // Must be provided from MediaSessionManager to use actual settings (book-specific or global)
     private var forwardSeconds: Long, // Must be provided from MediaSessionManager to use actual settings (book-specific or global)
 ) {
+    /**
+     * Updates the player reference. This is needed when the player is recreated.
+     */
+    fun updatePlayer(newPlayer: ExoPlayer) {
+        player = newPlayer
+        android.util.Log.d("NotificationManager", "Player reference updated")
+    }
+
     private val notificationManager: AndroidNotificationManager =
         context.getSystemService(Context.NOTIFICATION_SERVICE) as AndroidNotificationManager
 
@@ -146,20 +154,34 @@ class NotificationManager(
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
             )
 
-        // Use playWhenReady instead of isPlaying for immediate UI feedback
-        // playWhenReady changes synchronously, while isPlaying may lag
+        // Use Media3 Util.shouldShowPlayButton() for correct Play/Pause button determination
+        // This is the same logic used in PlayerNotificationManager from Media3
+        // Use createPlaybackAction() for consistency with all other actions (Previous, Next, Rewind, Forward, Stop)
+        // CRITICAL: Read player state directly from player to ensure we get the latest state
+        // This avoids race conditions where updateNotification() is called before state is updated
+        // Also check isPlaying for more accurate state detection
+        val currentPlayWhenReady = player.playWhenReady
+        val currentPlaybackState = player.playbackState
+        val currentIsPlaying = player.isPlaying
+        val shouldShowPlay = Util.shouldShowPlayButton(player, true)
+        android.util.Log.d(
+            "NotificationManager",
+            "Determining Play/Pause button: playWhenReady=$currentPlayWhenReady, isPlaying=$currentIsPlaying, playbackState=$currentPlaybackState, shouldShowPlay=$shouldShowPlay",
+        )
         val playPauseAction =
-            if (player.playWhenReady && player.playbackState != Player.STATE_ENDED) {
-                NotificationCompat.Action(
-                    android.R.drawable.ic_media_pause,
-                    "Pause",
-                    createPlaybackAction(NotificationManager.ACTION_PAUSE),
-                )
-            } else {
+            if (shouldShowPlay) {
+                android.util.Log.d("NotificationManager", "Creating PLAY button action (shouldShowPlay=true)")
                 NotificationCompat.Action(
                     android.R.drawable.ic_media_play,
                     "Play",
-                    createPlaybackAction(NotificationManager.ACTION_PLAY),
+                    createPlaybackAction(ACTION_PLAY),
+                )
+            } else {
+                android.util.Log.d("NotificationManager", "Creating PAUSE button action (shouldShowPlay=false)")
+                NotificationCompat.Action(
+                    android.R.drawable.ic_media_pause,
+                    "Pause",
+                    createPlaybackAction(ACTION_PAUSE),
                 )
             }
 
@@ -441,15 +463,18 @@ class NotificationManager(
                                 createPlaybackAction(NotificationManager.ACTION_PREVIOUS),
                             ).build()
 
-                    // Use playWhenReady for immediate UI feedback
-                    val isPlayingState = player.playWhenReady && player.playbackState != Player.STATE_ENDED
+                    // Use Media3 Util.shouldShowPlayButton() for correct Play/Pause button determination
+                    // This is the same logic used in PlayerNotificationManager from Media3
+                    // Use createPlaybackAction() for consistency with all other actions (Previous, Next, Rewind, Forward, Stop)
+                    // CRITICAL: Read player state directly from player to ensure we get the latest state
+                    val shouldShowPlay = Util.shouldShowPlayButton(player, true)
                     val playPauseActionCompat =
                         NotificationCompat.Action
                             .Builder(
-                                if (isPlayingState) android.R.drawable.ic_media_pause else android.R.drawable.ic_media_play,
-                                if (isPlayingState) "Pause" else "Play",
+                                if (shouldShowPlay) android.R.drawable.ic_media_play else android.R.drawable.ic_media_pause,
+                                if (shouldShowPlay) "Play" else "Pause",
                                 createPlaybackAction(
-                                    if (isPlayingState) NotificationManager.ACTION_PAUSE else NotificationManager.ACTION_PLAY,
+                                    if (shouldShowPlay) ACTION_PLAY else ACTION_PAUSE,
                                 ),
                             ).build()
 
@@ -498,21 +523,22 @@ class NotificationManager(
                                 previousActionCompat.actionIntent ?: createPlaybackAction(NotificationManager.ACTION_PREVIOUS),
                             ).build()
 
-                    // Use playWhenReady for immediate UI feedback (same as playPauseActionCompat above)
-                    // Reuse isPlayingState from above
+                    // Use Media3 Util.shouldShowPlayButton() for correct Play/Pause button determination
+                    // Reuse shouldShowPlay from above
+                    // Use createPlaybackAction() for consistency with all other actions (Previous, Next, Rewind, Forward, Stop)
                     val playPauseIcon =
                         android.graphics.drawable.Icon.createWithResource(
                             context,
-                            if (isPlayingState) android.R.drawable.ic_media_pause else android.R.drawable.ic_media_play,
+                            if (shouldShowPlay) android.R.drawable.ic_media_play else android.R.drawable.ic_media_pause,
                         )
                     val playPauseActionNative =
                         Notification.Action
                             .Builder(
                                 playPauseIcon,
-                                playPauseActionCompat.title ?: if (isPlayingState) "Pause" else "Play",
+                                playPauseActionCompat.title ?: if (shouldShowPlay) "Play" else "Pause",
                                 playPauseActionCompat.actionIntent
                                     ?: createPlaybackAction(
-                                        if (isPlayingState) NotificationManager.ACTION_PAUSE else NotificationManager.ACTION_PLAY,
+                                        if (shouldShowPlay) ACTION_PLAY else ACTION_PAUSE,
                                     ),
                             ).build()
 
@@ -838,12 +864,31 @@ class NotificationManager(
      *
      * This method includes proper error handling to prevent PendingIntent-related
      * crashes on Android 14+.
+     *
+     * CRITICAL: For Play/Pause actions, uses unique request codes to avoid conflicts
+     * on Samsung and other devices that may have issues with PendingIntent handling.
+     * All actions (Play, Pause, Next, Previous, Rewind, Forward, Stop) use this method
+     * for consistency - all commands go through AudioPlayerService.onStartCommand().
      */
     private fun createPlaybackAction(action: String): PendingIntent {
         try {
             val intent =
                 Intent(context, AudioPlayerService::class.java).apply {
                     this.action = action
+                }
+
+            // Use unique request codes for each action to avoid conflicts
+            // This is especially important for Play/Pause on Samsung devices
+            val requestCode =
+                when (action) {
+                    ACTION_PLAY -> 1001
+                    ACTION_PAUSE -> 1002
+                    ACTION_NEXT -> 1003
+                    ACTION_PREVIOUS -> 1004
+                    ACTION_REWIND -> 1005
+                    ACTION_FORWARD -> 1006
+                    ACTION_STOP -> 1007
+                    else -> action.hashCode()
                 }
 
             val flags =
@@ -853,12 +898,21 @@ class NotificationManager(
                     PendingIntent.FLAG_UPDATE_CURRENT
                 }
 
-            return PendingIntent.getService(
-                context,
-                action.hashCode(),
-                intent,
-                flags,
+            android.util.Log.d(
+                "NotificationManager",
+                "Creating PendingIntent for action: $action, requestCode: $requestCode, flags: $flags",
             )
+
+            val pendingIntent =
+                PendingIntent.getService(
+                    context,
+                    requestCode,
+                    intent,
+                    flags,
+                )
+
+            android.util.Log.d("NotificationManager", "Successfully created PendingIntent for action: $action")
+            return pendingIntent
         } catch (e: Exception) {
             android.util.Log.e("NotificationManager", "Failed to create PendingIntent for action: $action", e)
 
@@ -871,6 +925,7 @@ class NotificationManager(
                     0
                 }
 
+            android.util.Log.w("NotificationManager", "Using fallback PendingIntent for action: $action")
             return PendingIntent.getService(context, action.hashCode(), fallbackIntent, flags)
         }
     }
