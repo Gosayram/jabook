@@ -212,6 +212,21 @@ class AppDatabase {
   StoreRef<String, Map<String, dynamic>> get cookiesStore =>
       StoreRef('cookies');
 
+  /// Gets the search cache settings store.
+  ///
+  /// This store contains settings for the smart search cache system.
+  /// Primary key is 'settings' (String).
+  /// Contains:
+  /// - cache_ttl_hours: int - Cache time to live in hours (minimum 12)
+  /// - auto_update_enabled: bool - Whether automatic updates are enabled
+  /// - auto_update_interval_hours: int - Interval between auto updates in hours
+  /// - last_full_sync: String? - ISO 8601 timestamp of last full sync
+  /// - next_auto_update: String? - ISO 8601 timestamp of next scheduled update
+  /// - sync_in_progress: bool - Whether sync is currently in progress
+  /// - last_sync_progress: Map or null - Last sync progress information
+  StoreRef<String, Map<String, dynamic>> get searchCacheSettingsStore =>
+      StoreRef('search_cache_settings');
+
   /// Closes the database connection.
   Future<void> close() async {
     if (_isInitialized && _db != null) {

@@ -28,6 +28,7 @@ import 'package:jabook/core/di/providers/auth_providers.dart';
 import 'package:jabook/core/di/providers/cache_providers.dart';
 import 'package:jabook/core/di/providers/database_providers.dart'
     as db_providers;
+import 'package:jabook/core/di/providers/search_providers.dart';
 import 'package:jabook/core/domain/auth/entities/auth_status.dart';
 import 'package:jabook/core/domain/auth/repositories/auth_repository.dart';
 import 'package:jabook/core/favorites/favorites_provider.dart';
@@ -40,6 +41,7 @@ import 'package:jabook/core/net/dio_client.dart';
 import 'package:jabook/core/parse/category_parser.dart' as category_parser;
 import 'package:jabook/core/parse/rutracker_parser.dart';
 import 'package:jabook/core/search/search_history_service.dart';
+import 'package:jabook/core/search/smart_search_cache_service.dart';
 import 'package:jabook/core/services/cookie_service.dart';
 import 'package:jabook/core/utils/app_title_utils.dart';
 import 'package:jabook/core/utils/responsive_utils.dart';
@@ -70,6 +72,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   final TextEditingController _searchController = TextEditingController();
   final RuTrackerParser _parser = RuTrackerParser();
   late final RuTrackerCacheService _cacheService;
+  SmartSearchCacheService? _smartCacheService;
   AudiobookMetadataService? _metadataService;
   SearchHistoryService? _historyService;
   List<Map<String, dynamic>> _searchResults = [];
@@ -110,6 +113,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     EnvironmentLogger().d('SearchScreen.initState called');
     // Get cache service from provider (already initialized in app.dart)
     _cacheService = ref.read(rutrackerCacheServiceProvider);
+    _smartCacheService = ref.read(smartSearchCacheServiceProvider);
     _initializeCache();
     _initializeMetadataService();
     _loadActiveHost();
@@ -605,6 +609,53 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       _selectedCategories.clear(); // Reset filters on new search
     });
 
+    // Check smart cache first (if available and valid)
+    Future<List<Map<String, dynamic>>?>? smartCacheResultsFuture;
+    if (_smartCacheService != null) {
+      smartCacheResultsFuture = (() async {
+        try {
+          final status = await _smartCacheService!.getCacheStatus();
+          if (status.isValid) {
+            await structuredLogger.log(
+              level: 'info',
+              subsystem: 'search',
+              message: 'Smart cache is valid, using smart search',
+              context: 'search_request',
+              extra: {
+                'query': query,
+                'cached_books': status.totalCachedBooks,
+              },
+            );
+            final smartResults = await _smartCacheService!.search(query);
+            if (smartResults.isNotEmpty) {
+              // Convert cache format to display format
+              return smartResults.map(_cacheMetadataToMap).toList();
+            }
+          } else {
+            await structuredLogger.log(
+              level: 'debug',
+              subsystem: 'search',
+              message: 'Smart cache is not valid, skipping',
+              context: 'search_request',
+              extra: {
+                'is_empty': status.isEmpty,
+                'is_stale': status.isStale,
+              },
+            );
+          }
+        } on Exception catch (e) {
+          await structuredLogger.log(
+            level: 'debug',
+            subsystem: 'search',
+            message: 'Smart cache search failed',
+            context: 'search_request',
+            cause: e.toString(),
+          );
+        }
+        return null;
+      })();
+    }
+
     // Check local DB and cache in parallel for quick display, but don't block network search
     // Network search is the primary source of truth
     Future<List<Map<String, dynamic>>?>? localResultsFuture;
@@ -697,10 +748,11 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       extra: {'query': query},
     );
 
-    // Wait for quick results from cache/local DB (with short timeout)
+    // Wait for quick results from smart cache/cache/local DB (with short timeout)
     // If they arrive quickly, show them immediately, then update with network results
     try {
       final futures = <Future<List<Map<String, dynamic>>?>>[
+        if (smartCacheResultsFuture != null) smartCacheResultsFuture,
         cachedResultsFuture,
         if (localResultsFuture != null) localResultsFuture,
         Future.delayed(const Duration(milliseconds: 100))
@@ -711,20 +763,69 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           await Future.any(futures).timeout(const Duration(milliseconds: 200));
 
       if (quickResults != null && quickResults.isNotEmpty && mounted) {
+        // Check if results came from smart cache
+        var isFromSmartCache = false;
+        if (smartCacheResultsFuture != null) {
+          try {
+            final smartResults = await smartCacheResultsFuture.timeout(
+              const Duration(milliseconds: 50),
+            );
+            if (smartResults != null &&
+                smartResults.length == quickResults.length) {
+              // Simple check: if lengths match and first result IDs match, likely same source
+              if (smartResults.isNotEmpty && quickResults.isNotEmpty) {
+                final smartFirstId = smartResults.first['id'] as String?;
+                final quickFirstId = quickResults.first['id'] as String?;
+                if (smartFirstId != null &&
+                    quickFirstId != null &&
+                    smartFirstId == quickFirstId) {
+                  isFromSmartCache = true;
+                }
+              }
+            }
+          } on Exception {
+            // Ignore timeout/errors
+          }
+        }
+
         await structuredLogger.log(
           level: 'info',
           subsystem: 'search',
-          message: 'Showing quick results while network search continues',
+          message: isFromSmartCache
+              ? 'Showing smart cache results (skipping network search)'
+              : 'Showing quick results while network search continues',
           context: 'search_request',
           extra: {
             'query': query,
             'quick_results_count': quickResults.length,
+            'is_from_smart_cache': isFromSmartCache,
           },
         );
         setState(() {
           _searchResults = quickResults;
-          _isLoading = true; // Keep loading indicator for network update
+          _isFromCache = isFromSmartCache;
+          _isFromLocalDb = !isFromSmartCache;
+          // If from smart cache, we can skip network search
+          if (isFromSmartCache) {
+            _isLoading = false;
+          } else {
+            _isLoading = true; // Keep loading indicator for network update
+          }
         });
+
+        // If results are from smart cache and cache is valid, skip network search
+        if (isFromSmartCache && _smartCacheService != null) {
+          final status = await _smartCacheService!.getCacheStatus();
+          if (status.isValid) {
+            await structuredLogger.log(
+              level: 'info',
+              subsystem: 'search',
+              message: 'Smart cache is valid, skipping network search',
+              context: 'search_request',
+            );
+            return; // Skip network search
+          }
+        }
       }
     } on Exception catch (_) {
       // Ignore timeout or errors - just continue with network search
@@ -4177,6 +4278,43 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       'audioCodec': audiobook.audioCodec,
     };
   }
+
+  /// Converts cached metadata from smart cache to display format.
+  ///
+  /// Maps cache format (topic_id, cover_url) to display format (id, coverUrl).
+  Map<String, dynamic> _cacheMetadataToMap(Map<String, dynamic> metadata) => {
+        'id': metadata['topic_id'] as String? ?? '',
+        'title': metadata['title'] as String? ?? '',
+        'author': metadata['author'] as String? ?? '',
+        'category': metadata['category'] as String? ?? '',
+        'size': metadata['size'] as String? ?? '0 MB',
+        'seeders': metadata['seeders'] as int? ?? 0,
+        'leechers': metadata['leechers'] as int? ?? 0,
+        'magnetUrl': metadata['magnet_url'] as String? ?? '',
+        'coverUrl': metadata['cover_url']
+            as String?, // CRITICAL: Use cached cover_url directly
+        'performer': metadata['performer'] as String?,
+        'genres': (metadata['genres'] as List<dynamic>?)
+                ?.map((g) => g.toString())
+                .toList() ??
+            [],
+        'chapters': (metadata['chapters'] as List<dynamic>?)
+                ?.map((c) => {
+                      'title': c['title'] as String? ?? '',
+                      'durationMs': c['duration_ms'] as int? ?? 0,
+                      'fileIndex': c['file_index'] as int? ?? 0,
+                      'startByte': c['start_byte'] as int? ?? 0,
+                      'endByte': c['end_byte'] as int? ?? 0,
+                    })
+                .toList() ??
+            [],
+        'addedDate': metadata['added_date'] != null
+            ? DateTime.parse(metadata['added_date'] as String)
+            : DateTime.now(),
+        'duration': metadata['duration'] as String?,
+        'bitrate': metadata['bitrate'] as String?,
+        'audioCodec': metadata['audio_codec'] as String?,
+      };
 
   /// Updates statistics (seeders/leechers) for search results that don't have them.
   ///

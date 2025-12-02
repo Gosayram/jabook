@@ -1599,6 +1599,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             const SizedBox(height: 12),
             Wrap(spacing: 12, runSpacing: 8, children: [
               ElevatedButton.icon(
+                onPressed: () {
+                  context.push('/settings/search-cache');
+                },
+                icon: const Icon(Icons.settings),
+                label: const Text('Smart Search Cache Settings'),
+              ),
+              ElevatedButton.icon(
                 onPressed: () async {
                   final messenger = ScaffoldMessenger.of(context);
                   await _clearExpiredCache();

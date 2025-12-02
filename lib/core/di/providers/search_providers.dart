@@ -18,8 +18,10 @@ import 'package:jabook/core/data/search/datasources/search_remote_datasource.dar
 import 'package:jabook/core/data/search/repositories/search_repository_impl.dart';
 import 'package:jabook/core/di/providers/cache_providers.dart';
 import 'package:jabook/core/di/providers/database_providers.dart';
+import 'package:jabook/core/di/providers/endpoint_providers.dart';
 import 'package:jabook/core/domain/search/repositories/search_repository.dart';
 import 'package:jabook/core/search/search_history_service.dart';
+import 'package:jabook/core/search/smart_search_cache_service.dart';
 
 /// Provider for SearchHistoryService instance.
 final searchHistoryServiceProvider = Provider<SearchHistoryService?>((ref) {
@@ -56,4 +58,15 @@ final searchRepositoryProvider = Provider<SearchRepository?>((ref) {
   final localDataSource = ref.watch(searchLocalDataSourceProvider);
   if (localDataSource == null) return null;
   return SearchRepositoryImpl(remoteDataSource, localDataSource);
+});
+
+/// Provider for SmartSearchCacheService instance.
+///
+/// This provider creates a SmartSearchCacheService instance for managing
+/// smart search cache functionality.
+final smartSearchCacheServiceProvider =
+    Provider<SmartSearchCacheService>((ref) {
+  final db = ref.watch(appDatabaseProvider);
+  final endpointManager = ref.watch(endpointManagerProvider);
+  return SmartSearchCacheService(db, endpointManager);
 });

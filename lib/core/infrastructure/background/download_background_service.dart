@@ -17,6 +17,7 @@ import 'dart:async';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:jabook/core/data/local/database/app_database.dart';
 import 'package:jabook/core/infrastructure/background/background_compatibility_checker.dart';
+import 'package:jabook/core/infrastructure/background/search_cache_background_service.dart';
 import 'package:jabook/core/infrastructure/background/workmanager_diagnostics_service.dart';
 import 'package:jabook/core/infrastructure/logging/environment_logger.dart';
 import 'package:jabook/core/infrastructure/logging/structured_logger.dart';
@@ -230,6 +231,13 @@ class DownloadBackgroundService {
 @pragma('vm:entry-point')
 void callbackDispatcher() {
   Workmanager().executeTask((task, inputData) async {
+    // Route to appropriate handler based on task name
+    if (task == SearchCacheBackgroundService.cacheUpdateTaskName) {
+      // Delegate to cache update dispatcher
+      return cacheUpdateCallbackDispatcher();
+    }
+
+    // Default: download monitoring task
     final taskStartTime = DateTime.now();
     final logger = EnvironmentLogger()..i('Background task executed: $task');
 
