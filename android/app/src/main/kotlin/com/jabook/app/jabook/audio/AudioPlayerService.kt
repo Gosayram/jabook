@@ -960,7 +960,10 @@ class AudioPlayerService : MediaSessionService() {
                         } else {
                             emptyList()
                         }
-                    val otherIndices = remainingIndices.filter { it !in priorityIndices }
+                    val otherIndices =
+                        remainingIndices
+                            .filter { it !in priorityIndices }
+                            .sorted() // Ensure ascending order to maintain correct track sequence
 
                     // Load priority indices first (tracks before initialTrackIndex)
                     for ((priorityIndex, index) in priorityIndices.withIndex()) {
@@ -978,6 +981,10 @@ class AudioPlayerService : MediaSessionService() {
                                 val activePlayer = getActivePlayer()
                                 // Insert at correct position to maintain order
                                 activePlayer.addMediaSource(index, mediaSource)
+                                android.util.Log.d(
+                                    "AudioPlayerService",
+                                    "Added priority MediaItem at index $index (playlist size: ${activePlayer.mediaItemCount})",
+                                )
                             }
 
                             // Yield for large playlists to prevent blocking
@@ -1007,7 +1014,13 @@ class AudioPlayerService : MediaSessionService() {
                             // Add to player asynchronously (non-blocking)
                             withContext(Dispatchers.Main) {
                                 val activePlayer = getActivePlayer()
-                                activePlayer.addMediaSource(mediaSource)
+                                // CRITICAL: Use index parameter to insert at correct position
+                                // This ensures tracks are added in the correct order, not at the end
+                                activePlayer.addMediaSource(index, mediaSource)
+                                android.util.Log.d(
+                                    "AudioPlayerService",
+                                    "Added MediaItem at index $index (playlist size: ${activePlayer.mediaItemCount})",
+                                )
                             }
 
                             // Yield for large playlists to prevent blocking (every 10 items)
@@ -1029,6 +1042,42 @@ class AudioPlayerService : MediaSessionService() {
                         "AudioPlayerService",
                         "All ${filePaths.size} MediaItems loaded asynchronously (priority: ${priorityIndices.size}, other: ${otherIndices.size})",
                     )
+
+                    // Verify playlist order after all items are loaded
+                    withContext(Dispatchers.Main) {
+                        val activePlayer = getActivePlayer()
+                        if (activePlayer.mediaItemCount == filePaths.size) {
+                            var orderMismatchCount = 0
+                            for (i in 0 until activePlayer.mediaItemCount) {
+                                val item = activePlayer.getMediaItemAt(i)
+                                val expectedPath = filePaths[i]
+                                val actualPath = item.localConfiguration?.uri?.path
+                                if (actualPath != expectedPath) {
+                                    orderMismatchCount++
+                                    android.util.Log.w(
+                                        "AudioPlayerService",
+                                        "Playlist order mismatch at index $i: expected $expectedPath, got $actualPath",
+                                    )
+                                }
+                            }
+                            if (orderMismatchCount == 0) {
+                                android.util.Log.d(
+                                    "AudioPlayerService",
+                                    "Playlist order verified: all ${activePlayer.mediaItemCount} items are in correct order",
+                                )
+                            } else {
+                                android.util.Log.w(
+                                    "AudioPlayerService",
+                                    "Playlist order verification found $orderMismatchCount mismatches out of ${activePlayer.mediaItemCount} items",
+                                )
+                            }
+                        } else {
+                            android.util.Log.w(
+                                "AudioPlayerService",
+                                "Playlist size mismatch: expected ${filePaths.size}, got ${activePlayer.mediaItemCount}",
+                            )
+                        }
+                    }
                 } catch (e: Exception) {
                     android.util.Log.e("AudioPlayerService", "Error loading remaining MediaItems asynchronously", e)
                     // Don't throw - player is already working with first item
