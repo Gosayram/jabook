@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:async';
+
 import 'package:flutter/services.dart';
 import 'package:jabook/core/infrastructure/logging/structured_logger.dart';
 
@@ -32,6 +34,9 @@ class DownloadForegroundService {
   ///
   /// This should be called when downloads start to ensure they continue
   /// even when the app is in the background.
+  ///
+  /// Throws [Exception] if the service fails to start, allowing the caller
+  /// to handle the error appropriately (e.g., not start the torrent task).
   Future<void> startService() async {
     try {
       await _logger.log(
@@ -40,7 +45,17 @@ class DownloadForegroundService {
         message: 'Starting download foreground service',
       );
 
-      await _channel.invokeMethod('startService');
+      // Add timeout to ensure we don't wait forever
+      // Android requires startForeground() within 5 seconds
+      await _channel.invokeMethod('startService').timeout(
+        const Duration(seconds: 8),
+        onTimeout: () {
+          throw TimeoutException(
+            'Foreground service start timeout after 8 seconds. '
+            'Android requires startForeground() within 5 seconds.',
+          );
+        },
+      );
 
       await _logger.log(
         level: 'info',
@@ -58,6 +73,18 @@ class DownloadForegroundService {
           'message': e.message,
         },
       );
+      // CRITICAL: Re-throw to allow caller to handle
+      // Previous implementation swallowed exceptions, which could cause downloads to hang
+      rethrow;
+    } on TimeoutException catch (e) {
+      await _logger.log(
+        level: 'error',
+        subsystem: 'download',
+        message: 'Timeout starting download service',
+        cause: e.toString(),
+      );
+      // CRITICAL: Re-throw to allow caller to handle
+      rethrow;
     } on Exception catch (e) {
       await _logger.log(
         level: 'error',
@@ -65,6 +92,8 @@ class DownloadForegroundService {
         message: 'Failed to start download foreground service',
         cause: e.toString(),
       );
+      // CRITICAL: Re-throw to allow caller to handle
+      rethrow;
     }
   }
 

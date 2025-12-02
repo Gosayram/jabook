@@ -180,6 +180,7 @@ class DownloadForegroundService : Service() {
      *
      * This channel is used for a silent foreground service notification.
      * Individual download notifications are handled by DownloadNotificationService.
+     * This notification is completely hidden from the user to avoid duplicates.
      */
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -189,11 +190,18 @@ class DownloadForegroundService : Service() {
                     CHANNEL_NAME,
                     AndroidNotificationManager.IMPORTANCE_MIN, // MIN importance = silent, hidden from tray
                 ).apply {
-                    description = "Silent foreground service notification (not shown to user)"
+                    description = "Silent foreground service notification (completely hidden from user)"
                     setShowBadge(false)
                     enableLights(false)
                     enableVibration(false)
                     setSound(null, null)
+                    // Additional settings to ensure notification is completely hidden
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) { // Android 10+
+                        setShowBadge(false)
+                        setBypassDnd(false)
+                    }
+                    // Lock screen visibility - hide completely
+                    lockscreenVisibility = Notification.VISIBILITY_SECRET
                 }
             notificationManager?.createNotificationChannel(channel)
         }
@@ -202,9 +210,10 @@ class DownloadForegroundService : Service() {
     /**
      * Creates silent notification for foreground service.
      *
-     * This notification is required for foreground service but is hidden from user.
+     * This notification is required for foreground service but is completely hidden from user.
      * It uses IMPORTANCE_MIN channel which makes it silent and not shown in tray.
      * Individual download notifications are handled by DownloadNotificationService.
+     * This prevents duplicate notifications - only DownloadNotificationService shows user-visible notifications.
      */
     private fun createMinimalNotification(): Notification {
         val intent =
@@ -231,6 +240,8 @@ class DownloadForegroundService : Service() {
             .setSilent(true) // Explicitly mark as silent
             .setShowWhen(false) // Don't show timestamp
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
+            .setVisibility(NotificationCompat.VISIBILITY_SECRET) // Hide from lock screen completely
+            .setLocalOnly(true) // Don't show on connected devices
             .build()
     }
 }

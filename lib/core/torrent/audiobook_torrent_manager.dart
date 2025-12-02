@@ -575,7 +575,19 @@ class AudiobookTorrentManager {
       safeUnawaited(_registerBackgroundService());
 
       // Start foreground service to keep downloads alive in background
-      safeUnawaited(_foregroundService.startService());
+      // CRITICAL: Must wait for service to start before starting torrent task
+      // Android requires startForeground() within 5 seconds of startForegroundService()
+      try {
+        await _foregroundService.startService();
+        logger.d('Foreground service started successfully before torrent task');
+      } on Exception catch (e) {
+        logger.e('Failed to start foreground service: $e');
+        // Don't start torrent task if foreground service failed
+        throw TorrentFailure(
+          'Failed to start foreground service: ${e.toString()}. '
+          'This is required for downloads to continue in background.',
+        );
+      }
 
       // Set up event listeners
       // downloadId is guaranteed to be non-null at this point
@@ -1265,7 +1277,19 @@ class AudiobookTorrentManager {
       safeUnawaited(_registerBackgroundService());
 
       // Start foreground service to keep downloads alive in background
-      safeUnawaited(_foregroundService.startService());
+      // CRITICAL: Must wait for service to start before starting torrent task
+      // Android requires startForeground() within 5 seconds of startForegroundService()
+      try {
+        await _foregroundService.startService();
+        logger.d('Foreground service started successfully before torrent task');
+      } on Exception catch (e) {
+        logger.e('Failed to start foreground service: $e');
+        // Don't start torrent task if foreground service failed
+        throw TorrentFailure(
+          'Failed to start foreground service: ${e.toString()}. '
+          'This is required for downloads to continue in background.',
+        );
+      }
 
       // Set up event listeners
       final finalDownloadId = downloadId;
