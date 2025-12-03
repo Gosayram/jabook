@@ -2822,6 +2822,37 @@
   "@atEndOfChapterLabel": {
     "description": "Label for at end of chapter"
   },
+  "sleepTimerTooltip": "Sleep timer: {duration}",
+  "@sleepTimerTooltip": {
+    "description": "Tooltip for sleep timer with duration",
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "setSleepTimerTooltip": "Set sleep timer",
+  "@setSleepTimerTooltip": {
+    "description": "Tooltip for setting sleep timer"
+  },
+  "sleepTimerMinutes": "{minutes} min.",
+  "@sleepTimerMinutes": {
+    "description": "Sleep timer duration in minutes",
+    "placeholders": {
+      "minutes": {
+        "type": "int",
+        "format": "compact"
+      }
+    }
+  },
+  "sleepTimerHour": "1 hour",
+  "@sleepTimerHour": {
+    "description": "Sleep timer duration - 1 hour"
+  },
+  "sleepTimerAppWillExit": "Sleep timer: App will exit",
+  "@sleepTimerAppWillExit": {
+    "description": "Message that app will exit due to sleep timer"
+  },
   "itemsInTrashLabel": "Items in Trash",
   "@itemsInTrashLabel": {
     "description": "Label for items in trash"

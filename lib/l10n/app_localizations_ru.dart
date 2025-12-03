@@ -2010,6 +2010,31 @@ class AppLocalizationsRu extends AppLocalizations {
   String get atEndOfChapterLabel => 'В конце главы';
 
   @override
+  String sleepTimerTooltip(String duration) {
+    return 'Таймер сна: $duration';
+  }
+
+  @override
+  String get setSleepTimerTooltip => 'Установить таймер сна';
+
+  @override
+  String sleepTimerMinutes(int minutes) {
+    final intl.NumberFormat minutesNumberFormat = intl.NumberFormat.compact(
+      locale: localeName,
+      
+    );
+    final String minutesString = minutesNumberFormat.format(minutes);
+
+    return '$minutesString мин.';
+  }
+
+  @override
+  String get sleepTimerHour => '1 ч.';
+
+  @override
+  String get sleepTimerAppWillExit => 'Таймер сна: Приложение закроется';
+
+  @override
   String get itemsInTrashLabel => 'Элементы в корзине';
 
   @override

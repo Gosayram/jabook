@@ -646,6 +646,42 @@ class AudioPlayerMethodHandler(
                     // Just acknowledge disposal
                     result.success(true)
                 }
+                "stopServiceAndExit" -> {
+                    android.util.Log.i("AudioPlayerMethodHandler", "stopServiceAndExit called from Flutter")
+                    try {
+                        // Check if service is initialized before sending exit intent
+                        // This prevents accidental exit during service initialization
+                        val service = AudioPlayerService.getInstance()
+                        val isInitialized = service?.isFullyInitialized() ?: false
+                        android.util.Log.d(
+                            "AudioPlayerMethodHandler",
+                            "stopServiceAndExit: service=${service != null}, isFullyInitialized=$isInitialized",
+                        )
+                        if (service != null && isInitialized) {
+                            // Service is ready, send exit intent
+                            val exitIntent =
+                                Intent(context, AudioPlayerService::class.java).apply {
+                                    action = AudioPlayerService.ACTION_EXIT_APP
+                                }
+                            // Service is already running, just send intent
+                            android.util.Log.d("AudioPlayerMethodHandler", "Sending ACTION_EXIT_APP intent to service")
+                            context.startService(exitIntent)
+                            android.util.Log.i("AudioPlayerMethodHandler", "Exit intent sent to initialized service")
+                            result.success(true)
+                        } else {
+                            // Service not ready yet - log warning but don't exit
+                            // This prevents accidental app exit during initialization
+                            android.util.Log.w(
+                                "AudioPlayerMethodHandler",
+                                "stopServiceAndExit called but service not initialized yet (service=${service != null}, initialized=$isInitialized), ignoring to prevent white screen",
+                            )
+                            result.success(false) // Return false to indicate exit was not processed
+                        }
+                    } catch (e: Exception) {
+                        android.util.Log.e("AudioPlayerMethodHandler", "Error in stopServiceAndExit: ${e.message}", e)
+                        result.error("EXCEPTION", e.message ?: "Failed to stop service and exit", null)
+                    }
+                }
                 else -> result.notImplemented()
             }
         } catch (e: Exception) {

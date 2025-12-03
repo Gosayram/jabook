@@ -2807,6 +2807,37 @@
   "@atEndOfChapterLabel": {
     "description": "Метка для конца главы"
   },
+  "sleepTimerTooltip": "Таймер сна: {duration}",
+  "@sleepTimerTooltip": {
+    "description": "Подсказка для таймера сна с указанием времени",
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "setSleepTimerTooltip": "Установить таймер сна",
+  "@setSleepTimerTooltip": {
+    "description": "Подсказка для установки таймера сна"
+  },
+  "sleepTimerMinutes": "{minutes} мин.",
+  "@sleepTimerMinutes": {
+    "description": "Время таймера в минутах",
+    "placeholders": {
+      "minutes": {
+        "type": "int",
+        "format": "compact"
+      }
+    }
+  },
+  "sleepTimerHour": "1 ч.",
+  "@sleepTimerHour": {
+    "description": "Время таймера - 1 час"
+  },
+  "sleepTimerAppWillExit": "Таймер сна: Приложение закроется",
+  "@sleepTimerAppWillExit": {
+    "description": "Сообщение о том, что приложение закроется по таймеру"
+  },
   "itemsInTrashLabel": "Элементы в корзине",
   "@itemsInTrashLabel": {
     "description": "Метка для элементов в корзине"

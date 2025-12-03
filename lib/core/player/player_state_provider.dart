@@ -14,9 +14,10 @@
 
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:jabook/core/di/providers/player_providers.dart';
+import 'package:jabook/core/domain/library/entities/local_audiobook_group.dart';
 import 'package:jabook/core/infrastructure/errors/failures.dart';
-import 'package:jabook/core/library/local_audiobook.dart';
 import 'package:jabook/core/player/media3_player_service.dart';
 import 'package:jabook/core/player/native_audio_player.dart';
 import 'package:jabook/core/player/player_state_persistence_service.dart';
@@ -154,39 +155,47 @@ class PlayerStateNotifier extends StateNotifier<PlayerStateModel> {
   /// Subscribes to player state stream.
   void _subscribeToStateStream() {
     _stateSubscription?.cancel();
-    _stateSubscription = _service.stateStream.listen(
-      (audioState) {
-        // Preserve metadata when updating from stream
-        final newState = PlayerStateModel.fromAudioPlayerState(audioState);
+    try {
+      _stateSubscription = _service.stateStream.listen(
+        (audioState) {
+          // Preserve metadata when updating from stream
+          final newState = PlayerStateModel.fromAudioPlayerState(audioState);
 
-        // Check if track index changed - if so, update cover path from current media item
-        final trackChanged = state.currentIndex != newState.currentIndex;
-        final playbackStateChanged =
-            state.playbackState != newState.playbackState;
-        final updatedCoverPath =
-            newState.currentCoverPath ?? state.currentCoverPath;
+          // Check if track index changed - if so, update cover path from current media item
+          final trackChanged = state.currentIndex != newState.currentIndex;
+          final playbackStateChanged =
+              state.playbackState != newState.playbackState;
+          final updatedCoverPath =
+              newState.currentCoverPath ?? state.currentCoverPath;
 
-        // Update state immediately
-        state = newState.copyWith(
-          currentTitle: newState.currentTitle ?? state.currentTitle,
-          currentArtist: newState.currentArtist ?? state.currentArtist,
-          currentCoverPath: updatedCoverPath,
-          currentGroupPath: newState.currentGroupPath ?? state.currentGroupPath,
-        );
+          // Update state immediately
+          state = newState.copyWith(
+            currentTitle: newState.currentTitle ?? state.currentTitle,
+            currentArtist: newState.currentArtist ?? state.currentArtist,
+            currentCoverPath: updatedCoverPath,
+            currentGroupPath:
+                newState.currentGroupPath ?? state.currentGroupPath,
+          );
 
-        // If track changed or playback state changed to ready (initial load), update cover path
-        if (trackChanged ||
-            (playbackStateChanged && newState.playbackState == 2)) {
-          // playbackState 2 = ready, means player is ready and we should have artwork
-          safeUnawaited(_updateCoverPathFromMediaItem());
-        }
-      },
-      onError: (error) {
-        state = state.copyWith(
-          error: error is AudioFailure ? error.message : error.toString(),
-        );
-      },
-    );
+          // If track changed or playback state changed to ready (initial load), update cover path
+          if (trackChanged ||
+              (playbackStateChanged && newState.playbackState == 2)) {
+            // playbackState 2 = ready, means player is ready and we should have artwork
+            safeUnawaited(_updateCoverPathFromMediaItem());
+          }
+        },
+        onError: (error) {
+          state = state.copyWith(
+            error: error is AudioFailure ? error.message : error.toString(),
+          );
+        },
+        cancelOnError: false, // Don't cancel subscription on error
+      );
+    } on Exception catch (e) {
+      // If subscription fails, log but don't block - state will be updated
+      // when player is initialized and stream becomes available
+      debugPrint('Failed to subscribe to player state stream: $e');
+    }
   }
 
   /// Updates cover path from current media item info.
@@ -306,6 +315,24 @@ class PlayerStateNotifier extends StateNotifier<PlayerStateModel> {
     } on Exception catch (e) {
       state = state.copyWith(error: e.toString());
       throw AudioFailure('Failed to stop: ${e.toString()}');
+    }
+  }
+
+  /// Stops the audio service and exits the app.
+  ///
+  /// This method is used when sleep timer expires to completely stop
+  /// the app and free device resources.
+  ///
+  /// Throws [AudioFailure] if stopping fails.
+  Future<void> stopServiceAndExit() async {
+    try {
+      await _service.stopServiceAndExit();
+    } on AudioFailure catch (e) {
+      state = state.copyWith(error: e.message);
+      rethrow;
+    } on Exception catch (e) {
+      state = state.copyWith(error: e.toString());
+      throw AudioFailure('Failed to stop service and exit: ${e.toString()}');
     }
   }
 

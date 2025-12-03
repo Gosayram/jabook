@@ -79,6 +79,10 @@ class AudioPlayerService : MediaSessionService() {
     private var currentFilePaths: List<String>? = null
     private var savedPlaybackState: SavedPlaybackState? = null
 
+    // Cache for file durations (filePath -> duration in ms)
+    // This avoids repeated MediaMetadataRetriever calls which can be slow
+    private val durationCache = mutableMapOf<String, Long>()
+
     // Audio processing settings (default: all disabled except normalization)
     private var audioProcessingSettings: AudioProcessingSettings = AudioProcessingSettings.defaults()
 
@@ -116,6 +120,7 @@ class AudioPlayerService : MediaSessionService() {
          * to trigger position saving through MethodChannel.
          */
         const val ACTION_SAVE_POSITION_BEFORE_UNLOAD = "com.jabook.app.jabook.audio.SAVE_POSITION_BEFORE_UNLOAD"
+        const val ACTION_EXIT_APP = "com.jabook.app.jabook.audio.EXIT_APP"
         const val EXTRA_TRACK_INDEX = "trackIndex"
         const val EXTRA_POSITION_MS = "positionMs"
 
@@ -628,6 +633,45 @@ class AudioPlayerService : MediaSessionService() {
                 android.util.Log.i("AudioPlayerService", "Inactivity timer expired, unloading player")
                 unloadPlayerDueToInactivity()
             }
+            ACTION_EXIT_APP -> {
+                // Sleep timer expired - stop service and exit app
+                // Only process if service is fully initialized to avoid stopping during initialization
+                android.util.Log.d(
+                    "AudioPlayerService",
+                    "ACTION_EXIT_APP received: isFullyInitialized=$isFullyInitializedFlag, mediaSession=${mediaSession != null}",
+                )
+                if (isFullyInitializedFlag && mediaSession != null) {
+                    android.util.Log.i("AudioPlayerService", "Exit app requested by sleep timer, service is initialized, proceeding")
+                    try {
+                        stopAndCleanup()
+                        stopForeground(STOP_FOREGROUND_REMOVE)
+                        stopSelf()
+                        // Send broadcast to finish activity
+                        val exitIntent =
+                            Intent("com.jabook.app.jabook.EXIT_APP").apply {
+                                setPackage(packageName) // Set package for explicit broadcast
+                            }
+                        android.util.Log.d("AudioPlayerService", "Sending EXIT_APP broadcast")
+                        sendBroadcast(exitIntent)
+                        android.util.Log.i("AudioPlayerService", "EXIT_APP broadcast sent successfully")
+                    } catch (e: Exception) {
+                        android.util.Log.e("AudioPlayerService", "Error during exit app cleanup", e)
+                        // Try to stop service anyway
+                        try {
+                            stopSelf()
+                        } catch (e2: Exception) {
+                            android.util.Log.e("AudioPlayerService", "Failed to stop service", e2)
+                        }
+                    }
+                } else {
+                    android.util.Log.w(
+                        "AudioPlayerService",
+                        "Exit app requested but service not initialized yet (isFullyInitialized=$isFullyInitializedFlag, mediaSession=${mediaSession != null}), ignoring to prevent white screen",
+                    )
+                    // Don't process exit request if service is not ready - this prevents
+                    // accidental app exit during initialization
+                }
+            }
         }
 
         // Return START_STICKY to restart service if killed by system
@@ -855,6 +899,9 @@ class AudioPlayerService : MediaSessionService() {
         initialTrackIndex: Int? = null,
         callback: ((Boolean, Exception?) -> Unit)? = null,
     ) {
+        // Clear duration cache when setting new playlist
+        durationCache.clear()
+
         // Store file paths for potential restoration after player recreation
         currentFilePaths = filePaths
         currentMetadata = metadata
@@ -1455,6 +1502,8 @@ class AudioPlayerService : MediaSessionService() {
      * playback is permanently stopped (e.g., from Stop button in notification).
      */
     fun stopAndCleanup() {
+        // Clear duration cache to free memory
+        durationCache.clear()
         val player = getActivePlayer()
         try {
             android.util.Log.d("AudioPlayerService", "stopAndCleanup() called, stopping player and releasing resources")
@@ -1474,6 +1523,38 @@ class AudioPlayerService : MediaSessionService() {
         } catch (e: Exception) {
             android.util.Log.e("AudioPlayerService", "Failed to stop and cleanup", e)
             ErrorHandler.handleGeneralError("AudioPlayerService", e, "Stop and cleanup execution")
+        }
+    }
+
+    /**
+     * Saves current playback position via broadcast.
+     *
+     * This method broadcasts the current position to trigger saving through MethodChannel.
+     * Position is also saved periodically, so this is an additional safety measure.
+     */
+    private fun saveCurrentPosition() {
+        try {
+            val activePlayer = getActivePlayer()
+            if (activePlayer.mediaItemCount > 0) {
+                val currentIndex = activePlayer.currentMediaItemIndex
+                val currentPosition = activePlayer.currentPosition
+
+                // Broadcast intent to trigger position saving through MethodChannel
+                val saveIntent =
+                    Intent(ACTION_SAVE_POSITION_BEFORE_UNLOAD).apply {
+                        putExtra(EXTRA_TRACK_INDEX, currentIndex)
+                        putExtra(EXTRA_POSITION_MS, currentPosition)
+                        setPackage(packageName) // Set package for explicit broadcast
+                    }
+                sendBroadcast(saveIntent)
+                android.util.Log.d(
+                    "AudioPlayerService",
+                    "Position save broadcast sent: track=$currentIndex, position=${currentPosition}ms",
+                )
+            }
+        } catch (e: Exception) {
+            android.util.Log.w("AudioPlayerService", "Failed to send save position broadcast", e)
+            // Not critical - position is already saved periodically
         }
     }
 
@@ -1820,12 +1901,83 @@ class AudioPlayerService : MediaSessionService() {
      */
     fun getPlayerState(): Map<String, Any> {
         val player = getActivePlayer()
+
+        // Get duration - prefer MediaMetadataRetriever (most accurate from file metadata),
+        // then player.duration, then MediaItem metadata
+        var duration: Long = C.TIME_UNSET
+
+        val currentItem = player.currentMediaItem
+        if (currentItem != null) {
+            val uri = currentItem.localConfiguration?.uri
+
+            // First, try to get duration from file using MediaMetadataRetriever (most accurate)
+            if (uri != null && uri.scheme == "file") {
+                val filePath = uri.path
+                if (filePath != null) {
+                    // Check cache first
+                    val cachedDuration = durationCache[filePath]
+                    if (cachedDuration != null && cachedDuration > 0) {
+                        duration = cachedDuration
+                        android.util.Log.d("AudioPlayerService", "Using cached duration for $filePath: ${duration}ms")
+                    } else {
+                        // Get from MediaMetadataRetriever (accurate source from file metadata)
+                        try {
+                            val retriever = android.media.MediaMetadataRetriever()
+                            retriever.setDataSource(filePath)
+                            val retrieverDuration =
+                                retriever.extractMetadata(
+                                    android.media.MediaMetadataRetriever.METADATA_KEY_DURATION,
+                                )
+                            retriever.release()
+                            if (retrieverDuration != null) {
+                                val parsedDuration = retrieverDuration.toLongOrNull()
+                                if (parsedDuration != null && parsedDuration > 0) {
+                                    duration = parsedDuration
+                                    // Cache it for future use
+                                    durationCache[filePath] = duration
+                                    android.util.Log.d(
+                                        "AudioPlayerService",
+                                        "Got duration from MediaMetadataRetriever for $filePath: ${duration}ms",
+                                    )
+                                }
+                            }
+                        } catch (e: Exception) {
+                            android.util.Log.w(
+                                "AudioPlayerService",
+                                "Failed to get duration from MediaMetadataRetriever for $filePath: ${e.message}",
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Fallback to player.duration if MediaMetadataRetriever didn't work
+            if (duration == C.TIME_UNSET) {
+                duration = player.duration
+                if (duration != C.TIME_UNSET && duration > 0) {
+                    android.util.Log.d("AudioPlayerService", "Using player.duration: ${duration}ms")
+                }
+            }
+
+            // Last resort: MediaItem metadata doesn't have duration in Media3
+            // Duration is only available from player after media is loaded
+            // So we skip this fallback and rely on player.duration above
+        } else {
+            // No current item, use player.duration
+            duration = player.duration
+        }
+
+        // If still unset, return 0
+        if (duration == C.TIME_UNSET || duration < 0) {
+            duration = 0L
+        }
+
         return mapOf(
             "isPlaying" to player.isPlaying,
             "playWhenReady" to player.playWhenReady, // Added for debugging
             "playbackState" to player.playbackState,
             "currentPosition" to player.currentPosition,
-            "duration" to (if (player.duration == C.TIME_UNSET) 0L else player.duration),
+            "duration" to duration,
             "currentIndex" to (player.currentMediaItemIndex),
             "playbackSpeed" to player.playbackParameters.speed,
             "repeatMode" to player.repeatMode,
@@ -1973,6 +2125,51 @@ class AudioPlayerService : MediaSessionService() {
                     // Reset retry count on successful playback
                     if (playbackState == Player.STATE_READY || playbackState == Player.STATE_BUFFERING) {
                         retryCount = 0
+                    }
+
+                    // Handle book completion - when last track ends
+                    if (playbackState == Player.STATE_ENDED) {
+                        val currentIndex = player.currentMediaItemIndex
+                        val totalTracks = player.mediaItemCount
+
+                        if (currentIndex >= totalTracks - 1) {
+                            // Last track finished - book completed
+                            android.util.Log.i(
+                                "AudioPlayerService",
+                                "Book completed: last track finished (track $currentIndex of ${totalTracks - 1})",
+                            )
+
+                            // Stop playback completely to prevent auto-advance
+                            // Use stop() instead of just playWhenReady = false to prevent ExoPlayer
+                            // from automatically advancing to next track
+                            try {
+                                player.stop()
+                                player.playWhenReady = false
+                            } catch (e: Exception) {
+                                android.util.Log.e("AudioPlayerService", "Error stopping player on book completion", e)
+                                // Fallback to just pausing
+                                player.playWhenReady = false
+                            }
+
+                            // Save final position
+                            saveCurrentPosition()
+
+                            // Update notification to show completion
+                            notificationManager?.updateNotification()
+
+                            // Send broadcast to UI to show completion message
+                            val intent =
+                                Intent("com.jabook.app.jabook.BOOK_COMPLETED").apply {
+                                    setPackage(packageName) // Set package for explicit broadcast
+                                }
+                            sendBroadcast(intent)
+                        } else {
+                            // Not last track - ExoPlayer will auto-advance (normal behavior)
+                            android.util.Log.d(
+                                "AudioPlayerService",
+                                "Track ended, will auto-advance to next (track $currentIndex of ${totalTracks - 1})",
+                            )
+                        }
                     }
 
                     // Handle errors
@@ -2177,9 +2374,16 @@ class AudioPlayerService : MediaSessionService() {
                     return
                 }
 
-                // Try to skip to next track
-                val nextIndex = (currentIndex + 1) % totalTracks
-                if (nextIndex != currentIndex) {
+                // Don't advance if we're at the last track
+                if (currentIndex >= totalTracks - 1) {
+                    android.util.Log.w("AudioPlayerService", "Last track, cannot skip forward")
+                    player.playWhenReady = false
+                    return
+                }
+
+                // Try to skip to next track (not using modulo to prevent circular navigation)
+                val nextIndex = currentIndex + 1
+                if (nextIndex < totalTracks) {
                     android.util.Log.w("AudioPlayerService", "File not found at index $currentIndex, skipping to next track $nextIndex")
                     try {
                         player.seekTo(nextIndex, 0L)
@@ -2288,8 +2492,21 @@ class AudioPlayerService : MediaSessionService() {
                 while (attempts < maxAttempts) {
                     nextIndex =
                         when (direction) {
-                            1 -> (nextIndex + 1) % player.mediaItemCount
-                            else -> if (nextIndex - 1 < 0) player.mediaItemCount - 1 else nextIndex - 1
+                            1 -> {
+                                // Forward: don't use modulo, check bounds
+                                if (nextIndex + 1 < player.mediaItemCount) {
+                                    nextIndex + 1
+                                } else {
+                                    // Reached end, can't go forward
+                                    android.util.Log.w("AudioPlayerService", "Reached last track, cannot skip forward")
+                                    player.playWhenReady = false
+                                    return
+                                }
+                            }
+                            else -> {
+                                // Backward: can use modulo or bounds check
+                                if (nextIndex - 1 >= 0) nextIndex - 1 else player.mediaItemCount - 1
+                            }
                         }
 
                     // Check if this track is available

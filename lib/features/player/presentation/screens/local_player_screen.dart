@@ -16,19 +16,25 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:jabook/core/di/providers/player_providers.dart';
+import 'package:jabook/core/domain/library/entities/local_audiobook_group.dart';
 import 'package:jabook/core/infrastructure/config/audio_settings_manager.dart';
 import 'package:jabook/core/infrastructure/config/audio_settings_provider.dart';
 import 'package:jabook/core/infrastructure/config/book_audio_settings_service.dart';
 import 'package:jabook/core/infrastructure/errors/failures.dart';
 import 'package:jabook/core/infrastructure/logging/structured_logger.dart';
 import 'package:jabook/core/infrastructure/permissions/permission_service.dart';
-import 'package:jabook/core/library/local_audiobook.dart';
 import 'package:jabook/core/player/native_audio_player.dart';
 import 'package:jabook/core/player/playback_settings_provider.dart';
-import 'package:jabook/core/player/player_state_provider.dart';
+import 'package:jabook/core/player/player_state_provider.dart'
+    show
+        PlayerStateModel,
+        PlayerStateNotifier,
+        currentAudiobookGroupProvider,
+        playerStateProvider;
 import 'package:jabook/core/player/sleep_timer_service.dart';
 import 'package:jabook/core/utils/responsive_utils.dart';
 import 'package:jabook/core/utils/safe_async.dart';
@@ -43,7 +49,11 @@ class LocalPlayerScreen extends ConsumerStatefulWidget {
   ///
   /// The [group] parameter is required to identify which audiobook group
   /// should be displayed and played.
-  const LocalPlayerScreen({super.key, required this.group});
+  LocalPlayerScreen({super.key, required this.group}) {
+    // CRITICAL DEBUG: Log when widget is created
+    debugPrint(
+        '🟢 [PLAYER_INIT] LocalPlayerScreen constructor called with group: ${group.groupPath}');
+  }
 
   /// The audiobook group to play.
   final LocalAudiobookGroup group;
@@ -53,6 +63,11 @@ class LocalPlayerScreen extends ConsumerStatefulWidget {
 }
 
 class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
+  // CRITICAL DEBUG: Log when state is created
+  _LocalPlayerScreenState() {
+    debugPrint('🟢 [PLAYER_INIT] _LocalPlayerScreenState constructor called');
+  }
+
   // Spacing constants for consistent UI
   static const double _kSpacingSmall = 8.0;
   static const double _kSpacingMedium = 16.0;
@@ -97,18 +112,48 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
   String?
       _groupArtworkPath; // First found artwork path for the group (global setting)
 
+  // MethodChannel for player lifecycle tracking (prevents app exit during initialization)
+  static const MethodChannel _playerLifecycleChannel =
+      MethodChannel('com.jabook.app.jabook/player_lifecycle');
+
   @override
   void initState() {
     super.initState();
+    // CRITICAL DEBUG: Log immediately when initState is called
+    debugPrint(
+        '🟢 [PLAYER_INIT] initState() called for group: ${widget.group.groupPath}');
+
     // UI is ready to show immediately (no need for _isInitialized flag)
     // Player initialization will happen asynchronously in background
     // Store current group in provider for mini player navigation
+    debugPrint('🟢 [PLAYER_INIT] Scheduling addPostFrameCallback...');
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(currentAudiobookGroupProvider.notifier).state = widget.group;
-      // Load first available artwork from group files (global setting)
-      _loadGroupArtwork();
-      // Start player initialization asynchronously (non-blocking)
-      _initializePlayer();
+      debugPrint('🟢 [PLAYER_INIT] addPostFrameCallback executed');
+      if (!mounted) {
+        debugPrint('🟡 [PLAYER_INIT] Widget not mounted, skipping');
+        return;
+      }
+      try {
+        debugPrint('🟢 [PLAYER_INIT] Setting currentAudiobookGroupProvider...');
+        ref.read(currentAudiobookGroupProvider.notifier).state = widget.group;
+        debugPrint('🟢 [PLAYER_INIT] Loading group artwork...');
+        // Load first available artwork from group files (global setting)
+        _loadGroupArtwork();
+        debugPrint('🟢 [PLAYER_INIT] Starting _initializePlayer()...');
+        // Start player initialization asynchronously (non-blocking)
+        _initializePlayer();
+        debugPrint(
+            '🟢 [PLAYER_INIT] _initializePlayer() call completed (async)');
+      } on Exception catch (e) {
+        // Log error but don't block UI - player will initialize on next attempt
+        debugPrint('🔴 [PLAYER_INIT] ERROR in postFrameCallback: $e');
+        if (mounted) {
+          setState(() {
+            _hasError = true;
+            _errorMessage = 'Failed to initialize player: ${e.toString()}';
+          });
+        }
+      }
     });
     // Listen to player state changes to update metadata when track changes
     _setupMetadataListener();
@@ -139,17 +184,97 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
 
   void _setupMetadataListener() {
     // Listen to player state changes and update metadata when track index changes
-    ref.listen(playerStateProvider, (previous, next) {
-      if (previous?.currentIndex != next.currentIndex) {
-        // Track changed, update metadata
-        _updateMetadata();
-        // Check for embedded artwork from metadata
-        _checkEmbeddedArtwork();
-      }
-    });
-    // Also check for embedded artwork on initialization
+    // Delay setup to ensure provider is ready - use addPostFrameCallback to avoid blocking
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Future.delayed(const Duration(milliseconds: 500), _checkEmbeddedArtwork);
+      if (!mounted) return;
+      try {
+        ref.listen(playerStateProvider, (previous, next) {
+          if (!mounted) return;
+
+          // Check if sleep timer is set to expire at end of chapter
+          // Trigger it when current track ends (playbackState == STATE_ENDED or position >= duration)
+          // "End of chapter" means end of current audio file, not transition to next track
+          if (previous != null && _sleepTimerService.isAtEndOfChapter) {
+            debugPrint(
+                '🟡 [SLEEP_TIMER] Checking end of chapter: previous.playbackState=${previous.playbackState}, next.playbackState=${next.playbackState}, previous.position=${previous.currentPosition}, next.position=${next.currentPosition}, duration=${next.duration}');
+
+            // Check if playback ended (STATE_ENDED = 4)
+            final playbackEnded =
+                previous.playbackState != 4 && next.playbackState == 4;
+
+            // Also check if position reached or exceeded duration (more reliable for last track)
+            final positionReachedEnd = next.duration > 0 &&
+                next.currentPosition >=
+                    next.duration - 100 && // Allow 100ms tolerance
+                previous.currentPosition <
+                    previous.duration - 100; // Was not at end before
+
+            if (playbackEnded || positionReachedEnd) {
+              debugPrint(
+                  '🟢 [SLEEP_TIMER] Track ended detected (playbackEnded=$playbackEnded, positionReachedEnd=$positionReachedEnd), triggering sleep timer');
+              _sleepTimerService.triggerAtEndOfChapter();
+            }
+          }
+
+          if (previous?.currentIndex != next.currentIndex) {
+            // Track changed, update metadata
+            _updateMetadata();
+            // Check for embedded artwork from metadata
+            _checkEmbeddedArtwork();
+          }
+        });
+      } on Exception catch (e) {
+        // Provider not ready yet, will retry later
+        debugPrint('Failed to setup metadata listener: $e');
+        // Retry after a delay
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (mounted) {
+            try {
+              ref.listen(playerStateProvider, (previous, next) {
+                if (!mounted) return;
+
+                // Check if sleep timer is set to expire at end of chapter
+                // Trigger it when current track ends (playbackState == STATE_ENDED or position >= duration)
+                // "End of chapter" means end of current audio file, not transition to next track
+                if (previous != null && _sleepTimerService.isAtEndOfChapter) {
+                  debugPrint(
+                      '🟡 [SLEEP_TIMER] Checking end of chapter (retry): previous.playbackState=${previous.playbackState}, next.playbackState=${next.playbackState}, previous.position=${previous.currentPosition}, next.position=${next.currentPosition}, duration=${next.duration}');
+
+                  // Check if playback ended (STATE_ENDED = 4)
+                  final playbackEnded =
+                      previous.playbackState != 4 && next.playbackState == 4;
+
+                  // Also check if position reached or exceeded duration (more reliable for last track)
+                  final positionReachedEnd = next.duration > 0 &&
+                      next.currentPosition >=
+                          next.duration - 100 && // Allow 100ms tolerance
+                      previous.currentPosition <
+                          previous.duration - 100; // Was not at end before
+
+                  if (playbackEnded || positionReachedEnd) {
+                    debugPrint(
+                        '🟢 [SLEEP_TIMER] Track ended detected (retry) (playbackEnded=$playbackEnded, positionReachedEnd=$positionReachedEnd), triggering sleep timer');
+                    _sleepTimerService.triggerAtEndOfChapter();
+                  }
+                }
+
+                if (previous?.currentIndex != next.currentIndex) {
+                  _updateMetadata();
+                  _checkEmbeddedArtwork();
+                }
+              });
+            } on Exception catch (e2) {
+              debugPrint('Failed to setup metadata listener on retry: $e2');
+            }
+          }
+        });
+      }
+      // Also check for embedded artwork on initialization
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (mounted) {
+          _checkEmbeddedArtwork();
+        }
+      });
     });
   }
 
@@ -248,6 +373,45 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
   }
 
   Future<void> _initializePlayer() async {
+    // CRITICAL DEBUG: Log immediately to verify method is called
+    debugPrint('🔵 [PLAYER_INIT] _initializePlayer() called - START');
+
+    // CRITICAL: Notify native side that player is initializing
+    // This prevents app exit during initialization (white screen fix)
+    debugPrint('🔵 [PLAYER_INIT] Attempting to set isPlayerInitializing flag');
+    try {
+      debugPrint('🔵 [PLAYER_INIT] Calling _logger.log()...');
+      await _logger.log(
+        level: 'info',
+        subsystem: 'player',
+        message:
+            'Starting player initialization, setting isPlayerInitializing flag',
+      );
+      debugPrint(
+          '🔵 [PLAYER_INIT] _logger.log() completed, calling MethodChannel...');
+      await _playerLifecycleChannel.invokeMethod<bool>(
+        'setPlayerInitializing',
+        {'isInitializing': true},
+      );
+      debugPrint('🔵 [PLAYER_INIT] MethodChannel completed successfully');
+      await _logger.log(
+        level: 'info',
+        subsystem: 'player',
+        message: 'isPlayerInitializing flag set successfully',
+      );
+      debugPrint('🔵 [PLAYER_INIT] isPlayerInitializing flag set - SUCCESS');
+    } on Exception catch (e) {
+      // Log but don't block - this is a safety feature
+      debugPrint('🔴 [PLAYER_INIT] ERROR setting flag: $e');
+      await _logger.log(
+        level: 'warning',
+        subsystem: 'player',
+        message: 'Failed to set player initializing flag',
+        cause: e.toString(),
+      );
+      debugPrint('Failed to set player initializing flag: $e');
+    }
+
     // Mark player as loading (UI is already shown)
     if (mounted) {
       setState(() {
@@ -258,8 +422,71 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
     }
 
     try {
-      final playerNotifier = ref.read(playerStateProvider.notifier);
-      final currentState = ref.read(playerStateProvider);
+      // Safely access player state provider - wrap in try-catch to handle
+      // cases where provider might not be ready yet
+      PlayerStateNotifier? playerNotifier;
+      PlayerStateModel? currentState;
+
+      try {
+        playerNotifier = ref.read(playerStateProvider.notifier);
+        currentState = ref.read(playerStateProvider);
+      } on Exception catch (e) {
+        // Provider not ready yet, wait a bit and retry
+        debugPrint('Player state provider not ready yet: $e');
+        await Future.delayed(const Duration(milliseconds: 100));
+        if (!mounted) return;
+        try {
+          playerNotifier = ref.read(playerStateProvider.notifier);
+          currentState = ref.read(playerStateProvider);
+        } on Exception catch (e2) {
+          // Still not ready, show error
+          if (mounted) {
+            setState(() {
+              _isPlayerLoading = false;
+              _hasError = true;
+              _errorMessage = 'Player service not ready. Please try again.';
+            });
+          }
+          await _logger.log(
+            level: 'error',
+            subsystem: 'audio',
+            message: 'Failed to access player state provider',
+            extra: {'error': e2.toString()},
+          );
+
+          // CRITICAL: Notify native side that player initialization failed
+          try {
+            await _playerLifecycleChannel.invokeMethod<bool>(
+              'setPlayerInitializing',
+              {'isInitializing': false},
+            );
+          } on Exception catch (e) {
+            debugPrint('Failed to clear player initializing flag: $e');
+          }
+          return;
+        }
+      }
+
+      if (playerNotifier == null || currentState == null) {
+        if (mounted) {
+          setState(() {
+            _isPlayerLoading = false;
+            _hasError = true;
+            _errorMessage = 'Player service not available';
+          });
+        }
+
+        // CRITICAL: Notify native side that player initialization failed
+        try {
+          await _playerLifecycleChannel.invokeMethod<bool>(
+            'setPlayerInitializing',
+            {'isInitializing': false},
+          );
+        } on Exception catch (e) {
+          debugPrint('Failed to clear player initializing flag: $e');
+        }
+        return;
+      }
 
       // Check if player is already initialized and playing the same group
       // If yes, skip reinitialization to avoid interrupting playback
@@ -285,6 +512,18 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
             _errorMessage = null;
           });
         }
+
+        // CRITICAL: Notify native side that player initialization is complete
+        // (Player was already initialized, so no initialization needed)
+        try {
+          await _playerLifecycleChannel.invokeMethod<bool>(
+            'setPlayerInitializing',
+            {'isInitializing': false},
+          );
+        } on Exception catch (e) {
+          // Log but don't block - this is a safety feature
+          debugPrint('Failed to clear player initializing flag: $e');
+        }
         return;
       }
 
@@ -298,8 +537,15 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
 
       // Initialize player service (only if not already initialized)
       // Media3PlayerService checks _isInitialized internally, but we can skip if already ready
+      debugPrint('🔵 [PLAYER_INIT] Checking if player needs initialization...');
       if (currentState.playbackState == 0) {
+        debugPrint(
+            '🔵 [PLAYER_INIT] Player state is 0 (idle), calling initialize()...');
         await playerNotifier.initialize();
+        debugPrint('🔵 [PLAYER_INIT] Player initialize() completed');
+      } else {
+        debugPrint(
+            '🔵 [PLAYER_INIT] Player already initialized (playbackState=${currentState.playbackState}), skipping');
       }
 
       // CRITICAL OPTIMIZATION: Get saved position FIRST to determine initialTrackIndex
@@ -478,24 +724,48 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
             .setRepeatMode(repeatMode);
 
         // Restore sleep timer if active
+        // CRITICAL: Restore timer BEFORE clearing isPlayerInitializing flag
+        // This ensures timer callback won't trigger exit during initialization
+        // Note: When restoring, use simple pause callback to avoid issues
+        // User can set new timer if they want exit behavior
         if (savedFullState.sleepTimerRemainingSeconds != null &&
             savedFullState.sleepTimerRemainingSeconds! > 0) {
-          await _sleepTimerService.startTimer(
-            Duration(seconds: savedFullState.sleepTimerRemainingSeconds!),
-            () {
-              if (mounted) {
-                ref.read(playerStateProvider.notifier).pause();
-                final localizations = AppLocalizations.of(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(localizations?.sleepTimerPaused ??
-                        'Sleep timer: Playback paused'),
-                  ),
-                );
-              }
+          await _logger.log(
+            level: 'info',
+            subsystem: 'player',
+            message: 'Restoring sleep timer from saved state',
+            extra: {
+              'remaining_seconds': savedFullState.sleepTimerRemainingSeconds,
             },
           );
-          _startSleepTimerUpdates();
+
+          // CRITICAL: Check if timer already expired (remaining seconds <= 0)
+          // If expired, don't restore it to prevent immediate callback
+          if (savedFullState.sleepTimerRemainingSeconds! > 0) {
+            await _sleepTimerService.startTimer(
+              Duration(seconds: savedFullState.sleepTimerRemainingSeconds!),
+              () {
+                if (mounted) {
+                  ref.read(playerStateProvider.notifier).pause();
+                  final localizations = AppLocalizations.of(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(localizations?.sleepTimerPaused ??
+                          'Sleep timer: Playback paused'),
+                    ),
+                  );
+                }
+              },
+            );
+            _startSleepTimerUpdates();
+          } else {
+            await _logger.log(
+              level: 'warning',
+              subsystem: 'player',
+              message:
+                  'Sleep timer from saved state already expired, not restoring',
+            );
+          }
         }
       }
 
@@ -507,6 +777,36 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
           _hasError = false;
           _errorMessage = null;
         });
+      }
+
+      // CRITICAL: Notify native side that player initialization is complete
+      // This must be done AFTER restoring sleep timer to prevent timer callback
+      // from triggering exit during initialization
+      try {
+        await _logger.log(
+          level: 'info',
+          subsystem: 'player',
+          message:
+              'Player initialization complete, clearing isPlayerInitializing flag',
+        );
+        await _playerLifecycleChannel.invokeMethod<bool>(
+          'setPlayerInitializing',
+          {'isInitializing': false},
+        );
+        await _logger.log(
+          level: 'info',
+          subsystem: 'player',
+          message: 'isPlayerInitializing flag cleared successfully',
+        );
+      } on Exception catch (e) {
+        // Log but don't block - this is a safety feature
+        await _logger.log(
+          level: 'error',
+          subsystem: 'player',
+          message: 'Failed to clear player initializing flag',
+          cause: e.toString(),
+        );
+        debugPrint('Failed to clear player initializing flag: $e');
       }
     } on AudioFailure catch (e) {
       await _logger.log(
@@ -563,6 +863,16 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
           _hasError = true;
           _errorMessage = errorMessage;
         });
+
+        // CRITICAL: Notify native side that player initialization failed
+        try {
+          await _playerLifecycleChannel.invokeMethod<bool>(
+            'setPlayerInitializing',
+            {'isInitializing': false},
+          );
+        } on Exception catch (e) {
+          debugPrint('Failed to clear player initializing flag: $e');
+        }
       }
     } on Exception catch (e) {
       await _logger.log(
@@ -579,6 +889,16 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
               AppLocalizations.of(context)?.failedToLoadAudioMessage ??
                   'Failed to load audio: ${e.toString()}';
         });
+      }
+
+      // CRITICAL: Notify native side that player initialization failed
+      try {
+        await _playerLifecycleChannel.invokeMethod<bool>(
+          'setPlayerInitializing',
+          {'isInitializing': false},
+        );
+      } on Exception catch (e) {
+        debugPrint('Failed to clear player initializing flag: $e');
       }
     }
   }
@@ -1003,7 +1323,31 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final playerState = ref.watch(playerStateProvider);
+    // CRITICAL DEBUG: Log when build is called
+    debugPrint('🟡 [PLAYER_INIT] build() called');
+
+    // Safely access player state provider - handle cases where provider might not be ready yet
+    debugPrint('🟡 [PLAYER_INIT] Attempting to watch playerStateProvider...');
+    PlayerStateModel playerState;
+    try {
+      playerState = ref.watch(playerStateProvider);
+      debugPrint('🟡 [PLAYER_INIT] playerStateProvider watched successfully');
+    } on Exception catch (e) {
+      // Provider not ready yet, use default state
+      debugPrint(
+          '🔴 [PLAYER_INIT] Player state provider not ready in build: $e');
+      playerState = const PlayerStateModel(
+        isPlaying: false,
+        currentPosition: 0,
+        duration: 0,
+        currentIndex: 0,
+        playbackSpeed: 1.0,
+        playbackState: 0,
+      );
+    }
+    debugPrint(
+        '🟡 [PLAYER_INIT] Building UI with playerState: playbackState=${playerState.playbackState}');
+
     // Show loading indicator only when player is being initialized or buffering
     // UI (cover, interface) is shown immediately
     final isLoading =
@@ -1334,8 +1678,11 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
 
   Widget _buildGroupProgressIndicator(PlayerStateModel state) {
     final totalTracks = widget.group.files.length;
-    final currentTrack = state.currentIndex + 1;
-    final progress = totalTracks > 0 ? currentTrack / totalTracks : 0.0;
+    // Clamp currentTrack to valid range (1 to totalTracks)
+    final currentTrack = (state.currentIndex + 1).clamp(1, totalTracks);
+    // Clamp progress to 0.0-1.0 to prevent exceeding 100%
+    final progress =
+        totalTracks > 0 ? (currentTrack / totalTracks).clamp(0.0, 1.0) : 0.0;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1368,10 +1715,12 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
     final hasDuration = state.duration > 0;
     final hasError = state.error != null;
 
-    // Calculate progress - use local slider value if dragging, otherwise use actual position
+    // Calculate progress - ensure it's always clamped to 0.0-1.0
     final progress = _isDragging && _sliderValue != null
         ? _sliderValue!.clamp(0.0, 1.0)
-        : (hasDuration ? state.currentPosition / state.duration : 0.0);
+        : (hasDuration
+            ? (state.currentPosition / state.duration).clamp(0.0, 1.0)
+            : 0.0);
 
     // Enable seek if we have duration and no errors
     // Allow seeking even during loading for better UX
@@ -1836,11 +2185,13 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
   Widget _buildSleepTimerControl() {
     final isActive = _sleepTimerService.isActive;
     final remainingSeconds = _sleepTimerService.remainingSeconds;
+    final localizations = AppLocalizations.of(context);
 
     if (isActive && remainingSeconds != null) {
+      final durationText = _formatDuration(Duration(seconds: remainingSeconds));
       return PopupMenuButton<Duration?>(
-        tooltip:
-            'Sleep timer: ${_formatDuration(Duration(seconds: remainingSeconds))}',
+        tooltip: localizations?.sleepTimerTooltip(durationText) ??
+            'Sleep timer: $durationText',
         onSelected: (duration) async {
           if (duration == null) {
             await _sleepTimerService.cancelTimer();
@@ -1853,17 +2204,14 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
             }
           }
         },
-        itemBuilder: (context) {
-          final localizations = AppLocalizations.of(context);
-          return [
-            PopupMenuItem<Duration?>(
-              child: Text(localizations?.cancelTimerButton ?? 'Cancel timer'),
-            ),
-          ];
-        },
+        itemBuilder: (context) => [
+          PopupMenuItem<Duration?>(
+            child: Text(localizations?.cancelTimerButton ?? 'Cancel timer'),
+          ),
+        ],
         child: Chip(
           avatar: const Icon(Icons.timer, size: 18),
-          label: Text(_formatDuration(Duration(seconds: remainingSeconds))),
+          label: Text(durationText),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           backgroundColor:
               Theme.of(context).primaryColor.withValues(alpha: 0.1),
@@ -1872,9 +2220,10 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
     }
 
     if (isActive && remainingSeconds == null) {
+      final endOfChapterText =
+          localizations?.endOfChapterLabel ?? 'End of chapter';
       return PopupMenuButton<Duration?>(
-        tooltip: AppLocalizations.of(context)?.atEndOfChapterLabel ??
-            'Sleep timer: At end of chapter',
+        tooltip: localizations?.atEndOfChapterLabel ?? 'At end of chapter',
         onSelected: (duration) async {
           if (duration == null) {
             await _sleepTimerService.cancelTimer();
@@ -1887,50 +2236,204 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
             }
           }
         },
-        itemBuilder: (context) {
-          final localizations = AppLocalizations.of(context);
-          return [
-            PopupMenuItem<Duration?>(
-              child: Text(localizations?.cancelTimerButton ?? 'Cancel timer'),
+        itemBuilder: (context) => [
+          PopupMenuItem<Duration?>(
+            child: Text(localizations?.cancelTimerButton ?? 'Cancel timer'),
+          ),
+        ],
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: MediaQuery.of(context).size.width * 0.3,
+          ),
+          child: Chip(
+            avatar: const Icon(Icons.timer, size: 18),
+            label: Text(
+              endOfChapterText,
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
             ),
-          ];
-        },
-        child: Chip(
-          avatar: const Icon(Icons.timer, size: 18),
-          label: Text(AppLocalizations.of(context)?.endOfChapterLabel ??
-              'End of chapter'),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          backgroundColor:
-              Theme.of(context).primaryColor.withValues(alpha: 0.1),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            backgroundColor:
+                Theme.of(context).primaryColor.withValues(alpha: 0.1),
+          ),
         ),
       );
     }
 
+    // Show selected duration even when timer is not active (like speed control)
+    final selectedDuration = _sleepTimerService.selectedDuration;
+    String displayText;
+    if (selectedDuration == null) {
+      displayText = localizations?.timerLabel ?? 'Timer';
+    } else if (selectedDuration == const Duration(seconds: -1)) {
+      displayText = localizations?.endOfChapterLabel ?? 'End of chapter';
+    } else {
+      // Format duration for display
+      if (selectedDuration.inHours > 0) {
+        displayText = localizations?.sleepTimerHour ?? '1 hour';
+      } else {
+        final minutes = selectedDuration.inMinutes;
+        displayText =
+            localizations?.sleepTimerMinutes(minutes) ?? '$minutes min.';
+      }
+    }
+
     return PopupMenuButton<Duration?>(
-      tooltip: 'Set sleep timer',
+      tooltip: localizations?.setSleepTimerTooltip ?? 'Set sleep timer',
       onSelected: (duration) async {
         if (duration == null) {
           await _sleepTimerService.cancelTimer();
         } else if (duration == const Duration(seconds: -1)) {
           // Special value for "at end of chapter"
-          await _sleepTimerService.startTimerAtEndOfChapter(() {
-            if (mounted) {
-              ref.read(playerStateProvider.notifier).pause();
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Sleep timer: Playback paused'),
-                ),
+          await _sleepTimerService.startTimerAtEndOfChapter(() async {
+            if (!mounted) return;
+
+            // CRITICAL: Check if player is initializing - if so, don't exit
+            try {
+              final isInitializing =
+                  await _playerLifecycleChannel.invokeMethod<bool>(
+                'isPlayerInitializing',
+              );
+              if (isInitializing ?? false) {
+                await _logger.log(
+                  level: 'warning',
+                  subsystem: 'player',
+                  message:
+                      'Sleep timer at end of chapter expired but player is initializing, ignoring exit request',
+                );
+                return;
+              }
+            } on Exception catch (e) {
+              await _logger.log(
+                level: 'warning',
+                subsystem: 'player',
+                message:
+                    'Failed to check player initialization state, proceeding with caution',
+                cause: e.toString(),
+              );
+            }
+
+            // Check if player is actually playing - don't exit if not playing
+            final currentState = ref.read(playerStateProvider);
+            if (currentState.playbackState == 0 || !currentState.isPlaying) {
+              await _logger.log(
+                level: 'info',
+                subsystem: 'player',
+                message:
+                    'Sleep timer at end of chapter expired but player is not playing, skipping exit',
+              );
+              return;
+            }
+
+            await _logger.log(
+              level: 'info',
+              subsystem: 'player',
+              message:
+                  'Sleep timer at end of chapter expired, stopping playback and exiting app',
+            );
+
+            // Stop playback
+            await ref.read(playerStateProvider.notifier).stop();
+
+            // Check mounted again after async operation
+            if (!mounted) return;
+
+            // Show notification about app exit
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(localizations?.sleepTimerAppWillExit ??
+                    'Sleep timer: App will exit'),
+                duration: const Duration(seconds: 2),
+              ),
+            );
+
+            // Stop service and exit app
+            try {
+              await ref.read(playerStateProvider.notifier).stopServiceAndExit();
+            } on Exception catch (e) {
+              // Log error but don't block UI
+              await _logger.log(
+                level: 'error',
+                subsystem: 'player',
+                message: 'Failed to stop service and exit',
+                cause: e.toString(),
               );
             }
           });
         } else {
-          await _sleepTimerService.startTimer(duration, () {
-            if (mounted) {
-              ref.read(playerStateProvider.notifier).pause();
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Sleep timer: Playback paused'),
-                ),
+          await _sleepTimerService.startTimer(duration, () async {
+            if (!mounted) return;
+
+            // CRITICAL: Check if player is initializing - if so, don't exit
+            // This prevents app exit during initialization which causes white screen
+            try {
+              final isInitializing =
+                  await _playerLifecycleChannel.invokeMethod<bool>(
+                'isPlayerInitializing',
+              );
+              if (isInitializing ?? false) {
+                await _logger.log(
+                  level: 'warning',
+                  subsystem: 'player',
+                  message:
+                      'Sleep timer expired but player is initializing, ignoring exit request',
+                );
+                return;
+              }
+            } on Exception catch (e) {
+              // If check fails, log but continue - better to be safe
+              await _logger.log(
+                level: 'warning',
+                subsystem: 'player',
+                message:
+                    'Failed to check player initialization state, proceeding with caution',
+                cause: e.toString(),
+              );
+            }
+
+            // Check if player is actually playing - don't exit if not playing
+            final currentState = ref.read(playerStateProvider);
+            if (currentState.playbackState == 0 || !currentState.isPlaying) {
+              await _logger.log(
+                level: 'info',
+                subsystem: 'player',
+                message:
+                    'Sleep timer expired but player is not playing, skipping exit',
+              );
+              return;
+            }
+
+            await _logger.log(
+              level: 'info',
+              subsystem: 'player',
+              message: 'Sleep timer expired, stopping playback and exiting app',
+            );
+
+            // Stop playback
+            await ref.read(playerStateProvider.notifier).stop();
+
+            // Check mounted again after async operation
+            if (!mounted) return;
+
+            // Show notification about app exit
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(localizations?.sleepTimerAppWillExit ??
+                    'Sleep timer: App will exit'),
+                duration: const Duration(seconds: 2),
+              ),
+            );
+
+            // Stop service and exit app
+            try {
+              await ref.read(playerStateProvider.notifier).stopServiceAndExit();
+            } on Exception catch (e) {
+              // Log error but don't block UI
+              await _logger.log(
+                level: 'error',
+                subsystem: 'player',
+                message: 'Failed to stop service and exit',
+                cause: e.toString(),
               );
             }
           });
@@ -1946,36 +2449,42 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
         }
       },
       itemBuilder: (context) => [
-        const PopupMenuItem<Duration?>(
-          value: Duration(minutes: 10),
-          child: Text('10 minutes'),
+        PopupMenuItem<Duration?>(
+          value: const Duration(minutes: 10),
+          child: Text(localizations?.sleepTimerMinutes(10) ?? '10 min.'),
         ),
-        const PopupMenuItem<Duration?>(
-          value: Duration(minutes: 15),
-          child: Text('15 minutes'),
+        PopupMenuItem<Duration?>(
+          value: const Duration(minutes: 15),
+          child: Text(localizations?.sleepTimerMinutes(15) ?? '15 min.'),
         ),
-        const PopupMenuItem<Duration?>(
-          value: Duration(minutes: 30),
-          child: Text('30 minutes'),
+        PopupMenuItem<Duration?>(
+          value: const Duration(minutes: 30),
+          child: Text(localizations?.sleepTimerMinutes(30) ?? '30 min.'),
         ),
-        const PopupMenuItem<Duration?>(
-          value: Duration(minutes: 45),
-          child: Text('45 minutes'),
+        PopupMenuItem<Duration?>(
+          value: const Duration(minutes: 45),
+          child: Text(localizations?.sleepTimerMinutes(45) ?? '45 min.'),
         ),
-        const PopupMenuItem<Duration?>(
-          value: Duration(hours: 1),
-          child: Text('1 hour'),
+        PopupMenuItem<Duration?>(
+          value: const Duration(hours: 1),
+          child: Text(localizations?.sleepTimerHour ?? '1 hour'),
         ),
         PopupMenuItem<Duration?>(
           value: const Duration(seconds: -1), // Special value
-          child: Text(AppLocalizations.of(context)?.atEndOfChapterLabel ??
-              'At end of chapter'),
+          child:
+              Text(localizations?.atEndOfChapterLabel ?? 'At end of chapter'),
         ),
       ],
       child: Chip(
-        avatar: const Icon(Icons.timer_outlined, size: 18),
-        label: Text(AppLocalizations.of(context)?.timerLabel ?? 'Timer'),
+        avatar: Icon(
+          isActive ? Icons.timer : Icons.timer_outlined,
+          size: 18,
+        ),
+        label: Text(displayText),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        backgroundColor: isActive
+            ? Theme.of(context).primaryColor.withValues(alpha: 0.1)
+            : null,
       ),
     );
   }
@@ -2003,6 +2512,18 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
 
   @override
   void dispose() {
+    // CRITICAL: Clear player initializing flag on dispose
+    // This ensures flag is reset if screen is disposed during initialization
+    try {
+      _playerLifecycleChannel.invokeMethod<bool>(
+        'setPlayerInitializing',
+        {'isInitializing': false},
+      );
+    } on Exception catch (e) {
+      // Log but don't block - this is cleanup
+      debugPrint('Failed to clear player initializing flag on dispose: $e');
+    }
+
     _stopSleepTimerUpdates();
     _sleepTimerService.dispose();
     super.dispose();

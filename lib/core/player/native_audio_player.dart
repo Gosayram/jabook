@@ -800,6 +800,47 @@ class NativeAudioPlayer {
     );
   }
 
+  /// Stops the audio service and exits the app.
+  ///
+  /// This method is used when sleep timer expires to completely stop
+  /// the app and free device resources.
+  ///
+  /// Throws [AudioFailure] if stopping fails.
+  Future<void> stopServiceAndExit() async {
+    try {
+      await _logger.log(
+        level: 'info',
+        subsystem: 'audio',
+        message: 'Stopping service and exiting app',
+      );
+      await _channel.invokeMethod('stopServiceAndExit');
+      await _logger.log(
+        level: 'info',
+        subsystem: 'audio',
+        message: 'Service stop and exit request sent',
+      );
+    } on PlatformException catch (e) {
+      await _logger.log(
+        level: 'error',
+        subsystem: 'audio',
+        message: 'Platform error stopping service and exiting',
+        cause: e.toString(),
+        extra: {'code': e.code, 'message': e.message},
+      );
+      throw AudioFailure(
+        'Failed to stop service and exit: ${e.message ?? e.code}',
+      );
+    } on Exception catch (e) {
+      await _logger.log(
+        level: 'error',
+        subsystem: 'audio',
+        message: 'Exception stopping service and exiting',
+        cause: e.toString(),
+      );
+      throw AudioFailure('Failed to stop service and exit: ${e.toString()}');
+    }
+  }
+
   /// Disposes resources and stops the native player.
   Future<void> dispose() async {
     _stateUpdateTimer?.cancel();

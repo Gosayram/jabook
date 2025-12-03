@@ -85,10 +85,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   void initState() {
     super.initState();
     _loadLanguagePreference();
-    _loadDownloadFolder();
-    _loadLibraryFolders();
     _loadWifiOnlySetting();
     _loadAnimationSetting();
+    // Load folder paths after first frame to ensure ref is available
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadDownloadFolder();
+      _loadLibraryFolders();
+    });
   }
 
   Future<void> _loadLanguagePreference() async {
@@ -602,9 +605,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     AudioSettings settings,
   ) async {
     try {
-      final playerState = ref.read(playerStateProvider);
+      // Check if widget is still mounted before accessing providers
+      if (!mounted) return;
+
+      // Safely access player state provider - wrap in try-catch to handle
+      // cases where provider might not be ready yet
+      PlayerStateModel? playerState;
+      try {
+        playerState = ref.read(playerStateProvider);
+      } on Exception {
+        // Provider not ready yet, skip applying settings
+        return;
+      }
+
       // Only apply if player is active
-      if (playerState.playbackState != 0) {
+      if (playerState?.playbackState != null &&
+          playerState!.playbackState != 0) {
         final playerService = ref.read(media3PlayerServiceProvider);
         await playerService.configureAudioProcessing(
           normalizeVolume: settings.normalizeVolume,
@@ -623,9 +639,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   /// Updates skip durations in MediaSessionManager if player is active.
   Future<void> _updateMediaSessionSkipDurations() async {
     try {
-      final playerState = ref.read(playerStateProvider);
+      // Check if widget is still mounted before accessing providers
+      if (!mounted) return;
+
+      // Safely access player state provider - wrap in try-catch to handle
+      // cases where provider might not be ready yet
+      PlayerStateModel? playerState;
+      try {
+        playerState = ref.read(playerStateProvider);
+      } on Exception {
+        // Provider not ready yet, skip update
+        return;
+      }
+
       // Only update if player is initialized and playing
-      if (playerState.playbackState != 0) {
+      if (playerState?.playbackState != null &&
+          playerState!.playbackState != 0) {
         final audioSettings = ref.read(audioSettingsProvider);
         final playerService = ref.read(media3PlayerServiceProvider);
         await playerService.updateSkipDurations(
@@ -641,9 +670,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   /// Updates inactivity timeout if player is active.
   Future<void> _updateInactivityTimeout() async {
     try {
-      final playerState = ref.read(playerStateProvider);
+      // Check if widget is still mounted before accessing providers
+      if (!mounted) return;
+
+      // Safely access player state provider - wrap in try-catch to handle
+      // cases where provider might not be ready yet
+      PlayerStateModel? playerState;
+      try {
+        playerState = ref.read(playerStateProvider);
+      } on Exception {
+        // Provider not ready yet, skip update
+        return;
+      }
+
       // Only update if player is initialized
-      if (playerState.playbackState != 0) {
+      if (playerState?.playbackState != null &&
+          playerState!.playbackState != 0) {
         final audioSettings = ref.read(audioSettingsProvider);
         final playerService = ref.read(media3PlayerServiceProvider);
         await playerService.setInactivityTimeoutMinutes(
@@ -665,11 +707,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       await _updateMediaSessionSkipDurations();
 
       // If player is active, reapply global settings
-      final playerState = ref.read(playerStateProvider);
-      if (playerState.playbackState != 0 &&
-          playerState.currentGroupPath != null) {
-        // Player is active, but we can't directly access local_player_screen
-        // The settings will be applied on next book load or app restart
+      // Safely access player state provider - wrap in try-catch to handle
+      // cases where provider might not be ready yet
+      try {
+        final playerState = ref.read(playerStateProvider);
+        if (playerState.playbackState != 0 &&
+            playerState.currentGroupPath != null) {
+          // Player is active, but we can't directly access local_player_screen
+          // The settings will be applied on next book load or app restart
+        }
+      } on Exception {
+        // Provider not ready yet, skip check
       }
 
       if (context.mounted) {

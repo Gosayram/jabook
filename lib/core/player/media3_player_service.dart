@@ -226,6 +226,30 @@ class Media3PlayerService {
     }
   }
 
+  /// Stops the audio service and exits the app.
+  ///
+  /// This method is used when sleep timer expires to completely stop
+  /// the app and free device resources.
+  ///
+  /// Throws [AudioFailure] if stopping fails.
+  Future<void> stopServiceAndExit() async {
+    try {
+      await _logger.log(
+        level: 'info',
+        subsystem: 'audio',
+        message: 'Stopping service and exiting app (sleep timer)',
+      );
+      // Save current position before exiting
+      await _saveCurrentPosition();
+      // Stop service and exit via native method
+      await _player.stopServiceAndExit();
+    } on AudioFailure {
+      rethrow;
+    } on Exception catch (e) {
+      throw AudioFailure('Failed to stop service and exit: ${e.toString()}');
+    }
+  }
+
   /// Seeks to specific position.
   ///
   /// [position] is the position as Duration.

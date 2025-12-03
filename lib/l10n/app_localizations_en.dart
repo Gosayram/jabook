@@ -2010,6 +2010,31 @@ class AppLocalizationsEn extends AppLocalizations {
   String get atEndOfChapterLabel => 'At end of chapter';
 
   @override
+  String sleepTimerTooltip(String duration) {
+    return 'Sleep timer: $duration';
+  }
+
+  @override
+  String get setSleepTimerTooltip => 'Set sleep timer';
+
+  @override
+  String sleepTimerMinutes(int minutes) {
+    final intl.NumberFormat minutesNumberFormat = intl.NumberFormat.compact(
+      locale: localeName,
+      
+    );
+    final String minutesString = minutesNumberFormat.format(minutes);
+
+    return '$minutesString min.';
+  }
+
+  @override
+  String get sleepTimerHour => '1 hour';
+
+  @override
+  String get sleepTimerAppWillExit => 'Sleep timer: App will exit';
+
+  @override
   String get itemsInTrashLabel => 'Items in Trash';
 
   @override

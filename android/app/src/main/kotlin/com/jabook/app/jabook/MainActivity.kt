@@ -23,6 +23,11 @@ import io.flutter.plugin.common.MethodChannel
 class MainActivity : FlutterActivity() {
     private var directoryPickerResult: MethodChannel.Result? = null
     private var positionSaveReceiver: BroadcastReceiver? = null
+    private var exitAppReceiver: BroadcastReceiver? = null
+
+    // Flag to prevent app exit during player initialization
+    @Volatile
+    private var isPlayerInitializing = false
 
     companion object {
         private const val REQUEST_CODE_OPEN_DIRECTORY = 1001
@@ -398,8 +403,40 @@ class MainActivity : FlutterActivity() {
             AudioPlayerMethodHandler(this),
         )
 
+        // Register PlayerLifecycleChannel for tracking player initialization state
+        val playerLifecycleChannel =
+            MethodChannel(
+                flutterEngine.dartExecutor.binaryMessenger,
+                "com.jabook.app.jabook/player_lifecycle",
+            )
+        playerLifecycleChannel.setMethodCallHandler { call, result ->
+            when (call.method) {
+                "setPlayerInitializing" -> {
+                    val isInitializing = call.argument<Boolean>("isInitializing") ?: false
+                    val oldValue = isPlayerInitializing
+                    isPlayerInitializing = isInitializing
+                    android.util.Log.i(
+                        "MainActivity",
+                        "Player initialization state changed: $oldValue -> $isInitializing",
+                    )
+                    result.success(true)
+                }
+                "isPlayerInitializing" -> {
+                    android.util.Log.d(
+                        "MainActivity",
+                        "isPlayerInitializing query: $isPlayerInitializing",
+                    )
+                    result.success(isPlayerInitializing)
+                }
+                else -> result.notImplemented()
+            }
+        }
+
         // Register BroadcastReceiver for saving position before unload
         registerPositionSaveReceiver(flutterEngine, audioPlayerChannel)
+
+        // Register BroadcastReceiver for app exit (sleep timer)
+        registerExitAppReceiver()
 
         // Register notification intent handler channel
         val notificationChannel =
@@ -1001,6 +1038,7 @@ class MainActivity : FlutterActivity() {
         super.onDestroy()
         // Unregister position save receiver
         unregisterPositionSaveReceiver()
+        unregisterExitAppReceiver()
     }
 
     /**
@@ -1168,6 +1206,77 @@ class MainActivity : FlutterActivity() {
             }
         }
         positionSaveReceiver = null
+    }
+
+    /**
+     * Registers BroadcastReceiver for app exit (sleep timer).
+     *
+     * This receiver listens for EXIT_APP broadcast from AudioPlayerService
+     * and finishes the activity to exit the app completely.
+     */
+    private fun registerExitAppReceiver() {
+        exitAppReceiver =
+            object : BroadcastReceiver() {
+                override fun onReceive(
+                    context: Context,
+                    intent: Intent,
+                ) {
+                    if (intent.action == "com.jabook.app.jabook.EXIT_APP") {
+                        // CRITICAL: Check if player is initializing - if so, ignore exit request
+                        // This prevents app exit during player initialization which causes white screen
+                        android.util.Log.d(
+                            "MainActivity",
+                            "Exit app broadcast received, checking player initialization state: isPlayerInitializing=$isPlayerInitializing",
+                        )
+                        if (isPlayerInitializing) {
+                            android.util.Log.w(
+                                "MainActivity",
+                                "Exit app broadcast received but player is initializing (isPlayerInitializing=$isPlayerInitializing), ignoring to prevent white screen",
+                            )
+                            return
+                        }
+
+                        android.util.Log.i("MainActivity", "Exit app broadcast received, player not initializing, finishing activity")
+                        // Finish all activities and remove from recent apps
+                        try {
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                                finishAndRemoveTask()
+                            } else {
+                                finishAffinity()
+                            }
+                            android.util.Log.i("MainActivity", "Activity finished successfully")
+                        } catch (e: Exception) {
+                            android.util.Log.e("MainActivity", "Failed to finish activity", e)
+                        }
+                    }
+                }
+            }
+
+        // Register receiver for local broadcasts
+        val filter = IntentFilter("com.jabook.app.jabook.EXIT_APP")
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(exitAppReceiver, filter, RECEIVER_NOT_EXPORTED)
+        } else {
+            @Suppress("DEPRECATION")
+            registerReceiver(exitAppReceiver, filter)
+        }
+
+        android.util.Log.d("MainActivity", "Exit app receiver registered")
+    }
+
+    /**
+     * Unregisters exit app receiver.
+     */
+    private fun unregisterExitAppReceiver() {
+        exitAppReceiver?.let { receiver ->
+            try {
+                unregisterReceiver(receiver)
+                android.util.Log.d("MainActivity", "Exit app receiver unregistered")
+            } catch (e: Exception) {
+                android.util.Log.w("MainActivity", "Failed to unregister exit app receiver", e)
+            }
+        }
+        exitAppReceiver = null
     }
 
     /**

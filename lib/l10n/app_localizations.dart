@@ -3857,6 +3857,36 @@ abstract class AppLocalizations {
   /// **'At end of chapter'**
   String get atEndOfChapterLabel;
 
+  /// Tooltip for sleep timer with duration
+  ///
+  /// In en, this message translates to:
+  /// **'Sleep timer: {duration}'**
+  String sleepTimerTooltip(String duration);
+
+  /// Tooltip for setting sleep timer
+  ///
+  /// In en, this message translates to:
+  /// **'Set sleep timer'**
+  String get setSleepTimerTooltip;
+
+  /// Sleep timer duration in minutes
+  ///
+  /// In en, this message translates to:
+  /// **'{minutes} min.'**
+  String sleepTimerMinutes(int minutes);
+
+  /// Sleep timer duration - 1 hour
+  ///
+  /// In en, this message translates to:
+  /// **'1 hour'**
+  String get sleepTimerHour;
+
+  /// Message that app will exit due to sleep timer
+  ///
+  /// In en, this message translates to:
+  /// **'Sleep timer: App will exit'**
+  String get sleepTimerAppWillExit;
+
   /// Label for items in trash
   ///
   /// In en, this message translates to:

@@ -41,11 +41,29 @@ class SleepTimerService {
   /// Gets remaining time in seconds.
   int? get remainingSeconds => _remainingSeconds;
 
+  /// Selected duration for timer (for display purposes).
+  Duration? _selectedDuration;
+
+  /// Gets selected duration for timer.
+  Duration? get selectedDuration => _selectedDuration;
+
   /// Starts a sleep timer with specified duration.
   ///
   /// [duration] is the duration after which playback should pause.
   /// [onExpired] is the callback to be called when timer expires.
   Future<void> startTimer(Duration duration, VoidCallback onExpired) async {
+    // Validate duration - must be positive
+    if (duration.inSeconds <= 0) {
+      await _logger.log(
+        level: 'warning',
+        subsystem: 'player',
+        message: 'Invalid sleep timer duration, cancelling',
+        extra: {'duration_seconds': duration.inSeconds},
+      );
+      _cancelTimer();
+      return;
+    }
+
     await _logger.log(
       level: 'info',
       subsystem: 'player',
@@ -56,10 +74,15 @@ class SleepTimerService {
     _cancelTimer();
     _onTimerExpired = onExpired;
     _remainingSeconds = duration.inSeconds;
+    _selectedDuration = duration;
 
     _timer = Timer.periodic(
       const Duration(seconds: 1),
       (timer) {
+        if (_remainingSeconds == null) {
+          timer.cancel();
+          return;
+        }
         _remainingSeconds = _remainingSeconds! - 1;
         if (_remainingSeconds! <= 0) {
           _cancelTimer();
@@ -88,9 +111,36 @@ class SleepTimerService {
     _cancelTimer();
     _onTimerExpired = onExpired;
     _remainingSeconds = null; // Unknown duration
+    _selectedDuration =
+        const Duration(seconds: -1); // Special value for "at end of chapter"
 
     // This timer will be cancelled when chapter ends
     // The actual expiration is handled externally
+  }
+
+  /// Checks if timer is set to expire at end of chapter.
+  bool get isAtEndOfChapter =>
+      _onTimerExpired != null && _remainingSeconds == null;
+
+  /// Triggers the timer callback if it's set to expire at end of chapter.
+  /// Should be called when a track/chapter ends.
+  Future<void> triggerAtEndOfChapter() async {
+    debugPrint(
+        '🟡 [SLEEP_TIMER] triggerAtEndOfChapter called: isAtEndOfChapter=$isAtEndOfChapter, callback=${_onTimerExpired != null}');
+    if (isAtEndOfChapter && _onTimerExpired != null) {
+      await _logger.log(
+        level: 'info',
+        subsystem: 'player',
+        message: 'Sleep timer triggered at end of chapter',
+      );
+      debugPrint('🟢 [SLEEP_TIMER] Calling sleep timer callback');
+      final callback = _onTimerExpired;
+      _cancelTimer(); // Cancel before calling callback to prevent double trigger
+      callback?.call();
+    } else {
+      debugPrint(
+          '🔴 [SLEEP_TIMER] Timer not triggered: isAtEndOfChapter=$isAtEndOfChapter, callback=${_onTimerExpired != null}');
+    }
   }
 
   /// Cancels the active sleep timer.
@@ -109,6 +159,7 @@ class SleepTimerService {
     _timer = null;
     _remainingSeconds = null;
     _onTimerExpired = null;
+    // Keep _selectedDuration for display purposes even after cancellation
   }
 
   /// Disposes resources.

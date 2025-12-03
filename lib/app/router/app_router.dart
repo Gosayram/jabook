@@ -16,9 +16,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:jabook/core/animations/motion.dart';
+import 'package:jabook/core/domain/library/entities/local_audiobook_group.dart';
 import 'package:jabook/core/infrastructure/config/app_config.dart';
 import 'package:jabook/core/infrastructure/logging/environment_logger.dart';
-import 'package:jabook/core/library/local_audiobook.dart';
 import 'package:jabook/core/utils/app_title_utils.dart';
 import 'package:jabook/features/auth/presentation/screens/auth_screen.dart';
 import 'package:jabook/features/debug/presentation/screens/debug_screen.dart';
@@ -153,8 +153,39 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     GoRoute(
       path: '/local-player',
       builder: (context, state) {
-        final group = state.extra as LocalAudiobookGroup?;
+        debugPrint('🟢 [ROUTER] /local-player route builder called');
+        debugPrint('🟢 [ROUTER] state.extra type: ${state.extra?.runtimeType}');
+        debugPrint('🟢 [ROUTER] state.extra value: $state.extra');
+
+        // CRITICAL: Extract LocalAudiobookGroup from state.extra
+        // GoRouter may handle objects in a way that makes 'is' check unreliable,
+        // so we use direct cast with error handling
+        LocalAudiobookGroup? group;
+        try {
+          final extra = state.extra;
+          if (extra == null) {
+            debugPrint('🔴 [ROUTER] ERROR: state.extra is null');
+            group = null;
+          } else {
+            // Use direct cast - if runtimeType shows LocalAudiobookGroup,
+            // the cast should work even if 'is' check fails
+            group = extra as LocalAudiobookGroup;
+            debugPrint(
+                '🟢 [ROUTER] Cast successful, group path: ${group.groupPath}');
+          }
+        } on TypeError catch (e) {
+          debugPrint(
+              '🔴 [ROUTER] TYPE ERROR: Cannot cast ${state.extra?.runtimeType} to LocalAudiobookGroup');
+          debugPrint('🔴 [ROUTER] Error details: $e');
+          group = null;
+        } on Exception catch (e, stackTrace) {
+          debugPrint('🔴 [ROUTER] EXCEPTION during cast: $e');
+          debugPrint('🔴 [ROUTER] Stack trace: $stackTrace');
+          group = null;
+        }
+
         if (group == null) {
+          debugPrint('🔴 [ROUTER] ERROR: No group provided in state.extra');
           // Fallback if group is not provided
           final localizations = AppLocalizations.of(context);
           return Scaffold(
@@ -166,7 +197,25 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                     'No audiobook group provided')),
           );
         }
-        return LocalPlayerScreen(group: group);
+        debugPrint(
+            '🟢 [ROUTER] Creating LocalPlayerScreen with group: ${group.groupPath}');
+        try {
+          debugPrint('🟢 [ROUTER] Calling LocalPlayerScreen constructor...');
+          final screen = LocalPlayerScreen(group: group);
+          debugPrint('🟢 [ROUTER] LocalPlayerScreen created successfully');
+          return screen;
+        } on Exception catch (e, stackTrace) {
+          debugPrint('🔴 [ROUTER] ERROR creating LocalPlayerScreen: $e');
+          debugPrint('🔴 [ROUTER] Stack trace: $stackTrace');
+          final localizations = AppLocalizations.of(context);
+          return Scaffold(
+            appBar: AppBar(
+                title:
+                    Text((localizations?.error ?? 'Error').withFlavorSuffix())),
+            body:
+                Center(child: Text('Failed to create player: ${e.toString()}')),
+          );
+        }
       },
     ),
     GoRoute(
