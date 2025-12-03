@@ -75,6 +75,12 @@ class AudioPlayerService : MediaSessionService() {
     private var currentMetadata: Map<String, String>? = null
     private var embeddedArtworkPath: String? = null // Path to saved embedded artwork
 
+    // Sleep timer state (inspired by EasyBook implementation)
+    private var sleepTimerEndTime: Long = 0
+    private var sleepTimerEndOfChapter: Boolean = false
+    private var sleepTimerRemainingSeconds: Int? = null
+    private var sleepTimerCheckJob: kotlinx.coroutines.Job? = null
+
     // Store current playlist state for restoration after player recreation
     private var currentFilePaths: List<String>? = null
     private var savedPlaybackState: SavedPlaybackState? = null
@@ -121,6 +127,7 @@ class AudioPlayerService : MediaSessionService() {
          */
         const val ACTION_SAVE_POSITION_BEFORE_UNLOAD = "com.jabook.app.jabook.audio.SAVE_POSITION_BEFORE_UNLOAD"
         const val ACTION_EXIT_APP = "com.jabook.app.jabook.audio.EXIT_APP"
+        const val ACTION_SLEEP_TIMER_EXPIRED = "com.jabook.app.jabook.audio.SLEEP_TIMER_EXPIRED"
         const val EXTRA_TRACK_INDEX = "trackIndex"
         const val EXTRA_POSITION_MS = "positionMs"
 
@@ -455,6 +462,9 @@ class AudioPlayerService : MediaSessionService() {
 
             // ExoPlayer manages AudioFocus automatically when handleAudioFocus=true
             // No need for manual AudioFocus management
+
+            // Restore sleep timer state after service is initialized
+            restoreTimerState()
 
             // Mark service as fully initialized after all components are ready
             // MediaSession is created, so service is ready to use
@@ -1659,6 +1669,207 @@ class AudioPlayerService : MediaSessionService() {
     fun getShuffleModeEnabled(): Boolean = getActivePlayer().shuffleModeEnabled
 
     /**
+     * Sets sleep timer with specified duration in minutes.
+     *
+     * Inspired by EasyBook implementation: uses absolute end time instead of periodic timer.
+     *
+     * @param minutes Timer duration in minutes
+     */
+    fun setSleepTimerMinutes(minutes: Int) {
+        sleepTimerEndTime = System.currentTimeMillis() + (minutes * 60 * 1000L)
+        sleepTimerEndOfChapter = false
+        sleepTimerRemainingSeconds = minutes * 60
+        android.util.Log.d("AudioPlayerService", "Sleep timer set: $minutes minutes")
+        saveTimerState()
+        startSleepTimerCheck()
+    }
+
+    /**
+     * Sets sleep timer to expire at end of current chapter.
+     *
+     * Inspired by EasyBook implementation: uses boolean flag for "end of chapter" mode.
+     */
+    fun setSleepTimerEndOfChapter() {
+        sleepTimerEndTime = 0
+        sleepTimerEndOfChapter = true
+        sleepTimerRemainingSeconds = null
+        android.util.Log.d("AudioPlayerService", "Sleep timer set: end of chapter")
+        saveTimerState()
+        // Note: For "end of chapter" mode, we don't need periodic check
+        // Timer will be triggered in onMediaItemTransition or onPlaybackStateChanged
+    }
+
+    /**
+     * Cancels active sleep timer.
+     */
+    fun cancelSleepTimer() {
+        sleepTimerEndTime = 0
+        sleepTimerEndOfChapter = false
+        sleepTimerRemainingSeconds = null
+        android.util.Log.d("AudioPlayerService", "Sleep timer cancelled")
+        saveTimerState()
+        stopSleepTimerCheck()
+    }
+
+    /**
+     * Gets remaining seconds for sleep timer, or null if not active.
+     *
+     * @return Remaining seconds, or null if timer is not active or set to "end of chapter"
+     */
+    fun getSleepTimerRemainingSeconds(): Int? {
+        if (sleepTimerEndTime == 0L && !sleepTimerEndOfChapter) {
+            return null
+        }
+        if (sleepTimerEndOfChapter) {
+            return null // Unknown duration for "end of chapter" mode
+        }
+        val remaining = ((sleepTimerEndTime - System.currentTimeMillis()) / 1000).toInt()
+        return if (remaining > 0) remaining else null
+    }
+
+    /**
+     * Checks if sleep timer is active.
+     *
+     * @return true if timer is active (either fixed duration or end of chapter)
+     */
+    fun isSleepTimerActive(): Boolean = sleepTimerEndTime > 0 || sleepTimerEndOfChapter
+
+    /**
+     * Sends sleep timer expired event to Flutter.
+     *
+     * This method broadcasts an intent that will be handled by Flutter
+     * through MethodChannel or EventChannel.
+     */
+    private fun sendTimerExpiredEvent() {
+        val intent =
+            Intent(ACTION_SLEEP_TIMER_EXPIRED).apply {
+                setPackage(packageName) // Set package for explicit broadcast
+            }
+        sendBroadcast(intent)
+        android.util.Log.d("AudioPlayerService", "Sleep timer expired event sent")
+        // Clear saved timer state when expired
+        saveTimerState()
+    }
+
+    /**
+     * Starts periodic check for sleep timer expiration (inspired by EasyBook progressUpdater).
+     *
+     * Checks timer every 500ms while player is playing, similar to EasyBook implementation.
+     */
+    private fun startSleepTimerCheck() {
+        stopSleepTimerCheck() // Stop existing check if any
+
+        if (sleepTimerEndTime <= 0) {
+            android.util.Log.d("AudioPlayerService", "Sleep timer check not started: no active timer")
+            return
+        }
+
+        android.util.Log.d("AudioPlayerService", "Starting sleep timer periodic check (every 500ms)")
+        sleepTimerCheckJob =
+            playerServiceScope.launch {
+                while (true) {
+                    delay(500) // Check every 500ms like EasyBook
+
+                    val player = getActivePlayer()
+                    if (player.isPlaying && sleepTimerEndTime > 0) {
+                        val currentTime = System.currentTimeMillis()
+                        val remaining = ((sleepTimerEndTime - currentTime) / 1000).toInt()
+                        if (currentTime >= sleepTimerEndTime) {
+                            android.util.Log.d("AudioPlayerService", "Sleep timer expired (fixed duration), pausing playback")
+                            player.playWhenReady = false
+                            cancelSleepTimer()
+                            sendTimerExpiredEvent()
+                            break // Stop checking after expiration
+                        }
+                    } else if (!player.isPlaying || sleepTimerEndTime == 0L) {
+                        // Player stopped or timer cancelled, stop checking
+                        android.util.Log.d("AudioPlayerService", "Sleep timer check stopped: player not playing or timer cancelled")
+                        break
+                    }
+                }
+            }
+    }
+
+    /**
+     * Stops periodic sleep timer check.
+     */
+    private fun stopSleepTimerCheck() {
+        sleepTimerCheckJob?.cancel()
+        sleepTimerCheckJob = null
+    }
+
+    /**
+     * Saves sleep timer state to SharedPreferences for restoration after app restart.
+     */
+    private fun saveTimerState() {
+        try {
+            val prefs = getSharedPreferences("jabook_timer_prefs", Context.MODE_PRIVATE)
+            val editor = prefs.edit()
+            editor.putLong("sleepTimerEndTime", sleepTimerEndTime)
+            editor.putBoolean("sleepTimerEndOfChapter", sleepTimerEndOfChapter)
+            editor.apply()
+            android.util.Log.d(
+                "AudioPlayerService",
+                "Sleep timer state saved: endTime=$sleepTimerEndTime, endOfChapter=$sleepTimerEndOfChapter",
+            )
+        } catch (e: Exception) {
+            android.util.Log.e("AudioPlayerService", "Failed to save sleep timer state", e)
+        }
+    }
+
+    /**
+     * Restores sleep timer state from SharedPreferences.
+     *
+     * Should be called in onCreate or onStartCommand to restore timer after app restart.
+     */
+    private fun restoreTimerState() {
+        try {
+            val prefs = getSharedPreferences("jabook_timer_prefs", Context.MODE_PRIVATE)
+            val savedEndTime = prefs.getLong("sleepTimerEndTime", 0)
+            val savedEndOfChapter = prefs.getBoolean("sleepTimerEndOfChapter", false)
+
+            if (savedEndTime > 0 || savedEndOfChapter) {
+                android.util.Log.d(
+                    "AudioPlayerService",
+                    "Restoring sleep timer state: endTime=$savedEndTime, endOfChapter=$savedEndOfChapter",
+                )
+
+                if (savedEndOfChapter) {
+                    // Restore "end of chapter" mode
+                    sleepTimerEndTime = 0
+                    sleepTimerEndOfChapter = true
+                    sleepTimerRemainingSeconds = null
+                    android.util.Log.d("AudioPlayerService", "Sleep timer restored: end of chapter mode")
+                } else {
+                    // Restore fixed duration timer
+                    val currentTime = System.currentTimeMillis()
+                    val remaining = ((savedEndTime - currentTime) / 1000).toInt()
+                    if (remaining > 0) {
+                        // Timer hasn't expired yet, restore it
+                        sleepTimerEndTime = savedEndTime
+                        sleepTimerEndOfChapter = false
+                        sleepTimerRemainingSeconds = remaining
+                        android.util.Log.d("AudioPlayerService", "Sleep timer restored: $remaining seconds remaining")
+                        // Start periodic check for restored timer
+                        startSleepTimerCheck()
+                    } else {
+                        // Timer already expired, clear it
+                        android.util.Log.d("AudioPlayerService", "Sleep timer expired while app was closed, clearing")
+                        sleepTimerEndTime = 0
+                        sleepTimerEndOfChapter = false
+                        sleepTimerRemainingSeconds = null
+                        saveTimerState() // Clear saved state
+                    }
+                }
+            } else {
+                android.util.Log.d("AudioPlayerService", "No saved sleep timer state to restore")
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("AudioPlayerService", "Failed to restore sleep timer state", e)
+        }
+    }
+
+    /**
      * Skips to next track.
      */
     fun next() {
@@ -2132,6 +2343,14 @@ class AudioPlayerService : MediaSessionService() {
                         val currentIndex = player.currentMediaItemIndex
                         val totalTracks = player.mediaItemCount
 
+                        // Check sleep timer "end of chapter" mode (inspired by EasyBook)
+                        if (sleepTimerEndOfChapter) {
+                            android.util.Log.d("AudioPlayerService", "Sleep timer expired (end of chapter), pausing playback")
+                            player.playWhenReady = false
+                            cancelSleepTimer()
+                            sendTimerExpiredEvent()
+                        }
+
                         if (currentIndex >= totalTracks - 1) {
                             // Last track finished - book completed
                             android.util.Log.i(
@@ -2212,6 +2431,11 @@ class AudioPlayerService : MediaSessionService() {
                         "EVENT_IS_PLAYING_CHANGED: isPlaying=$isPlaying, playWhenReady=${player.playWhenReady}, playbackState=$stateName, mediaItemCount=${player.mediaItemCount}",
                     )
 
+                    // Restart sleep timer check when playback starts (if timer is active)
+                    if (isPlaying && sleepTimerEndTime > 0) {
+                        startSleepTimerCheck()
+                    }
+
                     // Don't reset playWhenReady automatically - let ExoPlayer handle AudioFocus
                     // The previous check was too aggressive and was preventing playback from starting
 
@@ -2235,6 +2459,12 @@ class AudioPlayerService : MediaSessionService() {
                     android.util.Log.d("AudioPlayerService", "  - Index: $currentIndex")
                     android.util.Log.d("AudioPlayerService", "  - Title: $title")
                     android.util.Log.d("AudioPlayerService", "  - Total items: ${player.mediaItemCount}")
+
+                    // Check sleep timer "end of chapter" mode (inspired by EasyBook)
+                    // Trigger when track transitions automatically (not manual seek)
+                    // Note: We need to check the reason, but onEvents doesn't provide it
+                    // So we check in onMediaItemTransition override instead
+                    // This is a fallback check
 
                     // Reset retry count on track change (new track might work even if previous failed)
                     retryCount = 0
@@ -2408,7 +2638,7 @@ class AudioPlayerService : MediaSessionService() {
             }
 
             // onMediaItemTransition is now handled in onEvents() for better performance
-            // Keeping this for backward compatibility if needed
+            // Keeping this for backward compatibility and sleep timer "end of chapter" handling
             override fun onMediaItemTransition(
                 mediaItem: MediaItem?,
                 reason: Int,
@@ -2416,6 +2646,16 @@ class AudioPlayerService : MediaSessionService() {
                 // This is also handled in onEvents, but kept for explicit handling if needed
                 val currentIndex = getActivePlayer().currentMediaItemIndex
                 android.util.Log.d("AudioPlayerService", "Media item transition (explicit): index=$currentIndex, reason=$reason")
+
+                // Check sleep timer "end of chapter" mode (inspired by EasyBook)
+                // Trigger when track transitions automatically (not manual seek)
+                if (sleepTimerEndOfChapter && reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO) {
+                    android.util.Log.d("AudioPlayerService", "Sleep timer expired (end of chapter on auto transition), pausing playback")
+                    val player = getActivePlayer()
+                    player.playWhenReady = false
+                    cancelSleepTimer()
+                    sendTimerExpiredEvent()
+                }
             }
 
             override fun onPositionDiscontinuity(
@@ -2746,6 +2986,9 @@ class AudioPlayerService : MediaSessionService() {
         isFullyInitializedFlag = false
 
         // ExoPlayer manages AudioFocus automatically, no need to abandon manually
+
+        // Stop sleep timer check
+        stopSleepTimerCheck()
 
         // Cancel coroutine scope (inspired by lissen-android)
         playerServiceScope.cancel()

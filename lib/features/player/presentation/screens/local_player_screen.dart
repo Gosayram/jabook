@@ -99,7 +99,7 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
 
   final PermissionService _permissionService = PermissionService();
   final StructuredLogger _logger = StructuredLogger();
-  final SleepTimerService _sleepTimerService = SleepTimerService();
+  late final SleepTimerService _sleepTimerService;
   Timer? _sleepTimerUpdateTimer;
   bool _isPlayerLoading = false; // Player is being initialized
   bool _hasError = false;
@@ -122,6 +122,10 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
     // CRITICAL DEBUG: Log immediately when initState is called
     debugPrint(
         '🟢 [PLAYER_INIT] initState() called for group: ${widget.group.groupPath}');
+
+    // Initialize sleep timer service with native player
+    // Create NativeAudioPlayer instance (it uses MethodChannel internally, so multiple instances share the same native service)
+    _sleepTimerService = SleepTimerService(NativeAudioPlayer());
 
     // UI is ready to show immediately (no need for _isInitialized flag)
     // Player initialization will happen asynchronously in background
@@ -2193,7 +2197,10 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
         tooltip: localizations?.sleepTimerTooltip(durationText) ??
             'Sleep timer: $durationText',
         onSelected: (duration) async {
+          debugPrint(
+              '🟡 [SLEEP_TIMER_UI] Cancel selected, duration: $duration');
           if (duration == null) {
+            debugPrint('🟢 [SLEEP_TIMER_UI] Cancelling timer...');
             await _sleepTimerService.cancelTimer();
             _stopSleepTimerUpdates();
             await ref
@@ -2201,11 +2208,30 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
                 .updateSavedStateSettings();
             if (mounted) {
               setState(() {});
+              debugPrint(
+                  '🟢 [SLEEP_TIMER_UI] Timer cancelled, UI updated. isActive: ${_sleepTimerService.isActive}');
             }
+          } else {
+            debugPrint(
+                '🔴 [SLEEP_TIMER_UI] Unexpected duration value: $duration');
           }
         },
         itemBuilder: (context) => [
           PopupMenuItem<Duration?>(
+            onTap: () async {
+              // Also handle onTap as fallback
+              debugPrint('🟡 [SLEEP_TIMER_UI] Cancel tapped (onTap)');
+              await _sleepTimerService.cancelTimer();
+              _stopSleepTimerUpdates();
+              await ref
+                  .read(playerStateProvider.notifier)
+                  .updateSavedStateSettings();
+              if (mounted) {
+                setState(() {});
+                debugPrint(
+                    '🟢 [SLEEP_TIMER_UI] Timer cancelled via onTap, UI updated');
+              }
+            },
             child: Text(localizations?.cancelTimerButton ?? 'Cancel timer'),
           ),
         ],
@@ -2225,7 +2251,10 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
       return PopupMenuButton<Duration?>(
         tooltip: localizations?.atEndOfChapterLabel ?? 'At end of chapter',
         onSelected: (duration) async {
+          debugPrint(
+              '🟡 [SLEEP_TIMER_UI] Cancel selected, duration: $duration');
           if (duration == null) {
+            debugPrint('🟢 [SLEEP_TIMER_UI] Cancelling timer...');
             await _sleepTimerService.cancelTimer();
             _stopSleepTimerUpdates();
             await ref
@@ -2233,11 +2262,30 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
                 .updateSavedStateSettings();
             if (mounted) {
               setState(() {});
+              debugPrint(
+                  '🟢 [SLEEP_TIMER_UI] Timer cancelled, UI updated. isActive: ${_sleepTimerService.isActive}');
             }
+          } else {
+            debugPrint(
+                '🔴 [SLEEP_TIMER_UI] Unexpected duration value: $duration');
           }
         },
         itemBuilder: (context) => [
           PopupMenuItem<Duration?>(
+            onTap: () async {
+              // Also handle onTap as fallback
+              debugPrint('🟡 [SLEEP_TIMER_UI] Cancel tapped (onTap)');
+              await _sleepTimerService.cancelTimer();
+              _stopSleepTimerUpdates();
+              await ref
+                  .read(playerStateProvider.notifier)
+                  .updateSavedStateSettings();
+              if (mounted) {
+                setState(() {});
+                debugPrint(
+                    '🟢 [SLEEP_TIMER_UI] Timer cancelled via onTap, UI updated');
+              }
+            },
             child: Text(localizations?.cancelTimerButton ?? 'Cancel timer'),
           ),
         ],

@@ -381,6 +381,52 @@ class AudioPlayerMethodHandler(
                     val enabled = getService()?.getShuffleModeEnabled() ?: false
                     result.success(enabled)
                 }
+                "setSleepTimerMinutes" -> {
+                    val minutes = call.argument<Int>("minutes")
+                    if (minutes != null && minutes > 0) {
+                        executeWithRetry(
+                            action = {
+                                getService()?.setSleepTimerMinutes(minutes)
+                                result.success(true)
+                            },
+                            onError = { e ->
+                                result.error("EXCEPTION", e.message ?: "Failed to set sleep timer", null)
+                            },
+                        )
+                    } else {
+                        result.error("INVALID_ARGUMENT", "minutes must be a positive integer", null)
+                    }
+                }
+                "setSleepTimerEndOfChapter" -> {
+                    executeWithRetry(
+                        action = {
+                            getService()?.setSleepTimerEndOfChapter()
+                            result.success(true)
+                        },
+                        onError = { e ->
+                            result.error("EXCEPTION", e.message ?: "Failed to set sleep timer end of chapter", null)
+                        },
+                    )
+                }
+                "cancelSleepTimer" -> {
+                    executeWithRetry(
+                        action = {
+                            getService()?.cancelSleepTimer()
+                            result.success(true)
+                        },
+                        onError = { e ->
+                            result.error("EXCEPTION", e.message ?: "Failed to cancel sleep timer", null)
+                        },
+                    )
+                }
+                "getSleepTimerRemainingSeconds" -> {
+                    val remaining = getService()?.getSleepTimerRemainingSeconds()
+                    result.success(remaining)
+                }
+                "isSleepTimerActive" -> {
+                    val isActive = getService()?.isSleepTimerActive() ?: false
+                    result.success(isActive)
+                }
                 "getCurrentMediaItemInfo" -> {
                     val info = getService()?.getCurrentMediaItemInfo() ?: emptyMap()
                     result.success(info)
