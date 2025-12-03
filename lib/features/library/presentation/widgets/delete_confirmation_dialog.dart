@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import 'package:flutter/material.dart';
-import 'package:jabook/core/library/local_audiobook.dart';
+import 'package:jabook/core/domain/library/entities/local_audiobook_group.dart';
 import 'package:jabook/l10n/app_localizations.dart';
 
 /// Result of delete confirmation dialog.

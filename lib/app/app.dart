@@ -47,6 +47,7 @@ import 'package:jabook/core/infrastructure/notifications/download_notification_s
 import 'package:jabook/core/infrastructure/permissions/permission_service.dart';
 import 'package:jabook/core/infrastructure/task_manager/task_manager.dart';
 import 'package:jabook/core/infrastructure/task_manager/task_monitor.dart';
+import 'package:jabook/core/library/library_folder_permission_manager.dart';
 import 'package:jabook/core/net/dio_client.dart';
 import 'package:jabook/core/player/player_state_provider.dart';
 import 'package:jabook/core/torrent/audiobook_torrent_manager_provider.dart';
@@ -390,6 +391,37 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
       // This prevents "Activity not available" errors and permission request conflicts
       await Future.delayed(const Duration(milliseconds: 300));
       await _requestEssentialPermissions();
+
+      // Validate library folder permissions (non-blocking)
+      safeUnawaited(
+        () async {
+          try {
+            final permissionManager = LibraryFolderPermissionManager();
+            final lostFolders =
+                await permissionManager.getFoldersWithLostPermissions();
+            if (lostFolders.isNotEmpty) {
+              await structuredLogger.log(
+                level: 'warning',
+                subsystem: 'library',
+                message: 'Library folders with lost permissions detected',
+                extra: {
+                  'count': lostFolders.length,
+                  'folders': lostFolders,
+                },
+              );
+              logger.w(
+                'Found ${lostFolders.length} library folder(s) with lost permissions. '
+                'User can restore access in Settings.',
+              );
+            }
+          } on Exception catch (e) {
+            logger.w('Error validating library folder permissions: $e');
+          }
+        }(),
+        onError: (e, stack) {
+          logger.w('Error in library folder permission validation: $e');
+        },
+      );
 
       // Perform background compatibility check (non-blocking, Android only)
       if (Platform.isAndroid) {

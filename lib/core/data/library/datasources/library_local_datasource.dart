@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import 'package:jabook/core/data/library/mappers/library_mapper.dart';
 import 'package:jabook/core/domain/library/entities/local_audiobook.dart';
 import 'package:jabook/core/domain/library/entities/local_audiobook_group.dart';
 import 'package:jabook/core/library/audiobook_library_scanner.dart';
@@ -61,62 +60,48 @@ class LibraryLocalDataSourceImpl implements LibraryLocalDataSource {
   final AudiobookLibraryScanner _scanner;
 
   @override
-  Future<List<LocalAudiobook>> scanDefaultDirectory() async {
-    final oldList = await _scanner.scanDefaultDirectory();
-    return LibraryMapper.toDomainList(oldList);
-  }
+  Future<List<LocalAudiobook>> scanDefaultDirectory() async =>
+      _scanner.scanDefaultDirectory();
 
   @override
-  Future<List<LocalAudiobookGroup>> scanDefaultDirectoryGrouped() async {
-    final oldList = await _scanner.scanDefaultDirectoryGrouped();
-    return LibraryMapper.toDomainGroupList(oldList);
-  }
+  Future<List<LocalAudiobookGroup>> scanDefaultDirectoryGrouped() async =>
+      _scanner.scanDefaultDirectoryGrouped();
 
   @override
   Future<List<LocalAudiobook>> scanDirectory(
     String directoryPath, {
     bool recursive = false,
-  }) async {
-    final oldList = await _scanner.scanDirectory(
-      directoryPath,
-      recursive: recursive,
-    );
-    return LibraryMapper.toDomainList(oldList);
-  }
+  }) async =>
+      _scanner.scanDirectory(
+        directoryPath,
+        recursive: recursive,
+      );
 
   @override
   Future<List<LocalAudiobookGroup>> scanDirectoryGrouped(
     String directoryPath, {
     bool recursive = false,
-  }) async {
-    final oldList = await _scanner.scanDirectoryGrouped(
-      directoryPath,
-      recursive: recursive,
-    );
-    return LibraryMapper.toDomainGroupList(oldList);
-  }
+  }) async =>
+      _scanner.scanDirectoryGrouped(
+        directoryPath,
+        recursive: recursive,
+      );
 
   @override
   Future<List<LocalAudiobookGroup>> scanMultipleDirectories(
     List<String> directoryPaths, {
     bool recursive = true,
-  }) async {
-    final oldList = await _scanner.scanMultipleDirectories(
-      directoryPaths,
-      recursive: recursive,
-    );
-    return LibraryMapper.toDomainGroupList(oldList);
-  }
+  }) async =>
+      _scanner.scanMultipleDirectories(
+        directoryPaths,
+        recursive: recursive,
+      );
 
   @override
-  Future<List<LocalAudiobookGroup>> scanAllLibraryFolders() async {
-    final oldList = await _scanner.scanAllLibraryFolders();
-    return LibraryMapper.toDomainGroupList(oldList);
-  }
+  Future<List<LocalAudiobookGroup>> scanAllLibraryFolders() async =>
+      _scanner.scanAllLibraryFolders();
 
   @override
-  Future<List<LocalAudiobook>> scanViaMediaStore() async {
-    final oldList = await _scanner.scanViaMediaStore();
-    return LibraryMapper.toDomainList(oldList);
-  }
+  Future<List<LocalAudiobook>> scanViaMediaStore() async =>
+      _scanner.scanViaMediaStore();
 }

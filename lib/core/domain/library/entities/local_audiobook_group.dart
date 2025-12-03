@@ -13,6 +13,7 @@
 // limitations under the License.
 
 import 'package:jabook/core/domain/library/entities/local_audiobook.dart';
+import 'package:jabook/core/library/folder_structure_analyzer.dart';
 import 'package:path/path.dart' as path;
 
 /// Represents a group of local audiobook files that belong to the same folder.
@@ -29,6 +30,8 @@ class LocalAudiobookGroup {
     this.torrentId,
     this.coverPath,
     this.scannedAt,
+    this.isExternalFolder = false,
+    this.externalFolderType,
   }) : totalSize = files.fold<int>(
           0,
           (sum, file) => sum + file.fileSize,
@@ -54,6 +57,12 @@ class LocalAudiobookGroup {
 
   /// Timestamp when this group was scanned.
   final DateTime? scannedAt;
+
+  /// Whether this group is from an external folder (not torrent).
+  final bool isExternalFolder;
+
+  /// Type of external folder structure (if isExternalFolder is true).
+  final ExternalFolderType? externalFolderType;
 
   /// Gets formatted total size (e.g., "1.5 GB").
   String get formattedTotalSize {
@@ -112,6 +121,8 @@ class LocalAudiobookGroup {
     List<LocalAudiobook>? files,
     String? coverPath,
     DateTime? scannedAt,
+    bool? isExternalFolder,
+    ExternalFolderType? externalFolderType,
   }) =>
       LocalAudiobookGroup(
         groupName: groupName ?? this.groupName,
@@ -120,6 +131,8 @@ class LocalAudiobookGroup {
         files: files ?? this.files,
         coverPath: coverPath ?? this.coverPath,
         scannedAt: scannedAt ?? this.scannedAt,
+        isExternalFolder: isExternalFolder ?? this.isExternalFolder,
+        externalFolderType: externalFolderType ?? this.externalFolderType,
       );
 
   @override

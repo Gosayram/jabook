@@ -17,6 +17,7 @@ import 'dart:io';
 
 import 'package:jabook/core/infrastructure/errors/failures.dart';
 import 'package:jabook/core/infrastructure/logging/structured_logger.dart';
+import 'package:jabook/core/library/library_file_finder.dart';
 import 'package:jabook/core/utils/storage_path_utils.dart';
 import 'package:mime/mime.dart' as mime;
 import 'package:path/path.dart' as path;
@@ -364,124 +365,55 @@ class LocalStreamServer {
 
   /// Gets the file path for the specified audiobook file.
   ///
-  /// This method searches for downloaded files in the download directory
-  /// based on the book ID (topicId) and file index.
+  /// This method searches for the file using LibraryFileFinder, which searches
+  /// in both download directories and library folders.
   ///
-  /// The [bookId] parameter is the unique identifier for the audiobook (topicId).
+  /// The [bookId] parameter can be either:
+  /// - topicId (numeric ID) for torrent books
+  /// - groupPath for external folder books
   /// The [fileIndex] parameter is the index of the file within the audiobook.
   ///
   /// Returns the file path as a string, or throws if file not found.
   Future<String> _getFilePath(String bookId, int fileIndex) async {
     try {
-      final storageUtils = StoragePathUtils();
-      final downloadDir = await storageUtils.getDefaultAudiobookPath();
+      final fileFinder = LibraryFileFinder();
 
-      // Files are typically saved in: $downloadDir/$bookId/
-      // TorrentTask may save files in subdirectories, so we need to search
-      final possibleBasePaths = [
-        path.join(downloadDir, bookId),
-        downloadDir, // Also check root download directory
-      ];
+      // First, try to find file by bookId (for torrent books)
+      // This searches in download dir and library folders
+      var filePath = await fileFinder.findFileByBookId(bookId, fileIndex);
 
-      // Supported audio file extensions
-      const audioExtensions = [
-        '.mp3',
-        '.m4a',
-        '.m4b',
-        '.aac',
-        '.flac',
-        '.wav',
-        '.ogg',
-        '.oga'
-      ];
+      if (filePath != null) {
+        await StructuredLogger().log(
+          level: 'debug',
+          subsystem: 'stream',
+          message: 'Found file for streaming by bookId',
+          extra: {
+            'bookId': bookId,
+            'fileIndex': fileIndex,
+            'filePath': filePath,
+          },
+        );
+        return filePath;
+      }
 
-      for (final basePath in possibleBasePaths) {
-        try {
-          final baseDir = Directory(basePath);
-          if (!await baseDir.exists()) {
-            await StructuredLogger().log(
-              level: 'debug',
-              subsystem: 'stream',
-              message: 'Directory does not exist, skipping',
-              extra: {'basePath': basePath, 'bookId': bookId},
-            );
-            continue;
-          }
-
-          // List all files in the directory (recursively)
-          // This may fail if we don't have permission to access the directory
-          final files = <File>[];
-          try {
-            await for (final entity in baseDir.list(recursive: true)) {
-              if (entity is File) {
-                final ext = path.extension(entity.path).toLowerCase();
-                if (audioExtensions.contains(ext)) {
-                  files.add(entity);
-                }
-              }
-            }
-          } on FileSystemException catch (e) {
-            // Permission denied or other file system error
-            await StructuredLogger().log(
-              level: 'warning',
-              subsystem: 'stream',
-              message: 'Cannot access directory (permission issue?)',
-              cause: e.toString(),
-              extra: {
-                'basePath': basePath,
-                'bookId': bookId,
-                'osError': e.osError?.message,
-              },
-            );
-            continue; // Try next path
-          }
-
-          // Sort files by path to ensure consistent ordering
-          files.sort((a, b) => a.path.compareTo(b.path));
-
-          // Return file at the specified index
-          if (fileIndex >= 0 && fileIndex < files.length) {
-            final filePath = files[fileIndex].path;
-            await StructuredLogger().log(
-              level: 'debug',
-              subsystem: 'stream',
-              message: 'Found file for streaming',
-              extra: {
-                'bookId': bookId,
-                'fileIndex': fileIndex,
-                'filePath': filePath,
-                'basePath': basePath,
-                'totalFiles': files.length,
-              },
-            );
-            return filePath;
-          } else {
-            await StructuredLogger().log(
-              level: 'debug',
-              subsystem: 'stream',
-              message: 'File index out of range',
-              extra: {
-                'basePath': basePath,
-                'bookId': bookId,
-                'fileIndex': fileIndex,
-                'totalFiles': files.length,
-              },
-            );
-          }
-        } on FileSystemException catch (e) {
-          // Permission denied or other file system error when checking directory
+      // If not found by bookId, try to find by groupPath
+      // This handles external folders where bookId might be groupPath
+      // Check if bookId looks like a path (contains '/' or is a Content URI)
+      final isPath = bookId.contains('/') || bookId.startsWith('content://');
+      if (isPath) {
+        filePath = await fileFinder.findFileByGroupPath(bookId, fileIndex);
+        if (filePath != null) {
           await StructuredLogger().log(
-            level: 'warning',
+            level: 'debug',
             subsystem: 'stream',
-            message: 'Cannot access directory path',
-            cause: e.toString(),
+            message: 'Found file for streaming by groupPath',
             extra: {
-              'basePath': basePath,
               'bookId': bookId,
-              'osError': e.osError?.message,
+              'fileIndex': fileIndex,
+              'filePath': filePath,
             },
           );
-          continue; // Try next path
+          return filePath;
         }
       }
 
@@ -493,7 +425,8 @@ class LocalStreamServer {
         extra: {
           'bookId': bookId,
           'fileIndex': fileIndex,
-          'searchedPaths': possibleBasePaths,
+          'triedBookId': true,
+          'triedGroupPath': isPath,
         },
       );
       throw FileSystemException(

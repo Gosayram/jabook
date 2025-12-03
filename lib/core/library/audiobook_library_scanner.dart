@@ -15,9 +15,12 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:jabook/core/domain/library/entities/local_audiobook.dart';
+import 'package:jabook/core/domain/library/entities/local_audiobook_group.dart';
 import 'package:jabook/core/infrastructure/logging/structured_logger.dart';
+import 'package:jabook/core/library/external_folder_grouping_strategy.dart';
 import 'package:jabook/core/library/folder_filter_service.dart';
-import 'package:jabook/core/library/local_audiobook.dart';
+import 'package:jabook/core/library/folder_structure_analyzer.dart';
 import 'package:jabook/core/utils/content_uri_service.dart';
 import 'package:jabook/core/utils/storage_path_utils.dart';
 import 'package:path/path.dart' as path;
@@ -686,6 +689,59 @@ class AudiobookLibraryScanner {
     return audioFiles;
   }
 
+  /// Recursively collects all Content URI entries from a directory.
+  ///
+  /// The [uri] parameter is the Content URI to scan.
+  /// The [recursive] parameter determines whether to scan subdirectories.
+  ///
+  /// Returns a list of all ContentUriEntry instances found.
+  Future<List<ContentUriEntry>> _collectContentUriEntriesRecursive(
+    String uri,
+    bool recursive,
+  ) async {
+    final allEntries = <ContentUriEntry>[];
+
+    if (_contentUriService == null) {
+      await _logger.log(
+        level: 'error',
+        subsystem: 'library_scanner',
+        message: 'ContentUriService is not available',
+        extra: {'uri': uri},
+      );
+      return allEntries;
+    }
+
+    try {
+      final entries = await _contentUriService.listDirectory(uri);
+
+      for (final entry in entries) {
+        if (entry.isDirectory && recursive) {
+          // Recursively collect from subdirectories
+          final subEntries = await _collectContentUriEntriesRecursive(
+            entry.uri,
+            recursive,
+          );
+          allEntries.addAll(subEntries);
+        } else {
+          // Add the entry itself
+          allEntries.add(entry);
+        }
+      }
+    } on Exception catch (e) {
+      await _logger.log(
+        level: 'warning',
+        subsystem: 'library_scanner',
+        message: 'Failed to list Content URI directory',
+        extra: {
+          'uri': uri,
+          'error': e.toString(),
+        },
+      );
+    }
+
+    return allEntries;
+  }
+
   /// Scans a directory for audio files and groups them by folders.
   ///
   /// The [directoryPath] parameter is the path to the directory to scan.
@@ -697,18 +753,37 @@ class AudiobookLibraryScanner {
     bool recursive = false,
   }) async {
     final groups = <String, LocalAudiobookGroup>{};
-    final scannedAt = DateTime.now();
 
     try {
-      final dir = Directory(directoryPath);
-      if (!await dir.exists()) {
-        await _logger.log(
-          level: 'warning',
-          subsystem: 'library_scanner',
-          message: 'Directory does not exist',
-          extra: {'path': directoryPath},
-        );
-        return [];
+      // Check access for Content URI before scanning
+      if (StoragePathUtils.isContentUri(directoryPath)) {
+        if (_contentUriService != null) {
+          final hasAccess =
+              await _contentUriService.checkUriAccess(directoryPath);
+          if (!hasAccess) {
+            await _logger.log(
+              level: 'error',
+              subsystem: 'library_scanner',
+              message: 'No access to folder (permission lost)',
+              extra: {'path': directoryPath},
+            );
+            // Return empty list - permission lost
+            // UI should show warning and offer to re-select folder
+            return [];
+          }
+        }
+      } else {
+        // For regular paths, check if directory exists
+        final dir = Directory(directoryPath);
+        if (!await dir.exists()) {
+          await _logger.log(
+            level: 'warning',
+            subsystem: 'library_scanner',
+            message: 'Directory does not exist',
+            extra: {'path': directoryPath},
+          );
+          return [];
+        }
       }
 
       await _logger.log(
@@ -721,70 +796,102 @@ class AudiobookLibraryScanner {
         },
       );
 
-      final files = await _scanDirectoryRecursive(dir, recursive);
-      await _logger.log(
-        level: 'info',
-        subsystem: 'library_scanner',
-        message: 'Found audio files',
-        extra: {'count': files.length},
-      );
+      // Determine if this is an external folder
+      final isExternal = await _isExternalFolder(directoryPath);
 
-      // Group files by their folder structure
-      for (final file in files) {
-        try {
-          final stat = await file.stat();
-          if (stat.type == FileSystemEntityType.file) {
-            final fileName = path.basename(file.path);
-            final audiobook = LocalAudiobook(
-              filePath: file.path,
-              fileName: fileName,
-              fileSize: stat.size,
-              scannedAt: scannedAt,
+      if (isExternal) {
+        // Use improved logic for external folders
+        await _logger.log(
+          level: 'info',
+          subsystem: 'library_scanner',
+          message: 'Detected external folder, using structure analysis',
+          extra: {'path': directoryPath},
+        );
+
+        // Analyze folder structure
+        final folderType = await FolderStructureAnalyzer.analyzeStructure(
+          directoryPath,
+          contentUriService: _contentUriService,
+        );
+
+        await _logger.log(
+          level: 'info',
+          subsystem: 'library_scanner',
+          message: 'Detected folder type',
+          extra: {
+            'path': directoryPath,
+            'type': folderType.toString(),
+          },
+        );
+
+        // Scan files
+        if (StoragePathUtils.isContentUri(directoryPath)) {
+          // For Content URI, use Content URI grouping strategy
+          if (_contentUriService == null) {
+            await _logger.log(
+              level: 'error',
+              subsystem: 'library_scanner',
+              message:
+                  'ContentUriService is not available for Content URI grouping',
+              extra: {'uri': directoryPath},
             );
-
-            // Extract group information from file path
-            final groupInfo = await _extractGroupInfo(file.path, directoryPath);
-            final groupKey = groupInfo['groupPath'] as String;
-
-            if (groups.containsKey(groupKey)) {
-              // Add file to existing group
-              final existingGroup = groups[groupKey]!;
-              final updatedFiles =
-                  List<LocalAudiobook>.from(existingGroup.files)
-                    ..add(audiobook)
-                    ..sort((a, b) {
-                      // Sort by full file path to preserve folder structure order
-                      // This ensures files from different folders (parts of book) are in correct order
-                      final pathCompare = a.filePath.compareTo(b.filePath);
-                      if (pathCompare != 0) {
-                        return pathCompare;
-                      }
-                      // If paths are equal (shouldn't happen), fall back to filename
-                      return a.fileName.compareTo(b.fileName);
-                    });
-              groups[groupKey] = existingGroup.copyWith(files: updatedFiles);
-            } else {
-              // Create new group
-              groups[groupKey] = LocalAudiobookGroup(
-                groupName: groupInfo['groupName'] as String,
-                groupPath: groupKey,
-                torrentId: groupInfo['torrentId'] as String?,
-                files: [audiobook],
-                scannedAt: scannedAt,
-              );
-            }
+            return [];
           }
-        } on Exception catch (e) {
+
+          // Recursively collect all Content URI entries
+          final allEntries = await _collectContentUriEntriesRecursive(
+            directoryPath,
+            recursive,
+          );
+
+          // Filter only audio files
+          final audioEntries = allEntries
+              .where((e) => !e.isDirectory && _isAudioFile(e.name))
+              .toList();
+
           await _logger.log(
-            level: 'warning',
+            level: 'info',
             subsystem: 'library_scanner',
-            message: 'Failed to process file',
+            message: 'Collected Content URI entries for grouping',
             extra: {
-              'path': file.path,
-              'error': e.toString(),
+              'uri': directoryPath,
+              'totalEntries': allEntries.length,
+              'audioEntries': audioEntries.length,
             },
           );
+
+          // Group Content URI entries using external folder strategy
+          // _contentUriService is guaranteed to be non-null here due to check above
+          final grouped =
+              await ExternalFolderGroupingStrategy.groupContentUriEntries(
+            audioEntries,
+            directoryPath,
+            folderType,
+            _contentUriService,
+          );
+
+          groups.addAll(grouped);
+        } else {
+          // Regular file path scanning
+          final dir = Directory(directoryPath);
+          final files = await _scanDirectoryRecursive(dir, recursive);
+
+          // Group files using external folder strategy
+          final grouped = await ExternalFolderGroupingStrategy.groupFiles(
+            files,
+            directoryPath,
+            folderType,
+            contentUriService: _contentUriService,
+          );
+
+          groups.addAll(grouped);
         }
+      } else {
+        // Use existing logic for torrent folders
+        return await _scanDirectoryGroupedRegular(
+          directoryPath,
+          recursive: recursive,
+        );
       }
 
       // Find cover images for each group
@@ -818,6 +925,163 @@ class AudiobookLibraryScanner {
     }
 
     return groups.values.toList();
+  }
+
+  /// Regular grouped scan (existing logic for torrent folders).
+  Future<List<LocalAudiobookGroup>> _scanDirectoryGroupedRegular(
+    String directoryPath, {
+    bool recursive = false,
+    bool isExternal = false,
+  }) async {
+    final groups = <String, LocalAudiobookGroup>{};
+    final scannedAt = DateTime.now();
+
+    try {
+      final dir = Directory(directoryPath);
+      if (!await dir.exists()) {
+        return [];
+      }
+
+      final files = await _scanDirectoryRecursive(dir, recursive);
+
+      // Group files by their folder structure
+      for (final file in files) {
+        try {
+          final stat = await file.stat();
+          if (stat.type == FileSystemEntityType.file) {
+            final fileName = path.basename(file.path);
+            final audiobook = LocalAudiobook(
+              filePath: file.path,
+              fileName: fileName,
+              fileSize: stat.size,
+              scannedAt: scannedAt,
+            );
+
+            // Extract group information from file path
+            final groupInfo = await _extractGroupInfo(file.path, directoryPath);
+            final groupKey = groupInfo['groupPath'] as String;
+
+            if (groups.containsKey(groupKey)) {
+              // Add file to existing group
+              final existingGroup = groups[groupKey]!;
+              final updatedFiles =
+                  List<LocalAudiobook>.from(existingGroup.files)
+                    ..add(audiobook)
+                    ..sort((a, b) {
+                      final pathCompare = a.filePath.compareTo(b.filePath);
+                      if (pathCompare != 0) {
+                        return pathCompare;
+                      }
+                      return a.fileName.compareTo(b.fileName);
+                    });
+              groups[groupKey] = existingGroup.copyWith(files: updatedFiles);
+            } else {
+              // Create new group
+              groups[groupKey] = LocalAudiobookGroup(
+                groupName: groupInfo['groupName'] as String,
+                groupPath: groupKey,
+                torrentId: groupInfo['torrentId'] as String?,
+                files: [audiobook],
+                scannedAt: scannedAt,
+                isExternalFolder: isExternal,
+              );
+            }
+          }
+        } on Exception catch (e) {
+          await _logger.log(
+            level: 'warning',
+            subsystem: 'library_scanner',
+            message: 'Failed to process file',
+            extra: {
+              'path': file.path,
+              'error': e.toString(),
+            },
+          );
+        }
+      }
+
+      // Find cover images for each group
+      final groupsList = groups.values.toList();
+      for (final group in groupsList) {
+        final coverPath = await _findCoverImage(group.groupPath);
+        if (coverPath != null) {
+          groups[group.groupPath] = group.copyWith(coverPath: coverPath);
+        }
+      }
+    } on Exception catch (e) {
+      await _logger.log(
+        level: 'error',
+        subsystem: 'library_scanner',
+        message: 'Failed to scan directory for groups',
+        extra: {
+          'path': directoryPath,
+          'error': e.toString(),
+        },
+      );
+    }
+
+    return groups.values.toList();
+  }
+
+  /// Determines if a folder is an external folder (not a torrent folder).
+  ///
+  /// External folders are:
+  /// - Not the default download directory
+  /// - Added via addLibraryFolder()
+  /// - Don't have numeric IDs in root (not torrent structure)
+  Future<bool> _isExternalFolder(String folderPath) async {
+    try {
+      final storageUtils = StoragePathUtils();
+      final downloadDir = await storageUtils.getDefaultAudiobookPath();
+
+      // Check if this is the download directory
+      if (folderPath == downloadDir || folderPath.startsWith(downloadDir)) {
+        return false;
+      }
+
+      // Check if this is a library folder
+      final libraryFolders = await storageUtils.getLibraryFolders();
+      if (!libraryFolders.contains(folderPath)) {
+        // Not a library folder, might be a subdirectory
+        // Check if any library folder is a parent of this path
+        var isUnderLibraryFolder = false;
+        for (final libraryFolder in libraryFolders) {
+          if (folderPath.startsWith(libraryFolder)) {
+            isUnderLibraryFolder = true;
+            break;
+          }
+        }
+        if (!isUnderLibraryFolder) {
+          return false;
+        }
+      }
+
+      // Check if folder has numeric ID in root (torrent structure)
+      // This is a heuristic - if the first subdirectory is numeric, it's likely a torrent folder
+      if (StoragePathUtils.isContentUri(folderPath)) {
+        // For Content URI, we can't easily check structure without scanning
+        // Assume it's external if it's in library folders
+        return true;
+      } else {
+        final dir = Directory(folderPath);
+        if (await dir.exists()) {
+          await for (final entity in dir.list()) {
+            if (entity is Directory) {
+              final name = path.basename(entity.path);
+              if (RegExp(r'^\d+$').hasMatch(name)) {
+                // Found numeric folder - likely torrent structure
+                return false;
+              }
+            }
+          }
+        }
+      }
+
+      return true;
+    } on Exception {
+      // On error, assume it's not external (use regular logic)
+      return false;
+    }
   }
 
   /// Extracts group information from a file path.

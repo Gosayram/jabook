@@ -14,8 +14,9 @@
 
 import 'dart:io';
 
+import 'package:jabook/core/domain/library/entities/local_audiobook.dart';
+import 'package:jabook/core/domain/library/entities/local_audiobook_group.dart';
 import 'package:jabook/core/infrastructure/logging/structured_logger.dart';
-import 'package:jabook/core/library/local_audiobook.dart';
 import 'package:jabook/core/library/playback_position_service.dart';
 import 'package:jabook/core/library/trash_service.dart';
 import 'package:jabook/core/player/media3_player_service.dart';
