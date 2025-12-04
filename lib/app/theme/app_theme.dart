@@ -106,20 +106,88 @@ mixin AppTheme {
           foregroundColor: highContrast ? Colors.white : Colors.white,
           elevation: highContrast ? 4 : 2,
           side: highContrast ? const BorderSide(width: 2) : null,
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          textStyle: const TextStyle(
+            fontFamily: 'Inter',
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          foregroundColor: primaryColor,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+          textStyle: const TextStyle(
+            fontFamily: 'Inter',
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: primaryColor,
+          side: BorderSide(color: primaryColor, width: 1.5),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          textStyle: const TextStyle(
+            fontFamily: 'Inter',
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ),
       textTheme: TextTheme(
+        displayLarge: TextStyle(
+          fontFamily: 'Inter',
+          fontSize: 28,
+          fontWeight: FontWeight.bold,
+          color: onSurfaceColor,
+        ),
+        displayMedium: TextStyle(
+          fontFamily: 'Inter',
+          fontSize: 24,
+          fontWeight: FontWeight.bold,
+          color: onSurfaceColor,
+        ),
+        headlineMedium: TextStyle(
+          fontFamily: 'Inter',
+          fontSize: 20,
+          fontWeight: FontWeight.w600,
+          color: onSurfaceColor,
+        ),
         bodyLarge: TextStyle(
+          fontFamily: 'Inter',
+          fontSize: 16,
           color: onSurfaceColor,
           fontWeight: highContrast ? FontWeight.bold : FontWeight.normal,
         ),
         bodyMedium: TextStyle(
+          fontFamily: 'Inter',
+          fontSize: 15,
           color: onSurfaceColor,
           fontWeight: highContrast ? FontWeight.bold : FontWeight.normal,
         ),
         bodySmall: TextStyle(
+          fontFamily: 'Inter',
+          fontSize: 14,
           color: onSurfaceColor,
           fontWeight: highContrast ? FontWeight.bold : FontWeight.normal,
+        ),
+        labelSmall: TextStyle(
+          fontFamily: 'Inter',
+          fontSize: 13,
+          color: onSurfaceColor,
+          fontWeight: FontWeight.normal,
         ),
       ),
       cardTheme: CardThemeData(
@@ -185,20 +253,88 @@ mixin AppTheme {
           side: highContrast
               ? const BorderSide(color: Colors.white, width: 2)
               : null,
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          textStyle: const TextStyle(
+            fontFamily: 'Inter',
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          foregroundColor: onSurfaceColor,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+          textStyle: const TextStyle(
+            fontFamily: 'Inter',
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: accentColor,
+          side: BorderSide(color: accentColor, width: 1.5),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          textStyle: const TextStyle(
+            fontFamily: 'Inter',
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ),
       textTheme: TextTheme(
+        displayLarge: TextStyle(
+          fontFamily: 'Inter',
+          fontSize: 28,
+          fontWeight: FontWeight.bold,
+          color: onSurfaceColor,
+        ),
+        displayMedium: TextStyle(
+          fontFamily: 'Inter',
+          fontSize: 24,
+          fontWeight: FontWeight.bold,
+          color: onSurfaceColor,
+        ),
+        headlineMedium: TextStyle(
+          fontFamily: 'Inter',
+          fontSize: 20,
+          fontWeight: FontWeight.w600,
+          color: onSurfaceColor,
+        ),
         bodyLarge: TextStyle(
+          fontFamily: 'Inter',
+          fontSize: 16,
           color: onSurfaceColor,
           fontWeight: highContrast ? FontWeight.bold : FontWeight.normal,
         ),
         bodyMedium: TextStyle(
+          fontFamily: 'Inter',
+          fontSize: 15,
           color: onSurfaceColor,
           fontWeight: highContrast ? FontWeight.bold : FontWeight.normal,
         ),
         bodySmall: TextStyle(
+          fontFamily: 'Inter',
+          fontSize: 14,
           color: onSurfaceColor,
           fontWeight: highContrast ? FontWeight.bold : FontWeight.normal,
+        ),
+        labelSmall: TextStyle(
+          fontFamily: 'Inter',
+          fontSize: 13,
+          color: onSurfaceColor,
+          fontWeight: FontWeight.normal,
         ),
       ),
       cardTheme: CardThemeData(

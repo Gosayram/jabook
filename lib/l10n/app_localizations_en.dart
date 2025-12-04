@@ -2559,9 +2559,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sessionExpiredTitle => 'Session Expired';
 
   @override
-  String get sessionExpiredMessage => 'Your session has expired. Please log in again.';
-
-  @override
   String get invalidCredentialsTitle => 'Authorization Error';
 
   @override
@@ -3107,4 +3104,78 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get previousButton => 'Previous';
+
+  @override
+  String get accessRequired => 'Access Required';
+
+  @override
+  String featureRequiresAuth(String feature) {
+    return 'Feature \"$feature\" requires authentication';
+  }
+
+  @override
+  String get signInToAccessFeature => 'Sign in to access this feature';
+
+  @override
+  String get upgradeToFull => 'Upgrade to Full';
+
+  @override
+  String get restrictedFeature => 'Restricted Feature';
+
+  @override
+  String get featureRestricted => 'This feature is restricted in demo mode';
+
+  @override
+  String get featureRestrictedDescription => 'To access this feature, please sign in to your account';
+
+  @override
+  String get signInToUnlock => 'Sign in to unlock';
+
+  @override
+  String get continueAsGuest => 'Continue as Guest';
+
+  @override
+  String get sessionExpired => 'Session Expired';
+
+  @override
+  String get sessionExpiredMessage => 'Your session has expired. Please sign in again.';
+
+  @override
+  String get signInAgain => 'Sign In Again';
+
+  @override
+  String get authorizationRequired => 'Authorization Required';
+
+  @override
+  String get demoMode => 'Demo Mode';
+
+  @override
+  String get demoModeDescription => 'You are using demo mode with limited functionality';
+
+  @override
+  String get upgradeToFullAccess => 'Upgrade to Full Access';
+
+  @override
+  String get searchRestricted => 'Search is restricted in demo mode';
+
+  @override
+  String get downloadRestricted => 'Downloads are restricted in demo mode';
+
+  @override
+  String get browseRestricted => 'Browsing is restricted in demo mode';
+
+  @override
+  String get account => 'Account';
+
+  @override
+  String get compactPlayerLayout => 'Compact Player Layout';
+
+  @override
+  String get standardPlayerLayout => 'Standard Player Layout';
+
+  @override
+  String get adaptiveNavigation => 'Adaptive Navigation';
+
+  @override
+  String get smallScreenOptimizations => 'Small Screen Optimizations';
 }

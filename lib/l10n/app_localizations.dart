@@ -4739,12 +4739,6 @@ abstract class AppLocalizations {
   /// **'Session Expired'**
   String get sessionExpiredTitle;
 
-  /// Message for session expired error
-  ///
-  /// In en, this message translates to:
-  /// **'Your session has expired. Please log in again.'**
-  String get sessionExpiredMessage;
-
   /// Title for invalid credentials error dialog
   ///
   /// In en, this message translates to:
@@ -5728,6 +5722,150 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Previous'**
   String get previousButton;
+
+  /// Title for access required dialog
+  ///
+  /// In en, this message translates to:
+  /// **'Access Required'**
+  String get accessRequired;
+
+  /// Message when feature requires authentication
+  ///
+  /// In en, this message translates to:
+  /// **'Feature \"{feature}\" requires authentication'**
+  String featureRequiresAuth(String feature);
+
+  /// Message prompting user to sign in for feature access
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in to access this feature'**
+  String get signInToAccessFeature;
+
+  /// Button text to upgrade to full access
+  ///
+  /// In en, this message translates to:
+  /// **'Upgrade to Full'**
+  String get upgradeToFull;
+
+  /// Title for restricted feature screen
+  ///
+  /// In en, this message translates to:
+  /// **'Restricted Feature'**
+  String get restrictedFeature;
+
+  /// Message when feature is restricted
+  ///
+  /// In en, this message translates to:
+  /// **'This feature is restricted in demo mode'**
+  String get featureRestricted;
+
+  /// Description for restricted feature
+  ///
+  /// In en, this message translates to:
+  /// **'To access this feature, please sign in to your account'**
+  String get featureRestrictedDescription;
+
+  /// Button text to sign in and unlock features
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in to unlock'**
+  String get signInToUnlock;
+
+  /// Button text to continue as guest
+  ///
+  /// In en, this message translates to:
+  /// **'Continue as Guest'**
+  String get continueAsGuest;
+
+  /// Title for session expired dialog
+  ///
+  /// In en, this message translates to:
+  /// **'Session Expired'**
+  String get sessionExpired;
+
+  /// Message for session expired
+  ///
+  /// In en, this message translates to:
+  /// **'Your session has expired. Please sign in again.'**
+  String get sessionExpiredMessage;
+
+  /// Button text to sign in again
+  ///
+  /// In en, this message translates to:
+  /// **'Sign In Again'**
+  String get signInAgain;
+
+  /// Title for authorization required dialog
+  ///
+  /// In en, this message translates to:
+  /// **'Authorization Required'**
+  String get authorizationRequired;
+
+  /// Title for demo mode
+  ///
+  /// In en, this message translates to:
+  /// **'Demo Mode'**
+  String get demoMode;
+
+  /// Description for demo mode
+  ///
+  /// In en, this message translates to:
+  /// **'You are using demo mode with limited functionality'**
+  String get demoModeDescription;
+
+  /// Button text to upgrade to full access
+  ///
+  /// In en, this message translates to:
+  /// **'Upgrade to Full Access'**
+  String get upgradeToFullAccess;
+
+  /// Message when search is restricted
+  ///
+  /// In en, this message translates to:
+  /// **'Search is restricted in demo mode'**
+  String get searchRestricted;
+
+  /// Message when downloads are restricted
+  ///
+  /// In en, this message translates to:
+  /// **'Downloads are restricted in demo mode'**
+  String get downloadRestricted;
+
+  /// Message when browsing is restricted
+  ///
+  /// In en, this message translates to:
+  /// **'Browsing is restricted in demo mode'**
+  String get browseRestricted;
+
+  /// Account section or button
+  ///
+  /// In en, this message translates to:
+  /// **'Account'**
+  String get account;
+
+  /// Compact player layout option
+  ///
+  /// In en, this message translates to:
+  /// **'Compact Player Layout'**
+  String get compactPlayerLayout;
+
+  /// Standard player layout option
+  ///
+  /// In en, this message translates to:
+  /// **'Standard Player Layout'**
+  String get standardPlayerLayout;
+
+  /// Adaptive navigation feature
+  ///
+  /// In en, this message translates to:
+  /// **'Adaptive Navigation'**
+  String get adaptiveNavigation;
+
+  /// Small screen optimizations feature
+  ///
+  /// In en, this message translates to:
+  /// **'Small Screen Optimizations'**
+  String get smallScreenOptimizations;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

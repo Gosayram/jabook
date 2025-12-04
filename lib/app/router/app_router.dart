@@ -16,10 +16,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:jabook/core/animations/motion.dart';
+import 'package:jabook/core/di/providers/config_providers.dart';
 import 'package:jabook/core/domain/library/entities/local_audiobook_group.dart';
 import 'package:jabook/core/infrastructure/config/app_config.dart';
 import 'package:jabook/core/infrastructure/logging/environment_logger.dart';
 import 'package:jabook/core/utils/app_title_utils.dart';
+import 'package:jabook/core/widgets/custom_bottom_navigation_bar.dart';
+import 'package:jabook/core/widgets/feature_access_wrapper.dart';
 import 'package:jabook/features/auth/presentation/screens/auth_screen.dart';
 import 'package:jabook/features/debug/presentation/screens/debug_screen.dart';
 import 'package:jabook/features/downloads/presentation/screens/downloads_screen.dart';
@@ -69,7 +72,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             EnvironmentLogger().d('GoRouter building SearchScreen at /search');
             return CustomTransitionPage<void>(
               key: state.pageKey,
-              child: const SearchScreen(),
+              child: const FeatureAccessWrapper(
+                feature: 'search',
+                child: SearchScreen(),
+              ),
               transitionsBuilder:
                   (context, animation, secondaryAnimation, child) =>
                       Motion.fadeThroughTransition(
@@ -88,7 +94,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             final downloadId = state.uri.queryParameters['downloadId'];
             return CustomTransitionPage<void>(
               key: state.pageKey,
-              child: DownloadsScreen(highlightDownloadId: downloadId),
+              child: FeatureAccessWrapper(
+                feature: 'downloads',
+                child: DownloadsScreen(highlightDownloadId: downloadId),
+              ),
               transitionsBuilder:
                   (context, animation, secondaryAnimation, child) =>
                       Motion.fadeThroughTransition(
@@ -224,7 +233,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     ),
     GoRoute(
       path: '/favorites',
-      builder: (context, state) => const FavoritesScreen(),
+      builder: (context, state) => const FeatureAccessWrapper(
+        feature: 'favorites',
+        child: FavoritesScreen(),
+      ),
     ),
     GoRoute(
       path: '/auth',
@@ -345,6 +357,9 @@ class _MainNavigationWrapperState
         navigationItems.indexWhere((item) => item.route == currentLocation);
     if (_selectedIndex == -1) _selectedIndex = 0;
 
+    final appConfig = ref.watch(appConfigProvider);
+    final isBeta = appConfig.isBeta;
+
     return Scaffold(
       body: Column(
         children: [
@@ -355,44 +370,23 @@ class _MainNavigationWrapperState
       persistentFooterButtons: const [
         MiniPlayerWidget(),
       ],
-      bottomNavigationBar: Semantics(
-        explicitChildNodes: true,
-        child: BottomNavigationBar(
-          currentIndex: _selectedIndex,
-          onTap: (index) {
-            final route = navigationItems[index].route;
-            EnvironmentLogger().d(
-              'BottomNavigationBar onTap: index=$index, route=$route, currentLocation=$currentLocation',
-            );
-            if (route != currentLocation) {
-              EnvironmentLogger().d('Navigating to route: $route');
-              context.go(route);
-            } else {
-              EnvironmentLogger()
-                  .d('Already on route $route, skipping navigation');
-            }
-          },
-          type: BottomNavigationBarType.fixed,
-          items: navigationItems
-              .map((item) => BottomNavigationBarItem(
-                    icon: Stack(
-                      children: [
-                        Semantics(
-                          label: item.title,
-                          child: Icon(item.icon),
-                        ),
-                        if (item.badge != null)
-                          Positioned(
-                            top: 0,
-                            right: 0,
-                            child: item.badge!,
-                          ),
-                      ],
-                    ),
-                    label: item.title,
-                  ))
-              .toList(),
-        ),
+      bottomNavigationBar: CustomBottomNavigationBar(
+        currentIndex: _selectedIndex,
+        isBeta: isBeta,
+        items: navigationItems,
+        onTap: (index) {
+          final route = navigationItems[index].route;
+          EnvironmentLogger().d(
+            'BottomNavigationBar onTap: index=$index, route=$route, currentLocation=$currentLocation',
+          );
+          if (route != currentLocation) {
+            EnvironmentLogger().d('Navigating to route: $route');
+            context.go(route);
+          } else {
+            EnvironmentLogger()
+                .d('Already on route $route, skipping navigation');
+          }
+        },
       ),
     );
   }

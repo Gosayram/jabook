@@ -2559,9 +2559,6 @@ class AppLocalizationsRu extends AppLocalizations {
   String get sessionExpiredTitle => 'Сессия истекла';
 
   @override
-  String get sessionExpiredMessage => 'Ваша сессия истекла. Пожалуйста, войдите в систему снова.';
-
-  @override
   String get invalidCredentialsTitle => 'Ошибка авторизации';
 
   @override
@@ -3107,4 +3104,78 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get previousButton => 'Предыдущий';
+
+  @override
+  String get accessRequired => 'Требуется доступ';
+
+  @override
+  String featureRequiresAuth(String feature) {
+    return 'Функция \"$feature\" требует авторизации';
+  }
+
+  @override
+  String get signInToAccessFeature => 'Войдите в аккаунт, чтобы получить доступ к этой функции';
+
+  @override
+  String get upgradeToFull => 'Полный доступ';
+
+  @override
+  String get restrictedFeature => 'Ограниченная функция';
+
+  @override
+  String get featureRestricted => 'Эта функция недоступна в демо-режиме';
+
+  @override
+  String get featureRestrictedDescription => 'Для доступа к этой функции необходимо войти в аккаунт';
+
+  @override
+  String get signInToUnlock => 'Войти, чтобы разблокировать';
+
+  @override
+  String get continueAsGuest => 'Продолжить как гость';
+
+  @override
+  String get sessionExpired => 'Сессия истекла';
+
+  @override
+  String get sessionExpiredMessage => 'Ваша сессия истекла. Пожалуйста, войдите в систему снова.';
+
+  @override
+  String get signInAgain => 'Войти снова';
+
+  @override
+  String get authorizationRequired => 'Требуется авторизация';
+
+  @override
+  String get demoMode => 'Демо-режим';
+
+  @override
+  String get demoModeDescription => 'Вы используете демо-режим с ограниченной функциональностью';
+
+  @override
+  String get upgradeToFullAccess => 'Получить полный доступ';
+
+  @override
+  String get searchRestricted => 'Поиск недоступен в демо-режиме';
+
+  @override
+  String get downloadRestricted => 'Загрузки недоступны в демо-режиме';
+
+  @override
+  String get browseRestricted => 'Просмотр топиков недоступен в демо-режиме';
+
+  @override
+  String get account => 'Аккаунт';
+
+  @override
+  String get compactPlayerLayout => 'Компактный плеер';
+
+  @override
+  String get standardPlayerLayout => 'Стандартный плеер';
+
+  @override
+  String get adaptiveNavigation => 'Адаптивная навигация';
+
+  @override
+  String get smallScreenOptimizations => 'Оптимизации для маленьких экранов';
 }

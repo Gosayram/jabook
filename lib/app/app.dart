@@ -370,6 +370,10 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
       await TaskManager.initialize();
       TaskMonitor.instance.startReporting();
 
+      // Initialize access level synchronization
+      // This ensures access level is synced with authentication status
+      ref.read(accessLevelSyncProvider);
+
       // Initialize configuration based on flavor (lightweight, can run in parallel)
       // Initialize default storage path
       // Initialize background service for downloads

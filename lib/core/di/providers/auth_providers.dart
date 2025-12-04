@@ -13,11 +13,14 @@
 // limitations under the License.
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:jabook/core/auth/access_provider.dart';
 import 'package:jabook/core/auth/rutracker_auth.dart';
 import 'package:jabook/core/domain/auth/entities/auth_status.dart';
+import 'package:jabook/core/domain/auth/entities/user_access_level.dart';
 import 'package:jabook/core/domain/auth/repositories/auth_repository.dart';
 import 'package:jabook/core/infrastructure/logging/structured_logger.dart';
 import 'package:jabook/features/auth/data/repositories/auth_repository_impl.dart';
+import 'package:riverpod/legacy.dart';
 
 /// Provider for RuTrackerAuth instance.
 ///
@@ -68,4 +71,37 @@ final isLoggedInProvider = FutureProvider<bool>((ref) {
 final hasStoredCredentialsProvider = FutureProvider<bool>((ref) {
   final repository = ref.watch(authRepositoryProvider);
   return repository.hasStoredCredentials();
+});
+
+/// Provider for access control management.
+///
+/// This provider manages user access level (guest or full) and provides
+/// methods to check feature access and upgrade access level.
+final accessProvider = StateNotifierProvider<AccessNotifier, AccessState>(
+    (ref) => AccessNotifier());
+
+/// Provider that synchronizes access level with authentication status.
+///
+/// This provider watches the authentication status and automatically
+/// updates the access level accordingly.
+/// Also initializes guest mode if no session exists.
+final accessLevelSyncProvider = Provider<void>((ref) {
+  // Watch authentication status and sync with access level
+  ref.watch(authStatusProvider).whenData((authStatus) {
+    ref.read(accessProvider.notifier).initializeAccessLevel(
+          authStatus.isAuthenticated,
+        );
+  });
+
+  // Initialize guest mode on startup if no session exists
+  ref.watch(isLoggedInProvider).whenData((isLoggedIn) {
+    if (!isLoggedIn) {
+      // If not logged in, ensure guest mode is set
+      final accessNotifier = ref.read(accessProvider.notifier);
+      final currentState = ref.read(accessProvider);
+      if (currentState.accessLevel != UserAccessLevel.guest) {
+        accessNotifier.setGuestMode();
+      }
+    }
+  });
 });

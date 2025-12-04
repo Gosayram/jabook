@@ -3204,6 +3204,111 @@
       }
     }
   },
+  "accessRequired": "Требуется доступ",
+  "@accessRequired": {
+    "description": "Title for access required dialog"
+  },
+  "featureRequiresAuth": "Функция \"{feature}\" требует авторизации",
+  "@featureRequiresAuth": {
+    "description": "Message when feature requires authentication",
+    "placeholders": {
+      "feature": {
+        "type": "String"
+      }
+    }
+  },
+  "signInToAccessFeature": "Войдите в аккаунт, чтобы получить доступ к этой функции",
+  "@signInToAccessFeature": {
+    "description": "Message to sign in for feature access"
+  },
+  "upgradeToFull": "Полный доступ",
+  "@upgradeToFull": {
+    "description": "Button text for upgrading to full access"
+  },
+  "restrictedFeature": "Ограниченная функция",
+  "@restrictedFeature": {
+    "description": "Title for restricted feature screen"
+  },
+  "featureRestricted": "Эта функция недоступна в демо-режиме",
+  "@featureRestricted": {
+    "description": "Message when feature is restricted in demo mode"
+  },
+  "featureRestrictedDescription": "Для доступа к этой функции необходимо войти в аккаунт",
+  "@featureRestrictedDescription": {
+    "description": "Description for restricted feature"
+  },
+  "signInToUnlock": "Войти, чтобы разблокировать",
+  "@signInToUnlock": {
+    "description": "Button text to sign in and unlock"
+  },
+  "continueAsGuest": "Продолжить как гость",
+  "@continueAsGuest": {
+    "description": "Button text to continue as guest"
+  },
+  "sessionExpired": "Сессия истекла",
+  "@sessionExpired": {
+    "description": "Title for session expired dialog"
+  },
+  "signInAgain": "Войти снова",
+  "@signInAgain": {
+    "description": "Button text to sign in again"
+  },
+  "authorizationRequired": "Требуется авторизация",
+  "@authorizationRequired": {
+    "description": "Title for authorization required"
+  },
+  "demoMode": "Демо-режим",
+  "@demoMode": {
+    "description": "Demo mode label"
+  },
+  "demoModeDescription": "Вы используете демо-режим с ограниченной функциональностью",
+  "@demoModeDescription": {
+    "description": "Description for demo mode"
+  },
+  "upgradeToFullAccess": "Получить полный доступ",
+  "@upgradeToFullAccess": {
+    "description": "Button text to upgrade to full access"
+  },
+  "searchRestricted": "Поиск недоступен в демо-режиме",
+  "@searchRestricted": {
+    "description": "Message when search is restricted in demo mode"
+  },
+  "downloadRestricted": "Загрузки недоступны в демо-режиме",
+  "@downloadRestricted": {
+    "description": "Message when downloads are restricted in demo mode"
+  },
+  "browseRestricted": "Просмотр топиков недоступен в демо-режиме",
+  "@browseRestricted": {
+    "description": "Message when browsing topics is restricted in demo mode"
+  },
+  "account": "Аккаунт",
+  "@account": {
+    "description": "Account label"
+  },
+  "signIn": "Войти",
+  "@signIn": {
+    "description": "Sign in button text"
+  },
+  "signOut": "Выйти",
+  "@signOut": {
+    "description": "Sign out button text"
+  },
+  "compactPlayerLayout": "Компактный плеер",
+  "@compactPlayerLayout": {
+    "description": "Compact player layout option"
+  },
+  "standardPlayerLayout": "Стандартный плеер",
+  "@standardPlayerLayout": {
+    "description": "Standard player layout option"
+  },
+  "adaptiveNavigation": "Адаптивная навигация",
+  "@adaptiveNavigation": {
+    "description": "Adaptive navigation option"
+  },
+  "smallScreenOptimizations": "Оптимизации для маленьких экранов",
+  "@smallScreenOptimizations": {
+    "description": "Small screen optimizations option"
+  },
   "failedToStartStreamServer": "Не удалось запустить сервер потоковой передачи: {error}",
   "@failedToStartStreamServer": {
     "description": "Сообщение об ошибке при неудачном запуске сервера потоковой передачи",

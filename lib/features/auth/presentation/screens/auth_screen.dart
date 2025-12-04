@@ -158,6 +158,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
           final repository = ref.read(authRepositoryProvider);
           await repository.refreshAuthStatus();
           ref.invalidate(isLoggedInProvider);
+
+          // Update access level to full access after successful login
+          ref.read(accessProvider.notifier).upgradeToFullAccess();
         }
       }
     } on AuthFailure catch (e) {
