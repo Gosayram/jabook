@@ -15,11 +15,34 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:jabook/core/data/player/datasources/player_local_datasource.dart';
 import 'package:jabook/core/data/player/repositories/player_repository_impl.dart';
+import 'package:jabook/core/di/providers/database_providers.dart';
 import 'package:jabook/core/domain/player/repositories/player_repository.dart';
 import 'package:jabook/core/domain/player/use_cases/pause_use_case.dart';
 import 'package:jabook/core/domain/player/use_cases/play_use_case.dart';
 import 'package:jabook/core/domain/player/use_cases/seek_use_case.dart';
 import 'package:jabook/core/player/media3_player_service.dart';
+import 'package:jabook/core/player/player_state_database_service.dart';
+import 'package:jabook/core/player/player_state_persistence_service.dart';
+
+/// Provider for PlayerStateDatabaseService instance.
+///
+/// This provider creates a PlayerStateDatabaseService instance that uses
+/// AppDatabase for storing player state.
+final playerStateDatabaseServiceProvider =
+    Provider<PlayerStateDatabaseService>((ref) {
+  final appDatabase = ref.watch(appDatabaseProvider);
+  return PlayerStateDatabaseService(appDatabase: appDatabase);
+});
+
+/// Provider for PlayerStatePersistenceService instance.
+///
+/// This provider creates a PlayerStatePersistenceService instance that uses
+/// database for reliable storage with SharedPreferences fallback.
+final playerStatePersistenceServiceProvider =
+    Provider<PlayerStatePersistenceService>((ref) {
+  final databaseService = ref.watch(playerStateDatabaseServiceProvider);
+  return PlayerStatePersistenceService(databaseService: databaseService);
+});
 
 /// Provider for Media3PlayerService instance.
 ///
@@ -31,7 +54,11 @@ final media3PlayerServiceProvider = Provider<Media3PlayerService>((ref) {
   // This is critical for player state consistency
   ref.keepAlive();
 
-  final service = Media3PlayerService();
+  final statePersistenceService =
+      ref.watch(playerStatePersistenceServiceProvider);
+  final service = Media3PlayerService(
+    statePersistenceService: statePersistenceService,
+  );
   ref.onDispose(() async {
     await service.dispose();
   });

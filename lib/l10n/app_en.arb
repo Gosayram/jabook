@@ -386,6 +386,22 @@
   "@chaptersLabel": {
     "description": "Label for chapters"
   },
+  "searchChaptersHint": "Search by number or title...",
+  "@searchChaptersHint": {
+    "description": "Hint for chapters search field"
+  },
+  "allFilter": "All",
+  "@allFilter": {
+    "description": "Filter for showing all chapters"
+  },
+  "currentFilter": "Current",
+  "@currentFilter": {
+    "description": "Filter for showing current chapter"
+  },
+  "noChaptersFoundInSearch": "No chapters found",
+  "@noChaptersFoundInSearch": {
+    "description": "Message when no chapters found in search/filter"
+  },
   "downloadFunctionalityComingSoon": "Download functionality coming soon",
   "@downloadFunctionalityComingSoon": {
     "description": "Message for upcoming download feature"
@@ -1011,6 +1027,16 @@
   "sampleChapter2Text": "Chapter 2",
   "@sampleChapter2Text": {
     "description": "Sample chapter 2 title"
+  },
+  "chapterNumber": "Chapter {number}",
+  "@chapterNumber": {
+    "description": "Chapter number label with number parameter",
+    "placeholders": {
+      "number": {
+        "type": "int",
+        "example": "1"
+      }
+    }
   },
   "topicScreenTitle": "Topic",
   "@topicScreenTitle": {

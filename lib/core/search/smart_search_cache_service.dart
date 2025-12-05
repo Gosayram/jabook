@@ -258,13 +258,67 @@ class SmartSearchCacheService {
       // Check if cache is stale
       var isStale = false;
       DateTime? lastSyncTime;
+
       if (settings.lastUpdateTime != null) {
+        // Use explicit last update time from settings
         lastSyncTime = settings.lastUpdateTime;
         final age = DateTime.now().difference(settings.lastUpdateTime!);
         isStale = age > settings.cacheTTL;
+      } else if (totalCachedBooks > 0) {
+        // No explicit sync time, but we have data - check last_updated from records
+        // Find the most recent last_updated timestamp from cached records
+        DateTime? mostRecentUpdate;
+        for (final record in records) {
+          final lastUpdatedStr = record.value['last_updated'] as String?;
+          if (lastUpdatedStr != null) {
+            try {
+              final lastUpdated = DateTime.parse(lastUpdatedStr);
+              if (mostRecentUpdate == null ||
+                  lastUpdated.isAfter(mostRecentUpdate)) {
+                mostRecentUpdate = lastUpdated;
+              }
+            } on Exception {
+              // Skip invalid dates
+            }
+          }
+        }
+
+        if (mostRecentUpdate != null) {
+          lastSyncTime = mostRecentUpdate;
+          final age = DateTime.now().difference(mostRecentUpdate);
+          // Use a more lenient TTL for data without explicit sync (2x normal TTL)
+          // This allows cache to remain valid longer if it was populated incrementally
+          isStale = age > settings.cacheTTL * 2;
+
+          await _logger.log(
+            level: 'debug',
+            subsystem: 'search_cache',
+            message: 'Cache status determined from record timestamps',
+            extra: {
+              'total_cached_books': totalCachedBooks,
+              'most_recent_update': mostRecentUpdate.toIso8601String(),
+              'age_hours': age.inHours,
+              'ttl_hours': settings.cacheTTL.inHours,
+              'is_stale': isStale,
+            },
+          );
+        } else {
+          // Have data but no timestamps - consider valid for now
+          // This handles legacy data or data added before timestamp tracking
+          isStale = false;
+
+          await _logger.log(
+            level: 'debug',
+            subsystem: 'search_cache',
+            message: 'Cache has data but no timestamps, considering valid',
+            extra: {
+              'total_cached_books': totalCachedBooks,
+            },
+          );
+        }
       } else {
-        // No sync yet - consider stale if empty, valid if has data
-        isStale = totalCachedBooks == 0;
+        // No data at all - definitely stale
+        isStale = true;
       }
 
       // Check if sync is in progress
@@ -434,6 +488,53 @@ class SmartSearchCacheService {
         },
       );
       rethrow;
+    }
+  }
+
+  /// Updates lastUpdateTime to current time.
+  ///
+  /// This can be called when metadata is added/updated to keep cache fresh
+  /// even without a full sync.
+  Future<void> touchLastUpdateTime() async {
+    await _ensureInitialized();
+
+    try {
+      final db = _appDatabase.database;
+      final settingsStore = _appDatabase.searchCacheSettingsStore;
+      final settingsMap = await settingsStore.record(_settingsKey).get(db);
+
+      final settings = settingsMap != null
+          ? CacheSettings.fromMap(settingsMap)
+          : CacheSettings.standard();
+
+      // Only update if we don't have a recent update (within 1 hour)
+      // This prevents excessive writes while still keeping cache fresh
+      final shouldUpdate = settings.lastUpdateTime == null ||
+          DateTime.now().difference(settings.lastUpdateTime!) >
+              const Duration(hours: 1);
+
+      if (shouldUpdate) {
+        final updatedSettings = settings.copyWith(
+          lastUpdateTime: DateTime.now(),
+        );
+        await settingsStore
+            .record(_settingsKey)
+            .put(db, updatedSettings.toMap());
+
+        await _logger.log(
+          level: 'debug',
+          subsystem: 'search_cache',
+          message: 'Updated lastUpdateTime',
+        );
+      }
+    } on Exception catch (e) {
+      await _logger.log(
+        level: 'warning',
+        subsystem: 'search_cache',
+        message: 'Failed to update lastUpdateTime',
+        cause: e.toString(),
+      );
+      // Don't rethrow - this is not critical
     }
   }
 

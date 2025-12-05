@@ -18,6 +18,7 @@ import 'dart:io';
 import 'package:jabook/core/domain/library/entities/local_audiobook_group.dart';
 import 'package:jabook/core/infrastructure/logging/structured_logger.dart';
 import 'package:jabook/core/library/audiobook_library_scanner.dart';
+import 'package:jabook/core/library/file_checksum_service.dart';
 import 'package:jabook/core/library/folder_filter_service.dart';
 import 'package:jabook/core/utils/storage_path_utils.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -72,20 +73,24 @@ class FolderScanState {
 ///
 /// This service tracks folder modification times and only scans
 /// folders that have been modified since the last scan.
+/// Uses file checksums to detect file-level changes for more efficient scanning.
 class SmartScannerService {
   /// Creates a new SmartScannerService instance.
   SmartScannerService({
     AudiobookLibraryScanner? scanner,
     StoragePathUtils? storageUtils,
     FolderFilterService? folderFilterService,
+    FileChecksumService? checksumService,
   })  : _scanner = scanner ??
             AudiobookLibraryScanner(
               folderFilterService: folderFilterService,
             ),
-        _storageUtils = storageUtils ?? StoragePathUtils();
+        _storageUtils = storageUtils ?? StoragePathUtils(),
+        _checksumService = checksumService;
 
   final AudiobookLibraryScanner _scanner;
   final StoragePathUtils _storageUtils;
+  final FileChecksumService? _checksumService;
   final StructuredLogger _logger = StructuredLogger();
   static const String _scanStatesKey = 'folder_scan_states';
 
@@ -188,13 +193,40 @@ class SmartScannerService {
               recursive: true,
             );
 
-            // Calculate folder stats
+            // Calculate folder stats and save checksums for scanned files
             var fileCount = 0;
             var totalSize = 0;
             for (final group in groups) {
               fileCount += group.files.length;
               for (final file in group.files) {
                 totalSize += file.fileSize;
+                // Save checksum for the file if checksum service is available
+                if (_checksumService != null) {
+                  try {
+                    final checksum = await _checksumService
+                        .computeAndSaveChecksum(file.filePath);
+                    await _logger.log(
+                      level: 'debug',
+                      subsystem: 'smart_scanner',
+                      message: 'Saved checksum for file',
+                      extra: {
+                        'file_path': file.filePath,
+                        'checksum': checksum,
+                      },
+                    );
+                  } on Exception catch (e) {
+                    // Log but don't fail the scan if checksum computation fails
+                    await _logger.log(
+                      level: 'warning',
+                      subsystem: 'smart_scanner',
+                      message: 'Failed to save checksum for file',
+                      extra: {
+                        'file_path': file.filePath,
+                        'error': e.toString(),
+                      },
+                    );
+                  }
+                }
               }
               // Track which folders were scanned
               scannedFolderPaths.add(folder);

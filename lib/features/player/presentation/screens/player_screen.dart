@@ -28,6 +28,7 @@ import 'package:jabook/core/player/player_state_provider.dart';
 import 'package:jabook/core/stream/local_stream_server.dart';
 import 'package:jabook/core/utils/app_title_utils.dart';
 import 'package:jabook/core/utils/responsive_utils.dart';
+import 'package:jabook/features/player/presentation/widgets/chapters_bottom_sheet.dart';
 import 'package:jabook/l10n/app_localizations.dart';
 
 /// Main audiobook player screen.
@@ -83,14 +84,15 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       // If yes, skip reinitialization to avoid interrupting playback
       if (currentState.currentGroupPath == widget.bookId &&
           currentState.playbackState != 0) {
-        // Player is already playing this book - just mark as initialized
+        // Player is already playing this book - load audiobook data for UI
+        // Wait for it to load so UI can display chapters
+        await _loadAudiobookFromRutracker();
+        // Mark as initialized after audiobook is loaded
         setState(() {
           _isInitialized = true;
           _hasError = false;
           _errorMessage = null;
         });
-        // Load audiobook data for UI (non-blocking)
-        unawaited(_loadAudiobookFromRutracker());
         return;
       }
 
@@ -227,7 +229,34 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
           baseUrl: base,
         );
         if (parsed != null) {
-          setState(() => _audiobook = parsed);
+          setState(() {
+            _audiobook = parsed;
+          });
+          // Log audiobook loaded
+          unawaited(StructuredLogger().log(
+            level: 'info',
+            subsystem: 'player',
+            message: 'Audiobook loaded successfully',
+            extra: {
+              'bookId': widget.bookId,
+              'title': parsed.title,
+              'chaptersCount': parsed.chapters.length,
+              'hasChapters': parsed.chapters.isNotEmpty,
+              'firstChapterTitle': parsed.chapters.isNotEmpty
+                  ? parsed.chapters.first.title
+                  : null,
+            },
+          ));
+        } else {
+          unawaited(StructuredLogger().log(
+            level: 'warning',
+            subsystem: 'player',
+            message: 'Failed to parse audiobook',
+            extra: {
+              'bookId': widget.bookId,
+              'responseStatusCode': response.statusCode,
+            },
+          ));
         }
       }
     } on Exception {
@@ -449,9 +478,52 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     }
   }
 
+  /// Shows chapters bottom sheet for navigation.
+  void _showChaptersBottomSheet() {
+    if (_audiobook == null || _audiobook!.chapters.isEmpty) {
+      StructuredLogger().log(
+        level: 'warning',
+        subsystem: 'player',
+        message:
+            'Cannot show chapters bottom sheet: audiobook is null or has no chapters',
+        extra: {
+          'audiobookNull': _audiobook == null,
+          'chaptersEmpty': _audiobook?.chapters.isEmpty ?? true,
+        },
+      );
+      return;
+    }
+
+    StructuredLogger().log(
+      level: 'info',
+      subsystem: 'player',
+      message: 'Showing chapters bottom sheet',
+      extra: {
+        'chaptersCount': _audiobook!.chapters.length,
+      },
+    );
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.9,
+        minChildSize: 0.5,
+        maxChildSize: 0.95,
+        builder: (context, scrollController) => ChaptersBottomSheet(
+          audiobook: _audiobook!,
+          onChapterSelected: _seekToChapter,
+          scrollController: scrollController,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(
+          automaticallyImplyLeading: false,
           title: Text(
               '${(AppLocalizations.of(context)?.playerTitle ?? 'Player').withFlavorSuffix()}: ${widget.bookId}'),
           actions: [
@@ -594,223 +666,410 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       );
     }
 
-    return Column(
-      children: [
-        // Audiobook info
-        Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    // Get bottom padding for system navigation bar
+    final mediaQuery = MediaQuery.of(context);
+    final bottomPadding = mediaQuery.padding.bottom;
+
+    // Debug logging
+    unawaited(StructuredLogger().log(
+      level: 'info',
+      subsystem: 'player',
+      message: 'Building player body',
+      extra: {
+        'audiobookNull': _audiobook == null,
+        'chaptersCount': _audiobook?.chapters.length ?? 0,
+        'chaptersEmpty': _audiobook?.chapters.isEmpty ?? true,
+        'currentIndex': playerState.currentIndex,
+        'bottomPadding': bottomPadding,
+        'isInitialized': _isInitialized,
+        'hasError': _hasError,
+      },
+    ));
+
+    return SafeArea(
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: EdgeInsets.only(
+            bottom: bottomPadding > 0 ? bottomPadding + 24 : 32,
+          ),
+          child: Column(
             children: [
-              // Cover image if available
-              Builder(builder: (context) {
-                try {
-                  // ignore: deprecated_member_use_from_same_package
-                  final coverUrl = (_audiobook as dynamic).coverUrl as String?;
-                  if (coverUrl != null && coverUrl.isNotEmpty) {
-                    return RepaintBoundary(
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: CachedNetworkImage(
-                          imageUrl: coverUrl,
-                          width: 96,
-                          height: 96,
-                          fit: BoxFit.cover,
-                          placeholder: (context, url) => Container(
-                            width: 96,
-                            height: 96,
-                            color: Theme.of(context)
-                                .colorScheme
-                                .surfaceContainerHighest,
-                            child: const Center(
-                              child: SizedBox(
-                                width: 24,
-                                height: 24,
-                                child:
-                                    CircularProgressIndicator(strokeWidth: 2),
-                              ),
-                            ),
-                          ),
-                          errorWidget: (context, url, error) => Container(
-                            width: 96,
-                            height: 96,
-                            color: Theme.of(context).colorScheme.errorContainer,
-                            child: Icon(
-                              Icons.error_outline,
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onErrorContainer,
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
-                  }
-                } on Exception catch (_) {}
-                return const SizedBox(width: 0, height: 0);
-              }),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
+              // Audiobook info
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      _audiobook!.title,
-                      style: Theme.of(context).textTheme.headlineSmall,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'by ${_audiobook!.author}',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Chip(
-                          label: Text(_audiobook!.category),
-                          backgroundColor: Colors.blue.shade100,
-                        ),
-                        const SizedBox(width: 8),
-                        Chip(
-                          label: Text(_audiobook!.size),
-                          backgroundColor: Colors.green.shade100,
-                        ),
-                      ],
+                    // Cover image if available
+                    Builder(builder: (context) {
+                      try {
+                        // ignore: deprecated_member_use_from_same_package
+                        final coverUrl =
+                            (_audiobook as dynamic).coverUrl as String?;
+                        if (coverUrl != null && coverUrl.isNotEmpty) {
+                          return RepaintBoundary(
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: CachedNetworkImage(
+                                imageUrl: coverUrl,
+                                width: 96,
+                                height: 96,
+                                fit: BoxFit.cover,
+                                placeholder: (context, url) => Container(
+                                  width: 96,
+                                  height: 96,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .surfaceContainerHighest,
+                                  child: const Center(
+                                    child: SizedBox(
+                                      width: 24,
+                                      height: 24,
+                                      child: CircularProgressIndicator(
+                                          strokeWidth: 2),
+                                    ),
+                                  ),
+                                ),
+                                errorWidget: (context, url, error) => Container(
+                                  width: 96,
+                                  height: 96,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .errorContainer,
+                                  child: Icon(
+                                    Icons.error_outline,
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onErrorContainer,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        }
+                      } on Exception catch (_) {}
+                      return const SizedBox(width: 0, height: 0);
+                    }),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _audiobook!.title,
+                            style: Theme.of(context).textTheme.headlineSmall,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'by ${_audiobook!.author}',
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                          const SizedBox(height: 16),
+                          Row(
+                            children: [
+                              Chip(
+                                label: Text(_audiobook!.category),
+                                backgroundColor: Colors.blue.shade100,
+                              ),
+                              const SizedBox(width: 8),
+                              Chip(
+                                label: Text(_audiobook!.size),
+                                backgroundColor: Colors.green.shade100,
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
               ),
-            ],
-          ),
-        ),
 
-        // Progress bar
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0),
-          child: Column(
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(_formatDuration(
-                      Duration(milliseconds: playerState.currentPosition))),
-                  Text(_formatDuration(
-                      Duration(milliseconds: playerState.duration))),
-                ],
+              // Progress bar
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(_formatDuration(Duration(
+                            milliseconds: playerState.currentPosition))),
+                        Text(_formatDuration(
+                            Duration(milliseconds: playerState.duration))),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Slider(
+                      value: _isDragging && _sliderValue != null
+                          ? _sliderValue!.clamp(0.0, 1.0)
+                          : (playerState.duration > 0
+                              ? playerState.currentPosition /
+                                  playerState.duration
+                              : 0.0),
+                      onChanged:
+                          playerState.duration > 0 ? _onSliderChanged : null,
+                      onChangeStart:
+                          playerState.duration > 0 ? _onSliderStart : null,
+                      onChangeEnd:
+                          playerState.duration > 0 ? _onSliderEnd : null,
+                    ),
+                  ],
+                ),
               ),
-              const SizedBox(height: 8),
-              Slider(
-                value: _isDragging && _sliderValue != null
-                    ? _sliderValue!.clamp(0.0, 1.0)
-                    : (playerState.duration > 0
-                        ? playerState.currentPosition / playerState.duration
-                        : 0.0),
-                onChanged: playerState.duration > 0 ? _onSliderChanged : null,
-                onChangeStart: playerState.duration > 0 ? _onSliderStart : null,
-                onChangeEnd: playerState.duration > 0 ? _onSliderEnd : null,
-              ),
-            ],
-          ),
-        ),
 
-        // Player controls
-        Padding(
-          padding: ResponsiveUtils.getCompactPadding(context),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              IconButton(
-                icon: const Icon(Icons.skip_previous),
-                onPressed: _prevChapter,
-                iconSize: ResponsiveUtils.getIconSize(
-                  context,
-                  baseSize:
-                      ResponsiveUtils.isVerySmallScreen(context) ? 40 : 48,
-                ),
-                constraints: BoxConstraints(
-                  minWidth: ResponsiveUtils.getMinTouchTarget(context) * 1.1,
-                  minHeight: ResponsiveUtils.getMinTouchTarget(context) * 1.1,
-                ),
-              ),
-              SizedBox(
-                width: ResponsiveUtils.getSpacing(
-                  context,
-                  baseSpacing: 32,
-                ),
-              ),
-              IconButton(
-                icon: Icon(
-                    playerState.isPlaying ? Icons.pause : Icons.play_arrow),
-                onPressed: _playPause,
-                iconSize: ResponsiveUtils.getIconSize(
-                  context,
-                  baseSize:
-                      ResponsiveUtils.isVerySmallScreen(context) ? 56 : 64,
-                ),
-                constraints: BoxConstraints(
-                  minWidth: ResponsiveUtils.getMinTouchTarget(context) * 1.4,
-                  minHeight: ResponsiveUtils.getMinTouchTarget(context) * 1.4,
-                ),
-              ),
-              SizedBox(
-                width: ResponsiveUtils.getSpacing(
-                  context,
-                  baseSpacing: 32,
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.skip_next),
-                onPressed: _nextChapter,
-                iconSize: ResponsiveUtils.getIconSize(
-                  context,
-                  baseSize:
-                      ResponsiveUtils.isVerySmallScreen(context) ? 40 : 48,
-                ),
-                constraints: BoxConstraints(
-                  minWidth: ResponsiveUtils.getMinTouchTarget(context) * 1.1,
-                  minHeight: ResponsiveUtils.getMinTouchTarget(context) * 1.1,
-                ),
-              ),
-            ],
-          ),
-        ),
-
-        // Chapters
-        if (_audiobook!.chapters.isNotEmpty)
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    AppLocalizations.of(context)?.chaptersLabel ?? 'Chapters',
-                    style: Theme.of(context).textTheme.titleLarge,
+              // Current chapter indicator - shows current chapter and allows quick navigation
+              if (_audiobook != null &&
+                  _audiobook!.chapters.isNotEmpty &&
+                  playerState.currentIndex >= 0 &&
+                  playerState.currentIndex < _audiobook!.chapters.length)
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 16.0, vertical: 8.0),
+                  child: Card(
+                    elevation: 2,
+                    child: InkWell(
+                      onTap: _showChaptersBottomSheet,
+                      borderRadius: BorderRadius.circular(12),
+                      child: Padding(
+                        padding: const EdgeInsets.all(12.0),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.play_circle_filled,
+                              color: Theme.of(context).primaryColor,
+                              size: 24,
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    '${AppLocalizations.of(context)?.chaptersLabel ?? 'Chapter'} ${playerState.currentIndex + 1} / ${_audiobook!.chapters.length}',
+                                    style:
+                                        Theme.of(context).textTheme.bodySmall,
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    _audiobook!
+                                        .chapters[playerState.currentIndex]
+                                        .title,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleMedium
+                                        ?.copyWith(
+                                          fontWeight: FontWeight.bold,
+                                          color: Theme.of(context).primaryColor,
+                                        ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Icon(
+                              Icons.chevron_right,
+                              color: Theme.of(context).primaryColor,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   ),
-                  const SizedBox(height: 8),
-                  Expanded(
+                ),
+
+              // Player controls
+              Padding(
+                padding: EdgeInsets.only(
+                  left: ResponsiveUtils.getCompactPadding(context).left,
+                  right: ResponsiveUtils.getCompactPadding(context).right,
+                  top: ResponsiveUtils.getCompactPadding(context).top,
+                  bottom: ResponsiveUtils.getCompactPadding(context).bottom +
+                      16.0, // Base padding
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.skip_previous),
+                      onPressed:
+                          playerState.currentIndex > 0 ? _prevChapter : null,
+                      tooltip: _audiobook != null &&
+                              playerState.currentIndex > 0 &&
+                              playerState.currentIndex <=
+                                  _audiobook!.chapters.length
+                          ? _audiobook!
+                              .chapters[playerState.currentIndex - 1].title
+                          : 'Previous chapter',
+                      iconSize: ResponsiveUtils.getIconSize(
+                        context,
+                        baseSize: ResponsiveUtils.isVerySmallScreen(context)
+                            ? 40
+                            : 48,
+                      ),
+                      constraints: BoxConstraints(
+                        minWidth:
+                            ResponsiveUtils.getMinTouchTarget(context) * 1.1,
+                        minHeight:
+                            ResponsiveUtils.getMinTouchTarget(context) * 1.1,
+                      ),
+                    ),
+                    SizedBox(
+                      width: ResponsiveUtils.getSpacing(
+                        context,
+                        baseSpacing: 32,
+                      ),
+                    ),
+                    IconButton(
+                      icon: Icon(playerState.isPlaying
+                          ? Icons.pause
+                          : Icons.play_arrow),
+                      onPressed: _playPause,
+                      iconSize: ResponsiveUtils.getIconSize(
+                        context,
+                        baseSize: ResponsiveUtils.isVerySmallScreen(context)
+                            ? 56
+                            : 64,
+                      ),
+                      constraints: BoxConstraints(
+                        minWidth:
+                            ResponsiveUtils.getMinTouchTarget(context) * 1.4,
+                        minHeight:
+                            ResponsiveUtils.getMinTouchTarget(context) * 1.4,
+                      ),
+                    ),
+                    SizedBox(
+                      width: ResponsiveUtils.getSpacing(
+                        context,
+                        baseSpacing: 32,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.skip_next),
+                      onPressed: _nextChapter,
+                      tooltip: _audiobook != null &&
+                              playerState.currentIndex >= 0 &&
+                              playerState.currentIndex <
+                                  _audiobook!.chapters.length - 1
+                          ? _audiobook!
+                              .chapters[playerState.currentIndex + 1].title
+                          : 'Next chapter',
+                      iconSize: ResponsiveUtils.getIconSize(
+                        context,
+                        baseSize: ResponsiveUtils.isVerySmallScreen(context)
+                            ? 40
+                            : 48,
+                      ),
+                      constraints: BoxConstraints(
+                        minWidth:
+                            ResponsiveUtils.getMinTouchTarget(context) * 1.1,
+                        minHeight:
+                            ResponsiveUtils.getMinTouchTarget(context) * 1.1,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Nearby chapters carousel - shows current + 2 prev + 2 next for quick navigation
+              if (_audiobook != null &&
+                  _audiobook!.chapters.length > 1 &&
+                  playerState.currentIndex >= 0 &&
+                  playerState.currentIndex < _audiobook!.chapters.length)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8.0, bottom: 8.0),
+                  child: SizedBox(
+                    height: 90,
                     child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
                       itemCount: _audiobook!.chapters.length,
                       itemBuilder: (context, index) {
                         final chapter = _audiobook!.chapters[index];
-                        // Use RepaintBoundary to isolate repaints for each chapter item
-                        return RepaintBoundary(
-                          child: ListTile(
-                            leading: const Icon(Icons.book),
-                            title: Text(chapter.title),
-                            subtitle: Text(_formatDuration(
-                                Duration(milliseconds: chapter.durationMs))),
+                        final isCurrent = index == playerState.currentIndex;
+                        final distance =
+                            (index - playerState.currentIndex).abs();
+
+                        // Show only current + 2 prev + 2 next (total 5 chapters)
+                        if (distance > 2) return const SizedBox.shrink();
+
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 8.0),
+                          child: GestureDetector(
                             onTap: () => _seekToChapter(chapter),
+                            child: Container(
+                              width: 130,
+                              decoration: BoxDecoration(
+                                color: isCurrent
+                                    ? Theme.of(context)
+                                        .primaryColor
+                                        .withValues(alpha: 0.1)
+                                    : Theme.of(context).cardColor,
+                                borderRadius: BorderRadius.circular(12),
+                                border: isCurrent
+                                    ? Border.all(
+                                        color: Theme.of(context).primaryColor,
+                                        width: 2,
+                                      )
+                                    : Border.all(
+                                        color: Theme.of(context).dividerColor,
+                                      ),
+                              ),
+                              padding: const EdgeInsets.all(10.0),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      if (isCurrent)
+                                        Icon(
+                                          Icons.play_circle_filled,
+                                          size: 16,
+                                          color: Theme.of(context).primaryColor,
+                                        ),
+                                      if (isCurrent) const SizedBox(width: 4),
+                                      Text(
+                                        '${index + 1}',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .titleSmall
+                                            ?.copyWith(
+                                              fontWeight: isCurrent
+                                                  ? FontWeight.bold
+                                                  : FontWeight.normal,
+                                              color: isCurrent
+                                                  ? Theme.of(context)
+                                                      .primaryColor
+                                                  : null,
+                                            ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Expanded(
+                                    child: Text(chapter.title,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodySmall,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        textAlign: TextAlign.center),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ),
                         );
                       },
                     ),
                   ),
-                ],
-              ),
-            ),
+                ),
+            ],
           ),
-      ],
+        ),
+      ),
     );
   }
 

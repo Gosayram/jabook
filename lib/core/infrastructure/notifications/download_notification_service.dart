@@ -247,13 +247,20 @@ class DownloadNotificationService {
       // Use round() instead of toInt() to properly handle 99.5% -> 100% instead of 99%
       // Clamp to 0-100 to ensure valid range
       final progressPercent = progress.clamp(0.0, 100.0).round().clamp(0, 100);
+
+      // Check if status indicates active downloading (including metadata download)
+      final isDownloading =
+          status == 'downloading' || status == 'downloading_metadata';
+
       final progressText = status == 'completed'
           ? 'Completed'
           : status == 'paused'
               ? 'Paused'
               : status == 'restored'
                   ? 'Tap to resume'
-                  : '$progressPercent% • $speedText';
+                  : status == 'downloading_metadata'
+                      ? 'Downloading metadata...'
+                      : '$progressPercent% • $speedText';
 
       // Add action buttons for restored/paused downloads
       List<AndroidNotificationAction>? actions;
@@ -280,7 +287,7 @@ class DownloadNotificationService {
         maxProgress: 100,
         progress: progressPercent,
         onlyAlertOnce: true,
-        ongoing: status == 'downloading',
+        ongoing: isDownloading,
         autoCancel: status == 'completed',
         actions: actions,
       );

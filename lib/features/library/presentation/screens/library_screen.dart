@@ -20,6 +20,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:jabook/core/di/providers/database_providers.dart';
+import 'package:jabook/core/di/providers/library_providers.dart';
 import 'package:jabook/core/di/providers/player_providers.dart';
 import 'package:jabook/core/di/providers/utils_providers.dart';
 import 'package:jabook/core/domain/library/entities/local_audiobook_group.dart';
@@ -419,6 +420,12 @@ class _LibraryContentState extends ConsumerState<_LibraryContent> {
   late final AudiobookFileManager _fileManager;
   bool _hasInitialLoad = false;
 
+  // Progress tracking for refresh (reserved for future use)
+  // int _scannedFilesCount = 0;
+  // int _totalFilesToScan = 0;
+  // bool _isRefreshInProgress = false; // Reserved for future UI progress indicator
+  bool _shouldCancelScan = false;
+
   @override
   void initState() {
     super.initState();
@@ -460,6 +467,9 @@ class _LibraryContentState extends ConsumerState<_LibraryContent> {
     final isScanning = ref.read(isScanningProvider);
     if (isScanning) return;
 
+    // Reset cancel flag
+    _shouldCancelScan = false;
+
     // Check if we have groups in provider - if not, force full scan
     // This ensures that books are always found on first load or after app restart
     final existingGroups = ref.read(libraryGroupsProvider);
@@ -482,23 +492,50 @@ class _LibraryContentState extends ConsumerState<_LibraryContent> {
     // Update scanning state via provider
     ref.read(isScanningProvider.notifier).state = true;
 
+    // Progress tracking is handled by isScanningProvider
+
     try {
       // Run scanning in isolate to prevent cancellation when app is minimized
       final groups =
           await _scanInBackground(forceFullScan: shouldForceFullScan);
 
-      if (mounted) {
+      if (mounted && !_shouldCancelScan) {
         // Update state via provider to persist across tab switches
+        final previousGroupsCount = existingGroups.length;
+        final newGroupsCount = groups.length;
+        final updatedCount = newGroupsCount > previousGroupsCount
+            ? newGroupsCount - previousGroupsCount
+            : 0;
+
         ref.read(libraryGroupsProvider.notifier).updateGroups(groups);
         ref.read(isScanningProvider.notifier).state = false;
         debugPrint(
           'Library scan completed: found ${groups.length} groups with ${groups.fold<int>(0, (sum, g) => sum + g.files.length)} total files',
         );
+
+        // Progress tracking is handled by isScanningProvider
+
         _applyFilters();
+
+        // Show snackbar with update info if files were updated
+        if (updatedCount > 0) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Library updated: $updatedCount new item${updatedCount > 1 ? 's' : ''}',
+              ),
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+      } else if (_shouldCancelScan) {
+        debugPrint('Library scan was cancelled');
+        // Progress tracking is handled by isScanningProvider
       }
     } on Exception catch (e) {
       if (mounted) {
         ref.read(isScanningProvider.notifier).state = false;
+        // Progress tracking is handled by isScanningProvider
         debugPrint('Failed to load local audiobooks: $e');
         debugPrint('Stack trace: ${StackTrace.current}');
         // Fallback to regular scanner on error
@@ -518,6 +555,13 @@ class _LibraryContentState extends ConsumerState<_LibraryContent> {
     }
   }
 
+  /// Cancels the current library scan operation.
+  void _cancelScan() {
+    _shouldCancelScan = true;
+    ref.read(isScanningProvider.notifier).state = false;
+    // Progress tracking is handled by isScanningProvider
+  }
+
   /// Scans library in background isolate to prevent cancellation.
   Future<List<LocalAudiobookGroup>> _scanInBackground({
     required bool forceFullScan,
@@ -530,9 +574,12 @@ class _LibraryContentState extends ConsumerState<_LibraryContent> {
       folderFilterService: folderFilterService,
       contentUriService: Platform.isAndroid ? ContentUriService() : null,
     );
+    // Get FileChecksumService from provider if available
+    final checksumService = ref.read(fileChecksumServiceProvider);
     final smartScanner = SmartScannerService(
       scanner: scanner,
       folderFilterService: folderFilterService,
+      checksumService: checksumService,
     );
 
     // Get existing groups to preserve unchanged folders
@@ -549,9 +596,37 @@ class _LibraryContentState extends ConsumerState<_LibraryContent> {
     }
   }
 
+  /// Refreshes the library using incremental scan with checksum verification.
+  ///
+  /// This method performs an incremental scan instead of full scan to be faster
+  /// and less resource-intensive. It uses checksums to detect changed files.
   Future<void> _refreshLibrary({bool forceFullScan = false}) async {
-    // Always perform full scan on pull-to-refresh to ensure all files are found
-    await _loadLocalAudiobooks(forceFullScan: true);
+    // Check if scan is already in progress
+    final isScanning = ref.read(isScanningProvider);
+    if (isScanning) {
+      // Cancel current scan if user pulls to refresh again
+      _cancelScan();
+      await Future.delayed(const Duration(milliseconds: 100));
+    }
+
+    // Use incremental scan for pull-to-refresh instead of full scan
+    // This is faster and less resource-intensive while still detecting changes
+    // via checksums and folder modification times
+    final existingGroups = ref.read(libraryGroupsProvider);
+
+    // Only force full scan if explicitly requested or if we have no groups
+    final shouldForceFullScan = forceFullScan || existingGroups.isEmpty;
+
+    if (shouldForceFullScan) {
+      debugPrint(
+          'Refresh: Performing full scan (requested or no existing groups)');
+    } else {
+      debugPrint(
+        'Refresh: Performing incremental scan (${existingGroups.length} existing groups)',
+      );
+    }
+
+    await _loadLocalAudiobooks(forceFullScan: shouldForceFullScan);
   }
 
   void _applyFilters() {
@@ -684,62 +759,128 @@ class _LibraryContentState extends ConsumerState<_LibraryContent> {
 
         final sortedKeys = grouped.keys.toList()..sort();
 
+        final listPadding = EdgeInsets.only(
+          top: padding.vertical * 0.7, // Reduced top padding by 30%
+          left: padding.horizontal,
+          right: padding.horizontal,
+          bottom:
+              MediaQuery.of(context).padding.bottom + 52, // Mini player height
+        );
+
+        Widget listWidget = ListView.builder(
+          padding: listPadding,
+          physics: const AlwaysScrollableScrollPhysics(),
+          cacheExtent: 500, // Cache 500px of off-screen items
+          itemCount: sortedKeys.length,
+          itemBuilder: (context, index) {
+            final letter = sortedKeys[index];
+            final groups = grouped[letter]!;
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  child: Text(
+                    letter,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                  ),
+                ),
+                ...groups
+                    .expand(
+                      (group) => [
+                        _buildAudiobookGroupTile(context, group),
+                        const SizedBox(height: 8),
+                      ],
+                    )
+                    .toList()
+                  ..removeLast(), // Remove last SizedBox
+              ],
+            );
+          },
+        );
+
+        // Wrap with Scrollbar for lists with >20 items
+        if (groupsToShow.length > 20) {
+          listWidget = Scrollbar(
+            child: listWidget,
+          );
+        }
+
         return ResponsiveUtils.responsiveContainer(
           context,
           RefreshIndicator(
             onRefresh: _refreshLibrary,
-            child: ListView.builder(
-              itemCount: sortedKeys.length,
-              itemBuilder: (context, index) {
-                final letter = sortedKeys[index];
-                final groups = grouped[letter]!;
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
-                      ),
-                      child: Text(
-                        letter,
-                        style:
-                            Theme.of(context).textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                      ),
-                    ),
-                    ...groups
-                        .expand(
-                          (group) => [
-                            _buildAudiobookGroupTile(context, group),
-                            const SizedBox(height: 8),
-                          ],
-                        )
-                        .toList()
-                      ..removeLast(), // Remove last SizedBox
-                  ],
-                );
-              },
-            ),
+            child: listWidget,
           ),
-          padding: padding,
+          padding: EdgeInsets.zero, // Padding now handled in ListView
         );
       } else {
+        // Use GridView for tablets/desktop, ListView for mobile
+        final isTabletOrDesktop = ResponsiveUtils.isTablet(context) ||
+            ResponsiveUtils.isDesktop(context);
+        final columnCount = isTabletOrDesktop
+            ? (ResponsiveUtils.isDesktop(context) ? 3 : 2)
+            : 1;
+
+        final listPadding = EdgeInsets.only(
+          top: padding.vertical * 0.7, // Reduced top padding by 30%
+          left: padding.horizontal,
+          right: padding.horizontal,
+          bottom:
+              MediaQuery.of(context).padding.bottom + 52, // Mini player height
+        );
+
+        Widget listWidget;
+        if (isTabletOrDesktop) {
+          // GridView for tablets and desktop
+          listWidget = GridView.builder(
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: columnCount,
+              crossAxisSpacing: 8,
+              mainAxisSpacing: 8,
+              childAspectRatio: 3.5, // Width/Height ratio for cards
+            ),
+            padding: listPadding,
+            itemCount: groupsToShow.length,
+            itemBuilder: (context, index) {
+              final group = groupsToShow[index];
+              return _buildAudiobookGroupTile(context, group);
+            },
+          );
+        } else {
+          // ListView for mobile
+          listWidget = ListView.separated(
+            itemCount: groupsToShow.length,
+            separatorBuilder: (context, index) => const SizedBox(height: 8),
+            padding: listPadding,
+            physics: const AlwaysScrollableScrollPhysics(),
+            cacheExtent: 500, // Cache 500px of off-screen items
+            itemBuilder: (context, index) {
+              final group = groupsToShow[index];
+              return _buildAudiobookGroupTile(context, group);
+            },
+          );
+        }
+
+        // Wrap with Scrollbar for lists with >20 items
+        if (groupsToShow.length > 20) {
+          listWidget = Scrollbar(
+            child: listWidget,
+          );
+        }
+
         return ResponsiveUtils.responsiveContainer(
           context,
           RefreshIndicator(
             onRefresh: _refreshLibrary,
-            child: ListView.separated(
-              itemCount: groupsToShow.length,
-              separatorBuilder: (context, index) => const SizedBox(height: 8),
-              itemBuilder: (context, index) {
-                final group = groupsToShow[index];
-                return _buildAudiobookGroupTile(context, group);
-              },
-            ),
+            child: listWidget,
           ),
-          padding: padding,
+          padding: EdgeInsets.zero, // Padding now handled in ListView/GridView
         );
       }
     }
@@ -1160,11 +1301,12 @@ class _AudiobookGroupTile extends ConsumerStatefulWidget {
 
 class _AudiobookGroupTileState extends ConsumerState<_AudiobookGroupTile> {
   // Constants for layout
-  static const double _coverSize = 80.0;
-  static const double _cardPadding = 12.0;
+  static const double _coverSize = 92.0; // Increased from 80.0 (15% increase)
+  static const double _cardPadding = 8.0; // Decreased from 12.0 for compactness
   static const double _coverTextSpacing = 10.0;
   static const double _textButtonSpacing = 10.0;
-  static const double _buttonMinSize = 48.0;
+  static const double _buttonMinSize =
+      40.0; // Decreased from 48.0 for compactness
 
   String? _embeddedArtworkPath;
   bool _isLoadingArtwork = false;
@@ -1260,7 +1402,7 @@ class _AudiobookGroupTileState extends ConsumerState<_AudiobookGroupTile> {
             width: _coverSize,
             height: _coverSize,
             fit: BoxFit.cover,
-            cacheWidth: 160, // 2x for retina displays (80 * 2)
+            cacheWidth: 184, // 2x for retina displays (92 * 2)
             errorBuilder: (context, error, stackTrace) =>
                 _buildGroupCover(_coverSize),
           ),
@@ -1280,7 +1422,7 @@ class _AudiobookGroupTileState extends ConsumerState<_AudiobookGroupTile> {
             fit: BoxFit.cover,
             cacheWidth: 160, // 2x for retina displays
             errorBuilder: (context, error, stackTrace) =>
-                const Icon(Icons.audiotrack, size: 80),
+                const Icon(Icons.audiotrack, size: 92),
           ),
         );
       } else {
@@ -1317,7 +1459,7 @@ class _AudiobookGroupTileState extends ConsumerState<_AudiobookGroupTile> {
             fit: BoxFit.cover,
             cacheWidth: 160,
             errorBuilder: (context, error, stackTrace) =>
-                const Icon(Icons.audiotrack, size: 80),
+                const Icon(Icons.audiotrack, size: 92),
           ),
         );
       }
@@ -1325,31 +1467,59 @@ class _AudiobookGroupTileState extends ConsumerState<_AudiobookGroupTile> {
     return const Icon(Icons.audiotrack, size: 80);
   }
 
-  Widget _buildTextBlock() => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // First line: Title (main heading)
-          Text(
-            widget.group.groupName,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w500,
-                ),
-            maxLines: _isExpanded ? null : 2,
-            overflow:
-                _isExpanded ? TextOverflow.visible : TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 4),
-          // Second line: Additional info (files, size)
-          Text(
-            '${widget.group.fileCount} ${widget.group.fileCount == 1 ? 'file' : 'files'} • ${widget.group.formattedTotalSize}',
-            style: Theme.of(context).textTheme.bodySmall,
-            maxLines: _isExpanded ? null : 1,
-            overflow:
-                _isExpanded ? TextOverflow.visible : TextOverflow.ellipsis,
+  Widget _buildTextBlock() {
+    final title = widget.group.groupName;
+    final shouldShowExpandButton = title.length > 50 || _isExpanded;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // First line: Title (main heading)
+        Text(
+          title,
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w500,
+              ),
+          maxLines: _isExpanded ? null : 2,
+          overflow: _isExpanded ? TextOverflow.visible : TextOverflow.ellipsis,
+        ),
+        // Show expand/collapse button if text is long or expanded
+        if (shouldShowExpandButton) ...[
+          const SizedBox(height: 2),
+          TextButton(
+            onPressed: () {
+              setState(() {
+                _isExpanded = !_isExpanded;
+              });
+            },
+            style: TextButton.styleFrom(
+              padding: EdgeInsets.zero,
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              foregroundColor: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+            child: Text(
+              _isExpanded
+                  ? AppLocalizations.of(context)?.showLess ?? 'Show less'
+                  : AppLocalizations.of(context)?.showMore ?? 'Show more',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+            ),
           ),
         ],
-      );
+        const SizedBox(height: 4),
+        // Second line: Additional info (files, size)
+        Text(
+          '${widget.group.fileCount} ${widget.group.fileCount == 1 ? 'file' : 'files'} • ${widget.group.formattedTotalSize}',
+          style: Theme.of(context).textTheme.bodySmall,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ],
+    );
+  }
 
   Widget _buildActionButtons() {
     if (ref.watch(isScanningProvider)) {
@@ -1366,7 +1536,7 @@ class _AudiobookGroupTileState extends ConsumerState<_AudiobookGroupTile> {
       children: [
         // Play button
         IconButton(
-          icon: const Icon(Icons.play_arrow),
+          icon: const Icon(Icons.play_arrow, size: 24),
           onPressed: widget.onPlay,
           tooltip: 'Play',
           constraints: const BoxConstraints(
@@ -1441,7 +1611,6 @@ class _AudiobookGroupTileState extends ConsumerState<_AudiobookGroupTile> {
   Widget build(BuildContext context) => Container(
         padding: const EdgeInsets.all(_cardPadding),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Cover image (clickable)
             _buildCoverWidget(),
@@ -1449,17 +1618,8 @@ class _AudiobookGroupTileState extends ConsumerState<_AudiobookGroupTile> {
             // Text block (expandable)
             Expanded(
               child: GestureDetector(
-                onTap: () {
-                  if (!_isExpanded) {
-                    // If collapsed, expand
-                    setState(() {
-                      _isExpanded = true;
-                    });
-                  } else {
-                    // If expanded, navigate to player
-                    widget.onTap();
-                  }
-                },
+                onTap: widget.onTap,
+                behavior: HitTestBehavior.opaque,
                 child: AnimatedSize(
                   duration: const Duration(milliseconds: 200),
                   curve: Curves.easeInOut,

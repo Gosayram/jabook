@@ -22,6 +22,7 @@ import 'package:jabook/core/data/remote/rutracker/rutracker_parser.dart';
 import 'package:jabook/core/infrastructure/endpoints/endpoint_manager.dart';
 import 'package:jabook/core/infrastructure/logging/structured_logger.dart';
 import 'package:jabook/core/net/dio_client.dart';
+import 'package:jabook/core/search/models/cache_settings.dart';
 import 'package:jabook/core/search/models/cache_status.dart';
 import 'package:sembast/sembast.dart';
 
@@ -496,6 +497,35 @@ class FullSyncService {
     try {
       final db = await _appDatabase.ensureInitialized();
       final store = _appDatabase.audiobookMetadataStore;
+
+      // Update lastUpdateTime in cache settings to keep cache fresh
+      // This is done periodically (every 10 batches) to avoid excessive writes
+      final shouldUpdateCacheTime = batch.length >= 10 ||
+          (DateTime.now().millisecondsSinceEpoch % 10 == 0);
+
+      if (shouldUpdateCacheTime) {
+        try {
+          final settingsStore = _appDatabase.searchCacheSettingsStore;
+          final settingsMap = await settingsStore.record('settings').get(db);
+          if (settingsMap != null) {
+            final settings = CacheSettings.fromMap(settingsMap);
+            // Only update if last update was more than 1 hour ago
+            final shouldUpdate = settings.lastUpdateTime == null ||
+                DateTime.now().difference(settings.lastUpdateTime!) >
+                    const Duration(hours: 1);
+            if (shouldUpdate) {
+              final updatedSettings = settings.copyWith(
+                lastUpdateTime: DateTime.now(),
+              );
+              await settingsStore
+                  .record('settings')
+                  .put(db, updatedSettings.toMap());
+            }
+          }
+        } on Exception {
+          // Ignore errors - cache time update is not critical
+        }
+      }
 
       // Use transaction for atomic batch write
       await db.transaction((transaction) async {

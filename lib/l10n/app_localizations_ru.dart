@@ -300,6 +300,18 @@ class AppLocalizationsRu extends AppLocalizations {
   String get chaptersLabel => 'Главы';
 
   @override
+  String get searchChaptersHint => 'Поиск по номеру или названию...';
+
+  @override
+  String get allFilter => 'Все';
+
+  @override
+  String get currentFilter => 'Текущая';
+
+  @override
+  String get noChaptersFoundInSearch => 'Главы не найдены';
+
+  @override
   String get downloadFunctionalityComingSoon => 'Функция загрузки скоро появится';
 
   @override
@@ -750,6 +762,11 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get sampleChapter2Text => 'Глава 2';
+
+  @override
+  String chapterNumber(int number) {
+    return 'Глава $number';
+  }
 
   @override
   String get topicScreenTitle => 'Топик';

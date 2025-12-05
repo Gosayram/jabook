@@ -729,7 +729,7 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
         logger.w(
           'Some files from saved state no longer exist, clearing saved state',
         );
-        await playerService.clearSavedState();
+        await playerService.clearSavedState(savedState.groupPath);
         return;
       }
 

@@ -248,7 +248,7 @@ class _MiniPlayerWidgetState extends ConsumerState<MiniPlayerWidget> {
         }
       },
       child: Container(
-        height: 64,
+        height: 52, // Reduced from 64 (20% decrease)
         decoration: BoxDecoration(
           color: Theme.of(context).cardColor,
           boxShadow: [
@@ -340,8 +340,8 @@ class _MiniPlayerWidgetState extends ConsumerState<MiniPlayerWidget> {
       final coverFile = File(coverPath);
       if (coverFile.existsSync()) {
         return Container(
-          width: 64,
-          height: 64,
+          width: 52,
+          height: 52,
           decoration: BoxDecoration(
             color: Colors.grey[300],
           ),

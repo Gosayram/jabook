@@ -1049,15 +1049,8 @@ class RuTrackerParser {
               },
             );
           }
-        } else {
-          await logger.log(
-            level: 'debug',
-            subsystem: 'parser',
-            message: 'No tor column found, will search in entire row',
-            context: 'parse_search_results',
-            extra: {'topic_id': topicId},
-          );
         }
+        // Removed verbose logging - "No tor column found" is expected for many results
 
         // Fallback to searching in entire row
         if (coverUrl == null || coverUrl.isEmpty) {
@@ -2335,13 +2328,16 @@ Future<String?> _extractCoverUrl(Element row, {String? baseUrl}) async {
   // Priority 7: Try to find any image in the row that looks like a cover
   // This is a fallback for cases where standard selectors don't work
   final allImages = row.querySelectorAll('img');
-  await structuredLogger.log(
-    level: 'debug',
-    subsystem: 'parser',
-    message: 'Trying fallback: searching all images (Priority 7)',
-    context: 'extract_cover_url',
-    extra: {'total_images': allImages.length},
-  );
+  // Only log if there are many images (potential performance issue)
+  if (allImages.length > 5) {
+    await structuredLogger.log(
+      level: 'debug',
+      subsystem: 'parser',
+      message: 'Trying fallback: searching all images (Priority 7)',
+      context: 'extract_cover_url',
+      extra: {'total_images': allImages.length},
+    );
+  }
   for (final img in allImages) {
     final src = img.attributes['src'] ??
         img.attributes['data-src'] ??

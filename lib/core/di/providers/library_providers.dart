@@ -15,11 +15,33 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:jabook/core/data/library/datasources/library_local_datasource.dart';
 import 'package:jabook/core/data/library/repositories/library_repository_impl.dart';
+import 'package:jabook/core/di/providers/database_providers.dart';
 import 'package:jabook/core/domain/library/repositories/library_repository.dart';
 import 'package:jabook/core/domain/library/use_cases/get_library_groups_use_case.dart';
 import 'package:jabook/core/domain/library/use_cases/scan_directory_use_case.dart';
 import 'package:jabook/core/domain/library/use_cases/scan_library_use_case.dart';
 import 'package:jabook/core/library/audiobook_library_scanner.dart';
+import 'package:jabook/core/library/file_checksum_service.dart';
+import 'package:jabook/core/library/library_groups_storage_service.dart';
+
+/// Provider for FileChecksumService instance.
+///
+/// This provider creates a FileChecksumService instance that uses
+/// AppDatabase for storing file checksums.
+final fileChecksumServiceProvider = Provider<FileChecksumService>((ref) {
+  final appDatabase = ref.watch(appDatabaseProvider);
+  return FileChecksumService(appDatabase: appDatabase);
+});
+
+/// Provider for LibraryGroupsStorageService instance.
+///
+/// This provider creates a LibraryGroupsStorageService instance that uses
+/// AppDatabase for persisting library groups.
+final libraryGroupsStorageServiceProvider =
+    Provider<LibraryGroupsStorageService>((ref) {
+  final appDatabase = ref.watch(appDatabaseProvider);
+  return LibraryGroupsStorageService(appDatabase: appDatabase);
+});
 
 /// Provider for AudiobookLibraryScanner instance.
 final audiobookLibraryScannerProvider =

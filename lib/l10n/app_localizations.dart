@@ -677,6 +677,30 @@ abstract class AppLocalizations {
   /// **'Chapters'**
   String get chaptersLabel;
 
+  /// Hint for chapters search field
+  ///
+  /// In en, this message translates to:
+  /// **'Search by number or title...'**
+  String get searchChaptersHint;
+
+  /// Filter for showing all chapters
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get allFilter;
+
+  /// Filter for showing current chapter
+  ///
+  /// In en, this message translates to:
+  /// **'Current'**
+  String get currentFilter;
+
+  /// Message when no chapters found in search/filter
+  ///
+  /// In en, this message translates to:
+  /// **'No chapters found'**
+  String get noChaptersFoundInSearch;
+
   /// Message for upcoming download feature
   ///
   /// In en, this message translates to:
@@ -1540,6 +1564,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Chapter 2'**
   String get sampleChapter2Text;
+
+  /// Chapter number label with number parameter
+  ///
+  /// In en, this message translates to:
+  /// **'Chapter {number}'**
+  String chapterNumber(int number);
 
   /// Title for topic screen
   ///

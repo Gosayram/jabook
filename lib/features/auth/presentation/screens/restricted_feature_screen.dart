@@ -107,7 +107,13 @@ class RestrictedFeatureScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 16),
               TextButton(
-                onPressed: () => context.pop(),
+                onPressed: () {
+                  // Set guest mode and close the screen
+                  accessNotifier.setGuestMode();
+                  if (context.mounted) {
+                    context.pop();
+                  }
+                },
                 child: Text(
                   localizations?.continueAsGuest ?? 'Continue as Guest',
                 ),

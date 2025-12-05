@@ -14,6 +14,7 @@
 
 import 'dart:convert';
 
+import 'package:jabook/core/player/player_state_database_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Model for saved player state.
@@ -93,14 +94,36 @@ class SavedPlayerState {
 ///
 /// This service saves and restores complete player state including
 /// playlist, position, speed, repeat mode, and sleep timer.
+/// Uses database for reliable storage, with SharedPreferences as fallback.
 class PlayerStatePersistenceService {
-  /// Key for storing current player state.
+  /// Creates a new PlayerStatePersistenceService instance.
+  PlayerStatePersistenceService({
+    PlayerStateDatabaseService? databaseService,
+  }) : _databaseService = databaseService;
+
+  final PlayerStateDatabaseService? _databaseService;
+
+  /// Key for storing current player state in SharedPreferences (fallback).
   static const String _stateKey = 'player_state';
 
   /// Saves current player state.
   ///
   /// [state] is the player state to save.
+  /// Uses database if available, otherwise falls back to SharedPreferences.
   Future<void> saveState(SavedPlayerState state) async {
+    // Try database first (more reliable)
+    if (_databaseService != null) {
+      try {
+        final saved = await _databaseService.saveState(state);
+        if (saved) {
+          return; // Successfully saved to database
+        }
+      } on Exception {
+        // Fall through to SharedPreferences fallback
+      }
+    }
+
+    // Fallback to SharedPreferences
     try {
       final prefs = await SharedPreferences.getInstance();
       final json = jsonEncode(state.toJson());
@@ -113,7 +136,31 @@ class PlayerStatePersistenceService {
   /// Restores saved player state.
   ///
   /// Returns [SavedPlayerState] if available, null otherwise.
+  /// Tries database first, then falls back to SharedPreferences.
   Future<SavedPlayerState?> restoreState() async {
+    // Try database first (more reliable)
+    if (_databaseService != null) {
+      try {
+        // Try to restore from database using groupPath from SharedPreferences
+        // or try common group paths
+        final prefs = await SharedPreferences.getInstance();
+        final json = prefs.getString(_stateKey);
+        if (json != null) {
+          final map = jsonDecode(json) as Map<String, dynamic>;
+          final groupPath = map['groupPath'] as String?;
+          if (groupPath != null) {
+            final state = await _databaseService.restoreState(groupPath);
+            if (state != null) {
+              return state;
+            }
+          }
+        }
+      } on Exception {
+        // Fall through to SharedPreferences fallback
+      }
+    }
+
+    // Fallback to SharedPreferences
     try {
       final prefs = await SharedPreferences.getInstance();
       final json = prefs.getString(_stateKey);
@@ -126,8 +173,56 @@ class PlayerStatePersistenceService {
     }
   }
 
+  /// Restores saved player state for a specific group path.
+  ///
+  /// The [groupPath] parameter is the group path to restore state for.
+  /// Returns [SavedPlayerState] if available, null otherwise.
+  Future<SavedPlayerState?> restoreStateForGroup(String groupPath) async {
+    // Try database first
+    if (_databaseService != null) {
+      try {
+        final state = await _databaseService.restoreState(groupPath);
+        if (state != null) {
+          return state;
+        }
+      } on Exception {
+        // Fall through to SharedPreferences fallback
+      }
+    }
+
+    // Fallback to SharedPreferences (check if groupPath matches)
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final json = prefs.getString(_stateKey);
+      if (json == null) return null;
+
+      final map = jsonDecode(json) as Map<String, dynamic>;
+      final savedState = SavedPlayerState.fromJson(map);
+      if (savedState.groupPath == groupPath) {
+        return savedState;
+      }
+    } on Exception {
+      // Ignore errors
+    }
+
+    return null;
+  }
+
   /// Clears saved player state.
-  Future<void> clearState() async {
+  ///
+  /// The [groupPath] parameter is optional. If provided, clears state for
+  /// that specific group. Otherwise, clears all saved state.
+  Future<void> clearState([String? groupPath]) async {
+    // Clear from database if available
+    if (_databaseService != null && groupPath != null) {
+      try {
+        await _databaseService.clearState(groupPath);
+      } on Exception {
+        // Fall through to SharedPreferences fallback
+      }
+    }
+
+    // Also clear from SharedPreferences
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_stateKey);
@@ -137,7 +232,20 @@ class PlayerStatePersistenceService {
   }
 
   /// Checks if there is a saved player state.
-  Future<bool> hasSavedState() async {
+  ///
+  /// The [groupPath] parameter is optional. If provided, checks for that
+  /// specific group. Otherwise, checks for any saved state.
+  Future<bool> hasSavedState([String? groupPath]) async {
+    // Check database first
+    if (_databaseService != null && groupPath != null) {
+      try {
+        return await _databaseService.hasSavedState(groupPath);
+      } on Exception {
+        // Fall through to SharedPreferences fallback
+      }
+    }
+
+    // Fallback to SharedPreferences
     try {
       final prefs = await SharedPreferences.getInstance();
       return prefs.containsKey(_stateKey);

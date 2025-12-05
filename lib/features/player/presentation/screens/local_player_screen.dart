@@ -38,6 +38,7 @@ import 'package:jabook/core/player/player_state_provider.dart'
 import 'package:jabook/core/player/sleep_timer_service.dart';
 import 'package:jabook/core/utils/responsive_utils.dart';
 import 'package:jabook/core/utils/safe_async.dart';
+import 'package:jabook/features/player/presentation/widgets/tracks_bottom_sheet.dart';
 import 'package:jabook/l10n/app_localizations.dart';
 
 /// Player screen for local audiobook files.
@@ -73,18 +74,6 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
   static const double _kSpacingMedium = 16.0;
   static const double _kSpacingLarge = 24.0;
 
-  /// Gets compact spacing based on screen size.
-  ///
-  /// Returns smaller spacing for very small screens and larger for tablets.
-  double _getCompactSpacing(BuildContext context) {
-    if (ResponsiveUtils.isVerySmallScreen(context)) {
-      return 8.0;
-    } else if (ResponsiveUtils.isTablet(context)) {
-      return 20.0;
-    }
-    return 12.0;
-  }
-
   /// Gets medium spacing based on screen size.
   ///
   /// Returns adaptive spacing for different screen sizes following MD3 guidelines.
@@ -111,6 +100,8 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
   String? _embeddedArtworkPath; // Path to embedded artwork from metadata
   String?
       _groupArtworkPath; // First found artwork path for the group (global setting)
+  bool _showChapterChips =
+      false; // Track if chapter chips list should be visible
 
   // MethodChannel for player lifecycle tracking (prevents app exit during initialization)
   static const MethodChannel _playerLifecycleChannel =
@@ -1043,11 +1034,17 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
     }
   }
 
-  void _seekToTrack(int index) {
+  Future<void> _seekToTrack(int index) async {
     if (index >= 0 && index < widget.group.files.length) {
-      ref.read(playerStateProvider.notifier)
-        ..seekToTrack(index)
-        ..seek(Duration.zero);
+      final playerNotifier = ref.read(playerStateProvider.notifier);
+      await playerNotifier.seekToTrack(index);
+      await playerNotifier.seek(Duration.zero);
+
+      // Start playback automatically after switching track
+      final currentState = ref.read(playerStateProvider);
+      if (!currentState.isPlaying) {
+        await playerNotifier.play();
+      }
     }
   }
 
@@ -1063,6 +1060,23 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
     if (state.currentIndex < widget.group.files.length - 1) {
       ref.read(playerStateProvider.notifier).next();
     }
+  }
+
+  /// Shows the tracks bottom sheet for navigation.
+  void _showTracksBottomSheet() {
+    if (widget.group.files.isEmpty) return;
+
+    final scrollController = DraggableScrollableController();
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => TracksBottomSheet(
+        group: widget.group,
+        onTrackSelected: _seekToTrack,
+        scrollController: scrollController,
+      ),
+    );
   }
 
   /// Updates metadata for current track.
@@ -1361,28 +1375,43 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
     final hasError = !isLoading && (_hasError || playerState.error != null);
     final errorMessage = _errorMessage ?? playerState.error;
 
+    // Extract author from groupName (format: "Author - Title")
+    String? authorName;
+    final groupNameParts = widget.group.groupName.split(' - ');
+    if (groupNameParts.length > 1) {
+      authorName = groupNameParts.first.trim();
+    } else {
+      // If no " - " separator, try to get author from first file
+      if (widget.group.files.isNotEmpty &&
+          widget.group.files.first.author != null &&
+          widget.group.files.first.author!.isNotEmpty) {
+        authorName = widget.group.files.first.author;
+      } else {
+        authorName = widget.group.groupName;
+      }
+    }
+
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.group.groupName),
+        automaticallyImplyLeading: false,
+        centerTitle: true, // Center the author name
+        toolbarHeight: 48, // Compact height adapted to text
+        title: Text(
+          authorName ?? widget.group.groupName,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontSize: 16,
+              ),
+        ),
       ),
       body: GestureDetector(
+        behavior: HitTestBehavior.translucent,
         onVerticalDragEnd: (details) {
           // Swipe down to close (return to mini player)
           if (details.primaryVelocity != null &&
               details.primaryVelocity! > 500) {
             context.pop();
-          }
-        },
-        onHorizontalDragEnd: (details) {
-          // Swipe left for next track, swipe right for previous track
-          if (details.primaryVelocity != null) {
-            if (details.primaryVelocity! < -500) {
-              // Swipe left - next track
-              _nextTrack();
-            } else if (details.primaryVelocity! > 500) {
-              // Swipe right - previous track
-              _prevTrack();
-            }
           }
         },
         child: hasError
@@ -1431,122 +1460,76 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
                   // Main UI content with CustomScrollView for proper scrolling
                   CustomScrollView(
                     slivers: [
-                      // Top section: Cover + Player (always visible, min height = screen height)
+                      // Top section: Cover + Player
                       SliverToBoxAdapter(
-                        child: Container(
-                          // Ensure minimum height equals screen height so tracks are hidden initially
-                          constraints: BoxConstraints(
-                            minHeight: MediaQuery.of(context).size.height,
-                          ),
-                          child: Column(
-                            children: [
-                              // Cover image - full width, no side padding
-                              _buildCoverImage(),
-                              // Rest of content with padding
-                              Padding(
-                                padding:
-                                    ResponsiveUtils.getCompactPadding(context),
-                                child: Column(
-                                  children: [
-                                    SizedBox(
-                                        height: _getCompactSpacing(context)),
-                                    // Track info
-                                    Text(
-                                      widget.group.files.isNotEmpty &&
-                                              playerState.currentIndex >= 0 &&
-                                              playerState.currentIndex <
-                                                  widget.group.files.length
-                                          ? (widget
-                                                  .group.hasMultiFolderStructure
-                                              ? widget
-                                                  .group
-                                                  .files[
-                                                      playerState.currentIndex]
-                                                  .getDisplayNameWithPart(
-                                                      widget.group.groupPath)
-                                              : widget
-                                                  .group
-                                                  .files[
-                                                      playerState.currentIndex]
-                                                  .displayName)
-                                          : widget.group.groupName,
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .titleLarge,
-                                      textAlign: TextAlign.center,
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
+                        child: Column(
+                          children: [
+                            // Cover image - full width, no padding to fill all space
+                            _buildCoverImage(),
+                            // Rest of content with padding
+                            Padding(
+                              padding:
+                                  ResponsiveUtils.getCompactPadding(context),
+                              child: Column(
+                                children: [
+                                  const SizedBox(height: 4),
+                                  // Track/chapter title - large, prominent
+                                  _buildTrackTitle(playerState),
+                                  const SizedBox(height: 6),
+                                  // Author and book name - subtitle style
+                                  _buildTrackSubtitle(),
+                                  const SizedBox(height: 8),
+                                  // Progress slider with 16dp horizontal padding
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 16.0),
+                                    child: _buildProgressSlider(playerState),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  // Time indicators directly under progress bar
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 16.0),
+                                    child: _buildTimeIndicators(playerState),
+                                  ),
+                                  // Track info and percentage (if multiple tracks)
+                                  if (widget.group.files.length > 1) ...[
+                                    const SizedBox(height: 8),
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 16.0),
+                                      child: _buildTrackInfo(playerState),
                                     ),
-                                    const SizedBox(height: _kSpacingSmall),
-                                    Text(
-                                      widget.group.groupName,
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .bodyMedium
-                                          ?.copyWith(
-                                            fontSize:
-                                                ResponsiveUtils.getBodyFontSize(
-                                                    context),
-                                          ),
-                                      textAlign: TextAlign.center,
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                    // Animated spacing before group progress
-                                    AnimatedContainer(
-                                      duration:
-                                          const Duration(milliseconds: 300),
-                                      curve: Curves.easeInOut,
-                                      height: widget.group.files.length > 1
-                                          ? _kSpacingSmall
-                                          : _kSpacingMedium,
-                                    ),
-                                    // Group progress indicator with animation
-                                    AnimatedSize(
-                                      duration:
-                                          const Duration(milliseconds: 300),
-                                      curve: Curves.easeInOut,
-                                      child: widget.group.files.length > 1
-                                          ? _buildGroupProgressIndicator(
-                                              playerState)
-                                          : const SizedBox.shrink(),
-                                    ),
-                                    // Animated spacing after group progress
-                                    AnimatedContainer(
-                                      duration:
-                                          const Duration(milliseconds: 300),
-                                      curve: Curves.easeInOut,
-                                      height: widget.group.files.length > 1
-                                          ? _kSpacingSmall
-                                          : _kSpacingMedium,
-                                    ),
-                                    // Progress slider
-                                    _buildProgressSlider(playerState),
-                                    const SizedBox(height: _kSpacingSmall),
-                                    // Time indicators
-                                    _buildTimeIndicators(playerState),
-                                    SizedBox(
-                                        height: _getMediumSpacing(context)),
-                                    // Playback controls
-                                    _buildPlaybackControls(playerState),
-                                    const SizedBox(height: _kSpacingMedium),
-                                    // Speed, repeat and sleep timer controls in one row
-                                    _buildControlsRow(playerState),
                                   ],
-                                ),
+                                  SizedBox(height: _getMediumSpacing(context)),
+                                  // Current track indicator and navigation
+                                  if (widget.group.files.length > 1)
+                                    _buildTrackNavigation(playerState),
+                                  SizedBox(
+                                      height:
+                                          _getMediumSpacing(context) * 0.75),
+                                  // Playback controls
+                                  _buildPlaybackControls(playerState),
+                                  const SizedBox(height: 12),
+                                  // Speed, repeat and sleep timer controls in one row
+                                  _buildControlsRow(playerState),
+                                  // Bottom padding for system navigation gestures
+                                  SizedBox(
+                                    height:
+                                        MediaQuery.of(context).padding.bottom >
+                                                0
+                                            ? MediaQuery.of(context)
+                                                    .padding
+                                                    .bottom +
+                                                6
+                                            : 8,
+                                  ),
+                                ],
                               ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
                       ),
-                      // Bottom section: Track list (appears only when scrolling down)
-                      if (widget.group.files.length > 1)
-                        SliverToBoxAdapter(
-                          child: Padding(
-                            padding: ResponsiveUtils.getCompactPadding(context),
-                            child: _buildTrackList(playerState),
-                          ),
-                        ),
                     ],
                   ),
                   // Loading overlay (only when player is initializing)
@@ -1566,42 +1549,26 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
   }
 
   Widget _buildCoverImage() {
-    // Cover image stretches to full screen width (no side padding)
+    // Cover image stretched to full width with no side padding
     final screenWidth = MediaQuery.of(context).size.width;
-    final screenHeight = MediaQuery.of(context).size.height;
-    final availableWidth = screenWidth;
 
-    // Calculate max height based on screen size
-    // 60% for very small screens and tablets, 65% for medium screens
-    final maxHeight = ResponsiveUtils.isVerySmallScreen(context) ||
-            ResponsiveUtils.isTablet(context)
-        ? screenHeight * 0.60
-        : screenHeight * 0.65;
-
-    // Use aspect ratio 1.0 for square cover
+    // Use 4:3 aspect ratio for cover (taller than 16:9 to use more space)
     // Height will be calculated automatically by AspectRatio widget
-    // but constrained by maxHeight
 
     // Try embedded artwork from metadata first (if available)
     if (_embeddedArtworkPath != null) {
       final embeddedFile = File(_embeddedArtworkPath!);
       if (embeddedFile.existsSync()) {
         return RepaintBoundary(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              maxHeight: maxHeight,
-            ),
-            child: AspectRatio(
-              aspectRatio: 1.0,
-              child: Image.file(
-                embeddedFile,
-                width: availableWidth,
-                fit: BoxFit.cover,
-                cacheWidth:
-                    (availableWidth * 2).round(), // 2x for retina displays
-                errorBuilder: (context, error, stackTrace) =>
-                    _buildGroupCover(availableWidth, maxHeight),
-              ),
+          child: AspectRatio(
+            aspectRatio: 4 / 3,
+            child: Image.file(
+              embeddedFile,
+              width: screenWidth,
+              fit: BoxFit.cover,
+              cacheWidth: (screenWidth * 2).round(), // 2x for retina displays
+              errorBuilder: (context, error, stackTrace) =>
+                  _buildGroupCover(screenWidth, 0),
             ),
           ),
         );
@@ -1613,103 +1580,132 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
       final coverFile = File(widget.group.coverPath!);
       if (coverFile.existsSync()) {
         return RepaintBoundary(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              maxHeight: maxHeight,
-            ),
-            child: AspectRatio(
-              aspectRatio: 1.0,
-              child: Image.file(
-                coverFile,
-                width: availableWidth,
-                fit: BoxFit.cover,
-                cacheWidth:
-                    (availableWidth * 2).round(), // 2x for retina displays
-                errorBuilder: (context, error, stackTrace) =>
-                    _buildDefaultCover(availableWidth, maxHeight),
-              ),
+          child: AspectRatio(
+            aspectRatio: 4 / 3,
+            child: Image.file(
+              coverFile,
+              width: screenWidth,
+              fit: BoxFit.cover,
+              cacheWidth: (screenWidth * 2).round(), // 2x for retina displays
+              errorBuilder: (context, error, stackTrace) =>
+                  _buildDefaultCover(screenWidth, 0),
             ),
           ),
         );
       }
     }
-    return _buildDefaultCover(availableWidth, maxHeight);
+    return _buildDefaultCover(screenWidth, 0);
   }
 
-  Widget _buildGroupCover(double availableWidth, double maxHeight) {
+  Widget _buildGroupCover(double width, double horizontalPadding) {
     if (widget.group.coverPath != null) {
       final coverFile = File(widget.group.coverPath!);
       if (coverFile.existsSync()) {
         return RepaintBoundary(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              maxHeight: maxHeight,
-            ),
-            child: AspectRatio(
-              aspectRatio: 1.0,
-              child: Image.file(
-                coverFile,
-                width: availableWidth,
-                fit: BoxFit.cover,
-                cacheWidth: (availableWidth * 2).round(),
-                errorBuilder: (context, error, stackTrace) =>
-                    _buildDefaultCover(availableWidth, maxHeight),
-              ),
+          child: AspectRatio(
+            aspectRatio: 4 / 3,
+            child: Image.file(
+              coverFile,
+              width: width,
+              fit: BoxFit.cover,
+              cacheWidth: (width * 2).round(),
+              errorBuilder: (context, error, stackTrace) =>
+                  _buildDefaultCover(width, horizontalPadding),
             ),
           ),
         );
       }
     }
-    return _buildDefaultCover(availableWidth, maxHeight);
+    return _buildDefaultCover(width, horizontalPadding);
   }
 
-  Widget _buildDefaultCover(double availableWidth, double maxHeight) =>
-      ConstrainedBox(
-        constraints: BoxConstraints(
-          maxHeight: maxHeight,
-        ),
-        child: AspectRatio(
-          aspectRatio: 1.0,
-          child: Container(
-            width: availableWidth,
-            decoration: BoxDecoration(
-              color: Colors.grey[300],
-            ),
-            child: const Icon(Icons.audiotrack, size: 80, color: Colors.grey),
+  Widget _buildDefaultCover(double width, double horizontalPadding) =>
+      AspectRatio(
+        aspectRatio: 4 / 3,
+        child: Container(
+          width: width,
+          decoration: BoxDecoration(
+            color: Colors.grey[300],
           ),
+          child: const Icon(Icons.audiotrack, size: 80, color: Colors.grey),
         ),
       );
 
-  Widget _buildGroupProgressIndicator(PlayerStateModel state) {
+  /// Builds track/chapter title - large, prominent.
+  Widget _buildTrackTitle(PlayerStateModel state) {
+    final hasFiles = widget.group.files.isNotEmpty &&
+        state.currentIndex >= 0 &&
+        state.currentIndex < widget.group.files.length;
+
+    final chapterNumber = hasFiles ? (state.currentIndex + 1) : 1;
+    final localizations = AppLocalizations.of(context);
+    final chapterText =
+        localizations?.chapterNumber(chapterNumber) ?? 'Chapter $chapterNumber';
+
+    return Text(
+      chapterText,
+      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
+      textAlign: TextAlign.center,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+    );
+  }
+
+  /// Builds track subtitle - book name only (without author).
+  Widget _buildTrackSubtitle() {
+    // Extract book title from groupName (format: "Author - Title")
+    String bookTitle;
+    final groupNameParts = widget.group.groupName.split(' - ');
+    if (groupNameParts.length > 1) {
+      bookTitle = groupNameParts.sublist(1).join(' - ').trim();
+    } else {
+      bookTitle = widget.group.groupName;
+    }
+
+    return Text(
+      bookTitle,
+      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color:
+                Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+            fontSize: 13,
+          ),
+      textAlign: TextAlign.center,
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
+    );
+  }
+
+  /// Builds track info - "Track X of Y" and percentage in one line.
+  Widget _buildTrackInfo(PlayerStateModel state) {
     final totalTracks = widget.group.files.length;
-    // Clamp currentTrack to valid range (1 to totalTracks)
     final currentTrack = (state.currentIndex + 1).clamp(1, totalTracks);
-    // Clamp progress to 0.0-1.0 to prevent exceeding 100%
     final progress =
         totalTracks > 0 ? (currentTrack / totalTracks).clamp(0.0, 1.0) : 0.0;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              AppLocalizations.of(context)
-                      ?.trackOfTotal(currentTrack, totalTracks) ??
-                  'Track $currentTrack of $totalTracks',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-            Text(
-              '${(progress * 100).toStringAsFixed(0)}%',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ],
+        Text(
+          AppLocalizations.of(context)
+                  ?.trackOfTotal(currentTrack, totalTracks) ??
+              'Track $currentTrack of $totalTracks',
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context)
+                    .colorScheme
+                    .onSurface
+                    .withValues(alpha: 0.6),
+              ),
         ),
-        const SizedBox(height: _kSpacingSmall / 2),
-        LinearProgressIndicator(
-          value: progress.clamp(0.0, 1.0),
-          minHeight: 4,
+        Text(
+          '${(progress * 100).toStringAsFixed(0)}%',
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context)
+                    .colorScheme
+                    .onSurface
+                    .withValues(alpha: 0.6),
+              ),
         ),
       ],
     );
@@ -1773,7 +1769,8 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
     });
   }
 
-  /// Builds time indicators with skip information when dragging.
+  /// Builds time indicators - current time on left, total time on right.
+  /// Shows skip information when dragging.
   Widget _buildTimeIndicators(PlayerStateModel state) {
     if (_isDragging && _sliderValue != null && _initialPositionMs != null) {
       // Show skip information during dragging
@@ -1912,12 +1909,146 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
     // Continue anyway to allow playback to start
   }
 
+  /// Builds compact chapters/tracks navigation block.
+  Widget _buildTrackNavigation(PlayerStateModel state) {
+    if (widget.group.files.isEmpty) return const SizedBox.shrink();
+    if (state.currentIndex < 0 ||
+        state.currentIndex >= widget.group.files.length) {
+      return const SizedBox.shrink();
+    }
+
+    final currentIndex = state.currentIndex;
+    final files = widget.group.files;
+    final totalTracks = files.length;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Header: "Chapters" with counter "X / Y" - clickable to toggle chips list
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+          child: Row(
+            children: [
+              // Left side: Icon and "Chapters" label - opens full list
+              InkWell(
+                onTap: _showTracksBottomSheet,
+                borderRadius: BorderRadius.circular(8),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                      vertical: 8.0, horizontal: 4.0),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.list,
+                        size: 22,
+                        color: Theme.of(context).colorScheme.onSurface,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        AppLocalizations.of(context)?.chaptersLabel ??
+                            'Chapters',
+                        style:
+                            Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const Spacer(),
+              // Right side: "X / Y >" - toggles chips list visibility
+              InkWell(
+                onTap: () {
+                  setState(() {
+                    _showChapterChips = !_showChapterChips;
+                  });
+                },
+                borderRadius: BorderRadius.circular(8),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                      vertical: 8.0, horizontal: 4.0),
+                  child: Row(
+                    children: [
+                      Text(
+                        '${currentIndex + 1} / $totalTracks',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurface
+                                  .withValues(alpha: 0.6),
+                            ),
+                      ),
+                      const SizedBox(width: 4),
+                      Icon(
+                        _showChapterChips
+                            ? Icons.expand_less
+                            : Icons.expand_more,
+                        size: 20,
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurface
+                            .withValues(alpha: 0.6),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        // Horizontal list of track chips - shown only when _showChapterChips is true
+        if (_showChapterChips) ...[
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 60,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              itemCount: files.length,
+              itemBuilder: (context, index) {
+                final isCurrent = index == currentIndex;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8.0),
+                  child: FilterChip(
+                    label: Text('${index + 1}'),
+                    selected: isCurrent,
+                    onSelected: (_) {
+                      // Start playback automatically when track is selected
+                      _seekToTrack(index);
+                    },
+                    selectedColor: Theme.of(context).primaryColor,
+                    checkmarkColor: Theme.of(context).colorScheme.onPrimary,
+                    labelStyle: TextStyle(
+                      color: isCurrent
+                          ? Theme.of(context).colorScheme.onPrimary
+                          : null,
+                      fontWeight:
+                          isCurrent ? FontWeight.bold : FontWeight.normal,
+                    ),
+                    side: isCurrent
+                        ? BorderSide(
+                            color: Theme.of(context).primaryColor,
+                            width: 2,
+                          )
+                        : null,
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
   Widget _buildPlaybackControls(PlayerStateModel state) {
     final isLoading = state.playbackState == 1; // 1 = buffering
 
     return Column(
       children: [
-        // Main controls row
+        // First row: Main controls (previous, rewind, play/pause, forward, next)
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -2034,47 +2165,6 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
     final actualNewPosition = newPosition > duration ? duration : newPosition;
 
     await ref.read(playerStateProvider.notifier).seek(actualNewPosition);
-  }
-
-  Widget _buildTrackList(PlayerStateModel state) {
-    final hasMultiFolder = widget.group.hasMultiFolderStructure;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          '${AppLocalizations.of(context)?.tracksTitle(widget.group.files.length) ?? 'Tracks'} (${widget.group.files.length})',
-          style: Theme.of(context).textTheme.titleMedium,
-        ),
-        const SizedBox(height: 8),
-        ListView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: widget.group.files.length,
-          itemBuilder: (context, index) {
-            final file = widget.group.files[index];
-            final isCurrent = index == state.currentIndex;
-            // Use display name with part prefix if multi-folder structure detected
-            final displayName = hasMultiFolder
-                ? file.getDisplayNameWithPart(widget.group.groupPath)
-                : file.displayName;
-            return ListTile(
-              leading: Icon(
-                isCurrent ? Icons.audiotrack : Icons.music_note,
-                color: isCurrent ? Theme.of(context).primaryColor : null,
-              ),
-              title: Text(
-                displayName,
-                style: TextStyle(
-                  fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
-                ),
-              ),
-              subtitle: Text(file.formattedSize),
-              onTap: () => _seekToTrack(index),
-            );
-          },
-        ),
-      ],
-    );
   }
 
   /// Builds a row with speed, repeat and sleep timer controls.

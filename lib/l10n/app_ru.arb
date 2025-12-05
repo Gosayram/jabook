@@ -386,6 +386,22 @@
   "@chaptersLabel": {
     "description": "Метка для глав"
   },
+  "searchChaptersHint": "Поиск по номеру или названию...",
+  "@searchChaptersHint": {
+    "description": "Подсказка для поля поиска глав"
+  },
+  "allFilter": "Все",
+  "@allFilter": {
+    "description": "Фильтр для показа всех глав"
+  },
+  "currentFilter": "Текущая",
+  "@currentFilter": {
+    "description": "Фильтр для показа текущей главы"
+  },
+  "noChaptersFoundInSearch": "Главы не найдены",
+  "@noChaptersFoundInSearch": {
+    "description": "Сообщение когда главы не найдены при поиске/фильтрации"
+  },
   "downloadFunctionalityComingSoon": "Функция загрузки скоро появится",
   "@downloadFunctionalityComingSoon": {
     "description": "Сообщение о предстоящей функции загрузки"
@@ -1005,6 +1021,16 @@
   "sampleChapter2Text": "Глава 2",
   "@sampleChapter2Text": {
     "description": "Пример названия главы 2"
+  },
+  "chapterNumber": "Глава {number}",
+  "@chapterNumber": {
+    "description": "Chapter number label with number parameter",
+    "placeholders": {
+      "number": {
+        "type": "int",
+        "example": "1"
+      }
+    }
   },
   "topicScreenTitle": "Топик",
   "@topicScreenTitle": {

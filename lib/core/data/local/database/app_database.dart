@@ -227,6 +227,54 @@ class AppDatabase {
   StoreRef<String, Map<String, dynamic>> get searchCacheSettingsStore =>
       StoreRef('search_cache_settings');
 
+  /// Gets the file checksums store.
+  ///
+  /// This store contains SHA-256 checksums for library files to enable
+  /// efficient incremental scanning by detecting file changes.
+  /// Primary key is file_path (String).
+  /// Each entry contains:
+  /// - file_path: String - Full path to the file
+  /// - checksum: String - SHA-256 checksum of the file
+  /// - file_size: int - Size of the file in bytes
+  /// - last_modified: String - ISO 8601 timestamp of last modification
+  /// - scanned_at: String - ISO 8601 timestamp when checksum was computed
+  StoreRef<String, Map<String, dynamic>> get fileChecksumsStore =>
+      StoreRef('file_checksums');
+
+  /// Gets the library groups store.
+  ///
+  /// This store contains cached library groups for fast restoration
+  /// after app restart without full rescan.
+  /// Primary key is group_path (String).
+  /// Each entry contains:
+  /// - group_path: String - Path to the audiobook group
+  /// - group_name: String - Display name of the group
+  /// - files: List<Map> - List of files in JSON format
+  /// - total_size: int - Total size of all files in bytes
+  /// - file_count: int - Number of files in the group
+  /// - scanned_at: String - ISO 8601 timestamp when group was scanned
+  StoreRef<String, Map<String, dynamic>> get libraryGroupsStore =>
+      StoreRef('library_groups');
+
+  /// Gets the player state store.
+  ///
+  /// This store contains player state for reliable restoration
+  /// after app restart. More reliable than SharedPreferences.
+  /// Primary key is group_path (String).
+  /// Each entry contains:
+  /// - group_path: String - Path to the audiobook group
+  /// - file_paths: List of String - List of file paths in playlist
+  /// - current_index: int - Current track index
+  /// - current_position: int - Current position in milliseconds
+  /// - playback_speed: double - Playback speed
+  /// - is_playing: bool - Whether playback is active
+  /// - repeat_mode: int - Repeat mode (0 = none, 1 = track, 2 = playlist)
+  /// - sleep_timer_remaining_seconds: int? - Remaining sleep timer seconds
+  /// - metadata: Map of String to String? - Optional metadata
+  /// - saved_at: String - ISO 8601 timestamp when state was saved
+  StoreRef<String, Map<String, dynamic>> get playerStateStore =>
+      StoreRef('player_state');
+
   /// Closes the database connection.
   Future<void> close() async {
     if (_isInitialized && _db != null) {

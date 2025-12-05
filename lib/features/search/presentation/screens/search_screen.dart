@@ -88,6 +88,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   final FocusNode _searchFocusNode = FocusNode();
   // Cache for recommended audiobooks to avoid reloading on every build
   Future<List<RecommendedAudiobook>>? _recommendedAudiobooksFuture;
+  // Track last search query to prevent duplicate searches
+  String? _lastSearchQuery;
 
   @override
   void dispose() {
@@ -312,6 +314,12 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
     if (query.isEmpty) return;
 
+    // Prevent duplicate searches for the same query
+    if (_isLoading && query == _lastSearchQuery) {
+      return;
+    }
+    _lastSearchQuery = query;
+
     // Cancel any in-flight search
     _cancelToken?.cancel('superseded');
     _cancelToken = CancelToken();
@@ -459,6 +467,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       if (result.errorKind != null) {
         setState(() {
           _isLoading = false;
+          _lastSearchQuery = null; // Reset to allow re-searching same query
           _errorKind = result.errorKind;
           _errorMessage = result.errorMessage;
         });
@@ -497,6 +506,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       // Update state
       if (updateExisting) {
         setState(() {
+          _lastSearchQuery = null; // Reset to allow re-searching same query
           final existingIds =
               _searchResults.map((r) => r['id'] as String?).toSet();
           final newResults = result.results
@@ -509,6 +519,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         });
       } else {
         setState(() {
+          _isLoading = false;
+          _lastSearchQuery = null; // Reset to allow re-searching same query
           _searchResults = result.results;
           _errorKind = null;
           _errorMessage = null;
@@ -540,6 +552,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       if (mounted) {
         setState(() {
           _isLoading = false;
+          _lastSearchQuery = null; // Reset to allow re-searching same query
           _errorKind = 'network';
           _errorMessage = e.toString();
         });
@@ -712,9 +725,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                         _searchHistory.isNotEmpty;
                   });
                   _debounce?.cancel();
-                  // Debounce search with 300ms delay
+                  // Debounce search with 500ms delay to reduce unnecessary searches
                   _debounce =
-                      Timer(const Duration(milliseconds: 300), _performSearch);
+                      Timer(const Duration(milliseconds: 500), _performSearch);
                 },
                 onSubmitted: (_) {
                   _performSearch();

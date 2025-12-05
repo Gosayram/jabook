@@ -300,6 +300,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chaptersLabel => 'Chapters';
 
   @override
+  String get searchChaptersHint => 'Search by number or title...';
+
+  @override
+  String get allFilter => 'All';
+
+  @override
+  String get currentFilter => 'Current';
+
+  @override
+  String get noChaptersFoundInSearch => 'No chapters found';
+
+  @override
   String get downloadFunctionalityComingSoon => 'Download functionality coming soon';
 
   @override
@@ -750,6 +762,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get sampleChapter2Text => 'Chapter 2';
+
+  @override
+  String chapterNumber(int number) {
+    return 'Chapter $number';
+  }
 
   @override
   String get topicScreenTitle => 'Topic';

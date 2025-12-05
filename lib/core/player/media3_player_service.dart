@@ -27,6 +27,15 @@ import 'package:path/path.dart' as path;
 /// using Media3 ExoPlayer through NativeAudioPlayer. It handles state management,
 /// error handling, retry logic, and synchronization with position saving.
 class Media3PlayerService {
+  /// Creates a new Media3PlayerService instance.
+  ///
+  /// The [statePersistenceService] parameter is optional. If not provided,
+  /// a default instance without database support will be created.
+  Media3PlayerService({
+    PlayerStatePersistenceService? statePersistenceService,
+  }) : _statePersistenceService =
+            statePersistenceService ?? PlayerStatePersistenceService();
+
   /// Native audio player instance.
   final NativeAudioPlayer _player = NativeAudioPlayer();
 
@@ -34,8 +43,8 @@ class Media3PlayerService {
   final PlaybackPositionService _positionService = PlaybackPositionService();
 
   /// Player state persistence service for saving full state.
-  final PlayerStatePersistenceService _statePersistenceService =
-      PlayerStatePersistenceService();
+  /// Uses database for reliable storage with SharedPreferences fallback.
+  final PlayerStatePersistenceService _statePersistenceService;
 
   /// Logger for structured logging.
   final StructuredLogger _logger = StructuredLogger();
@@ -516,15 +525,17 @@ class Media3PlayerService {
   Future<Map<String, int>?> restorePosition(String groupPath) async =>
       _positionService.restorePosition(groupPath);
 
-  /// Starts periodic position saving with adaptive intervals.
+  /// Starts periodic position saving with improved frequency.
   ///
-  /// Inspired by lissen-android: saves more frequently near start/end of track
-  /// (every 5 seconds) and less frequently in the middle (every 30 seconds).
-  /// This balances between position accuracy and battery/performance.
+  /// Saves more frequently (every 5-10 seconds) to ensure accurate position
+  /// restoration. Uses adaptive intervals: more frequent near start/end of track
+  /// (every 5 seconds) and less frequent in the middle (every 10 seconds).
+  /// This improves position accuracy while maintaining reasonable performance.
   void _startPositionSaving() {
     _positionSaveTimer?.cancel();
 
     // Use adaptive interval based on position in track
+    // Check every 5 seconds for more frequent saves
     _positionSaveTimer = Timer.periodic(
       const Duration(seconds: 5), // Check every 5 seconds
       (_) => _saveCurrentPositionAdaptive(),
@@ -575,10 +586,10 @@ class Media3PlayerService {
 
       // Save if:
       // - Near start/end and 5+ seconds passed (frequent saves)
-      // - In middle and 30+ seconds passed (less frequent saves)
+      // - In middle and 10+ seconds passed (improved from 30s for better accuracy)
       final shouldSave = (isNearStart || isNearEnd)
           ? timeSinceLastSave.inSeconds >= 5
-          : timeSinceLastSave.inSeconds >= 30;
+          : timeSinceLastSave.inSeconds >= 10;
 
       if (shouldSave) {
         await _saveCurrentPosition();
@@ -641,22 +652,59 @@ class Media3PlayerService {
   }
 
   /// Updates full player state with current values.
+  ///
+  /// Validates state before saving to ensure integrity.
   Future<void> _updateFullState() async {
     if (_currentGroupPath == null) return;
 
     try {
-      final savedState = await _statePersistenceService.restoreState();
+      final savedState = await _statePersistenceService
+          .restoreStateForGroup(_currentGroupPath!);
       if (savedState == null || savedState.groupPath != _currentGroupPath) {
         return;
       }
 
       final state = await _player.getState();
+
+      // Validate position - ensure it doesn't exceed track duration
+      var validatedPosition = state.currentPosition;
+      if (state.duration > 0 && validatedPosition > state.duration) {
+        validatedPosition = state.duration;
+        await _logger.log(
+          level: 'warning',
+          subsystem: 'audio',
+          message: 'Position exceeded duration, correcting',
+          extra: {
+            'original_position': state.currentPosition,
+            'duration': state.duration,
+            'corrected_position': validatedPosition,
+          },
+        );
+      }
+
+      // Validate index - ensure it's within bounds
+      var validatedIndex = state.currentIndex;
+      if (savedState.filePaths.isNotEmpty &&
+          validatedIndex >= savedState.filePaths.length) {
+        validatedIndex = savedState.filePaths.length - 1;
+        await _logger.log(
+          level: 'warning',
+          subsystem: 'audio',
+          message: 'Index out of bounds, correcting',
+          extra: {
+            'original_index': state.currentIndex,
+            'playlist_length': savedState.filePaths.length,
+            'corrected_index': validatedIndex,
+          },
+        );
+      }
+
       final updatedState = SavedPlayerState(
         groupPath: savedState.groupPath,
         filePaths: savedState.filePaths,
         metadata: savedState.metadata,
-        currentIndex: state.currentIndex,
-        currentPosition: state.currentPosition,
+        currentIndex: validatedIndex,
+        currentPosition: validatedPosition,
         playbackSpeed: state.playbackSpeed,
         isPlaying: state.isPlaying,
         repeatMode: savedState.repeatMode,
@@ -670,12 +718,23 @@ class Media3PlayerService {
 
   /// Restores full player state.
   ///
-  /// Returns [SavedPlayerState] if available, null otherwise.
-  Future<SavedPlayerState?> restoreFullState() async =>
-      _statePersistenceService.restoreState();
+  /// The [groupPath] parameter is optional. If provided, restores state for
+  /// that specific group. Otherwise, tries to restore any saved state.
+  ///
+  /// Returns [SavedPlayerState] if available and valid, null otherwise.
+  Future<SavedPlayerState?> restoreFullState([String? groupPath]) async {
+    if (groupPath != null) {
+      return _statePersistenceService.restoreStateForGroup(groupPath);
+    }
+    return _statePersistenceService.restoreState();
+  }
 
   /// Clears saved player state.
-  Future<void> clearSavedState() async => _statePersistenceService.clearState();
+  ///
+  /// The [groupPath] parameter is optional. If provided, clears state for
+  /// that specific group. Otherwise, clears all saved state.
+  Future<void> clearSavedState([String? groupPath]) async =>
+      _statePersistenceService.clearState(groupPath);
 
   /// Updates saved state with repeat mode and sleep timer.
   ///
