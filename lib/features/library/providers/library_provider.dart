@@ -145,3 +145,7 @@ class LibraryGroupsNotifier extends StateNotifier<List<LocalAudiobookGroup>> {
 
 /// Provider for scanning state.
 final isScanningProvider = StateProvider<bool>((ref) => false);
+
+/// Provider for tracking which groups are being updated during scan.
+/// Contains set of group paths that are currently being scanned/updated.
+final updatingGroupsProvider = StateProvider<Set<String>>((ref) => <String>{});

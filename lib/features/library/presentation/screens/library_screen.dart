@@ -491,6 +491,8 @@ class _LibraryContentState extends ConsumerState<_LibraryContent> {
 
     // Update scanning state via provider
     ref.read(isScanningProvider.notifier).state = true;
+    // Clear updating groups set at start of scan
+    ref.read(updatingGroupsProvider.notifier).state = <String>{};
 
     // Progress tracking is handled by isScanningProvider
 
@@ -509,6 +511,8 @@ class _LibraryContentState extends ConsumerState<_LibraryContent> {
 
         ref.read(libraryGroupsProvider.notifier).updateGroups(groups);
         ref.read(isScanningProvider.notifier).state = false;
+        // Clear updating groups after scan completes
+        ref.read(updatingGroupsProvider.notifier).state = <String>{};
         debugPrint(
           'Library scan completed: found ${groups.length} groups with ${groups.fold<int>(0, (sum, g) => sum + g.files.length)} total files',
         );
@@ -535,6 +539,8 @@ class _LibraryContentState extends ConsumerState<_LibraryContent> {
     } on Exception catch (e) {
       if (mounted) {
         ref.read(isScanningProvider.notifier).state = false;
+        // Clear updating groups after scan completes
+        ref.read(updatingGroupsProvider.notifier).state = <String>{};
         // Progress tracking is handled by isScanningProvider
         debugPrint('Failed to load local audiobooks: $e');
         debugPrint('Stack trace: ${StackTrace.current}');
@@ -544,11 +550,13 @@ class _LibraryContentState extends ConsumerState<_LibraryContent> {
           if (mounted) {
             ref.read(libraryGroupsProvider.notifier).updateGroups(groups);
             ref.read(isScanningProvider.notifier).state = false;
+            ref.read(updatingGroupsProvider.notifier).state = <String>{};
             _applyFilters();
           }
         } on Exception {
           if (mounted) {
             ref.read(isScanningProvider.notifier).state = false;
+            ref.read(updatingGroupsProvider.notifier).state = <String>{};
           }
         }
       }
@@ -559,6 +567,8 @@ class _LibraryContentState extends ConsumerState<_LibraryContent> {
   void _cancelScan() {
     _shouldCancelScan = true;
     ref.read(isScanningProvider.notifier).state = false;
+    // Clear updating groups on cancel
+    ref.read(updatingGroupsProvider.notifier).state = <String>{};
     // Progress tracking is handled by isScanningProvider
   }
 
@@ -585,15 +595,34 @@ class _LibraryContentState extends ConsumerState<_LibraryContent> {
     // Get existing groups to preserve unchanged folders
     final existingGroups = ref.read(libraryGroupsProvider);
 
+    // Track which groups are being updated
+    final updatingGroups = <String>{};
+    final updatingGroupsNotifier = ref.read(updatingGroupsProvider.notifier);
+
     // Use smart scanner for incremental updates, or full scan if forced
+    List<LocalAudiobookGroup> groups;
     if (forceFullScan) {
-      return smartScanner.forceFullScan();
+      groups = await smartScanner.forceFullScan();
+      // In full scan, all groups are being updated
+      updatingGroups.addAll(groups.map((g) => g.groupPath));
     } else {
-      // Pass existing groups to preserve unchanged folders
-      return smartScanner.scanIncremental(
+      // For incremental scan, we need to track which groups are actually being scanned
+      // We'll do this by comparing existing groups with new groups
+      final existingPaths = existingGroups.map((g) => g.groupPath).toSet();
+
+      groups = await smartScanner.scanIncremental(
         existingGroups: existingGroups.isNotEmpty ? existingGroups : null,
       );
+
+      // Find groups that are new or changed (not in existing groups)
+      final newPaths = groups.map((g) => g.groupPath).toSet();
+      updatingGroups.addAll(newPaths.difference(existingPaths));
     }
+
+    // Update the provider with groups being updated
+    updatingGroupsNotifier.state = updatingGroups;
+
+    return groups;
   }
 
   /// Refreshes the library using incremental scan with checksum verification.
@@ -1522,7 +1551,11 @@ class _AudiobookGroupTileState extends ConsumerState<_AudiobookGroupTile> {
   }
 
   Widget _buildActionButtons() {
-    if (ref.watch(isScanningProvider)) {
+    // Only show loading indicator if this specific group is being updated
+    final updatingGroups = ref.watch(updatingGroupsProvider);
+    final isThisGroupUpdating = updatingGroups.contains(widget.group.groupPath);
+
+    if (isThisGroupUpdating) {
       return const SizedBox(
         width: 20,
         height: 20,
