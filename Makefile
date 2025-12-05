@@ -604,7 +604,7 @@ tag:
 		echo "Error: $(PUBSPEC_FILE) not found"; \
 		exit 1; \
 	fi
-	@TAG_VERSION="v$(VERSION)"; \
+	@TAG_VERSION="$(VERSION)"; \
 	if git rev-parse "$$TAG_VERSION" >/dev/null 2>&1; then \
 		echo "Error: Tag $$TAG_VERSION already exists"; \
 		exit 1; \
@@ -615,7 +615,7 @@ tag:
 
 .PHONY: push-tag
 push-tag: tag
-	@TAG_VERSION="v$(VERSION)"; \
+	@TAG_VERSION="$(VERSION)"; \
 	CURRENT_BRANCH=$$(git branch --show-current 2>/dev/null || echo ""); \
 	REMOTE=$$(git config branch.$$CURRENT_BRANCH.remote 2>/dev/null || echo "origin"); \
 	if [ -z "$$REMOTE" ] || [ "$$REMOTE" = "" ]; then \
