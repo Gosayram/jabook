@@ -18,6 +18,7 @@ import 'package:jabook/core/auth/captcha_detector.dart';
 import 'package:jabook/core/data/auth/datasources/auth_local_datasource.dart';
 import 'package:jabook/core/data/auth/datasources/auth_remote_datasource.dart';
 import 'package:jabook/core/domain/auth/entities/auth_status.dart';
+import 'package:jabook/core/domain/auth/entities/user_credentials.dart';
 import 'package:jabook/core/domain/auth/repositories/auth_repository.dart';
 
 /// Implementation of AuthRepository using data sources.
@@ -84,6 +85,10 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<void> clearStoredCredentials() =>
       _localDataSource.clearStoredCredentials();
+
+  @override
+  Future<UserCredentials?> getStoredCredentials() =>
+      _localDataSource.getStoredCredentials();
 
   @override
   Stream<AuthStatus> get authStatus async* {

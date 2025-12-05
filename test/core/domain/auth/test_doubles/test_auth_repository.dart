@@ -15,6 +15,7 @@
 import 'dart:async';
 
 import 'package:jabook/core/domain/auth/entities/auth_status.dart';
+import 'package:jabook/core/domain/auth/entities/user_credentials.dart';
 import 'package:jabook/core/domain/auth/repositories/auth_repository.dart';
 
 /// Test implementation of AuthRepository.
@@ -134,6 +135,22 @@ class TestAuthRepository implements AuthRepository {
     _storedUsername = null;
     _storedPassword = null;
     _hasStoredCredentials = false;
+  }
+
+  @override
+  Future<UserCredentials?> getStoredCredentials() async {
+    if (_shouldFail) {
+      throw Exception('Get stored credentials failed');
+    }
+    if (!_hasStoredCredentials ||
+        _storedUsername == null ||
+        _storedPassword == null) {
+      return null;
+    }
+    return UserCredentials(
+      username: _storedUsername!,
+      password: _storedPassword!,
+    );
   }
 
   @override

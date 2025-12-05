@@ -23,6 +23,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:jabook/core/auth/simple_cookie_manager.dart';
 import 'package:jabook/core/data/local/database/app_database.dart';
+import 'package:jabook/core/data/local/database/cookie_database_service.dart';
 import 'package:jabook/core/data/remote/network/dio_cookie_manager.dart';
 import 'package:jabook/core/data/remote/network/dio_interceptors.dart';
 import 'package:jabook/core/data/remote/network/user_agent_manager.dart';
@@ -151,6 +152,84 @@ class DioClient {
         subsystem: 'cookies',
         message: 'No saved cookies found or failed to load',
         context: 'cookie_init',
+        cause: e.toString(),
+      );
+    }
+
+    // Fallback: Try to restore from Database (more persistent)
+    try {
+      final uri = Uri.parse(activeBase);
+      final currentCookies = await _cookieJar!.loadForRequest(uri);
+
+      // Check if we need to restore from DB
+      // Condition 1: No cookies at all
+      // Condition 2: Cookies exist but missing critical session cookie (bb_session)
+      // This handles cases where SecureStorage retained partial/invalid state
+      var needsRestore = currentCookies.isEmpty;
+      if (!needsRestore) {
+        final hasSession = currentCookies.any((c) => c.name == 'bb_session');
+        if (!hasSession) {
+          needsRestore = true;
+          await StructuredLogger().log(
+            level: 'warning',
+            subsystem: 'cookies',
+            message:
+                'Cookies present but missing bb_session, forcing DB restore',
+            context: 'cookie_init_db_fallback',
+            extra: {'cookie_names': currentCookies.map((c) => c.name).toList()},
+          );
+        }
+      }
+
+      if (needsRestore) {
+        await StructuredLogger().log(
+          level: 'debug',
+          subsystem: 'cookies',
+          message:
+              'No cookies in jar after SimpleCookieManager load, checking database',
+          context: 'cookie_init_db_fallback',
+        );
+
+        final cookieDbService = CookieDatabaseService(appDb);
+        final dbCookies =
+            await cookieDbService.getCookiesForAnyEndpoint(activeBase);
+
+        if (dbCookies != null && dbCookies.isNotEmpty) {
+          await StructuredLogger().log(
+            level: 'info',
+            subsystem: 'cookies',
+            message: 'Found cookies in database, restoring...',
+            context: 'cookie_init_db_fallback',
+            extra: {'cookie_length': dbCookies.length},
+          );
+
+          // Restore to CookieJar and repair SecureStorage
+          // We use saveCookie which saves to SecureStorage and applies to CookieJar
+          await _simpleCookieManager!
+              .saveCookie(dbCookies, activeBase, _cookieJar!);
+
+          await StructuredLogger().log(
+            level: 'info',
+            subsystem: 'cookies',
+            message:
+                'Restored cookies from database and repaired SecureStorage',
+            context: 'cookie_init_db_fallback',
+          );
+        } else {
+          await StructuredLogger().log(
+            level: 'debug',
+            subsystem: 'cookies',
+            message: 'No cookies found in database',
+            context: 'cookie_init_db_fallback',
+          );
+        }
+      }
+    } on Exception catch (e) {
+      await StructuredLogger().log(
+        level: 'warning',
+        subsystem: 'cookies',
+        message: 'Failed to restore cookies from database fallback',
+        context: 'cookie_init_db_fallback',
         cause: e.toString(),
       );
     }

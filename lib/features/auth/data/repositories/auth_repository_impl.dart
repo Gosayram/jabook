@@ -16,6 +16,7 @@ import 'dart:async';
 import 'package:jabook/core/auth/captcha_detector.dart';
 import 'package:jabook/core/auth/rutracker_auth.dart';
 import 'package:jabook/core/domain/auth/entities/auth_status.dart';
+import 'package:jabook/core/domain/auth/entities/user_credentials.dart';
 import 'package:jabook/core/domain/auth/repositories/auth_repository.dart';
 
 /// Implementation of AuthRepository using RuTrackerAuth.
@@ -75,6 +76,10 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Future<void> clearStoredCredentials() => _auth.clearStoredCredentials();
+
+  @override
+  Future<UserCredentials?> getStoredCredentials() =>
+      _auth.getStoredCredentials();
 
   @override
   Stream<AuthStatus> get authStatus async* {

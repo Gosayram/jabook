@@ -14,6 +14,7 @@
 
 import 'package:jabook/core/auth/captcha_detector.dart';
 import 'package:jabook/core/domain/auth/entities/auth_status.dart';
+import 'package:jabook/core/domain/auth/entities/user_credentials.dart';
 
 /// Repository interface for authentication operations.
 abstract class AuthRepository {
@@ -58,6 +59,9 @@ abstract class AuthRepository {
 
   /// Clears all stored credentials.
   Future<void> clearStoredCredentials();
+
+  /// Gets the stored credentials if available.
+  Future<UserCredentials?> getStoredCredentials();
 
   /// Gets the current authentication status.
   Stream<AuthStatus> get authStatus;

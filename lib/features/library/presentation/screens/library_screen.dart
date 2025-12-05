@@ -27,6 +27,7 @@ import 'package:jabook/core/domain/library/entities/local_audiobook_group.dart';
 import 'package:jabook/core/favorites/favorites_service.dart';
 import 'package:jabook/core/library/audiobook_file_manager.dart';
 import 'package:jabook/core/library/audiobook_library_scanner.dart';
+import 'package:jabook/core/library/cover_fallback_service.dart';
 import 'package:jabook/core/library/folder_filter_service.dart';
 import 'package:jabook/core/library/smart_scanner_service.dart';
 import 'package:jabook/core/player/native_audio_player.dart';
@@ -789,9 +790,6 @@ class _LibraryContentState extends ConsumerState<_LibraryContent> {
         final sortedKeys = grouped.keys.toList()..sort();
 
         final listPadding = EdgeInsets.only(
-          top: padding.vertical * 0.7, // Reduced top padding by 30%
-          left: padding.horizontal,
-          right: padding.horizontal,
           bottom:
               MediaQuery.of(context).padding.bottom + 52, // Mini player height
         );
@@ -823,7 +821,7 @@ class _LibraryContentState extends ConsumerState<_LibraryContent> {
                     .expand(
                       (group) => [
                         _buildAudiobookGroupTile(context, group),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 1), // Minimal separation
                       ],
                     )
                     .toList()
@@ -857,9 +855,6 @@ class _LibraryContentState extends ConsumerState<_LibraryContent> {
             : 1;
 
         final listPadding = EdgeInsets.only(
-          top: padding.vertical * 0.7, // Reduced top padding by 30%
-          left: padding.horizontal,
-          right: padding.horizontal,
           bottom:
               MediaQuery.of(context).padding.bottom + 52, // Mini player height
         );
@@ -885,7 +880,8 @@ class _LibraryContentState extends ConsumerState<_LibraryContent> {
           // ListView for mobile
           listWidget = ListView.separated(
             itemCount: groupsToShow.length,
-            separatorBuilder: (context, index) => const SizedBox(height: 8),
+            separatorBuilder: (context, index) =>
+                const SizedBox(height: 2), // Minimal separation
             padding: listPadding,
             physics: const AlwaysScrollableScrollPhysics(),
             cacheExtent: 500, // Cache 500px of off-screen items
@@ -1330,12 +1326,11 @@ class _AudiobookGroupTile extends ConsumerStatefulWidget {
 
 class _AudiobookGroupTileState extends ConsumerState<_AudiobookGroupTile> {
   // Constants for layout
-  static const double _coverSize = 92.0; // Increased from 80.0 (15% increase)
-  static const double _cardPadding = 8.0; // Decreased from 12.0 for compactness
-  static const double _coverTextSpacing = 10.0;
-  static const double _textButtonSpacing = 10.0;
-  static const double _buttonMinSize =
-      40.0; // Decreased from 48.0 for compactness
+  static const double _coverSize = 80.0; // Reverted to 80.0 for compactness
+  static const double _cardPadding = 2.0; // Minimal card padding
+  static const double _coverTextSpacing = 8.0; // Tighter spacing
+  static const double _textButtonSpacing = 4.0; // Tighter spacing
+  static const double _buttonMinSize = 40.0; // Kept compact
 
   String? _embeddedArtworkPath;
   bool _isLoadingArtwork = false;
@@ -1404,6 +1399,28 @@ class _AudiobookGroupTileState extends ConsumerState<_AudiobookGroupTile> {
           setState(() {
             _embeddedArtworkPath = artworkPath;
           });
+        }
+      }
+
+      // If no embedded artwork found and no coverPath, try online fallback
+      if (artworkPath == null && widget.group.coverPath == null && mounted) {
+        try {
+          const fallbackService = CoverFallbackService();
+          final fallbackPath = await fallbackService.fetchCoverFromOnline(
+            widget.group.groupName,
+            torrentId: widget.group.torrentId,
+          );
+          if (fallbackPath != null && mounted) {
+            final fallbackFile = File(fallbackPath);
+            if (fallbackFile.existsSync()) {
+              setState(() {
+                _embeddedArtworkPath = fallbackPath;
+              });
+            }
+          }
+        } on Exception catch (e) {
+          // Silently fail - online fallback is optional
+          debugPrint('Failed to fetch cover from online fallback: $e');
         }
       }
     } on Exception catch (e) {

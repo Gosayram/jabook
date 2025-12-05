@@ -13,6 +13,8 @@
 // limitations under the License.
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+// Force re-analysis
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:jabook/core/auth/captcha_detector.dart';
 import 'package:jabook/core/di/providers/auth_providers.dart';
@@ -61,6 +63,15 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     // Don't use ref.read() here as it can hang if provider is in error state
     WidgetsBinding.instance.addPostFrameCallback((_) {
       // Use safeUnawaited to prevent blocking
+      safeUnawaited(_loadSavedCredentials(), onError: (e, stack) {
+        StructuredLogger().log(
+          level: 'warning',
+          subsystem: 'auth',
+          message: 'Failed to load saved credentials',
+          cause: e.toString(),
+        );
+      });
+
       safeUnawaited(
         _refreshAuthStatusAsync(),
         onError: (e, stack) {
@@ -103,6 +114,41 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     } on Exception {
       // Ignore errors - we'll show default state
       // This prevents UI blocking if provider is in error state
+    }
+  }
+
+  /// Loads saved credentials from repository
+  Future<void> _loadSavedCredentials() async {
+    try {
+      final repository = ref.read(authRepositoryProvider);
+      final credentials = await repository.getStoredCredentials();
+
+      if (mounted && credentials != null) {
+        setState(() {
+          _usernameController.text = credentials.username;
+          _passwordController.text = credentials.password;
+          _rememberMe = true;
+        });
+
+        safeUnawaited(
+          StructuredLogger().log(
+            level: 'info',
+            subsystem: 'auth',
+            message: 'Loaded saved credentials',
+            context: 'auth_fill',
+          ),
+        );
+      }
+    } on Exception catch (e) {
+      // Just log, don't show error to user as this is background task
+      safeUnawaited(
+        StructuredLogger().log(
+          level: 'warning',
+          subsystem: 'auth',
+          message: 'Error loading credentials',
+          cause: e.toString(),
+        ),
+      );
     }
   }
 
@@ -161,6 +207,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
 
           // Update access level to full access after successful login
           ref.read(accessProvider.notifier).upgradeToFullAccess();
+
+          // CRITICAL: Signal to system that autofill context should be saved
+          TextInput.finishAutofillContext();
         }
       }
     } on AuthFailure catch (e) {
@@ -317,6 +366,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
           final repository = ref.read(authRepositoryProvider);
           await repository.refreshAuthStatus();
           ref.invalidate(isLoggedInProvider);
+
+          // CRITICAL: Signal to system that autofill context should be saved
+          TextInput.finishAutofillContext();
         }
       }
     } on Exception catch (e) {

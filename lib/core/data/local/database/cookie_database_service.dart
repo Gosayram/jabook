@@ -435,6 +435,10 @@ class CookieDatabaseService {
         message: 'All cookies cleared from database',
         operationId: operationId,
         context: 'cookie_database_clear',
+        extra: {
+          // Log stack trace to see who called clearCookies
+          'stack_trace': StackTrace.current.toString(),
+        },
         durationMs: duration,
       );
 

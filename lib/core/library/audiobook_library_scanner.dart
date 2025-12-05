@@ -15,9 +15,11 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter_media_metadata/flutter_media_metadata.dart';
 import 'package:jabook/core/domain/library/entities/local_audiobook.dart';
 import 'package:jabook/core/domain/library/entities/local_audiobook_group.dart';
 import 'package:jabook/core/infrastructure/logging/structured_logger.dart';
+import 'package:jabook/core/library/cover_fallback_service.dart';
 import 'package:jabook/core/library/external_folder_grouping_strategy.dart';
 import 'package:jabook/core/library/folder_filter_service.dart';
 import 'package:jabook/core/library/folder_structure_analyzer.dart';
@@ -897,7 +899,10 @@ class AudiobookLibraryScanner {
       // Find cover images for each group
       final groupsList = groups.values.toList();
       for (final group in groupsList) {
-        final coverPath = await _findCoverImage(group.groupPath);
+        final coverPath = await _findCoverImage(
+          group.groupPath,
+          group: group,
+        );
         if (coverPath != null) {
           groups[group.groupPath] = group.copyWith(coverPath: coverPath);
         }
@@ -1003,7 +1008,10 @@ class AudiobookLibraryScanner {
       // Find cover images for each group
       final groupsList = groups.values.toList();
       for (final group in groupsList) {
-        final coverPath = await _findCoverImage(group.groupPath);
+        final coverPath = await _findCoverImage(
+          group.groupPath,
+          group: group,
+        );
         if (coverPath != null) {
           groups[group.groupPath] = group.copyWith(coverPath: coverPath);
         }
@@ -1204,7 +1212,12 @@ class AudiobookLibraryScanner {
   /// Finds a cover image in the specified directory.
   ///
   /// Returns the path to the cover image if found, null otherwise.
-  Future<String?> _findCoverImage(String directoryPath) async {
+  /// If no local cover is found and [group] is provided, attempts to fetch
+  /// cover from online sources as fallback.
+  Future<String?> _findCoverImage(
+    String directoryPath, {
+    LocalAudiobookGroup? group,
+  }) async {
     try {
       final dir = Directory(directoryPath);
       if (!await dir.exists()) {
@@ -1237,6 +1250,85 @@ class AudiobookLibraryScanner {
       // If there's exactly one image file, use it as cover
       if (imageFiles.length == 1) {
         return imageFiles.first.path;
+      }
+
+      // 3. Check for embedded metadata covers in audio files
+      // This is the new priority #2 (after existing files, before online search)
+      if (group != null && group.files.isNotEmpty) {
+        try {
+          // Check the first few audio files for embedded cover
+          // Limiting to first 3 files to avoid performance hit on large books
+          final filesToCheck = group.files.take(3);
+
+          for (final audioFile in filesToCheck) {
+            final metadata =
+                await MetadataRetriever.fromFile(File(audioFile.filePath));
+            final trackArt = metadata.albumArt;
+
+            if (trackArt != null && trackArt.isNotEmpty) {
+              await _logger.log(
+                level: 'info',
+                subsystem: 'library_scanner',
+                message: 'Found embedded cover in audio file',
+                extra: {
+                  'path': audioFile.filePath,
+                  'size': trackArt.length,
+                },
+              );
+
+              // Save to file
+              const coverName = 'cover.jpg'; // Default name
+              final coverPath = path.join(directoryPath, coverName);
+              final coverFile = File(coverPath);
+
+              await coverFile.writeAsBytes(trackArt);
+
+              await _logger.log(
+                level: 'info',
+                subsystem: 'library_scanner',
+                message: 'Extracted and saved embedded cover',
+                extra: {'savedPath': coverPath},
+              );
+
+              return coverPath;
+            }
+          }
+        } on Exception catch (e) {
+          await _logger.log(
+            level: 'warning',
+            subsystem: 'library_scanner',
+            message: 'Failed to extract embedded cover',
+            extra: {
+              'path': directoryPath,
+              'error': e.toString(),
+            },
+          );
+        }
+      }
+
+      // 4. If no local cover found (file or embedded), try online fallback
+      if (group != null) {
+        try {
+          const fallbackService = CoverFallbackService();
+          final fallbackPath = await fallbackService.fetchCoverFromOnline(
+            group.groupName,
+            torrentId: group.torrentId,
+          );
+          if (fallbackPath != null) {
+            return fallbackPath;
+          }
+        } on Exception catch (e) {
+          await _logger.log(
+            level: 'warning',
+            subsystem: 'library_scanner',
+            message: 'Failed to fetch cover from online fallback',
+            extra: {
+              'path': directoryPath,
+              'group_name': group.groupName,
+              'error': e.toString(),
+            },
+          );
+        }
       }
     } on Exception catch (e) {
       await _logger.log(

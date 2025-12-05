@@ -27,6 +27,7 @@ import 'package:jabook/core/infrastructure/config/book_audio_settings_service.da
 import 'package:jabook/core/infrastructure/errors/failures.dart';
 import 'package:jabook/core/infrastructure/logging/structured_logger.dart';
 import 'package:jabook/core/infrastructure/permissions/permission_service.dart';
+import 'package:jabook/core/library/cover_fallback_service.dart';
 import 'package:jabook/core/player/native_audio_player.dart';
 import 'package:jabook/core/player/playback_settings_provider.dart';
 import 'package:jabook/core/player/player_state_provider.dart'
@@ -306,6 +307,11 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
                 setState(() {
                   _groupArtworkPath = artworkPath;
                 });
+                // Update global state
+                final updatedGroup =
+                    widget.group.copyWith(coverPath: artworkPath);
+                ref.read(currentAudiobookGroupProvider.notifier).state =
+                    updatedGroup;
               }
               return;
             } else {
@@ -316,6 +322,38 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
           // Continue to next file if this one fails
           debugPrint('Failed to extract artwork from ${file.filePath}: $e');
           artworkPath = null;
+        }
+      }
+
+      // If no artwork found, try online fallback
+      if (artworkPath == null && widget.group.coverPath == null) {
+        try {
+          const fallbackService = CoverFallbackService();
+          final fallbackPath = await fallbackService.fetchCoverFromOnline(
+            widget.group.groupName,
+            torrentId: widget.group.torrentId,
+          );
+          if (fallbackPath != null && mounted) {
+            final fallbackFile = File(fallbackPath);
+            if (fallbackFile.existsSync()) {
+              setState(() {
+                _groupArtworkPath = fallbackPath;
+              });
+              // Update global state
+              final updatedGroup =
+                  widget.group.copyWith(coverPath: fallbackPath);
+              ref.read(currentAudiobookGroupProvider.notifier).state =
+                  updatedGroup;
+            }
+          }
+        } on Exception catch (e) {
+          // Silently fail - online fallback is optional
+          safeUnawaited(_logger.log(
+            level: 'debug',
+            subsystem: 'player',
+            message: 'Failed to fetch cover from online fallback',
+            cause: e.toString(),
+          ));
         }
       }
     } on Exception catch (e) {

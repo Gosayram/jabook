@@ -13,6 +13,7 @@
 // limitations under the License.
 
 import 'package:jabook/core/auth/rutracker_auth.dart';
+import 'package:jabook/core/domain/auth/entities/user_credentials.dart';
 
 /// Local data source for authentication operations.
 ///
@@ -36,6 +37,9 @@ abstract class AuthLocalDataSource {
 
   /// Clears all stored credentials.
   Future<void> clearStoredCredentials();
+
+  /// Gets stored credentials if available.
+  Future<UserCredentials?> getStoredCredentials();
 }
 
 /// Implementation of AuthLocalDataSource using RuTrackerAuth.
@@ -69,4 +73,8 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
 
   @override
   Future<void> clearStoredCredentials() => _auth.clearStoredCredentials();
+
+  @override
+  Future<UserCredentials?> getStoredCredentials() =>
+      _auth.getStoredCredentials();
 }

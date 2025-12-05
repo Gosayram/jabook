@@ -25,6 +25,7 @@ import 'package:jabook/core/auth/direct_auth_service.dart';
 import 'package:jabook/core/auth/simple_cookie_manager.dart';
 import 'package:jabook/core/data/local/database/app_database.dart';
 import 'package:jabook/core/data/local/database/cookie_database_service.dart';
+import 'package:jabook/core/domain/auth/entities/user_credentials.dart';
 import 'package:jabook/core/infrastructure/endpoints/endpoint_manager.dart';
 import 'package:jabook/core/infrastructure/errors/failures.dart';
 import 'package:jabook/core/infrastructure/logging/structured_logger.dart';
@@ -1679,6 +1680,17 @@ class RuTrackerAuth {
   /// Clears all stored credentials.
   Future<void> clearStoredCredentials() async {
     await _credentialManager.clearCredentials();
+  }
+
+  /// Gets stored credentials if available.
+  Future<UserCredentials?> getStoredCredentials() async {
+    final credentials = await _credentialManager.getCredentials();
+    if (credentials == null) return null;
+
+    return UserCredentials(
+      username: credentials['username']!,
+      password: credentials['password']!,
+    );
   }
 
   /// Exports stored credentials in specified format.

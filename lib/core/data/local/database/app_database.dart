@@ -15,6 +15,7 @@
 import 'dart:async';
 
 import 'package:jabook/core/infrastructure/config/app_config.dart';
+import 'package:jabook/core/infrastructure/logging/structured_logger.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sembast/sembast_io.dart';
 
@@ -140,6 +141,14 @@ class AppDatabase {
 
       _db = await databaseFactoryIo.openDatabase(dbPath);
       _isInitialized = true;
+
+      await StructuredLogger().log(
+        level: 'info',
+        subsystem: 'database',
+        message: 'Database initialized',
+        context: 'app_database_init',
+        extra: {'path': dbPath},
+      );
 
       _initializationCompleter!.complete();
     } catch (e) {
