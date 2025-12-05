@@ -20,6 +20,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add dynamic app name support based on build flavor (#43)
 - Bump softprops/action-gh-release from 2.4.2 to 2.5.0 (#44)
 
+### Fixed
+- Tag resolution
+
 ## [1.2.5] - 2025-11-27
 
 ### Changed
