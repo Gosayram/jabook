@@ -21,6 +21,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:jabook/core/cache/rutracker_cache_service.dart';
+import 'package:jabook/core/di/providers/auth_providers.dart';
 import 'package:jabook/core/di/providers/cache_providers.dart';
 import 'package:jabook/core/favorites/favorites_provider.dart';
 import 'package:jabook/core/infrastructure/endpoints/endpoint_provider.dart';
@@ -894,6 +895,29 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
   Future<void> _downloadTorrent() async {
     if (_audiobook == null) return;
 
+    // Block download in guest mode
+    if (ref.read(accessProvider).isGuest) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            AppLocalizations.of(context)?.downloadsGuestModeWarning ??
+                'Downloads are view-only in guest mode. Sign in to manage downloads.',
+          ),
+          backgroundColor: Colors.orange,
+          duration: const Duration(seconds: 3),
+          action: SnackBarAction(
+            label: AppLocalizations.of(context)?.signInToUnlock ?? 'Sign in',
+            textColor: Colors.white,
+            onPressed: () {
+              context.push('/auth');
+            },
+          ),
+        ),
+      );
+      return;
+    }
+
     try {
       final endpointManager = ref.read(endpointManagerProvider);
       final activeEndpoint = await endpointManager.getActiveEndpoint();
@@ -1173,6 +1197,29 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
     if (_audiobook == null) return;
     final magnetUrl = _audiobook!['magnetUrl'] as String? ?? '';
     if (magnetUrl.isEmpty) return;
+
+    // Block download in guest mode
+    if (ref.read(accessProvider).isGuest) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            AppLocalizations.of(context)?.downloadsGuestModeWarning ??
+                'Downloads are view-only in guest mode. Sign in to manage downloads.',
+          ),
+          backgroundColor: Colors.orange,
+          duration: const Duration(seconds: 3),
+          action: SnackBarAction(
+            label: AppLocalizations.of(context)?.signInToUnlock ?? 'Sign in',
+            textColor: Colors.white,
+            onPressed: () {
+              context.push('/auth');
+            },
+          ),
+        ),
+      );
+      return;
+    }
 
     try {
       final downloadDir = await AudiobookTorrentManager.getDownloadDirectory();

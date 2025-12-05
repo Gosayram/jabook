@@ -3267,6 +3267,14 @@
   "@signInToUnlock": {
     "description": "Button text to sign in and unlock"
   },
+  "searchGuestModeWarning": "Поиск ограничен в гостевом режиме. Некоторые функции могут не работать. Войдите для полного доступа.",
+  "@searchGuestModeWarning": {
+    "description": "Предупреждающее сообщение, показываемое на экране поиска в гостевом режиме"
+  },
+  "downloadsGuestModeWarning": "Загрузки доступны только для просмотра в гостевом режиме. Войдите для управления загрузками.",
+  "@downloadsGuestModeWarning": {
+    "description": "Предупреждающее сообщение, показываемое на экране загрузок в гостевом режиме"
+  },
   "continueAsGuest": "Продолжить как гость",
   "@continueAsGuest": {
     "description": "Button text to continue as guest"

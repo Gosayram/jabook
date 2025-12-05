@@ -17,6 +17,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:jabook/core/di/providers/auth_providers.dart';
 import 'package:jabook/core/domain/downloads/entities/download_item.dart';
 import 'package:jabook/core/domain/torrent/entities/torrent_progress.dart';
 import 'package:jabook/core/infrastructure/config/app_config.dart';
@@ -261,6 +262,82 @@ class _DownloadsScreenState extends ConsumerState<DownloadsScreen> {
           ),
           body: Column(
             children: [
+              // Guest mode warning banner
+              if (ref.watch(accessProvider).isGuest)
+                Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.fromLTRB(8, 8, 8, 8),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .errorContainer
+                        .withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: Theme.of(context)
+                          .colorScheme
+                          .error
+                          .withValues(alpha: 0.3),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.lock_outline,
+                            color:
+                                Theme.of(context).colorScheme.onErrorContainer,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              AppLocalizations.of(context)
+                                      ?.downloadsGuestModeWarning ??
+                                  'Downloads are view-only in guest mode. Sign in to manage downloads.',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onErrorContainer,
+                                  ),
+                              maxLines: 3,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            context.push('/auth');
+                          },
+                          icon: const Icon(Icons.login, size: 18),
+                          label: Text(
+                            AppLocalizations.of(context)?.signInToUnlock ??
+                                'Sign in to unlock',
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor:
+                                Theme.of(context).colorScheme.error,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               // Warning banner about downloads stopping when app closes
               if (_downloads.isNotEmpty && _downloads.any((d) => d.isActive))
                 Container(
@@ -443,6 +520,35 @@ class _DownloadsScreenState extends ConsumerState<DownloadsScreen> {
                                   ),
                                   trailing: PopupMenuButton<String>(
                                     onSelected: (value) async {
+                                      // Block actions in guest mode
+                                      if (ref.read(accessProvider).isGuest) {
+                                        if (!mounted) return;
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              AppLocalizations.of(context)
+                                                      ?.downloadsGuestModeWarning ??
+                                                  'Downloads are view-only in guest mode. Sign in to manage downloads.',
+                                            ),
+                                            backgroundColor: Colors.orange,
+                                            duration:
+                                                const Duration(seconds: 3),
+                                            action: SnackBarAction(
+                                              label:
+                                                  AppLocalizations.of(context)
+                                                          ?.signInToUnlock ??
+                                                      'Sign in',
+                                              textColor: Colors.white,
+                                              onPressed: () {
+                                                context.push('/auth');
+                                              },
+                                            ),
+                                          ),
+                                        );
+                                        return;
+                                      }
+
                                       final messenger =
                                           ScaffoldMessenger.of(context);
                                       try {
@@ -557,6 +663,35 @@ class _DownloadsScreenState extends ConsumerState<DownloadsScreen> {
                                       '${staticProgress.toStringAsFixed(1)}%'),
                                   trailing: PopupMenuButton<String>(
                                     onSelected: (value) async {
+                                      // Block actions in guest mode
+                                      if (ref.read(accessProvider).isGuest) {
+                                        if (!mounted) return;
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              AppLocalizations.of(context)
+                                                      ?.downloadsGuestModeWarning ??
+                                                  'Downloads are view-only in guest mode. Sign in to manage downloads.',
+                                            ),
+                                            backgroundColor: Colors.orange,
+                                            duration:
+                                                const Duration(seconds: 3),
+                                            action: SnackBarAction(
+                                              label:
+                                                  AppLocalizations.of(context)
+                                                          ?.signInToUnlock ??
+                                                      'Sign in',
+                                              textColor: Colors.white,
+                                              onPressed: () {
+                                                context.push('/auth');
+                                              },
+                                            ),
+                                          ),
+                                        );
+                                        return;
+                                      }
+
                                       final messenger =
                                           ScaffoldMessenger.of(context);
                                       try {
@@ -800,6 +935,42 @@ class _DownloadsScreenState extends ConsumerState<DownloadsScreen> {
                                                 ? Icons.play_arrow
                                                 : Icons.pause),
                                             onPressed: () async {
+                                              // Block actions in guest mode
+                                              if (ref
+                                                  .read(accessProvider)
+                                                  .isGuest) {
+                                                if (!mounted) return;
+                                                ScaffoldMessenger.of(context)
+                                                    .showSnackBar(
+                                                  SnackBar(
+                                                    content: Text(
+                                                      AppLocalizations.of(
+                                                                  context)
+                                                              ?.downloadsGuestModeWarning ??
+                                                          'Downloads are view-only in guest mode. Sign in to manage downloads.',
+                                                    ),
+                                                    backgroundColor:
+                                                        Colors.orange,
+                                                    duration: const Duration(
+                                                        seconds: 3),
+                                                    action: SnackBarAction(
+                                                      label: AppLocalizations
+                                                                  .of(context)
+                                                              ?.signInToUnlock ??
+                                                          'Sign in',
+                                                      textColor: Colors.white,
+                                                      onPressed: () {
+                                                        unawaited(
+                                                            Navigator.pushNamed(
+                                                                context,
+                                                                '/auth'));
+                                                      },
+                                                    ),
+                                                  ),
+                                                );
+                                                return;
+                                              }
+
                                               final messenger =
                                                   ScaffoldMessenger.of(context);
                                               try {
@@ -834,6 +1005,41 @@ class _DownloadsScreenState extends ConsumerState<DownloadsScreen> {
                                           ),
                                         PopupMenuButton<String>(
                                           onSelected: (value) async {
+                                            // Block actions in guest mode
+                                            if (ref
+                                                .read(accessProvider)
+                                                .isGuest) {
+                                              if (!mounted) return;
+                                              ScaffoldMessenger.of(context)
+                                                  .showSnackBar(
+                                                SnackBar(
+                                                  content: Text(
+                                                    AppLocalizations.of(context)
+                                                            ?.downloadsGuestModeWarning ??
+                                                        'Downloads are view-only in guest mode. Sign in to manage downloads.',
+                                                  ),
+                                                  backgroundColor:
+                                                      Colors.orange,
+                                                  duration: const Duration(
+                                                      seconds: 3),
+                                                  action: SnackBarAction(
+                                                    label: AppLocalizations.of(
+                                                                context)
+                                                            ?.signInToUnlock ??
+                                                        'Sign in',
+                                                    textColor: Colors.white,
+                                                    onPressed: () {
+                                                      unawaited(
+                                                          Navigator.pushNamed(
+                                                              context,
+                                                              '/auth'));
+                                                    },
+                                                  ),
+                                                ),
+                                              );
+                                              return;
+                                            }
+
                                             final messenger =
                                                 ScaffoldMessenger.of(context);
                                             try {

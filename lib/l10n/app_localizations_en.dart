@@ -3149,6 +3149,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get signInToUnlock => 'Sign in to unlock';
 
   @override
+  String get searchGuestModeWarning => 'Search is limited in guest mode. Some features may not work. Sign in for full access.';
+
+  @override
+  String get downloadsGuestModeWarning => 'Downloads are view-only in guest mode. Sign in to manage downloads.';
+
+  @override
   String get continueAsGuest => 'Continue as Guest';
 
   @override

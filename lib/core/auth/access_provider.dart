@@ -100,8 +100,11 @@ class AccessNotifier extends StateNotifier<AccessState> {
   }
 
   /// Sets the user to guest mode.
+  ///
+  /// This method sets the access level to guest regardless of current state.
+  /// It can be called to explicitly set guest mode even if already in guest mode.
   void setGuestMode() {
-    if (state.accessLevel == UserAccessLevel.full) {
+    if (state.accessLevel != UserAccessLevel.guest) {
       StructuredLogger().log(
         level: 'info',
         subsystem: 'access',

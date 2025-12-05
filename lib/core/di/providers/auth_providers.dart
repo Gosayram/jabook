@@ -19,6 +19,8 @@ import 'package:jabook/core/domain/auth/entities/auth_status.dart';
 import 'package:jabook/core/domain/auth/entities/user_access_level.dart';
 import 'package:jabook/core/domain/auth/repositories/auth_repository.dart';
 import 'package:jabook/core/infrastructure/logging/structured_logger.dart';
+import 'package:jabook/core/session/session_storage.dart';
+import 'package:jabook/core/utils/safe_async.dart';
 import 'package:jabook/features/auth/data/repositories/auth_repository_impl.dart';
 import 'package:riverpod/legacy.dart';
 
@@ -85,6 +87,9 @@ final accessProvider = StateNotifierProvider<AccessNotifier, AccessState>(
 /// This provider watches the authentication status and automatically
 /// updates the access level accordingly.
 /// Also initializes guest mode if no session exists.
+///
+/// Important: This provider checks for saved session in storage before
+/// setting guest mode to avoid resetting access level before session restoration.
 final accessLevelSyncProvider = Provider<void>((ref) {
   // Watch authentication status and sync with access level
   ref.watch(authStatusProvider).whenData((authStatus) {
@@ -94,14 +99,51 @@ final accessLevelSyncProvider = Provider<void>((ref) {
   });
 
   // Initialize guest mode on startup if no session exists
+  // But first check if session exists in storage to avoid resetting
+  // access level before session restoration completes
   ref.watch(isLoggedInProvider).whenData((isLoggedIn) {
     if (!isLoggedIn) {
-      // If not logged in, ensure guest mode is set
-      final accessNotifier = ref.read(accessProvider.notifier);
-      final currentState = ref.read(accessProvider);
-      if (currentState.accessLevel != UserAccessLevel.guest) {
-        accessNotifier.setGuestMode();
-      }
+      // Before setting guest mode, check if session exists in storage
+      // If session exists but not yet restored, don't set guest mode
+      // Use safeUnawaited to perform async check without blocking
+      safeUnawaited(
+        () async {
+          try {
+            const sessionStorage = SessionStorage();
+            final hasSession = await sessionStorage.hasSession();
+
+            if (!hasSession) {
+              // No session in storage - safe to set guest mode
+              final accessNotifier = ref.read(accessProvider.notifier);
+              final currentState = ref.read(accessProvider);
+              if (currentState.accessLevel != UserAccessLevel.guest) {
+                accessNotifier.setGuestMode();
+              }
+            } else {
+              // Session exists in storage but not yet restored
+              // Don't set guest mode - wait for session restoration
+              // The access level will be updated when session is restored
+              // and authStatusProvider emits authenticated status
+              await StructuredLogger().log(
+                level: 'debug',
+                subsystem: 'access',
+                message:
+                    'Session exists in storage, waiting for restoration before setting access level',
+              );
+            }
+          } on Exception catch (e) {
+            // If check fails, err on the side of caution and don't set guest mode
+            // This prevents accidentally resetting access level if there's a session
+            await StructuredLogger().log(
+              level: 'warning',
+              subsystem: 'access',
+              message:
+                  'Failed to check session storage, not setting guest mode',
+              cause: e.toString(),
+            );
+          }
+        }(),
+      );
     }
   });
 });

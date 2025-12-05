@@ -4511,6 +4511,14 @@
   "@signInToUnlock": {
     "description": "Button text to sign in and unlock features"
   },
+  "searchGuestModeWarning": "Search is limited in guest mode. Some features may not work. Sign in for full access.",
+  "@searchGuestModeWarning": {
+    "description": "Warning message shown in search screen when in guest mode"
+  },
+  "downloadsGuestModeWarning": "Downloads are view-only in guest mode. Sign in to manage downloads.",
+  "@downloadsGuestModeWarning": {
+    "description": "Warning message shown in downloads screen when in guest mode"
+  },
   "continueAsGuest": "Continue as Guest",
   "@continueAsGuest": {
     "description": "Button text to continue as guest"

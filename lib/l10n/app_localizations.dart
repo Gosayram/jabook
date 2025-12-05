@@ -5801,6 +5801,18 @@ abstract class AppLocalizations {
   /// **'Sign in to unlock'**
   String get signInToUnlock;
 
+  /// Warning message shown in search screen when in guest mode
+  ///
+  /// In en, this message translates to:
+  /// **'Search is limited in guest mode. Some features may not work. Sign in for full access.'**
+  String get searchGuestModeWarning;
+
+  /// Warning message shown in downloads screen when in guest mode
+  ///
+  /// In en, this message translates to:
+  /// **'Downloads are view-only in guest mode. Sign in to manage downloads.'**
+  String get downloadsGuestModeWarning;
+
   /// Button text to continue as guest
   ///
   /// In en, this message translates to:

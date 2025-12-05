@@ -3149,6 +3149,12 @@ class AppLocalizationsRu extends AppLocalizations {
   String get signInToUnlock => 'Войти, чтобы разблокировать';
 
   @override
+  String get searchGuestModeWarning => 'Поиск ограничен в гостевом режиме. Некоторые функции могут не работать. Войдите для полного доступа.';
+
+  @override
+  String get downloadsGuestModeWarning => 'Загрузки доступны только для просмотра в гостевом режиме. Войдите для управления загрузками.';
+
+  @override
   String get continueAsGuest => 'Продолжить как гость';
 
   @override
