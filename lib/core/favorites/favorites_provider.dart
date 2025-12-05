@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:jabook/core/endpoints/endpoint_provider.dart';
+import 'package:jabook/core/di/providers/database_providers.dart';
 import 'package:jabook/core/favorites/favorites_service.dart';
 import 'package:jabook/core/parse/rutracker_parser.dart';
 import 'package:riverpod/legacy.dart';

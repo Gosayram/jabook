@@ -15,7 +15,7 @@
 import 'dart:io';
 
 import 'package:android_intent_plus/android_intent.dart';
-import 'package:jabook/core/logging/environment_logger.dart';
+import 'package:jabook/core/infrastructure/logging/environment_logger.dart';
 import 'package:jabook/core/utils/storage_path_utils.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';

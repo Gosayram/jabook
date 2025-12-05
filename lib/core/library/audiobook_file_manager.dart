@@ -14,10 +14,12 @@
 
 import 'dart:io';
 
-import 'package:jabook/core/library/local_audiobook.dart';
+import 'package:jabook/core/domain/library/entities/local_audiobook.dart';
+import 'package:jabook/core/domain/library/entities/local_audiobook_group.dart';
+import 'package:jabook/core/infrastructure/logging/structured_logger.dart';
 import 'package:jabook/core/library/playback_position_service.dart';
 import 'package:jabook/core/library/trash_service.dart';
-import 'package:jabook/core/logging/structured_logger.dart';
+import 'package:jabook/core/player/media3_player_service.dart';
 import 'package:jabook/core/player/native_audio_player.dart';
 import 'package:path/path.dart' as path;
 
@@ -104,16 +106,26 @@ class DeletionResult {
 /// are currently in use.
 class AudiobookFileManager {
   /// Creates a new AudiobookFileManager instance.
+  ///
+  /// The [playbackPositionService] parameter is optional - if not provided,
+  /// a new instance will be created.
+  /// The [trashService] parameter is optional - if not provided, files will
+  /// be deleted permanently.
+  /// The [media3PlayerService] parameter is optional but recommended - if not provided,
+  /// a new NativeAudioPlayer instance will be created for file playing checks.
+  /// For dependency injection, prefer passing an instance from [media3PlayerServiceProvider].
   AudiobookFileManager({
     PlaybackPositionService? playbackPositionService,
     TrashService? trashService,
+    Media3PlayerService? media3PlayerService,
   })  : _playbackPositionService =
             playbackPositionService ?? PlaybackPositionService(),
-        _trashService = trashService;
+        _trashService = trashService,
+        _media3PlayerService = media3PlayerService;
 
   final PlaybackPositionService _playbackPositionService;
   final StructuredLogger _logger = StructuredLogger();
-  final NativeAudioPlayer _audioPlayer = NativeAudioPlayer();
+  final Media3PlayerService? _media3PlayerService;
   final TrashService? _trashService;
 
   /// Deletes a single audio file from disk.
@@ -550,13 +562,22 @@ class AudiobookFileManager {
   /// Returns true if the file is currently playing, false otherwise.
   Future<bool> _isFilePlaying(String filePath) async {
     try {
-      final playerState = await _audioPlayer.getState();
+      // Use Media3PlayerService if provided (preferred), otherwise fallback to NativeAudioPlayer
+      final playerService = _media3PlayerService;
+      if (playerService != null) {
+        return await playerService.isFilePlaying(filePath);
+      }
+
+      // Fallback: create a new NativeAudioPlayer instance for checking
+      // This is less ideal as it doesn't use the singleton player instance
+      final audioPlayer = NativeAudioPlayer();
+      final playerState = await audioPlayer.getState();
       final isPlaying = playerState.isPlaying;
       if (!isPlaying) {
         return false;
       }
 
-      final currentMediaItem = await _audioPlayer.getCurrentMediaItemInfo();
+      final currentMediaItem = await audioPlayer.getCurrentMediaItemInfo();
       if (currentMediaItem.isEmpty) {
         return false;
       }

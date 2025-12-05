@@ -13,8 +13,10 @@
 // limitations under the License.
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:jabook/core/animations/dialog_utils.dart';
-import 'package:jabook/core/permissions/manufacturer_permissions_service.dart';
+import 'package:jabook/core/di/providers/utils_providers.dart';
+import 'package:jabook/core/infrastructure/permissions/manufacturer_permissions_service.dart';
 import 'package:jabook/core/utils/device_info_utils.dart';
 import 'package:jabook/l10n/app_localizations.dart';
 
@@ -23,7 +25,7 @@ import 'package:jabook/l10n/app_localizations.dart';
 /// This dialog shows instructions and buttons to open manufacturer-specific
 /// settings for autostart, battery optimization, and background restrictions.
 /// It adapts to the device's manufacturer and custom ROM.
-class ManufacturerSettingsDialog extends StatefulWidget {
+class ManufacturerSettingsDialog extends ConsumerStatefulWidget {
   /// Creates a new ManufacturerSettingsDialog.
   const ManufacturerSettingsDialog({super.key});
 
@@ -40,15 +42,16 @@ class ManufacturerSettingsDialog extends StatefulWidget {
   }
 
   @override
-  State<ManufacturerSettingsDialog> createState() =>
+  ConsumerState<ManufacturerSettingsDialog> createState() =>
       _ManufacturerSettingsDialogState();
 }
 
 class _ManufacturerSettingsDialogState
-    extends State<ManufacturerSettingsDialog> {
+    extends ConsumerState<ManufacturerSettingsDialog> {
   final ManufacturerPermissionsService _manufacturerService =
       ManufacturerPermissionsService();
-  final DeviceInfoUtils _deviceInfo = DeviceInfoUtils.instance;
+
+  DeviceInfoUtils get _deviceInfo => ref.read(deviceInfoUtilsProvider);
 
   Map<String, String> _instructions = {};
   String? _customRom;
@@ -66,8 +69,8 @@ class _ManufacturerSettingsDialogState
     });
 
     try {
-      final instructions =
-          await _manufacturerService.getManufacturerSpecificInstructions();
+      final instructions = await _manufacturerService
+          .getManufacturerSpecificInstructions(context);
       final customRom = await _deviceInfo.getCustomRom();
 
       if (mounted) {

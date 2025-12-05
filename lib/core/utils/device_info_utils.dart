@@ -16,20 +16,20 @@ import 'dart:io';
 
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/services.dart';
-import 'package:jabook/core/logging/structured_logger.dart';
+import 'package:jabook/core/infrastructure/logging/structured_logger.dart';
 
 /// Utility class for detecting Android device manufacturer and custom ROM information.
 ///
 /// This class helps identify the device manufacturer and custom Android ROM
 /// (MIUI, EMUI, ColorOS, etc.) to provide manufacturer-specific settings and optimizations.
+///
+/// Note: This class is no longer a singleton. Use [deviceInfoUtilsProvider]
+/// to get an instance via dependency injection.
 class DeviceInfoUtils {
-  DeviceInfoUtils._();
-
-  /// Singleton instance
-  static final DeviceInfoUtils _instance = DeviceInfoUtils._();
-
-  /// Gets the singleton instance of DeviceInfoUtils.
-  static DeviceInfoUtils get instance => _instance;
+  /// Constructor for DeviceInfoUtils.
+  ///
+  /// Use [deviceInfoUtilsProvider] to get an instance via dependency injection.
+  DeviceInfoUtils();
 
   /// Logger instance
   final StructuredLogger _logger = StructuredLogger();

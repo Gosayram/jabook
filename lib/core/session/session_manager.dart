@@ -20,16 +20,16 @@ import 'package:dio_cookie_manager/dio_cookie_manager.dart';
 import 'package:jabook/core/auth/credential_manager.dart';
 import 'package:jabook/core/auth/rutracker_auth.dart';
 import 'package:jabook/core/cache/rutracker_cache_service.dart';
-import 'package:jabook/core/endpoints/endpoint_manager.dart';
-import 'package:jabook/core/errors/failures.dart';
-import 'package:jabook/core/logging/structured_logger.dart';
+import 'package:jabook/core/data/local/database/app_database.dart';
+import 'package:jabook/core/infrastructure/endpoints/endpoint_manager.dart';
+import 'package:jabook/core/infrastructure/errors/failures.dart';
+import 'package:jabook/core/infrastructure/logging/structured_logger.dart';
 import 'package:jabook/core/net/dio_client.dart';
 import 'package:jabook/core/session/cookie_sync_service.dart';
 import 'package:jabook/core/session/session_storage.dart';
 import 'package:jabook/core/session/session_validator.dart';
 import 'package:jabook/core/utils/notification_utils.dart'
     as notification_utils;
-import 'package:jabook/data/db/app_database.dart';
 
 /// Centralized manager for session and cookie management.
 ///
@@ -37,35 +37,28 @@ import 'package:jabook/data/db/app_database.dart';
 /// including saving, restoring, validating, and synchronizing cookies
 /// between WebView and Dio client.
 ///
-/// This class uses singleton pattern to ensure only one instance exists
-/// throughout the application lifecycle.
+/// This class can be instantiated directly or through a provider.
+/// For dependency injection, use [sessionManagerProvider] from
+/// [core/di/providers/auth_infrastructure_providers.dart].
 class SessionManager {
-  /// Factory constructor that returns the singleton instance.
+  /// Creates a new SessionManager instance.
   ///
-  /// The [rutrackerAuth] parameter is optional and will be created if not provided.
-  /// On first call, creates a new instance. Subsequent calls return the same instance.
-  factory SessionManager({
+  /// The [rutrackerAuth] parameter is optional but recommended for full functionality.
+  /// The [appDatabase] parameter is optional - if not provided, will use AppDatabase() directly.
+  /// The [cacheService] parameter is optional - if not provided, will create a new instance.
+  /// For dependency injection, prefer using [sessionManagerProvider].
+  SessionManager({
     RuTrackerAuth? rutrackerAuth,
-  }) {
-    _instance ??= SessionManager._internal(rutrackerAuth: rutrackerAuth);
-    final instance = _instance;
-    if (instance == null) {
-      throw StateError('SessionManager instance is null after creation');
-    }
-    return instance;
-  }
-
-  /// Private constructor for singleton pattern.
-  SessionManager._internal({
-    RuTrackerAuth? rutrackerAuth,
+    CredentialManager? credentialManager,
+    AppDatabase? appDatabase,
+    RuTrackerCacheService? cacheService,
   })  : _rutrackerAuth = rutrackerAuth,
         _sessionStorage = const SessionStorage(),
-        _sessionValidator = const SessionValidator(),
+        _sessionValidator = SessionValidator(appDatabase: appDatabase),
         _cookieSyncService = const CookieSyncService(),
-        _credentialManager = CredentialManager();
-
-  /// Singleton instance.
-  static SessionManager? _instance;
+        _credentialManager = credentialManager ?? CredentialManager(),
+        _appDatabase = appDatabase,
+        _cacheService = cacheService;
 
   /// RuTracker authentication instance.
   final RuTrackerAuth? _rutrackerAuth;
@@ -81,6 +74,12 @@ class SessionManager {
 
   /// Credential manager for accessing stored credentials.
   final CredentialManager _credentialManager;
+
+  /// AppDatabase instance for database operations.
+  final AppDatabase? _appDatabase;
+
+  /// Cache service for clearing session-bound cache.
+  final RuTrackerCacheService? _cacheService;
 
   /// Timer for periodic session monitoring.
   Timer? _sessionCheckTimer;
@@ -177,7 +176,8 @@ class SessionManager {
       final dio = await DioClient.instance;
       final cookieJar = await _getCookieJar(dio);
 
-      final db = AppDatabase().database;
+      final appDb = _appDatabase ?? AppDatabase.getInstance();
+      final db = await appDb.ensureInitialized();
       final endpointManager = EndpointManager(db);
       final activeBase = await endpointManager.getActiveEndpoint();
       final uri = Uri.parse(activeBase);
@@ -583,7 +583,7 @@ class SessionManager {
 
       // Clear session-bound cache
       try {
-        final cacheService = RuTrackerCacheService();
+        final cacheService = _cacheService ?? RuTrackerCacheService();
         await cacheService.clearCurrentSessionCache();
       } on Exception {
         // Ignore cache clearing errors

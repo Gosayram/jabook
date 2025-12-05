@@ -15,6 +15,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -22,30 +23,36 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:jabook/app/router/app_router.dart';
 import 'package:jabook/app/theme/app_theme.dart';
 import 'package:jabook/core/auth/rutracker_auth.dart';
-import 'package:jabook/core/background/background_compatibility_checker.dart';
-import 'package:jabook/core/background/download_background_service.dart';
 import 'package:jabook/core/cache/rutracker_cache_service.dart';
-import 'package:jabook/core/config/app_config.dart';
-import 'package:jabook/core/config/language_manager.dart';
-import 'package:jabook/core/config/language_provider.dart';
-import 'package:jabook/core/config/theme_provider.dart';
+import 'package:jabook/core/di/providers/auth_infrastructure_providers.dart';
+import 'package:jabook/core/di/providers/auth_providers.dart';
+import 'package:jabook/core/di/providers/cache_providers.dart';
+import 'package:jabook/core/di/providers/config_providers.dart';
+import 'package:jabook/core/di/providers/database_providers.dart';
+import 'package:jabook/core/di/providers/player_providers.dart';
+import 'package:jabook/core/di/providers/utils_providers.dart';
+import 'package:jabook/core/domain/auth/repositories/auth_repository.dart';
 import 'package:jabook/core/download/download_foreground_service.dart';
-import 'package:jabook/core/endpoints/endpoint_health_scheduler.dart';
-import 'package:jabook/core/endpoints/endpoint_manager.dart';
-import 'package:jabook/core/logging/environment_logger.dart';
-import 'package:jabook/core/logging/structured_logger.dart';
+import 'package:jabook/core/infrastructure/background/background_compatibility_checker.dart';
+import 'package:jabook/core/infrastructure/background/download_background_service.dart';
+import 'package:jabook/core/infrastructure/config/app_config.dart';
+import 'package:jabook/core/infrastructure/config/language_manager.dart';
+import 'package:jabook/core/infrastructure/config/language_provider.dart';
+import 'package:jabook/core/infrastructure/config/theme_provider.dart';
+import 'package:jabook/core/infrastructure/endpoints/endpoint_health_scheduler.dart';
+import 'package:jabook/core/infrastructure/endpoints/endpoint_manager.dart';
+import 'package:jabook/core/infrastructure/logging/environment_logger.dart';
+import 'package:jabook/core/infrastructure/logging/structured_logger.dart';
+import 'package:jabook/core/infrastructure/notifications/download_notification_service.dart';
+import 'package:jabook/core/infrastructure/permissions/permission_service.dart';
+import 'package:jabook/core/infrastructure/task_manager/task_manager.dart';
+import 'package:jabook/core/infrastructure/task_manager/task_monitor.dart';
+import 'package:jabook/core/library/library_folder_permission_manager.dart';
 import 'package:jabook/core/net/dio_client.dart';
-import 'package:jabook/core/notifications/download_notification_service.dart';
-import 'package:jabook/core/permissions/permission_service.dart';
-import 'package:jabook/core/player/player_state_persistence_service.dart';
 import 'package:jabook/core/player/player_state_provider.dart';
-import 'package:jabook/core/session/session_manager.dart';
-import 'package:jabook/core/torrent/audiobook_torrent_manager.dart';
+import 'package:jabook/core/torrent/audiobook_torrent_manager_provider.dart';
 import 'package:jabook/core/utils/first_launch.dart';
 import 'package:jabook/core/utils/safe_async.dart';
-import 'package:jabook/core/utils/storage_path_utils.dart';
-import 'package:jabook/data/db/app_database.dart';
-import 'package:jabook/features/auth/data/providers/auth_provider.dart';
 import 'package:jabook/features/auth/data/repositories/auth_repository_impl.dart';
 import 'package:jabook/features/permissions/presentation/widgets/permissions_onboarding_dialog.dart';
 import 'package:jabook/l10n/app_localizations.dart';
@@ -73,13 +80,13 @@ class JaBookApp extends ConsumerStatefulWidget {
 /// and logging for the application lifecycle.
 class _JaBookAppState extends ConsumerState<JaBookApp>
     with WidgetsBindingObserver {
-  final AppConfig config = AppConfig();
-  final EnvironmentLogger logger = EnvironmentLogger();
-  final AppDatabase database = AppDatabase();
-  final RuTrackerCacheService cacheService = RuTrackerCacheService();
-  final LanguageManager languageManager = LanguageManager();
+  AppConfig get config => ref.read(appConfigProvider);
+  EnvironmentLogger get logger => ref.read(environmentLoggerProvider);
+  RuTrackerCacheService get cacheService =>
+      ref.read(rutrackerCacheServiceProvider);
+  LanguageManager get languageManager => ref.read(languageManagerProvider);
   RuTrackerAuth? _rutrackerAuth;
-  AuthRepositoryImpl? _authRepository;
+  AuthRepository? _authRepository;
 
   // Avoid recreating the key on every build.
   final GlobalKey<ScaffoldMessengerState> _scaffoldMessengerKey =
@@ -158,6 +165,8 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
       case AppLifecycleState.resumed:
         // App returned to foreground
         logger.i('App resumed - checking download status');
+        // Resume non-critical tasks
+        safeUnawaited(TaskManager.instance.resume());
         _onAppResumed();
         break;
       case AppLifecycleState.paused:
@@ -184,17 +193,44 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
   /// Handles app resume event.
   ///
   /// Checks download status and automatically resumes restored downloads.
+  /// Also checks if MANAGE_EXTERNAL_STORAGE permission was granted after returning from settings.
   Future<void> _onAppResumed() async {
     try {
-      logger.i('App resumed - checking for restored downloads to resume');
+      logger.i('App resumed - checking for restored downloads and permissions');
 
-      // Get torrent manager instance
-      final torrentManager = AudiobookTorrentManager();
-
-      // Ensure torrent manager is initialized with database
-      if (database.isInitialized) {
-        await torrentManager.initialize(database.database);
+      // Check if MANAGE_EXTERNAL_STORAGE permission was granted after returning from settings
+      try {
+        final permissionService = PermissionService();
+        if (Platform.isAndroid) {
+          final androidInfo = await DeviceInfoPlugin().androidInfo;
+          if (androidInfo.version.sdkInt >= 30) {
+            final hasManageStorage =
+                await permissionService.hasManageExternalStoragePermission();
+            if (hasManageStorage) {
+              logger.i(
+                'MANAGE_EXTERNAL_STORAGE permission granted after returning from settings',
+              );
+              // Verify permission actually works
+              final verified =
+                  await permissionService.verifyStoragePermission();
+              if (verified) {
+                logger.i(
+                    'MANAGE_EXTERNAL_STORAGE permission verified successfully');
+              } else {
+                logger.w(
+                  'MANAGE_EXTERNAL_STORAGE reported as granted but verification failed',
+                );
+              }
+            }
+          }
+        }
+      } on Exception catch (e) {
+        logger.w('Error checking MANAGE_EXTERNAL_STORAGE on resume: $e');
       }
+
+      // Get torrent manager instance from provider
+      final torrentManager =
+          await ref.read(audiobookTorrentManagerProvider.future);
 
       // Get all downloads (active and restored)
       final downloads = await torrentManager.getActiveDownloads();
@@ -255,12 +291,18 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
   /// Handles app pause event.
   ///
   /// Saves download state and playback position to ensure persistence.
+  /// Pauses non-critical tasks for energy efficiency.
   Future<void> _onAppPaused() async {
     try {
+      // Pause non-critical tasks for energy efficiency
+      await TaskManager.instance.pauseNonCritical();
+
       // Save download state to database
       // Downloads will continue in background if they're active
       // State is already saved via _saveDownloadMetadata during download progress
-      logger.i('App paused - download state saved');
+      logger
+        ..i('App paused - non-critical tasks paused')
+        ..i('App paused - download state saved');
 
       // Save playback position when app goes to background
       try {
@@ -280,6 +322,9 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
   /// Saves final download state and playback position before app termination.
   Future<void> _onAppDetached() async {
     try {
+      // Stop task monitoring
+      TaskMonitor.instance.stopReporting();
+
       // Final save of download state
       // Note: We don't call shutdown() here as it would stop all downloads
       // Downloads should continue in background if possible
@@ -321,6 +366,14 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
       final dbInitDuration =
           DateTime.now().difference(dbInitStart).inMilliseconds;
 
+      // Initialize TaskManager for centralized task management
+      await TaskManager.initialize();
+      TaskMonitor.instance.startReporting();
+
+      // Initialize access level synchronization
+      // This ensures access level is synced with authentication status
+      ref.read(accessLevelSyncProvider);
+
       // Initialize configuration based on flavor (lightweight, can run in parallel)
       // Initialize default storage path
       // Initialize background service for downloads
@@ -331,7 +384,7 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
       final envInitStart = DateTime.now();
       await Future.wait([
         _initializeEnvironment(),
-        StoragePathUtils().initializeDefaultPath(),
+        ref.read(storagePathUtilsProvider).initializeDefaultPath(),
         _initializeBackgroundService(),
         _initializeNotificationService(),
         _setupNotificationChannel(),
@@ -342,6 +395,37 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
       // This prevents "Activity not available" errors and permission request conflicts
       await Future.delayed(const Duration(milliseconds: 300));
       await _requestEssentialPermissions();
+
+      // Validate library folder permissions (non-blocking)
+      safeUnawaited(
+        () async {
+          try {
+            final permissionManager = LibraryFolderPermissionManager();
+            final lostFolders =
+                await permissionManager.getFoldersWithLostPermissions();
+            if (lostFolders.isNotEmpty) {
+              await structuredLogger.log(
+                level: 'warning',
+                subsystem: 'library',
+                message: 'Library folders with lost permissions detected',
+                extra: {
+                  'count': lostFolders.length,
+                  'folders': lostFolders,
+                },
+              );
+              logger.w(
+                'Found ${lostFolders.length} library folder(s) with lost permissions. '
+                'User can restore access in Settings.',
+              );
+            }
+          } on Exception catch (e) {
+            logger.w('Error validating library folder permissions: $e');
+          }
+        }(),
+        onError: (e, stack) {
+          logger.w('Error in library folder permission validation: $e');
+        },
+      );
 
       // Perform background compatibility check (non-blocking, Android only)
       if (Platform.isAndroid) {
@@ -467,6 +551,7 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
     final dbStartTime = DateTime.now();
     final structuredLogger = StructuredLogger();
     logger.i('Initializing database...');
+    final database = ref.read(appDatabaseProvider);
     await database.initialize();
     final dbInitDuration =
         DateTime.now().difference(dbStartTime).inMilliseconds;
@@ -549,7 +634,7 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
       () async {
         try {
           final sessionRestoreStart = DateTime.now();
-          final sessionManager = SessionManager();
+          final sessionManager = ref.read(sessionManagerProvider);
           final restored = await sessionManager.restoreSession();
           final sessionRestoreDuration =
               DateTime.now().difference(sessionRestoreStart).inMilliseconds;
@@ -618,9 +703,9 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
     try {
       logger.i('Checking for saved player state to restore');
 
-      // Import here to avoid circular dependencies
-      final playerStatePersistenceService = PlayerStatePersistenceService();
-      final savedState = await playerStatePersistenceService.restoreState();
+      // Use Media3PlayerService through provider to ensure singleton instance
+      final playerService = ref.read(media3PlayerServiceProvider);
+      final savedState = await playerService.restoreFullState();
 
       if (savedState == null) {
         logger.i('No saved player state found');
@@ -644,7 +729,7 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
         logger.w(
           'Some files from saved state no longer exist, clearing saved state',
         );
-        await playerStatePersistenceService.clearState();
+        await playerService.clearSavedState(savedState.groupPath);
         return;
       }
 
@@ -797,7 +882,8 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
           try {
             // Wait a bit for torrent manager to be ready
             await Future.delayed(const Duration(seconds: 2));
-            final torrentManager = AudiobookTorrentManager();
+            final torrentManager =
+                await ref.read(audiobookTorrentManagerProvider.future);
             final activeDownloads = await torrentManager.getActiveDownloads();
             if (activeDownloads.isNotEmpty) {
               logger.i(
@@ -946,6 +1032,26 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
           if (mounted) {
             try {
               final router = ref.read(appRouterProvider);
+              final playerState = ref.read(playerStateProvider);
+
+              // Check if player is already playing - if yes, use current group
+              // This ensures we don't reinitialize if player is already active
+              if (playerState.playbackState != 0 &&
+                  playerState.currentGroupPath != null) {
+                // Player is active - try to get current group from provider
+                final currentGroup = ref.read(currentAudiobookGroupProvider);
+
+                // If provider has group with matching path, use it
+                if (currentGroup != null &&
+                    currentGroup.groupPath == playerState.currentGroupPath) {
+                  await router.push('/local-player', extra: currentGroup);
+                  logger.i(
+                      'Opened player from notification (using current group)');
+                  return null;
+                }
+              }
+
+              // Fallback: try to get group from provider
               final currentGroup = ref.read(currentAudiobookGroupProvider);
               if (currentGroup != null) {
                 await router.push('/local-player', extra: currentGroup);
@@ -983,7 +1089,7 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
         // This prevents any null check errors during early initialization on new Android
         try {
           return MaterialApp(
-            title: 'JaBook',
+            title: AppConfig().displayAppName,
             debugShowCheckedModeBanner: false,
             home: Builder(
               builder: (context) => const Scaffold(
@@ -1038,22 +1144,30 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
 
       return ProviderScope(
         overrides: [
-          // Override AuthRepositoryProvider with actual implementation
-          // Use lazy initialization to avoid issues during app startup
-          authRepositoryProvider.overrideWith((ref) {
+          // Override rutrackerAuthProvider first (required by auth data sources)
+          rutrackerAuthProvider.overrideWith((ref) {
             // Lazy initialization - only create when actually needed
-            // Use a try-catch to handle any initialization errors gracefully
+            safeUnawaited(
+              StructuredLogger().log(
+                level: 'info',
+                subsystem: 'auth',
+                message:
+                    'rutrackerAuthProvider accessed, starting initialization',
+                extra: {
+                  'mounted': mounted,
+                  '_rutrackerAuth_is_null': _rutrackerAuth == null,
+                },
+              ),
+            );
+
             try {
               // Double-check that widget is still mounted
               if (!mounted) {
-                logger.w('Widget not mounted when creating auth repository');
+                logger.w('Widget not mounted when creating rutracker auth');
                 throw StateError(
                     'Widget is not mounted, cannot create RuTrackerAuth');
               }
 
-              // On Android 16, context may not be fully ready during early initialization
-              // Additional check: verify that context is still mounted
-              // This is especially important on Android 16 where lifecycle is stricter
               final buildContext = context;
               if (!buildContext.mounted) {
                 throw StateError(
@@ -1061,29 +1175,92 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
               }
 
               if (_rutrackerAuth == null) {
-                // Create RuTrackerAuth with context
-                // On Android 16, wrap in try-catch to handle any initialization issues
                 try {
+                  // Create RuTrackerAuth without sessionManager (like in old version 1.2.5)
+                  // RuTrackerAuth will create its own SessionManager internally if needed
+                  // This avoids circular dependency issues
                   _rutrackerAuth = RuTrackerAuth(buildContext);
+
+                  // Verify that RuTrackerAuth was created successfully
+                  // Verify that RuTrackerAuth was created successfully
+                  // Note: This check is necessary even though factory constructor shouldn't return null
                   if (_rutrackerAuth == null) {
                     throw StateError('RuTrackerAuth creation returned null');
                   }
-                } on Exception catch (authError) {
-                  logger.e('Failed to create RuTrackerAuth: $authError');
+
+                  // Log successful creation
+                  safeUnawaited(
+                    StructuredLogger().log(
+                      level: 'info',
+                      subsystem: 'auth',
+                      message: 'RuTrackerAuth created successfully in provider',
+                      extra: {
+                        'mounted': mounted,
+                        'context_mounted': buildContext.mounted,
+                      },
+                    ),
+                  );
+                } on Exception catch (authError, stackTrace) {
+                  logger.e('Failed to create RuTrackerAuth: $authError',
+                      stackTrace: stackTrace);
+                  // Log detailed error information (async, don't block)
+                  safeUnawaited(
+                    StructuredLogger().log(
+                      level: 'error',
+                      subsystem: 'auth',
+                      message: 'Failed to create RuTrackerAuth in provider',
+                      cause: authError.toString(),
+                      extra: {
+                        'error_type': authError.runtimeType.toString(),
+                        'mounted': mounted,
+                        'context_mounted': buildContext.mounted,
+                      },
+                    ),
+                  );
                   rethrow;
                 }
               }
 
-              if (_authRepository == null) {
-                final auth = _rutrackerAuth;
-                if (auth == null) {
-                  throw StateError('RuTrackerAuth is null');
-                }
-                _authRepository = AuthRepositoryImpl(auth);
-                if (_authRepository == null) {
-                  throw StateError('AuthRepositoryImpl creation returned null');
-                }
+              final auth = _rutrackerAuth;
+              if (auth == null) {
+                throw StateError('RuTrackerAuth is null');
               }
+              return auth;
+            } catch (e, stackTrace) {
+              logger.e('Failed to initialize rutracker auth: $e',
+                  stackTrace: stackTrace);
+              rethrow;
+            }
+          }),
+          // Override AuthRepositoryProvider with actual implementation
+          // Now rutrackerAuthProvider is already overridden above, so we can use it
+          // The provider now uses features/auth implementation which works directly with RuTrackerAuth
+          // CRITICAL: Use ref.read(rutrackerAuthProvider) to ensure rutrackerAuthProvider is initialized first
+          authRepositoryProvider.overrideWith((ref) {
+            try {
+              // Double-check that widget is still mounted
+              if (!mounted) {
+                logger.w('Widget not mounted when creating auth repository');
+                throw StateError(
+                    'Widget is not mounted, cannot create AuthRepository');
+              }
+
+              // On Android 16, context may not be fully ready during early initialization
+              // Additional check: verify that context is still mounted
+              final buildContext = context;
+              if (!buildContext.mounted) {
+                throw StateError(
+                    'BuildContext is not mounted, cannot create AuthRepository');
+              }
+
+              // CRITICAL: Use ref.read(rutrackerAuthProvider) to ensure rutrackerAuthProvider is initialized first
+              // This will trigger rutrackerAuthProvider initialization if it hasn't been called yet
+              final auth = ref.read(rutrackerAuthProvider);
+
+              // CRITICAL: Cache _authRepository to preserve state across rebuilds
+              // This ensures that auth status changes are properly tracked
+              // Only create if null - this preserves state across widget rebuilds
+              _authRepository ??= AuthRepositoryImpl(auth);
 
               final repository = _authRepository;
               if (repository == null) {
@@ -1093,8 +1270,20 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
             } catch (e, stackTrace) {
               logger.e('Failed to initialize auth repository: $e',
                   stackTrace: stackTrace);
-              // On new Android, try to continue with a fallback instead of crashing
-              // This allows the app to start even if auth initialization fails
+              // Log detailed error information
+              safeUnawaited(
+                StructuredLogger().log(
+                  level: 'error',
+                  subsystem: 'auth',
+                  message: 'Failed to initialize authRepositoryProvider',
+                  cause: e.toString(),
+                  extra: {
+                    'error_type': e.runtimeType.toString(),
+                    'mounted': mounted,
+                    '_rutrackerAuth_is_null': _rutrackerAuth == null,
+                  },
+                ),
+              );
               rethrow;
             }
           }),
@@ -1110,9 +1299,11 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
                 title: config.appName,
                 theme: AppTheme.lightTheme(
                   highContrast: themeSettings.highContrastEnabled,
+                  isBeta: config.isBeta,
                 ),
                 darkTheme: AppTheme.darkTheme(
                   highContrast: themeSettings.highContrastEnabled,
+                  isBeta: config.isBeta,
                 ),
                 themeMode: themeSettings.themeMode,
                 routerConfig: router,
@@ -1225,7 +1416,7 @@ class _JaBookAppState extends ConsumerState<JaBookApp>
       logger.e('Error in build method: $e', stackTrace: stackTrace);
       // Ultimate fallback
       return MaterialApp(
-        title: 'JaBook',
+        title: AppConfig().displayAppName,
         home: Scaffold(
           body: Center(
             child: Text(

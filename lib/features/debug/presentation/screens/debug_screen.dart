@@ -15,10 +15,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:jabook/core/cache/rutracker_cache_service.dart';
-import 'package:jabook/core/endpoints/endpoint_manager.dart';
-import 'package:jabook/core/logging/environment_logger.dart';
-import 'package:jabook/core/logging/structured_logger.dart';
-import 'package:jabook/data/db/app_database.dart';
+import 'package:jabook/core/di/providers/cache_providers.dart';
+import 'package:jabook/core/di/providers/config_providers.dart';
+import 'package:jabook/core/di/providers/database_providers.dart';
+import 'package:jabook/core/infrastructure/config/app_config.dart';
+import 'package:jabook/core/infrastructure/endpoints/endpoint_manager.dart';
+import 'package:jabook/core/infrastructure/logging/environment_logger.dart';
+import 'package:jabook/core/infrastructure/logging/structured_logger.dart';
+import 'package:jabook/core/utils/app_title_utils.dart';
+import 'package:jabook/core/widgets/custom_tab_bar.dart';
 import 'package:jabook/l10n/app_localizations.dart';
 
 /// Debug screen for development and troubleshooting purposes.
@@ -62,9 +67,9 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
 
   Future<void> _initializeServices() async {
     _logger = EnvironmentLogger();
-    _cacheService = RuTrackerCacheService();
+    _cacheService = ref.read(rutrackerCacheServiceProvider);
     // Initialize EndpointManager with database
-    final appDatabase = AppDatabase();
+    final appDatabase = ref.read(appDatabaseProvider);
     await appDatabase.initialize();
     _endpointManager = EndpointManager(appDatabase.database);
   }
@@ -96,9 +101,10 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
     } on Exception catch (e) {
       _logger.e('Failed to load logs: $e');
       // Fallback to placeholder logs
+      final appName = AppConfig().displayAppName;
       setState(() {
         _logEntries = [
-          'INFO: JaBook started at ${DateTime.now()}',
+          'INFO: $appName started at ${DateTime.now()}',
           'DEBUG: Cache cleared successfully',
           'ERROR: Failed to connect to active RuTracker mirror',
           'ERROR: Failed to load logs: $e',
@@ -150,7 +156,7 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
   Future<void> _loadCacheStats() async {
     try {
       // Initialize database first
-      final appDatabase = AppDatabase();
+      final appDatabase = ref.read(appDatabaseProvider);
       await appDatabase.initialize();
       await _cacheService.initialize(appDatabase.database);
 
@@ -233,38 +239,45 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(
-          title: Text(
-              AppLocalizations.of(context)?.debugToolsTitle ?? 'Debug Tools'),
-          bottom: TabBar(
-            controller: _tabController,
-            tabs: [
-              Tab(
-                text: AppLocalizations.of(context)?.logsTab ?? 'Logs',
-                icon: const Icon(Icons.description),
-              ),
-              Tab(
-                text: AppLocalizations.of(context)?.mirrorsTab ?? 'Mirrors',
-                icon: const Icon(Icons.dns),
-              ),
-              Tab(
-                text: AppLocalizations.of(context)?.cacheTab ?? 'Cache',
-                icon: const Icon(Icons.cached),
-              ),
-            ],
-          ),
-        ),
-        body: TabBarView(
+  Widget build(BuildContext context) {
+    final appConfig = ref.watch(appConfigProvider);
+    final isBeta = appConfig.isBeta;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(
+            (AppLocalizations.of(context)?.debugToolsTitle ?? 'Debug Tools')
+                .withFlavorSuffix()),
+        bottom: CustomTabBar(
           controller: _tabController,
-          children: [
-            _buildLogsTab(),
-            _buildMirrorsTab(null),
-            _buildCacheTab(null),
+          isBeta: isBeta,
+          tabs: [
+            Tab(
+              text: AppLocalizations.of(context)?.logsTab ?? 'Logs',
+              icon: const Icon(Icons.description),
+            ),
+            Tab(
+              text: AppLocalizations.of(context)?.mirrorsTab ?? 'Mirrors',
+              icon: const Icon(Icons.dns),
+            ),
+            Tab(
+              text: AppLocalizations.of(context)?.cacheTab ?? 'Cache',
+              icon: const Icon(Icons.cached),
+            ),
           ],
         ),
-        floatingActionButton: _buildFloatingActionButtons(context),
-      );
+      ),
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          _buildLogsTab(),
+          _buildMirrorsTab(null),
+          _buildCacheTab(null),
+        ],
+      ),
+      floatingActionButton: _buildFloatingActionButtons(context),
+    );
+  }
 
   Widget _buildLogsTab() => ListView.builder(
         itemCount: _logEntries.length,

@@ -18,14 +18,15 @@ import 'dart:io' as io;
 import 'package:flutter/material.dart';
 import 'package:flutter_cookie_bridge/session_manager.dart' as bridge_session;
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
-import 'package:jabook/core/auth/cookie_database_service.dart';
-import 'package:jabook/core/endpoints/endpoint_manager.dart';
-import 'package:jabook/core/logging/structured_logger.dart';
+import 'package:jabook/core/data/local/database/app_database.dart';
+import 'package:jabook/core/data/local/database/cookie_database_service.dart';
+import 'package:jabook/core/data/remote/network/user_agent_manager.dart';
+import 'package:jabook/core/infrastructure/endpoints/endpoint_manager.dart';
+import 'package:jabook/core/infrastructure/logging/structured_logger.dart';
 import 'package:jabook/core/net/dio_client.dart';
-import 'package:jabook/core/net/user_agent_manager.dart';
 import 'package:jabook/core/services/cookie_service.dart';
+import 'package:jabook/core/utils/app_title_utils.dart';
 import 'package:jabook/core/utils/safe_async.dart';
-import 'package:jabook/data/db/app_database.dart';
 import 'package:jabook/features/webview/webview_cloudflare_handler.dart';
 import 'package:jabook/features/webview/webview_cookie_manager.dart';
 import 'package:jabook/features/webview/webview_login_detector.dart';
@@ -70,18 +71,89 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
   @override
   void initState() {
     super.initState();
+    // Log that WebView is being initialized
+    safeUnawaited(
+      StructuredLogger().log(
+        level: 'info',
+        subsystem: 'webview',
+        message:
+            'SecureRutrackerWebView initState called, starting initialization',
+        context: 'webview_init',
+      ),
+    );
     _initializeWebView();
   }
 
   Future<void> _initializeWebView() async {
+    final operationId = 'webview_init_${DateTime.now().millisecondsSinceEpoch}';
+    final startTime = DateTime.now();
+
     try {
+      await StructuredLogger().log(
+        level: 'info',
+        subsystem: 'webview',
+        message: 'Starting WebView initialization',
+        operationId: operationId,
+        context: 'webview_init',
+      );
+
       // Initialize cookie bridge
+      await StructuredLogger().log(
+        level: 'debug',
+        subsystem: 'webview',
+        message: 'Initializing cookie bridge',
+        operationId: operationId,
+        context: 'webview_init',
+      );
       _sessionManager = await WebViewCookieManager.initCookieBridge();
 
-      // Resolve initial URL
-      _initialUrl = await WebViewNavigationHandler.resolveInitialUrl();
+      // Resolve initial URL - use login page for WebView
+      // Add timeout to prevent hanging during endpoint resolution
+      await StructuredLogger().log(
+        level: 'debug',
+        subsystem: 'webview',
+        message: 'Resolving initial URL',
+        operationId: operationId,
+        context: 'webview_init',
+      );
+      final baseUrl =
+          await WebViewNavigationHandler.resolveInitialUrl().timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          // If timeout, use primary fallback endpoint
+          final fallback = EndpointManager.getPrimaryFallbackEndpoint();
+          StructuredLogger().log(
+            level: 'warning',
+            subsystem: 'webview',
+            message: 'Endpoint resolution timeout, using fallback',
+            context: 'webview_init',
+          );
+          return fallback;
+        },
+      );
+      // Always load login page in WebView, not main page
+      _initialUrl = '$baseUrl/forum/login.php';
+
+      await StructuredLogger().log(
+        level: 'info',
+        subsystem: 'webview',
+        message: 'Initial URL resolved',
+        operationId: operationId,
+        context: 'webview_init',
+        extra: {
+          'base_url': baseUrl,
+          'initial_url': _initialUrl,
+        },
+      );
 
       // Get user agent
+      await StructuredLogger().log(
+        level: 'debug',
+        subsystem: 'webview',
+        message: 'Getting user agent',
+        operationId: operationId,
+        context: 'webview_init',
+      );
       final userAgentManager = UserAgentManager();
       final userAgent = await userAgentManager.getUserAgent();
 
@@ -89,6 +161,20 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
       _settings = InAppWebViewSettings(
         userAgent: userAgent,
         mediaPlaybackRequiresUserGesture: false,
+      );
+
+      final duration = DateTime.now().difference(startTime).inMilliseconds;
+      await StructuredLogger().log(
+        level: 'info',
+        subsystem: 'webview',
+        message: 'WebView initialization completed successfully',
+        operationId: operationId,
+        context: 'webview_init',
+        durationMs: duration,
+        extra: {
+          'initial_url': _initialUrl,
+          'user_agent_length': userAgent.length,
+        },
       );
 
       if (mounted) {
@@ -632,8 +718,13 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
       );
 
       // CRITICAL: Get the active endpoint first - we need to sync cookies for the active domain
-      final db = AppDatabase().database;
-      final endpointManager = EndpointManager(db);
+      final appDb = AppDatabase.getInstance();
+      // Ensure database is initialized before using it
+      if (!appDb.isInitialized) {
+        await appDb.ensureInitialized();
+      }
+      final db = appDb.database; // Use synchronous access like in old version
+      final endpointManager = EndpointManager(db, appDb);
       String activeEndpoint;
       try {
         activeEndpoint = await endpointManager.getActiveEndpoint();
@@ -860,7 +951,12 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
               // CRITICAL: Save cookies to database FIRST - this is the primary storage
               final cookieHeader =
                   dioCookies.map((c) => '${c.name}=${c.value}').join('; ');
-              final cookieDbService = CookieDatabaseService(AppDatabase());
+              final appDb = AppDatabase.getInstance();
+              // Ensure database is initialized before using it
+              if (!appDb.isInitialized) {
+                await appDb.ensureInitialized();
+              }
+              final cookieDbService = CookieDatabaseService(appDb);
               final savedToDb = await cookieDbService.saveCookies(
                   activeEndpointBaseUrl, cookieHeader);
 
@@ -1002,8 +1098,12 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
                             .join('; ');
 
                         // CRITICAL: Save cookies to database FIRST - this is the primary storage
-                        final cookieDbService =
-                            CookieDatabaseService(AppDatabase());
+                        final appDb = AppDatabase.getInstance();
+                        // Ensure database is initialized before using it
+                        if (!appDb.isInitialized) {
+                          await appDb.ensureInitialized();
+                        }
+                        final cookieDbService = CookieDatabaseService(appDb);
                         final savedToDb = await cookieDbService.saveCookies(
                             activeEndpointBaseUrl, cookieHeader);
 
@@ -1304,7 +1404,8 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
 
       // CRITICAL: Save cookies to database FIRST - this is the primary storage
       // Database is reliable and can be used anywhere in the app
-      final cookieDbService = CookieDatabaseService(AppDatabase());
+      // Reuse appDb from earlier in the function
+      final cookieDbService = CookieDatabaseService(appDb);
       final savedToDb = await cookieDbService.saveCookies(
           activeEndpointBaseUrl, cookieHeader);
 
@@ -1506,7 +1607,8 @@ class _SecureRutrackerWebViewState extends State<SecureRutrackerWebView> {
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(
           title: Text(
-            AppLocalizations.of(context)?.webViewTitle ?? 'RuTracker',
+            (AppLocalizations.of(context)?.webViewTitle ?? 'RuTracker')
+                .withFlavorSuffix(),
           ),
           automaticallyImplyLeading: false,
           actions: [

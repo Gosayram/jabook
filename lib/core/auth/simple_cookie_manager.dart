@@ -16,7 +16,7 @@ import 'dart:io' as io;
 
 import 'package:cookie_jar/cookie_jar.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:jabook/core/logging/structured_logger.dart';
+import 'package:jabook/core/infrastructure/logging/structured_logger.dart';
 
 /// Simple cookie manager for RuTracker authentication.
 ///

@@ -20,7 +20,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:jabook/app/app.dart';
-import 'package:jabook/core/logging/environment_logger.dart';
+import 'package:jabook/core/infrastructure/logging/environment_logger.dart';
 import 'package:jabook/core/net/dio_client.dart';
 
 void main() {
@@ -44,11 +44,25 @@ void main() {
   FlutterError.onError = (details) {
     // Handle MissingPluginException gracefully - don't treat as critical error
     if (details.exception is MissingPluginException) {
+      final exception = details.exception as MissingPluginException;
       logger.w(
-        'Missing plugin: ${details.exception}',
+        'Missing plugin: ${exception.message}',
         stackTrace: details.stack,
       );
-      // Don't show error UI for missing plugins - graceful degradation
+      // CRITICAL: Don't show error UI for missing plugins - graceful degradation
+      // This prevents app crash when plugins are not registered
+      // Especially important for getToken on flutter_method_channel
+      return;
+    }
+
+    // Handle specific getToken error on flutter_method_channel
+    if (details.exception.toString().contains('getToken') &&
+        details.exception.toString().contains('flutter_method_channel')) {
+      logger.w(
+        'getToken method not implemented on flutter_method_channel (ignored): ${details.exception}',
+        stackTrace: details.stack,
+      );
+      // Don't crash - this is likely a missing plugin that's not critical
       return;
     }
 
@@ -75,7 +89,20 @@ void main() {
   PlatformDispatcher.instance.onError = (error, stack) {
     // Handle MissingPluginException gracefully
     if (error is MissingPluginException) {
-      logger.w('Missing plugin in platform error: $error', stackTrace: stack);
+      logger.w(
+        'Missing plugin in platform error: ${error.message}',
+        stackTrace: stack,
+      );
+      return true; // Handled, don't crash
+    }
+
+    // Handle specific getToken error on flutter_method_channel
+    if (error.toString().contains('getToken') &&
+        error.toString().contains('flutter_method_channel')) {
+      logger.w(
+        'getToken method not implemented on flutter_method_channel (ignored): $error',
+        stackTrace: stack,
+      );
       return true; // Handled, don't crash
     }
 
@@ -130,7 +157,20 @@ void main() {
   }, (error, stackTrace) {
     // Handle MissingPluginException gracefully
     if (error is MissingPluginException) {
-      logger.w('Missing plugin in zone error: $error', stackTrace: stackTrace);
+      logger.w(
+        'Missing plugin in zone error: ${error.message}',
+        stackTrace: stackTrace,
+      );
+      return; // Handled, don't crash
+    }
+
+    // Handle specific getToken error on flutter_method_channel
+    if (error.toString().contains('getToken') &&
+        error.toString().contains('flutter_method_channel')) {
+      logger.w(
+        'getToken method not implemented on flutter_method_channel (ignored): $error',
+        stackTrace: stackTrace,
+      );
       return; // Handled, don't crash
     }
 

@@ -17,6 +17,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:jabook/core/di/providers/player_providers.dart';
+import 'package:jabook/core/library/cover_fallback_service.dart';
 import 'package:jabook/core/player/native_audio_player.dart';
 import 'package:jabook/core/player/player_state_provider.dart';
 
@@ -34,12 +36,18 @@ class MiniPlayerWidget extends ConsumerStatefulWidget {
 
 class _MiniPlayerWidgetState extends ConsumerState<MiniPlayerWidget> {
   String? _embeddedArtworkPath;
+  String?
+      _groupArtworkPath; // First found artwork path for the group (global setting)
 
   @override
   void initState() {
     super.initState();
     // Check for embedded artwork after first frame
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Load first available artwork from group (global setting)
+      _loadGroupArtwork();
+      // Check immediately and also with delay for async updates
+      _checkEmbeddedArtwork();
       Future.delayed(const Duration(milliseconds: 500), _checkEmbeddedArtwork);
     });
   }
@@ -51,11 +59,126 @@ class _MiniPlayerWidgetState extends ConsumerState<MiniPlayerWidget> {
     _checkEmbeddedArtwork();
   }
 
-  Future<void> _checkEmbeddedArtwork() async {
+  /// Loads the first available artwork from group files (global setting).
+  /// This ensures we always use the first found artwork, even if the first file doesn't have one.
+  Future<void> _loadGroupArtwork() async {
     try {
-      // Get current media item info which includes artworkPath
+      final currentGroup = ref.read(currentAudiobookGroupProvider);
+      if (currentGroup == null) return;
+
+      // Try group coverPath first
+      if (currentGroup.coverPath != null) {
+        final coverFile = File(currentGroup.coverPath!);
+        if (coverFile.existsSync()) {
+          if (mounted) {
+            setState(() {
+              _groupArtworkPath = currentGroup.coverPath;
+            });
+          }
+          return;
+        }
+      }
+
+      // Try to extract artwork from files in order until found
       final nativePlayer = NativeAudioPlayer();
-      final mediaInfo = await nativePlayer.getCurrentMediaItemInfo();
+      String? artworkPath;
+
+      for (final file in currentGroup.files) {
+        try {
+          artworkPath = await nativePlayer.extractArtworkFromFile(
+            file.filePath,
+          );
+
+          if (artworkPath != null) {
+            final artworkFile = File(artworkPath);
+            if (artworkFile.existsSync()) {
+              // Found artwork, stop searching and use this as group artwork
+              if (mounted) {
+                setState(() {
+                  _groupArtworkPath = artworkPath;
+                });
+                // Update global state so other widgets (LocalPlayer) see this cover
+                final updatedGroup =
+                    currentGroup.copyWith(coverPath: artworkPath);
+                ref.read(currentAudiobookGroupProvider.notifier).state =
+                    updatedGroup;
+              }
+              return;
+            } else {
+              artworkPath = null;
+            }
+          }
+        } on Exception catch (e) {
+          // Continue to next file if this one fails
+          debugPrint('Failed to extract artwork from ${file.filePath}: $e');
+          artworkPath = null;
+        }
+      }
+
+      // If no artwork found, try online fallback
+      if (artworkPath == null && currentGroup.coverPath == null) {
+        try {
+          const fallbackService = CoverFallbackService();
+          final fallbackPath = await fallbackService.fetchCoverFromOnline(
+            currentGroup.groupName,
+            torrentId: currentGroup.torrentId,
+          );
+          if (fallbackPath != null && mounted) {
+            final fallbackFile = File(fallbackPath);
+            if (fallbackFile.existsSync()) {
+              setState(() {
+                _groupArtworkPath = fallbackPath;
+              });
+              // Update global state so other widgets (LocalPlayer) see this cover
+              final updatedGroup =
+                  currentGroup.copyWith(coverPath: fallbackPath);
+              ref.read(currentAudiobookGroupProvider.notifier).state =
+                  updatedGroup;
+            }
+          }
+        } on Exception {
+          // Silently fail - online fallback is optional
+        }
+      }
+    } on Exception {
+      // Silently fail - embedded artwork is optional
+    }
+  }
+
+  Future<void> _checkEmbeddedArtwork() async {
+    // Use group artwork (first found) as primary source (global setting)
+    // Only check current track artwork if group artwork is not available
+    if (_groupArtworkPath != null) {
+      final artworkFile = File(_groupArtworkPath!);
+      if (artworkFile.existsSync()) {
+        if (mounted) {
+          setState(() {
+            _embeddedArtworkPath = _groupArtworkPath;
+          });
+        }
+        return;
+      }
+    }
+
+    try {
+      // Fallback 1: Get currentCoverPath from playerState (updated by player_state_provider)
+      final playerState = ref.read(playerStateProvider);
+      if (playerState.currentCoverPath != null) {
+        final coverFile = File(playerState.currentCoverPath!);
+        if (coverFile.existsSync()) {
+          if (mounted) {
+            setState(() {
+              _embeddedArtworkPath = playerState.currentCoverPath;
+            });
+          }
+          return;
+        }
+      }
+
+      // Fallback 2: Get current media item info which includes artworkPath
+      // Use Media3PlayerService through provider to ensure singleton instance
+      final playerService = ref.read(media3PlayerServiceProvider);
+      final mediaInfo = await playerService.getCurrentMediaItemInfo();
       final artworkPath = mediaInfo['artworkPath'] as String?;
       if (artworkPath != null && artworkPath.isNotEmpty) {
         final artworkFile = File(artworkPath);
@@ -88,13 +211,46 @@ class _MiniPlayerWidgetState extends ConsumerState<MiniPlayerWidget> {
   Widget build(BuildContext context) {
     final playerState = ref.watch(playerStateProvider);
 
-    // Listen to track changes and update embedded artwork
-    ref.listen(playerStateProvider, (previous, next) {
-      // Check if track index changed (new track)
-      if (previous?.currentIndex != next.currentIndex) {
-        _checkEmbeddedArtwork();
-      }
-    });
+    // Listen to track changes and group changes
+    ref
+      ..listen(playerStateProvider, (previous, next) {
+        // When playback starts (transitions from idle to ready/playing), load artwork
+        if (previous?.playbackState == 0 && next.playbackState != 0) {
+          // Player just started - load group artwork and check embedded artwork
+          _loadGroupArtwork();
+          Future.delayed(
+              const Duration(milliseconds: 100), _checkEmbeddedArtwork);
+        }
+        // Check if track index changed (new track)
+        if (previous?.currentIndex != next.currentIndex) {
+          _checkEmbeddedArtwork();
+        }
+        // Update if cover path changed (but prioritize group artwork)
+        if (previous?.currentCoverPath != next.currentCoverPath) {
+          if (next.currentCoverPath != null) {
+            // If we don't have group artwork, use currentCoverPath
+            if (_groupArtworkPath == null) {
+              setState(() {
+                _embeddedArtworkPath = next.currentCoverPath;
+              });
+            }
+          } else {
+            // If cover path was cleared, try to reload
+            _checkEmbeddedArtwork();
+          }
+        }
+      })
+      ..listen(currentAudiobookGroupProvider, (previous, next) {
+        if (previous?.groupPath != next?.groupPath) {
+          // Group changed, reload group artwork
+          setState(() {
+            _groupArtworkPath = null;
+            _embeddedArtworkPath = null;
+          });
+          // Load group artwork after state is reset
+          _loadGroupArtwork();
+        }
+      });
 
     // Show mini player only when there's an active track (not idle)
     if (playerState.playbackState == 0) {
@@ -124,7 +280,7 @@ class _MiniPlayerWidgetState extends ConsumerState<MiniPlayerWidget> {
         }
       },
       child: Container(
-        height: 64,
+        height: 52, // Reduced from 64 (20% decrease)
         decoration: BoxDecoration(
           color: Theme.of(context).cardColor,
           boxShadow: [
@@ -137,10 +293,12 @@ class _MiniPlayerWidgetState extends ConsumerState<MiniPlayerWidget> {
         ),
         child: Row(
           children: [
-            // Cover image - prioritize embedded artwork, then currentCoverPath
+            // Cover image - prioritize group artwork, then embedded artwork, then currentCoverPath
             _buildCoverImage(
               context,
-              _embeddedArtworkPath ?? playerState.currentCoverPath,
+              _groupArtworkPath ??
+                  _embeddedArtworkPath ??
+                  playerState.currentCoverPath,
             ),
             const SizedBox(width: 12),
             // Track info and progress
@@ -214,8 +372,8 @@ class _MiniPlayerWidgetState extends ConsumerState<MiniPlayerWidget> {
       final coverFile = File(coverPath);
       if (coverFile.existsSync()) {
         return Container(
-          width: 64,
-          height: 64,
+          width: 52,
+          height: 52,
           decoration: BoxDecoration(
             color: Colors.grey[300],
           ),

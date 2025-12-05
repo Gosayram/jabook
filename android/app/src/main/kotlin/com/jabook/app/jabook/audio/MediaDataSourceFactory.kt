@@ -17,14 +17,12 @@ package com.jabook.app.jabook.audio
 import android.content.Context
 import android.net.Uri
 import androidx.media3.datasource.DataSource
-import androidx.media3.datasource.DataSpec
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.cache.Cache
 import androidx.media3.datasource.cache.CacheDataSink
 import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.datasource.okhttp.OkHttpDataSource
 import okhttp3.OkHttpClient
-import java.io.File
 import java.util.concurrent.TimeUnit
 
 /**
@@ -38,70 +36,70 @@ import java.util.concurrent.TimeUnit
  */
 class MediaDataSourceFactory(
     private val context: Context,
-    private val cache: Cache?
+    private val cache: Cache?,
 ) : DataSource.Factory {
-    
     // OkHttp client for network requests (with proper timeouts and configuration)
     private val okHttpClient by lazy {
-        OkHttpClient.Builder()
+        OkHttpClient
+            .Builder()
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .writeTimeout(30, TimeUnit.SECONDS)
             .build()
     }
-    
+
     // OkHttp DataSource factory for network sources
     private val okHttpFactory by lazy {
         OkHttpDataSource.Factory(okHttpClient)
     }
-    
+
     // Default factory for local files
     private val defaultFactory by lazy {
         DefaultDataSource.Factory(context)
     }
-    
+
     // Cache factory for network sources (combines OkHttp + Cache)
     private val cacheFactory by lazy {
         if (cache != null) {
-            CacheDataSource.Factory()
+            CacheDataSource
+                .Factory()
                 .setCache(cache)
                 .setUpstreamDataSourceFactory(
-                    DefaultDataSource.Factory(context, okHttpFactory)
-                )
-                .setCacheWriteDataSinkFactory(
-                    CacheDataSink.Factory()
+                    DefaultDataSource.Factory(context, okHttpFactory),
+                ).setCacheWriteDataSinkFactory(
+                    CacheDataSink
+                        .Factory()
                         .setCache(cache)
-                        .setFragmentSize(CacheDataSink.DEFAULT_FRAGMENT_SIZE)
-                )
-                .setFlags(
+                        .setFragmentSize(CacheDataSink.DEFAULT_FRAGMENT_SIZE),
+                ).setFlags(
                     CacheDataSource.FLAG_BLOCK_ON_CACHE or
-                    CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR
+                        CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR,
                 )
         } else {
             null
         }
     }
-    
+
     override fun createDataSource(): DataSource {
         // Default implementation - use default factory for local files
         // For network sources, use createDataSourceFactoryForUri() method
         return defaultFactory.createDataSource()
     }
-    
+
     /**
      * Creates DataSource factory for a specific URI.
-     * 
+     *
      * Optimized factory selection based on URI scheme:
      * - http/https: Uses OkHttp + Cache for network sources
      * - file: Uses DefaultDataSource for local files
-     * 
+     *
      * @param uri Media URI (file://, http://, https://)
      * @return DataSource factory optimized for the URI type
      */
     fun createDataSourceFactoryForUri(uri: Uri): DataSource.Factory {
         val isNetworkUri = uri.scheme == "http" || uri.scheme == "https"
         val isLocalFile = uri.scheme == "file" || uri.scheme == null
-        
+
         return when {
             isNetworkUri && cacheFactory != null -> {
                 // Use cache + OkHttp for network sources
@@ -123,4 +121,3 @@ class MediaDataSourceFactory(
         }
     }
 }
-

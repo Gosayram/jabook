@@ -16,15 +16,15 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:device_info_plus/device_info_plus.dart';
-import 'package:jabook/core/config/audio_settings_manager.dart';
-import 'package:jabook/core/config/language_manager.dart';
+import 'package:jabook/core/data/local/database/app_database.dart';
 import 'package:jabook/core/favorites/favorites_service.dart';
-import 'package:jabook/core/logging/structured_logger.dart';
+import 'package:jabook/core/infrastructure/config/audio_settings_manager.dart';
+import 'package:jabook/core/infrastructure/config/language_manager.dart';
+import 'package:jabook/core/infrastructure/logging/structured_logger.dart';
 import 'package:jabook/core/metadata/audiobook_metadata_service.dart';
 import 'package:jabook/core/parse/rutracker_parser.dart';
 import 'package:jabook/core/search/search_history_service.dart';
 import 'package:jabook/core/utils/storage_path_utils.dart';
-import 'package:jabook/data/db/app_database.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sembast/sembast.dart';
@@ -396,7 +396,7 @@ class BackupService {
   /// Exports forum resolver cache.
   Future<List<Map<String, dynamic>>> _exportForumResolverCache() async {
     try {
-      final store = AppDatabase().forumResolverCacheStore;
+      final store = AppDatabase.getInstance().forumResolverCacheStore;
       final records = await store.find(_db);
       return records.map((record) => record.value).toList();
     } on Exception {
@@ -628,7 +628,7 @@ class BackupService {
       final itemsList = cacheData['items'] as List<dynamic>?;
       if (itemsList == null) return 0;
 
-      final store = AppDatabase().forumResolverCacheStore;
+      final store = AppDatabase.getInstance().forumResolverCacheStore;
       var imported = 0;
       for (final item in itemsList) {
         final map = item as Map<String, dynamic>;

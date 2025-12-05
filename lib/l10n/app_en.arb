@@ -386,6 +386,22 @@
   "@chaptersLabel": {
     "description": "Label for chapters"
   },
+  "searchChaptersHint": "Search by number or title...",
+  "@searchChaptersHint": {
+    "description": "Hint for chapters search field"
+  },
+  "allFilter": "All",
+  "@allFilter": {
+    "description": "Filter for showing all chapters"
+  },
+  "currentFilter": "Current",
+  "@currentFilter": {
+    "description": "Filter for showing current chapter"
+  },
+  "noChaptersFoundInSearch": "No chapters found",
+  "@noChaptersFoundInSearch": {
+    "description": "Message when no chapters found in search/filter"
+  },
   "downloadFunctionalityComingSoon": "Download functionality coming soon",
   "@downloadFunctionalityComingSoon": {
     "description": "Message for upcoming download feature"
@@ -449,6 +465,46 @@
   "audioDescription": "Audio settings",
   "@audioDescription": {
     "description": "Description for audio settings"
+  },
+  "audioEnhancementTitle": "Audio Enhancement",
+  "@audioEnhancementTitle": {
+    "description": "Title for audio enhancement settings"
+  },
+  "audioEnhancementDescription": "Improve audio quality and volume consistency",
+  "@audioEnhancementDescription": {
+    "description": "Description for audio enhancement settings"
+  },
+  "normalizeVolumeTitle": "Normalize Volume",
+  "@normalizeVolumeTitle": {
+    "description": "Title for normalize volume setting"
+  },
+  "normalizeVolumeDescription": "Maintain consistent volume across different audiobooks",
+  "@normalizeVolumeDescription": {
+    "description": "Description for normalize volume setting"
+  },
+  "volumeBoostTitle": "Volume Boost",
+  "@volumeBoostTitle": {
+    "description": "Title for volume boost setting"
+  },
+  "drcLevelTitle": "Dynamic Range Compression",
+  "@drcLevelTitle": {
+    "description": "Title for DRC level setting"
+  },
+  "speechEnhancerTitle": "Speech Enhancer",
+  "@speechEnhancerTitle": {
+    "description": "Title for speech enhancer setting"
+  },
+  "speechEnhancerDescription": "Improve speech clarity and reduce sibilance",
+  "@speechEnhancerDescription": {
+    "description": "Description for speech enhancer setting"
+  },
+  "autoVolumeLevelingTitle": "Auto Volume Leveling",
+  "@autoVolumeLevelingTitle": {
+    "description": "Title for auto volume leveling setting"
+  },
+  "autoVolumeLevelingDescription": "Automatically adjust volume to maintain consistent level",
+  "@autoVolumeLevelingDescription": {
+    "description": "Description for auto volume leveling setting"
   },
   "playbackSpeed": "Playback speed",
   "@playbackSpeed": {
@@ -971,6 +1027,16 @@
   "sampleChapter2Text": "Chapter 2",
   "@sampleChapter2Text": {
     "description": "Sample chapter 2 title"
+  },
+  "chapterNumber": "Chapter {number}",
+  "@chapterNumber": {
+    "description": "Chapter number label with number parameter",
+    "placeholders": {
+      "number": {
+        "type": "int",
+        "example": "1"
+      }
+    }
   },
   "topicScreenTitle": "Topic",
   "@topicScreenTitle": {
@@ -1779,6 +1845,26 @@
   "safFallbackMessage": "File access permissions are not working properly on your device. You can use the Storage Access Framework (SAF) to select folders manually. This method works without requiring special permissions.",
   "@safFallbackMessage": {
     "description": "Message for SAF fallback dialog"
+  },
+  "safPermissionCheckboxMessage": "Please check the 'Allow access to this folder' checkbox in the file picker dialog and try again. Without this checkbox, the app cannot access the selected folder.",
+  "@safPermissionCheckboxMessage": {
+    "description": "Message when user didn't check the permission checkbox in SAF folder picker"
+  },
+  "safNoAccessMessage": "No access to selected folder. Please check the 'Allow access to this folder' checkbox in the file picker and try again.",
+  "@safNoAccessMessage": {
+    "description": "Message when folder access check fails after selection"
+  },
+  "safFolderPickerHintTitle": "Important: Check the checkbox",
+  "@safFolderPickerHintTitle": {
+    "description": "Title for hint dialog before folder picker"
+  },
+  "safFolderPickerHintMessage": "When selecting a folder, please make sure to check the 'Allow access to this folder' checkbox in the file picker dialog. Without this checkbox, the app cannot access the selected folder.",
+  "@safFolderPickerHintMessage": {
+    "description": "Message for hint dialog before folder picker"
+  },
+  "safAndroidDataObbWarning": "Note: Access to Android/data and Android/obb folders is blocked on Android 11+ devices with security updates from March 2024. Please select a different folder.",
+  "@safAndroidDataObbWarning": {
+    "description": "Warning about blocked Android/data and Android/obb folders"
   },
   "safFallbackBenefits": "Benefits of using SAF:\n• Works on all Android devices\n• No special permissions needed\n• You choose which folders to access",
   "@safFallbackBenefits": {
@@ -2762,6 +2848,37 @@
   "@atEndOfChapterLabel": {
     "description": "Label for at end of chapter"
   },
+  "sleepTimerTooltip": "Sleep timer: {duration}",
+  "@sleepTimerTooltip": {
+    "description": "Tooltip for sleep timer with duration",
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "setSleepTimerTooltip": "Set sleep timer",
+  "@setSleepTimerTooltip": {
+    "description": "Tooltip for setting sleep timer"
+  },
+  "sleepTimerMinutes": "{minutes} min.",
+  "@sleepTimerMinutes": {
+    "description": "Sleep timer duration in minutes",
+    "placeholders": {
+      "minutes": {
+        "type": "int",
+        "format": "compact"
+      }
+    }
+  },
+  "sleepTimerHour": "1 hour",
+  "@sleepTimerHour": {
+    "description": "Sleep timer duration - 1 hour"
+  },
+  "sleepTimerAppWillExit": "Sleep timer: App will exit",
+  "@sleepTimerAppWillExit": {
+    "description": "Message that app will exit due to sleep timer"
+  },
   "itemsInTrashLabel": "Items in Trash",
   "@itemsInTrashLabel": {
     "description": "Label for items in trash"
@@ -3046,7 +3163,7 @@
   "@fileAccessPermissionTitle": {
     "description": "Title for file access permission"
   },
-  "fileAccessPermissionDescription": "Needed to save and play audiobooks.",
+  "fileAccessPermissionDescription": "Needed to save and play audiobooks. On Android 11+, you'll need to enable \"All files access\" in system settings.",
   "@fileAccessPermissionDescription": {
     "description": "Description for file access permission"
   },
@@ -3578,10 +3695,6 @@
   "@sessionExpiredTitle": {
     "description": "Title for session expired error dialog"
   },
-  "sessionExpiredMessage": "Your session has expired. Please log in again.",
-  "@sessionExpiredMessage": {
-    "description": "Message for session expired error"
-  },
   "invalidCredentialsTitle": "Authorization Error",
   "@invalidCredentialsTitle": {
     "description": "Title for invalid credentials error dialog"
@@ -3847,6 +3960,18 @@
   "@forwardDurationTitle": {
     "description": "Title for forward duration setting"
   },
+  "inactivityTimeoutTitle": "Inactivity Timeout",
+  "@inactivityTimeoutTitle": {
+    "description": "Title for inactivity timeout setting"
+  },
+  "inactivityTimeoutLabel": "Set inactivity timeout",
+  "@inactivityTimeoutLabel": {
+    "description": "Label for inactivity timeout setting"
+  },
+  "minute": "minute",
+  "@minute": {
+    "description": "Singular form of minute"
+  },
   "rewind": "Rewind",
   "@rewind": {
     "description": "Label for rewind action"
@@ -4015,5 +4140,447 @@
   "scanningLibrary": "Scanning library...",
   "@scanningLibrary": {
     "description": "Message shown while scanning library for audiobooks"
+  },
+  "manufacturerSettingsNotAvailable": "Settings Not Available",
+  "@manufacturerSettingsNotAvailable": {
+    "description": "Title when manufacturer settings are not available"
+  },
+  "manufacturerSettingsNotAvailableMessage": "Manufacturer-specific settings are only available on Android devices.",
+  "@manufacturerSettingsNotAvailableMessage": {
+    "description": "Message when manufacturer settings are not available"
+  },
+  "manufacturerSettingsDefaultTitle": "Settings for Stable Operation",
+  "@manufacturerSettingsDefaultTitle": {
+    "description": "Default title for manufacturer settings instructions"
+  },
+  "manufacturerSettingsDefaultMessage": "To ensure stable operation, you need to configure the following settings:",
+  "@manufacturerSettingsDefaultMessage": {
+    "description": "Default message for manufacturer settings instructions"
+  },
+  "manufacturerSettingsDefaultStep1": "1. Enable application autostart",
+  "@manufacturerSettingsDefaultStep1": {
+    "description": "Default step 1 for manufacturer settings"
+  },
+  "manufacturerSettingsDefaultStep2": "2. Disable battery optimization for the application",
+  "@manufacturerSettingsDefaultStep2": {
+    "description": "Default step 2 for manufacturer settings"
+  },
+  "manufacturerSettingsDefaultStep3": "3. Allow background activity",
+  "@manufacturerSettingsDefaultStep3": {
+    "description": "Default step 3 for manufacturer settings"
+  },
+  "manufacturerSettingsMiuiTitle": "MIUI Settings for Stable Operation",
+  "@manufacturerSettingsMiuiTitle": {
+    "description": "Title for MIUI manufacturer settings"
+  },
+  "manufacturerSettingsMiuiMessage": "On Xiaomi/Redmi/Poco devices, you need to configure the following settings:",
+  "@manufacturerSettingsMiuiMessage": {
+    "description": "Message for MIUI manufacturer settings"
+  },
+  "manufacturerSettingsMiuiStep1": "1. Autostart: Settings → Apps → Permission management → Autostart → Enable for {appName}",
+  "@manufacturerSettingsMiuiStep1": {
+    "description": "Step 1 for MIUI settings",
+    "placeholders": {
+      "appName": {
+        "type": "String"
+      }
+    }
+  },
+  "manufacturerSettingsMiuiStep2": "2. Battery optimization: Settings → Battery → Battery optimization → Select {appName} → Don't optimize",
+  "@manufacturerSettingsMiuiStep2": {
+    "description": "Step 2 for MIUI settings",
+    "placeholders": {
+      "appName": {
+        "type": "String"
+      }
+    }
+  },
+  "manufacturerSettingsMiuiStep3": "3. Background activity: Settings → Apps → {appName} → Battery → Background activity → Allow",
+  "@manufacturerSettingsMiuiStep3": {
+    "description": "Step 3 for MIUI settings",
+    "placeholders": {
+      "appName": {
+        "type": "String"
+      }
+    }
+  },
+  "manufacturerSettingsEmuiTitle": "EMUI Settings for Stable Operation",
+  "@manufacturerSettingsEmuiTitle": {
+    "description": "Title for EMUI manufacturer settings"
+  },
+  "manufacturerSettingsEmuiMessage": "On Huawei/Honor devices, you need to configure the following settings:",
+  "@manufacturerSettingsEmuiMessage": {
+    "description": "Message for EMUI manufacturer settings"
+  },
+  "manufacturerSettingsEmuiStep1": "1. App protection: Settings → Apps → App protection → {appName} → Enable autostart",
+  "@manufacturerSettingsEmuiStep1": {
+    "description": "Step 1 for EMUI settings",
+    "placeholders": {
+      "appName": {
+        "type": "String"
+      }
+    }
+  },
+  "manufacturerSettingsEmuiStep2": "2. Battery management: Settings → Battery → Battery management → {appName} → Don't optimize",
+  "@manufacturerSettingsEmuiStep2": {
+    "description": "Step 2 for EMUI settings",
+    "placeholders": {
+      "appName": {
+        "type": "String"
+      }
+    }
+  },
+  "manufacturerSettingsEmuiStep3": "3. Background activity: Settings → Apps → {appName} → Battery → Allow background activity",
+  "@manufacturerSettingsEmuiStep3": {
+    "description": "Step 3 for EMUI settings",
+    "placeholders": {
+      "appName": {
+        "type": "String"
+      }
+    }
+  },
+  "manufacturerSettingsColorosTitle": "ColorOS/RealmeUI Settings for Stable Operation",
+  "@manufacturerSettingsColorosTitle": {
+    "description": "Title for ColorOS/RealmeUI manufacturer settings"
+  },
+  "manufacturerSettingsColorosMessage": "On Oppo/Realme devices, you need to configure the following settings:",
+  "@manufacturerSettingsColorosMessage": {
+    "description": "Message for ColorOS/RealmeUI manufacturer settings"
+  },
+  "manufacturerSettingsColorosStep1": "1. Autostart: Settings → Apps → Autostart → Enable for {appName}",
+  "@manufacturerSettingsColorosStep1": {
+    "description": "Step 1 for ColorOS/RealmeUI settings",
+    "placeholders": {
+      "appName": {
+        "type": "String"
+      }
+    }
+  },
+  "manufacturerSettingsColorosStep2": "2. Battery optimization: Settings → Battery → Battery optimization → {appName} → Don't optimize",
+  "@manufacturerSettingsColorosStep2": {
+    "description": "Step 2 for ColorOS/RealmeUI settings",
+    "placeholders": {
+      "appName": {
+        "type": "String"
+      }
+    }
+  },
+  "manufacturerSettingsColorosStep3": "3. Background activity: Settings → Apps → {appName} → Battery → Allow background activity",
+  "@manufacturerSettingsColorosStep3": {
+    "description": "Step 3 for ColorOS/RealmeUI settings",
+    "placeholders": {
+      "appName": {
+        "type": "String"
+      }
+    }
+  },
+  "manufacturerSettingsOxygenosTitle": "OxygenOS Settings for Stable Operation",
+  "@manufacturerSettingsOxygenosTitle": {
+    "description": "Title for OxygenOS manufacturer settings"
+  },
+  "manufacturerSettingsOxygenosMessage": "On OnePlus devices, you need to configure the following settings:",
+  "@manufacturerSettingsOxygenosMessage": {
+    "description": "Message for OxygenOS manufacturer settings"
+  },
+  "manufacturerSettingsOxygenosStep1": "1. Autostart: Settings → Apps → Autostart → Enable for {appName}",
+  "@manufacturerSettingsOxygenosStep1": {
+    "description": "Step 1 for OxygenOS settings",
+    "placeholders": {
+      "appName": {
+        "type": "String"
+      }
+    }
+  },
+  "manufacturerSettingsOxygenosStep2": "2. Battery optimization: Settings → Battery → Battery optimization → {appName} → Don't optimize",
+  "@manufacturerSettingsOxygenosStep2": {
+    "description": "Step 2 for OxygenOS settings",
+    "placeholders": {
+      "appName": {
+        "type": "String"
+      }
+    }
+  },
+  "manufacturerSettingsOxygenosStep3": "3. Background activity: Settings → Apps → {appName} → Battery → Allow background activity",
+  "@manufacturerSettingsOxygenosStep3": {
+    "description": "Step 3 for OxygenOS settings",
+    "placeholders": {
+      "appName": {
+        "type": "String"
+      }
+    }
+  },
+  "manufacturerSettingsFuntouchosTitle": "FuntouchOS/OriginOS Settings for Stable Operation",
+  "@manufacturerSettingsFuntouchosTitle": {
+    "description": "Title for FuntouchOS/OriginOS manufacturer settings"
+  },
+  "manufacturerSettingsFuntouchosMessage": "On Vivo devices, you need to configure the following settings:",
+  "@manufacturerSettingsFuntouchosMessage": {
+    "description": "Message for FuntouchOS/OriginOS manufacturer settings"
+  },
+  "manufacturerSettingsFuntouchosStep1": "1. Autostart: Settings → Apps → Autostart → Enable for {appName}",
+  "@manufacturerSettingsFuntouchosStep1": {
+    "description": "Step 1 for FuntouchOS/OriginOS settings",
+    "placeholders": {
+      "appName": {
+        "type": "String"
+      }
+    }
+  },
+  "manufacturerSettingsFuntouchosStep2": "2. Battery optimization: Settings → Battery → Battery optimization → {appName} → Don't optimize",
+  "@manufacturerSettingsFuntouchosStep2": {
+    "description": "Step 2 for FuntouchOS/OriginOS settings",
+    "placeholders": {
+      "appName": {
+        "type": "String"
+      }
+    }
+  },
+  "manufacturerSettingsFuntouchosStep3": "3. Background activity: Settings → Apps → {appName} → Battery → Allow background activity",
+  "@manufacturerSettingsFuntouchosStep3": {
+    "description": "Step 3 for FuntouchOS/OriginOS settings",
+    "placeholders": {
+      "appName": {
+        "type": "String"
+      }
+    }
+  },
+  "manufacturerSettingsFlymeTitle": "Flyme Settings for Stable Operation",
+  "@manufacturerSettingsFlymeTitle": {
+    "description": "Title for Flyme manufacturer settings"
+  },
+  "manufacturerSettingsFlymeMessage": "On Meizu devices, you need to configure the following settings:",
+  "@manufacturerSettingsFlymeMessage": {
+    "description": "Message for Flyme manufacturer settings"
+  },
+  "manufacturerSettingsFlymeStep1": "1. Autostart: Settings → Apps → Autostart → Enable for {appName}",
+  "@manufacturerSettingsFlymeStep1": {
+    "description": "Step 1 for Flyme settings",
+    "placeholders": {
+      "appName": {
+        "type": "String"
+      }
+    }
+  },
+  "manufacturerSettingsFlymeStep2": "2. Battery optimization: Settings → Battery → Battery optimization → {appName} → Don't optimize",
+  "@manufacturerSettingsFlymeStep2": {
+    "description": "Step 2 for Flyme settings",
+    "placeholders": {
+      "appName": {
+        "type": "String"
+      }
+    }
+  },
+  "manufacturerSettingsFlymeStep3": "3. Background activity: Settings → Apps → {appName} → Battery → Allow background activity",
+  "@manufacturerSettingsFlymeStep3": {
+    "description": "Step 3 for Flyme settings",
+    "placeholders": {
+      "appName": {
+        "type": "String"
+      }
+    }
+  },
+  "manufacturerSettingsOneuiTitle": "One UI Settings for Stable Operation",
+  "@manufacturerSettingsOneuiTitle": {
+    "description": "Title for One UI manufacturer settings"
+  },
+  "manufacturerSettingsOneuiMessage": "On Samsung devices, it is recommended to configure the following settings:",
+  "@manufacturerSettingsOneuiMessage": {
+    "description": "Message for One UI manufacturer settings"
+  },
+  "manufacturerSettingsOneuiStep1": "1. Battery optimization: Settings → Apps → {appName} → Battery → Don't optimize",
+  "@manufacturerSettingsOneuiStep1": {
+    "description": "Step 1 for One UI settings",
+    "placeholders": {
+      "appName": {
+        "type": "String"
+      }
+    }
+  },
+  "manufacturerSettingsOneuiStep2": "2. Background activity: Settings → Apps → {appName} → Battery → Background activity → Allow",
+  "@manufacturerSettingsOneuiStep2": {
+    "description": "Step 2 for One UI settings",
+    "placeholders": {
+      "appName": {
+        "type": "String"
+      }
+    }
+  },
+  "manufacturerSettingsOneuiStep3": "3. Autostart: Usually not required on Samsung, but you can check in app settings",
+  "@manufacturerSettingsOneuiStep3": {
+    "description": "Step 3 for One UI settings"
+  },
+  "trackOfTotal": "Track {currentTrack} of {totalTracks}",
+  "@trackOfTotal": {
+    "description": "Track position indicator",
+    "placeholders": {
+      "currentTrack": {
+        "type": "int"
+      },
+      "totalTracks": {
+        "type": "int"
+      }
+    }
+  },
+  "tracksTitle": "{count, plural, =0{No tracks} =1{Track} other{Tracks}}",
+  "@tracksTitle": {
+    "description": "Tracks section title with plural",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "noRepeat": "No repeat",
+  "@noRepeat": {
+    "description": "No repeat mode"
+  },
+  "repeatTrack": "Repeat track",
+  "@repeatTrack": {
+    "description": "Repeat current track mode"
+  },
+  "repeatPlaylist": "Repeat playlist",
+  "@repeatPlaylist": {
+    "description": "Repeat entire playlist mode"
+  },
+  "timerLabel": "Timer",
+  "@timerLabel": {
+    "description": "Sleep timer label"
+  },
+  "speedLabel": "Speed",
+  "@speedLabel": {
+    "description": "Playback speed label"
+  },
+  "rewindButton": "Rewind",
+  "@rewindButton": {
+    "description": "Rewind button label"
+  },
+  "forwardButton": "Forward",
+  "@forwardButton": {
+    "description": "Forward button label"
+  },
+  "playButton": "Play",
+  "@playButton": {
+    "description": "Play button label"
+  },
+  "pauseButton": "Pause",
+  "@pauseButton": {
+    "description": "Pause button label"
+  },
+  "nextButton": "Next",
+  "@nextButton": {
+    "description": "Next track button label"
+  },
+  "previousButton": "Previous",
+  "@previousButton": {
+    "description": "Previous track button label"
+  },
+  "accessRequired": "Access Required",
+  "@accessRequired": {
+    "description": "Title for access required dialog"
+  },
+  "featureRequiresAuth": "Feature \"{feature}\" requires authentication",
+  "@featureRequiresAuth": {
+    "description": "Message when feature requires authentication",
+    "placeholders": {
+      "feature": {
+        "type": "String"
+      }
+    }
+  },
+  "signInToAccessFeature": "Sign in to access this feature",
+  "@signInToAccessFeature": {
+    "description": "Message prompting user to sign in for feature access"
+  },
+  "upgradeToFull": "Upgrade to Full",
+  "@upgradeToFull": {
+    "description": "Button text to upgrade to full access"
+  },
+  "restrictedFeature": "Restricted Feature",
+  "@restrictedFeature": {
+    "description": "Title for restricted feature screen"
+  },
+  "featureRestricted": "This feature is restricted in demo mode",
+  "@featureRestricted": {
+    "description": "Message when feature is restricted"
+  },
+  "featureRestrictedDescription": "To access this feature, please sign in to your account",
+  "@featureRestrictedDescription": {
+    "description": "Description for restricted feature"
+  },
+  "signInToUnlock": "Sign in to unlock",
+  "@signInToUnlock": {
+    "description": "Button text to sign in and unlock features"
+  },
+  "searchGuestModeWarning": "Search is limited in guest mode. Some features may not work. Sign in for full access.",
+  "@searchGuestModeWarning": {
+    "description": "Warning message shown in search screen when in guest mode"
+  },
+  "downloadsGuestModeWarning": "Downloads are view-only in guest mode. Sign in to manage downloads.",
+  "@downloadsGuestModeWarning": {
+    "description": "Warning message shown in downloads screen when in guest mode"
+  },
+  "continueAsGuest": "Continue as Guest",
+  "@continueAsGuest": {
+    "description": "Button text to continue as guest"
+  },
+  "sessionExpired": "Session Expired",
+  "@sessionExpired": {
+    "description": "Title for session expired dialog"
+  },
+  "sessionExpiredMessage": "Your session has expired. Please sign in again.",
+  "@sessionExpiredMessage": {
+    "description": "Message for session expired"
+  },
+  "signInAgain": "Sign In Again",
+  "@signInAgain": {
+    "description": "Button text to sign in again"
+  },
+  "authorizationRequired": "Authorization Required",
+  "@authorizationRequired": {
+    "description": "Title for authorization required dialog"
+  },
+  "demoMode": "Demo Mode",
+  "@demoMode": {
+    "description": "Title for demo mode"
+  },
+  "demoModeDescription": "You are using demo mode with limited functionality",
+  "@demoModeDescription": {
+    "description": "Description for demo mode"
+  },
+  "upgradeToFullAccess": "Upgrade to Full Access",
+  "@upgradeToFullAccess": {
+    "description": "Button text to upgrade to full access"
+  },
+  "searchRestricted": "Search is restricted in demo mode",
+  "@searchRestricted": {
+    "description": "Message when search is restricted"
+  },
+  "downloadRestricted": "Downloads are restricted in demo mode",
+  "@downloadRestricted": {
+    "description": "Message when downloads are restricted"
+  },
+  "browseRestricted": "Browsing is restricted in demo mode",
+  "@browseRestricted": {
+    "description": "Message when browsing is restricted"
+  },
+  "account": "Account",
+  "@account": {
+    "description": "Account section or button"
+  },
+  "compactPlayerLayout": "Compact Player Layout",
+  "@compactPlayerLayout": {
+    "description": "Compact player layout option"
+  },
+  "standardPlayerLayout": "Standard Player Layout",
+  "@standardPlayerLayout": {
+    "description": "Standard player layout option"
+  },
+  "adaptiveNavigation": "Adaptive Navigation",
+  "@adaptiveNavigation": {
+    "description": "Adaptive navigation feature"
+  },
+  "smallScreenOptimizations": "Small Screen Optimizations",
+  "@smallScreenOptimizations": {
+    "description": "Small screen optimizations feature"
   }
 }

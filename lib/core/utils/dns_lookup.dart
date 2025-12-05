@@ -15,7 +15,7 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:jabook/core/logging/structured_logger.dart';
+import 'package:jabook/core/infrastructure/logging/structured_logger.dart';
 
 /// Result of a DNS lookup operation.
 class DnsLookupResult {

@@ -43,35 +43,39 @@ object ManufacturerSettingsHelper {
      * @param intent The Intent to check
      * @return true if the Intent is available, false otherwise
      */
-    private fun isIntentAvailable(context: Context, intent: Intent): Boolean {
-        return try {
+    private fun isIntentAvailable(
+        context: Context,
+        intent: Intent,
+    ): Boolean =
+        try {
             // Use MATCH_DEFAULT_ONLY to only check for activities that can be
             // started by default (not requiring special permissions)
             // Also use MATCH_ALL flag to ensure we check all possible handlers
-            val resolveInfo = context.packageManager.queryIntentActivities(
-                intent,
-                PackageManager.MATCH_DEFAULT_ONLY or PackageManager.MATCH_ALL
-            )
+            val resolveInfo =
+                context.packageManager.queryIntentActivities(
+                    intent,
+                    PackageManager.MATCH_DEFAULT_ONLY or PackageManager.MATCH_ALL,
+                )
             // Only return true if we found at least one activity AND the activity
             // is exported or from a system package (safer for OEM settings)
-            resolveInfo.isNotEmpty() && resolveInfo.any { info ->
-                // Check if activity is exported or from system package
-                // This ensures we only use publicly accessible settings
-                info.activityInfo.exported || 
-                info.activityInfo.packageName.startsWith("com.android") ||
-                info.activityInfo.packageName.startsWith("com.miui") ||
-                info.activityInfo.packageName.startsWith("com.huawei") ||
-                info.activityInfo.packageName.startsWith("com.coloros") ||
-                info.activityInfo.packageName.startsWith("com.oppo") ||
-                info.activityInfo.packageName.startsWith("com.vivo") ||
-                info.activityInfo.packageName.startsWith("com.meizu") ||
-                info.activityInfo.packageName.startsWith("com.samsung")
-            }
+            resolveInfo.isNotEmpty() &&
+                resolveInfo.any { info ->
+                    // Check if activity is exported or from system package
+                    // This ensures we only use publicly accessible settings
+                    info.activityInfo.exported ||
+                        info.activityInfo.packageName.startsWith("com.android") ||
+                        info.activityInfo.packageName.startsWith("com.miui") ||
+                        info.activityInfo.packageName.startsWith("com.huawei") ||
+                        info.activityInfo.packageName.startsWith("com.coloros") ||
+                        info.activityInfo.packageName.startsWith("com.oppo") ||
+                        info.activityInfo.packageName.startsWith("com.vivo") ||
+                        info.activityInfo.packageName.startsWith("com.meizu") ||
+                        info.activityInfo.packageName.startsWith("com.samsung")
+                }
         } catch (e: Exception) {
             android.util.Log.w(TAG, "Error checking Intent availability: ${e.message}")
             false
         }
-    }
 
     /**
      * Opens autostart settings for the app.
@@ -82,7 +86,10 @@ object ManufacturerSettingsHelper {
      * @param packageName The package name of the app
      * @return true if settings were opened successfully, false otherwise
      */
-    fun openAutostartSettings(context: Context, packageName: String): Boolean {
+    fun openAutostartSettings(
+        context: Context,
+        packageName: String,
+    ): Boolean {
         val manufacturer = Build.MANUFACTURER.lowercase()
         val brand = Build.BRAND.lowercase()
 
@@ -90,49 +97,58 @@ object ManufacturerSettingsHelper {
         val intents = mutableListOf<Intent>()
 
         // Xiaomi/Redmi/Poco (MIUI)
-        if (manufacturer.contains("xiaomi") || brand.contains("xiaomi") ||
-            brand.contains("redmi") || brand.contains("poco")) {
+        if (manufacturer.contains("xiaomi") ||
+            brand.contains("xiaomi") ||
+            brand.contains("redmi") ||
+            brand.contains("poco")
+        ) {
             // Primary Intent for MIUI autostart
             intents.add(
                 Intent().apply {
-                    component = android.content.ComponentName(
-                        "com.miui.securitycenter",
-                        "com.miui.permcenter.autostart.AutoStartManagementActivity"
-                    )
-                }
+                    component =
+                        android.content.ComponentName(
+                            "com.miui.securitycenter",
+                            "com.miui.permcenter.autostart.AutoStartManagementActivity",
+                        )
+                },
             )
             // Alternative Intent for MIUI
             intents.add(
                 Intent().apply {
-                    component = android.content.ComponentName(
-                        "com.miui.securitycenter",
-                        "com.miui.permcenter.MainActivity"
-                    )
+                    component =
+                        android.content.ComponentName(
+                            "com.miui.securitycenter",
+                            "com.miui.permcenter.MainActivity",
+                        )
                     putExtra("extra_pkgname", packageName)
-                }
+                },
             )
         }
 
         // Huawei/Honor (EMUI/HarmonyOS)
-        if (manufacturer.contains("huawei") || brand.contains("huawei") ||
-            brand.contains("honor")) {
+        if (manufacturer.contains("huawei") ||
+            brand.contains("huawei") ||
+            brand.contains("honor")
+        ) {
             // Primary Intent for EMUI autostart
             intents.add(
                 Intent().apply {
-                    component = android.content.ComponentName(
-                        "com.huawei.systemmanager",
-                        "com.huawei.systemmanager.startupmgr.ui.StartupNormalAppListActivity"
-                    )
-                }
+                    component =
+                        android.content.ComponentName(
+                            "com.huawei.systemmanager",
+                            "com.huawei.systemmanager.startupmgr.ui.StartupNormalAppListActivity",
+                        )
+                },
             )
             // Alternative Intent for EMUI
             intents.add(
                 Intent().apply {
-                    component = android.content.ComponentName(
-                        "com.huawei.systemmanager",
-                        "com.huawei.systemmanager.appcontrol.activity.StartupAppControlActivity"
-                    )
-                }
+                    component =
+                        android.content.ComponentName(
+                            "com.huawei.systemmanager",
+                            "com.huawei.systemmanager.appcontrol.activity.StartupAppControlActivity",
+                        )
+                },
             )
         }
 
@@ -141,20 +157,22 @@ object ManufacturerSettingsHelper {
             // Primary Intent for ColorOS autostart
             intents.add(
                 Intent().apply {
-                    component = android.content.ComponentName(
-                        "com.coloros.safecenter",
-                        "com.coloros.safecenter.permission.startup.StartupAppListActivity"
-                    )
-                }
+                    component =
+                        android.content.ComponentName(
+                            "com.coloros.safecenter",
+                            "com.coloros.safecenter.permission.startup.StartupAppListActivity",
+                        )
+                },
             )
             // Alternative Intent for ColorOS
             intents.add(
                 Intent().apply {
-                    component = android.content.ComponentName(
-                        "com.coloros.safecenter",
-                        "com.coloros.safecenter.permission.startup.StartupAppControlActivity"
-                    )
-                }
+                    component =
+                        android.content.ComponentName(
+                            "com.coloros.safecenter",
+                            "com.coloros.safecenter.permission.startup.StartupAppControlActivity",
+                        )
+                },
             )
         }
 
@@ -163,11 +181,12 @@ object ManufacturerSettingsHelper {
             // Similar to Oppo ColorOS
             intents.add(
                 Intent().apply {
-                    component = android.content.ComponentName(
-                        "com.coloros.safecenter",
-                        "com.coloros.safecenter.permission.startup.StartupAppListActivity"
-                    )
-                }
+                    component =
+                        android.content.ComponentName(
+                            "com.coloros.safecenter",
+                            "com.coloros.safecenter.permission.startup.StartupAppListActivity",
+                        )
+                },
             )
         }
 
@@ -176,11 +195,12 @@ object ManufacturerSettingsHelper {
             // Similar to Oppo ColorOS
             intents.add(
                 Intent().apply {
-                    component = android.content.ComponentName(
-                        "com.coloros.safecenter",
-                        "com.coloros.safecenter.permission.startup.StartupAppListActivity"
-                    )
-                }
+                    component =
+                        android.content.ComponentName(
+                            "com.coloros.safecenter",
+                            "com.coloros.safecenter.permission.startup.StartupAppListActivity",
+                        )
+                },
             )
         }
 
@@ -189,20 +209,22 @@ object ManufacturerSettingsHelper {
             // Primary Intent for FuntouchOS autostart
             intents.add(
                 Intent().apply {
-                    component = android.content.ComponentName(
-                        "com.vivo.permissionmanager",
-                        "com.vivo.permissionmanager.activity.BgStartUpManagerActivity"
-                    )
-                }
+                    component =
+                        android.content.ComponentName(
+                            "com.vivo.permissionmanager",
+                            "com.vivo.permissionmanager.activity.BgStartUpManagerActivity",
+                        )
+                },
             )
             // Alternative Intent for Vivo
             intents.add(
                 Intent().apply {
-                    component = android.content.ComponentName(
-                        "com.iqoo.secure",
-                        "com.iqoo.secure.ui.phoneoptimize.AddWhiteListActivity"
-                    )
-                }
+                    component =
+                        android.content.ComponentName(
+                            "com.iqoo.secure",
+                            "com.iqoo.secure.ui.phoneoptimize.AddWhiteListActivity",
+                        )
+                },
             )
         }
 
@@ -210,11 +232,12 @@ object ManufacturerSettingsHelper {
         if (manufacturer.contains("meizu") || brand.contains("meizu")) {
             intents.add(
                 Intent().apply {
-                    component = android.content.ComponentName(
-                        "com.meizu.safe",
-                        "com.meizu.safe.permission.SmartBGAppStartActivity"
-                    )
-                }
+                    component =
+                        android.content.ComponentName(
+                            "com.meizu.safe",
+                            "com.meizu.safe.permission.SmartBGAppStartActivity",
+                        )
+                },
             )
         }
 
@@ -243,7 +266,10 @@ object ManufacturerSettingsHelper {
      * @param packageName The package name of the app
      * @return true if settings were opened successfully, false otherwise
      */
-    fun openBatteryOptimizationSettings(context: Context, packageName: String): Boolean {
+    fun openBatteryOptimizationSettings(
+        context: Context,
+        packageName: String,
+    ): Boolean {
         val manufacturer = Build.MANUFACTURER.lowercase()
         val brand = Build.BRAND.lowercase()
 
@@ -251,37 +277,45 @@ object ManufacturerSettingsHelper {
         val intents = mutableListOf<Intent>()
 
         // Xiaomi/Redmi/Poco (MIUI)
-        if (manufacturer.contains("xiaomi") || brand.contains("xiaomi") ||
-            brand.contains("redmi") || brand.contains("poco")) {
+        if (manufacturer.contains("xiaomi") ||
+            brand.contains("xiaomi") ||
+            brand.contains("redmi") ||
+            brand.contains("poco")
+        ) {
             intents.add(
                 Intent().apply {
-                    component = android.content.ComponentName(
-                        "com.miui.powerkeeper",
-                        "com.miui.powerkeeper.ui.HiddenAppsConfigActivity"
-                    )
-                }
+                    component =
+                        android.content.ComponentName(
+                            "com.miui.powerkeeper",
+                            "com.miui.powerkeeper.ui.HiddenAppsConfigActivity",
+                        )
+                },
             )
         }
 
         // Huawei/Honor (EMUI/HarmonyOS)
-        if (manufacturer.contains("huawei") || brand.contains("huawei") ||
-            brand.contains("honor")) {
+        if (manufacturer.contains("huawei") ||
+            brand.contains("huawei") ||
+            brand.contains("honor")
+        ) {
             intents.add(
                 Intent().apply {
-                    component = android.content.ComponentName(
-                        "com.huawei.systemmanager",
-                        "com.huawei.systemmanager.optimize.process.ProtectActivity"
-                    )
-                }
+                    component =
+                        android.content.ComponentName(
+                            "com.huawei.systemmanager",
+                            "com.huawei.systemmanager.optimize.process.ProtectActivity",
+                        )
+                },
             )
             // Alternative Intent for Huawei
             intents.add(
                 Intent().apply {
-                    component = android.content.ComponentName(
-                        "com.huawei.systemmanager",
-                        "com.huawei.systemmanager.power.ui.HwPowerManagerActivity"
-                    )
-                }
+                    component =
+                        android.content.ComponentName(
+                            "com.huawei.systemmanager",
+                            "com.huawei.systemmanager.power.ui.HwPowerManagerActivity",
+                        )
+                },
             )
         }
 
@@ -289,33 +323,39 @@ object ManufacturerSettingsHelper {
         if (manufacturer.contains("oppo") || brand.contains("oppo")) {
             intents.add(
                 Intent().apply {
-                    component = android.content.ComponentName(
-                        "com.coloros.safecenter",
-                        "com.coloros.oppoguardelf.activity.PowerConsumptionActivity"
-                    )
-                }
+                    component =
+                        android.content.ComponentName(
+                            "com.coloros.safecenter",
+                            "com.coloros.oppoguardelf.activity.PowerConsumptionActivity",
+                        )
+                },
             )
             // Alternative Intent for Oppo
             intents.add(
                 Intent().apply {
-                    component = android.content.ComponentName(
-                        "com.coloros.safecenter",
-                        "com.coloros.safecenter.permission.battery.BatteryOptimizationActivity"
-                    )
-                }
+                    component =
+                        android.content.ComponentName(
+                            "com.coloros.safecenter",
+                            "com.coloros.safecenter.permission.battery.BatteryOptimizationActivity",
+                        )
+                },
             )
         }
 
         // OnePlus, Realme (similar to Oppo)
-        if (manufacturer.contains("oneplus") || brand.contains("oneplus") ||
-            manufacturer.contains("realme") || brand.contains("realme")) {
+        if (manufacturer.contains("oneplus") ||
+            brand.contains("oneplus") ||
+            manufacturer.contains("realme") ||
+            brand.contains("realme")
+        ) {
             intents.add(
                 Intent().apply {
-                    component = android.content.ComponentName(
-                        "com.coloros.safecenter",
-                        "com.coloros.oppoguardelf.activity.PowerConsumptionActivity"
-                    )
-                }
+                    component =
+                        android.content.ComponentName(
+                            "com.coloros.safecenter",
+                            "com.coloros.oppoguardelf.activity.PowerConsumptionActivity",
+                        )
+                },
             )
         }
 
@@ -323,11 +363,12 @@ object ManufacturerSettingsHelper {
         if (manufacturer.contains("vivo") || brand.contains("vivo")) {
             intents.add(
                 Intent().apply {
-                    component = android.content.ComponentName(
-                        "com.vivo.abe",
-                        "com.vivo.applicationbehaviorengine.ui.ExcessivePowerManagerActivity"
-                    )
-                }
+                    component =
+                        android.content.ComponentName(
+                            "com.vivo.abe",
+                            "com.vivo.applicationbehaviorengine.ui.ExcessivePowerManagerActivity",
+                        )
+                },
             )
         }
 
@@ -335,11 +376,12 @@ object ManufacturerSettingsHelper {
         if (manufacturer.contains("meizu") || brand.contains("meizu")) {
             intents.add(
                 Intent().apply {
-                    component = android.content.ComponentName(
-                        "com.meizu.safe",
-                        "com.meizu.safe.powerui.PowerAppPermissionEditorActivity"
-                    )
-                }
+                    component =
+                        android.content.ComponentName(
+                            "com.meizu.safe",
+                            "com.meizu.safe.powerui.PowerAppPermissionEditorActivity",
+                        )
+                },
             )
         }
 
@@ -381,7 +423,10 @@ object ManufacturerSettingsHelper {
      * @param packageName The package name of the app
      * @return true if settings were opened successfully, false otherwise
      */
-    fun openBackgroundRestrictionsSettings(context: Context, packageName: String): Boolean {
+    fun openBackgroundRestrictionsSettings(
+        context: Context,
+        packageName: String,
+    ): Boolean {
         // For most manufacturers, background restrictions are managed through
         // battery optimization settings, so we use the same method
         return openBatteryOptimizationSettings(context, packageName)
@@ -394,11 +439,15 @@ object ManufacturerSettingsHelper {
      * @param packageName The package name of the app
      * @return true if settings were opened successfully, false otherwise
      */
-    private fun openAppDetailsSettings(context: Context, packageName: String): Boolean {
-        return try {
-            val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                data = Uri.parse("package:$packageName")
-            }
+    private fun openAppDetailsSettings(
+        context: Context,
+        packageName: String,
+    ): Boolean =
+        try {
+            val intent =
+                Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                    data = Uri.parse("package:$packageName")
+                }
             if (isIntentAvailable(context, intent)) {
                 context.startActivity(intent)
                 true
@@ -408,7 +457,6 @@ object ManufacturerSettingsHelper {
         } catch (e: Exception) {
             false
         }
-    }
 
     /**
      * Checks if autostart is enabled for the app (if possible to determine).
@@ -419,11 +467,13 @@ object ManufacturerSettingsHelper {
      * @param packageName The package name of the app
      * @return true if autostart is enabled, false if disabled or cannot be determined
      */
-    fun isAutostartEnabled(context: Context, packageName: String): Boolean {
+    fun isAutostartEnabled(
+        context: Context,
+        packageName: String,
+    ): Boolean {
         // Most manufacturers don't provide a public API to check autostart status
         // This would require root access or manufacturer-specific APIs
         // For now, we return false (unknown) and let the user check manually
         return false
     }
 }
-

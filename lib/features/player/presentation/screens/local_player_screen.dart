@@ -16,21 +16,30 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:jabook/core/config/audio_settings_manager.dart';
-import 'package:jabook/core/config/audio_settings_provider.dart';
-import 'package:jabook/core/config/book_audio_settings_service.dart';
-import 'package:jabook/core/errors/failures.dart';
-import 'package:jabook/core/library/local_audiobook.dart';
-import 'package:jabook/core/logging/structured_logger.dart';
-import 'package:jabook/core/permissions/permission_service.dart';
+import 'package:jabook/core/di/providers/player_providers.dart';
+import 'package:jabook/core/domain/library/entities/local_audiobook_group.dart';
+import 'package:jabook/core/infrastructure/config/audio_settings_manager.dart';
+import 'package:jabook/core/infrastructure/config/audio_settings_provider.dart';
+import 'package:jabook/core/infrastructure/config/book_audio_settings_service.dart';
+import 'package:jabook/core/infrastructure/errors/failures.dart';
+import 'package:jabook/core/infrastructure/logging/structured_logger.dart';
+import 'package:jabook/core/infrastructure/permissions/permission_service.dart';
+import 'package:jabook/core/library/cover_fallback_service.dart';
 import 'package:jabook/core/player/native_audio_player.dart';
 import 'package:jabook/core/player/playback_settings_provider.dart';
-import 'package:jabook/core/player/player_state_provider.dart';
+import 'package:jabook/core/player/player_state_provider.dart'
+    show
+        PlayerStateModel,
+        PlayerStateNotifier,
+        currentAudiobookGroupProvider,
+        playerStateProvider;
 import 'package:jabook/core/player/sleep_timer_service.dart';
 import 'package:jabook/core/utils/responsive_utils.dart';
 import 'package:jabook/core/utils/safe_async.dart';
+import 'package:jabook/features/player/presentation/widgets/tracks_bottom_sheet.dart';
 import 'package:jabook/l10n/app_localizations.dart';
 
 /// Player screen for local audiobook files.
@@ -42,7 +51,11 @@ class LocalPlayerScreen extends ConsumerStatefulWidget {
   ///
   /// The [group] parameter is required to identify which audiobook group
   /// should be displayed and played.
-  const LocalPlayerScreen({super.key, required this.group});
+  LocalPlayerScreen({super.key, required this.group}) {
+    // CRITICAL DEBUG: Log when widget is created
+    debugPrint(
+        '🟢 [PLAYER_INIT] LocalPlayerScreen constructor called with group: ${group.groupPath}');
+  }
 
   /// The audiobook group to play.
   final LocalAudiobookGroup group;
@@ -52,11 +65,33 @@ class LocalPlayerScreen extends ConsumerStatefulWidget {
 }
 
 class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
+  // CRITICAL DEBUG: Log when state is created
+  _LocalPlayerScreenState() {
+    debugPrint('🟢 [PLAYER_INIT] _LocalPlayerScreenState constructor called');
+  }
+
+  // Spacing constants for consistent UI
+  static const double _kSpacingSmall = 8.0;
+  static const double _kSpacingMedium = 16.0;
+  static const double _kSpacingLarge = 24.0;
+
+  /// Gets medium spacing based on screen size.
+  ///
+  /// Returns adaptive spacing for different screen sizes following MD3 guidelines.
+  double _getMediumSpacing(BuildContext context) {
+    if (ResponsiveUtils.isVerySmallScreen(context)) {
+      return 12.0;
+    } else if (ResponsiveUtils.isTablet(context)) {
+      return 20.0;
+    }
+    return 16.0;
+  }
+
   final PermissionService _permissionService = PermissionService();
   final StructuredLogger _logger = StructuredLogger();
-  final SleepTimerService _sleepTimerService = SleepTimerService();
+  late final SleepTimerService _sleepTimerService;
   Timer? _sleepTimerUpdateTimer;
-  bool _isInitialized = false;
+  bool _isPlayerLoading = false; // Player is being initialized
   bool _hasError = false;
   String? _errorMessage;
   // Local state for slider during dragging
@@ -64,15 +99,58 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
   bool _isDragging = false;
   int? _initialPositionMs; // Initial position when dragging starts
   String? _embeddedArtworkPath; // Path to embedded artwork from metadata
+  String?
+      _groupArtworkPath; // First found artwork path for the group (global setting)
+  bool _showChapterChips =
+      false; // Track if chapter chips list should be visible
+
+  // MethodChannel for player lifecycle tracking (prevents app exit during initialization)
+  static const MethodChannel _playerLifecycleChannel =
+      MethodChannel('com.jabook.app.jabook/player_lifecycle');
 
   @override
   void initState() {
     super.initState();
+    // CRITICAL DEBUG: Log immediately when initState is called
+    debugPrint(
+        '🟢 [PLAYER_INIT] initState() called for group: ${widget.group.groupPath}');
+
+    // Initialize sleep timer service with native player
+    // Create NativeAudioPlayer instance (it uses MethodChannel internally, so multiple instances share the same native service)
+    _sleepTimerService = SleepTimerService(NativeAudioPlayer());
+
+    // UI is ready to show immediately (no need for _isInitialized flag)
+    // Player initialization will happen asynchronously in background
     // Store current group in provider for mini player navigation
+    debugPrint('🟢 [PLAYER_INIT] Scheduling addPostFrameCallback...');
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(currentAudiobookGroupProvider.notifier).state = widget.group;
+      debugPrint('🟢 [PLAYER_INIT] addPostFrameCallback executed');
+      if (!mounted) {
+        debugPrint('🟡 [PLAYER_INIT] Widget not mounted, skipping');
+        return;
+      }
+      try {
+        debugPrint('🟢 [PLAYER_INIT] Setting currentAudiobookGroupProvider...');
+        ref.read(currentAudiobookGroupProvider.notifier).state = widget.group;
+        debugPrint('🟢 [PLAYER_INIT] Loading group artwork...');
+        // Load first available artwork from group files (global setting)
+        _loadGroupArtwork();
+        debugPrint('🟢 [PLAYER_INIT] Starting _initializePlayer()...');
+        // Start player initialization asynchronously (non-blocking)
+        _initializePlayer();
+        debugPrint(
+            '🟢 [PLAYER_INIT] _initializePlayer() call completed (async)');
+      } on Exception catch (e) {
+        // Log error but don't block UI - player will initialize on next attempt
+        debugPrint('🔴 [PLAYER_INIT] ERROR in postFrameCallback: $e');
+        if (mounted) {
+          setState(() {
+            _hasError = true;
+            _errorMessage = 'Failed to initialize player: ${e.toString()}';
+          });
+        }
+      }
     });
-    _initializePlayer();
     // Listen to player state changes to update metadata when track changes
     _setupMetadataListener();
   }
@@ -83,14 +161,18 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
     // If group changed, reinitialize player
     if (oldWidget.group.groupPath != widget.group.groupPath) {
       setState(() {
-        _isInitialized = false;
+        _isPlayerLoading = true;
         _hasError = false;
         _errorMessage = null;
+        _embeddedArtworkPath = null;
+        _groupArtworkPath = null;
       });
       // Stop previous playback before switching
       ref.read(playerStateProvider.notifier).stop();
       // Update current group
       ref.read(currentAudiobookGroupProvider.notifier).state = widget.group;
+      // Load first available artwork from new group
+      _loadGroupArtwork();
       // Reinitialize with new group
       _initializePlayer();
     }
@@ -98,25 +180,211 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
 
   void _setupMetadataListener() {
     // Listen to player state changes and update metadata when track index changes
-    ref.listen(playerStateProvider, (previous, next) {
-      if (previous?.currentIndex != next.currentIndex) {
-        // Track changed, update metadata
-        _updateMetadata();
-        // Check for embedded artwork from metadata
-        _checkEmbeddedArtwork();
-      }
-    });
-    // Also check for embedded artwork on initialization
+    // Delay setup to ensure provider is ready - use addPostFrameCallback to avoid blocking
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Future.delayed(const Duration(milliseconds: 500), _checkEmbeddedArtwork);
+      if (!mounted) return;
+      try {
+        ref.listen(playerStateProvider, (previous, next) {
+          if (!mounted) return;
+
+          // Check if sleep timer is set to expire at end of chapter
+          // Trigger it when current track ends (playbackState == STATE_ENDED or position >= duration)
+          // "End of chapter" means end of current audio file, not transition to next track
+          if (previous != null && _sleepTimerService.isAtEndOfChapter) {
+            debugPrint(
+                '🟡 [SLEEP_TIMER] Checking end of chapter: previous.playbackState=${previous.playbackState}, next.playbackState=${next.playbackState}, previous.position=${previous.currentPosition}, next.position=${next.currentPosition}, duration=${next.duration}');
+
+            // Check if playback ended (STATE_ENDED = 4)
+            final playbackEnded =
+                previous.playbackState != 4 && next.playbackState == 4;
+
+            // Also check if position reached or exceeded duration (more reliable for last track)
+            final positionReachedEnd = next.duration > 0 &&
+                next.currentPosition >=
+                    next.duration - 100 && // Allow 100ms tolerance
+                previous.currentPosition <
+                    previous.duration - 100; // Was not at end before
+
+            if (playbackEnded || positionReachedEnd) {
+              debugPrint(
+                  '🟢 [SLEEP_TIMER] Track ended detected (playbackEnded=$playbackEnded, positionReachedEnd=$positionReachedEnd), triggering sleep timer');
+              _sleepTimerService.triggerAtEndOfChapter();
+            }
+          }
+
+          if (previous?.currentIndex != next.currentIndex) {
+            // Track changed, update metadata
+            _updateMetadata();
+            // Check for embedded artwork from metadata
+            _checkEmbeddedArtwork();
+          }
+        });
+      } on Exception catch (e) {
+        // Provider not ready yet, will retry later
+        debugPrint('Failed to setup metadata listener: $e');
+        // Retry after a delay
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (mounted) {
+            try {
+              ref.listen(playerStateProvider, (previous, next) {
+                if (!mounted) return;
+
+                // Check if sleep timer is set to expire at end of chapter
+                // Trigger it when current track ends (playbackState == STATE_ENDED or position >= duration)
+                // "End of chapter" means end of current audio file, not transition to next track
+                if (previous != null && _sleepTimerService.isAtEndOfChapter) {
+                  debugPrint(
+                      '🟡 [SLEEP_TIMER] Checking end of chapter (retry): previous.playbackState=${previous.playbackState}, next.playbackState=${next.playbackState}, previous.position=${previous.currentPosition}, next.position=${next.currentPosition}, duration=${next.duration}');
+
+                  // Check if playback ended (STATE_ENDED = 4)
+                  final playbackEnded =
+                      previous.playbackState != 4 && next.playbackState == 4;
+
+                  // Also check if position reached or exceeded duration (more reliable for last track)
+                  final positionReachedEnd = next.duration > 0 &&
+                      next.currentPosition >=
+                          next.duration - 100 && // Allow 100ms tolerance
+                      previous.currentPosition <
+                          previous.duration - 100; // Was not at end before
+
+                  if (playbackEnded || positionReachedEnd) {
+                    debugPrint(
+                        '🟢 [SLEEP_TIMER] Track ended detected (retry) (playbackEnded=$playbackEnded, positionReachedEnd=$positionReachedEnd), triggering sleep timer');
+                    _sleepTimerService.triggerAtEndOfChapter();
+                  }
+                }
+
+                if (previous?.currentIndex != next.currentIndex) {
+                  _updateMetadata();
+                  _checkEmbeddedArtwork();
+                }
+              });
+            } on Exception catch (e2) {
+              debugPrint('Failed to setup metadata listener on retry: $e2');
+            }
+          }
+        });
+      }
+      // Also check for embedded artwork on initialization
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (mounted) {
+          _checkEmbeddedArtwork();
+        }
+      });
     });
   }
 
-  Future<void> _checkEmbeddedArtwork() async {
+  /// Loads the first available artwork from group files (global setting).
+  /// This ensures we always use the first found artwork, even if the first file doesn't have one.
+  Future<void> _loadGroupArtwork() async {
     try {
-      // Get current media item info which includes artworkPath
+      // Try group coverPath first
+      if (widget.group.coverPath != null) {
+        final coverFile = File(widget.group.coverPath!);
+        if (coverFile.existsSync()) {
+          setState(() {
+            _groupArtworkPath = widget.group.coverPath;
+          });
+          return;
+        }
+      }
+
+      // Try to extract artwork from files in order until found
       final nativePlayer = NativeAudioPlayer();
-      final mediaInfo = await nativePlayer.getCurrentMediaItemInfo();
+      String? artworkPath;
+
+      for (final file in widget.group.files) {
+        try {
+          artworkPath = await nativePlayer.extractArtworkFromFile(
+            file.filePath,
+          );
+
+          if (artworkPath != null) {
+            final artworkFile = File(artworkPath);
+            if (artworkFile.existsSync()) {
+              // Found artwork, stop searching and use this as group artwork
+              if (mounted) {
+                setState(() {
+                  _groupArtworkPath = artworkPath;
+                });
+                // Update global state
+                final updatedGroup =
+                    widget.group.copyWith(coverPath: artworkPath);
+                ref.read(currentAudiobookGroupProvider.notifier).state =
+                    updatedGroup;
+              }
+              return;
+            } else {
+              artworkPath = null;
+            }
+          }
+        } on Exception catch (e) {
+          // Continue to next file if this one fails
+          debugPrint('Failed to extract artwork from ${file.filePath}: $e');
+          artworkPath = null;
+        }
+      }
+
+      // If no artwork found, try online fallback
+      if (artworkPath == null && widget.group.coverPath == null) {
+        try {
+          const fallbackService = CoverFallbackService();
+          final fallbackPath = await fallbackService.fetchCoverFromOnline(
+            widget.group.groupName,
+            torrentId: widget.group.torrentId,
+          );
+          if (fallbackPath != null && mounted) {
+            final fallbackFile = File(fallbackPath);
+            if (fallbackFile.existsSync()) {
+              setState(() {
+                _groupArtworkPath = fallbackPath;
+              });
+              // Update global state
+              final updatedGroup =
+                  widget.group.copyWith(coverPath: fallbackPath);
+              ref.read(currentAudiobookGroupProvider.notifier).state =
+                  updatedGroup;
+            }
+          }
+        } on Exception catch (e) {
+          // Silently fail - online fallback is optional
+          safeUnawaited(_logger.log(
+            level: 'debug',
+            subsystem: 'player',
+            message: 'Failed to fetch cover from online fallback',
+            cause: e.toString(),
+          ));
+        }
+      }
+    } on Exception catch (e) {
+      // Silently fail - embedded artwork is optional
+      safeUnawaited(_logger.log(
+        level: 'debug',
+        subsystem: 'player',
+        message: 'Failed to load group artwork',
+        cause: e.toString(),
+      ));
+    }
+  }
+
+  Future<void> _checkEmbeddedArtwork() async {
+    // Use group artwork (first found) as primary source (global setting)
+    // Only check current track artwork if group artwork is not available
+    if (_groupArtworkPath != null) {
+      final artworkFile = File(_groupArtworkPath!);
+      if (artworkFile.existsSync()) {
+        setState(() {
+          _embeddedArtworkPath = _groupArtworkPath;
+        });
+        return;
+      }
+    }
+
+    try {
+      // Fallback: Get current media item info which includes artworkPath
+      // Use Media3PlayerService through provider to ensure singleton instance
+      final playerService = ref.read(media3PlayerServiceProvider);
+      final mediaInfo = await playerService.getCurrentMediaItemInfo();
       final artworkPath = mediaInfo['artworkPath'] as String?;
       if (artworkPath != null && artworkPath.isNotEmpty) {
         final artworkFile = File(artworkPath);
@@ -138,9 +406,120 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
   }
 
   Future<void> _initializePlayer() async {
+    // CRITICAL DEBUG: Log immediately to verify method is called
+    debugPrint('🔵 [PLAYER_INIT] _initializePlayer() called - START');
+
+    // CRITICAL: Notify native side that player is initializing
+    // This prevents app exit during initialization (white screen fix)
+    debugPrint('🔵 [PLAYER_INIT] Attempting to set isPlayerInitializing flag');
     try {
-      final playerNotifier = ref.read(playerStateProvider.notifier);
-      final currentState = ref.read(playerStateProvider);
+      debugPrint('🔵 [PLAYER_INIT] Calling _logger.log()...');
+      await _logger.log(
+        level: 'info',
+        subsystem: 'player',
+        message:
+            'Starting player initialization, setting isPlayerInitializing flag',
+      );
+      debugPrint(
+          '🔵 [PLAYER_INIT] _logger.log() completed, calling MethodChannel...');
+      await _playerLifecycleChannel.invokeMethod<bool>(
+        'setPlayerInitializing',
+        {'isInitializing': true},
+      );
+      debugPrint('🔵 [PLAYER_INIT] MethodChannel completed successfully');
+      await _logger.log(
+        level: 'info',
+        subsystem: 'player',
+        message: 'isPlayerInitializing flag set successfully',
+      );
+      debugPrint('🔵 [PLAYER_INIT] isPlayerInitializing flag set - SUCCESS');
+    } on Exception catch (e) {
+      // Log but don't block - this is a safety feature
+      debugPrint('🔴 [PLAYER_INIT] ERROR setting flag: $e');
+      await _logger.log(
+        level: 'warning',
+        subsystem: 'player',
+        message: 'Failed to set player initializing flag',
+        cause: e.toString(),
+      );
+      debugPrint('Failed to set player initializing flag: $e');
+    }
+
+    // Mark player as loading (UI is already shown)
+    if (mounted) {
+      setState(() {
+        _isPlayerLoading = true;
+        _hasError = false;
+        _errorMessage = null;
+      });
+    }
+
+    try {
+      // Safely access player state provider - wrap in try-catch to handle
+      // cases where provider might not be ready yet
+      PlayerStateNotifier? playerNotifier;
+      PlayerStateModel? currentState;
+
+      try {
+        playerNotifier = ref.read(playerStateProvider.notifier);
+        currentState = ref.read(playerStateProvider);
+      } on Exception catch (e) {
+        // Provider not ready yet, wait a bit and retry
+        debugPrint('Player state provider not ready yet: $e');
+        await Future.delayed(const Duration(milliseconds: 100));
+        if (!mounted) return;
+        try {
+          playerNotifier = ref.read(playerStateProvider.notifier);
+          currentState = ref.read(playerStateProvider);
+        } on Exception catch (e2) {
+          // Still not ready, show error
+          if (mounted) {
+            setState(() {
+              _isPlayerLoading = false;
+              _hasError = true;
+              _errorMessage = 'Player service not ready. Please try again.';
+            });
+          }
+          await _logger.log(
+            level: 'error',
+            subsystem: 'audio',
+            message: 'Failed to access player state provider',
+            extra: {'error': e2.toString()},
+          );
+
+          // CRITICAL: Notify native side that player initialization failed
+          try {
+            await _playerLifecycleChannel.invokeMethod<bool>(
+              'setPlayerInitializing',
+              {'isInitializing': false},
+            );
+          } on Exception catch (e) {
+            debugPrint('Failed to clear player initializing flag: $e');
+          }
+          return;
+        }
+      }
+
+      if (playerNotifier == null || currentState == null) {
+        if (mounted) {
+          setState(() {
+            _isPlayerLoading = false;
+            _hasError = true;
+            _errorMessage = 'Player service not available';
+          });
+        }
+
+        // CRITICAL: Notify native side that player initialization failed
+        try {
+          await _playerLifecycleChannel.invokeMethod<bool>(
+            'setPlayerInitializing',
+            {'isInitializing': false},
+          );
+        } on Exception catch (e) {
+          debugPrint('Failed to clear player initializing flag: $e');
+        }
+        return;
+      }
 
       // Check if player is already initialized and playing the same group
       // If yes, skip reinitialization to avoid interrupting playback
@@ -159,11 +538,25 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
             'current_track': currentState.currentIndex,
           },
         );
-        setState(() {
-          _isInitialized = true;
-          _hasError = false;
-          _errorMessage = null;
-        });
+        if (mounted) {
+          setState(() {
+            _isPlayerLoading = false;
+            _hasError = false;
+            _errorMessage = null;
+          });
+        }
+
+        // CRITICAL: Notify native side that player initialization is complete
+        // (Player was already initialized, so no initialization needed)
+        try {
+          await _playerLifecycleChannel.invokeMethod<bool>(
+            'setPlayerInitializing',
+            {'isInitializing': false},
+          );
+        } on Exception catch (e) {
+          // Log but don't block - this is a safety feature
+          debugPrint('Failed to clear player initializing flag: $e');
+        }
         return;
       }
 
@@ -175,128 +568,175 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
         // Ignore errors when stopping (might not be playing)
       }
 
-      // Initialize player service
-      await playerNotifier.initialize();
+      // Initialize player service (only if not already initialized)
+      // Media3PlayerService checks _isInitialized internally, but we can skip if already ready
+      debugPrint('🔵 [PLAYER_INIT] Checking if player needs initialization...');
+      if (currentState.playbackState == 0) {
+        debugPrint(
+            '🔵 [PLAYER_INIT] Player state is 0 (idle), calling initialize()...');
+        await playerNotifier.initialize();
+        debugPrint('🔵 [PLAYER_INIT] Player initialize() completed');
+      } else {
+        debugPrint(
+            '🔵 [PLAYER_INIT] Player already initialized (playbackState=${currentState.playbackState}), skipping');
+      }
 
-      // Restore saved position before loading
-      final savedPosition = await playerNotifier.restorePosition(
-        widget.group.groupPath,
-      );
+      // CRITICAL OPTIMIZATION: Get saved position FIRST to determine initialTrackIndex
+      // This allows us to load only the needed track synchronously, others load asynchronously
+      // This dramatically speeds up player startup for large playlists
+      Map<String, int>? savedPosition;
+      int? initialTrackIndex;
+      try {
+        savedPosition = await playerNotifier
+            .restorePosition(widget.group.groupPath)
+            .timeout(
+          const Duration(milliseconds: 500),
+          onTimeout: () {
+            // Log timeout (non-blocking, don't await)
+            _logger.log(
+              level: 'info',
+              subsystem: 'audio',
+              message:
+                  'Position restore timeout (500ms), starting from beginning',
+            );
+            return null;
+          },
+        );
 
-      // Load audio sources
-      await _loadAudioSources();
-
-      // Wait for player to be ready before enabling controls
-      await _waitForPlayerReady();
-
-      // Apply audio settings (speed and skip duration)
-      await _applyAudioSettings();
-
-      // Restore position if available - automatically continue from saved position
-      // Only restore if we actually loaded new sources (not if player was already playing)
-      if (savedPosition != null && mounted) {
-        final trackIndex = savedPosition['trackIndex']!;
-        final positionMs = savedPosition['positionMs']!;
-        if (trackIndex >= 0 &&
-            trackIndex < widget.group.files.length &&
-            positionMs > 0) {
-          // Wait for player to be ready (check state)
-          var attempts = 0;
-          while (attempts < 20 && mounted) {
-            final state = ref.read(playerStateProvider);
-            if (state.playbackState == 2) {
-              // 2 = ready
-              break;
-            }
-            await Future.delayed(const Duration(milliseconds: 100));
-            attempts++;
+        // Extract initialTrackIndex from savedPosition if valid
+        if (savedPosition != null) {
+          final trackIndex = savedPosition['trackIndex'];
+          final positionMs = savedPosition['positionMs'];
+          if (trackIndex != null &&
+              trackIndex >= 0 &&
+              trackIndex < widget.group.files.length &&
+              positionMs != null &&
+              positionMs > 0) {
+            initialTrackIndex = trackIndex;
+            await _logger.log(
+              level: 'info',
+              subsystem: 'audio',
+              message: 'Using saved position for initial track loading',
+              extra: {
+                'initial_track_index': initialTrackIndex,
+                'position_ms': positionMs,
+              },
+            );
+          } else {
+            savedPosition = null; // Invalid saved position
           }
+        }
+      } on Exception catch (e) {
+        await _logger.log(
+          level: 'warning',
+          subsystem: 'audio',
+          message: 'Failed to restore position, starting from beginning',
+          cause: e.toString(),
+        );
+        savedPosition = null;
+      }
 
-          if (mounted) {
+      // Load audio sources with initialTrackIndex optimization
+      // Only the initial track (or first track) is loaded synchronously
+      // Remaining tracks load asynchronously in background for fast startup
+      await _loadAudioSources(initialTrackIndex: initialTrackIndex);
+
+      // Apply audio settings (speed and skip duration) in parallel with waiting for ready
+      // This speeds up initialization
+      await Future.wait([
+        _waitForPlayerReady(),
+        _applyAudioSettings(),
+      ]);
+
+      // Start playback - either from saved position or from beginning
+      if (mounted) {
+        final currentState = ref.read(playerStateProvider);
+
+        // Check if we have valid saved position
+        if (savedPosition != null) {
+          final trackIndex = savedPosition['trackIndex']!;
+          final positionMs = savedPosition['positionMs']!;
+
+          if (trackIndex >= 0 &&
+              trackIndex < widget.group.files.length &&
+              positionMs > 0) {
+            // Valid saved position - restore it
             try {
-              // Use optimized method to seek to track and position at once
-              await playerNotifier.seekToTrackAndPosition(
-                trackIndex,
-                Duration(milliseconds: positionMs),
-              );
-
-              // Check if player is already playing - if not, start playback
-              final currentState = ref.read(playerStateProvider);
-              if (!currentState.isPlaying) {
-                // Automatically start playback from restored position
-                await playerNotifier.play();
+              // Player should already be ready from _waitForPlayerReady() above
+              // Just do a quick check (max 500ms) to ensure it's ready
+              var attempts = 0;
+              while (attempts < 5 && mounted) {
+                final state = ref.read(playerStateProvider);
+                if (state.playbackState == 2) {
+                  // 2 = ready
+                  break;
+                }
+                await Future.delayed(const Duration(milliseconds: 100));
+                attempts++;
               }
 
-              await _logger.log(
-                level: 'info',
-                subsystem: 'audio',
-                message: 'Restored playback position',
-                extra: {
-                  'track_index': trackIndex,
-                  'position_ms': positionMs,
-                  'was_playing': currentState.isPlaying,
-                },
-              );
+              if (mounted) {
+                // Use optimized method to seek to track and position at once
+                await playerNotifier.seekToTrackAndPosition(
+                  trackIndex,
+                  Duration(milliseconds: positionMs),
+                );
+
+                // Start playback if not already playing
+                if (!currentState.isPlaying) {
+                  await playerNotifier.play();
+                }
+
+                await _logger.log(
+                  level: 'info',
+                  subsystem: 'audio',
+                  message: 'Restored playback position',
+                  extra: {
+                    'track_index': trackIndex,
+                    'position_ms': positionMs,
+                  },
+                );
+              }
             } on Exception catch (e) {
               await _logger.log(
                 level: 'warning',
                 subsystem: 'audio',
-                message: 'Failed to restore position, continuing anyway',
+                message: 'Failed to restore position, starting from beginning',
                 cause: e.toString(),
               );
-              // Ignore seek errors, continue playback from start
+              // Fall through to start from beginning
+              savedPosition = null; // Mark as invalid to start from beginning
             }
-          }
-        } else {
-          // Invalid saved position, start playback from beginning
-          if (mounted) {
-            await _logger.log(
-              level: 'info',
-              subsystem: 'audio',
-              message:
-                  'No valid saved position, starting playback from beginning',
-            );
-            // Wait a bit for player to be ready
-            await Future.delayed(const Duration(milliseconds: 200));
-            final currentState = ref.read(playerStateProvider);
-            if (!currentState.isPlaying && mounted) {
-              await playerNotifier.play();
-            }
+          } else {
+            // Invalid saved position
+            savedPosition = null;
           }
         }
-      } else {
-        // No saved position, start playback from beginning
-        if (mounted) {
+
+        // If no valid saved position, start from beginning
+        if (savedPosition == null && mounted) {
           await _logger.log(
             level: 'info',
             subsystem: 'audio',
-            message: 'No saved position, starting playback from beginning',
+            message: 'Starting playback from beginning',
           );
-          // Wait a bit for player to be ready
-          await Future.delayed(const Duration(milliseconds: 200));
-          final currentState = ref.read(playerStateProvider);
-          if (!currentState.isPlaying && mounted) {
-            await _logger.log(
-              level: 'info',
-              subsystem: 'audio',
-              message: 'Calling play() to start playback',
-              extra: {
-                'playbackState': currentState.playbackState,
-                'isPlaying': currentState.isPlaying,
-              },
-            );
+
+          // Player should already be ready from _waitForPlayerReady() above
+          // No need to wait - start playback immediately
+          final state = ref.read(playerStateProvider);
+          if (!state.isPlaying && mounted) {
             try {
               await playerNotifier.play();
               await _logger.log(
                 level: 'info',
                 subsystem: 'audio',
-                message: 'play() call completed',
+                message: 'Playback started from beginning',
               );
             } on Exception catch (e) {
               await _logger.log(
                 level: 'error',
                 subsystem: 'audio',
-                message: 'Failed to call play()',
+                message: 'Failed to start playback',
                 cause: e.toString(),
               );
             }
@@ -317,34 +757,90 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
             .setRepeatMode(repeatMode);
 
         // Restore sleep timer if active
+        // CRITICAL: Restore timer BEFORE clearing isPlayerInitializing flag
+        // This ensures timer callback won't trigger exit during initialization
+        // Note: When restoring, use simple pause callback to avoid issues
+        // User can set new timer if they want exit behavior
         if (savedFullState.sleepTimerRemainingSeconds != null &&
             savedFullState.sleepTimerRemainingSeconds! > 0) {
-          await _sleepTimerService.startTimer(
-            Duration(seconds: savedFullState.sleepTimerRemainingSeconds!),
-            () {
-              if (mounted) {
-                ref.read(playerStateProvider.notifier).pause();
-                final localizations = AppLocalizations.of(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(localizations?.sleepTimerPaused ??
-                        'Sleep timer: Playback paused'),
-                  ),
-                );
-              }
+          await _logger.log(
+            level: 'info',
+            subsystem: 'player',
+            message: 'Restoring sleep timer from saved state',
+            extra: {
+              'remaining_seconds': savedFullState.sleepTimerRemainingSeconds,
             },
           );
-          _startSleepTimerUpdates();
+
+          // CRITICAL: Check if timer already expired (remaining seconds <= 0)
+          // If expired, don't restore it to prevent immediate callback
+          if (savedFullState.sleepTimerRemainingSeconds! > 0) {
+            await _sleepTimerService.startTimer(
+              Duration(seconds: savedFullState.sleepTimerRemainingSeconds!),
+              () {
+                if (mounted) {
+                  ref.read(playerStateProvider.notifier).pause();
+                  final localizations = AppLocalizations.of(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(localizations?.sleepTimerPaused ??
+                          'Sleep timer: Playback paused'),
+                    ),
+                  );
+                }
+              },
+            );
+            _startSleepTimerUpdates();
+          } else {
+            await _logger.log(
+              level: 'warning',
+              subsystem: 'player',
+              message:
+                  'Sleep timer from saved state already expired, not restoring',
+            );
+          }
         }
       }
 
-      // Clear any previous errors before marking as initialized
-      // This ensures error state is reset on successful initialization
-      setState(() {
-        _isInitialized = true;
-        _hasError = false;
-        _errorMessage = null;
-      });
+      // Clear any previous errors and mark player as ready
+      // UI was already shown, now player is ready
+      if (mounted) {
+        setState(() {
+          _isPlayerLoading = false;
+          _hasError = false;
+          _errorMessage = null;
+        });
+      }
+
+      // CRITICAL: Notify native side that player initialization is complete
+      // This must be done AFTER restoring sleep timer to prevent timer callback
+      // from triggering exit during initialization
+      try {
+        await _logger.log(
+          level: 'info',
+          subsystem: 'player',
+          message:
+              'Player initialization complete, clearing isPlayerInitializing flag',
+        );
+        await _playerLifecycleChannel.invokeMethod<bool>(
+          'setPlayerInitializing',
+          {'isInitializing': false},
+        );
+        await _logger.log(
+          level: 'info',
+          subsystem: 'player',
+          message: 'isPlayerInitializing flag cleared successfully',
+        );
+      } on Exception catch (e) {
+        // Log but don't block - this is a safety feature
+        await _logger.log(
+          level: 'error',
+          subsystem: 'player',
+          message: 'Failed to clear player initializing flag',
+          cause: e.toString(),
+        );
+        debugPrint('Failed to clear player initializing flag: $e');
+      }
     } on AudioFailure catch (e) {
       await _logger.log(
         level: 'error',
@@ -352,9 +848,7 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
         message: 'Failed to initialize player',
         cause: e.toString(),
       );
-      setState(() {
-        _isInitialized = true;
-        _hasError = true;
+      if (mounted) {
         final localizations = AppLocalizations.of(context);
         var errorMessage = e.message;
 
@@ -397,8 +891,22 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
               e.message;
         }
 
-        _errorMessage = errorMessage;
-      });
+        setState(() {
+          _isPlayerLoading = false;
+          _hasError = true;
+          _errorMessage = errorMessage;
+        });
+
+        // CRITICAL: Notify native side that player initialization failed
+        try {
+          await _playerLifecycleChannel.invokeMethod<bool>(
+            'setPlayerInitializing',
+            {'isInitializing': false},
+          );
+        } on Exception catch (e) {
+          debugPrint('Failed to clear player initializing flag: $e');
+        }
+      }
     } on Exception catch (e) {
       await _logger.log(
         level: 'error',
@@ -406,17 +914,34 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
         message: 'Unexpected error during player initialization',
         cause: e.toString(),
       );
-      setState(() {
-        _isInitialized = true;
-        _hasError = true;
-        _errorMessage =
-            AppLocalizations.of(context)?.failedToLoadAudioMessage ??
-                'Failed to load audio: ${e.toString()}';
-      });
+      if (mounted) {
+        setState(() {
+          _isPlayerLoading = false; // Loading finished (with error)
+          _hasError = true;
+          _errorMessage =
+              AppLocalizations.of(context)?.failedToLoadAudioMessage ??
+                  'Failed to load audio: ${e.toString()}';
+        });
+      }
+
+      // CRITICAL: Notify native side that player initialization failed
+      try {
+        await _playerLifecycleChannel.invokeMethod<bool>(
+          'setPlayerInitializing',
+          {'isInitializing': false},
+        );
+      } on Exception catch (e) {
+        debugPrint('Failed to clear player initializing flag: $e');
+      }
     }
   }
 
-  Future<void> _loadAudioSources() async {
+  /// Loads audio sources with optimized lazy loading.
+  ///
+  /// [initialTrackIndex] is optional track index to load first (for saved position optimization).
+  /// If provided, only this track is loaded synchronously, others load asynchronously in background.
+  /// This dramatically speeds up player startup for large playlists.
+  Future<void> _loadAudioSources({int? initialTrackIndex}) async {
     try {
       // Check permissions first
       final hasPermission = await _permissionService.hasStoragePermission();
@@ -442,22 +967,32 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
         }
       }
 
-      // Verify files exist and are accessible
+      // Verify files exist and are accessible (check in parallel for faster startup)
       final filePaths = widget.group.files.map((f) => f.filePath).toList();
-      final accessibleFiles = <String>[];
 
-      for (final filePath in filePaths) {
-        final file = File(filePath);
-        if (await file.exists()) {
-          accessibleFiles.add(filePath);
-        } else {
-          await _logger.log(
-            level: 'warning',
-            subsystem: 'audio',
-            message: 'File not found, skipping',
-            extra: {'path': filePath},
-          );
-        }
+      // Check all files in parallel for faster startup
+      final fileChecks = await Future.wait(
+        filePaths.map((filePath) async {
+          final file = File(filePath);
+          final exists = await file.exists();
+          return exists ? filePath : null;
+        }),
+      );
+
+      final accessibleFiles = fileChecks.whereType<String>().toList();
+
+      // Log missing files (non-blocking)
+      if (accessibleFiles.length < filePaths.length) {
+        final missingCount = filePaths.length - accessibleFiles.length;
+        await _logger.log(
+          level: 'warning',
+          subsystem: 'audio',
+          message: 'Some files not found, skipping',
+          extra: {
+            'missing_count': missingCount,
+            'total_files': filePaths.length
+          },
+        );
       }
 
       if (accessibleFiles.isEmpty) {
@@ -481,10 +1016,13 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
         extra: {
           'accessible_files': accessibleFiles.length,
           'total_files': filePaths.length,
+          'initial_track_index': initialTrackIndex,
         },
       );
 
-      // Load audio sources
+      // Load audio sources with initialTrackIndex optimization
+      // Only the initial track (or first track) is loaded synchronously
+      // Remaining tracks load asynchronously in background for fast startup
       final metadata = <String, String>{
         'title': widget.group.groupName,
         if (widget.group.files.firstOrNull?.author != null)
@@ -498,7 +1036,12 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
         accessibleFiles,
         metadata: metadata,
         groupPath: widget.group.groupPath,
+        initialTrackIndex: initialTrackIndex,
       );
+
+      // Update currentAudiobookGroupProvider to ensure all UI components are synchronized
+      // This ensures mini player, notification, and main player all use the same data source
+      ref.read(currentAudiobookGroupProvider.notifier).state = widget.group;
 
       // Update metadata after playlist is set
       _updateMetadata();
@@ -529,11 +1072,17 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
     }
   }
 
-  void _seekToTrack(int index) {
+  Future<void> _seekToTrack(int index) async {
     if (index >= 0 && index < widget.group.files.length) {
-      ref.read(playerStateProvider.notifier)
-        ..seekToTrack(index)
-        ..seek(Duration.zero);
+      final playerNotifier = ref.read(playerStateProvider.notifier);
+      await playerNotifier.seekToTrack(index);
+      await playerNotifier.seek(Duration.zero);
+
+      // Start playback automatically after switching track
+      final currentState = ref.read(playerStateProvider);
+      if (!currentState.isPlaying) {
+        await playerNotifier.play();
+      }
     }
   }
 
@@ -549,6 +1098,23 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
     if (state.currentIndex < widget.group.files.length - 1) {
       ref.read(playerStateProvider.notifier).next();
     }
+  }
+
+  /// Shows the tracks bottom sheet for navigation.
+  void _showTracksBottomSheet() {
+    if (widget.group.files.isEmpty) return;
+
+    final scrollController = DraggableScrollableController();
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => TracksBottomSheet(
+        group: widget.group,
+        onTrackSelected: _seekToTrack,
+        scrollController: scrollController,
+      ),
+    );
   }
 
   /// Updates metadata for current track.
@@ -612,6 +1178,75 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
           level: 'warning',
           subsystem: 'audio',
           message: 'Failed to update skip durations in MediaSessionManager',
+          cause: e.toString(),
+        );
+      }
+
+      // Update inactivity timeout
+      try {
+        final playerService = ref.read(media3PlayerServiceProvider);
+        await playerService.setInactivityTimeoutMinutes(
+            audioSettings.inactivityTimeoutMinutes);
+      } on Exception catch (e) {
+        await _logger.log(
+          level: 'warning',
+          subsystem: 'audio',
+          message: 'Failed to set inactivity timeout',
+          cause: e.toString(),
+        );
+      }
+
+      // Apply audio processing settings
+      try {
+        final audioSettingsManager = AudioSettingsManager();
+        final playerService = ref.read(media3PlayerServiceProvider);
+
+        // Get global settings
+        final normalizeVolume = await audioSettingsManager.getNormalizeVolume();
+        final volumeBoostLevel =
+            await audioSettingsManager.getVolumeBoostLevel();
+        final drcLevel = await audioSettingsManager.getDRCLevel();
+        final speechEnhancer = await audioSettingsManager.getSpeechEnhancer();
+        final autoVolumeLeveling =
+            await audioSettingsManager.getAutoVolumeLeveling();
+
+        // Override with book-specific settings if available
+        final finalNormalizeVolume =
+            bookSettings?.normalizeVolume ?? normalizeVolume;
+        final finalVolumeBoostLevel =
+            bookSettings?.volumeBoostLevel ?? volumeBoostLevel;
+        final finalDrcLevel = bookSettings?.drcLevel ?? drcLevel;
+        final finalSpeechEnhancer =
+            bookSettings?.speechEnhancer ?? speechEnhancer;
+        final finalAutoVolumeLeveling =
+            bookSettings?.autoVolumeLeveling ?? autoVolumeLeveling;
+
+        // Apply audio processing settings
+        await playerService.configureAudioProcessing(
+          normalizeVolume: finalNormalizeVolume,
+          volumeBoostLevel: finalVolumeBoostLevel,
+          drcLevel: finalDrcLevel,
+          speechEnhancer: finalSpeechEnhancer,
+          autoVolumeLeveling: finalAutoVolumeLeveling,
+        );
+
+        await _logger.log(
+          level: 'info',
+          subsystem: 'audio',
+          message: 'Applied audio processing settings',
+          extra: {
+            'normalizeVolume': finalNormalizeVolume,
+            'volumeBoostLevel': finalVolumeBoostLevel,
+            'drcLevel': finalDrcLevel,
+            'speechEnhancer': finalSpeechEnhancer,
+            'autoVolumeLeveling': finalAutoVolumeLeveling,
+          },
+        );
+      } on Exception catch (e) {
+        await _logger.log(
+          level: 'warning',
+          subsystem: 'audio',
+          message: 'Failed to apply audio processing settings',
           cause: e.toString(),
         );
       }
@@ -744,36 +1379,77 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final playerState = ref.watch(playerStateProvider);
+    // CRITICAL DEBUG: Log when build is called
+    debugPrint('🟡 [PLAYER_INIT] build() called');
+
+    // Safely access player state provider - handle cases where provider might not be ready yet
+    debugPrint('🟡 [PLAYER_INIT] Attempting to watch playerStateProvider...');
+    PlayerStateModel playerState;
+    try {
+      playerState = ref.watch(playerStateProvider);
+      debugPrint('🟡 [PLAYER_INIT] playerStateProvider watched successfully');
+    } on Exception catch (e) {
+      // Provider not ready yet, use default state
+      debugPrint(
+          '🔴 [PLAYER_INIT] Player state provider not ready in build: $e');
+      playerState = const PlayerStateModel(
+        isPlaying: false,
+        currentPosition: 0,
+        duration: 0,
+        currentIndex: 0,
+        playbackSpeed: 1.0,
+        playbackState: 0,
+      );
+    }
+    debugPrint(
+        '🟡 [PLAYER_INIT] Building UI with playerState: playbackState=${playerState.playbackState}');
+
+    // Show loading indicator only when player is being initialized or buffering
+    // UI (cover, interface) is shown immediately
     final isLoading =
-        !_isInitialized || playerState.playbackState == 1; // 1 = buffering
-    // Only show error if initialization is complete and not loading
+        _isPlayerLoading || playerState.playbackState == 1; // 1 = buffering
+    // Only show error if player initialization is complete and not loading
     // This prevents showing error messages during initial loading
     final hasError = !isLoading && (_hasError || playerState.error != null);
     final errorMessage = _errorMessage ?? playerState.error;
 
+    // Extract author from groupName (format: "Author - Title")
+    String? authorName;
+    final groupNameParts = widget.group.groupName.split(' - ');
+    if (groupNameParts.length > 1) {
+      authorName = groupNameParts.first.trim();
+    } else {
+      // If no " - " separator, try to get author from first file
+      if (widget.group.files.isNotEmpty &&
+          widget.group.files.first.author != null &&
+          widget.group.files.first.author!.isNotEmpty) {
+        authorName = widget.group.files.first.author;
+      } else {
+        authorName = widget.group.groupName;
+      }
+    }
+
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.group.groupName),
+        automaticallyImplyLeading: false,
+        centerTitle: true, // Center the author name
+        toolbarHeight: 48, // Compact height adapted to text
+        title: Text(
+          authorName ?? widget.group.groupName,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontSize: 16,
+              ),
+        ),
       ),
       body: GestureDetector(
+        behavior: HitTestBehavior.translucent,
         onVerticalDragEnd: (details) {
           // Swipe down to close (return to mini player)
           if (details.primaryVelocity != null &&
               details.primaryVelocity! > 500) {
             context.pop();
-          }
-        },
-        onHorizontalDragEnd: (details) {
-          // Swipe left for next track, swipe right for previous track
-          if (details.primaryVelocity != null) {
-            if (details.primaryVelocity! < -500) {
-              // Swipe left - next track
-              _nextTrack();
-            } else if (details.primaryVelocity! > 500) {
-              // Swipe right - previous track
-              _prevTrack();
-            }
           }
         },
         child: hasError
@@ -785,7 +1461,7 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
                     children: [
                       const Icon(Icons.error_outline,
                           size: 64, color: Colors.red),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: _kSpacingMedium),
                       Text(
                         AppLocalizations.of(context)?.failedToLoadAudio ??
                             'Failed to load audio',
@@ -793,18 +1469,18 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
                         textAlign: TextAlign.center,
                       ),
                       if (errorMessage != null) ...[
-                        const SizedBox(height: 8),
+                        const SizedBox(height: _kSpacingSmall),
                         Text(
                           errorMessage,
                           style: Theme.of(context).textTheme.bodyMedium,
                           textAlign: TextAlign.center,
                         ),
                       ],
-                      const SizedBox(height: 24),
+                      const SizedBox(height: _kSpacingLarge),
                       ElevatedButton(
                         onPressed: () {
                           setState(() {
-                            _isInitialized = false;
+                            _isPlayerLoading = true;
                             _hasError = false;
                             _errorMessage = null;
                           });
@@ -816,125 +1492,121 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
                   ),
                 ),
               )
-            : isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : SingleChildScrollView(
-                    child: Padding(
-                      padding: ResponsiveUtils.getCompactPadding(context),
-                      child: Column(
-                        children: [
-                          // Cover image
-                          _buildCoverImage(),
-                          SizedBox(
-                            height: ResponsiveUtils.getSpacing(
-                              context,
-                              baseSpacing: 24,
+            : Stack(
+                // Show UI immediately, loading overlay on top if needed
+                children: [
+                  // Main UI content with CustomScrollView for proper scrolling
+                  CustomScrollView(
+                    slivers: [
+                      // Top section: Cover + Player
+                      SliverToBoxAdapter(
+                        child: Column(
+                          children: [
+                            // Cover image - full width, no padding to fill all space
+                            _buildCoverImage(),
+                            // Rest of content with padding
+                            Padding(
+                              padding:
+                                  ResponsiveUtils.getCompactPadding(context),
+                              child: Column(
+                                children: [
+                                  const SizedBox(height: 4),
+                                  // Track/chapter title - large, prominent
+                                  _buildTrackTitle(playerState),
+                                  const SizedBox(height: 6),
+                                  // Author and book name - subtitle style
+                                  _buildTrackSubtitle(),
+                                  const SizedBox(height: 8),
+                                  // Progress slider with 16dp horizontal padding
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 16.0),
+                                    child: _buildProgressSlider(playerState),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  // Time indicators directly under progress bar
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 16.0),
+                                    child: _buildTimeIndicators(playerState),
+                                  ),
+                                  // Track info and percentage (if multiple tracks)
+                                  if (widget.group.files.length > 1) ...[
+                                    const SizedBox(height: 8),
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 16.0),
+                                      child: _buildTrackInfo(playerState),
+                                    ),
+                                  ],
+                                  SizedBox(height: _getMediumSpacing(context)),
+                                  // Current track indicator and navigation
+                                  if (widget.group.files.length > 1)
+                                    _buildTrackNavigation(playerState),
+                                  SizedBox(
+                                      height:
+                                          _getMediumSpacing(context) * 0.75),
+                                  // Playback controls
+                                  _buildPlaybackControls(playerState),
+                                  const SizedBox(height: 12),
+                                  // Speed, repeat and sleep timer controls in one row
+                                  _buildControlsRow(playerState),
+                                  // Bottom padding for system navigation gestures
+                                  SizedBox(
+                                    height:
+                                        MediaQuery.of(context).padding.bottom >
+                                                0
+                                            ? MediaQuery.of(context)
+                                                    .padding
+                                                    .bottom +
+                                                6
+                                            : 8,
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                          // Track info
-                          Text(
-                            widget.group.hasMultiFolderStructure
-                                ? widget.group.files[playerState.currentIndex]
-                                    .getDisplayNameWithPart(
-                                        widget.group.groupPath)
-                                : widget.group.files[playerState.currentIndex]
-                                    .displayName,
-                            style: Theme.of(context).textTheme.titleLarge,
-                            textAlign: TextAlign.center,
-                          ),
-                          SizedBox(
-                            height: ResponsiveUtils.getSpacing(
-                              context,
-                            ),
-                          ),
-                          Text(
-                            widget.group.groupName,
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodyMedium
-                                ?.copyWith(
-                                  fontSize:
-                                      ResponsiveUtils.getBodyFontSize(context),
-                                ),
-                            textAlign: TextAlign.center,
-                          ),
-                          SizedBox(
-                            height: ResponsiveUtils.getSpacing(
-                              context,
-                              baseSpacing: 32,
-                            ),
-                          ),
-                          // Group progress indicator
-                          if (widget.group.files.length > 1)
-                            _buildGroupProgressIndicator(playerState),
-                          SizedBox(
-                            height: ResponsiveUtils.getSpacing(
-                              context,
-                              baseSpacing: 16,
-                            ),
-                          ),
-                          // Progress slider
-                          _buildProgressSlider(playerState),
-                          SizedBox(
-                            height: ResponsiveUtils.getSpacing(
-                              context,
-                              baseSpacing: 16,
-                            ),
-                          ),
-                          // Time indicators
-                          _buildTimeIndicators(playerState),
-                          SizedBox(
-                            height: ResponsiveUtils.getSpacing(
-                              context,
-                              baseSpacing: 32,
-                            ),
-                          ),
-                          // Playback controls
-                          _buildPlaybackControls(playerState),
-                          SizedBox(
-                            height: ResponsiveUtils.getSpacing(
-                              context,
-                              baseSpacing: 16,
-                            ),
-                          ),
-                          // Speed, repeat and sleep timer controls in one row
-                          _buildControlsRow(playerState),
-                          const SizedBox(height: 32),
-                          // Track list
-                          if (widget.group.files.length > 1)
-                            _buildTrackList(playerState),
-                        ],
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  // Loading overlay (only when player is initializing)
+                  if (isLoading)
+                    Positioned.fill(
+                      child: ColoredBox(
+                        color: Colors.black.withValues(alpha: 0.3),
+                        child: const Center(
+                          child: CircularProgressIndicator(),
+                        ),
                       ),
                     ),
-                  ),
+                ],
+              ),
       ),
     );
   }
 
   Widget _buildCoverImage() {
-    // Responsive cover size based on screen size
+    // Cover image stretched to full width with no side padding
     final screenWidth = MediaQuery.of(context).size.width;
-    final coverSize = ResponsiveUtils.isVerySmallScreen(context)
-        ? 200.0
-        : (screenWidth < 400
-            ? 240.0
-            : (ResponsiveUtils.isTablet(context) ? 320.0 : 285.0));
+
+    // Use 4:3 aspect ratio for cover (taller than 16:9 to use more space)
+    // Height will be calculated automatically by AspectRatio widget
 
     // Try embedded artwork from metadata first (if available)
     if (_embeddedArtworkPath != null) {
       final embeddedFile = File(_embeddedArtworkPath!);
       if (embeddedFile.existsSync()) {
         return RepaintBoundary(
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(8),
+          child: AspectRatio(
+            aspectRatio: 4 / 3,
             child: Image.file(
               embeddedFile,
-              width: coverSize,
-              height: coverSize,
+              width: screenWidth,
               fit: BoxFit.cover,
-              cacheWidth: (coverSize * 2).round(), // 2x for retina displays
+              cacheWidth: (screenWidth * 2).round(), // 2x for retina displays
               errorBuilder: (context, error, stackTrace) =>
-                  _buildGroupCover(coverSize),
+                  _buildGroupCover(screenWidth, 0),
             ),
           ),
         );
@@ -946,85 +1618,132 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
       final coverFile = File(widget.group.coverPath!);
       if (coverFile.existsSync()) {
         return RepaintBoundary(
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(8),
+          child: AspectRatio(
+            aspectRatio: 4 / 3,
             child: Image.file(
               coverFile,
-              width: coverSize,
-              height: coverSize,
+              width: screenWidth,
               fit: BoxFit.cover,
-              cacheWidth: (coverSize * 2).round(), // 2x for retina displays
+              cacheWidth: (screenWidth * 2).round(), // 2x for retina displays
               errorBuilder: (context, error, stackTrace) =>
-                  _buildDefaultCover(),
+                  _buildDefaultCover(screenWidth, 0),
             ),
           ),
         );
       }
     }
-    return _buildDefaultCover();
+    return _buildDefaultCover(screenWidth, 0);
   }
 
-  Widget _buildGroupCover(double coverSize) {
+  Widget _buildGroupCover(double width, double horizontalPadding) {
     if (widget.group.coverPath != null) {
       final coverFile = File(widget.group.coverPath!);
       if (coverFile.existsSync()) {
         return RepaintBoundary(
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(8),
+          child: AspectRatio(
+            aspectRatio: 4 / 3,
             child: Image.file(
               coverFile,
-              width: coverSize,
-              height: coverSize,
+              width: width,
               fit: BoxFit.cover,
-              cacheWidth: (coverSize * 2).round(),
+              cacheWidth: (width * 2).round(),
               errorBuilder: (context, error, stackTrace) =>
-                  _buildDefaultCover(),
+                  _buildDefaultCover(width, horizontalPadding),
             ),
           ),
         );
       }
     }
-    return _buildDefaultCover();
+    return _buildDefaultCover(width, horizontalPadding);
   }
 
-  Widget _buildDefaultCover() {
-    const coverSize = 285.0;
-    return Container(
-      width: coverSize,
-      height: coverSize,
-      decoration: BoxDecoration(
-        color: Colors.grey[300],
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: const Icon(Icons.audiotrack, size: 80, color: Colors.grey),
+  Widget _buildDefaultCover(double width, double horizontalPadding) =>
+      AspectRatio(
+        aspectRatio: 4 / 3,
+        child: Container(
+          width: width,
+          decoration: BoxDecoration(
+            color: Colors.grey[300],
+          ),
+          child: const Icon(Icons.audiotrack, size: 80, color: Colors.grey),
+        ),
+      );
+
+  /// Builds track/chapter title - large, prominent.
+  Widget _buildTrackTitle(PlayerStateModel state) {
+    final hasFiles = widget.group.files.isNotEmpty &&
+        state.currentIndex >= 0 &&
+        state.currentIndex < widget.group.files.length;
+
+    final chapterNumber = hasFiles ? (state.currentIndex + 1) : 1;
+    final localizations = AppLocalizations.of(context);
+    final chapterText =
+        localizations?.chapterNumber(chapterNumber) ?? 'Chapter $chapterNumber';
+
+    return Text(
+      chapterText,
+      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
+      textAlign: TextAlign.center,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
     );
   }
 
-  Widget _buildGroupProgressIndicator(PlayerStateModel state) {
-    final totalTracks = widget.group.files.length;
-    final currentTrack = state.currentIndex + 1;
-    final progress = totalTracks > 0 ? currentTrack / totalTracks : 0.0;
+  /// Builds track subtitle - book name only (without author).
+  Widget _buildTrackSubtitle() {
+    // Extract book title from groupName (format: "Author - Title")
+    String bookTitle;
+    final groupNameParts = widget.group.groupName.split(' - ');
+    if (groupNameParts.length > 1) {
+      bookTitle = groupNameParts.sublist(1).join(' - ').trim();
+    } else {
+      bookTitle = widget.group.groupName;
+    }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Text(
+      bookTitle,
+      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color:
+                Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+            fontSize: 13,
+          ),
+      textAlign: TextAlign.center,
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
+    );
+  }
+
+  /// Builds track info - "Track X of Y" and percentage in one line.
+  Widget _buildTrackInfo(PlayerStateModel state) {
+    final totalTracks = widget.group.files.length;
+    final currentTrack = (state.currentIndex + 1).clamp(1, totalTracks);
+    final progress =
+        totalTracks > 0 ? (currentTrack / totalTracks).clamp(0.0, 1.0) : 0.0;
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
+        Text(
+          AppLocalizations.of(context)
+                  ?.trackOfTotal(currentTrack, totalTracks) ??
               'Track $currentTrack of $totalTracks',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-            Text(
-              '${(progress * 100).toStringAsFixed(0)}%',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ],
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context)
+                    .colorScheme
+                    .onSurface
+                    .withValues(alpha: 0.6),
+              ),
         ),
-        const SizedBox(height: 4),
-        LinearProgressIndicator(
-          value: progress.clamp(0.0, 1.0),
-          minHeight: 4,
+        Text(
+          '${(progress * 100).toStringAsFixed(0)}%',
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context)
+                    .colorScheme
+                    .onSurface
+                    .withValues(alpha: 0.6),
+              ),
         ),
       ],
     );
@@ -1034,10 +1753,12 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
     final hasDuration = state.duration > 0;
     final hasError = state.error != null;
 
-    // Calculate progress - use local slider value if dragging, otherwise use actual position
+    // Calculate progress - ensure it's always clamped to 0.0-1.0
     final progress = _isDragging && _sliderValue != null
         ? _sliderValue!.clamp(0.0, 1.0)
-        : (hasDuration ? state.currentPosition / state.duration : 0.0);
+        : (hasDuration
+            ? (state.currentPosition / state.duration).clamp(0.0, 1.0)
+            : 0.0);
 
     // Enable seek if we have duration and no errors
     // Allow seeking even during loading for better UX
@@ -1086,7 +1807,8 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
     });
   }
 
-  /// Builds time indicators with skip information when dragging.
+  /// Builds time indicators - current time on left, total time on right.
+  /// Shows skip information when dragging.
   Widget _buildTimeIndicators(PlayerStateModel state) {
     if (_isDragging && _sliderValue != null && _initialPositionMs != null) {
       // Show skip information during dragging
@@ -1135,7 +1857,7 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
                       size: 16,
                       color: Theme.of(context).colorScheme.primary,
                     ),
-                    const SizedBox(width: 4),
+                    const SizedBox(width: _kSpacingSmall / 2),
                     Text(
                       '${isForward ? '+' : '-'}${_formatDuration(skipDuration)}',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -1165,7 +1887,7 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: _kSpacingSmall / 2),
           // Total duration
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
@@ -1193,9 +1915,20 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
   /// Waits for player to be ready (playbackState == 2).
   ///
   /// This ensures that seek controls are enabled only when player is fully initialized.
+  /// Optimized for fast startup - only waits up to 1 second.
   Future<void> _waitForPlayerReady() async {
+    // Check current state first - if already ready, don't wait
+    final initialState = ref.read(playerStateProvider);
+    if (initialState.playbackState == 2) {
+      return; // Already ready
+    }
+    if (initialState.error != null) {
+      return; // Error occurred, don't wait
+    }
+
+    // Wait for player to become ready with shorter timeout (1 second max)
     var attempts = 0;
-    const maxAttempts = 50; // 5 seconds max wait
+    const maxAttempts = 10; // 1 second max wait (10 * 100ms)
     while (attempts < maxAttempts && mounted) {
       final state = ref.read(playerStateProvider);
       if (state.playbackState == 2) {
@@ -1211,6 +1944,141 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
     }
     // If we reach here, player didn't become ready in time
     // This is not necessarily an error - player might still be loading
+    // Continue anyway to allow playback to start
+  }
+
+  /// Builds compact chapters/tracks navigation block.
+  Widget _buildTrackNavigation(PlayerStateModel state) {
+    if (widget.group.files.isEmpty) return const SizedBox.shrink();
+    if (state.currentIndex < 0 ||
+        state.currentIndex >= widget.group.files.length) {
+      return const SizedBox.shrink();
+    }
+
+    final currentIndex = state.currentIndex;
+    final files = widget.group.files;
+    final totalTracks = files.length;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Header: "Chapters" with counter "X / Y" - clickable to toggle chips list
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+          child: Row(
+            children: [
+              // Left side: Icon and "Chapters" label - opens full list
+              InkWell(
+                onTap: _showTracksBottomSheet,
+                borderRadius: BorderRadius.circular(8),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                      vertical: 8.0, horizontal: 4.0),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.list,
+                        size: 22,
+                        color: Theme.of(context).colorScheme.onSurface,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        AppLocalizations.of(context)?.chaptersLabel ??
+                            'Chapters',
+                        style:
+                            Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const Spacer(),
+              // Right side: "X / Y >" - toggles chips list visibility
+              InkWell(
+                onTap: () {
+                  setState(() {
+                    _showChapterChips = !_showChapterChips;
+                  });
+                },
+                borderRadius: BorderRadius.circular(8),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                      vertical: 8.0, horizontal: 4.0),
+                  child: Row(
+                    children: [
+                      Text(
+                        '${currentIndex + 1} / $totalTracks',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurface
+                                  .withValues(alpha: 0.6),
+                            ),
+                      ),
+                      const SizedBox(width: 4),
+                      Icon(
+                        _showChapterChips
+                            ? Icons.expand_less
+                            : Icons.expand_more,
+                        size: 20,
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurface
+                            .withValues(alpha: 0.6),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        // Horizontal list of track chips - shown only when _showChapterChips is true
+        if (_showChapterChips) ...[
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 60,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              itemCount: files.length,
+              itemBuilder: (context, index) {
+                final isCurrent = index == currentIndex;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8.0),
+                  child: FilterChip(
+                    label: Text('${index + 1}'),
+                    selected: isCurrent,
+                    onSelected: (_) {
+                      // Start playback automatically when track is selected
+                      _seekToTrack(index);
+                    },
+                    selectedColor: Theme.of(context).primaryColor,
+                    checkmarkColor: Theme.of(context).colorScheme.onPrimary,
+                    labelStyle: TextStyle(
+                      color: isCurrent
+                          ? Theme.of(context).colorScheme.onPrimary
+                          : null,
+                      fontWeight:
+                          isCurrent ? FontWeight.bold : FontWeight.normal,
+                    ),
+                    side: isCurrent
+                        ? BorderSide(
+                            color: Theme.of(context).primaryColor,
+                            width: 2,
+                          )
+                        : null,
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ],
+    );
   }
 
   Widget _buildPlaybackControls(PlayerStateModel state) {
@@ -1218,7 +2086,7 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
 
     return Column(
       children: [
-        // Main controls row
+        // First row: Main controls (previous, rewind, play/pause, forward, next)
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -1231,9 +2099,9 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
               ),
               onPressed: state.currentIndex > 0 ? _prevTrack : null,
               tooltip: 'Previous track',
-              constraints: BoxConstraints(
-                minWidth: ResponsiveUtils.getMinTouchTarget(context),
-                minHeight: ResponsiveUtils.getMinTouchTarget(context),
+              constraints: const BoxConstraints(
+                minWidth: 48.0, // Material 3 minimum touch target
+                minHeight: 48.0,
               ),
             ),
             SizedBox(
@@ -1248,9 +2116,9 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
               ),
               onPressed: isLoading ? null : _rewind,
               tooltip: 'Rewind',
-              constraints: BoxConstraints(
-                minWidth: ResponsiveUtils.getMinTouchTarget(context),
-                minHeight: ResponsiveUtils.getMinTouchTarget(context),
+              constraints: const BoxConstraints(
+                minWidth: 48.0, // Material 3 minimum touch target
+                minHeight: 48.0,
               ),
             ),
             SizedBox(
@@ -1265,9 +2133,10 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
               ),
               onPressed: isLoading ? null : _playPause,
               tooltip: state.isPlaying ? 'Pause' : 'Play',
-              constraints: BoxConstraints(
-                minWidth: ResponsiveUtils.getMinTouchTarget(context) * 1.2,
-                minHeight: ResponsiveUtils.getMinTouchTarget(context) * 1.2,
+              constraints: const BoxConstraints(
+                minWidth:
+                    56.0, // Larger touch target for main play/pause button
+                minHeight: 56.0,
               ),
             ),
             SizedBox(
@@ -1282,9 +2151,9 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
               ),
               onPressed: isLoading ? null : _forward,
               tooltip: 'Forward',
-              constraints: BoxConstraints(
-                minWidth: ResponsiveUtils.getMinTouchTarget(context),
-                minHeight: ResponsiveUtils.getMinTouchTarget(context),
+              constraints: const BoxConstraints(
+                minWidth: 48.0, // Material 3 minimum touch target
+                minHeight: 48.0,
               ),
             ),
             SizedBox(
@@ -1301,9 +2170,9 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
                   ? _nextTrack
                   : null,
               tooltip: 'Next track',
-              constraints: BoxConstraints(
-                minWidth: ResponsiveUtils.getMinTouchTarget(context),
-                minHeight: ResponsiveUtils.getMinTouchTarget(context),
+              constraints: const BoxConstraints(
+                minWidth: 48.0, // Material 3 minimum touch target
+                minHeight: 48.0,
               ),
             ),
           ],
@@ -1321,17 +2190,6 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
     final actualNewPosition =
         newPosition.isNegative ? Duration.zero : newPosition;
 
-    // Show bottom sheet with skip information
-    if (mounted) {
-      _showSkipBottomSheet(
-        context,
-        isRewind: true,
-        skipSeconds: rewindSeconds,
-        currentPosition: currentPosition,
-        newPosition: actualNewPosition,
-      );
-    }
-
     await ref.read(playerStateProvider.notifier).seek(actualNewPosition);
   }
 
@@ -1344,192 +2202,7 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
     final newPosition = currentPosition + Duration(seconds: forwardSeconds);
     final actualNewPosition = newPosition > duration ? duration : newPosition;
 
-    // Show bottom sheet with skip information
-    if (mounted) {
-      _showSkipBottomSheet(
-        context,
-        isRewind: false,
-        skipSeconds: forwardSeconds,
-        currentPosition: currentPosition,
-        newPosition: actualNewPosition,
-      );
-    }
-
     await ref.read(playerStateProvider.notifier).seek(actualNewPosition);
-  }
-
-  /// Shows bottom sheet with skip information.
-  void _showSkipBottomSheet(
-    BuildContext context, {
-    required bool isRewind,
-    required int skipSeconds,
-    required Duration currentPosition,
-    required Duration newPosition,
-  }) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        decoration: BoxDecoration(
-          color: Theme.of(context).bottomSheetTheme.backgroundColor ??
-              Theme.of(context).scaffoldBackgroundColor,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Handle bar
-            Container(
-              width: 40,
-              height: 4,
-              margin: const EdgeInsets.only(bottom: 20),
-              decoration: BoxDecoration(
-                color: Theme.of(context).dividerColor,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            // Icon and direction
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  isRewind ? Icons.replay_10 : Icons.forward_30,
-                  size: 32,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  isRewind
-                      ? (AppLocalizations.of(context)?.rewind ?? 'Rewind')
-                      : (AppLocalizations.of(context)?.forward ?? 'Forward'),
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-            // Time information
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                // Current position
-                Column(
-                  children: [
-                    Text(
-                      AppLocalizations.of(context)?.currentPosition ??
-                          'Current',
-                      style: Theme.of(context).textTheme.labelMedium,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      _formatDuration(currentPosition),
-                      style:
-                          Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
-                    ),
-                  ],
-                ),
-                // Arrow
-                Icon(
-                  isRewind ? Icons.arrow_back : Icons.arrow_forward,
-                  size: 32,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-                // New position
-                Column(
-                  children: [
-                    Text(
-                      AppLocalizations.of(context)?.newPosition ?? 'New',
-                      style: Theme.of(context).textTheme.labelMedium,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      _formatDuration(newPosition),
-                      style:
-                          Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: Theme.of(context).colorScheme.primary,
-                              ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            // Skip duration
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color: Theme.of(context)
-                    .colorScheme
-                    .primary
-                    .withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                '${isRewind ? '-' : '+'}${skipSeconds}s',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.primary,
-                      fontWeight: FontWeight.bold,
-                    ),
-              ),
-            ),
-            const SizedBox(height: 8),
-          ],
-        ),
-      ),
-    );
-
-    // Auto-dismiss after 1.5 seconds
-    Future.delayed(const Duration(milliseconds: 1500), () {
-      if (context.mounted && Navigator.of(context).canPop()) {
-        Navigator.of(context).pop();
-      }
-    });
-  }
-
-  Widget _buildTrackList(PlayerStateModel state) {
-    final hasMultiFolder = widget.group.hasMultiFolderStructure;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Tracks (${widget.group.files.length})',
-          style: Theme.of(context).textTheme.titleMedium,
-        ),
-        const SizedBox(height: 8),
-        ListView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: widget.group.files.length,
-          itemBuilder: (context, index) {
-            final file = widget.group.files[index];
-            final isCurrent = index == state.currentIndex;
-            // Use display name with part prefix if multi-folder structure detected
-            final displayName = hasMultiFolder
-                ? file.getDisplayNameWithPart(widget.group.groupPath)
-                : file.displayName;
-            return ListTile(
-              leading: Icon(
-                isCurrent ? Icons.audiotrack : Icons.music_note,
-                color: isCurrent ? Theme.of(context).primaryColor : null,
-              ),
-              title: Text(
-                displayName,
-                style: TextStyle(
-                  fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
-                ),
-              ),
-              subtitle: Text(file.formattedSize),
-              onTap: () => _seekToTrack(index),
-            );
-          },
-        ),
-      ],
-    );
   }
 
   /// Builds a row with speed, repeat and sleep timer controls.
@@ -1561,7 +2234,7 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
                   else
                     const SizedBox(width: 20),
                   const SizedBox(width: 8),
-                  Text('${speed}x'),
+                  Text(AudioSettingsManager.formatPlaybackSpeed(speed)),
                 ],
               ),
             );
@@ -1595,7 +2268,8 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
         },
         child: Chip(
           avatar: const Icon(Icons.speed, size: 18),
-          label: Text('${state.playbackSpeed}x'),
+          label: Text(
+              AudioSettingsManager.formatPlaybackSpeed(state.playbackSpeed)),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         ),
       );
@@ -1629,26 +2303,32 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
   }
 
   String _getRepeatModeTooltip(RepeatMode mode) {
+    final localizations = AppLocalizations.of(context);
     switch (mode) {
       case RepeatMode.none:
-        return 'No repeat';
+        return localizations?.noRepeat ?? 'No repeat';
       case RepeatMode.track:
-        return 'Repeat track';
+        return localizations?.repeatTrack ?? 'Repeat track';
       case RepeatMode.playlist:
-        return 'Repeat playlist';
+        return localizations?.repeatPlaylist ?? 'Repeat playlist';
     }
   }
 
   Widget _buildSleepTimerControl() {
     final isActive = _sleepTimerService.isActive;
     final remainingSeconds = _sleepTimerService.remainingSeconds;
+    final localizations = AppLocalizations.of(context);
 
     if (isActive && remainingSeconds != null) {
+      final durationText = _formatDuration(Duration(seconds: remainingSeconds));
       return PopupMenuButton<Duration?>(
-        tooltip:
-            'Sleep timer: ${_formatDuration(Duration(seconds: remainingSeconds))}',
+        tooltip: localizations?.sleepTimerTooltip(durationText) ??
+            'Sleep timer: $durationText',
         onSelected: (duration) async {
+          debugPrint(
+              '🟡 [SLEEP_TIMER_UI] Cancel selected, duration: $duration');
           if (duration == null) {
+            debugPrint('🟢 [SLEEP_TIMER_UI] Cancelling timer...');
             await _sleepTimerService.cancelTimer();
             _stopSleepTimerUpdates();
             await ref
@@ -1656,20 +2336,36 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
                 .updateSavedStateSettings();
             if (mounted) {
               setState(() {});
+              debugPrint(
+                  '🟢 [SLEEP_TIMER_UI] Timer cancelled, UI updated. isActive: ${_sleepTimerService.isActive}');
             }
+          } else {
+            debugPrint(
+                '🔴 [SLEEP_TIMER_UI] Unexpected duration value: $duration');
           }
         },
-        itemBuilder: (context) {
-          final localizations = AppLocalizations.of(context);
-          return [
-            PopupMenuItem<Duration?>(
-              child: Text(localizations?.cancelTimerButton ?? 'Cancel timer'),
-            ),
-          ];
-        },
+        itemBuilder: (context) => [
+          PopupMenuItem<Duration?>(
+            onTap: () async {
+              // Also handle onTap as fallback
+              debugPrint('🟡 [SLEEP_TIMER_UI] Cancel tapped (onTap)');
+              await _sleepTimerService.cancelTimer();
+              _stopSleepTimerUpdates();
+              await ref
+                  .read(playerStateProvider.notifier)
+                  .updateSavedStateSettings();
+              if (mounted) {
+                setState(() {});
+                debugPrint(
+                    '🟢 [SLEEP_TIMER_UI] Timer cancelled via onTap, UI updated');
+              }
+            },
+            child: Text(localizations?.cancelTimerButton ?? 'Cancel timer'),
+          ),
+        ],
         child: Chip(
           avatar: const Icon(Icons.timer, size: 18),
-          label: Text(_formatDuration(Duration(seconds: remainingSeconds))),
+          label: Text(durationText),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           backgroundColor:
               Theme.of(context).primaryColor.withValues(alpha: 0.1),
@@ -1678,11 +2374,15 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
     }
 
     if (isActive && remainingSeconds == null) {
+      final endOfChapterText =
+          localizations?.endOfChapterLabel ?? 'End of chapter';
       return PopupMenuButton<Duration?>(
-        tooltip: AppLocalizations.of(context)?.atEndOfChapterLabel ??
-            'Sleep timer: At end of chapter',
+        tooltip: localizations?.atEndOfChapterLabel ?? 'At end of chapter',
         onSelected: (duration) async {
+          debugPrint(
+              '🟡 [SLEEP_TIMER_UI] Cancel selected, duration: $duration');
           if (duration == null) {
+            debugPrint('🟢 [SLEEP_TIMER_UI] Cancelling timer...');
             await _sleepTimerService.cancelTimer();
             _stopSleepTimerUpdates();
             await ref
@@ -1690,53 +2390,226 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
                 .updateSavedStateSettings();
             if (mounted) {
               setState(() {});
+              debugPrint(
+                  '🟢 [SLEEP_TIMER_UI] Timer cancelled, UI updated. isActive: ${_sleepTimerService.isActive}');
             }
+          } else {
+            debugPrint(
+                '🔴 [SLEEP_TIMER_UI] Unexpected duration value: $duration');
           }
         },
-        itemBuilder: (context) {
-          final localizations = AppLocalizations.of(context);
-          return [
-            PopupMenuItem<Duration?>(
-              child: Text(localizations?.cancelTimerButton ?? 'Cancel timer'),
+        itemBuilder: (context) => [
+          PopupMenuItem<Duration?>(
+            onTap: () async {
+              // Also handle onTap as fallback
+              debugPrint('🟡 [SLEEP_TIMER_UI] Cancel tapped (onTap)');
+              await _sleepTimerService.cancelTimer();
+              _stopSleepTimerUpdates();
+              await ref
+                  .read(playerStateProvider.notifier)
+                  .updateSavedStateSettings();
+              if (mounted) {
+                setState(() {});
+                debugPrint(
+                    '🟢 [SLEEP_TIMER_UI] Timer cancelled via onTap, UI updated');
+              }
+            },
+            child: Text(localizations?.cancelTimerButton ?? 'Cancel timer'),
+          ),
+        ],
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: MediaQuery.of(context).size.width * 0.3,
+          ),
+          child: Chip(
+            avatar: const Icon(Icons.timer, size: 18),
+            label: Text(
+              endOfChapterText,
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
             ),
-          ];
-        },
-        child: Chip(
-          avatar: const Icon(Icons.timer, size: 18),
-          label: Text(AppLocalizations.of(context)?.endOfChapterLabel ??
-              'End of chapter'),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          backgroundColor:
-              Theme.of(context).primaryColor.withValues(alpha: 0.1),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            backgroundColor:
+                Theme.of(context).primaryColor.withValues(alpha: 0.1),
+          ),
         ),
       );
     }
 
+    // Show selected duration even when timer is not active (like speed control)
+    final selectedDuration = _sleepTimerService.selectedDuration;
+    String displayText;
+    if (selectedDuration == null) {
+      displayText = localizations?.timerLabel ?? 'Timer';
+    } else if (selectedDuration == const Duration(seconds: -1)) {
+      displayText = localizations?.endOfChapterLabel ?? 'End of chapter';
+    } else {
+      // Format duration for display
+      if (selectedDuration.inHours > 0) {
+        displayText = localizations?.sleepTimerHour ?? '1 hour';
+      } else {
+        final minutes = selectedDuration.inMinutes;
+        displayText =
+            localizations?.sleepTimerMinutes(minutes) ?? '$minutes min.';
+      }
+    }
+
     return PopupMenuButton<Duration?>(
-      tooltip: 'Set sleep timer',
+      tooltip: localizations?.setSleepTimerTooltip ?? 'Set sleep timer',
       onSelected: (duration) async {
         if (duration == null) {
           await _sleepTimerService.cancelTimer();
         } else if (duration == const Duration(seconds: -1)) {
           // Special value for "at end of chapter"
-          await _sleepTimerService.startTimerAtEndOfChapter(() {
-            if (mounted) {
-              ref.read(playerStateProvider.notifier).pause();
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Sleep timer: Playback paused'),
-                ),
+          await _sleepTimerService.startTimerAtEndOfChapter(() async {
+            if (!mounted) return;
+
+            // CRITICAL: Check if player is initializing - if so, don't exit
+            try {
+              final isInitializing =
+                  await _playerLifecycleChannel.invokeMethod<bool>(
+                'isPlayerInitializing',
+              );
+              if (isInitializing ?? false) {
+                await _logger.log(
+                  level: 'warning',
+                  subsystem: 'player',
+                  message:
+                      'Sleep timer at end of chapter expired but player is initializing, ignoring exit request',
+                );
+                return;
+              }
+            } on Exception catch (e) {
+              await _logger.log(
+                level: 'warning',
+                subsystem: 'player',
+                message:
+                    'Failed to check player initialization state, proceeding with caution',
+                cause: e.toString(),
+              );
+            }
+
+            // Check if player is actually playing - don't exit if not playing
+            final currentState = ref.read(playerStateProvider);
+            if (currentState.playbackState == 0 || !currentState.isPlaying) {
+              await _logger.log(
+                level: 'info',
+                subsystem: 'player',
+                message:
+                    'Sleep timer at end of chapter expired but player is not playing, skipping exit',
+              );
+              return;
+            }
+
+            await _logger.log(
+              level: 'info',
+              subsystem: 'player',
+              message:
+                  'Sleep timer at end of chapter expired, stopping playback and exiting app',
+            );
+
+            // Stop playback
+            await ref.read(playerStateProvider.notifier).stop();
+
+            // Check mounted again after async operation
+            if (!mounted) return;
+
+            // Show notification about app exit
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(localizations?.sleepTimerAppWillExit ??
+                    'Sleep timer: App will exit'),
+                duration: const Duration(seconds: 2),
+              ),
+            );
+
+            // Stop service and exit app
+            try {
+              await ref.read(playerStateProvider.notifier).stopServiceAndExit();
+            } on Exception catch (e) {
+              // Log error but don't block UI
+              await _logger.log(
+                level: 'error',
+                subsystem: 'player',
+                message: 'Failed to stop service and exit',
+                cause: e.toString(),
               );
             }
           });
         } else {
-          await _sleepTimerService.startTimer(duration, () {
-            if (mounted) {
-              ref.read(playerStateProvider.notifier).pause();
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Sleep timer: Playback paused'),
-                ),
+          await _sleepTimerService.startTimer(duration, () async {
+            if (!mounted) return;
+
+            // CRITICAL: Check if player is initializing - if so, don't exit
+            // This prevents app exit during initialization which causes white screen
+            try {
+              final isInitializing =
+                  await _playerLifecycleChannel.invokeMethod<bool>(
+                'isPlayerInitializing',
+              );
+              if (isInitializing ?? false) {
+                await _logger.log(
+                  level: 'warning',
+                  subsystem: 'player',
+                  message:
+                      'Sleep timer expired but player is initializing, ignoring exit request',
+                );
+                return;
+              }
+            } on Exception catch (e) {
+              // If check fails, log but continue - better to be safe
+              await _logger.log(
+                level: 'warning',
+                subsystem: 'player',
+                message:
+                    'Failed to check player initialization state, proceeding with caution',
+                cause: e.toString(),
+              );
+            }
+
+            // Check if player is actually playing - don't exit if not playing
+            final currentState = ref.read(playerStateProvider);
+            if (currentState.playbackState == 0 || !currentState.isPlaying) {
+              await _logger.log(
+                level: 'info',
+                subsystem: 'player',
+                message:
+                    'Sleep timer expired but player is not playing, skipping exit',
+              );
+              return;
+            }
+
+            await _logger.log(
+              level: 'info',
+              subsystem: 'player',
+              message: 'Sleep timer expired, stopping playback and exiting app',
+            );
+
+            // Stop playback
+            await ref.read(playerStateProvider.notifier).stop();
+
+            // Check mounted again after async operation
+            if (!mounted) return;
+
+            // Show notification about app exit
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(localizations?.sleepTimerAppWillExit ??
+                    'Sleep timer: App will exit'),
+                duration: const Duration(seconds: 2),
+              ),
+            );
+
+            // Stop service and exit app
+            try {
+              await ref.read(playerStateProvider.notifier).stopServiceAndExit();
+            } on Exception catch (e) {
+              // Log error but don't block UI
+              await _logger.log(
+                level: 'error',
+                subsystem: 'player',
+                message: 'Failed to stop service and exit',
+                cause: e.toString(),
               );
             }
           });
@@ -1752,36 +2625,42 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
         }
       },
       itemBuilder: (context) => [
-        const PopupMenuItem<Duration?>(
-          value: Duration(minutes: 10),
-          child: Text('10 minutes'),
+        PopupMenuItem<Duration?>(
+          value: const Duration(minutes: 10),
+          child: Text(localizations?.sleepTimerMinutes(10) ?? '10 min.'),
         ),
-        const PopupMenuItem<Duration?>(
-          value: Duration(minutes: 15),
-          child: Text('15 minutes'),
+        PopupMenuItem<Duration?>(
+          value: const Duration(minutes: 15),
+          child: Text(localizations?.sleepTimerMinutes(15) ?? '15 min.'),
         ),
-        const PopupMenuItem<Duration?>(
-          value: Duration(minutes: 30),
-          child: Text('30 minutes'),
+        PopupMenuItem<Duration?>(
+          value: const Duration(minutes: 30),
+          child: Text(localizations?.sleepTimerMinutes(30) ?? '30 min.'),
         ),
-        const PopupMenuItem<Duration?>(
-          value: Duration(minutes: 45),
-          child: Text('45 minutes'),
+        PopupMenuItem<Duration?>(
+          value: const Duration(minutes: 45),
+          child: Text(localizations?.sleepTimerMinutes(45) ?? '45 min.'),
         ),
-        const PopupMenuItem<Duration?>(
-          value: Duration(hours: 1),
-          child: Text('1 hour'),
+        PopupMenuItem<Duration?>(
+          value: const Duration(hours: 1),
+          child: Text(localizations?.sleepTimerHour ?? '1 hour'),
         ),
         PopupMenuItem<Duration?>(
           value: const Duration(seconds: -1), // Special value
-          child: Text(AppLocalizations.of(context)?.atEndOfChapterLabel ??
-              'At end of chapter'),
+          child:
+              Text(localizations?.atEndOfChapterLabel ?? 'At end of chapter'),
         ),
       ],
-      child: const Chip(
-        avatar: Icon(Icons.timer_outlined, size: 18),
-        label: Text('Timer'),
-        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      child: Chip(
+        avatar: Icon(
+          isActive ? Icons.timer : Icons.timer_outlined,
+          size: 18,
+        ),
+        label: Text(displayText),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        backgroundColor: isActive
+            ? Theme.of(context).primaryColor.withValues(alpha: 0.1)
+            : null,
       ),
     );
   }
@@ -1809,6 +2688,18 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
 
   @override
   void dispose() {
+    // CRITICAL: Clear player initializing flag on dispose
+    // This ensures flag is reset if screen is disposed during initialization
+    try {
+      _playerLifecycleChannel.invokeMethod<bool>(
+        'setPlayerInitializing',
+        {'isInitializing': false},
+      );
+    } on Exception catch (e) {
+      // Log but don't block - this is cleanup
+      debugPrint('Failed to clear player initializing flag on dispose: $e');
+    }
+
     _stopSleepTimerUpdates();
     _sleepTimerService.dispose();
     super.dispose();

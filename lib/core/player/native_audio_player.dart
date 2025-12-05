@@ -15,8 +15,8 @@
 import 'dart:async';
 
 import 'package:flutter/services.dart';
-import 'package:jabook/core/errors/failures.dart';
-import 'package:jabook/core/logging/structured_logger.dart';
+import 'package:jabook/core/infrastructure/errors/failures.dart';
+import 'package:jabook/core/infrastructure/logging/structured_logger.dart';
 
 /// Native audio player state.
 class AudioPlayerState {
@@ -277,12 +277,15 @@ class NativeAudioPlayer {
   /// [filePaths] is a list of absolute file paths or HTTP(S) URLs to audio files.
   /// Supports both local files and network streaming.
   /// [metadata] is optional metadata (title, artist, album, artworkUri).
+  /// [initialTrackIndex] is optional track index to load first (for saved position optimization).
+  /// If provided, only this track is loaded synchronously, others load asynchronously.
   ///
   /// Throws [AudioFailure] if setting playlist fails.
   /// Uses retry logic for SERVICE_UNAVAILABLE errors.
   Future<void> setPlaylist(
     List<String> filePaths, {
     Map<String, String>? metadata,
+    int? initialTrackIndex,
   }) async {
     if (!_isInitialized) {
       await initialize();
@@ -293,7 +296,10 @@ class NativeAudioPlayer {
         level: 'info',
         subsystem: 'audio',
         message: 'Setting playlist',
-        extra: {'file_count': filePaths.length},
+        extra: {
+          'file_count': filePaths.length,
+          'initial_track_index': initialTrackIndex,
+        },
       );
 
       // Use retry mechanism for setPlaylist
@@ -302,6 +308,7 @@ class NativeAudioPlayer {
         arguments: {
           'filePaths': filePaths,
           'metadata': metadata,
+          if (initialTrackIndex != null) 'initialTrackIndex': initialTrackIndex,
         },
         maxRetries: 2, // Fewer retries for setPlaylist
       ).timeout(
@@ -502,6 +509,172 @@ class NativeAudioPlayer {
       );
     } on Exception catch (e) {
       throw AudioFailure('Failed to update skip durations: ${e.toString()}');
+    }
+  }
+
+  /// Sets the inactivity timeout in minutes.
+  ///
+  /// [minutes] is the timeout in minutes (10-180).
+  ///
+  /// Throws [AudioFailure] if setting fails.
+  Future<void> setInactivityTimeoutMinutes(int minutes) async {
+    try {
+      await _channel.invokeMethod(
+        'setInactivityTimeoutMinutes',
+        {'minutes': minutes},
+      );
+    } on PlatformException catch (e) {
+      throw AudioFailure(
+        'Failed to set inactivity timeout: ${e.message ?? e.code}',
+      );
+    } on Exception catch (e) {
+      throw AudioFailure('Failed to set inactivity timeout: ${e.toString()}');
+    }
+  }
+
+  /// Sets sleep timer with specified duration in minutes.
+  ///
+  /// [minutes] is the timer duration in minutes.
+  ///
+  /// Throws [AudioFailure] if setting fails.
+  Future<void> setSleepTimerMinutes(int minutes) async {
+    try {
+      await _channel.invokeMethod(
+        'setSleepTimerMinutes',
+        {'minutes': minutes},
+      );
+    } on PlatformException catch (e) {
+      throw AudioFailure(
+        'Failed to set sleep timer: ${e.message ?? e.code}',
+      );
+    } on Exception catch (e) {
+      throw AudioFailure('Failed to set sleep timer: ${e.toString()}');
+    }
+  }
+
+  /// Sets sleep timer to expire at end of current chapter.
+  ///
+  /// Throws [AudioFailure] if setting fails.
+  Future<void> setSleepTimerEndOfChapter() async {
+    try {
+      await _channel.invokeMethod('setSleepTimerEndOfChapter');
+    } on PlatformException catch (e) {
+      throw AudioFailure(
+        'Failed to set sleep timer end of chapter: ${e.message ?? e.code}',
+      );
+    } on Exception catch (e) {
+      throw AudioFailure(
+        'Failed to set sleep timer end of chapter: ${e.toString()}',
+      );
+    }
+  }
+
+  /// Cancels active sleep timer.
+  ///
+  /// Throws [AudioFailure] if cancellation fails.
+  Future<void> cancelSleepTimer() async {
+    try {
+      await _channel.invokeMethod('cancelSleepTimer');
+    } on PlatformException catch (e) {
+      throw AudioFailure(
+        'Failed to cancel sleep timer: ${e.message ?? e.code}',
+      );
+    } on Exception catch (e) {
+      throw AudioFailure('Failed to cancel sleep timer: ${e.toString()}');
+    }
+  }
+
+  /// Gets remaining seconds for sleep timer.
+  ///
+  /// Returns remaining seconds, or null if timer is not active or set to "end of chapter".
+  Future<int?> getSleepTimerRemainingSeconds() async {
+    try {
+      final remaining = await _channel.invokeMethod<int>(
+        'getSleepTimerRemainingSeconds',
+      );
+      return remaining;
+    } on PlatformException catch (e) {
+      await _logger.log(
+        level: 'warning',
+        subsystem: 'audio',
+        message: 'Failed to get sleep timer remaining seconds',
+        cause: e.toString(),
+        extra: {'code': e.code, 'message': e.message},
+      );
+      return null;
+    } on Exception catch (e) {
+      await _logger.log(
+        level: 'warning',
+        subsystem: 'audio',
+        message: 'Failed to get sleep timer remaining seconds',
+        cause: e.toString(),
+      );
+      return null;
+    }
+  }
+
+  /// Checks if sleep timer is active.
+  ///
+  /// Returns true if timer is active (either fixed duration or end of chapter).
+  Future<bool> isSleepTimerActive() async {
+    try {
+      final isActive = await _channel.invokeMethod<bool>('isSleepTimerActive');
+      return isActive ?? false;
+    } on PlatformException catch (e) {
+      await _logger.log(
+        level: 'warning',
+        subsystem: 'audio',
+        message: 'Failed to check sleep timer active state',
+        cause: e.toString(),
+        extra: {'code': e.code, 'message': e.message},
+      );
+      return false;
+    } on Exception catch (e) {
+      await _logger.log(
+        level: 'warning',
+        subsystem: 'audio',
+        message: 'Failed to check sleep timer active state',
+        cause: e.toString(),
+      );
+      return false;
+    }
+  }
+
+  /// Configures audio processing settings.
+  ///
+  /// [normalizeVolume] enables volume normalization (default: true).
+  /// [volumeBoostLevel] is the volume boost level: 'Off', 'Boost50', 'Boost100', 'Boost200', 'Auto' (default: 'Off').
+  /// [drcLevel] is the dynamic range compression level: 'Off', 'Gentle', 'Medium', 'Strong' (default: 'Off').
+  /// [speechEnhancer] enables speech enhancement (default: false).
+  /// [autoVolumeLeveling] enables automatic volume leveling (default: false).
+  ///
+  /// Throws [AudioFailure] if configuration fails.
+  Future<void> configureAudioProcessing({
+    bool normalizeVolume = true,
+    String volumeBoostLevel = 'Off',
+    String drcLevel = 'Off',
+    bool speechEnhancer = false,
+    bool autoVolumeLeveling = false,
+  }) async {
+    try {
+      await _channel.invokeMethod(
+        'configureAudioProcessing',
+        {
+          'normalizeVolume': normalizeVolume,
+          'volumeBoostLevel': volumeBoostLevel,
+          'drcLevel': drcLevel,
+          'speechEnhancer': speechEnhancer,
+          'autoVolumeLeveling': autoVolumeLeveling,
+        },
+      );
+    } on PlatformException catch (e) {
+      throw AudioFailure(
+        'Failed to configure audio processing: ${e.message ?? e.code}',
+      );
+    } on Exception catch (e) {
+      throw AudioFailure(
+        'Failed to configure audio processing: ${e.toString()}',
+      );
     }
   }
 
@@ -733,6 +906,47 @@ class NativeAudioPlayer {
         }
       },
     );
+  }
+
+  /// Stops the audio service and exits the app.
+  ///
+  /// This method is used when sleep timer expires to completely stop
+  /// the app and free device resources.
+  ///
+  /// Throws [AudioFailure] if stopping fails.
+  Future<void> stopServiceAndExit() async {
+    try {
+      await _logger.log(
+        level: 'info',
+        subsystem: 'audio',
+        message: 'Stopping service and exiting app',
+      );
+      await _channel.invokeMethod('stopServiceAndExit');
+      await _logger.log(
+        level: 'info',
+        subsystem: 'audio',
+        message: 'Service stop and exit request sent',
+      );
+    } on PlatformException catch (e) {
+      await _logger.log(
+        level: 'error',
+        subsystem: 'audio',
+        message: 'Platform error stopping service and exiting',
+        cause: e.toString(),
+        extra: {'code': e.code, 'message': e.message},
+      );
+      throw AudioFailure(
+        'Failed to stop service and exit: ${e.message ?? e.code}',
+      );
+    } on Exception catch (e) {
+      await _logger.log(
+        level: 'error',
+        subsystem: 'audio',
+        message: 'Exception stopping service and exiting',
+        cause: e.toString(),
+      );
+      throw AudioFailure('Failed to stop service and exit: ${e.toString()}');
+    }
   }
 
   /// Disposes resources and stops the native player.

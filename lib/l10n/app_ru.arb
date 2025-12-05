@@ -386,6 +386,22 @@
   "@chaptersLabel": {
     "description": "Метка для глав"
   },
+  "searchChaptersHint": "Поиск по номеру или названию...",
+  "@searchChaptersHint": {
+    "description": "Подсказка для поля поиска глав"
+  },
+  "allFilter": "Все",
+  "@allFilter": {
+    "description": "Фильтр для показа всех глав"
+  },
+  "currentFilter": "Текущая",
+  "@currentFilter": {
+    "description": "Фильтр для показа текущей главы"
+  },
+  "noChaptersFoundInSearch": "Главы не найдены",
+  "@noChaptersFoundInSearch": {
+    "description": "Сообщение когда главы не найдены при поиске/фильтрации"
+  },
   "downloadFunctionalityComingSoon": "Функция загрузки скоро появится",
   "@downloadFunctionalityComingSoon": {
     "description": "Сообщение о предстоящей функции загрузки"
@@ -449,6 +465,46 @@
   "audioDescription": "Настройки аудио",
   "@audioDescription": {
     "description": "Описание настройки аудио"
+  },
+  "audioEnhancementTitle": "Улучшение звука",
+  "@audioEnhancementTitle": {
+    "description": "Заголовок настроек улучшения звука"
+  },
+  "audioEnhancementDescription": "Улучшение качества звука и стабильности громкости",
+  "@audioEnhancementDescription": {
+    "description": "Описание настроек улучшения звука"
+  },
+  "normalizeVolumeTitle": "Нормализация громкости",
+  "@normalizeVolumeTitle": {
+    "description": "Заголовок настройки нормализации громкости"
+  },
+  "normalizeVolumeDescription": "Поддержание стабильной громкости для разных аудиокниг",
+  "@normalizeVolumeDescription": {
+    "description": "Описание настройки нормализации громкости"
+  },
+  "volumeBoostTitle": "Усиление громкости",
+  "@volumeBoostTitle": {
+    "description": "Заголовок настройки усиления громкости"
+  },
+  "drcLevelTitle": "Компрессия динамического диапазона",
+  "@drcLevelTitle": {
+    "description": "Заголовок настройки уровня компрессии"
+  },
+  "speechEnhancerTitle": "Улучшение речи",
+  "@speechEnhancerTitle": {
+    "description": "Заголовок настройки улучшения речи"
+  },
+  "speechEnhancerDescription": "Улучшение четкости речи и уменьшение шипящих звуков",
+  "@speechEnhancerDescription": {
+    "description": "Описание настройки улучшения речи"
+  },
+  "autoVolumeLevelingTitle": "Автоматическое выравнивание громкости",
+  "@autoVolumeLevelingTitle": {
+    "description": "Заголовок настройки автоматического выравнивания громкости"
+  },
+  "autoVolumeLevelingDescription": "Автоматическая регулировка громкости для поддержания стабильного уровня",
+  "@autoVolumeLevelingDescription": {
+    "description": "Описание настройки автоматического выравнивания громкости"
   },
   "playbackSpeed": "Скорость воспроизведения",
   "@playbackSpeed": {
@@ -965,6 +1021,16 @@
   "sampleChapter2Text": "Глава 2",
   "@sampleChapter2Text": {
     "description": "Пример названия главы 2"
+  },
+  "chapterNumber": "Глава {number}",
+  "@chapterNumber": {
+    "description": "Chapter number label with number parameter",
+    "placeholders": {
+      "number": {
+        "type": "int",
+        "example": "1"
+      }
+    }
   },
   "topicScreenTitle": "Топик",
   "@topicScreenTitle": {
@@ -1764,6 +1830,26 @@
   "safFallbackMessage": "Разрешения на доступ к файлам не работают должным образом на вашем устройстве. Вы можете использовать Storage Access Framework (SAF) для выбора папок вручную. Этот метод работает без специальных разрешений.",
   "@safFallbackMessage": {
     "description": "Сообщение диалога SAF fallback"
+  },
+  "safPermissionCheckboxMessage": "Пожалуйста, отметьте чекбокс 'Разрешить доступ к этой папке' в диалоге выбора папки и попробуйте снова. Без этого чекбокса приложение не сможет получить доступ к выбранной папке.",
+  "@safPermissionCheckboxMessage": {
+    "description": "Сообщение, когда пользователь не отметил чекбокс разрешения в диалоге выбора папки SAF"
+  },
+  "safNoAccessMessage": "Нет доступа к выбранной папке. Пожалуйста, отметьте чекбокс 'Разрешить доступ к этой папке' в диалоге выбора папки и попробуйте снова.",
+  "@safNoAccessMessage": {
+    "description": "Сообщение, когда проверка доступа к папке не удалась после выбора"
+  },
+  "safFolderPickerHintTitle": "Важно: Отметьте чекбокс",
+  "@safFolderPickerHintTitle": {
+    "description": "Заголовок для диалога-подсказки перед выбором папки"
+  },
+  "safFolderPickerHintMessage": "При выборе папки обязательно отметьте чекбокс 'Разрешить доступ к этой папке' в диалоге выбора папки. Без этого чекбокса приложение не сможет получить доступ к выбранной папке.",
+  "@safFolderPickerHintMessage": {
+    "description": "Сообщение для диалога-подсказки перед выбором папки"
+  },
+  "safAndroidDataObbWarning": "Примечание: Доступ к папкам Android/data и Android/obb заблокирован на устройствах Android 11+ с обновлениями безопасности от марта 2024 года. Пожалуйста, выберите другую папку.",
+  "@safAndroidDataObbWarning": {
+    "description": "Предупреждение о заблокированных папках Android/data и Android/obb"
   },
   "safFallbackBenefits": "Преимущества использования SAF:\n• Работает на всех Android устройствах\n• Не требует специальных разрешений\n• Вы выбираете, к каким папкам предоставить доступ",
   "@safFallbackBenefits": {
@@ -2747,6 +2833,37 @@
   "@atEndOfChapterLabel": {
     "description": "Метка для конца главы"
   },
+  "sleepTimerTooltip": "Таймер сна: {duration}",
+  "@sleepTimerTooltip": {
+    "description": "Подсказка для таймера сна с указанием времени",
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "setSleepTimerTooltip": "Установить таймер сна",
+  "@setSleepTimerTooltip": {
+    "description": "Подсказка для установки таймера сна"
+  },
+  "sleepTimerMinutes": "{minutes} мин.",
+  "@sleepTimerMinutes": {
+    "description": "Время таймера в минутах",
+    "placeholders": {
+      "minutes": {
+        "type": "int",
+        "format": "compact"
+      }
+    }
+  },
+  "sleepTimerHour": "1 ч.",
+  "@sleepTimerHour": {
+    "description": "Время таймера - 1 час"
+  },
+  "sleepTimerAppWillExit": "Таймер сна: Приложение закроется",
+  "@sleepTimerAppWillExit": {
+    "description": "Сообщение о том, что приложение закроется по таймеру"
+  },
   "itemsInTrashLabel": "Элементы в корзине",
   "@itemsInTrashLabel": {
     "description": "Метка для элементов в корзине"
@@ -3031,7 +3148,7 @@
   "@fileAccessPermissionTitle": {
     "description": "Заголовок разрешения доступа к файлам"
   },
-  "fileAccessPermissionDescription": "Нужен для сохранения и воспроизведения аудиокниг.",
+  "fileAccessPermissionDescription": "Нужен для сохранения и воспроизведения аудиокниг. На Android 11+ потребуется включить \"Доступ ко всем файлам\" в настройках системы.",
   "@fileAccessPermissionDescription": {
     "description": "Описание разрешения доступа к файлам"
   },
@@ -3112,6 +3229,119 @@
         "type": "int"
       }
     }
+  },
+  "accessRequired": "Требуется доступ",
+  "@accessRequired": {
+    "description": "Title for access required dialog"
+  },
+  "featureRequiresAuth": "Функция \"{feature}\" требует авторизации",
+  "@featureRequiresAuth": {
+    "description": "Message when feature requires authentication",
+    "placeholders": {
+      "feature": {
+        "type": "String"
+      }
+    }
+  },
+  "signInToAccessFeature": "Войдите в аккаунт, чтобы получить доступ к этой функции",
+  "@signInToAccessFeature": {
+    "description": "Message to sign in for feature access"
+  },
+  "upgradeToFull": "Полный доступ",
+  "@upgradeToFull": {
+    "description": "Button text for upgrading to full access"
+  },
+  "restrictedFeature": "Ограниченная функция",
+  "@restrictedFeature": {
+    "description": "Title for restricted feature screen"
+  },
+  "featureRestricted": "Эта функция недоступна в демо-режиме",
+  "@featureRestricted": {
+    "description": "Message when feature is restricted in demo mode"
+  },
+  "featureRestrictedDescription": "Для доступа к этой функции необходимо войти в аккаунт",
+  "@featureRestrictedDescription": {
+    "description": "Description for restricted feature"
+  },
+  "signInToUnlock": "Войти, чтобы разблокировать",
+  "@signInToUnlock": {
+    "description": "Button text to sign in and unlock"
+  },
+  "searchGuestModeWarning": "Поиск ограничен в гостевом режиме. Некоторые функции могут не работать. Войдите для полного доступа.",
+  "@searchGuestModeWarning": {
+    "description": "Предупреждающее сообщение, показываемое на экране поиска в гостевом режиме"
+  },
+  "downloadsGuestModeWarning": "Загрузки доступны только для просмотра в гостевом режиме. Войдите для управления загрузками.",
+  "@downloadsGuestModeWarning": {
+    "description": "Предупреждающее сообщение, показываемое на экране загрузок в гостевом режиме"
+  },
+  "continueAsGuest": "Продолжить как гость",
+  "@continueAsGuest": {
+    "description": "Button text to continue as guest"
+  },
+  "sessionExpired": "Сессия истекла",
+  "@sessionExpired": {
+    "description": "Title for session expired dialog"
+  },
+  "signInAgain": "Войти снова",
+  "@signInAgain": {
+    "description": "Button text to sign in again"
+  },
+  "authorizationRequired": "Требуется авторизация",
+  "@authorizationRequired": {
+    "description": "Title for authorization required"
+  },
+  "demoMode": "Демо-режим",
+  "@demoMode": {
+    "description": "Demo mode label"
+  },
+  "demoModeDescription": "Вы используете демо-режим с ограниченной функциональностью",
+  "@demoModeDescription": {
+    "description": "Description for demo mode"
+  },
+  "upgradeToFullAccess": "Получить полный доступ",
+  "@upgradeToFullAccess": {
+    "description": "Button text to upgrade to full access"
+  },
+  "searchRestricted": "Поиск недоступен в демо-режиме",
+  "@searchRestricted": {
+    "description": "Message when search is restricted in demo mode"
+  },
+  "downloadRestricted": "Загрузки недоступны в демо-режиме",
+  "@downloadRestricted": {
+    "description": "Message when downloads are restricted in demo mode"
+  },
+  "browseRestricted": "Просмотр топиков недоступен в демо-режиме",
+  "@browseRestricted": {
+    "description": "Message when browsing topics is restricted in demo mode"
+  },
+  "account": "Аккаунт",
+  "@account": {
+    "description": "Account label"
+  },
+  "signIn": "Войти",
+  "@signIn": {
+    "description": "Sign in button text"
+  },
+  "signOut": "Выйти",
+  "@signOut": {
+    "description": "Sign out button text"
+  },
+  "compactPlayerLayout": "Компактный плеер",
+  "@compactPlayerLayout": {
+    "description": "Compact player layout option"
+  },
+  "standardPlayerLayout": "Стандартный плеер",
+  "@standardPlayerLayout": {
+    "description": "Standard player layout option"
+  },
+  "adaptiveNavigation": "Адаптивная навигация",
+  "@adaptiveNavigation": {
+    "description": "Adaptive navigation option"
+  },
+  "smallScreenOptimizations": "Оптимизации для маленьких экранов",
+  "@smallScreenOptimizations": {
+    "description": "Small screen optimizations option"
   },
   "failedToStartStreamServer": "Не удалось запустить сервер потоковой передачи: {error}",
   "@failedToStartStreamServer": {
@@ -3832,6 +4062,18 @@
   "@forwardDurationTitle": {
     "description": "Заголовок настройки длительности перемотки вперед"
   },
+  "inactivityTimeoutTitle": "Таймаут неактивности",
+  "@inactivityTimeoutTitle": {
+    "description": "Заголовок настройки таймаута неактивности"
+  },
+  "inactivityTimeoutLabel": "Установить таймаут неактивности",
+  "@inactivityTimeoutLabel": {
+    "description": "Метка для настройки таймаута неактивности"
+  },
+  "minute": "минута",
+  "@minute": {
+    "description": "Единственное число слова минута"
+  },
   "rewind": "Назад",
   "@rewind": {
     "description": "Метка для действия перемотки назад"
@@ -4000,5 +4242,338 @@
   "scanningLibrary": "Сканирование библиотеки...",
   "@scanningLibrary": {
     "description": "Сообщение, показываемое при сканировании библиотеки аудиокниг"
+  },
+  "manufacturerSettingsNotAvailable": "Настройки недоступны",
+  "@manufacturerSettingsNotAvailable": {
+    "description": "Заголовок когда настройки производителя недоступны"
+  },
+  "manufacturerSettingsNotAvailableMessage": "Настройки производителя доступны только на устройствах Android.",
+  "@manufacturerSettingsNotAvailableMessage": {
+    "description": "Сообщение когда настройки производителя недоступны"
+  },
+  "manufacturerSettingsDefaultTitle": "Настройки для стабильной работы",
+  "@manufacturerSettingsDefaultTitle": {
+    "description": "Заголовок по умолчанию для инструкций настроек производителя"
+  },
+  "manufacturerSettingsDefaultMessage": "Для стабильной работы приложения необходимо настроить следующие параметры:",
+  "@manufacturerSettingsDefaultMessage": {
+    "description": "Сообщение по умолчанию для инструкций настроек производителя"
+  },
+  "manufacturerSettingsDefaultStep1": "1. Включите автозапуск приложения",
+  "@manufacturerSettingsDefaultStep1": {
+    "description": "Шаг 1 по умолчанию для настроек производителя"
+  },
+  "manufacturerSettingsDefaultStep2": "2. Отключите оптимизацию батареи для приложения",
+  "@manufacturerSettingsDefaultStep2": {
+    "description": "Шаг 2 по умолчанию для настроек производителя"
+  },
+  "manufacturerSettingsDefaultStep3": "3. Разрешите фоновую активность",
+  "@manufacturerSettingsDefaultStep3": {
+    "description": "Шаг 3 по умолчанию для настроек производителя"
+  },
+  "manufacturerSettingsMiuiTitle": "Настройки MIUI для стабильной работы",
+  "@manufacturerSettingsMiuiTitle": {
+    "description": "Заголовок для настроек производителя MIUI"
+  },
+  "manufacturerSettingsMiuiMessage": "На устройствах Xiaomi/Redmi/Poco необходимо настроить следующие параметры:",
+  "@manufacturerSettingsMiuiMessage": {
+    "description": "Сообщение для настроек производителя MIUI"
+  },
+  "manufacturerSettingsMiuiStep1": "1. Автозапуск: Настройки → Приложения → Управление разрешениями → Автозапуск → Включите для {appName}",
+  "@manufacturerSettingsMiuiStep1": {
+    "description": "Шаг 1 для настроек MIUI",
+    "placeholders": {
+      "appName": {
+        "type": "String"
+      }
+    }
+  },
+  "manufacturerSettingsMiuiStep2": "2. Оптимизация батареи: Настройки → Батарея → Оптимизация батареи → Выберите {appName} → Не оптимизировать",
+  "@manufacturerSettingsMiuiStep2": {
+    "description": "Шаг 2 для настроек MIUI",
+    "placeholders": {
+      "appName": {
+        "type": "String"
+      }
+    }
+  },
+  "manufacturerSettingsMiuiStep3": "3. Фоновая активность: Настройки → Приложения → {appName} → Батарея → Фоновая активность → Разрешить",
+  "@manufacturerSettingsMiuiStep3": {
+    "description": "Шаг 3 для настроек MIUI",
+    "placeholders": {
+      "appName": {
+        "type": "String"
+      }
+    }
+  },
+  "manufacturerSettingsEmuiTitle": "Настройки EMUI для стабильной работы",
+  "@manufacturerSettingsEmuiTitle": {
+    "description": "Заголовок для настроек производителя EMUI"
+  },
+  "manufacturerSettingsEmuiMessage": "На устройствах Huawei/Honor необходимо настроить следующие параметры:",
+  "@manufacturerSettingsEmuiMessage": {
+    "description": "Сообщение для настроек производителя EMUI"
+  },
+  "manufacturerSettingsEmuiStep1": "1. Защита приложений: Настройки → Приложения → Защита приложений → {appName} → Включите автозапуск",
+  "@manufacturerSettingsEmuiStep1": {
+    "description": "Шаг 1 для настроек EMUI",
+    "placeholders": {
+      "appName": {
+        "type": "String"
+      }
+    }
+  },
+  "manufacturerSettingsEmuiStep2": "2. Управление батареей: Настройки → Батарея → Управление батареей → {appName} → Не оптимизировать",
+  "@manufacturerSettingsEmuiStep2": {
+    "description": "Шаг 2 для настроек EMUI",
+    "placeholders": {
+      "appName": {
+        "type": "String"
+      }
+    }
+  },
+  "manufacturerSettingsEmuiStep3": "3. Фоновая активность: Настройки → Приложения → {appName} → Батарея → Разрешить фоновую активность",
+  "@manufacturerSettingsEmuiStep3": {
+    "description": "Шаг 3 для настроек EMUI",
+    "placeholders": {
+      "appName": {
+        "type": "String"
+      }
+    }
+  },
+  "manufacturerSettingsColorosTitle": "Настройки ColorOS/RealmeUI для стабильной работы",
+  "@manufacturerSettingsColorosTitle": {
+    "description": "Заголовок для настроек производителя ColorOS/RealmeUI"
+  },
+  "manufacturerSettingsColorosMessage": "На устройствах Oppo/Realme необходимо настроить следующие параметры:",
+  "@manufacturerSettingsColorosMessage": {
+    "description": "Сообщение для настроек производителя ColorOS/RealmeUI"
+  },
+  "manufacturerSettingsColorosStep1": "1. Автозапуск: Настройки → Приложения → Автозапуск → Включите для {appName}",
+  "@manufacturerSettingsColorosStep1": {
+    "description": "Шаг 1 для настроек ColorOS/RealmeUI",
+    "placeholders": {
+      "appName": {
+        "type": "String"
+      }
+    }
+  },
+  "manufacturerSettingsColorosStep2": "2. Оптимизация батареи: Настройки → Батарея → Оптимизация батареи → {appName} → Не оптимизировать",
+  "@manufacturerSettingsColorosStep2": {
+    "description": "Шаг 2 для настроек ColorOS/RealmeUI",
+    "placeholders": {
+      "appName": {
+        "type": "String"
+      }
+    }
+  },
+  "manufacturerSettingsColorosStep3": "3. Фоновая активность: Настройки → Приложения → {appName} → Батарея → Разрешить фоновую активность",
+  "@manufacturerSettingsColorosStep3": {
+    "description": "Шаг 3 для настроек ColorOS/RealmeUI",
+    "placeholders": {
+      "appName": {
+        "type": "String"
+      }
+    }
+  },
+  "manufacturerSettingsOxygenosTitle": "Настройки OxygenOS для стабильной работы",
+  "@manufacturerSettingsOxygenosTitle": {
+    "description": "Заголовок для настроек производителя OxygenOS"
+  },
+  "manufacturerSettingsOxygenosMessage": "На устройствах OnePlus необходимо настроить следующие параметры:",
+  "@manufacturerSettingsOxygenosMessage": {
+    "description": "Сообщение для настроек производителя OxygenOS"
+  },
+  "manufacturerSettingsOxygenosStep1": "1. Автозапуск: Настройки → Приложения → Автозапуск → Включите для {appName}",
+  "@manufacturerSettingsOxygenosStep1": {
+    "description": "Шаг 1 для настроек OxygenOS",
+    "placeholders": {
+      "appName": {
+        "type": "String"
+      }
+    }
+  },
+  "manufacturerSettingsOxygenosStep2": "2. Оптимизация батареи: Настройки → Батарея → Оптимизация батареи → {appName} → Не оптимизировать",
+  "@manufacturerSettingsOxygenosStep2": {
+    "description": "Шаг 2 для настроек OxygenOS",
+    "placeholders": {
+      "appName": {
+        "type": "String"
+      }
+    }
+  },
+  "manufacturerSettingsOxygenosStep3": "3. Фоновая активность: Настройки → Приложения → {appName} → Батарея → Разрешить фоновую активность",
+  "@manufacturerSettingsOxygenosStep3": {
+    "description": "Шаг 3 для настроек OxygenOS",
+    "placeholders": {
+      "appName": {
+        "type": "String"
+      }
+    }
+  },
+  "manufacturerSettingsFuntouchosTitle": "Настройки FuntouchOS/OriginOS для стабильной работы",
+  "@manufacturerSettingsFuntouchosTitle": {
+    "description": "Заголовок для настроек производителя FuntouchOS/OriginOS"
+  },
+  "manufacturerSettingsFuntouchosMessage": "На устройствах Vivo необходимо настроить следующие параметры:",
+  "@manufacturerSettingsFuntouchosMessage": {
+    "description": "Сообщение для настроек производителя FuntouchOS/OriginOS"
+  },
+  "manufacturerSettingsFuntouchosStep1": "1. Автозапуск: Настройки → Приложения → Автозапуск → Включите для {appName}",
+  "@manufacturerSettingsFuntouchosStep1": {
+    "description": "Шаг 1 для настроек FuntouchOS/OriginOS",
+    "placeholders": {
+      "appName": {
+        "type": "String"
+      }
+    }
+  },
+  "manufacturerSettingsFuntouchosStep2": "2. Оптимизация батареи: Настройки → Батарея → Оптимизация батареи → {appName} → Не оптимизировать",
+  "@manufacturerSettingsFuntouchosStep2": {
+    "description": "Шаг 2 для настроек FuntouchOS/OriginOS",
+    "placeholders": {
+      "appName": {
+        "type": "String"
+      }
+    }
+  },
+  "manufacturerSettingsFuntouchosStep3": "3. Фоновая активность: Настройки → Приложения → {appName} → Батарея → Разрешить фоновую активность",
+  "@manufacturerSettingsFuntouchosStep3": {
+    "description": "Шаг 3 для настроек FuntouchOS/OriginOS",
+    "placeholders": {
+      "appName": {
+        "type": "String"
+      }
+    }
+  },
+  "manufacturerSettingsFlymeTitle": "Настройки Flyme для стабильной работы",
+  "@manufacturerSettingsFlymeTitle": {
+    "description": "Заголовок для настроек производителя Flyme"
+  },
+  "manufacturerSettingsFlymeMessage": "На устройствах Meizu необходимо настроить следующие параметры:",
+  "@manufacturerSettingsFlymeMessage": {
+    "description": "Сообщение для настроек производителя Flyme"
+  },
+  "manufacturerSettingsFlymeStep1": "1. Автозапуск: Настройки → Приложения → Автозапуск → Включите для {appName}",
+  "@manufacturerSettingsFlymeStep1": {
+    "description": "Шаг 1 для настроек Flyme",
+    "placeholders": {
+      "appName": {
+        "type": "String"
+      }
+    }
+  },
+  "manufacturerSettingsFlymeStep2": "2. Оптимизация батареи: Настройки → Батарея → Оптимизация батареи → {appName} → Не оптимизировать",
+  "@manufacturerSettingsFlymeStep2": {
+    "description": "Шаг 2 для настроек Flyme",
+    "placeholders": {
+      "appName": {
+        "type": "String"
+      }
+    }
+  },
+  "manufacturerSettingsFlymeStep3": "3. Фоновая активность: Настройки → Приложения → {appName} → Батарея → Разрешить фоновую активность",
+  "@manufacturerSettingsFlymeStep3": {
+    "description": "Шаг 3 для настроек Flyme",
+    "placeholders": {
+      "appName": {
+        "type": "String"
+      }
+    }
+  },
+  "manufacturerSettingsOneuiTitle": "Настройки One UI для стабильной работы",
+  "@manufacturerSettingsOneuiTitle": {
+    "description": "Заголовок для настроек производителя One UI"
+  },
+  "manufacturerSettingsOneuiMessage": "На устройствах Samsung рекомендуется настроить следующие параметры:",
+  "@manufacturerSettingsOneuiMessage": {
+    "description": "Сообщение для настроек производителя One UI"
+  },
+  "manufacturerSettingsOneuiStep1": "1. Оптимизация батареи: Настройки → Приложения → {appName} → Батарея → Не оптимизировать",
+  "@manufacturerSettingsOneuiStep1": {
+    "description": "Шаг 1 для настроек One UI",
+    "placeholders": {
+      "appName": {
+        "type": "String"
+      }
+    }
+  },
+  "manufacturerSettingsOneuiStep2": "2. Фоновая активность: Настройки → Приложения → {appName} → Батарея → Фоновая активность → Разрешить",
+  "@manufacturerSettingsOneuiStep2": {
+    "description": "Шаг 2 для настроек One UI",
+    "placeholders": {
+      "appName": {
+        "type": "String"
+      }
+    }
+  },
+  "manufacturerSettingsOneuiStep3": "3. Автозапуск: Обычно не требуется на Samsung, но можно проверить в настройках приложения",
+  "@manufacturerSettingsOneuiStep3": {
+    "description": "Шаг 3 для настроек One UI"
+  },
+  "trackOfTotal": "Трек {currentTrack} из {totalTracks}",
+  "@trackOfTotal": {
+    "description": "Индикатор позиции трека",
+    "placeholders": {
+      "currentTrack": {
+        "type": "int"
+      },
+      "totalTracks": {
+        "type": "int"
+      }
+    }
+  },
+  "tracksTitle": "{count, plural, =0{Нет треков} =1{Трек} other{Треки}}",
+  "@tracksTitle": {
+    "description": "Заголовок секции треков с множественным числом",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "noRepeat": "Без повтора",
+  "@noRepeat": {
+    "description": "Режим без повтора"
+  },
+  "repeatTrack": "Повторять трек",
+  "@repeatTrack": {
+    "description": "Режим повтора текущего трека"
+  },
+  "repeatPlaylist": "Повторять плейлист",
+  "@repeatPlaylist": {
+    "description": "Режим повтора всего плейлиста"
+  },
+  "timerLabel": "Таймер",
+  "@timerLabel": {
+    "description": "Метка таймера сна"
+  },
+  "speedLabel": "Скорость",
+  "@speedLabel": {
+    "description": "Метка скорости воспроизведения"
+  },
+  "rewindButton": "Назад",
+  "@rewindButton": {
+    "description": "Метка кнопки перемотки назад"
+  },
+  "forwardButton": "Вперёд",
+  "@forwardButton": {
+    "description": "Метка кнопки перемотки вперёд"
+  },
+  "playButton": "Воспроизвести",
+  "@playButton": {
+    "description": "Метка кнопки воспроизведения"
+  },
+  "pauseButton": "Пауза",
+  "@pauseButton": {
+    "description": "Метка кнопки паузы"
+  },
+  "nextButton": "Следующий",
+  "@nextButton": {
+    "description": "Метка кнопки следующего трека"
+  },
+  "previousButton": "Предыдущий",
+  "@previousButton": {
+    "description": "Метка кнопки предыдущего трека"
   }
 }

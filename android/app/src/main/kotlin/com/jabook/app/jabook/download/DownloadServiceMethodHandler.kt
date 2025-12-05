@@ -26,23 +26,27 @@ import io.flutter.plugin.common.MethodChannel
  * foreground service and update download progress.
  */
 class DownloadServiceMethodHandler(
-    private val context: Context
+    private val context: Context,
 ) : MethodChannel.MethodCallHandler {
-    
-    override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
+    override fun onMethodCall(
+        call: MethodCall,
+        result: MethodChannel.Result,
+    ) {
         try {
             when (call.method) {
                 "startService" -> {
-                    val intent = Intent(context, DownloadForegroundService::class.java).apply {
-                        action = DownloadForegroundService.ACTION_START
-                    }
+                    val intent =
+                        Intent(context, DownloadForegroundService::class.java).apply {
+                            action = DownloadForegroundService.ACTION_START
+                        }
                     context.startForegroundService(intent)
                     result.success(true)
                 }
                 "stopService" -> {
-                    val intent = Intent(context, DownloadForegroundService::class.java).apply {
-                        action = DownloadForegroundService.ACTION_STOP
-                    }
+                    val intent =
+                        Intent(context, DownloadForegroundService::class.java).apply {
+                            action = DownloadForegroundService.ACTION_STOP
+                        }
                     context.startService(intent)
                     result.success(true)
                 }
@@ -50,13 +54,14 @@ class DownloadServiceMethodHandler(
                     val title = call.argument<String>("title") ?: "Downloading..."
                     val progress = call.argument<Double>("progress") ?: 0.0
                     val speed = call.argument<String>("speed") ?: ""
-                    
-                    val intent = Intent(context, DownloadForegroundService::class.java).apply {
-                        action = DownloadForegroundService.ACTION_UPDATE_PROGRESS
-                        putExtra("title", title)
-                        putExtra("progress", progress)
-                        putExtra("speed", speed)
-                    }
+
+                    val intent =
+                        Intent(context, DownloadForegroundService::class.java).apply {
+                            action = DownloadForegroundService.ACTION_UPDATE_PROGRESS
+                            putExtra("title", title)
+                            putExtra("progress", progress)
+                            putExtra("speed", speed)
+                        }
                     context.startService(intent)
                     result.success(true)
                 }
@@ -68,4 +73,3 @@ class DownloadServiceMethodHandler(
         }
     }
 }
-

@@ -14,11 +14,12 @@
 
 import 'dart:async';
 
-import 'package:jabook/core/errors/failures.dart';
+import 'package:jabook/core/infrastructure/errors/failures.dart';
+import 'package:jabook/core/infrastructure/logging/structured_logger.dart';
 import 'package:jabook/core/library/playback_position_service.dart';
-import 'package:jabook/core/logging/structured_logger.dart';
 import 'package:jabook/core/player/native_audio_player.dart';
 import 'package:jabook/core/player/player_state_persistence_service.dart';
+import 'package:path/path.dart' as path;
 
 /// Service for managing Media3 audio player.
 ///
@@ -26,6 +27,15 @@ import 'package:jabook/core/player/player_state_persistence_service.dart';
 /// using Media3 ExoPlayer through NativeAudioPlayer. It handles state management,
 /// error handling, retry logic, and synchronization with position saving.
 class Media3PlayerService {
+  /// Creates a new Media3PlayerService instance.
+  ///
+  /// The [statePersistenceService] parameter is optional. If not provided,
+  /// a default instance without database support will be created.
+  Media3PlayerService({
+    PlayerStatePersistenceService? statePersistenceService,
+  }) : _statePersistenceService =
+            statePersistenceService ?? PlayerStatePersistenceService();
+
   /// Native audio player instance.
   final NativeAudioPlayer _player = NativeAudioPlayer();
 
@@ -33,8 +43,8 @@ class Media3PlayerService {
   final PlaybackPositionService _positionService = PlaybackPositionService();
 
   /// Player state persistence service for saving full state.
-  final PlayerStatePersistenceService _statePersistenceService =
-      PlayerStatePersistenceService();
+  /// Uses database for reliable storage with SharedPreferences fallback.
+  final PlayerStatePersistenceService _statePersistenceService;
 
   /// Logger for structured logging.
   final StructuredLogger _logger = StructuredLogger();
@@ -121,12 +131,15 @@ class Media3PlayerService {
   /// Supports both local files and network streaming.
   /// [metadata] is optional metadata (title, artist, album, artworkUri).
   /// [groupPath] is the unique path for saving playback positions.
+  /// [initialTrackIndex] is optional track index to load first (for saved position optimization).
+  /// If provided, only this track is loaded synchronously, others load asynchronously for fast startup.
   ///
   /// Throws [AudioFailure] if setting playlist fails.
   Future<void> setPlaylist(
     List<String> filePaths, {
     Map<String, String>? metadata,
     String? groupPath,
+    int? initialTrackIndex,
   }) async {
     if (!_isInitialized) {
       await initialize();
@@ -140,10 +153,15 @@ class Media3PlayerService {
         extra: {
           'file_count': filePaths.length,
           'group_path': groupPath,
+          'initial_track_index': initialTrackIndex,
         },
       );
 
-      await _player.setPlaylist(filePaths, metadata: metadata);
+      await _player.setPlaylist(
+        filePaths,
+        metadata: metadata,
+        initialTrackIndex: initialTrackIndex,
+      );
       _currentGroupPath = groupPath;
 
       // Start periodic position saving if group path is provided
@@ -217,6 +235,30 @@ class Media3PlayerService {
     }
   }
 
+  /// Stops the audio service and exits the app.
+  ///
+  /// This method is used when sleep timer expires to completely stop
+  /// the app and free device resources.
+  ///
+  /// Throws [AudioFailure] if stopping fails.
+  Future<void> stopServiceAndExit() async {
+    try {
+      await _logger.log(
+        level: 'info',
+        subsystem: 'audio',
+        message: 'Stopping service and exiting app (sleep timer)',
+      );
+      // Save current position before exiting
+      await _saveCurrentPosition();
+      // Stop service and exit via native method
+      await _player.stopServiceAndExit();
+    } on AudioFailure {
+      rethrow;
+    } on Exception catch (e) {
+      throw AudioFailure('Failed to stop service and exit: ${e.toString()}');
+    }
+  }
+
   /// Seeks to specific position.
   ///
   /// [position] is the position as Duration.
@@ -265,6 +307,54 @@ class Media3PlayerService {
       rethrow;
     } on Exception catch (e) {
       throw AudioFailure('Failed to update skip durations: ${e.toString()}');
+    }
+  }
+
+  /// Sets the inactivity timeout in minutes.
+  ///
+  /// [minutes] is the timeout in minutes (10-180).
+  ///
+  /// Throws [AudioFailure] if setting fails.
+  Future<void> setInactivityTimeoutMinutes(int minutes) async {
+    try {
+      await _player.setInactivityTimeoutMinutes(minutes);
+    } on AudioFailure {
+      rethrow;
+    } on Exception catch (e) {
+      throw AudioFailure('Failed to set inactivity timeout: ${e.toString()}');
+    }
+  }
+
+  /// Configures audio processing settings.
+  ///
+  /// [normalizeVolume] enables volume normalization (default: true).
+  /// [volumeBoostLevel] is the volume boost level: 'Off', 'Boost50', 'Boost100', 'Boost200', 'Auto' (default: 'Off').
+  /// [drcLevel] is the dynamic range compression level: 'Off', 'Gentle', 'Medium', 'Strong' (default: 'Off').
+  /// [speechEnhancer] enables speech enhancement (default: false).
+  /// [autoVolumeLeveling] enables automatic volume leveling (default: false).
+  ///
+  /// Throws [AudioFailure] if configuration fails.
+  Future<void> configureAudioProcessing({
+    bool normalizeVolume = true,
+    String volumeBoostLevel = 'Off',
+    String drcLevel = 'Off',
+    bool speechEnhancer = false,
+    bool autoVolumeLeveling = false,
+  }) async {
+    try {
+      await _player.configureAudioProcessing(
+        normalizeVolume: normalizeVolume,
+        volumeBoostLevel: volumeBoostLevel,
+        drcLevel: drcLevel,
+        speechEnhancer: speechEnhancer,
+        autoVolumeLeveling: autoVolumeLeveling,
+      );
+    } on AudioFailure {
+      rethrow;
+    } on Exception catch (e) {
+      throw AudioFailure(
+        'Failed to configure audio processing: ${e.toString()}',
+      );
     }
   }
 
@@ -347,6 +437,71 @@ class Media3PlayerService {
     }
   }
 
+  /// Gets information about current media item.
+  ///
+  /// Returns a map with current media item information, or empty map if no item.
+  /// Includes uri, title, artist, artworkPath, etc.
+  Future<Map<String, dynamic>> getCurrentMediaItemInfo() async {
+    try {
+      return await _player.getCurrentMediaItemInfo();
+    } on AudioFailure {
+      rethrow;
+    } on Exception catch (e) {
+      throw AudioFailure(
+        'Failed to get current media item info: ${e.toString()}',
+      );
+    }
+  }
+
+  /// Checks if a file is currently playing.
+  ///
+  /// [filePath] is the file path to check.
+  ///
+  /// Returns true if the file is currently playing, false otherwise.
+  Future<bool> isFilePlaying(String filePath) async {
+    try {
+      final state = await getState();
+      if (!state.isPlaying) {
+        return false;
+      }
+
+      final currentMediaItem = await getCurrentMediaItemInfo();
+      if (currentMediaItem.isEmpty) {
+        return false;
+      }
+
+      final currentUri = currentMediaItem['uri'] as String?;
+      if (currentUri == null) {
+        return false;
+      }
+
+      // Normalize paths for comparison
+      final normalizedFilePath = path.normalize(filePath);
+      // Remove file:// prefix if present
+      var normalizedCurrentUri = currentUri;
+      if (normalizedCurrentUri.startsWith('file://')) {
+        normalizedCurrentUri = normalizedCurrentUri.substring(7);
+      }
+      normalizedCurrentUri = path.normalize(normalizedCurrentUri);
+
+      // Check if the current playing file matches the file path
+      return normalizedFilePath == normalizedCurrentUri ||
+          currentUri.contains(filePath);
+    } on Exception catch (e) {
+      await _logger.log(
+        level: 'warning',
+        subsystem: 'audio',
+        message: 'Failed to check if file is playing',
+        extra: {
+          'filePath': filePath,
+          'error': e.toString(),
+        },
+      );
+      // If we can't check, assume file is not playing to allow deletion
+      return false;
+    }
+  }
+
   /// Updates metadata for current track.
   ///
   /// [metadata] is a map with title, artist, album, etc.
@@ -370,15 +525,17 @@ class Media3PlayerService {
   Future<Map<String, int>?> restorePosition(String groupPath) async =>
       _positionService.restorePosition(groupPath);
 
-  /// Starts periodic position saving with adaptive intervals.
+  /// Starts periodic position saving with improved frequency.
   ///
-  /// Inspired by lissen-android: saves more frequently near start/end of track
-  /// (every 5 seconds) and less frequently in the middle (every 30 seconds).
-  /// This balances between position accuracy and battery/performance.
+  /// Saves more frequently (every 5-10 seconds) to ensure accurate position
+  /// restoration. Uses adaptive intervals: more frequent near start/end of track
+  /// (every 5 seconds) and less frequent in the middle (every 10 seconds).
+  /// This improves position accuracy while maintaining reasonable performance.
   void _startPositionSaving() {
     _positionSaveTimer?.cancel();
 
     // Use adaptive interval based on position in track
+    // Check every 5 seconds for more frequent saves
     _positionSaveTimer = Timer.periodic(
       const Duration(seconds: 5), // Check every 5 seconds
       (_) => _saveCurrentPositionAdaptive(),
@@ -429,10 +586,10 @@ class Media3PlayerService {
 
       // Save if:
       // - Near start/end and 5+ seconds passed (frequent saves)
-      // - In middle and 30+ seconds passed (less frequent saves)
+      // - In middle and 10+ seconds passed (improved from 30s for better accuracy)
       final shouldSave = (isNearStart || isNearEnd)
           ? timeSinceLastSave.inSeconds >= 5
-          : timeSinceLastSave.inSeconds >= 30;
+          : timeSinceLastSave.inSeconds >= 10;
 
       if (shouldSave) {
         await _saveCurrentPosition();
@@ -495,22 +652,59 @@ class Media3PlayerService {
   }
 
   /// Updates full player state with current values.
+  ///
+  /// Validates state before saving to ensure integrity.
   Future<void> _updateFullState() async {
     if (_currentGroupPath == null) return;
 
     try {
-      final savedState = await _statePersistenceService.restoreState();
+      final savedState = await _statePersistenceService
+          .restoreStateForGroup(_currentGroupPath!);
       if (savedState == null || savedState.groupPath != _currentGroupPath) {
         return;
       }
 
       final state = await _player.getState();
+
+      // Validate position - ensure it doesn't exceed track duration
+      var validatedPosition = state.currentPosition;
+      if (state.duration > 0 && validatedPosition > state.duration) {
+        validatedPosition = state.duration;
+        await _logger.log(
+          level: 'warning',
+          subsystem: 'audio',
+          message: 'Position exceeded duration, correcting',
+          extra: {
+            'original_position': state.currentPosition,
+            'duration': state.duration,
+            'corrected_position': validatedPosition,
+          },
+        );
+      }
+
+      // Validate index - ensure it's within bounds
+      var validatedIndex = state.currentIndex;
+      if (savedState.filePaths.isNotEmpty &&
+          validatedIndex >= savedState.filePaths.length) {
+        validatedIndex = savedState.filePaths.length - 1;
+        await _logger.log(
+          level: 'warning',
+          subsystem: 'audio',
+          message: 'Index out of bounds, correcting',
+          extra: {
+            'original_index': state.currentIndex,
+            'playlist_length': savedState.filePaths.length,
+            'corrected_index': validatedIndex,
+          },
+        );
+      }
+
       final updatedState = SavedPlayerState(
         groupPath: savedState.groupPath,
         filePaths: savedState.filePaths,
         metadata: savedState.metadata,
-        currentIndex: state.currentIndex,
-        currentPosition: state.currentPosition,
+        currentIndex: validatedIndex,
+        currentPosition: validatedPosition,
         playbackSpeed: state.playbackSpeed,
         isPlaying: state.isPlaying,
         repeatMode: savedState.repeatMode,
@@ -524,12 +718,23 @@ class Media3PlayerService {
 
   /// Restores full player state.
   ///
-  /// Returns [SavedPlayerState] if available, null otherwise.
-  Future<SavedPlayerState?> restoreFullState() async =>
-      _statePersistenceService.restoreState();
+  /// The [groupPath] parameter is optional. If provided, restores state for
+  /// that specific group. Otherwise, tries to restore any saved state.
+  ///
+  /// Returns [SavedPlayerState] if available and valid, null otherwise.
+  Future<SavedPlayerState?> restoreFullState([String? groupPath]) async {
+    if (groupPath != null) {
+      return _statePersistenceService.restoreStateForGroup(groupPath);
+    }
+    return _statePersistenceService.restoreState();
+  }
 
   /// Clears saved player state.
-  Future<void> clearSavedState() async => _statePersistenceService.clearState();
+  ///
+  /// The [groupPath] parameter is optional. If provided, clears state for
+  /// that specific group. Otherwise, clears all saved state.
+  Future<void> clearSavedState([String? groupPath]) async =>
+      _statePersistenceService.clearState(groupPath);
 
   /// Updates saved state with repeat mode and sleep timer.
   ///

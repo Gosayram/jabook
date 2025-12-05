@@ -300,6 +300,18 @@ class AppLocalizationsRu extends AppLocalizations {
   String get chaptersLabel => 'Главы';
 
   @override
+  String get searchChaptersHint => 'Поиск по номеру или названию...';
+
+  @override
+  String get allFilter => 'Все';
+
+  @override
+  String get currentFilter => 'Текущая';
+
+  @override
+  String get noChaptersFoundInSearch => 'Главы не найдены';
+
+  @override
   String get downloadFunctionalityComingSoon => 'Функция загрузки скоро появится';
 
   @override
@@ -346,6 +358,36 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get audioDescription => 'Настройки аудио';
+
+  @override
+  String get audioEnhancementTitle => 'Улучшение звука';
+
+  @override
+  String get audioEnhancementDescription => 'Улучшение качества звука и стабильности громкости';
+
+  @override
+  String get normalizeVolumeTitle => 'Нормализация громкости';
+
+  @override
+  String get normalizeVolumeDescription => 'Поддержание стабильной громкости для разных аудиокниг';
+
+  @override
+  String get volumeBoostTitle => 'Усиление громкости';
+
+  @override
+  String get drcLevelTitle => 'Компрессия динамического диапазона';
+
+  @override
+  String get speechEnhancerTitle => 'Улучшение речи';
+
+  @override
+  String get speechEnhancerDescription => 'Улучшение четкости речи и уменьшение шипящих звуков';
+
+  @override
+  String get autoVolumeLevelingTitle => 'Автоматическое выравнивание громкости';
+
+  @override
+  String get autoVolumeLevelingDescription => 'Автоматическая регулировка громкости для поддержания стабильного уровня';
 
   @override
   String get playbackSpeed => 'Скорость воспроизведения';
@@ -720,6 +762,11 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get sampleChapter2Text => 'Глава 2';
+
+  @override
+  String chapterNumber(int number) {
+    return 'Глава $number';
+  }
 
   @override
   String get topicScreenTitle => 'Топик';
@@ -1269,6 +1316,21 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get safFallbackMessage => 'Разрешения на доступ к файлам не работают должным образом на вашем устройстве. Вы можете использовать Storage Access Framework (SAF) для выбора папок вручную. Этот метод работает без специальных разрешений.';
+
+  @override
+  String get safPermissionCheckboxMessage => 'Пожалуйста, отметьте чекбокс \'Разрешить доступ к этой папке\' в диалоге выбора папки и попробуйте снова. Без этого чекбокса приложение не сможет получить доступ к выбранной папке.';
+
+  @override
+  String get safNoAccessMessage => 'Нет доступа к выбранной папке. Пожалуйста, отметьте чекбокс \'Разрешить доступ к этой папке\' в диалоге выбора папки и попробуйте снова.';
+
+  @override
+  String get safFolderPickerHintTitle => 'Важно: Отметьте чекбокс';
+
+  @override
+  String get safFolderPickerHintMessage => 'При выборе папки обязательно отметьте чекбокс \'Разрешить доступ к этой папке\' в диалоге выбора папки. Без этого чекбокса приложение не сможет получить доступ к выбранной папке.';
+
+  @override
+  String get safAndroidDataObbWarning => 'Примечание: Доступ к папкам Android/data и Android/obb заблокирован на устройствах Android 11+ с обновлениями безопасности от марта 2024 года. Пожалуйста, выберите другую папку.';
 
   @override
   String get safFallbackBenefits => 'Преимущества использования SAF:\n• Работает на всех Android устройствах\n• Не требует специальных разрешений\n• Вы выбираете, к каким папкам предоставить доступ';
@@ -1965,6 +2027,31 @@ class AppLocalizationsRu extends AppLocalizations {
   String get atEndOfChapterLabel => 'В конце главы';
 
   @override
+  String sleepTimerTooltip(String duration) {
+    return 'Таймер сна: $duration';
+  }
+
+  @override
+  String get setSleepTimerTooltip => 'Установить таймер сна';
+
+  @override
+  String sleepTimerMinutes(int minutes) {
+    final intl.NumberFormat minutesNumberFormat = intl.NumberFormat.compact(
+      locale: localeName,
+      
+    );
+    final String minutesString = minutesNumberFormat.format(minutes);
+
+    return '$minutesString мин.';
+  }
+
+  @override
+  String get sleepTimerHour => '1 ч.';
+
+  @override
+  String get sleepTimerAppWillExit => 'Таймер сна: Приложение закроется';
+
+  @override
   String get itemsInTrashLabel => 'Элементы в корзине';
 
   @override
@@ -2150,7 +2237,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get fileAccessPermissionTitle => 'Доступ к файлам';
 
   @override
-  String get fileAccessPermissionDescription => 'Нужен для сохранения и воспроизведения аудиокниг.';
+  String get fileAccessPermissionDescription => 'Нужен для сохранения и воспроизведения аудиокниг. На Android 11+ потребуется включить \"Доступ ко всем файлам\" в настройках системы.';
 
   @override
   String get notificationsPermissionTitle => 'Уведомления';
@@ -2489,9 +2576,6 @@ class AppLocalizationsRu extends AppLocalizations {
   String get sessionExpiredTitle => 'Сессия истекла';
 
   @override
-  String get sessionExpiredMessage => 'Ваша сессия истекла. Пожалуйста, войдите в систему снова.';
-
-  @override
   String get invalidCredentialsTitle => 'Ошибка авторизации';
 
   @override
@@ -2689,6 +2773,15 @@ class AppLocalizationsRu extends AppLocalizations {
   String get forwardDurationTitle => 'Длительность перемотки вперед';
 
   @override
+  String get inactivityTimeoutTitle => 'Таймаут неактивности';
+
+  @override
+  String get inactivityTimeoutLabel => 'Установить таймаут неактивности';
+
+  @override
+  String get minute => 'минута';
+
+  @override
   String get rewind => 'Назад';
 
   @override
@@ -2812,4 +2905,300 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get scanningLibrary => 'Сканирование библиотеки...';
+
+  @override
+  String get manufacturerSettingsNotAvailable => 'Настройки недоступны';
+
+  @override
+  String get manufacturerSettingsNotAvailableMessage => 'Настройки производителя доступны только на устройствах Android.';
+
+  @override
+  String get manufacturerSettingsDefaultTitle => 'Настройки для стабильной работы';
+
+  @override
+  String get manufacturerSettingsDefaultMessage => 'Для стабильной работы приложения необходимо настроить следующие параметры:';
+
+  @override
+  String get manufacturerSettingsDefaultStep1 => '1. Включите автозапуск приложения';
+
+  @override
+  String get manufacturerSettingsDefaultStep2 => '2. Отключите оптимизацию батареи для приложения';
+
+  @override
+  String get manufacturerSettingsDefaultStep3 => '3. Разрешите фоновую активность';
+
+  @override
+  String get manufacturerSettingsMiuiTitle => 'Настройки MIUI для стабильной работы';
+
+  @override
+  String get manufacturerSettingsMiuiMessage => 'На устройствах Xiaomi/Redmi/Poco необходимо настроить следующие параметры:';
+
+  @override
+  String manufacturerSettingsMiuiStep1(String appName) {
+    return '1. Автозапуск: Настройки → Приложения → Управление разрешениями → Автозапуск → Включите для $appName';
+  }
+
+  @override
+  String manufacturerSettingsMiuiStep2(String appName) {
+    return '2. Оптимизация батареи: Настройки → Батарея → Оптимизация батареи → Выберите $appName → Не оптимизировать';
+  }
+
+  @override
+  String manufacturerSettingsMiuiStep3(String appName) {
+    return '3. Фоновая активность: Настройки → Приложения → $appName → Батарея → Фоновая активность → Разрешить';
+  }
+
+  @override
+  String get manufacturerSettingsEmuiTitle => 'Настройки EMUI для стабильной работы';
+
+  @override
+  String get manufacturerSettingsEmuiMessage => 'На устройствах Huawei/Honor необходимо настроить следующие параметры:';
+
+  @override
+  String manufacturerSettingsEmuiStep1(String appName) {
+    return '1. Защита приложений: Настройки → Приложения → Защита приложений → $appName → Включите автозапуск';
+  }
+
+  @override
+  String manufacturerSettingsEmuiStep2(String appName) {
+    return '2. Управление батареей: Настройки → Батарея → Управление батареей → $appName → Не оптимизировать';
+  }
+
+  @override
+  String manufacturerSettingsEmuiStep3(String appName) {
+    return '3. Фоновая активность: Настройки → Приложения → $appName → Батарея → Разрешить фоновую активность';
+  }
+
+  @override
+  String get manufacturerSettingsColorosTitle => 'Настройки ColorOS/RealmeUI для стабильной работы';
+
+  @override
+  String get manufacturerSettingsColorosMessage => 'На устройствах Oppo/Realme необходимо настроить следующие параметры:';
+
+  @override
+  String manufacturerSettingsColorosStep1(String appName) {
+    return '1. Автозапуск: Настройки → Приложения → Автозапуск → Включите для $appName';
+  }
+
+  @override
+  String manufacturerSettingsColorosStep2(String appName) {
+    return '2. Оптимизация батареи: Настройки → Батарея → Оптимизация батареи → $appName → Не оптимизировать';
+  }
+
+  @override
+  String manufacturerSettingsColorosStep3(String appName) {
+    return '3. Фоновая активность: Настройки → Приложения → $appName → Батарея → Разрешить фоновую активность';
+  }
+
+  @override
+  String get manufacturerSettingsOxygenosTitle => 'Настройки OxygenOS для стабильной работы';
+
+  @override
+  String get manufacturerSettingsOxygenosMessage => 'На устройствах OnePlus необходимо настроить следующие параметры:';
+
+  @override
+  String manufacturerSettingsOxygenosStep1(String appName) {
+    return '1. Автозапуск: Настройки → Приложения → Автозапуск → Включите для $appName';
+  }
+
+  @override
+  String manufacturerSettingsOxygenosStep2(String appName) {
+    return '2. Оптимизация батареи: Настройки → Батарея → Оптимизация батареи → $appName → Не оптимизировать';
+  }
+
+  @override
+  String manufacturerSettingsOxygenosStep3(String appName) {
+    return '3. Фоновая активность: Настройки → Приложения → $appName → Батарея → Разрешить фоновую активность';
+  }
+
+  @override
+  String get manufacturerSettingsFuntouchosTitle => 'Настройки FuntouchOS/OriginOS для стабильной работы';
+
+  @override
+  String get manufacturerSettingsFuntouchosMessage => 'На устройствах Vivo необходимо настроить следующие параметры:';
+
+  @override
+  String manufacturerSettingsFuntouchosStep1(String appName) {
+    return '1. Автозапуск: Настройки → Приложения → Автозапуск → Включите для $appName';
+  }
+
+  @override
+  String manufacturerSettingsFuntouchosStep2(String appName) {
+    return '2. Оптимизация батареи: Настройки → Батарея → Оптимизация батареи → $appName → Не оптимизировать';
+  }
+
+  @override
+  String manufacturerSettingsFuntouchosStep3(String appName) {
+    return '3. Фоновая активность: Настройки → Приложения → $appName → Батарея → Разрешить фоновую активность';
+  }
+
+  @override
+  String get manufacturerSettingsFlymeTitle => 'Настройки Flyme для стабильной работы';
+
+  @override
+  String get manufacturerSettingsFlymeMessage => 'На устройствах Meizu необходимо настроить следующие параметры:';
+
+  @override
+  String manufacturerSettingsFlymeStep1(String appName) {
+    return '1. Автозапуск: Настройки → Приложения → Автозапуск → Включите для $appName';
+  }
+
+  @override
+  String manufacturerSettingsFlymeStep2(String appName) {
+    return '2. Оптимизация батареи: Настройки → Батарея → Оптимизация батареи → $appName → Не оптимизировать';
+  }
+
+  @override
+  String manufacturerSettingsFlymeStep3(String appName) {
+    return '3. Фоновая активность: Настройки → Приложения → $appName → Батарея → Разрешить фоновую активность';
+  }
+
+  @override
+  String get manufacturerSettingsOneuiTitle => 'Настройки One UI для стабильной работы';
+
+  @override
+  String get manufacturerSettingsOneuiMessage => 'На устройствах Samsung рекомендуется настроить следующие параметры:';
+
+  @override
+  String manufacturerSettingsOneuiStep1(String appName) {
+    return '1. Оптимизация батареи: Настройки → Приложения → $appName → Батарея → Не оптимизировать';
+  }
+
+  @override
+  String manufacturerSettingsOneuiStep2(String appName) {
+    return '2. Фоновая активность: Настройки → Приложения → $appName → Батарея → Фоновая активность → Разрешить';
+  }
+
+  @override
+  String get manufacturerSettingsOneuiStep3 => '3. Автозапуск: Обычно не требуется на Samsung, но можно проверить в настройках приложения';
+
+  @override
+  String trackOfTotal(int currentTrack, int totalTracks) {
+    return 'Трек $currentTrack из $totalTracks';
+  }
+
+  @override
+  String tracksTitle(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Треки',
+      one: 'Трек',
+      zero: 'Нет треков',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get noRepeat => 'Без повтора';
+
+  @override
+  String get repeatTrack => 'Повторять трек';
+
+  @override
+  String get repeatPlaylist => 'Повторять плейлист';
+
+  @override
+  String get timerLabel => 'Таймер';
+
+  @override
+  String get speedLabel => 'Скорость';
+
+  @override
+  String get rewindButton => 'Назад';
+
+  @override
+  String get forwardButton => 'Вперёд';
+
+  @override
+  String get playButton => 'Воспроизвести';
+
+  @override
+  String get pauseButton => 'Пауза';
+
+  @override
+  String get nextButton => 'Следующий';
+
+  @override
+  String get previousButton => 'Предыдущий';
+
+  @override
+  String get accessRequired => 'Требуется доступ';
+
+  @override
+  String featureRequiresAuth(String feature) {
+    return 'Функция \"$feature\" требует авторизации';
+  }
+
+  @override
+  String get signInToAccessFeature => 'Войдите в аккаунт, чтобы получить доступ к этой функции';
+
+  @override
+  String get upgradeToFull => 'Полный доступ';
+
+  @override
+  String get restrictedFeature => 'Ограниченная функция';
+
+  @override
+  String get featureRestricted => 'Эта функция недоступна в демо-режиме';
+
+  @override
+  String get featureRestrictedDescription => 'Для доступа к этой функции необходимо войти в аккаунт';
+
+  @override
+  String get signInToUnlock => 'Войти, чтобы разблокировать';
+
+  @override
+  String get searchGuestModeWarning => 'Поиск ограничен в гостевом режиме. Некоторые функции могут не работать. Войдите для полного доступа.';
+
+  @override
+  String get downloadsGuestModeWarning => 'Загрузки доступны только для просмотра в гостевом режиме. Войдите для управления загрузками.';
+
+  @override
+  String get continueAsGuest => 'Продолжить как гость';
+
+  @override
+  String get sessionExpired => 'Сессия истекла';
+
+  @override
+  String get sessionExpiredMessage => 'Ваша сессия истекла. Пожалуйста, войдите в систему снова.';
+
+  @override
+  String get signInAgain => 'Войти снова';
+
+  @override
+  String get authorizationRequired => 'Требуется авторизация';
+
+  @override
+  String get demoMode => 'Демо-режим';
+
+  @override
+  String get demoModeDescription => 'Вы используете демо-режим с ограниченной функциональностью';
+
+  @override
+  String get upgradeToFullAccess => 'Получить полный доступ';
+
+  @override
+  String get searchRestricted => 'Поиск недоступен в демо-режиме';
+
+  @override
+  String get downloadRestricted => 'Загрузки недоступны в демо-режиме';
+
+  @override
+  String get browseRestricted => 'Просмотр топиков недоступен в демо-режиме';
+
+  @override
+  String get account => 'Аккаунт';
+
+  @override
+  String get compactPlayerLayout => 'Компактный плеер';
+
+  @override
+  String get standardPlayerLayout => 'Стандартный плеер';
+
+  @override
+  String get adaptiveNavigation => 'Адаптивная навигация';
+
+  @override
+  String get smallScreenOptimizations => 'Оптимизации для маленьких экранов';
 }

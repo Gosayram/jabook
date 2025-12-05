@@ -52,6 +52,9 @@ help:
 	@echo "  make fmt                           - Format code"
 	@echo "  make fmt-check                     - Check code formatting (for CI)"
 	@echo "  make lint                          - Run linting"
+	@echo "  make lint-kotlin                   - Lint Kotlin code (ktlint check)"
+	@echo "  make fmt-kotlin                    - Format Kotlin code (ktlint format)"
+	@echo "  make compile                       - Compile Kotlin code (for syntax checking)"
 	@echo "  make l10n                          - Generate localization files (flutter gen-l10n)"
 	@echo "  make check-l10n         			- Check for duplicate keys in ARB files"
 	@echo "  make analyze-size                  - Analyze APK size with detailed breakdown"
@@ -104,7 +107,7 @@ run:
 run-profile:
 	@echo "Running app with profiling (output saved to startup_profile.log)..."
 	@echo "Note: DevTools can be accessed via 'flutter pub global run devtools' if needed"
-	flutter run --flavor dev --verbose --trace-startup --profile > startup_profile.log 2>&1
+	flutter run --flavor beta --dart-define=FLAVOR=beta --verbose --trace-startup --profile > startup_profile.log 2>&1
 	@echo "Profile run complete. Check startup_profile.log for details."
 
 # Android build commands
@@ -123,10 +126,13 @@ build-android-stage:
 
 .PHONY: build-android-beta
 build-android-beta:
+	@echo "Building beta APK with beta-specific icons from android/app/src/beta/res/"
+	@echo "Note: Beta icons should be generated with: scripts/generate-android-beta-icons.sh"
 	flutter build apk --flavor beta --target lib/main.dart --release \
 		--split-per-abi \
 		--tree-shake-icons
 	@echo "Android beta APK built at: build/app/outputs/apk/"
+	@echo "✅ Beta flavor uses icons from android/app/src/beta/res/ (automatically)"
 
 .PHONY: build-android-prod
 build-android-prod:
@@ -224,6 +230,10 @@ build-android-signed-apk: use-existing-android-cert patch-gradle-signing
 .PHONY: build-android-signed-apk-beta
 build-android-signed-apk-beta: use-existing-android-cert patch-gradle-signing
 	@echo "Building signed beta APK (with obfuscation for testing)..."
+	@echo "Using beta-specific icons from android/app/src/beta/res/"
+	@if [ ! -f "android/app/src/beta/res/mipmap-hdpi/ic_launcher.png" ]; then \
+		echo "⚠️  Warning: Beta icons not found. Run: scripts/generate-android-beta-icons.sh"; \
+	fi
 	@echo "Building split APKs per architecture..."
 	flutter build apk --flavor beta --target lib/main.dart --release \
 		--dart-define=FLAVOR=beta \
@@ -241,6 +251,7 @@ build-android-signed-apk-beta: use-existing-android-cert patch-gradle-signing
 	@echo "   - Split APKs: app-*-release.apk (per architecture)"
 	@echo "   - Universal APK: app-release.apk (all architectures)"
 	@echo "   - Debug symbols saved to: ./debug-info/"
+	@echo "   - Beta icons from android/app/src/beta/res/ should be used automatically"
 
 .PHONY: build-android-beta-ci
 build-android-beta-ci:
@@ -446,6 +457,43 @@ fmt:
 .PHONY: lint
 lint:
 	flutter analyze
+
+.PHONY: compile
+compile:
+	@echo "Compiling Kotlin code for all flavors..."
+	@(cd android && ./gradlew :app:compileDevDebugKotlin :app:compileBetaDebugKotlin :app:compileProdDebugKotlin :app:compileStageDebugKotlin --no-daemon); \
+	EXIT_CODE=$$?; \
+	if [ $$EXIT_CODE -eq 0 ]; then \
+		echo "✅ Kotlin compilation successful for all flavors"; \
+	else \
+		echo "❌ Kotlin compilation failed with exit code $$EXIT_CODE"; \
+	fi; \
+	exit $$EXIT_CODE
+
+.PHONY: lint-kotlin
+lint-kotlin:
+	@echo "Linting Kotlin code with ktlint..."
+	@(cd android && ./gradlew :app:ktlintCheck --no-daemon); \
+	EXIT_CODE=$$?; \
+	if [ $$EXIT_CODE -eq 0 ]; then \
+		echo "✅ Kotlin linting passed"; \
+	else \
+		echo "❌ Kotlin linting failed with exit code $$EXIT_CODE"; \
+		echo "Run 'make fmt-kotlin' to auto-fix issues"; \
+	fi; \
+	exit $$EXIT_CODE
+
+.PHONY: fmt-kotlin
+fmt-kotlin:
+	@echo "Formatting Kotlin code with ktlint..."
+	@(cd android && ./gradlew :app:ktlintFormat --no-daemon); \
+	EXIT_CODE=$$?; \
+	if [ $$EXIT_CODE -eq 0 ]; then \
+		echo "✅ Kotlin code formatted successfully"; \
+	else \
+		echo "❌ Kotlin formatting failed with exit code $$EXIT_CODE"; \
+	fi; \
+	exit $$EXIT_CODE
 
 # Release commands
 .PHONY: release-android

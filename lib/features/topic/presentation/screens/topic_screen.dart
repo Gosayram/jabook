@@ -18,14 +18,15 @@ import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:jabook/core/cache/rutracker_cache_service.dart';
-import 'package:jabook/core/endpoints/endpoint_provider.dart';
-import 'package:jabook/core/errors/failures.dart';
+import 'package:jabook/core/di/providers/auth_providers.dart';
+import 'package:jabook/core/di/providers/cache_providers.dart';
 import 'package:jabook/core/favorites/favorites_provider.dart';
-import 'package:jabook/core/logging/environment_logger.dart';
+import 'package:jabook/core/infrastructure/endpoints/endpoint_provider.dart';
+import 'package:jabook/core/infrastructure/errors/failures.dart';
+import 'package:jabook/core/infrastructure/logging/environment_logger.dart';
 import 'package:jabook/core/net/dio_client.dart';
 import 'package:jabook/core/parse/rutracker_parser.dart';
 import 'package:jabook/core/session/auth_error_handler.dart';
@@ -33,6 +34,7 @@ import 'package:jabook/core/torrent/audiobook_torrent_manager.dart';
 import 'package:jabook/core/torrent/audiobook_torrent_manager_provider.dart';
 import 'package:jabook/core/torrent/external_torrent_handler.dart';
 import 'package:jabook/core/torrent/torrent_parser_service.dart';
+import 'package:jabook/core/utils/app_title_utils.dart';
 import 'package:jabook/core/utils/responsive_utils.dart';
 import 'package:jabook/features/downloads/presentation/widgets/download_status_bar.dart';
 import 'package:jabook/l10n/app_localizations.dart';
@@ -58,7 +60,7 @@ class TopicScreen extends ConsumerStatefulWidget {
 
 class _TopicScreenState extends ConsumerState<TopicScreen> {
   final RuTrackerParser _parser = RuTrackerParser();
-  final RuTrackerCacheService _cacheService = RuTrackerCacheService();
+  late final RuTrackerCacheService _cacheService;
 
   Map<String, dynamic>? _audiobook;
   bool _isLoading = true;
@@ -71,6 +73,8 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
   @override
   void initState() {
     super.initState();
+    // Get cache service from provider (already initialized in app.dart)
+    _cacheService = ref.read(rutrackerCacheServiceProvider);
     _initializeCache();
     _loadTopicDetails();
   }
@@ -82,7 +86,8 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
   }
 
   Future<void> _initializeCache() async {
-    // Cache service initialization would typically happen at app startup
+    // Cache service is initialized in app.dart via provider
+    // No additional initialization needed here
   }
 
   Future<void> _loadTopicDetails() async {
@@ -257,7 +262,7 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(
           title: Text(
-              '${AppLocalizations.of(context)?.topicTitle ?? 'Topic'}: ${widget.topicId}'),
+              '${(AppLocalizations.of(context)?.topicTitle ?? 'Topic').withFlavorSuffix()}: ${widget.topicId}'),
           actions: [
             _buildFavoriteButton(),
             if (_isFromCache)
@@ -278,35 +283,25 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
             if (_audiobook != null)
               PopupMenuButton<String>(
                 icon: const Icon(Icons.more_vert),
-                onSelected: (value) async {
-                  if (value == 'refresh_chapters') {
-                    await _refreshChaptersFromTorrent();
-                  } else if (value == 'magnet' ||
+                onSelected: (value) {
+                  if (value == 'magnet' ||
                       value == 'torrent' ||
                       value == 'download_magnet') {
                     _handleDownloadAction(value);
                   }
                 },
                 itemBuilder: (context) => [
-                  PopupMenuItem(
-                    value: 'refresh_chapters',
-                    child: ListTile(
-                      leading: const Icon(Icons.refresh),
-                      title: Text(AppLocalizations.of(context)
-                              ?.refreshChaptersFromTorrent ??
-                          'Refresh chapters from torrent'),
-                      contentPadding: EdgeInsets.zero,
-                    ),
-                  ),
                   if ((_audiobook!['magnetUrl'] as String).isNotEmpty) ...[
-                    const PopupMenuDivider(),
                     PopupMenuItem(
                       value: 'magnet',
                       child: ListTile(
-                        leading: const Icon(Icons.link),
+                        leading: const Icon(Icons.download),
                         title: Text(
-                            AppLocalizations.of(context)?.copyMagnetLink ??
-                                'Copy Magnet Link'),
+                            AppLocalizations.of(context)?.downloadViaMagnet ??
+                                'Download via Magnet'),
+                        subtitle: Text(AppLocalizations.of(context)
+                                ?.downloadTorrentInApp ??
+                            'Download using built-in torrent client'),
                         contentPadding: EdgeInsets.zero,
                       ),
                     ),
@@ -317,16 +312,9 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
                         title: Text(
                             AppLocalizations.of(context)?.downloadTorrentMenu ??
                                 'Download Torrent'),
-                        contentPadding: EdgeInsets.zero,
-                      ),
-                    ),
-                    PopupMenuItem(
-                      value: 'download_magnet',
-                      child: ListTile(
-                        leading: const Icon(Icons.download),
-                        title: Text(
-                            AppLocalizations.of(context)?.downloadViaMagnet ??
-                                'Download via Magnet'),
+                        subtitle: Text(AppLocalizations.of(context)
+                                ?.downloadTorrentInApp ??
+                            'Download using built-in torrent client'),
                         contentPadding: EdgeInsets.zero,
                       ),
                     ),
@@ -416,10 +404,6 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
         SliverToBoxAdapter(
           child: _buildHeader(),
         ),
-        if ((_audiobook!['chapters'] as List).isNotEmpty)
-          SliverToBoxAdapter(
-            child: _buildChaptersSection(),
-          ),
         if ((_audiobook!['relatedAudiobooks'] as List?)?.isNotEmpty ?? false)
           SliverToBoxAdapter(
             child: _buildRelatedAudiobooksSection(),
@@ -533,79 +517,94 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
     return Padding(
       padding: ResponsiveUtils.getCompactPadding(context),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _ExpandableTitle(
-            title: title,
-            style: titleStyle,
+          Center(
+            child: _ExpandableTitle(
+              title: title,
+              style: titleStyle,
+            ),
           ),
           SizedBox(
             height: ResponsiveUtils.getSpacing(context, baseSpacing: 12),
           ),
-          SelectableText(
-            'by $author',
-            style: authorStyle,
+          Center(
+            child: SelectableText(
+              'by $author',
+              style: authorStyle,
+              textAlign: TextAlign.center,
+            ),
           ),
           if (performer != null && performer.isNotEmpty) ...[
             SizedBox(
               height: ResponsiveUtils.getSpacing(context),
             ),
-            SelectableText(
-              'Performed by $performer',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontSize: ResponsiveUtils.getBodyFontSize(context),
-                  ),
+            Center(
+              child: SelectableText(
+                'Performed by $performer',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontSize: ResponsiveUtils.getBodyFontSize(context),
+                    ),
+                textAlign: TextAlign.center,
+              ),
             ),
           ],
           SizedBox(
             height: ResponsiveUtils.getSpacing(context, baseSpacing: 16),
           ),
-          Wrap(
-            spacing: ResponsiveUtils.isVerySmallScreen(context) ? 6 : 8,
-            runSpacing: ResponsiveUtils.isVerySmallScreen(context) ? 6 : 8,
-            children: [
-              _buildChip(
-                category,
-                Theme.of(context).colorScheme.primaryContainer,
-                labelColor: Theme.of(context).colorScheme.onPrimaryContainer,
-              ),
-              _buildChip(
-                size,
-                Theme.of(context).colorScheme.secondaryContainer,
-                labelColor: Theme.of(context).colorScheme.onSecondaryContainer,
-              ),
-              _buildChip(
-                '$seeders${AppLocalizations.of(context)?.seedersLabel ?? ' seeders'}',
-                Theme.of(context).colorScheme.tertiaryContainer,
-                labelColor: Theme.of(context).colorScheme.onTertiaryContainer,
-              ),
-              _buildChip(
-                '$leechers${AppLocalizations.of(context)?.leechersLabel ?? ' leechers'}',
-                Theme.of(context).colorScheme.errorContainer,
-                labelColor: Theme.of(context).colorScheme.onErrorContainer,
-              ),
-            ],
+          Center(
+            child: Wrap(
+              spacing: ResponsiveUtils.isVerySmallScreen(context) ? 6 : 8,
+              runSpacing: ResponsiveUtils.isVerySmallScreen(context) ? 6 : 8,
+              alignment: WrapAlignment.center,
+              children: [
+                _buildChip(
+                  category,
+                  Theme.of(context).colorScheme.primaryContainer,
+                  labelColor: Theme.of(context).colorScheme.onPrimaryContainer,
+                ),
+                _buildChip(
+                  size,
+                  Theme.of(context).colorScheme.secondaryContainer,
+                  labelColor:
+                      Theme.of(context).colorScheme.onSecondaryContainer,
+                ),
+                _buildChip(
+                  '$seeders${AppLocalizations.of(context)?.seedersLabel ?? ' seeders'}',
+                  Theme.of(context).colorScheme.tertiaryContainer,
+                  labelColor: Theme.of(context).colorScheme.onTertiaryContainer,
+                ),
+                _buildChip(
+                  '$leechers${AppLocalizations.of(context)?.leechersLabel ?? ' leechers'}',
+                  Theme.of(context).colorScheme.errorContainer,
+                  labelColor: Theme.of(context).colorScheme.onErrorContainer,
+                ),
+              ],
+            ),
           ),
           if (genres.isNotEmpty) ...[
             SizedBox(
               height: ResponsiveUtils.getSpacing(context),
             ),
-            Wrap(
-              spacing: ResponsiveUtils.isVerySmallScreen(context) ? 6 : 8,
-              runSpacing: ResponsiveUtils.isVerySmallScreen(context) ? 3 : 4,
-              children: genres
-                  .map((genre) => Chip(
-                        label: Text(genre),
-                        backgroundColor: Theme.of(context)
-                            .colorScheme
-                            .tertiaryContainer
-                            .withValues(alpha: 0.7),
-                        labelStyle: TextStyle(
-                          color:
-                              Theme.of(context).colorScheme.onTertiaryContainer,
-                        ),
-                      ))
-                  .toList(),
+            Center(
+              child: Wrap(
+                spacing: ResponsiveUtils.isVerySmallScreen(context) ? 6 : 8,
+                runSpacing: ResponsiveUtils.isVerySmallScreen(context) ? 3 : 4,
+                alignment: WrapAlignment.center,
+                children: genres
+                    .map((genre) => Chip(
+                          label: Text(genre),
+                          backgroundColor: Theme.of(context)
+                              .colorScheme
+                              .tertiaryContainer
+                              .withValues(alpha: 0.7),
+                          labelStyle: TextStyle(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onTertiaryContainer,
+                          ),
+                        ))
+                    .toList(),
+              ),
             ),
           ],
           // Display duration, bitrate and audio codec if available
@@ -615,61 +614,81 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
             SizedBox(
               height: ResponsiveUtils.getSpacing(context, baseSpacing: 12),
             ),
-            Wrap(
-              spacing: ResponsiveUtils.isVerySmallScreen(context) ? 6 : 8,
-              runSpacing: ResponsiveUtils.isVerySmallScreen(context) ? 6 : 8,
-              children: [
-                if ((audiobook['duration'] as String?) != null)
-                  _buildChip(
-                    '⏱ ${audiobook['duration'] as String}',
-                    Theme.of(context).colorScheme.primaryContainer,
-                    labelColor:
-                        Theme.of(context).colorScheme.onPrimaryContainer,
-                  ),
-                if ((audiobook['bitrate'] as String?) != null ||
-                    (audiobook['audioCodec'] as String?) != null)
-                  _buildChip(
-                    '🎵 ${[
-                      if ((audiobook['bitrate'] as String?) != null)
-                        audiobook['bitrate'] as String,
-                      if ((audiobook['audioCodec'] as String?) != null)
-                        audiobook['audioCodec'] as String,
-                    ].join(' / ')}',
-                    Theme.of(context).colorScheme.secondaryContainer,
-                    labelColor:
-                        Theme.of(context).colorScheme.onSecondaryContainer,
-                  ),
-              ],
+            Center(
+              child: Wrap(
+                spacing: ResponsiveUtils.isVerySmallScreen(context) ? 6 : 8,
+                runSpacing: ResponsiveUtils.isVerySmallScreen(context) ? 6 : 8,
+                alignment: WrapAlignment.center,
+                children: [
+                  if ((audiobook['duration'] as String?) != null)
+                    _buildChip(
+                      '⏱ ${audiobook['duration'] as String}',
+                      Theme.of(context).colorScheme.primaryContainer,
+                      labelColor:
+                          Theme.of(context).colorScheme.onPrimaryContainer,
+                    ),
+                  if ((audiobook['bitrate'] as String?) != null ||
+                      (audiobook['audioCodec'] as String?) != null)
+                    _buildChip(
+                      '🎵 ${[
+                        if ((audiobook['bitrate'] as String?) != null)
+                          audiobook['bitrate'] as String,
+                        if ((audiobook['audioCodec'] as String?) != null)
+                          audiobook['audioCodec'] as String,
+                      ].join(' / ')}',
+                      Theme.of(context).colorScheme.secondaryContainer,
+                      labelColor:
+                          Theme.of(context).colorScheme.onSecondaryContainer,
+                    ),
+                ],
+              ),
             ),
           ],
           SizedBox(
             height: ResponsiveUtils.getSpacing(context, baseSpacing: 16),
           ),
           if (coverUrl != null)
-            RepaintBoundary(
-              child: CachedNetworkImage(
-                imageUrl: coverUrl,
-                height: ResponsiveUtils.isVerySmallScreen(context)
-                    ? 160
-                    : (ResponsiveUtils.isMobile(context) ? 200 : 240),
-                fit: BoxFit.cover,
-                placeholder: (context, url) => Container(
-                  height: ResponsiveUtils.isVerySmallScreen(context)
-                      ? 160
-                      : (ResponsiveUtils.isMobile(context) ? 200 : 240),
-                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                  child: const Center(
-                    child: CircularProgressIndicator(),
-                  ),
-                ),
-                errorWidget: (context, url, e) => Container(
-                  height: ResponsiveUtils.isVerySmallScreen(context)
-                      ? 160
-                      : (ResponsiveUtils.isMobile(context) ? 200 : 240),
-                  color: Theme.of(context).colorScheme.errorContainer,
-                  child: Icon(
-                    Icons.error_outline,
-                    color: Theme.of(context).colorScheme.onErrorContainer,
+            Center(
+              child: RepaintBoundary(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: ResponsiveUtils.isTablet(context)
+                          ? 400
+                          : double.infinity,
+                      maxHeight: ResponsiveUtils.isVerySmallScreen(context)
+                          ? 300
+                          : (ResponsiveUtils.isMobile(context) ? 400 : 500),
+                    ),
+                    child: CachedNetworkImage(
+                      imageUrl: coverUrl,
+                      width: double.infinity,
+                      fit: BoxFit.contain,
+                      placeholder: (context, url) => Container(
+                        width: double.infinity,
+                        height: ResponsiveUtils.isVerySmallScreen(context)
+                            ? 300
+                            : (ResponsiveUtils.isMobile(context) ? 400 : 500),
+                        color: Theme.of(context)
+                            .colorScheme
+                            .surfaceContainerHighest,
+                        child: const Center(
+                          child: CircularProgressIndicator(),
+                        ),
+                      ),
+                      errorWidget: (context, url, e) => Container(
+                        width: double.infinity,
+                        height: ResponsiveUtils.isVerySmallScreen(context)
+                            ? 300
+                            : (ResponsiveUtils.isMobile(context) ? 400 : 500),
+                        color: Theme.of(context).colorScheme.errorContainer,
+                        child: Icon(
+                          Icons.error_outline,
+                          color: Theme.of(context).colorScheme.onErrorContainer,
+                        ),
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -680,17 +699,15 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
               child: Column(
                 children: [
                   ListTile(
-                    leading: const Icon(Icons.link),
+                    leading: const Icon(Icons.download),
                     title: Text(
-                        AppLocalizations.of(context)?.magnetLinkLabelText ??
-                            'Magnet Link'),
+                        AppLocalizations.of(context)?.downloadViaMagnet ??
+                            'Download via Magnet'),
                     subtitle: Text(
-                      magnetUrl,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    trailing: const Icon(Icons.copy),
-                    onTap: _copyMagnetLink,
+                        AppLocalizations.of(context)?.downloadTorrentInApp ??
+                            'Download using built-in torrent client'),
+                    trailing: const Icon(Icons.download),
+                    onTap: _startMagnetDownload,
                   ),
                   const Divider(height: 1),
                   ListTile(
@@ -722,65 +739,6 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
         ],
       ),
     );
-  }
-
-  Widget _buildChaptersSection() {
-    final audiobook = _audiobook!;
-    final chapters = audiobook['chapters'] as List<dynamic>? ?? [];
-
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            '${AppLocalizations.of(context)?.chaptersLabelText ?? 'Chapters'} (${chapters.length})',
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
-          const SizedBox(height: 8),
-          ListView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: chapters.length,
-            itemBuilder: (context, index) {
-              final chapter = chapters[index] as Map<String, dynamic>;
-              final chapterTitle = chapter['title'] as String? ??
-                  AppLocalizations.of(context)?.unknownChapterText ??
-                  'Unknown Chapter';
-              final durationMs = chapter['durationMs'] as int? ?? 0;
-              // Use RepaintBoundary to isolate repaints for each chapter item
-              return RepaintBoundary(
-                child: Card(
-                  margin: const EdgeInsets.only(bottom: 8),
-                  child: ListTile(
-                    leading: const Icon(Icons.play_circle_outline),
-                    title: Text(chapterTitle),
-                    subtitle: Text(_formatDuration(durationMs)),
-                    trailing: const Icon(Icons.more_vert),
-                    onTap: () {
-                      _playChapter(chapter);
-                    },
-                  ),
-                ),
-              );
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _formatDuration(int milliseconds) {
-    final duration = Duration(milliseconds: milliseconds);
-    final hours = duration.inHours;
-    final minutes = duration.inMinutes.remainder(60);
-    final seconds = duration.inSeconds.remainder(60);
-
-    if (hours > 0) {
-      return '$hours:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
-    } else {
-      return '$minutes:${seconds.toString().padLeft(2, '0')}';
-    }
   }
 
   Widget _buildRelatedAudiobooksSection() {
@@ -837,13 +795,10 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
 
     switch (action) {
       case 'magnet':
-        _copyMagnetLink();
+        _startMagnetDownload();
         break;
       case 'torrent':
         _downloadTorrent();
-        break;
-      case 'download_magnet':
-        _startMagnetDownload();
         break;
     }
   }
@@ -937,16 +892,31 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
     }
   }
 
-  void _copyMagnetLink() {
-    if (_audiobook != null && (_audiobook!['magnetUrl'] as String).isNotEmpty) {
-      final magnetLinkLabel =
-          AppLocalizations.of(context)?.magnetLinkLabelText ?? 'Magnet link';
-      _copyToClipboard(_audiobook!['magnetUrl'] as String, magnetLinkLabel);
-    }
-  }
-
   Future<void> _downloadTorrent() async {
     if (_audiobook == null) return;
+
+    // Block download in guest mode
+    if (ref.read(accessProvider).isGuest) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            AppLocalizations.of(context)?.downloadsGuestModeWarning ??
+                'Downloads are view-only in guest mode. Sign in to manage downloads.',
+          ),
+          backgroundColor: Colors.orange,
+          duration: const Duration(seconds: 3),
+          action: SnackBarAction(
+            label: AppLocalizations.of(context)?.signInToUnlock ?? 'Sign in',
+            textColor: Colors.white,
+            onPressed: () {
+              context.push('/auth');
+            },
+          ),
+        ),
+      );
+      return;
+    }
 
     try {
       final endpointManager = ref.read(endpointManagerProvider);
@@ -1228,6 +1198,29 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
     final magnetUrl = _audiobook!['magnetUrl'] as String? ?? '';
     if (magnetUrl.isEmpty) return;
 
+    // Block download in guest mode
+    if (ref.read(accessProvider).isGuest) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            AppLocalizations.of(context)?.downloadsGuestModeWarning ??
+                'Downloads are view-only in guest mode. Sign in to manage downloads.',
+          ),
+          backgroundColor: Colors.orange,
+          duration: const Duration(seconds: 3),
+          action: SnackBarAction(
+            label: AppLocalizations.of(context)?.signInToUnlock ?? 'Sign in',
+            textColor: Colors.white,
+            onPressed: () {
+              context.push('/auth');
+            },
+          ),
+        ),
+      );
+      return;
+    }
+
     try {
       final downloadDir = await AudiobookTorrentManager.getDownloadDirectory();
 
@@ -1406,95 +1399,6 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
     }
   }
 
-  /// Refreshes chapters from torrent file, bypassing cache.
-  ///
-  /// This method forces re-parsing of the torrent file to get updated chapter information.
-  Future<void> _refreshChaptersFromTorrent() async {
-    if (_audiobook == null) return;
-
-    try {
-      setState(() {
-        _isLoading = true;
-      });
-
-      final endpointManager = ref.read(endpointManagerProvider);
-      final activeEndpoint = await endpointManager.getActiveEndpoint();
-
-      // Extract chapters from torrent with force refresh
-      final chaptersFromTorrent = await _extractChaptersFromTorrent(
-        widget.topicId,
-        activeEndpoint,
-        forceRefresh: true,
-      );
-
-      if (chaptersFromTorrent.isNotEmpty && mounted) {
-        // Update audiobook with new chapters
-        final updatedAudiobook = Map<String, dynamic>.from(_audiobook!);
-        updatedAudiobook['chapters'] = chaptersFromTorrent
-            .map((c) => {
-                  'title': c.title,
-                  'duration_ms': c.durationMs,
-                  'file_index': c.fileIndex,
-                  'start_byte': c.startByte,
-                  'end_byte': c.endByte,
-                })
-            .toList();
-
-        // Update cache with new chapters
-        await _cacheService.cacheTopicDetails(widget.topicId, updatedAudiobook);
-
-        setState(() {
-          _audiobook = updatedAudiobook;
-          _isLoading = false;
-        });
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                AppLocalizations.of(context)?.chaptersRefreshed ??
-                    'Chapters refreshed from torrent',
-              ),
-            ),
-          );
-        }
-      } else if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              AppLocalizations.of(context)?.noChaptersFound ??
-                  'No chapters found in torrent',
-            ),
-          ),
-        );
-      }
-    } on AuthFailure catch (e) {
-      // Handle authentication errors
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-        AuthErrorHandler.showAuthErrorSnackBar(context, e);
-      }
-    } on Exception catch (e) {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              '${AppLocalizations.of(context)?.failedToRefreshChapters ?? 'Failed to refresh chapters'}: ${e.toString()}',
-            ),
-          ),
-        );
-      }
-    }
-  }
-
   /// Extracts chapters from torrent file as fallback when HTML parsing fails.
   ///
   /// Downloads the torrent file and extracts audio file names as chapters.
@@ -1569,7 +1473,7 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
       }
 
       // Parse chapters from torrent
-      final parserService = TorrentParserService();
+      final parserService = TorrentParserService(cacheService: _cacheService);
       final chapters = await parserService.extractChaptersFromTorrent(
         torrentBytes,
         forceRefresh: forceRefresh,
@@ -1590,27 +1494,6 @@ class _TopicScreenState extends ConsumerState<TopicScreen> {
       // Return empty list for other errors (non-critical)
       return [];
     }
-  }
-
-  void _playChapter(Map<String, dynamic> chapter) {
-    // Navigate to player with this audiobook and chapter
-    Navigator.pushNamed(
-      context,
-      '/player/${widget.topicId}',
-      arguments: {
-        'audiobook': _audiobook,
-        'chapterIndex': (_audiobook!['chapters'] as List).indexOf(chapter),
-      },
-    );
-  }
-
-  void _copyToClipboard(String text, String label) {
-    Clipboard.setData(ClipboardData(text: text));
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-          content: Text(
-              AppLocalizations.of(context)!.copyToClipboardMessage(label))),
-    );
   }
 
   /// Builds a chip with constrained width and tooltip.

@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:async';
 import 'dart:convert';
+import 'dart:isolate';
 
 import 'package:b_encode_decode/b_encode_decode.dart';
 import 'package:crypto/crypto.dart';
@@ -21,14 +23,148 @@ import 'package:flutter/foundation.dart';
 import 'package:jabook/core/cache/rutracker_cache_service.dart';
 import 'package:jabook/core/parse/rutracker_parser.dart';
 
+/// Reusable isolate manager for torrent parsing.
+///
+/// This manager maintains a single isolate that is reused for all parsing tasks,
+/// avoiding the overhead of creating a new isolate for each parse operation.
+class _TorrentParserIsolateManager {
+  /// Factory constructor for singleton instance.
+  factory _TorrentParserIsolateManager() {
+    _instance ??= _TorrentParserIsolateManager._();
+    return _instance!;
+  }
+  _TorrentParserIsolateManager._();
+  static _TorrentParserIsolateManager? _instance;
+
+  Isolate? _isolate;
+  SendPort? _sendPort;
+  ReceivePort? _receivePort;
+  bool _initialized = false;
+  final _pendingTasks = <Completer<List<Chapter>>>[];
+  bool _processing = false;
+
+  /// Initialize the isolate if not already initialized.
+  Future<void> _ensureInitialized() async {
+    if (_initialized) return;
+
+    _receivePort = ReceivePort();
+    _isolate = await Isolate.spawn(
+      _torrentParserIsolateEntry,
+      _receivePort!.sendPort,
+      debugName: 'TorrentParserIsolate',
+    );
+
+    _sendPort = await _receivePort!.first as SendPort;
+
+    // Listen for responses and process queue
+    _receivePort!.listen((response) {
+      if (_pendingTasks.isEmpty) return;
+
+      final completer = _pendingTasks.removeAt(0);
+      _processing = false;
+
+      if (response is List<Chapter>) {
+        completer.complete(response);
+      } else if (response is Exception) {
+        completer.completeError(response);
+      } else {
+        completer.completeError(Exception('Unexpected response type'));
+      }
+
+      // Process next task in queue
+      _processNext();
+    });
+
+    _initialized = true;
+  }
+
+  /// Process next task in queue.
+  void _processNext() {
+    if (_pendingTasks.isEmpty || _processing || !_initialized) {
+      return;
+    }
+
+    _processing = true;
+    // Task data is already sent, isolate will process and send response
+    // The response listener will handle the result and call _processNext() again
+  }
+
+  /// Parse torrent bytes in the reusable isolate.
+  ///
+  /// Tasks are queued and processed sequentially to ensure responses
+  /// match requests correctly.
+  Future<List<Chapter>> parse(List<int> torrentBytes) async {
+    await _ensureInitialized();
+
+    final completer = Completer<List<Chapter>>();
+    _pendingTasks.add(completer);
+
+    // Send task to isolate
+    _sendPort!.send(torrentBytes);
+
+    // Start processing if not already processing
+    if (!_processing) {
+      _processNext();
+    }
+
+    return completer.future.timeout(
+      const Duration(seconds: 30),
+      onTimeout: () {
+        _pendingTasks.remove(completer);
+        _processing = false;
+        _processNext();
+        throw TimeoutException('Torrent parsing timeout');
+      },
+    );
+  }
+
+  /// Dispose the isolate (for testing or cleanup).
+  void dispose() {
+    _isolate?.kill(priority: Isolate.immediate);
+    _isolate = null;
+    _sendPort = null;
+    _receivePort?.close();
+    _receivePort = null;
+    _initialized = false;
+    _pendingTasks.clear();
+    _processing = false;
+  }
+}
+
+/// Isolate entry point for torrent parsing.
+void _torrentParserIsolateEntry(SendPort sendPort) async {
+  final receivePort = ReceivePort();
+  sendPort.send(receivePort.sendPort);
+
+  receivePort.listen((message) {
+    if (message is List<int>) {
+      try {
+        final chapters = TorrentParserService._parseTorrentInIsolate(message);
+        sendPort.send(chapters);
+      } on Exception catch (e) {
+        sendPort.send(Exception(e.toString()));
+      } on Object catch (e, _) {
+        sendPort.send(Exception(e.toString()));
+      }
+    }
+  });
+}
+
 /// Service for parsing torrent files to extract chapter information.
 ///
 /// This service extracts audio file names from torrent files
 /// and creates Chapter objects based on file names.
 /// It also caches parsed chapters to avoid re-parsing the same torrent.
 class TorrentParserService {
+  /// Creates a new TorrentParserService instance.
+  ///
+  /// The [cacheService] parameter is optional - if not provided, a new instance will be created.
+  /// For dependency injection, prefer passing an initialized instance from a provider.
+  TorrentParserService({RuTrackerCacheService? cacheService})
+      : _cacheService = cacheService ?? RuTrackerCacheService();
+
   /// Cache service for storing parsed chapters.
-  final RuTrackerCacheService _cacheService = RuTrackerCacheService();
+  final RuTrackerCacheService _cacheService;
 
   /// Audio file extensions to consider as chapters.
   static const List<String> audioExtensions = [
@@ -265,8 +401,9 @@ class TorrentParserService {
         }
       }
 
-      // Use compute to run parsing in isolate
-      final result = await compute(_parseTorrentInIsolate, torrentBytes);
+      // Use reusable isolate instead of compute() to avoid creating new isolate each time
+      // This is more efficient for multiple parsing requests
+      final result = await _TorrentParserIsolateManager().parse(torrentBytes);
 
       // Sort chapters after returning from isolate
       // Don't cache here - caching will be done after sorting in extractChaptersFromTorrent

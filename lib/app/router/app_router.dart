@@ -16,9 +16,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:jabook/core/animations/motion.dart';
-import 'package:jabook/core/config/app_config.dart';
-import 'package:jabook/core/library/local_audiobook.dart';
-import 'package:jabook/core/logging/environment_logger.dart';
+import 'package:jabook/core/di/providers/config_providers.dart';
+import 'package:jabook/core/domain/library/entities/local_audiobook_group.dart';
+import 'package:jabook/core/infrastructure/config/app_config.dart';
+import 'package:jabook/core/infrastructure/logging/environment_logger.dart';
+import 'package:jabook/core/utils/app_title_utils.dart';
+import 'package:jabook/core/widgets/custom_bottom_navigation_bar.dart';
+import 'package:jabook/core/widgets/feature_access_wrapper.dart';
 import 'package:jabook/features/auth/presentation/screens/auth_screen.dart';
 import 'package:jabook/features/debug/presentation/screens/debug_screen.dart';
 import 'package:jabook/features/downloads/presentation/screens/downloads_screen.dart';
@@ -33,6 +37,7 @@ import 'package:jabook/features/player/presentation/screens/player_screen.dart';
 import 'package:jabook/features/player/presentation/widgets/mini_player_widget.dart';
 import 'package:jabook/features/search/presentation/screens/search_screen.dart';
 import 'package:jabook/features/settings/presentation/screens/about_screen.dart';
+import 'package:jabook/features/settings/presentation/screens/search_cache_settings_screen.dart';
 import 'package:jabook/features/settings/presentation/screens/settings_screen.dart';
 import 'package:jabook/features/topic/presentation/screens/topic_screen.dart';
 import 'package:jabook/l10n/app_localizations.dart';
@@ -67,7 +72,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             EnvironmentLogger().d('GoRouter building SearchScreen at /search');
             return CustomTransitionPage<void>(
               key: state.pageKey,
-              child: const SearchScreen(),
+              child: const FeatureAccessWrapper(
+                feature: 'search',
+                child: SearchScreen(),
+              ),
               transitionsBuilder:
                   (context, animation, secondaryAnimation, child) =>
                       Motion.fadeThroughTransition(
@@ -86,7 +94,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             final downloadId = state.uri.queryParameters['downloadId'];
             return CustomTransitionPage<void>(
               key: state.pageKey,
-              child: DownloadsScreen(highlightDownloadId: downloadId),
+              child: FeatureAccessWrapper(
+                feature: 'downloads',
+                child: DownloadsScreen(highlightDownloadId: downloadId),
+              ),
               transitionsBuilder:
                   (context, animation, secondaryAnimation, child) =>
                       Motion.fadeThroughTransition(
@@ -151,18 +162,69 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     GoRoute(
       path: '/local-player',
       builder: (context, state) {
-        final group = state.extra as LocalAudiobookGroup?;
+        debugPrint('🟢 [ROUTER] /local-player route builder called');
+        debugPrint('🟢 [ROUTER] state.extra type: ${state.extra?.runtimeType}');
+        debugPrint('🟢 [ROUTER] state.extra value: $state.extra');
+
+        // CRITICAL: Extract LocalAudiobookGroup from state.extra
+        // GoRouter may handle objects in a way that makes 'is' check unreliable,
+        // so we use direct cast with error handling
+        LocalAudiobookGroup? group;
+        try {
+          final extra = state.extra;
+          if (extra == null) {
+            debugPrint('🔴 [ROUTER] ERROR: state.extra is null');
+            group = null;
+          } else {
+            // Use direct cast - if runtimeType shows LocalAudiobookGroup,
+            // the cast should work even if 'is' check fails
+            group = extra as LocalAudiobookGroup;
+            debugPrint(
+                '🟢 [ROUTER] Cast successful, group path: ${group.groupPath}');
+          }
+        } on TypeError catch (e) {
+          debugPrint(
+              '🔴 [ROUTER] TYPE ERROR: Cannot cast ${state.extra?.runtimeType} to LocalAudiobookGroup');
+          debugPrint('🔴 [ROUTER] Error details: $e');
+          group = null;
+        } on Exception catch (e, stackTrace) {
+          debugPrint('🔴 [ROUTER] EXCEPTION during cast: $e');
+          debugPrint('🔴 [ROUTER] Stack trace: $stackTrace');
+          group = null;
+        }
+
         if (group == null) {
+          debugPrint('🔴 [ROUTER] ERROR: No group provided in state.extra');
           // Fallback if group is not provided
           final localizations = AppLocalizations.of(context);
           return Scaffold(
-            appBar: AppBar(title: Text(localizations?.error ?? 'Error')),
+            appBar: AppBar(
+                title:
+                    Text((localizations?.error ?? 'Error').withFlavorSuffix())),
             body: Center(
                 child: Text(localizations?.noAudiobookGroupProvided ??
                     'No audiobook group provided')),
           );
         }
-        return LocalPlayerScreen(group: group);
+        debugPrint(
+            '🟢 [ROUTER] Creating LocalPlayerScreen with group: ${group.groupPath}');
+        try {
+          debugPrint('🟢 [ROUTER] Calling LocalPlayerScreen constructor...');
+          final screen = LocalPlayerScreen(group: group);
+          debugPrint('🟢 [ROUTER] LocalPlayerScreen created successfully');
+          return screen;
+        } on Exception catch (e, stackTrace) {
+          debugPrint('🔴 [ROUTER] ERROR creating LocalPlayerScreen: $e');
+          debugPrint('🔴 [ROUTER] Stack trace: $stackTrace');
+          final localizations = AppLocalizations.of(context);
+          return Scaffold(
+            appBar: AppBar(
+                title:
+                    Text((localizations?.error ?? 'Error').withFlavorSuffix())),
+            body:
+                Center(child: Text('Failed to create player: ${e.toString()}')),
+          );
+        }
       },
     ),
     GoRoute(
@@ -171,7 +233,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     ),
     GoRoute(
       path: '/favorites',
-      builder: (context, state) => const FavoritesScreen(),
+      builder: (context, state) => const FeatureAccessWrapper(
+        feature: 'favorites',
+        child: FavoritesScreen(),
+      ),
     ),
     GoRoute(
       path: '/auth',
@@ -188,6 +253,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     GoRoute(
       path: '/settings/about',
       builder: (context, state) => const AboutScreen(),
+    ),
+    GoRoute(
+      path: '/settings/search-cache',
+      builder: (context, state) => const SearchCacheSettingsScreen(),
     ),
   ];
 
@@ -288,6 +357,9 @@ class _MainNavigationWrapperState
         navigationItems.indexWhere((item) => item.route == currentLocation);
     if (_selectedIndex == -1) _selectedIndex = 0;
 
+    final appConfig = ref.watch(appConfigProvider);
+    final isBeta = appConfig.isBeta;
+
     return Scaffold(
       body: Column(
         children: [
@@ -298,44 +370,23 @@ class _MainNavigationWrapperState
       persistentFooterButtons: const [
         MiniPlayerWidget(),
       ],
-      bottomNavigationBar: Semantics(
-        explicitChildNodes: true,
-        child: BottomNavigationBar(
-          currentIndex: _selectedIndex,
-          onTap: (index) {
-            final route = navigationItems[index].route;
-            EnvironmentLogger().d(
-              'BottomNavigationBar onTap: index=$index, route=$route, currentLocation=$currentLocation',
-            );
-            if (route != currentLocation) {
-              EnvironmentLogger().d('Navigating to route: $route');
-              context.go(route);
-            } else {
-              EnvironmentLogger()
-                  .d('Already on route $route, skipping navigation');
-            }
-          },
-          type: BottomNavigationBarType.fixed,
-          items: navigationItems
-              .map((item) => BottomNavigationBarItem(
-                    icon: Stack(
-                      children: [
-                        Semantics(
-                          label: item.title,
-                          child: Icon(item.icon),
-                        ),
-                        if (item.badge != null)
-                          Positioned(
-                            top: 0,
-                            right: 0,
-                            child: item.badge!,
-                          ),
-                      ],
-                    ),
-                    label: item.title,
-                  ))
-              .toList(),
-        ),
+      bottomNavigationBar: CustomBottomNavigationBar(
+        currentIndex: _selectedIndex,
+        isBeta: isBeta,
+        items: navigationItems,
+        onTap: (index) {
+          final route = navigationItems[index].route;
+          EnvironmentLogger().d(
+            'BottomNavigationBar onTap: index=$index, route=$route, currentLocation=$currentLocation',
+          );
+          if (route != currentLocation) {
+            EnvironmentLogger().d('Navigating to route: $route');
+            context.go(route);
+          } else {
+            EnvironmentLogger()
+                .d('Already on route $route, skipping navigation');
+          }
+        },
       ),
     );
   }

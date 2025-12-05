@@ -14,8 +14,8 @@
 
 import 'dart:io';
 
+import 'package:jabook/core/infrastructure/logging/structured_logger.dart';
 import 'package:jabook/core/library/audiobook_library_scanner.dart';
-import 'package:jabook/core/logging/structured_logger.dart';
 import 'package:path/path.dart' as path;
 
 /// Result of a library migration operation.

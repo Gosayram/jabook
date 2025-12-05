@@ -17,8 +17,8 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:jabook/core/auth/captcha_detector.dart';
 import 'package:jabook/core/auth/cp1251_encoder.dart';
-import 'package:jabook/core/errors/failures.dart';
-import 'package:jabook/core/logging/structured_logger.dart';
+import 'package:jabook/core/infrastructure/errors/failures.dart';
+import 'package:jabook/core/infrastructure/logging/structured_logger.dart';
 import 'package:jabook/core/net/user_agent_manager.dart';
 import 'package:windows1251/windows1251.dart';
 

@@ -300,6 +300,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chaptersLabel => 'Chapters';
 
   @override
+  String get searchChaptersHint => 'Search by number or title...';
+
+  @override
+  String get allFilter => 'All';
+
+  @override
+  String get currentFilter => 'Current';
+
+  @override
+  String get noChaptersFoundInSearch => 'No chapters found';
+
+  @override
   String get downloadFunctionalityComingSoon => 'Download functionality coming soon';
 
   @override
@@ -346,6 +358,36 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get audioDescription => 'Audio settings';
+
+  @override
+  String get audioEnhancementTitle => 'Audio Enhancement';
+
+  @override
+  String get audioEnhancementDescription => 'Improve audio quality and volume consistency';
+
+  @override
+  String get normalizeVolumeTitle => 'Normalize Volume';
+
+  @override
+  String get normalizeVolumeDescription => 'Maintain consistent volume across different audiobooks';
+
+  @override
+  String get volumeBoostTitle => 'Volume Boost';
+
+  @override
+  String get drcLevelTitle => 'Dynamic Range Compression';
+
+  @override
+  String get speechEnhancerTitle => 'Speech Enhancer';
+
+  @override
+  String get speechEnhancerDescription => 'Improve speech clarity and reduce sibilance';
+
+  @override
+  String get autoVolumeLevelingTitle => 'Auto Volume Leveling';
+
+  @override
+  String get autoVolumeLevelingDescription => 'Automatically adjust volume to maintain consistent level';
 
   @override
   String get playbackSpeed => 'Playback speed';
@@ -720,6 +762,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get sampleChapter2Text => 'Chapter 2';
+
+  @override
+  String chapterNumber(int number) {
+    return 'Chapter $number';
+  }
 
   @override
   String get topicScreenTitle => 'Topic';
@@ -1269,6 +1316,21 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get safFallbackMessage => 'File access permissions are not working properly on your device. You can use the Storage Access Framework (SAF) to select folders manually. This method works without requiring special permissions.';
+
+  @override
+  String get safPermissionCheckboxMessage => 'Please check the \'Allow access to this folder\' checkbox in the file picker dialog and try again. Without this checkbox, the app cannot access the selected folder.';
+
+  @override
+  String get safNoAccessMessage => 'No access to selected folder. Please check the \'Allow access to this folder\' checkbox in the file picker and try again.';
+
+  @override
+  String get safFolderPickerHintTitle => 'Important: Check the checkbox';
+
+  @override
+  String get safFolderPickerHintMessage => 'When selecting a folder, please make sure to check the \'Allow access to this folder\' checkbox in the file picker dialog. Without this checkbox, the app cannot access the selected folder.';
+
+  @override
+  String get safAndroidDataObbWarning => 'Note: Access to Android/data and Android/obb folders is blocked on Android 11+ devices with security updates from March 2024. Please select a different folder.';
 
   @override
   String get safFallbackBenefits => 'Benefits of using SAF:\n• Works on all Android devices\n• No special permissions needed\n• You choose which folders to access';
@@ -1965,6 +2027,31 @@ class AppLocalizationsEn extends AppLocalizations {
   String get atEndOfChapterLabel => 'At end of chapter';
 
   @override
+  String sleepTimerTooltip(String duration) {
+    return 'Sleep timer: $duration';
+  }
+
+  @override
+  String get setSleepTimerTooltip => 'Set sleep timer';
+
+  @override
+  String sleepTimerMinutes(int minutes) {
+    final intl.NumberFormat minutesNumberFormat = intl.NumberFormat.compact(
+      locale: localeName,
+      
+    );
+    final String minutesString = minutesNumberFormat.format(minutes);
+
+    return '$minutesString min.';
+  }
+
+  @override
+  String get sleepTimerHour => '1 hour';
+
+  @override
+  String get sleepTimerAppWillExit => 'Sleep timer: App will exit';
+
+  @override
   String get itemsInTrashLabel => 'Items in Trash';
 
   @override
@@ -2150,7 +2237,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get fileAccessPermissionTitle => 'File Access';
 
   @override
-  String get fileAccessPermissionDescription => 'Needed to save and play audiobooks.';
+  String get fileAccessPermissionDescription => 'Needed to save and play audiobooks. On Android 11+, you\'ll need to enable \"All files access\" in system settings.';
 
   @override
   String get notificationsPermissionTitle => 'Notifications';
@@ -2489,9 +2576,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sessionExpiredTitle => 'Session Expired';
 
   @override
-  String get sessionExpiredMessage => 'Your session has expired. Please log in again.';
-
-  @override
   String get invalidCredentialsTitle => 'Authorization Error';
 
   @override
@@ -2689,6 +2773,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get forwardDurationTitle => 'Forward Duration';
 
   @override
+  String get inactivityTimeoutTitle => 'Inactivity Timeout';
+
+  @override
+  String get inactivityTimeoutLabel => 'Set inactivity timeout';
+
+  @override
+  String get minute => 'minute';
+
+  @override
   String get rewind => 'Rewind';
 
   @override
@@ -2812,4 +2905,300 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get scanningLibrary => 'Scanning library...';
+
+  @override
+  String get manufacturerSettingsNotAvailable => 'Settings Not Available';
+
+  @override
+  String get manufacturerSettingsNotAvailableMessage => 'Manufacturer-specific settings are only available on Android devices.';
+
+  @override
+  String get manufacturerSettingsDefaultTitle => 'Settings for Stable Operation';
+
+  @override
+  String get manufacturerSettingsDefaultMessage => 'To ensure stable operation, you need to configure the following settings:';
+
+  @override
+  String get manufacturerSettingsDefaultStep1 => '1. Enable application autostart';
+
+  @override
+  String get manufacturerSettingsDefaultStep2 => '2. Disable battery optimization for the application';
+
+  @override
+  String get manufacturerSettingsDefaultStep3 => '3. Allow background activity';
+
+  @override
+  String get manufacturerSettingsMiuiTitle => 'MIUI Settings for Stable Operation';
+
+  @override
+  String get manufacturerSettingsMiuiMessage => 'On Xiaomi/Redmi/Poco devices, you need to configure the following settings:';
+
+  @override
+  String manufacturerSettingsMiuiStep1(String appName) {
+    return '1. Autostart: Settings → Apps → Permission management → Autostart → Enable for $appName';
+  }
+
+  @override
+  String manufacturerSettingsMiuiStep2(String appName) {
+    return '2. Battery optimization: Settings → Battery → Battery optimization → Select $appName → Don\'t optimize';
+  }
+
+  @override
+  String manufacturerSettingsMiuiStep3(String appName) {
+    return '3. Background activity: Settings → Apps → $appName → Battery → Background activity → Allow';
+  }
+
+  @override
+  String get manufacturerSettingsEmuiTitle => 'EMUI Settings for Stable Operation';
+
+  @override
+  String get manufacturerSettingsEmuiMessage => 'On Huawei/Honor devices, you need to configure the following settings:';
+
+  @override
+  String manufacturerSettingsEmuiStep1(String appName) {
+    return '1. App protection: Settings → Apps → App protection → $appName → Enable autostart';
+  }
+
+  @override
+  String manufacturerSettingsEmuiStep2(String appName) {
+    return '2. Battery management: Settings → Battery → Battery management → $appName → Don\'t optimize';
+  }
+
+  @override
+  String manufacturerSettingsEmuiStep3(String appName) {
+    return '3. Background activity: Settings → Apps → $appName → Battery → Allow background activity';
+  }
+
+  @override
+  String get manufacturerSettingsColorosTitle => 'ColorOS/RealmeUI Settings for Stable Operation';
+
+  @override
+  String get manufacturerSettingsColorosMessage => 'On Oppo/Realme devices, you need to configure the following settings:';
+
+  @override
+  String manufacturerSettingsColorosStep1(String appName) {
+    return '1. Autostart: Settings → Apps → Autostart → Enable for $appName';
+  }
+
+  @override
+  String manufacturerSettingsColorosStep2(String appName) {
+    return '2. Battery optimization: Settings → Battery → Battery optimization → $appName → Don\'t optimize';
+  }
+
+  @override
+  String manufacturerSettingsColorosStep3(String appName) {
+    return '3. Background activity: Settings → Apps → $appName → Battery → Allow background activity';
+  }
+
+  @override
+  String get manufacturerSettingsOxygenosTitle => 'OxygenOS Settings for Stable Operation';
+
+  @override
+  String get manufacturerSettingsOxygenosMessage => 'On OnePlus devices, you need to configure the following settings:';
+
+  @override
+  String manufacturerSettingsOxygenosStep1(String appName) {
+    return '1. Autostart: Settings → Apps → Autostart → Enable for $appName';
+  }
+
+  @override
+  String manufacturerSettingsOxygenosStep2(String appName) {
+    return '2. Battery optimization: Settings → Battery → Battery optimization → $appName → Don\'t optimize';
+  }
+
+  @override
+  String manufacturerSettingsOxygenosStep3(String appName) {
+    return '3. Background activity: Settings → Apps → $appName → Battery → Allow background activity';
+  }
+
+  @override
+  String get manufacturerSettingsFuntouchosTitle => 'FuntouchOS/OriginOS Settings for Stable Operation';
+
+  @override
+  String get manufacturerSettingsFuntouchosMessage => 'On Vivo devices, you need to configure the following settings:';
+
+  @override
+  String manufacturerSettingsFuntouchosStep1(String appName) {
+    return '1. Autostart: Settings → Apps → Autostart → Enable for $appName';
+  }
+
+  @override
+  String manufacturerSettingsFuntouchosStep2(String appName) {
+    return '2. Battery optimization: Settings → Battery → Battery optimization → $appName → Don\'t optimize';
+  }
+
+  @override
+  String manufacturerSettingsFuntouchosStep3(String appName) {
+    return '3. Background activity: Settings → Apps → $appName → Battery → Allow background activity';
+  }
+
+  @override
+  String get manufacturerSettingsFlymeTitle => 'Flyme Settings for Stable Operation';
+
+  @override
+  String get manufacturerSettingsFlymeMessage => 'On Meizu devices, you need to configure the following settings:';
+
+  @override
+  String manufacturerSettingsFlymeStep1(String appName) {
+    return '1. Autostart: Settings → Apps → Autostart → Enable for $appName';
+  }
+
+  @override
+  String manufacturerSettingsFlymeStep2(String appName) {
+    return '2. Battery optimization: Settings → Battery → Battery optimization → $appName → Don\'t optimize';
+  }
+
+  @override
+  String manufacturerSettingsFlymeStep3(String appName) {
+    return '3. Background activity: Settings → Apps → $appName → Battery → Allow background activity';
+  }
+
+  @override
+  String get manufacturerSettingsOneuiTitle => 'One UI Settings for Stable Operation';
+
+  @override
+  String get manufacturerSettingsOneuiMessage => 'On Samsung devices, it is recommended to configure the following settings:';
+
+  @override
+  String manufacturerSettingsOneuiStep1(String appName) {
+    return '1. Battery optimization: Settings → Apps → $appName → Battery → Don\'t optimize';
+  }
+
+  @override
+  String manufacturerSettingsOneuiStep2(String appName) {
+    return '2. Background activity: Settings → Apps → $appName → Battery → Background activity → Allow';
+  }
+
+  @override
+  String get manufacturerSettingsOneuiStep3 => '3. Autostart: Usually not required on Samsung, but you can check in app settings';
+
+  @override
+  String trackOfTotal(int currentTrack, int totalTracks) {
+    return 'Track $currentTrack of $totalTracks';
+  }
+
+  @override
+  String tracksTitle(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Tracks',
+      one: 'Track',
+      zero: 'No tracks',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get noRepeat => 'No repeat';
+
+  @override
+  String get repeatTrack => 'Repeat track';
+
+  @override
+  String get repeatPlaylist => 'Repeat playlist';
+
+  @override
+  String get timerLabel => 'Timer';
+
+  @override
+  String get speedLabel => 'Speed';
+
+  @override
+  String get rewindButton => 'Rewind';
+
+  @override
+  String get forwardButton => 'Forward';
+
+  @override
+  String get playButton => 'Play';
+
+  @override
+  String get pauseButton => 'Pause';
+
+  @override
+  String get nextButton => 'Next';
+
+  @override
+  String get previousButton => 'Previous';
+
+  @override
+  String get accessRequired => 'Access Required';
+
+  @override
+  String featureRequiresAuth(String feature) {
+    return 'Feature \"$feature\" requires authentication';
+  }
+
+  @override
+  String get signInToAccessFeature => 'Sign in to access this feature';
+
+  @override
+  String get upgradeToFull => 'Upgrade to Full';
+
+  @override
+  String get restrictedFeature => 'Restricted Feature';
+
+  @override
+  String get featureRestricted => 'This feature is restricted in demo mode';
+
+  @override
+  String get featureRestrictedDescription => 'To access this feature, please sign in to your account';
+
+  @override
+  String get signInToUnlock => 'Sign in to unlock';
+
+  @override
+  String get searchGuestModeWarning => 'Search is limited in guest mode. Some features may not work. Sign in for full access.';
+
+  @override
+  String get downloadsGuestModeWarning => 'Downloads are view-only in guest mode. Sign in to manage downloads.';
+
+  @override
+  String get continueAsGuest => 'Continue as Guest';
+
+  @override
+  String get sessionExpired => 'Session Expired';
+
+  @override
+  String get sessionExpiredMessage => 'Your session has expired. Please sign in again.';
+
+  @override
+  String get signInAgain => 'Sign In Again';
+
+  @override
+  String get authorizationRequired => 'Authorization Required';
+
+  @override
+  String get demoMode => 'Demo Mode';
+
+  @override
+  String get demoModeDescription => 'You are using demo mode with limited functionality';
+
+  @override
+  String get upgradeToFullAccess => 'Upgrade to Full Access';
+
+  @override
+  String get searchRestricted => 'Search is restricted in demo mode';
+
+  @override
+  String get downloadRestricted => 'Downloads are restricted in demo mode';
+
+  @override
+  String get browseRestricted => 'Browsing is restricted in demo mode';
+
+  @override
+  String get account => 'Account';
+
+  @override
+  String get compactPlayerLayout => 'Compact Player Layout';
+
+  @override
+  String get standardPlayerLayout => 'Standard Player Layout';
+
+  @override
+  String get adaptiveNavigation => 'Adaptive Navigation';
+
+  @override
+  String get smallScreenOptimizations => 'Small Screen Optimizations';
 }

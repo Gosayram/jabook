@@ -677,6 +677,30 @@ abstract class AppLocalizations {
   /// **'Chapters'**
   String get chaptersLabel;
 
+  /// Hint for chapters search field
+  ///
+  /// In en, this message translates to:
+  /// **'Search by number or title...'**
+  String get searchChaptersHint;
+
+  /// Filter for showing all chapters
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get allFilter;
+
+  /// Filter for showing current chapter
+  ///
+  /// In en, this message translates to:
+  /// **'Current'**
+  String get currentFilter;
+
+  /// Message when no chapters found in search/filter
+  ///
+  /// In en, this message translates to:
+  /// **'No chapters found'**
+  String get noChaptersFoundInSearch;
+
   /// Message for upcoming download feature
   ///
   /// In en, this message translates to:
@@ -772,6 +796,66 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Audio settings'**
   String get audioDescription;
+
+  /// Title for audio enhancement settings
+  ///
+  /// In en, this message translates to:
+  /// **'Audio Enhancement'**
+  String get audioEnhancementTitle;
+
+  /// Description for audio enhancement settings
+  ///
+  /// In en, this message translates to:
+  /// **'Improve audio quality and volume consistency'**
+  String get audioEnhancementDescription;
+
+  /// Title for normalize volume setting
+  ///
+  /// In en, this message translates to:
+  /// **'Normalize Volume'**
+  String get normalizeVolumeTitle;
+
+  /// Description for normalize volume setting
+  ///
+  /// In en, this message translates to:
+  /// **'Maintain consistent volume across different audiobooks'**
+  String get normalizeVolumeDescription;
+
+  /// Title for volume boost setting
+  ///
+  /// In en, this message translates to:
+  /// **'Volume Boost'**
+  String get volumeBoostTitle;
+
+  /// Title for DRC level setting
+  ///
+  /// In en, this message translates to:
+  /// **'Dynamic Range Compression'**
+  String get drcLevelTitle;
+
+  /// Title for speech enhancer setting
+  ///
+  /// In en, this message translates to:
+  /// **'Speech Enhancer'**
+  String get speechEnhancerTitle;
+
+  /// Description for speech enhancer setting
+  ///
+  /// In en, this message translates to:
+  /// **'Improve speech clarity and reduce sibilance'**
+  String get speechEnhancerDescription;
+
+  /// Title for auto volume leveling setting
+  ///
+  /// In en, this message translates to:
+  /// **'Auto Volume Leveling'**
+  String get autoVolumeLevelingTitle;
+
+  /// Description for auto volume leveling setting
+  ///
+  /// In en, this message translates to:
+  /// **'Automatically adjust volume to maintain consistent level'**
+  String get autoVolumeLevelingDescription;
 
   /// Label for playback speed
   ///
@@ -1480,6 +1564,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Chapter 2'**
   String get sampleChapter2Text;
+
+  /// Chapter number label with number parameter
+  ///
+  /// In en, this message translates to:
+  /// **'Chapter {number}'**
+  String chapterNumber(int number);
 
   /// Title for topic screen
   ///
@@ -2458,6 +2548,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'File access permissions are not working properly on your device. You can use the Storage Access Framework (SAF) to select folders manually. This method works without requiring special permissions.'**
   String get safFallbackMessage;
+
+  /// Message when user didn't check the permission checkbox in SAF folder picker
+  ///
+  /// In en, this message translates to:
+  /// **'Please check the \'Allow access to this folder\' checkbox in the file picker dialog and try again. Without this checkbox, the app cannot access the selected folder.'**
+  String get safPermissionCheckboxMessage;
+
+  /// Message when folder access check fails after selection
+  ///
+  /// In en, this message translates to:
+  /// **'No access to selected folder. Please check the \'Allow access to this folder\' checkbox in the file picker and try again.'**
+  String get safNoAccessMessage;
+
+  /// Title for hint dialog before folder picker
+  ///
+  /// In en, this message translates to:
+  /// **'Important: Check the checkbox'**
+  String get safFolderPickerHintTitle;
+
+  /// Message for hint dialog before folder picker
+  ///
+  /// In en, this message translates to:
+  /// **'When selecting a folder, please make sure to check the \'Allow access to this folder\' checkbox in the file picker dialog. Without this checkbox, the app cannot access the selected folder.'**
+  String get safFolderPickerHintMessage;
+
+  /// Warning about blocked Android/data and Android/obb folders
+  ///
+  /// In en, this message translates to:
+  /// **'Note: Access to Android/data and Android/obb folders is blocked on Android 11+ devices with security updates from March 2024. Please select a different folder.'**
+  String get safAndroidDataObbWarning;
 
   /// Benefits of using SAF fallback
   ///
@@ -3767,6 +3887,36 @@ abstract class AppLocalizations {
   /// **'At end of chapter'**
   String get atEndOfChapterLabel;
 
+  /// Tooltip for sleep timer with duration
+  ///
+  /// In en, this message translates to:
+  /// **'Sleep timer: {duration}'**
+  String sleepTimerTooltip(String duration);
+
+  /// Tooltip for setting sleep timer
+  ///
+  /// In en, this message translates to:
+  /// **'Set sleep timer'**
+  String get setSleepTimerTooltip;
+
+  /// Sleep timer duration in minutes
+  ///
+  /// In en, this message translates to:
+  /// **'{minutes} min.'**
+  String sleepTimerMinutes(int minutes);
+
+  /// Sleep timer duration - 1 hour
+  ///
+  /// In en, this message translates to:
+  /// **'1 hour'**
+  String get sleepTimerHour;
+
+  /// Message that app will exit due to sleep timer
+  ///
+  /// In en, this message translates to:
+  /// **'Sleep timer: App will exit'**
+  String get sleepTimerAppWillExit;
+
   /// Label for items in trash
   ///
   /// In en, this message translates to:
@@ -4076,7 +4226,7 @@ abstract class AppLocalizations {
   /// Description for file access permission
   ///
   /// In en, this message translates to:
-  /// **'Needed to save and play audiobooks.'**
+  /// **'Needed to save and play audiobooks. On Android 11+, you\'ll need to enable \"All files access\" in system settings.'**
   String get fileAccessPermissionDescription;
 
   /// Title for notifications permission
@@ -4619,12 +4769,6 @@ abstract class AppLocalizations {
   /// **'Session Expired'**
   String get sessionExpiredTitle;
 
-  /// Message for session expired error
-  ///
-  /// In en, this message translates to:
-  /// **'Your session has expired. Please log in again.'**
-  String get sessionExpiredMessage;
-
   /// Title for invalid credentials error dialog
   ///
   /// In en, this message translates to:
@@ -5015,6 +5159,24 @@ abstract class AppLocalizations {
   /// **'Forward Duration'**
   String get forwardDurationTitle;
 
+  /// Title for inactivity timeout setting
+  ///
+  /// In en, this message translates to:
+  /// **'Inactivity Timeout'**
+  String get inactivityTimeoutTitle;
+
+  /// Label for inactivity timeout setting
+  ///
+  /// In en, this message translates to:
+  /// **'Set inactivity timeout'**
+  String get inactivityTimeoutLabel;
+
+  /// Singular form of minute
+  ///
+  /// In en, this message translates to:
+  /// **'minute'**
+  String get minute;
+
   /// Label for rewind action
   ///
   /// In en, this message translates to:
@@ -5260,6 +5422,492 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Scanning library...'**
   String get scanningLibrary;
+
+  /// Title when manufacturer settings are not available
+  ///
+  /// In en, this message translates to:
+  /// **'Settings Not Available'**
+  String get manufacturerSettingsNotAvailable;
+
+  /// Message when manufacturer settings are not available
+  ///
+  /// In en, this message translates to:
+  /// **'Manufacturer-specific settings are only available on Android devices.'**
+  String get manufacturerSettingsNotAvailableMessage;
+
+  /// Default title for manufacturer settings instructions
+  ///
+  /// In en, this message translates to:
+  /// **'Settings for Stable Operation'**
+  String get manufacturerSettingsDefaultTitle;
+
+  /// Default message for manufacturer settings instructions
+  ///
+  /// In en, this message translates to:
+  /// **'To ensure stable operation, you need to configure the following settings:'**
+  String get manufacturerSettingsDefaultMessage;
+
+  /// Default step 1 for manufacturer settings
+  ///
+  /// In en, this message translates to:
+  /// **'1. Enable application autostart'**
+  String get manufacturerSettingsDefaultStep1;
+
+  /// Default step 2 for manufacturer settings
+  ///
+  /// In en, this message translates to:
+  /// **'2. Disable battery optimization for the application'**
+  String get manufacturerSettingsDefaultStep2;
+
+  /// Default step 3 for manufacturer settings
+  ///
+  /// In en, this message translates to:
+  /// **'3. Allow background activity'**
+  String get manufacturerSettingsDefaultStep3;
+
+  /// Title for MIUI manufacturer settings
+  ///
+  /// In en, this message translates to:
+  /// **'MIUI Settings for Stable Operation'**
+  String get manufacturerSettingsMiuiTitle;
+
+  /// Message for MIUI manufacturer settings
+  ///
+  /// In en, this message translates to:
+  /// **'On Xiaomi/Redmi/Poco devices, you need to configure the following settings:'**
+  String get manufacturerSettingsMiuiMessage;
+
+  /// Step 1 for MIUI settings
+  ///
+  /// In en, this message translates to:
+  /// **'1. Autostart: Settings → Apps → Permission management → Autostart → Enable for {appName}'**
+  String manufacturerSettingsMiuiStep1(String appName);
+
+  /// Step 2 for MIUI settings
+  ///
+  /// In en, this message translates to:
+  /// **'2. Battery optimization: Settings → Battery → Battery optimization → Select {appName} → Don\'t optimize'**
+  String manufacturerSettingsMiuiStep2(String appName);
+
+  /// Step 3 for MIUI settings
+  ///
+  /// In en, this message translates to:
+  /// **'3. Background activity: Settings → Apps → {appName} → Battery → Background activity → Allow'**
+  String manufacturerSettingsMiuiStep3(String appName);
+
+  /// Title for EMUI manufacturer settings
+  ///
+  /// In en, this message translates to:
+  /// **'EMUI Settings for Stable Operation'**
+  String get manufacturerSettingsEmuiTitle;
+
+  /// Message for EMUI manufacturer settings
+  ///
+  /// In en, this message translates to:
+  /// **'On Huawei/Honor devices, you need to configure the following settings:'**
+  String get manufacturerSettingsEmuiMessage;
+
+  /// Step 1 for EMUI settings
+  ///
+  /// In en, this message translates to:
+  /// **'1. App protection: Settings → Apps → App protection → {appName} → Enable autostart'**
+  String manufacturerSettingsEmuiStep1(String appName);
+
+  /// Step 2 for EMUI settings
+  ///
+  /// In en, this message translates to:
+  /// **'2. Battery management: Settings → Battery → Battery management → {appName} → Don\'t optimize'**
+  String manufacturerSettingsEmuiStep2(String appName);
+
+  /// Step 3 for EMUI settings
+  ///
+  /// In en, this message translates to:
+  /// **'3. Background activity: Settings → Apps → {appName} → Battery → Allow background activity'**
+  String manufacturerSettingsEmuiStep3(String appName);
+
+  /// Title for ColorOS/RealmeUI manufacturer settings
+  ///
+  /// In en, this message translates to:
+  /// **'ColorOS/RealmeUI Settings for Stable Operation'**
+  String get manufacturerSettingsColorosTitle;
+
+  /// Message for ColorOS/RealmeUI manufacturer settings
+  ///
+  /// In en, this message translates to:
+  /// **'On Oppo/Realme devices, you need to configure the following settings:'**
+  String get manufacturerSettingsColorosMessage;
+
+  /// Step 1 for ColorOS/RealmeUI settings
+  ///
+  /// In en, this message translates to:
+  /// **'1. Autostart: Settings → Apps → Autostart → Enable for {appName}'**
+  String manufacturerSettingsColorosStep1(String appName);
+
+  /// Step 2 for ColorOS/RealmeUI settings
+  ///
+  /// In en, this message translates to:
+  /// **'2. Battery optimization: Settings → Battery → Battery optimization → {appName} → Don\'t optimize'**
+  String manufacturerSettingsColorosStep2(String appName);
+
+  /// Step 3 for ColorOS/RealmeUI settings
+  ///
+  /// In en, this message translates to:
+  /// **'3. Background activity: Settings → Apps → {appName} → Battery → Allow background activity'**
+  String manufacturerSettingsColorosStep3(String appName);
+
+  /// Title for OxygenOS manufacturer settings
+  ///
+  /// In en, this message translates to:
+  /// **'OxygenOS Settings for Stable Operation'**
+  String get manufacturerSettingsOxygenosTitle;
+
+  /// Message for OxygenOS manufacturer settings
+  ///
+  /// In en, this message translates to:
+  /// **'On OnePlus devices, you need to configure the following settings:'**
+  String get manufacturerSettingsOxygenosMessage;
+
+  /// Step 1 for OxygenOS settings
+  ///
+  /// In en, this message translates to:
+  /// **'1. Autostart: Settings → Apps → Autostart → Enable for {appName}'**
+  String manufacturerSettingsOxygenosStep1(String appName);
+
+  /// Step 2 for OxygenOS settings
+  ///
+  /// In en, this message translates to:
+  /// **'2. Battery optimization: Settings → Battery → Battery optimization → {appName} → Don\'t optimize'**
+  String manufacturerSettingsOxygenosStep2(String appName);
+
+  /// Step 3 for OxygenOS settings
+  ///
+  /// In en, this message translates to:
+  /// **'3. Background activity: Settings → Apps → {appName} → Battery → Allow background activity'**
+  String manufacturerSettingsOxygenosStep3(String appName);
+
+  /// Title for FuntouchOS/OriginOS manufacturer settings
+  ///
+  /// In en, this message translates to:
+  /// **'FuntouchOS/OriginOS Settings for Stable Operation'**
+  String get manufacturerSettingsFuntouchosTitle;
+
+  /// Message for FuntouchOS/OriginOS manufacturer settings
+  ///
+  /// In en, this message translates to:
+  /// **'On Vivo devices, you need to configure the following settings:'**
+  String get manufacturerSettingsFuntouchosMessage;
+
+  /// Step 1 for FuntouchOS/OriginOS settings
+  ///
+  /// In en, this message translates to:
+  /// **'1. Autostart: Settings → Apps → Autostart → Enable for {appName}'**
+  String manufacturerSettingsFuntouchosStep1(String appName);
+
+  /// Step 2 for FuntouchOS/OriginOS settings
+  ///
+  /// In en, this message translates to:
+  /// **'2. Battery optimization: Settings → Battery → Battery optimization → {appName} → Don\'t optimize'**
+  String manufacturerSettingsFuntouchosStep2(String appName);
+
+  /// Step 3 for FuntouchOS/OriginOS settings
+  ///
+  /// In en, this message translates to:
+  /// **'3. Background activity: Settings → Apps → {appName} → Battery → Allow background activity'**
+  String manufacturerSettingsFuntouchosStep3(String appName);
+
+  /// Title for Flyme manufacturer settings
+  ///
+  /// In en, this message translates to:
+  /// **'Flyme Settings for Stable Operation'**
+  String get manufacturerSettingsFlymeTitle;
+
+  /// Message for Flyme manufacturer settings
+  ///
+  /// In en, this message translates to:
+  /// **'On Meizu devices, you need to configure the following settings:'**
+  String get manufacturerSettingsFlymeMessage;
+
+  /// Step 1 for Flyme settings
+  ///
+  /// In en, this message translates to:
+  /// **'1. Autostart: Settings → Apps → Autostart → Enable for {appName}'**
+  String manufacturerSettingsFlymeStep1(String appName);
+
+  /// Step 2 for Flyme settings
+  ///
+  /// In en, this message translates to:
+  /// **'2. Battery optimization: Settings → Battery → Battery optimization → {appName} → Don\'t optimize'**
+  String manufacturerSettingsFlymeStep2(String appName);
+
+  /// Step 3 for Flyme settings
+  ///
+  /// In en, this message translates to:
+  /// **'3. Background activity: Settings → Apps → {appName} → Battery → Allow background activity'**
+  String manufacturerSettingsFlymeStep3(String appName);
+
+  /// Title for One UI manufacturer settings
+  ///
+  /// In en, this message translates to:
+  /// **'One UI Settings for Stable Operation'**
+  String get manufacturerSettingsOneuiTitle;
+
+  /// Message for One UI manufacturer settings
+  ///
+  /// In en, this message translates to:
+  /// **'On Samsung devices, it is recommended to configure the following settings:'**
+  String get manufacturerSettingsOneuiMessage;
+
+  /// Step 1 for One UI settings
+  ///
+  /// In en, this message translates to:
+  /// **'1. Battery optimization: Settings → Apps → {appName} → Battery → Don\'t optimize'**
+  String manufacturerSettingsOneuiStep1(String appName);
+
+  /// Step 2 for One UI settings
+  ///
+  /// In en, this message translates to:
+  /// **'2. Background activity: Settings → Apps → {appName} → Battery → Background activity → Allow'**
+  String manufacturerSettingsOneuiStep2(String appName);
+
+  /// Step 3 for One UI settings
+  ///
+  /// In en, this message translates to:
+  /// **'3. Autostart: Usually not required on Samsung, but you can check in app settings'**
+  String get manufacturerSettingsOneuiStep3;
+
+  /// Track position indicator
+  ///
+  /// In en, this message translates to:
+  /// **'Track {currentTrack} of {totalTracks}'**
+  String trackOfTotal(int currentTrack, int totalTracks);
+
+  /// Tracks section title with plural
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{No tracks} =1{Track} other{Tracks}}'**
+  String tracksTitle(int count);
+
+  /// No repeat mode
+  ///
+  /// In en, this message translates to:
+  /// **'No repeat'**
+  String get noRepeat;
+
+  /// Repeat current track mode
+  ///
+  /// In en, this message translates to:
+  /// **'Repeat track'**
+  String get repeatTrack;
+
+  /// Repeat entire playlist mode
+  ///
+  /// In en, this message translates to:
+  /// **'Repeat playlist'**
+  String get repeatPlaylist;
+
+  /// Sleep timer label
+  ///
+  /// In en, this message translates to:
+  /// **'Timer'**
+  String get timerLabel;
+
+  /// Playback speed label
+  ///
+  /// In en, this message translates to:
+  /// **'Speed'**
+  String get speedLabel;
+
+  /// Rewind button label
+  ///
+  /// In en, this message translates to:
+  /// **'Rewind'**
+  String get rewindButton;
+
+  /// Forward button label
+  ///
+  /// In en, this message translates to:
+  /// **'Forward'**
+  String get forwardButton;
+
+  /// Play button label
+  ///
+  /// In en, this message translates to:
+  /// **'Play'**
+  String get playButton;
+
+  /// Pause button label
+  ///
+  /// In en, this message translates to:
+  /// **'Pause'**
+  String get pauseButton;
+
+  /// Next track button label
+  ///
+  /// In en, this message translates to:
+  /// **'Next'**
+  String get nextButton;
+
+  /// Previous track button label
+  ///
+  /// In en, this message translates to:
+  /// **'Previous'**
+  String get previousButton;
+
+  /// Title for access required dialog
+  ///
+  /// In en, this message translates to:
+  /// **'Access Required'**
+  String get accessRequired;
+
+  /// Message when feature requires authentication
+  ///
+  /// In en, this message translates to:
+  /// **'Feature \"{feature}\" requires authentication'**
+  String featureRequiresAuth(String feature);
+
+  /// Message prompting user to sign in for feature access
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in to access this feature'**
+  String get signInToAccessFeature;
+
+  /// Button text to upgrade to full access
+  ///
+  /// In en, this message translates to:
+  /// **'Upgrade to Full'**
+  String get upgradeToFull;
+
+  /// Title for restricted feature screen
+  ///
+  /// In en, this message translates to:
+  /// **'Restricted Feature'**
+  String get restrictedFeature;
+
+  /// Message when feature is restricted
+  ///
+  /// In en, this message translates to:
+  /// **'This feature is restricted in demo mode'**
+  String get featureRestricted;
+
+  /// Description for restricted feature
+  ///
+  /// In en, this message translates to:
+  /// **'To access this feature, please sign in to your account'**
+  String get featureRestrictedDescription;
+
+  /// Button text to sign in and unlock features
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in to unlock'**
+  String get signInToUnlock;
+
+  /// Warning message shown in search screen when in guest mode
+  ///
+  /// In en, this message translates to:
+  /// **'Search is limited in guest mode. Some features may not work. Sign in for full access.'**
+  String get searchGuestModeWarning;
+
+  /// Warning message shown in downloads screen when in guest mode
+  ///
+  /// In en, this message translates to:
+  /// **'Downloads are view-only in guest mode. Sign in to manage downloads.'**
+  String get downloadsGuestModeWarning;
+
+  /// Button text to continue as guest
+  ///
+  /// In en, this message translates to:
+  /// **'Continue as Guest'**
+  String get continueAsGuest;
+
+  /// Title for session expired dialog
+  ///
+  /// In en, this message translates to:
+  /// **'Session Expired'**
+  String get sessionExpired;
+
+  /// Message for session expired
+  ///
+  /// In en, this message translates to:
+  /// **'Your session has expired. Please sign in again.'**
+  String get sessionExpiredMessage;
+
+  /// Button text to sign in again
+  ///
+  /// In en, this message translates to:
+  /// **'Sign In Again'**
+  String get signInAgain;
+
+  /// Title for authorization required dialog
+  ///
+  /// In en, this message translates to:
+  /// **'Authorization Required'**
+  String get authorizationRequired;
+
+  /// Title for demo mode
+  ///
+  /// In en, this message translates to:
+  /// **'Demo Mode'**
+  String get demoMode;
+
+  /// Description for demo mode
+  ///
+  /// In en, this message translates to:
+  /// **'You are using demo mode with limited functionality'**
+  String get demoModeDescription;
+
+  /// Button text to upgrade to full access
+  ///
+  /// In en, this message translates to:
+  /// **'Upgrade to Full Access'**
+  String get upgradeToFullAccess;
+
+  /// Message when search is restricted
+  ///
+  /// In en, this message translates to:
+  /// **'Search is restricted in demo mode'**
+  String get searchRestricted;
+
+  /// Message when downloads are restricted
+  ///
+  /// In en, this message translates to:
+  /// **'Downloads are restricted in demo mode'**
+  String get downloadRestricted;
+
+  /// Message when browsing is restricted
+  ///
+  /// In en, this message translates to:
+  /// **'Browsing is restricted in demo mode'**
+  String get browseRestricted;
+
+  /// Account section or button
+  ///
+  /// In en, this message translates to:
+  /// **'Account'**
+  String get account;
+
+  /// Compact player layout option
+  ///
+  /// In en, this message translates to:
+  /// **'Compact Player Layout'**
+  String get compactPlayerLayout;
+
+  /// Standard player layout option
+  ///
+  /// In en, this message translates to:
+  /// **'Standard Player Layout'**
+  String get standardPlayerLayout;
+
+  /// Adaptive navigation feature
+  ///
+  /// In en, this message translates to:
+  /// **'Adaptive Navigation'**
+  String get adaptiveNavigation;
+
+  /// Small screen optimizations feature
+  ///
+  /// In en, this message translates to:
+  /// **'Small Screen Optimizations'**
+  String get smallScreenOptimizations;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

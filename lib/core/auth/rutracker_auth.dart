@@ -20,16 +20,18 @@ import 'package:dio_cookie_manager/dio_cookie_manager.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:jabook/core/auth/captcha_detector.dart';
-import 'package:jabook/core/auth/cookie_database_service.dart';
 import 'package:jabook/core/auth/credential_manager.dart';
 import 'package:jabook/core/auth/direct_auth_service.dart';
 import 'package:jabook/core/auth/simple_cookie_manager.dart';
-import 'package:jabook/core/endpoints/endpoint_manager.dart';
-import 'package:jabook/core/errors/failures.dart';
-import 'package:jabook/core/logging/structured_logger.dart';
+import 'package:jabook/core/data/local/database/app_database.dart';
+import 'package:jabook/core/data/local/database/cookie_database_service.dart';
+import 'package:jabook/core/domain/auth/entities/user_credentials.dart';
+import 'package:jabook/core/infrastructure/endpoints/endpoint_manager.dart';
+import 'package:jabook/core/infrastructure/errors/failures.dart';
+import 'package:jabook/core/infrastructure/logging/structured_logger.dart';
 import 'package:jabook/core/net/dio_client.dart';
+import 'package:jabook/core/services/cookie_service.dart';
 import 'package:jabook/core/session/session_manager.dart';
-import 'package:jabook/data/db/app_database.dart';
 
 /// Handles authentication with RuTracker forum.
 ///
@@ -37,12 +39,20 @@ import 'package:jabook/data/db/app_database.dart';
 /// status using direct HTTP authentication (no WebView).
 class RuTrackerAuth {
   /// Private constructor for singleton pattern.
-  RuTrackerAuth._(this._context);
+  RuTrackerAuth._(this._context, {SessionManager? sessionManager})
+      : _sessionManager = sessionManager;
 
   /// Factory constructor to create a new instance of RuTrackerAuth.
   ///
   /// The [context] parameter is required for showing dialogs and navigation.
-  factory RuTrackerAuth(BuildContext context) => RuTrackerAuth._(context);
+  /// The [sessionManager] parameter is optional - if provided, will be used
+  /// instead of creating a new instance. For dependency injection, prefer
+  /// passing an instance from [sessionManagerProvider].
+  factory RuTrackerAuth(
+    BuildContext context, {
+    SessionManager? sessionManager,
+  }) =>
+      RuTrackerAuth._(context, sessionManager: sessionManager);
 
   /// Simple cookie manager for storing and managing cookies.
   final SimpleCookieManager _cookieManager = SimpleCookieManager();
@@ -69,8 +79,7 @@ class RuTrackerAuth {
   SessionManager get sessionManager {
     if (_sessionManager == null) {
       try {
-        // Create SessionManager with this instance
-        // SessionManager is a singleton, so this is safe
+        // Create SessionManager with this instance if not provided
         _sessionManager = SessionManager(rutrackerAuth: this);
         // Verify that the instance was created successfully
         if (_sessionManager == null) {
@@ -86,6 +95,36 @@ class RuTrackerAuth {
       throw StateError('SessionManager is null after creation');
     }
     return manager;
+  }
+
+  /// Waits for database initialization if not ready.
+  ///
+  /// Returns the initialized AppDatabase instance, or throws StateError if
+  /// initialization fails after maximum retries.
+  Future<AppDatabase> _ensureDatabaseInitialized() async {
+    final appDb = AppDatabase.getInstance();
+
+    if (appDb.isInitialized) {
+      return appDb;
+    }
+
+    // Wait for database initialization with timeout
+    var retries = 0;
+    const maxRetries = 50; // 5 seconds max wait
+    const retryDelay = Duration(milliseconds: 100);
+
+    while (!appDb.isInitialized && retries < maxRetries) {
+      await Future.delayed(retryDelay);
+      retries++;
+    }
+
+    if (!appDb.isInitialized) {
+      throw StateError(
+        'Database not initialized after waiting ${maxRetries * retryDelay.inMilliseconds}ms',
+      );
+    }
+
+    return appDb;
   }
 
   /// Attempts to log in to RuTracker via direct HTTP authentication.
@@ -128,8 +167,9 @@ class RuTrackerAuth {
     _isLoggingIn = true;
     try {
       // Get active endpoint (mirror)
-      final db = AppDatabase().database;
-      final endpointManager = EndpointManager(db);
+      final appDb = await _ensureDatabaseInitialized();
+      final db = appDb.database;
+      final endpointManager = EndpointManager(db, appDb);
       final activeBase = await endpointManager.getActiveEndpoint();
       final dio = await DioClient.instance;
 
@@ -171,7 +211,8 @@ class RuTrackerAuth {
                 cookies.map((c) => '${c.name}=${c.value}').join('; ');
 
             // Save to database - most reliable storage
-            final cookieDbService = CookieDatabaseService(AppDatabase());
+            final appDb = await _ensureDatabaseInitialized();
+            final cookieDbService = CookieDatabaseService(appDb);
             final savedToDb =
                 await cookieDbService.saveCookies(activeBase, cookieHeader);
 
@@ -265,7 +306,8 @@ class RuTrackerAuth {
                 cookies.map((c) => '${c.name}=${c.value}').join('; ');
 
             // Save to database - most reliable storage
-            final cookieDbService = CookieDatabaseService(AppDatabase());
+            final appDb = await _ensureDatabaseInitialized();
+            final cookieDbService = CookieDatabaseService(appDb);
             final savedToDb =
                 await cookieDbService.saveCookies(activeBase, cookieHeader);
 
@@ -873,8 +915,9 @@ class RuTrackerAuth {
     _isLoggingIn = true;
     try {
       // Get active endpoint (mirror)
-      final db = AppDatabase().database;
-      final endpointManager = EndpointManager(db);
+      final appDb = await _ensureDatabaseInitialized();
+      final db = appDb.database;
+      final endpointManager = EndpointManager(db, appDb);
       final activeBase = await endpointManager.getActiveEndpoint();
       final dio = await DioClient.instance;
 
@@ -919,7 +962,8 @@ class RuTrackerAuth {
                 cookies.map((c) => '${c.name}=${c.value}').join('; ');
 
             // Save to database - most reliable storage
-            final cookieDbService = CookieDatabaseService(AppDatabase());
+            final appDb = await _ensureDatabaseInitialized();
+            final cookieDbService = CookieDatabaseService(appDb);
             final savedToDb =
                 await cookieDbService.saveCookies(activeBase, cookieHeader);
 
@@ -1160,7 +1204,8 @@ class RuTrackerAuth {
 
       // CRITICAL: Clear cookies from database FIRST - this is the primary storage
       try {
-        final cookieDbService = CookieDatabaseService(AppDatabase());
+        final appDb = await _ensureDatabaseInitialized();
+        final cookieDbService = CookieDatabaseService(appDb);
         final cleared = await cookieDbService.clearCookies();
 
         await logger.log(
@@ -1198,8 +1243,9 @@ class RuTrackerAuth {
       await sessionManager.clearSession();
 
       // Clear cookies from SimpleCookieManager
-      final db = AppDatabase().database;
-      final endpointManager = EndpointManager(db);
+      final appDb = await _ensureDatabaseInitialized();
+      final db = appDb.database;
+      final endpointManager = EndpointManager(db, appDb);
       final activeBase = await endpointManager.getActiveEndpoint();
       final dio = await DioClient.instance;
       final cookieJar = await _getCookieJar(dio);
@@ -1227,6 +1273,71 @@ class RuTrackerAuth {
       );
 
       await DioClient.clearCookies();
+
+      // CRITICAL: Also clear from CookieService (Android CookieManager)
+      // This is the single source of truth for cookies on Android
+      try {
+        await logger.log(
+          level: 'info',
+          subsystem: 'auth',
+          message: 'Clearing cookies from CookieService',
+          operationId: operationId,
+          context: 'logout',
+        );
+
+        final cleared = await CookieService.clearAllCookies();
+        await logger.log(
+          level: cleared ? 'info' : 'warning',
+          subsystem: 'auth',
+          message: cleared
+              ? 'Cookies cleared from CookieService'
+              : 'Failed to clear cookies from CookieService',
+          operationId: operationId,
+          context: 'logout',
+          extra: {'cleared_from_cookie_service': cleared},
+        );
+      } on Exception catch (e) {
+        await logger.log(
+          level: 'warning',
+          subsystem: 'auth',
+          message: 'Failed to clear cookies from CookieService',
+          operationId: operationId,
+          context: 'logout',
+          cause: e.toString(),
+        );
+        // Don't fail logout if CookieService clear fails
+      }
+
+      // Also clear from SecureStorage
+      try {
+        await logger.log(
+          level: 'info',
+          subsystem: 'auth',
+          message: 'Clearing cookies from SecureStorage',
+          operationId: operationId,
+          context: 'logout',
+        );
+
+        final simpleCookieManager = SimpleCookieManager();
+        await simpleCookieManager.clearCookie(activeBase, cookieJar);
+        await logger.log(
+          level: 'info',
+          subsystem: 'auth',
+          message: 'Cookies cleared from SecureStorage',
+          operationId: operationId,
+          context: 'logout',
+        );
+      } on Exception catch (e) {
+        await logger.log(
+          level: 'warning',
+          subsystem: 'auth',
+          message: 'Failed to clear cookies from SecureStorage',
+          operationId: operationId,
+          context: 'logout',
+          cause: e.toString(),
+        );
+        // Don't fail logout if SecureStorage clear fails
+      }
 
       _authStatusController.add(false);
 
@@ -1277,8 +1388,9 @@ class RuTrackerAuth {
 
     try {
       // Use active endpoint instead of static URL
-      final db = AppDatabase().database;
-      final endpointManager = EndpointManager(db);
+      final appDb = await _ensureDatabaseInitialized();
+      final db = appDb.database;
+      final endpointManager = EndpointManager(db, appDb);
       final activeEndpoint = await endpointManager.getActiveEndpoint();
       final profileUrl = '$activeEndpoint/forum/profile.php';
 
@@ -1568,6 +1680,17 @@ class RuTrackerAuth {
   /// Clears all stored credentials.
   Future<void> clearStoredCredentials() async {
     await _credentialManager.clearCredentials();
+  }
+
+  /// Gets stored credentials if available.
+  Future<UserCredentials?> getStoredCredentials() async {
+    final credentials = await _credentialManager.getCredentials();
+    if (credentials == null) return null;
+
+    return UserCredentials(
+      username: credentials['username']!,
+      password: credentials['password']!,
+    );
   }
 
   /// Exports stored credentials in specified format.

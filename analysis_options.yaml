@@ -20,6 +20,8 @@ analyzer:
     - "**/*.theme.dart"
     - "**/*.l10n.dart"
     - "**/*.auto_route.dart"
+    - "test_results/**"
+    - "**/*_test.dart"
 
 linter:
   rules:

@@ -15,32 +15,41 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:device_info_plus/device_info_plus.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:jabook/core/backup/backup_service.dart';
-import 'package:jabook/core/cache/rutracker_cache_service.dart';
-import 'package:jabook/core/config/audio_settings_manager.dart';
-import 'package:jabook/core/config/audio_settings_provider.dart';
-import 'package:jabook/core/config/book_audio_settings_service.dart';
-import 'package:jabook/core/config/language_manager.dart';
-import 'package:jabook/core/config/language_provider.dart';
-import 'package:jabook/core/config/theme_provider.dart';
-import 'package:jabook/core/library/library_migration_service.dart';
-import 'package:jabook/core/metadata/audiobook_metadata_service.dart';
-import 'package:jabook/core/metadata/metadata_sync_scheduler.dart';
-import 'package:jabook/core/net/dio_client.dart';
-import 'package:jabook/core/permissions/permission_service.dart';
+import 'package:jabook/core/di/providers/database_providers.dart';
+import 'package:jabook/core/di/providers/player_providers.dart';
+import 'package:jabook/core/di/providers/utils_providers.dart';
+import 'package:jabook/core/infrastructure/config/app_config.dart';
+import 'package:jabook/core/infrastructure/config/audio_settings_provider.dart';
+import 'package:jabook/core/infrastructure/config/book_audio_settings_service.dart';
+import 'package:jabook/core/infrastructure/config/language_manager.dart';
+import 'package:jabook/core/infrastructure/config/language_provider.dart';
+import 'package:jabook/core/infrastructure/permissions/permission_service.dart';
 import 'package:jabook/core/player/player_state_provider.dart';
-import 'package:jabook/core/session/session_manager.dart';
-import 'package:jabook/core/utils/content_uri_service.dart';
-import 'package:jabook/core/utils/file_picker_utils.dart' as file_picker_utils;
-import 'package:jabook/core/utils/storage_path_utils.dart';
-import 'package:jabook/data/db/app_database.dart';
-import 'package:jabook/features/settings/presentation/screens/background_compatibility_screen.dart';
-import 'package:jabook/features/settings/presentation/screens/mirror_settings_screen.dart';
+import 'package:jabook/core/utils/app_title_utils.dart';
+import 'package:jabook/features/settings/presentation/widgets/dialogs/audio_dialogs.dart';
+import 'package:jabook/features/settings/presentation/widgets/dialogs/folder_dialogs.dart';
+import 'package:jabook/features/settings/presentation/widgets/dialogs/permission_dialogs.dart';
+import 'package:jabook/features/settings/presentation/widgets/folder_handlers.dart';
+import 'package:jabook/features/settings/presentation/widgets/settings_sections/about_section.dart';
+import 'package:jabook/features/settings/presentation/widgets/settings_sections/accessibility_section.dart';
+import 'package:jabook/features/settings/presentation/widgets/settings_sections/audio_enhancement_section.dart';
+import 'package:jabook/features/settings/presentation/widgets/settings_sections/audio_section.dart';
+import 'package:jabook/features/settings/presentation/widgets/settings_sections/background_compatibility_section.dart';
+import 'package:jabook/features/settings/presentation/widgets/settings_sections/backup_section.dart';
+import 'package:jabook/features/settings/presentation/widgets/settings_sections/cache_section.dart';
+import 'package:jabook/features/settings/presentation/widgets/settings_sections/download_section.dart';
+import 'package:jabook/features/settings/presentation/widgets/settings_sections/language_section.dart';
+import 'package:jabook/features/settings/presentation/widgets/settings_sections/library_folder_section.dart';
+import 'package:jabook/features/settings/presentation/widgets/settings_sections/metadata_section.dart';
+import 'package:jabook/features/settings/presentation/widgets/settings_sections/mirror_section.dart';
+import 'package:jabook/features/settings/presentation/widgets/settings_sections/permissions_section.dart';
+import 'package:jabook/features/settings/presentation/widgets/settings_sections/rutracker_session_section.dart';
+import 'package:jabook/features/settings/presentation/widgets/settings_sections/theme_section.dart';
 import 'package:jabook/l10n/app_localizations.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -76,10 +85,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   void initState() {
     super.initState();
     _loadLanguagePreference();
-    _loadDownloadFolder();
-    _loadLibraryFolders();
     _loadWifiOnlySetting();
     _loadAnimationSetting();
+    // Load folder paths after first frame to ensure ref is available
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadDownloadFolder();
+      _loadLibraryFolders();
+    });
   }
 
   Future<void> _loadLanguagePreference() async {
@@ -91,7 +103,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   Future<void> _loadDownloadFolder() async {
     // Use StoragePathUtils to get default path if not set
-    final storageUtils = StoragePathUtils();
+    final storageUtils = ref.read(storagePathUtilsProvider);
     final path = await storageUtils.getDefaultAudiobookPath();
     if (mounted) {
       setState(() {
@@ -101,7 +113,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Future<void> _loadLibraryFolders() async {
-    final storageUtils = StoragePathUtils();
+    final storageUtils = ref.read(storagePathUtilsProvider);
     final path = await storageUtils.getLibraryFolderPath();
     final folders = await storageUtils.getLibraryFolders();
     if (mounted) {
@@ -182,7 +194,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(localizations?.settingsTitle ?? 'Settings'),
+        title: Text(
+            (localizations?.settingsTitle ?? 'Settings').withFlavorSuffix()),
       ),
       body: ListView(
         padding: const EdgeInsets.all(16.0),
@@ -191,7 +204,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           Semantics(
             container: true,
             label: localizations?.languageSettingsLabel ?? 'Language settings',
-            child: _buildLanguageSection(context),
+            child: LanguageSection(
+              selectedLanguage: _selectedLanguage,
+              onLanguageChanged: (code) => _changeLanguage(code, ref),
+            ),
           ),
 
           const SizedBox(height: 24),
@@ -201,7 +217,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             container: true,
             label: localizations?.mirrorSourceSettingsLabel ??
                 'Mirror and source settings',
-            child: _buildMirrorSection(context),
+            child: const MirrorSection(),
           ),
 
           const SizedBox(height: 24),
@@ -211,7 +227,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             container: true,
             label: localizations?.rutrackerSessionLabel ??
                 'RuTracker session management',
-            child: _buildRutrackerSessionSection(context),
+            child: const RutrackerSessionSection(),
           ),
 
           const SizedBox(height: 24),
@@ -221,7 +237,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             container: true,
             label:
                 localizations?.metadataManagementLabel ?? 'Metadata management',
-            child: _buildMetadataSection(context),
+            child: const MetadataSection(),
           ),
 
           const SizedBox(height: 24),
@@ -230,7 +246,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           Semantics(
             container: true,
             label: localizations?.themeSettingsLabel ?? 'Theme settings',
-            child: _buildThemeSection(context),
+            child: const ThemeSection(),
           ),
 
           const SizedBox(height: 24),
@@ -239,7 +255,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           Semantics(
             container: true,
             label: 'Accessibility settings',
-            child: _buildAccessibilitySection(context),
+            child: AccessibilitySection(
+              reduceAnimations: _reduceAnimations,
+              onReduceAnimationsChanged: _saveAnimationSetting,
+            ),
           ),
 
           const SizedBox(height: 24),
@@ -249,7 +268,73 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             container: true,
             label: localizations?.audioPlaybackSettingsLabel ??
                 'Audio playback settings',
-            child: _buildAudioSection(context),
+            child: AudioSection(
+              onShowPlaybackSpeedDialog: (ctx) => showPlaybackSpeedDialog(
+                ctx,
+                ref.watch(audioSettingsProvider),
+                ref.read(audioSettingsProvider.notifier),
+                _updateMediaSessionSkipDurations,
+              ),
+              onShowSkipDurationDialog: (ctx, duration, title) =>
+                  showSkipDurationDialog(
+                ctx,
+                duration,
+                (value) async {
+                  final notifier = ref.read(audioSettingsProvider.notifier);
+                  if (title.contains('Rewind')) {
+                    await notifier.setDefaultRewindDuration(value);
+                  } else {
+                    await notifier.setDefaultForwardDuration(value);
+                  }
+                  await _updateMediaSessionSkipDurations();
+                },
+                title,
+                _updateMediaSessionSkipDurations,
+              ),
+              onShowInactivityTimeoutDialog: (ctx) =>
+                  showInactivityTimeoutDialog(
+                ctx,
+                ref.watch(audioSettingsProvider).inactivityTimeoutMinutes,
+                ref.read(audioSettingsProvider.notifier),
+                _updateInactivityTimeout,
+              ),
+              onShowResetAllBookSettingsDialog: (ctx) async {
+                final confirmed = await showResetAllBookSettingsDialog(ctx);
+                if (confirmed && ctx.mounted) {
+                  // ignore: use_build_context_synchronously
+                  // Context is safe here because we check ctx.mounted before use
+                  await _resetAllBookSettings(ctx);
+                }
+              },
+            ),
+          ),
+
+          const SizedBox(height: 24),
+
+          // Audio Enhancement Section
+          Semantics(
+            container: true,
+            label: 'Audio enhancement settings',
+            child: AudioEnhancementSection(
+              onShowVolumeBoostDialog: (ctx) => showVolumeBoostDialog(
+                ctx,
+                ref.watch(audioSettingsProvider),
+                ref.read(audioSettingsProvider.notifier),
+                _getVolumeBoostLabel,
+                _applyAudioProcessingSettings,
+              ),
+              onShowDRCLevelDialog: (ctx) => showDRCLevelDialog(
+                ctx,
+                ref.watch(audioSettingsProvider),
+                ref.read(audioSettingsProvider.notifier),
+                _getDRCLevelLabel,
+                _applyAudioProcessingSettings,
+              ),
+              onApplyAudioProcessingSettings: (ctx, settings) =>
+                  _applyAudioProcessingSettings(settings),
+              getVolumeBoostLabel: _getVolumeBoostLabel,
+              getDRCLevelLabel: _getDRCLevelLabel,
+            ),
           ),
 
           const SizedBox(height: 24),
@@ -258,7 +343,41 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           Semantics(
             container: true,
             label: localizations?.downloadSettingsLabel ?? 'Download settings',
-            child: _buildDownloadSection(context),
+            child: DownloadSection(
+              downloadFolderPath: _downloadFolderPath,
+              wifiOnlyDownloads: _wifiOnlyDownloads,
+              onSelectDownloadFolder: () => FolderHandlers.selectDownloadFolder(
+                context,
+                mounted: mounted,
+                ref: ref,
+                onDownloadFolderChanged: (path) {
+                  setState(() {
+                    _downloadFolderPath = path;
+                  });
+                },
+                onStateUpdate: () {
+                  if (mounted) setState(() {});
+                },
+              ),
+              onShowFolderSelectionInstructions: () =>
+                  showFolderSelectionInstructions(
+                context,
+                () => FolderHandlers.selectDownloadFolder(
+                  context,
+                  mounted: mounted,
+                  ref: ref,
+                  onDownloadFolderChanged: (path) {
+                    setState(() {
+                      _downloadFolderPath = path;
+                    });
+                  },
+                  onStateUpdate: () {
+                    if (mounted) setState(() {});
+                  },
+                ),
+              ),
+              onWifiOnlyChanged: _saveWifiOnlySetting,
+            ),
           ),
 
           const SizedBox(height: 24),
@@ -268,7 +387,91 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             container: true,
             label: localizations?.libraryFolderSettingsLabel ??
                 'Library folder settings',
-            child: _buildLibraryFolderSection(context),
+            child: LibraryFolderSection(
+              libraryFolderPath: _libraryFolderPath,
+              libraryFolders: _libraryFolders,
+              onSelectLibraryFolder: () => FolderHandlers.selectLibraryFolder(
+                context,
+                mounted: mounted,
+                ref: ref,
+                currentLibraryFolderPath: _libraryFolderPath,
+                onLoadLibraryFolders: _loadLibraryFolders,
+                onStateUpdate: () {
+                  if (mounted) setState(() {});
+                },
+                onMigrateFolder: (ctx, oldPath, newPath) =>
+                    FolderHandlers.migrateLibraryFolder(
+                  ctx,
+                  oldPath,
+                  newPath,
+                  mounted: mounted,
+                  onStateUpdate: () {
+                    if (mounted) setState(() {});
+                  },
+                ),
+              ),
+              onAddLibraryFolder: () => FolderHandlers.addLibraryFolder(
+                context,
+                mounted: mounted,
+                ref: ref,
+                currentLibraryFolders: _libraryFolders,
+                onLoadLibraryFolders: _loadLibraryFolders,
+                onStateUpdate: () {
+                  if (mounted) setState(() {});
+                },
+              ),
+              onRemoveLibraryFolder: (folder) =>
+                  FolderHandlers.removeLibraryFolder(
+                context,
+                folder,
+                mounted: mounted,
+                ref: ref,
+                onLoadLibraryFolders: _loadLibraryFolders,
+                onStateUpdate: () {
+                  if (mounted) setState(() {});
+                },
+              ),
+              onRestoreFolderPermission: (folder) =>
+                  FolderHandlers.restoreFolderPermission(
+                context,
+                folder,
+                mounted: mounted,
+                ref: ref,
+                onLoadLibraryFolders: _loadLibraryFolders,
+                onStateUpdate: () {
+                  if (mounted) setState(() {});
+                },
+              ),
+              buildLibraryFolderItem: (ctx, folder, isPrimary) =>
+                  FolderHandlers.buildLibraryFolderItem(
+                ctx,
+                folder,
+                isPrimary,
+                AppLocalizations.of(ctx),
+                checkFolderPermission: FolderHandlers.checkFolderPermission,
+                onRestorePermission: (f) =>
+                    FolderHandlers.restoreFolderPermission(
+                  ctx,
+                  f,
+                  mounted: mounted,
+                  ref: ref,
+                  onLoadLibraryFolders: _loadLibraryFolders,
+                  onStateUpdate: () {
+                    if (mounted) setState(() {});
+                  },
+                ),
+                onRemoveFolder: (f) => FolderHandlers.removeLibraryFolder(
+                  ctx,
+                  f,
+                  mounted: mounted,
+                  ref: ref,
+                  onLoadLibraryFolders: _loadLibraryFolders,
+                  onStateUpdate: () {
+                    if (mounted) setState(() {});
+                  },
+                ),
+              ),
+            ),
           ),
 
           const SizedBox(height: 24),
@@ -308,7 +511,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           Semantics(
             container: true,
             label: localizations?.cacheSettingsLabel ?? 'Cache settings',
-            child: _buildCacheSection(context),
+            child: const CacheSection(),
           ),
 
           const SizedBox(height: 24),
@@ -317,7 +520,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           Semantics(
             container: true,
             label: localizations?.appPermissionsLabel ?? 'App permissions',
-            child: _buildPermissionsSection(context),
+            child: FutureBuilder<Map<String, bool>>(
+              key: ValueKey<int>(_permissionStatusKey),
+              future: _getPermissionStatus(),
+              builder: (context, snapshot) => PermissionsSection(
+                permissionStatusKey: _permissionStatusKey,
+                permissionStatus: snapshot.data ?? {},
+                onRequestStoragePermission: _requestStoragePermission,
+                onRequestNotificationPermission: _requestNotificationPermission,
+                onRequestAllPermissions: _requestAllPermissions,
+              ),
+            ),
           ),
 
           const SizedBox(height: 24),
@@ -326,7 +539,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           Semantics(
             container: true,
             label: localizations?.aboutAppLabel ?? 'About app',
-            child: _buildAboutSection(context),
+            child: const AboutSection(),
           ),
 
           const SizedBox(height: 24),
@@ -337,7 +550,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               container: true,
               label: localizations?.backgroundTaskCompatibilityLabel ??
                   'Background task compatibility',
-              child: _buildBackgroundCompatibilitySection(context),
+              child: const BackgroundCompatibilitySection(),
             ),
 
           if (Platform.isAndroid) const SizedBox(height: 24),
@@ -346,645 +559,102 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           Semantics(
             container: true,
             label: localizations?.backupRestoreLabel ?? 'Backup and restore',
-            child: _buildBackupSection(context),
+            child: BackupSection(
+              onExportData: () => _exportData(context),
+              onImportData: () => _importData(context),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildLanguageSection(BuildContext context) {
-    final localizations = AppLocalizations.of(context);
-    final languages = _languageManager.getAvailableLanguages();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          localizations?.language ?? 'Language',
-          style: Theme.of(context).textTheme.titleLarge,
-        ),
-        const SizedBox(height: 8),
-        Text(
-          localizations?.languageDescription ??
-              'Choose your preferred language for the app interface',
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
-        const SizedBox(height: 16),
-        ...languages.map(_buildLanguageTile),
-      ],
-    );
-  }
-
-  Widget _buildLanguageTile(Map<String, String> language) {
-    final localizations = AppLocalizations.of(context);
-    final languageName = language['code'] == 'system'
-        ? (localizations?.systemDefault ?? 'System Default')
-        : language['name']!;
-
-    return ListTile(
-      leading: Text(
-        language['flag']!,
-        style: const TextStyle(fontSize: 24),
-      ),
-      title: Text(languageName),
-      trailing: _selectedLanguage == language['code']
-          ? const Icon(Icons.check, color: Colors.blue)
-          : null,
-      onTap: () => _changeLanguage(language['code']!, ref),
-    );
-  }
-
-  Widget _buildMirrorSection(BuildContext context) {
-    final localizations = AppLocalizations.of(context);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          localizations?.mirrorsScreenTitle ?? 'Mirrors & Sources',
-          style: Theme.of(context).textTheme.titleLarge,
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Configure RuTracker mirrors for optimal search performance',
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
-        const SizedBox(height: 16),
-        Semantics(
-          button: true,
-          label: 'Manage RuTracker mirrors',
-          child: ListTile(
-            leading: const Icon(Icons.dns),
-            title: Text(localizations?.mirrorsScreenTitle ?? 'Manage Mirrors'),
-            subtitle: Text(localizations?.configureMirrorsSubtitle ??
-                'Configure and test RuTracker mirrors'),
-            trailing: const Icon(Icons.arrow_forward_ios),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const MirrorSettingsScreen(),
-                ),
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildRutrackerSessionSection(BuildContext context) => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            AppLocalizations.of(context)?.rutrackerTitle ?? 'RuTracker',
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            AppLocalizations.of(context)?.rutrackerSessionDescription ??
-                'RuTracker session management (cookie)',
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-          const SizedBox(height: 16),
-          ListTile(
-            leading: const Icon(Icons.login),
-            title: Text(AppLocalizations.of(context)?.loginButton ??
-                'Login to RuTracker'),
-            subtitle: Text(
-                AppLocalizations.of(context)?.loginRequiredForSearch ??
-                    'Enter your credentials to authenticate'),
-            onTap: () async {
-              final messenger = ScaffoldMessenger.of(context);
-              final localizations = AppLocalizations.of(context);
-              // Navigate to auth screen
-              final result = await context.push('/auth');
-              // If login was successful, validate cookies
-              if (result == true && mounted) {
-                final isValid = await DioClient.validateCookies();
-                if (isValid) {
-                  messenger.showSnackBar(
-                    SnackBar(
-                      content: Text(localizations?.authorizationSuccessful ??
-                          'Authorization successful'),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
-                } else {
-                  messenger.showSnackBar(
-                    SnackBar(
-                      content: Text(localizations?.authorizationFailedMessage ??
-                          'Authorization failed'),
-                      backgroundColor: Colors.orange,
-                    ),
-                  );
-                }
-              }
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.logout),
-            title: Text(AppLocalizations.of(context)?.clearSessionButton ??
-                'Clear RuTracker session (cookie)'),
-            subtitle: Text(AppLocalizations.of(context)?.clearSessionSubtitle ??
-                'Delete saved cookies and logout from account'),
-            onTap: () async {
-              // Clear session using SessionManager
-              final messenger = ScaffoldMessenger.of(context);
-              final localizations = AppLocalizations.of(context);
-              try {
-                final sessionManager = SessionManager();
-                await sessionManager.clearSession();
-                if (mounted) {
-                  messenger.showSnackBar(
-                    SnackBar(
-                        content: Text(localizations?.sessionClearedMessage ??
-                            'RuTracker session cleared')),
-                  );
-                }
-              } on Exception catch (e) {
-                if (mounted) {
-                  messenger.showSnackBar(
-                    SnackBar(
-                      content: Text('Error clearing session: ${e.toString()}'),
-                    ),
-                  );
-                }
-              }
-            },
-          ),
-        ],
-      );
-
-  Widget _buildMetadataSection(BuildContext context) =>
-      FutureBuilder<Map<String, dynamic>>(
-        future: _loadMetadataStats(),
-        builder: (context, snapshot) {
-          final stats = snapshot.data;
-          final isLoading = snapshot.connectionState == ConnectionState.waiting;
-          final isUpdating =
-              snapshot.hasData && (stats?['is_updating'] as bool? ?? false);
-
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                AppLocalizations.of(context)?.metadataSectionTitle ??
-                    'Audiobook Metadata',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                AppLocalizations.of(context)?.metadataSectionDescription ??
-                    'Manage local audiobook metadata database',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-              const SizedBox(height: 16),
-              if (stats == null && isLoading)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 8.0),
-                  child: LinearProgressIndicator(),
-                )
-              else if (stats != null)
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildStatRow(
-                        AppLocalizations.of(context)?.totalRecordsLabel ??
-                            'Total records',
-                        '${stats['total'] ?? 0}'),
-                    if (stats['last_sync'] != null)
-                      _buildStatRow(
-                        AppLocalizations.of(context)?.lastUpdateLabel ??
-                            'Last update',
-                        _formatDateTime(stats['last_sync'] as String?),
-                      ),
-                  ],
-                ),
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: isUpdating
-                      ? null
-                      : () async {
-                          await _updateMetadata(context);
-                          if (mounted) setState(() {});
-                        },
-                  icon: isUpdating
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.sync),
-                  label: Text(isUpdating
-                      ? (AppLocalizations.of(context)?.updatingText ??
-                          'Updating...')
-                      : (AppLocalizations.of(context)?.updateMetadataButton ??
-                          'Update Metadata')),
-                ),
-              ),
-            ],
-          );
-        },
-      );
-
-  Future<Map<String, dynamic>> _loadMetadataStats() async {
-    try {
-      final db = AppDatabase().database;
-      final metadataService = AudiobookMetadataService(db);
-      final scheduler = MetadataSyncScheduler(db, metadataService);
-
-      final syncStats = await scheduler.getSyncStatistics();
-      final metadataStats =
-          syncStats['metadata'] as Map<String, dynamic>? ?? {};
-
-      return {
-        'total': metadataStats['total'] ?? 0,
-        'last_sync': syncStats['last_daily_sync'] as String?,
-        'last_full_sync': syncStats['last_full_sync'] as String?,
-        'is_updating': false,
-      };
-    } on Exception {
-      return {'total': 0, 'is_updating': false};
+  String _getVolumeBoostLabel(String level) {
+    switch (level) {
+      case 'Off':
+        return 'Off';
+      case 'Boost50':
+        return '+50%';
+      case 'Boost100':
+        return '+100%';
+      case 'Boost200':
+        return '+200%';
+      case 'Auto':
+        return 'Auto';
+      default:
+        return level;
     }
   }
 
-  Future<void> _updateMetadata(BuildContext context) async {
-    final messenger = ScaffoldMessenger.of(context);
-    final localizations = AppLocalizations.of(context);
+  String _getDRCLevelLabel(String level) {
+    switch (level) {
+      case 'Off':
+        return 'Off';
+      case 'Gentle':
+        return 'Gentle';
+      case 'Medium':
+        return 'Medium';
+      case 'Strong':
+        return 'Strong';
+      default:
+        return level;
+    }
+  }
 
+  Future<void> _applyAudioProcessingSettings(
+    AudioSettings settings,
+  ) async {
     try {
-      // Show updating indicator
-      setState(() {});
+      // Check if widget is still mounted before accessing providers
+      if (!mounted) return;
 
-      final db = AppDatabase().database;
-      final metadataService = AudiobookMetadataService(db);
-      final scheduler = MetadataSyncScheduler(db, metadataService);
+      // Safely access player state provider - wrap in try-catch to handle
+      // cases where provider might not be ready yet
+      PlayerStateModel? playerState;
+      try {
+        playerState = ref.read(playerStateProvider);
+      } on Exception {
+        // Provider not ready yet, skip applying settings
+        return;
+      }
 
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(localizations?.metadataUpdateStartedMessage ??
-              'Metadata update started...'),
-          duration: const Duration(seconds: 2),
-        ),
-      );
-
-      // Run full sync
-      final results = await scheduler.runFullSync();
-
-      final total = results.values.fold<int>(0, (sum, count) => sum + count);
-
-      if (mounted) {
-        messenger.showSnackBar(
-          SnackBar(
-            content: Text(
-                localizations?.metadataUpdateCompletedMessage(total) ??
-                    'Update completed: collected $total records'),
-            duration: const Duration(seconds: 3),
-          ),
+      // Only apply if player is active
+      if (playerState?.playbackState != null &&
+          playerState!.playbackState != 0) {
+        final playerService = ref.read(media3PlayerServiceProvider);
+        await playerService.configureAudioProcessing(
+          normalizeVolume: settings.normalizeVolume,
+          volumeBoostLevel: settings.volumeBoostLevel,
+          drcLevel: settings.drcLevel,
+          speechEnhancer: settings.speechEnhancer,
+          autoVolumeLeveling: settings.autoVolumeLeveling,
         );
-        setState(() {});
       }
     } on Exception catch (e) {
-      if (mounted) {
-        messenger.showSnackBar(
-          SnackBar(
-            content: Text(localizations?.metadataUpdateError(e.toString()) ??
-                'Update error: $e'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 5),
-          ),
-        );
-        setState(() {});
-      }
-    }
-  }
-
-  String _formatDateTime(String? isoString) {
-    final loc = AppLocalizations.of(context);
-    if (isoString == null) {
-      return loc?.neverDate ?? 'Never';
-    }
-    try {
-      final dateTime = DateTime.parse(isoString);
-      final now = DateTime.now();
-      final diff = now.difference(dateTime);
-
-      if (diff.inDays > 0) {
-        return loc?.daysAgo(diff.inDays) ?? '${diff.inDays} days ago';
-      } else if (diff.inHours > 0) {
-        return loc?.hoursAgo(diff.inHours) ?? '${diff.inHours} hours ago';
-      } else if (diff.inMinutes > 0) {
-        return loc?.minutesAgo(diff.inMinutes) ??
-            '${diff.inMinutes} minutes ago';
-      } else {
-        return loc?.justNow ?? 'Just now';
-      }
-    } on Exception {
-      return loc?.unknownDate ?? 'Unknown';
-    }
-  }
-
-  Widget _buildThemeSection(BuildContext context) {
-    final localizations = AppLocalizations.of(context);
-    final themeSettings = ref.watch(themeProvider);
-    final themeNotifier = ref.read(themeProvider.notifier);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          localizations?.themeTitle ?? 'Theme',
-          style: Theme.of(context).textTheme.titleLarge,
-        ),
-        const SizedBox(height: 8),
-        Text(
-          localizations?.themeDescription ??
-              'Customize the appearance of the app',
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
-        const SizedBox(height: 16),
-        // Follow system theme toggle
-        ListTile(
-          leading: const Icon(Icons.brightness_auto),
-          title: Text(
-            localizations?.followSystemTheme ?? 'Follow System Theme',
-          ),
-          trailing: Semantics(
-            label: 'Follow system theme toggle',
-            child: Switch(
-              value: themeSettings.followSystem,
-              onChanged: (value) async {
-                await themeNotifier.setFollowSystem(value);
-              },
-            ),
-          ),
-        ),
-        // Theme mode selection (only enabled when not following system)
-        if (!themeSettings.followSystem) ...[
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: SegmentedButton<String>(
-              segments: const [
-                ButtonSegment<String>(
-                  value: 'light',
-                  label: Text('Light'),
-                  icon: Icon(Icons.light_mode),
-                ),
-                ButtonSegment<String>(
-                  value: 'dark',
-                  label: Text('Dark'),
-                  icon: Icon(Icons.dark_mode),
-                ),
-              ],
-              selected: {themeSettings.mode},
-              onSelectionChanged: (newSelection) {
-                if (newSelection.isNotEmpty) {
-                  themeNotifier.setThemeMode(newSelection.first);
-                }
-              },
-            ),
-          ),
-          const SizedBox(height: 8),
-        ],
-        // High contrast toggle
-        ListTile(
-          leading: const Icon(Icons.contrast),
-          title: Text(localizations?.highContrast ?? 'High Contrast'),
-          trailing: Semantics(
-            label: 'High contrast mode toggle',
-            child: Switch(
-              value: themeSettings.highContrastEnabled,
-              onChanged: (value) async {
-                await themeNotifier.setHighContrastEnabled(value);
-              },
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildAccessibilitySection(BuildContext context) => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Accessibility',
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Customize accessibility options',
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-          const SizedBox(height: 16),
-          // Reduce animations toggle
-          ListTile(
-            leading: const Icon(Icons.animation),
-            title: const Text('Reduce Animations'),
-            subtitle: Text(
-              'Disable complex animations to improve performance and save battery',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-            trailing: Semantics(
-              label: 'Reduce animations toggle',
-              child: Switch(
-                value: _reduceAnimations,
-                onChanged: _saveAnimationSetting,
-              ),
-            ),
-          ),
-        ],
-      );
-
-  Widget _buildAudioSection(BuildContext context) {
-    final localizations = AppLocalizations.of(context);
-    final audioSettings = ref.watch(audioSettingsProvider);
-    final audioNotifier = ref.read(audioSettingsProvider.notifier);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          localizations?.audioTitle ?? 'Audio',
-          style: Theme.of(context).textTheme.titleLarge,
-        ),
-        const SizedBox(height: 8),
-        Text(
-          localizations?.audioDescription ??
-              'Configure audio playback settings',
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
-        const SizedBox(height: 16),
-        // Playback speed selection
-        Semantics(
-          button: true,
-          label: 'Set playback speed',
-          child: ListTile(
-            leading: const Icon(Icons.speed),
-            title: Text(localizations?.playbackSpeedTitle ??
-                localizations?.playbackSpeed ??
-                'Playback Speed'),
-            subtitle: Text('${audioSettings.defaultPlaybackSpeed}x'),
-            onTap: () {
-              _showPlaybackSpeedDialog(context, audioSettings, audioNotifier);
-            },
-          ),
-        ),
-        // Rewind duration selection
-        Semantics(
-          button: true,
-          label: 'Set rewind duration',
-          child: ListTile(
-            leading: const Icon(Icons.replay_10),
-            title:
-                Text(localizations?.rewindDurationTitle ?? 'Rewind Duration'),
-            subtitle: Text(
-              '${audioSettings.defaultRewindDuration} ${localizations?.secondsLabel ?? 'seconds'}',
-            ),
-            onTap: () {
-              _showSkipDurationDialog(
-                context,
-                audioSettings.defaultRewindDuration,
-                audioNotifier.setDefaultRewindDuration,
-                localizations?.rewindDurationTitle ?? 'Rewind Duration',
-              );
-            },
-          ),
-        ),
-        // Forward duration selection
-        Semantics(
-          button: true,
-          label: 'Set forward duration',
-          child: ListTile(
-            leading: const Icon(Icons.forward_30),
-            title:
-                Text(localizations?.forwardDurationTitle ?? 'Forward Duration'),
-            subtitle: Text(
-              '${audioSettings.defaultForwardDuration} ${localizations?.secondsLabel ?? 'seconds'}',
-            ),
-            onTap: () {
-              _showSkipDurationDialog(
-                context,
-                audioSettings.defaultForwardDuration,
-                audioNotifier.setDefaultForwardDuration,
-                localizations?.forwardDurationTitle ?? 'Forward Duration',
-              );
-            },
-          ),
-        ),
-        const Divider(),
-        // Reset all book settings button
-        ListTile(
-          leading: const Icon(Icons.restore, color: Colors.red),
-          title: Text(
-            localizations?.resetAllBookSettings ?? 'Reset all book settings',
-            style: const TextStyle(color: Colors.red),
-          ),
-          subtitle: Text(
-            localizations?.resetAllBookSettingsDescription ??
-                'Remove individual settings for all books',
-          ),
-          onTap: () => _showResetAllBookSettingsDialog(context),
-        ),
-      ],
-    );
-  }
-
-  /// Shows dialog for selecting playback speed.
-  Future<void> _showPlaybackSpeedDialog(
-    BuildContext context,
-    AudioSettings audioSettings,
-    AudioSettingsNotifier audioNotifier,
-  ) async {
-    final speeds = AudioSettingsManager.getAvailablePlaybackSpeeds();
-    final selectedSpeed = audioSettings.defaultPlaybackSpeed;
-
-    final result = await showDialog<double>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(AppLocalizations.of(context)?.playbackSpeedTitle ??
-            'Playback Speed'),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: speeds
-                  .map((speed) => RadioListTile<double>(
-                        title: Text('${speed}x'),
-                        value: speed,
-                        // ignore: deprecated_member_use
-                        groupValue: selectedSpeed,
-                        // ignore: deprecated_member_use
-                        onChanged: (value) {
-                          Navigator.of(context).pop(value);
-                        },
-                      ))
-                  .toList(),
-            ),
-          ),
-        ),
-      ),
-    );
-
-    if (result != null) {
-      await audioNotifier.setDefaultPlaybackSpeed(result);
-      // Update MediaSessionManager if player is active
-      await _updateMediaSessionSkipDurations();
-    }
-  }
-
-  /// Shows dialog for selecting skip duration.
-  Future<void> _showSkipDurationDialog(
-    BuildContext context,
-    int currentDuration,
-    Future<void> Function(int) onDurationSelected,
-    String title,
-  ) async {
-    final durations = [5, 10, 15, 20, 30, 45, 60];
-
-    final result = await showDialog<int>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(title),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: durations.map((duration) {
-            final localizations = AppLocalizations.of(context);
-            return RadioListTile<int>(
-              title: Text(
-                '$duration ${localizations?.secondsLabel ?? 'seconds'}',
-              ),
-              value: duration,
-              // ignore: deprecated_member_use
-              groupValue: currentDuration,
-              // ignore: deprecated_member_use
-              onChanged: (value) {
-                Navigator.of(context).pop(value);
-              },
-            );
-          }).toList(),
-        ),
-      ),
-    );
-
-    if (result != null) {
-      await onDurationSelected(result);
-      // Update MediaSessionManager if player is active
-      await _updateMediaSessionSkipDurations();
+      // Log error but don't show to user (settings are saved anyway)
+      debugPrint('Failed to apply audio processing settings: $e');
     }
   }
 
   /// Updates skip durations in MediaSessionManager if player is active.
   Future<void> _updateMediaSessionSkipDurations() async {
     try {
-      final playerState = ref.read(playerStateProvider);
+      // Check if widget is still mounted before accessing providers
+      if (!mounted) return;
+
+      // Safely access player state provider - wrap in try-catch to handle
+      // cases where provider might not be ready yet
+      PlayerStateModel? playerState;
+      try {
+        playerState = ref.read(playerStateProvider);
+      } on Exception {
+        // Provider not ready yet, skip update
+        return;
+      }
+
       // Only update if player is initialized and playing
-      if (playerState.playbackState != 0) {
+      if (playerState?.playbackState != null &&
+          playerState!.playbackState != 0) {
         final audioSettings = ref.read(audioSettingsProvider);
         final playerService = ref.read(media3PlayerServiceProvider);
         await playerService.updateSkipDurations(
@@ -997,38 +667,33 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
   }
 
-  /// Shows confirmation dialog for resetting all book settings.
-  Future<void> _showResetAllBookSettingsDialog(BuildContext context) async {
-    final localizations = AppLocalizations.of(context);
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(
-          localizations?.resetAllBookSettings ?? 'Reset all book settings',
-        ),
-        content: Text(
-          localizations?.resetAllBookSettingsConfirmation ??
-              'This will remove individual audio settings for all books. '
-                  'All books will use global settings. This action cannot be undone.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: Text(localizations?.cancel ?? 'Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: Text(localizations?.reset ?? 'Reset'),
-          ),
-        ],
-      ),
-    );
+  /// Updates inactivity timeout if player is active.
+  Future<void> _updateInactivityTimeout() async {
+    try {
+      // Check if widget is still mounted before accessing providers
+      if (!mounted) return;
 
-    if (confirmed ?? false) {
-      if (context.mounted) {
-        await _resetAllBookSettings(context);
+      // Safely access player state provider - wrap in try-catch to handle
+      // cases where provider might not be ready yet
+      PlayerStateModel? playerState;
+      try {
+        playerState = ref.read(playerStateProvider);
+      } on Exception {
+        // Provider not ready yet, skip update
+        return;
       }
+
+      // Only update if player is initialized
+      if (playerState?.playbackState != null &&
+          playerState!.playbackState != 0) {
+        final audioSettings = ref.read(audioSettingsProvider);
+        final playerService = ref.read(media3PlayerServiceProvider);
+        await playerService.setInactivityTimeoutMinutes(
+          audioSettings.inactivityTimeoutMinutes,
+        );
+      }
+    } on Exception {
+      // Ignore errors - inactivity timeout update is not critical
     }
   }
 
@@ -1042,14 +707,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       await _updateMediaSessionSkipDurations();
 
       // If player is active, reapply global settings
-      final playerState = ref.read(playerStateProvider);
-      if (playerState.playbackState != 0 &&
-          playerState.currentGroupPath != null) {
-        // Player is active, but we can't directly access local_player_screen
-        // The settings will be applied on next book load or app restart
+      // Safely access player state provider - wrap in try-catch to handle
+      // cases where provider might not be ready yet
+      try {
+        final playerState = ref.read(playerStateProvider);
+        if (playerState.playbackState != 0 &&
+            playerState.currentGroupPath != null) {
+          // Player is active, but we can't directly access local_player_screen
+          // The settings will be applied on next book load or app restart
+        }
+      } on Exception {
+        // Provider not ready yet, skip check
       }
 
       if (context.mounted) {
+        // ignore: use_build_context_synchronously
+        // Context is safe here because we check context.mounted before use
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -1062,6 +735,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       }
     } on Exception catch (e) {
       if (context.mounted) {
+        // ignore: use_build_context_synchronously
+        // Context is safe here because we check context.mounted before use
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -1074,368 +749,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       }
     }
   }
-
-  Widget _buildDownloadSection(BuildContext context) {
-    final localizations = AppLocalizations.of(context);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          localizations?.downloadsTitle ?? 'Downloads',
-          style: Theme.of(context).textTheme.titleLarge,
-        ),
-        const SizedBox(height: 8),
-        Text(
-          localizations?.downloadsDescription ??
-              'Manage download preferences and storage',
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
-        const SizedBox(height: 16),
-        Semantics(
-          label: 'Download location',
-          child: ListTile(
-            leading: const Icon(Icons.folder),
-            title: Text(localizations?.downloadLocationTitle ??
-                localizations?.downloadLocation ??
-                'Download Location'),
-            subtitle: _downloadFolderPath != null
-                ? Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.folder_outlined,
-                            size: 16,
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurface
-                                .withValues(alpha: 0.6),
-                          ),
-                          const SizedBox(width: 4),
-                          Expanded(
-                            child: Text(
-                              _downloadFolderPath!,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodySmall
-                                  ?.copyWith(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onSurface
-                                        .withValues(alpha: 0.6),
-                                  ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  )
-                : Text(
-                    localizations?.defaultDownloadFolder ?? 'Default folder',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .onSurface
-                              .withValues(alpha: 0.6),
-                        ),
-                  ),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (Platform.isAndroid)
-                  Semantics(
-                    button: true,
-                    label: 'Show folder selection instructions',
-                    child: IconButton(
-                      icon: const Icon(Icons.help_outline),
-                      onPressed: () =>
-                          _showFolderSelectionInstructions(context),
-                      tooltip: 'Show instructions',
-                    ),
-                  ),
-                Semantics(
-                  button: true,
-                  label: 'Change download folder',
-                  child: IconButton(
-                    icon: const Icon(Icons.edit),
-                    onPressed: () => _selectDownloadFolder(context),
-                    tooltip: 'Change folder',
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        ListTile(
-          leading: const Icon(Icons.wifi),
-          title: Text(localizations?.wifiOnlyDownloadsTitle ??
-              localizations?.wifiOnlyDownloads ??
-              'Wi-Fi Only Downloads'),
-          subtitle: Text(
-            _wifiOnlyDownloads
-                ? 'Downloads will only start when connected to Wi-Fi'
-                : 'Downloads can start on any network connection',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context)
-                      .colorScheme
-                      .onSurface
-                      .withValues(alpha: 0.6),
-                ),
-          ),
-          trailing: Semantics(
-            label: 'Wi-Fi only downloads toggle',
-            child: Switch(
-              value: _wifiOnlyDownloads,
-              onChanged: _saveWifiOnlySetting,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildCacheSection(BuildContext context) {
-    final loc = AppLocalizations.of(context);
-    return FutureBuilder<Map<String, dynamic>>(
-      future: _loadCacheStats(),
-      builder: (context, snapshot) {
-        final stats = snapshot.data;
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              loc?.cacheStatistics ?? 'Cache Statistics',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: 8),
-            if (stats == null)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 8.0),
-                child: LinearProgressIndicator(),
-              )
-            else
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildStatRow('Total entries', '${stats['total_entries']}'),
-                  _buildStatRow(
-                      'Search cache', '${stats['search_cache_size']} entries'),
-                  _buildStatRow(
-                      'Topic cache', '${stats['topic_cache_size']} entries'),
-                  _buildStatRow('Memory usage', '${stats['memory_usage']}'),
-                ],
-              ),
-            const SizedBox(height: 12),
-            Wrap(spacing: 12, runSpacing: 8, children: [
-              ElevatedButton.icon(
-                onPressed: () async {
-                  final messenger = ScaffoldMessenger.of(context);
-                  await _clearExpiredCache();
-                  if (mounted) setState(() {});
-                  if (mounted) {
-                    messenger.showSnackBar(
-                      SnackBar(
-                          content: Text(loc?.cacheClearedSuccessfullyMessage ??
-                              'Cache cleared successfully')),
-                    );
-                  }
-                },
-                icon: const Icon(Icons.auto_delete),
-                label: Text(
-                    AppLocalizations.of(context)?.clearExpiredCacheButton ??
-                        'Clear Expired Cache'),
-              ),
-              OutlinedButton.icon(
-                onPressed: () async {
-                  final messenger = ScaffoldMessenger.of(context);
-                  await _clearAllCache();
-                  if (mounted) setState(() {});
-                  if (mounted) {
-                    messenger.showSnackBar(
-                      SnackBar(
-                          content: Text(loc?.cacheClearedSuccessfullyMessage ??
-                              'Cache cleared successfully')),
-                    );
-                  }
-                },
-                icon: const Icon(Icons.delete_forever),
-                label: Text(loc?.clearAllCacheButton ?? 'Clear All Cache'),
-              ),
-            ]),
-          ],
-        );
-      },
-    );
-  }
-
-  Future<Map<String, dynamic>> _loadCacheStats() async {
-    final db = AppDatabase().database;
-    final cache = RuTrackerCacheService();
-    await cache.initialize(db);
-    return cache.getStatistics();
-  }
-
-  Future<void> _clearExpiredCache() async {
-    final db = AppDatabase().database;
-    final cache = RuTrackerCacheService();
-    await cache.initialize(db);
-    await cache.clearExpired();
-  }
-
-  Future<void> _clearAllCache() async {
-    final db = AppDatabase().database;
-    final cache = RuTrackerCacheService();
-    await cache.initialize(db);
-    await cache.clearSearchResultsCache();
-    await cache.clearAllTopicDetailsCache();
-  }
-
-  Widget _buildStatRow(String label, String value) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 2.0),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              label,
-              style: const TextStyle(fontWeight: FontWeight.w500),
-            ),
-            Text(
-              value,
-              style: TextStyle(
-                color: Colors.grey.shade600,
-                fontFamily: 'monospace',
-              ),
-            ),
-          ],
-        ),
-      );
-
-  Widget _buildPermissionsSection(BuildContext context) =>
-      FutureBuilder<Map<String, bool>>(
-        key: ValueKey<int>(_permissionStatusKey),
-        future: _getPermissionStatus(),
-        builder: (context, snapshot) {
-          final permissions = snapshot.data ?? {};
-          final hasStorage = permissions['storage'] ?? false;
-          final hasNotification = permissions['notification'] ?? false;
-          final allGranted = hasStorage && hasNotification;
-
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                AppLocalizations.of(context)?.appPermissionsTitle ??
-                    'App Permissions',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              const SizedBox(height: 8),
-              _buildPermissionRow(
-                icon: Icons.folder,
-                title: AppLocalizations.of(context)?.storagePermissionName ??
-                    'Storage',
-                description: AppLocalizations.of(context)
-                        ?.storagePermissionDescription ??
-                    'Save audiobook files and cache data',
-                isGranted: hasStorage,
-                onTap: _requestStoragePermission,
-              ),
-              const SizedBox(height: 8),
-              _buildPermissionRow(
-                icon: Icons.notifications,
-                title:
-                    AppLocalizations.of(context)?.notificationsPermissionName ??
-                        'Notifications',
-                description: AppLocalizations.of(context)
-                        ?.notificationsPermissionDescription ??
-                    'Show playback controls and updates',
-                isGranted: hasNotification,
-                onTap: _requestNotificationPermission,
-              ),
-              const SizedBox(height: 16),
-              if (!allGranted)
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: _requestAllPermissions,
-                    icon: const Icon(Icons.security),
-                    label: Text(AppLocalizations.of(context)
-                            ?.grantAllPermissionsButton ??
-                        'Grant All Permissions'),
-                  ),
-                ),
-              if (allGranted)
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.green.shade50,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.green.shade200),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.check_circle, color: Colors.green.shade600),
-                      const SizedBox(width: 8),
-                      Text(
-                        AppLocalizations.of(context)?.allPermissionsGranted ??
-                            'All permissions granted',
-                        style: TextStyle(
-                          color: Colors.green.shade800,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-            ],
-          );
-        },
-      );
-
-  Widget _buildPermissionRow({
-    required IconData icon,
-    required String title,
-    required String description,
-    required bool isGranted,
-    required VoidCallback onTap,
-  }) =>
-      AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-        child: Card(
-          child: ListTile(
-            leading: AnimatedContainer(
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeInOut,
-              child: Icon(
-                icon,
-                color: isGranted ? Colors.green : Colors.orange,
-              ),
-            ),
-            title: Text(title),
-            subtitle: Text(description),
-            trailing: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 300),
-              child: isGranted
-                  ? Icon(
-                      Icons.check_circle,
-                      key: const ValueKey('granted'),
-                      color: Colors.green.shade600,
-                    )
-                  : Icon(
-                      Icons.warning,
-                      key: const ValueKey('denied'),
-                      color: Colors.orange.shade600,
-                    ),
-            ),
-            onTap: onTap,
-          ),
-        ),
-      );
 
   Future<Map<String, bool>> _getPermissionStatus() async {
     final storage = await _permissionService.hasStoragePermission();
@@ -1450,12 +763,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     if (!mounted) return;
 
     // Show explanation dialog first
-    final shouldRequest = await _showPermissionExplanationDialog(
+    final shouldRequest = await showPermissionExplanationDialog(
       context,
       title: AppLocalizations.of(context)?.storagePermissionName ??
           'Storage Permission',
       message: AppLocalizations.of(context)?.storagePermissionDescription ??
-          'JaBook needs storage permission to save audiobook files and cache data. '
+          '${AppConfig().displayAppName} needs storage permission to save audiobook files and cache data. '
               'This allows you to download and play audiobooks offline.',
     );
 
@@ -1468,6 +781,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
     if (granted) {
       setState(() {});
+      // ignore: use_build_context_synchronously
+      // Context is safe here because we check mounted before use
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -1501,6 +816,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           if (useSaf) {
             // User chose to use SAF - this will be handled by the library screen
             // where user can select folders using SAF
+            // ignore: use_build_context_synchronously
+            // Context is safe here because we check mounted before use
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(
@@ -1520,22 +837,30 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
         if (!guidanceShown) {
           // Fallback to standard settings dialog
-          await _showOpenSettingsDialog(
+          await showOpenSettingsDialog(
             context,
             title: AppLocalizations.of(context)?.storagePermissionName ??
                 'Storage Permission',
             message: AppLocalizations.of(context)?.permissionDeniedMessage ??
                 'Storage permission was denied. Please grant it in app settings to use this feature.',
+            permissionService: _permissionService,
+            onStateUpdate: () {
+              if (mounted) setState(() {});
+            },
           );
         }
       } else {
         // Show standard dialog to open settings
-        await _showOpenSettingsDialog(
+        await showOpenSettingsDialog(
           context,
           title: AppLocalizations.of(context)?.storagePermissionName ??
               'Storage Permission',
           message: AppLocalizations.of(context)?.permissionDeniedMessage ??
               'Storage permission was denied. Please grant it in app settings to use this feature.',
+          permissionService: _permissionService,
+          onStateUpdate: () {
+            if (mounted) setState(() {});
+          },
         );
       }
       // Force FutureBuilder to rebuild even if denied
@@ -1551,13 +876,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     if (!mounted) return;
 
     // Show explanation dialog first
-    final shouldRequest = await _showPermissionExplanationDialog(
+    final shouldRequest = await showPermissionExplanationDialog(
       context,
       title: AppLocalizations.of(context)?.notificationsPermissionName ??
           'Notification Permission',
       message: AppLocalizations.of(context)
               ?.notificationsPermissionDescription ??
-          'JaBook needs notification permission to show playback controls and updates. '
+          '${AppConfig().displayAppName} needs notification permission to show playback controls and updates. '
               'This allows you to control playback from the notification panel.',
     );
 
@@ -1573,6 +898,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       setState(() {
         _permissionStatusKey++;
       });
+      // ignore: use_build_context_synchronously
+      // Context is safe here because we check mounted before use
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -1584,12 +911,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       );
     } else {
       // Show dialog to open settings
-      await _showOpenSettingsDialog(
+      await showOpenSettingsDialog(
         context,
         title: AppLocalizations.of(context)?.notificationsPermissionName ??
             'Notification Permission',
         message: AppLocalizations.of(context)?.permissionDeniedMessage ??
             'Notification permission was denied. Please grant it in app settings to use this feature.',
+        permissionService: _permissionService,
+        onStateUpdate: () {
+          if (mounted) setState(() {});
+        },
       );
       // Force FutureBuilder to rebuild even if denied
       setState(() {
@@ -1598,74 +929,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
   }
 
-  /// Shows a dialog explaining why a permission is needed.
-  ///
-  /// Returns `true` if user wants to proceed, `false` otherwise.
-  Future<bool> _showPermissionExplanationDialog(
-    BuildContext context, {
-    required String title,
-    required String message,
-  }) async {
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(title),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(AppLocalizations.of(context)?.cancel ?? 'Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text(AppLocalizations.of(context)?.allowButton ?? 'Allow'),
-          ),
-        ],
-      ),
-    );
-    return result ?? false;
-  }
-
-  /// Shows a dialog prompting user to open app settings.
-  Future<void> _showOpenSettingsDialog(
-    BuildContext context, {
-    required String title,
-    required String message,
-  }) async {
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(title),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(AppLocalizations.of(context)?.cancel ?? 'Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context, true);
-              _permissionService.openAppSettings();
-            },
-            child: Text(AppLocalizations.of(context)?.openSettingsButton ??
-                'Open Settings'),
-          ),
-        ],
-      ),
-    );
-
-    if ((result ?? false) && mounted) {
-      // Wait a bit for user to potentially grant permission
-      await Future.delayed(const Duration(seconds: 1));
-      setState(() {});
-    }
-  }
-
   Future<void> _requestAllPermissions() async {
     final results = await _permissionService.requestEssentialPermissions();
     final grantedCount = results.values.where((e) => e).length;
     if (mounted) {
       setState(() {});
+      // ignore: use_build_context_synchronously
+      // Context is safe here because we check mounted before use
       final loc = AppLocalizations.of(context);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -1675,120 +945,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       );
     }
   }
-
-  Widget _buildBackgroundCompatibilitySection(BuildContext context) {
-    final localizations = AppLocalizations.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          localizations?.backgroundWorkTitle ?? 'Background Work',
-          style: Theme.of(context).textTheme.titleLarge,
-        ),
-        const SizedBox(height: 8),
-        Text(
-          localizations?.backgroundCompatibilityBannerMessage ??
-              'To ensure stable background operation, you may need to configure device settings.',
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
-        const SizedBox(height: 16),
-        Semantics(
-          button: true,
-          label: 'Open background compatibility settings',
-          child: ListTile(
-            leading: const Icon(Icons.phone_android),
-            title: Text(localizations?.compatibilityDiagnosticsTitle ??
-                'Compatibility & Diagnostics'),
-            subtitle: Text(
-              localizations?.compatibilityDiagnosticsSubtitle ??
-                  'Compatibility check and manufacturer settings configuration',
-            ),
-            trailing: const Icon(Icons.arrow_forward_ios),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const BackgroundCompatibilityScreen(),
-                ),
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildAboutSection(BuildContext context) {
-    final localizations = AppLocalizations.of(context);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          localizations?.aboutTitle ?? 'About',
-          style: Theme.of(context).textTheme.titleLarge,
-        ),
-        const SizedBox(height: 8),
-        Text(
-          localizations?.aboutSectionDescription ?? 'App information and links',
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
-        const SizedBox(height: 16),
-        Semantics(
-          button: true,
-          label: localizations?.aboutTitle ?? 'About app',
-          child: ListTile(
-            leading: const Icon(Icons.info_outline),
-            title: Text(localizations?.aboutTitle ?? 'About'),
-            subtitle: Text(
-              localizations?.aboutSectionSubtitle ??
-                  'Version, license, and developer information',
-            ),
-            trailing: const Icon(Icons.arrow_forward_ios),
-            onTap: () {
-              context.push('/settings/about');
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildBackupSection(BuildContext context) => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            AppLocalizations.of(context)?.backupRestoreTitle ??
-                'Backup & Restore',
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            AppLocalizations.of(context)?.backupRestoreDescription ??
-                'Export and import your data (favorites, history, metadata)',
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-          const SizedBox(height: 16),
-          ListTile(
-            leading: const Icon(Icons.file_download),
-            title: Text(AppLocalizations.of(context)?.exportDataButton ??
-                'Export Data'),
-            subtitle: Text(AppLocalizations.of(context)?.exportDataSubtitle ??
-                'Save all your data to a backup file'),
-            trailing: const Icon(Icons.arrow_forward_ios),
-            onTap: () => _exportData(context),
-          ),
-          ListTile(
-            leading: const Icon(Icons.file_upload),
-            title: Text(AppLocalizations.of(context)?.importDataButton ??
-                'Import Data'),
-            subtitle: Text(AppLocalizations.of(context)?.importDataSubtitle ??
-                'Restore data from a backup file'),
-            trailing: const Icon(Icons.arrow_forward_ios),
-            onTap: () => _importData(context),
-          ),
-        ],
-      );
 
   Future<void> _exportData(BuildContext context) async {
     if (!mounted) return;
@@ -1803,9 +959,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       );
 
     try {
-      final appDatabase = AppDatabase();
-      await appDatabase.initialize();
-      final backupService = BackupService(appDatabase.database);
+      final appDatabase = ref.read(appDatabaseProvider);
+      final db = await appDatabase.ensureInitialized();
+      final backupService = BackupService(db);
 
       // Export to file
       final filePath = await backupService.exportToFile();
@@ -1816,8 +972,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         // ignore: deprecated_member_use
         await Share.shareXFiles(
           [XFile(filePath)],
-          subject: 'JaBook Backup',
-          text: 'JaBook data backup',
+          subject: '${AppConfig().displayAppName} Backup',
+          text: '${AppConfig().displayAppName} data backup',
         );
 
         if (!mounted) return;
@@ -1888,7 +1044,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
         );
 
-        final appDatabase = AppDatabase();
+        final appDatabase = ref.read(appDatabaseProvider);
         await appDatabase.initialize();
         final backupService = BackupService(appDatabase.database);
 
@@ -1924,923 +1080,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
   }
 
-  /// Shows the folder selection instructions dialog.
-  Future<void> _showFolderSelectionInstructions(BuildContext context) async {
-    if (!mounted) return;
-
-    final localizations = AppLocalizations.of(context);
-    final dialogTitle =
-        localizations?.selectFolderDialogTitle ?? 'Select Download Folder';
-    final dialogMessage = localizations?.selectFolderDialogMessage ??
-        'To select a download folder:\n\n'
-            '1. Navigate to the desired folder in the file manager\n'
-            '2. Tap "Use this folder" button in the top right corner\n\n'
-            'The selected folder will be used to save downloaded audiobooks.';
-    final cancelText = localizations?.cancel ?? 'Cancel';
-
-    if (!context.mounted) return;
-    await showDialog<void>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Row(
-          children: [
-            Icon(
-              Icons.info_outline,
-              color: Theme.of(dialogContext).colorScheme.primary,
-            ),
-            const SizedBox(width: 8),
-            Expanded(child: Text(dialogTitle)),
-          ],
-        ),
-        content: SingleChildScrollView(
-          child: Text(
-            dialogMessage,
-            style: Theme.of(dialogContext).textTheme.bodyMedium,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: Text(cancelText),
-          ),
-          ElevatedButton.icon(
-            onPressed: () {
-              Navigator.of(dialogContext).pop();
-              _selectDownloadFolder(context);
-            },
-            icon: const Icon(Icons.folder_open),
-            label: const Text('Select Folder'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _selectDownloadFolder(BuildContext context) async {
-    if (!mounted) return;
-
-    // Save context and localizations before any async operations
-    final savedContext = context;
-    final localizations = AppLocalizations.of(savedContext);
-    final messenger = ScaffoldMessenger.of(savedContext);
-
-    // Check Android version to show instruction dialog for Android 13+
-    if (Platform.isAndroid) {
-      final androidInfo = await DeviceInfoPlugin().androidInfo;
-      final sdkInt = androidInfo.version.sdkInt;
-
-      if (sdkInt >= 33) {
-        if (!mounted) return;
-        // Show instruction dialog for Android 13+
-        // Use savedContext which was captured before async operations
-        final dialogTitle =
-            localizations?.selectFolderDialogTitle ?? 'Select Download Folder';
-        final dialogMessage = localizations?.selectFolderDialogMessage ??
-            'To select a download folder:\n\n'
-                '1. Navigate to the desired folder in the file manager\n'
-                '2. Tap "Use this folder" button in the top right corner\n\n'
-                'The selected folder will be used to save downloaded audiobooks.';
-        final cancelText = localizations?.cancel ?? 'Cancel';
-
-        // Check if context is still mounted before using it
-        if (!savedContext.mounted) return;
-        final shouldProceed = await showDialog<bool>(
-          context: savedContext,
-          builder: (dialogContext) => AlertDialog(
-            title: Row(
-              children: [
-                Icon(
-                  Icons.info_outline,
-                  color: Theme.of(dialogContext).colorScheme.primary,
-                ),
-                const SizedBox(width: 8),
-                Expanded(child: Text(dialogTitle)),
-              ],
-            ),
-            content: SingleChildScrollView(
-              child: Text(
-                dialogMessage,
-                style: Theme.of(dialogContext).textTheme.bodyMedium,
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(dialogContext).pop(false),
-                child: Text(cancelText),
-              ),
-              ElevatedButton.icon(
-                onPressed: () => Navigator.of(dialogContext).pop(true),
-                icon: const Icon(Icons.folder_open),
-                label: const Text('Continue'),
-              ),
-            ],
-          ),
-        );
-
-        if (shouldProceed != true) {
-          return; // User cancelled
-        }
-      }
-    }
-
-    // Open folder picker
-    try {
-      final selectedPath = await file_picker_utils.pickDirectory();
-
-      if (selectedPath != null) {
-        // Validate folder accessibility
-        // For content:// URIs, use ContentUriService; for file paths, use Directory
-        final isContentUri = StoragePathUtils.isContentUri(selectedPath);
-        var isAccessible = false;
-
-        if (isContentUri) {
-          // Check access via ContentResolver for content URIs
-          try {
-            final contentUriService = ContentUriService();
-            isAccessible = await contentUriService.checkUriAccess(selectedPath);
-            if (!isAccessible) {
-              if (mounted) {
-                messenger.showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      localizations?.permissionDeniedMessage ??
-                          'No access to selected folder. Please grant permission in the file picker.',
-                    ),
-                    backgroundColor: Colors.orange,
-                    duration: const Duration(seconds: 3),
-                  ),
-                );
-              }
-              return;
-            }
-          } on Exception catch (e) {
-            // Log error but continue - permission might still work
-            debugPrint('Error checking content URI access: $e');
-            // Assume accessible if check fails (might be timing issue)
-            isAccessible = true;
-          }
-        } else {
-          // Check access via Directory for file paths
-          try {
-            final dir = Directory(selectedPath);
-            isAccessible = await dir.exists();
-            if (!isAccessible) {
-              if (mounted) {
-                messenger.showSnackBar(
-                  const SnackBar(
-                    content: Text(
-                      'Selected folder is not accessible. Please try again.',
-                    ),
-                    backgroundColor: Colors.orange,
-                    duration: Duration(seconds: 3),
-                  ),
-                );
-              }
-              return;
-            }
-          } on Exception {
-            // If we can't check, still try to save - might be SAF URI
-            isAccessible = true; // Assume accessible if check fails
-          }
-        }
-
-        // Save selected path using StoragePathUtils
-        final storageUtils = StoragePathUtils();
-        await storageUtils.setDownloadFolderPath(selectedPath);
-
-        if (mounted) {
-          setState(() {
-            _downloadFolderPath = selectedPath;
-          });
-          messenger.showSnackBar(
-            SnackBar(
-              content: Row(
-                children: [
-                  const Icon(Icons.check_circle, color: Colors.white),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          localizations?.folderSelectedSuccessMessage ??
-                              'Download folder selected successfully',
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          selectedPath,
-                          style: const TextStyle(fontSize: 12),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
-      } else {
-        // User cancelled folder selection
-        if (mounted) {
-          messenger.showSnackBar(
-            SnackBar(
-              content: Text(localizations?.folderSelectionCancelledMessage ??
-                  'Folder selection cancelled'),
-              duration: const Duration(seconds: 1),
-            ),
-          );
-        }
-      }
-    } on Exception catch (e) {
-      if (mounted) {
-        messenger.showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.error, color: Colors.white),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Error selecting folder: ${e.toString()}',
-                  ),
-                ),
-              ],
-            ),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      }
-    }
-  }
-
-  Widget _buildLibraryFolderSection(BuildContext context) {
-    final localizations = AppLocalizations.of(context);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          localizations?.libraryFolderTitle ?? 'Library Folders',
-          style: Theme.of(context).textTheme.titleLarge,
-        ),
-        const SizedBox(height: 8),
-        Text(
-          localizations?.libraryFolderDescription ??
-              'Select folders where your audiobooks are stored',
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
-        const SizedBox(height: 16),
-        // Current library folder
-        Semantics(
-          label: 'Library folder location',
-          child: ListTile(
-            leading: const Icon(Icons.folder),
-            title: Text(localizations?.libraryFolderTitle ?? 'Library Folder'),
-            subtitle: _libraryFolderPath != null
-                ? Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.folder_outlined,
-                            size: 16,
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurface
-                                .withValues(alpha: 0.6),
-                          ),
-                          const SizedBox(width: 4),
-                          Expanded(
-                            child: Text(
-                              _libraryFolderPath!,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodySmall
-                                  ?.copyWith(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onSurface
-                                        .withValues(alpha: 0.6),
-                                  ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  )
-                : Text(
-                    localizations?.defaultLibraryFolder ?? 'Default folder',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .onSurface
-                              .withValues(alpha: 0.6),
-                        ),
-                  ),
-            trailing: Semantics(
-              button: true,
-              label: 'Change library folder',
-              child: IconButton(
-                icon: const Icon(Icons.edit),
-                onPressed: () => _selectLibraryFolder(context),
-                tooltip: 'Change folder',
-              ),
-            ),
-          ),
-        ),
-        // Add library folder button
-        ListTile(
-          leading: const Icon(Icons.add),
-          title: Text(
-              localizations?.addLibraryFolderTitle ?? 'Add Library Folder'),
-          subtitle: Text(
-            localizations?.addLibraryFolderSubtitle ??
-                'Add an additional folder to scan for audiobooks',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context)
-                      .colorScheme
-                      .onSurface
-                      .withValues(alpha: 0.6),
-                ),
-          ),
-          trailing: const Icon(Icons.arrow_forward_ios),
-          onTap: () => _addLibraryFolder(context),
-        ),
-        // List of all library folders
-        if (_libraryFolders.length > 1)
-          ExpansionTile(
-            leading: const Icon(Icons.folder),
-            title: Text(
-              localizations?.allLibraryFoldersTitle ??
-                  'All Library Folders (${_libraryFolders.length})',
-            ),
-            children: _libraryFolders.map((folder) {
-              final isPrimary = folder == _libraryFolderPath;
-              return ListTile(
-                leading: Icon(
-                  isPrimary ? Icons.folder : Icons.folder_outlined,
-                  color:
-                      isPrimary ? Theme.of(context).colorScheme.primary : null,
-                ),
-                title: Text(
-                  folder,
-                  style: TextStyle(
-                    fontWeight: isPrimary ? FontWeight.bold : FontWeight.normal,
-                  ),
-                ),
-                subtitle: isPrimary
-                    ? Text(
-                        localizations?.primaryLibraryFolder ?? 'Primary folder',
-                        style: Theme.of(context).textTheme.bodySmall,
-                      )
-                    : null,
-                trailing: isPrimary
-                    ? null
-                    : IconButton(
-                        icon: const Icon(Icons.delete),
-                        onPressed: () => _removeLibraryFolder(context, folder),
-                        tooltip: 'Remove folder',
-                      ),
-              );
-            }).toList(),
-          ),
-      ],
-    );
-  }
-
-  Future<void> _selectLibraryFolder(BuildContext context) async {
-    if (!mounted) return;
-
-    final savedContext = context;
-    final localizations = AppLocalizations.of(savedContext);
-    final messenger = ScaffoldMessenger.of(savedContext);
-
-    // Check Android version to show instruction dialog for Android 13+
-    if (Platform.isAndroid) {
-      final androidInfo = await DeviceInfoPlugin().androidInfo;
-      final sdkInt = androidInfo.version.sdkInt;
-
-      if (sdkInt >= 33) {
-        if (!mounted) return;
-        final dialogContext = context;
-        final shouldProceed = await showDialog<bool>(
-          // ignore: use_build_context_synchronously
-          context: dialogContext,
-          builder: (dialogContext) => AlertDialog(
-            title: Row(
-              children: [
-                Icon(
-                  Icons.info_outline,
-                  color: Theme.of(dialogContext).colorScheme.primary,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    localizations?.selectLibraryFolderDialogTitle ??
-                        'Select Library Folder',
-                  ),
-                ),
-              ],
-            ),
-            content: SingleChildScrollView(
-              child: Text(
-                localizations?.selectLibraryFolderDialogMessage ??
-                    'To select a library folder:\n\n'
-                        '1. Navigate to the desired folder in the file manager\n'
-                        '2. Tap "Use this folder" button in the top right corner\n\n'
-                        'The selected folder will be used to scan for audiobooks.',
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(dialogContext).pop(false),
-                child: Text(localizations?.cancel ?? 'Cancel'),
-              ),
-              ElevatedButton.icon(
-                onPressed: () => Navigator.of(dialogContext).pop(true),
-                icon: const Icon(Icons.folder_open),
-                label: const Text('Select Folder'),
-              ),
-            ],
-          ),
-        );
-
-        if (!mounted) return;
-        if (shouldProceed != true) {
-          return; // User cancelled
-        }
-      }
-    }
-
-    // Open folder picker
-    try {
-      final selectedPath = await file_picker_utils.pickDirectory();
-
-      if (selectedPath != null) {
-        // Validate folder accessibility
-        // For content:// URIs, use ContentUriService; for file paths, use Directory
-        final isContentUri = StoragePathUtils.isContentUri(selectedPath);
-        var isAccessible = false;
-
-        if (isContentUri) {
-          // Check access via ContentResolver for content URIs
-          try {
-            final contentUriService = ContentUriService();
-            isAccessible = await contentUriService.checkUriAccess(selectedPath);
-            if (!isAccessible) {
-              if (mounted) {
-                messenger.showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      localizations?.permissionDeniedMessage ??
-                          'No access to selected folder. Please grant permission in the file picker.',
-                    ),
-                    backgroundColor: Colors.orange,
-                    duration: const Duration(seconds: 3),
-                  ),
-                );
-              }
-              return;
-            }
-          } on Exception catch (e) {
-            // Log error but continue - permission might still work
-            debugPrint('Error checking content URI access: $e');
-            // Assume accessible if check fails (might be timing issue)
-            isAccessible = true;
-          }
-        } else {
-          // Check access via Directory for file paths
-          try {
-            final dir = Directory(selectedPath);
-            isAccessible = await dir.exists();
-            if (!isAccessible) {
-              if (mounted) {
-                messenger.showSnackBar(
-                  const SnackBar(
-                    content: Text(
-                      'Selected folder is not accessible. Please try again.',
-                    ),
-                    backgroundColor: Colors.orange,
-                    duration: Duration(seconds: 3),
-                  ),
-                );
-              }
-              return;
-            }
-          } on Exception {
-            // If we can't check, still try to save - might be SAF URI
-            isAccessible = true; // Assume accessible if check fails
-          }
-        }
-
-        // Check if we should migrate files
-        final oldPath = _libraryFolderPath;
-        if (oldPath != null && oldPath != selectedPath) {
-          if (!mounted) return;
-          final dialogContext = context;
-          final shouldMigrate = await showDialog<bool>(
-            // ignore: use_build_context_synchronously
-            context: dialogContext,
-            builder: (dialogContext) => AlertDialog(
-              title: Text(
-                localizations?.migrateLibraryFolderTitle ?? 'Migrate Files?',
-              ),
-              content: Text(
-                localizations?.migrateLibraryFolderMessage ??
-                    'Do you want to move your existing audiobooks from the old folder to the new folder?',
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(dialogContext).pop(false),
-                  child: Text(localizations?.cancel ?? 'Cancel'),
-                ),
-                TextButton(
-                  onPressed: () => Navigator.of(dialogContext).pop(false),
-                  child: Text(localizations?.no ?? 'No'),
-                ),
-                ElevatedButton(
-                  onPressed: () => Navigator.of(dialogContext).pop(true),
-                  child: Text(localizations?.yes ?? 'Yes'),
-                ),
-              ],
-            ),
-          );
-
-          if (!mounted) return;
-          if (shouldMigrate ?? false) {
-            // Perform migration
-            final migrationContext = context;
-            await _migrateLibraryFolder(
-                // ignore: use_build_context_synchronously
-                migrationContext,
-                oldPath,
-                selectedPath);
-          }
-        }
-
-        // Save selected path
-        final storageUtils = StoragePathUtils();
-        await storageUtils.setLibraryFolderPath(selectedPath);
-        await _loadLibraryFolders();
-
-        if (mounted) {
-          messenger.showSnackBar(
-            SnackBar(
-              content: Row(
-                children: [
-                  const Icon(Icons.check_circle, color: Colors.white),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          localizations?.libraryFolderSelectedSuccessMessage ??
-                              'Library folder selected successfully',
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          selectedPath,
-                          style: const TextStyle(fontSize: 12),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
-      } else {
-        // User cancelled folder selection
-        if (mounted) {
-          messenger.showSnackBar(
-            SnackBar(
-              content: Text(localizations?.folderSelectionCancelledMessage ??
-                  'Folder selection cancelled'),
-              duration: const Duration(seconds: 1),
-            ),
-          );
-        }
-      }
-    } on Exception catch (e) {
-      if (mounted) {
-        messenger.showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.error, color: Colors.white),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Error selecting folder: ${e.toString()}',
-                  ),
-                ),
-              ],
-            ),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      }
-    }
-  }
-
-  Future<void> _addLibraryFolder(BuildContext context) async {
-    if (!mounted) return;
-
-    final savedContext = context;
-    final localizations = AppLocalizations.of(savedContext);
-    final messenger = ScaffoldMessenger.of(savedContext);
-
-    try {
-      final selectedPath = await file_picker_utils.pickDirectory();
-
-      if (selectedPath != null) {
-        // Validate folder accessibility
-        // For content:// URIs, use ContentUriService; for file paths, use Directory
-        final isContentUri = StoragePathUtils.isContentUri(selectedPath);
-        var isAccessible = false;
-
-        if (isContentUri) {
-          // Check access via ContentResolver for content URIs
-          try {
-            final contentUriService = ContentUriService();
-            isAccessible = await contentUriService.checkUriAccess(selectedPath);
-            if (!isAccessible) {
-              if (mounted) {
-                messenger.showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      localizations?.permissionDeniedMessage ??
-                          'No access to selected folder. Please grant permission in the file picker.',
-                    ),
-                    backgroundColor: Colors.orange,
-                    duration: const Duration(seconds: 3),
-                  ),
-                );
-              }
-              return;
-            }
-          } on Exception catch (e) {
-            // Log error but continue - permission might still work
-            debugPrint('Error checking content URI access: $e');
-            // Assume accessible if check fails (might be timing issue)
-            isAccessible = true;
-          }
-        } else {
-          // Check access via Directory for file paths
-          try {
-            final dir = Directory(selectedPath);
-            isAccessible = await dir.exists();
-            if (!isAccessible) {
-              if (mounted) {
-                messenger.showSnackBar(
-                  const SnackBar(
-                    content: Text(
-                      'Selected folder is not accessible. Please try again.',
-                    ),
-                    backgroundColor: Colors.orange,
-                    duration: Duration(seconds: 3),
-                  ),
-                );
-              }
-              return;
-            }
-          } on Exception {
-            // If we can't check, still try to save - might be SAF URI
-            isAccessible = true; // Assume accessible if check fails
-          }
-        }
-
-        // Check if folder already exists
-        if (_libraryFolders.contains(selectedPath)) {
-          if (mounted) {
-            messenger.showSnackBar(
-              SnackBar(
-                content: Text(
-                  localizations?.libraryFolderAlreadyExistsMessage ??
-                      'This folder is already in the library folders list',
-                ),
-                backgroundColor: Colors.orange,
-                duration: const Duration(seconds: 2),
-              ),
-            );
-          }
-          return;
-        }
-
-        // Add folder
-        final storageUtils = StoragePathUtils();
-        final added = await storageUtils.addLibraryFolder(selectedPath);
-        await _loadLibraryFolders();
-
-        if (mounted) {
-          if (added) {
-            messenger.showSnackBar(
-              SnackBar(
-                content: Text(
-                  localizations?.libraryFolderAddedSuccessMessage ??
-                      'Library folder added successfully',
-                ),
-                backgroundColor: Colors.green,
-              ),
-            );
-          } else {
-            messenger.showSnackBar(
-              SnackBar(
-                content: Text(
-                  localizations?.libraryFolderAlreadyExistsMessage ??
-                      'This folder is already in the library folders list',
-                ),
-                backgroundColor: Colors.orange,
-              ),
-            );
-          }
-        }
-      }
-    } on Exception catch (e) {
-      if (mounted) {
-        messenger.showSnackBar(
-          SnackBar(
-            content: Text('Error adding folder: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
-
-  Future<void> _removeLibraryFolder(BuildContext context, String folder) async {
-    if (!mounted) return;
-
-    final localizations = AppLocalizations.of(context);
-    final messenger = ScaffoldMessenger.of(context);
-
-    // Confirm removal
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(
-          localizations?.removeLibraryFolderTitle ?? 'Remove Folder?',
-        ),
-        content: Text(
-          localizations?.removeLibraryFolderMessage ??
-              'Are you sure you want to remove this folder from the library? '
-                  'This will not delete the files, only stop scanning this folder.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: Text(localizations?.cancel ?? 'Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-            ),
-            child: Text(localizations?.remove ?? 'Remove'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed != true) return;
-
-    // Remove folder
-    final storageUtils = StoragePathUtils();
-    final removed = await storageUtils.removeLibraryFolder(folder);
-    await _loadLibraryFolders();
-
-    if (mounted) {
-      if (removed) {
-        messenger.showSnackBar(
-          SnackBar(
-            content: Text(
-              localizations?.libraryFolderRemovedSuccessMessage ??
-                  'Library folder removed successfully',
-            ),
-            backgroundColor: Colors.green,
-          ),
-        );
-      } else {
-        messenger.showSnackBar(
-          SnackBar(
-            content: Text(
-              localizations?.libraryFolderRemoveFailedMessage ??
-                  'Failed to remove library folder',
-            ),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
-
-  Future<void> _migrateLibraryFolder(
-    BuildContext context,
-    String oldPath,
-    String newPath,
-  ) async {
-    if (!mounted) return;
-
-    final localizations = AppLocalizations.of(context);
-
-    // Show progress dialog
-    if (!mounted) return;
-    final dialogContext = context;
-    final progressDialog = showDialog(
-      context: dialogContext,
-      barrierDismissible: false,
-      builder: (dialogBuilderContext) => AlertDialog(
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const CircularProgressIndicator(),
-            const SizedBox(height: 16),
-            Text(
-              localizations?.migratingLibraryFolderMessage ??
-                  'Migrating files...',
-            ),
-          ],
-        ),
-      ),
-    );
-    unawaited(progressDialog);
-
-    try {
-      final migrationService = LibraryMigrationService();
-      final result = await migrationService.migrateLibrary(
-        oldPath: oldPath,
-        newPath: newPath,
-      );
-
-      if (!mounted) return;
-      final navContext = context;
-      // ignore: use_build_context_synchronously
-      Navigator.of(navContext).pop(); // Close progress dialog
-
-      if (!mounted) return;
-      final messengerContext = context;
-      if (result.success) {
-        // ignore: use_build_context_synchronously
-        ScaffoldMessenger.of(messengerContext).showSnackBar(
-          SnackBar(
-            content: Text(
-              localizations?.migrationCompletedSuccessMessage ??
-                  'Migration completed successfully. ${result.filesMoved} files moved.',
-            ),
-            backgroundColor: Colors.green,
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      } else {
-        if (!mounted) return;
-        final messengerContextForError = context;
-        // ignore: use_build_context_synchronously
-        ScaffoldMessenger.of(messengerContextForError).showSnackBar(
-          SnackBar(
-            content: Text(
-              localizations?.migrationFailedMessage ??
-                  'Migration failed: ${result.error ?? "Unknown error"}',
-            ),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      }
-    } on Exception catch (e) {
-      if (!mounted) return;
-      final navContextForError = context;
-      // ignore: use_build_context_synchronously
-      Navigator.of(navContextForError).pop(); // Close progress dialog
-      if (!mounted) return;
-      final messengerContextForException = context;
-      // ignore: use_build_context_synchronously
-      ScaffoldMessenger.of(messengerContextForException).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Migration error: ${e.toString()}',
-          ),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
+  // Removed unused methods - functionality moved to FolderHandlers:
+  // - _selectLibraryFolder -> FolderHandlers.selectLibraryFolder
+  // - _addLibraryFolder -> FolderHandlers.addLibraryFolder
+  // - _buildLibraryFolderItem -> FolderHandlers.buildLibraryFolderItem
+  // - _removeLibraryFolder -> FolderHandlers.removeLibraryFolder
+  // - _checkFolderPermission -> FolderHandlers.checkFolderPermission
+  // - _restoreFolderPermission -> FolderHandlers.restoreFolderPermission
+  // - _migrateLibraryFolder -> FolderHandlers.migrateLibraryFolder
 }
