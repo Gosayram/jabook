@@ -61,6 +61,49 @@ class CoverFallbackService {
       },
     );
 
+    // 0. Check cache first
+    try {
+      final cachedPath = await _getCachedFilePath(groupName);
+      final file = File(cachedPath);
+      if (await file.exists()) {
+        final length = await file.length();
+        if (length > 0) {
+          await logger.log(
+            level: 'info',
+            subsystem: 'cover_fallback',
+            message: 'Found cover in cache',
+            operationId: operationId,
+            context: 'fetch_cover',
+            extra: {
+              'group_name': groupName,
+              'cached_path': cachedPath,
+              'size': length,
+            },
+          );
+          return cachedPath;
+        } else {
+          // File exists but is empty, delete it
+          await file.delete();
+          await logger.log(
+            level: 'warning',
+            subsystem: 'cover_fallback',
+            message: 'Found empty cover file in cache, deleting',
+            operationId: operationId,
+            extra: {'path': cachedPath},
+          );
+        }
+      }
+    } on Exception catch (e) {
+      // Ignore cache errors and proceed to fetch
+      await logger.log(
+        level: 'warning',
+        subsystem: 'cover_fallback',
+        message: 'Failed to check cache',
+        operationId: operationId,
+        cause: e.toString(),
+      );
+    }
+
     // 1. Try author.today first (priority)
     try {
       final authorTodayUrl = await _searchAuthorToday(groupName);
@@ -850,6 +893,22 @@ class CoverFallbackService {
     return '$baseUrl/$url';
   }
 
+  /// Generates the path for the cached cover file.
+  Future<String> _getCachedFilePath(String groupName) async {
+    final cacheDir = await getTemporaryDirectory();
+    final coversDir = Directory(path.join(cacheDir.path, 'covers', 'fallback'));
+    if (!await coversDir.exists()) {
+      await coversDir.create(recursive: true);
+    }
+
+    // Generate filename from groupName hash
+    final hash = groupName.hashCode.abs();
+    // Use .jpg as default extension for cache check (we don't know the original extension yet)
+    // The download method will use the correct extension, but for cache hits we just assume .jpg
+    // or check for multiple extensions if needed. For now, simple consistent naming is better.
+    return path.join(coversDir.path, '$hash.jpg');
+  }
+
   /// Downloads cover image and saves to cache.
   Future<String?> _downloadAndCacheCover(
     String imageUrl,
@@ -877,20 +936,8 @@ class CoverFallbackService {
       if (response.statusCode == 200 && response.data is List<int>) {
         final bytes = response.data as List<int>;
 
-        // Get cache directory
-        final cacheDir = await getTemporaryDirectory();
-        final coversDir =
-            Directory(path.join(cacheDir.path, 'covers', 'fallback'));
-        if (!await coversDir.exists()) {
-          await coversDir.create(recursive: true);
-        }
-
-        // Generate filename from groupName hash
-        final hash = groupName.hashCode.abs();
-        final extension =
-            path.extension(imageUrl).split('?').first; // Remove query params
-        final filename = '$hash${extension.isNotEmpty ? extension : '.jpg'}';
-        final filePath = path.join(coversDir.path, filename);
+        // Use the centralized cache path generation to ensure consistency
+        final filePath = await _getCachedFilePath(groupName);
 
         // Save to file
         final file = File(filePath);

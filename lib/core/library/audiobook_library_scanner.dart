@@ -19,7 +19,6 @@ import 'package:flutter_media_metadata/flutter_media_metadata.dart';
 import 'package:jabook/core/domain/library/entities/local_audiobook.dart';
 import 'package:jabook/core/domain/library/entities/local_audiobook_group.dart';
 import 'package:jabook/core/infrastructure/logging/structured_logger.dart';
-import 'package:jabook/core/library/cover_fallback_service.dart';
 import 'package:jabook/core/library/external_folder_grouping_strategy.dart';
 import 'package:jabook/core/library/folder_filter_service.dart';
 import 'package:jabook/core/library/folder_structure_analyzer.dart';
@@ -1306,30 +1305,8 @@ class AudiobookLibraryScanner {
         }
       }
 
-      // 4. If no local cover found (file or embedded), try online fallback
-      if (group != null) {
-        try {
-          const fallbackService = CoverFallbackService();
-          final fallbackPath = await fallbackService.fetchCoverFromOnline(
-            group.groupName,
-            torrentId: group.torrentId,
-          );
-          if (fallbackPath != null) {
-            return fallbackPath;
-          }
-        } on Exception catch (e) {
-          await _logger.log(
-            level: 'warning',
-            subsystem: 'library_scanner',
-            message: 'Failed to fetch cover from online fallback',
-            extra: {
-              'path': directoryPath,
-              'group_name': group.groupName,
-              'error': e.toString(),
-            },
-          );
-        }
-      }
+      // 4. Online fallback removed from scanner to prevent blocking operations.
+      // The UI will handle lazy loading of covers via CoverFallbackService.
     } on Exception catch (e) {
       await _logger.log(
         level: 'warning',
