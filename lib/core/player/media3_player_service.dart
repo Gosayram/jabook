@@ -12,11 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import 'dart:async';
+import 'dart:async' show TimeoutException, Timer, unawaited;
 
 import 'package:jabook/core/infrastructure/errors/failures.dart';
 import 'package:jabook/core/infrastructure/logging/structured_logger.dart';
 import 'package:jabook/core/library/playback_position_service.dart';
+import 'package:jabook/core/player/file_duration_database_service.dart';
 import 'package:jabook/core/player/native_audio_player.dart';
 import 'package:jabook/core/player/player_state_persistence_service.dart';
 import 'package:path/path.dart' as path;
@@ -31,10 +32,14 @@ class Media3PlayerService {
   ///
   /// The [statePersistenceService] parameter is optional. If not provided,
   /// a default instance without database support will be created.
+  /// The [fileDurationDatabaseService] parameter is optional. If not provided,
+  /// durations will only be cached in memory (Kotlin side).
   Media3PlayerService({
     PlayerStatePersistenceService? statePersistenceService,
-  }) : _statePersistenceService =
-            statePersistenceService ?? PlayerStatePersistenceService();
+    FileDurationDatabaseService? fileDurationDatabaseService,
+  })  : _statePersistenceService =
+            statePersistenceService ?? PlayerStatePersistenceService(),
+        _fileDurationDatabaseService = fileDurationDatabaseService;
 
   /// Native audio player instance.
   final NativeAudioPlayer _player = NativeAudioPlayer();
@@ -45,6 +50,9 @@ class Media3PlayerService {
   /// Player state persistence service for saving full state.
   /// Uses database for reliable storage with SharedPreferences fallback.
   final PlayerStatePersistenceService _statePersistenceService;
+
+  /// File duration database service for persisting durations across app restarts.
+  final FileDurationDatabaseService? _fileDurationDatabaseService;
 
   /// Logger for structured logging.
   final StructuredLogger _logger = StructuredLogger();
@@ -164,6 +172,13 @@ class Media3PlayerService {
       );
       _currentGroupPath = groupPath;
 
+      // Load durations from database for all files in playlist (async, don't wait)
+      if (_fileDurationDatabaseService != null) {
+        unawaited(_loadDurationsFromDatabase(filePaths).catchError((e) {
+          // Ignore errors - loading durations is not critical
+        }));
+      }
+
       // Start periodic position saving if group path is provided
       if (groupPath != null) {
         _startPositionSaving();
@@ -178,7 +193,7 @@ class Media3PlayerService {
       );
     } on AudioFailure {
       rethrow;
-    } on Exception catch (e) {
+    } on Object catch (e) {
       await _logger.log(
         level: 'error',
         subsystem: 'audio',
@@ -199,7 +214,7 @@ class Media3PlayerService {
       await _updateFullState();
     } on AudioFailure {
       rethrow;
-    } on Exception catch (e) {
+    } on Object catch (e) {
       throw AudioFailure('Failed to play: ${e.toString()}');
     }
   }
@@ -214,7 +229,7 @@ class Media3PlayerService {
       await _saveCurrentPosition();
     } on AudioFailure {
       rethrow;
-    } on Exception catch (e) {
+    } on Object catch (e) {
       throw AudioFailure('Failed to pause: ${e.toString()}');
     }
   }
@@ -230,7 +245,7 @@ class Media3PlayerService {
       await clearSavedState();
     } on AudioFailure {
       rethrow;
-    } on Exception catch (e) {
+    } on Object catch (e) {
       throw AudioFailure('Failed to stop: ${e.toString()}');
     }
   }
@@ -254,7 +269,7 @@ class Media3PlayerService {
       await _player.stopServiceAndExit();
     } on AudioFailure {
       rethrow;
-    } on Exception catch (e) {
+    } on Object catch (e) {
       throw AudioFailure('Failed to stop service and exit: ${e.toString()}');
     }
   }
@@ -271,7 +286,7 @@ class Media3PlayerService {
       await _saveCurrentPosition();
     } on AudioFailure {
       rethrow;
-    } on Exception catch (e) {
+    } on Object catch (e) {
       throw AudioFailure('Failed to seek: ${e.toString()}');
     }
   }
@@ -288,7 +303,7 @@ class Media3PlayerService {
       await _updateFullState();
     } on AudioFailure {
       rethrow;
-    } on Exception catch (e) {
+    } on Object catch (e) {
       throw AudioFailure('Failed to set speed: ${e.toString()}');
     }
   }
@@ -305,7 +320,7 @@ class Media3PlayerService {
       await _player.updateSkipDurations(rewindSeconds, forwardSeconds);
     } on AudioFailure {
       rethrow;
-    } on Exception catch (e) {
+    } on Object catch (e) {
       throw AudioFailure('Failed to update skip durations: ${e.toString()}');
     }
   }
@@ -320,7 +335,7 @@ class Media3PlayerService {
       await _player.setInactivityTimeoutMinutes(minutes);
     } on AudioFailure {
       rethrow;
-    } on Exception catch (e) {
+    } on Object catch (e) {
       throw AudioFailure('Failed to set inactivity timeout: ${e.toString()}');
     }
   }
@@ -351,7 +366,7 @@ class Media3PlayerService {
       );
     } on AudioFailure {
       rethrow;
-    } on Exception catch (e) {
+    } on Object catch (e) {
       throw AudioFailure(
         'Failed to configure audio processing: ${e.toString()}',
       );
@@ -368,7 +383,7 @@ class Media3PlayerService {
       await _saveCurrentPosition();
     } on AudioFailure {
       rethrow;
-    } on Exception catch (e) {
+    } on Object catch (e) {
       throw AudioFailure('Failed to skip next: ${e.toString()}');
     }
   }
@@ -383,7 +398,7 @@ class Media3PlayerService {
       await _saveCurrentPosition();
     } on AudioFailure {
       rethrow;
-    } on Exception catch (e) {
+    } on Object catch (e) {
       throw AudioFailure('Failed to skip previous: ${e.toString()}');
     }
   }
@@ -400,7 +415,7 @@ class Media3PlayerService {
       await _saveCurrentPosition();
     } on AudioFailure {
       rethrow;
-    } on Exception catch (e) {
+    } on Object catch (e) {
       throw AudioFailure('Failed to seek to track: ${e.toString()}');
     }
   }
@@ -418,7 +433,7 @@ class Media3PlayerService {
       await _saveCurrentPosition();
     } on AudioFailure {
       rethrow;
-    } on Exception catch (e) {
+    } on Object catch (e) {
       throw AudioFailure(
           'Failed to seek to track and position: ${e.toString()}');
     }
@@ -427,12 +442,36 @@ class Media3PlayerService {
   /// Gets current player state.
   ///
   /// Returns [AudioPlayerState] with current player information.
+  /// Also synchronizes duration with database if available.
   Future<AudioPlayerState> getState() async {
     try {
-      return await _player.getState();
+      final state = await _player.getState();
+
+      // Synchronize duration with database if available
+      if (_fileDurationDatabaseService != null && state.duration > 0) {
+        // Get current media item info to get file path
+        try {
+          final mediaItemInfo = await _player.getCurrentMediaItemInfo();
+          final filePath = mediaItemInfo['uri'] as String?;
+          if (filePath != null && filePath.startsWith('file://')) {
+            final actualPath = filePath.replaceFirst('file://', '');
+            // Save duration to database (async, don't wait)
+            unawaited(_fileDurationDatabaseService
+                .saveDuration(actualPath, state.duration, 'player')
+                .catchError((e) => false));
+            // Also save to Kotlin cache
+            await _player.saveFileDuration(
+                actualPath, state.duration, 'player');
+          }
+        } on Object {
+          // Ignore errors - duration synchronization is not critical
+        }
+      }
+
+      return state;
     } on AudioFailure {
       rethrow;
-    } on Exception catch (e) {
+    } on Object catch (e) {
       throw AudioFailure('Failed to get state: ${e.toString()}');
     }
   }
@@ -446,7 +485,7 @@ class Media3PlayerService {
       return await _player.getCurrentMediaItemInfo();
     } on AudioFailure {
       rethrow;
-    } on Exception catch (e) {
+    } on Object catch (e) {
       throw AudioFailure(
         'Failed to get current media item info: ${e.toString()}',
       );
@@ -487,7 +526,7 @@ class Media3PlayerService {
       // Check if the current playing file matches the file path
       return normalizedFilePath == normalizedCurrentUri ||
           currentUri.contains(filePath);
-    } on Exception catch (e) {
+    } on Object catch (e) {
       await _logger.log(
         level: 'warning',
         subsystem: 'audio',
@@ -512,7 +551,7 @@ class Media3PlayerService {
       await _player.updateMetadata(metadata);
     } on AudioFailure {
       rethrow;
-    } on Exception catch (e) {
+    } on Object catch (e) {
       throw AudioFailure('Failed to update metadata: ${e.toString()}');
     }
   }
@@ -782,5 +821,26 @@ class Media3PlayerService {
     await _player.dispose();
     _isInitialized = false;
     _currentGroupPath = null;
+  }
+
+  /// Loads durations from database for files in playlist.
+  ///
+  /// This preloads durations into Kotlin cache for faster access.
+  Future<void> _loadDurationsFromDatabase(List<String> filePaths) async {
+    if (_fileDurationDatabaseService == null) return;
+
+    try {
+      for (final filePath in filePaths) {
+        // Get duration from database
+        final duration =
+            await _fileDurationDatabaseService.getDuration(filePath);
+        if (duration != null && duration > 0) {
+          // Save to Kotlin cache via MethodChannel
+          await _player.saveFileDuration(filePath, duration, 'database');
+        }
+      }
+    } on Object {
+      // Ignore errors - loading durations is not critical
+    }
   }
 }

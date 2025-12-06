@@ -14,7 +14,7 @@ import android.view.KeyEvent
 import android.webkit.CookieManager
 import androidx.annotation.RequiresApi
 import com.jabook.app.jabook.audio.AudioPlayerMethodHandler
-import com.jabook.app.jabook.audio.AudioPlayerService
+import com.jabook.app.jabook.audio.PositionConstants
 import com.jabook.app.jabook.download.DownloadServiceMethodHandler
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -1126,9 +1126,9 @@ class MainActivity : FlutterActivity() {
                     context: Context,
                     intent: Intent,
                 ) {
-                    if (intent.action == AudioPlayerService.ACTION_SAVE_POSITION_BEFORE_UNLOAD) {
-                        val trackIndex = intent.getIntExtra(AudioPlayerService.EXTRA_TRACK_INDEX, -1)
-                        val positionMs = intent.getLongExtra(AudioPlayerService.EXTRA_POSITION_MS, -1L)
+                    if (intent.action == PositionConstants.ACTION_SAVE_POSITION_BEFORE_UNLOAD) {
+                        val trackIndex = intent.getIntExtra(PositionConstants.EXTRA_TRACK_INDEX, -1)
+                        val positionMs = intent.getLongExtra(PositionConstants.EXTRA_POSITION_MS, -1L)
 
                         android.util.Log.d(
                             "MainActivity",
@@ -1182,7 +1182,7 @@ class MainActivity : FlutterActivity() {
             }
 
         // Register receiver for local broadcasts
-        val filter = IntentFilter(AudioPlayerService.ACTION_SAVE_POSITION_BEFORE_UNLOAD)
+        val filter = IntentFilter(PositionConstants.ACTION_SAVE_POSITION_BEFORE_UNLOAD)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(positionSaveReceiver, filter, RECEIVER_NOT_EXPORTED)
         } else {

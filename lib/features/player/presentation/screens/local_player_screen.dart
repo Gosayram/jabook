@@ -1675,7 +1675,7 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
         state.currentIndex >= 0 &&
         state.currentIndex < widget.group.files.length;
 
-    final chapterNumber = hasFiles ? (state.currentIndex + 1) : 1;
+    final chapterNumber = hasFiles ? state.chapterNumberValue : 1;
     final localizations = AppLocalizations.of(context);
     final chapterText =
         localizations?.chapterNumber(chapterNumber) ?? 'Chapter $chapterNumber';
@@ -1718,7 +1718,7 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
   /// Builds track info - "Track X of Y" and percentage in one line.
   Widget _buildTrackInfo(PlayerStateModel state) {
     final totalTracks = widget.group.files.length;
-    final currentTrack = (state.currentIndex + 1).clamp(1, totalTracks);
+    final currentTrack = state.chapterNumberValue.clamp(1, totalTracks);
     final progress =
         totalTracks > 0 ? (currentTrack / totalTracks).clamp(0.0, 1.0) : 0.0;
 
@@ -2009,7 +2009,7 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
                   child: Row(
                     children: [
                       Text(
-                        '${currentIndex + 1} / $totalTracks',
+                        '${state.chapterNumberValue} / $totalTracks',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                               color: Theme.of(context)
                                   .colorScheme

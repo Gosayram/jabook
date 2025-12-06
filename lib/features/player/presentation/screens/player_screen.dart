@@ -846,7 +846,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    '${AppLocalizations.of(context)?.chaptersLabel ?? 'Chapter'} ${playerState.currentIndex + 1} / ${_audiobook!.chapters.length}',
+                                    '${AppLocalizations.of(context)?.chaptersLabel ?? 'Chapter'} ${playerState.chapterNumberValue} / ${_audiobook!.chapters.length}',
                                     style:
                                         Theme.of(context).textTheme.bodySmall,
                                   ),

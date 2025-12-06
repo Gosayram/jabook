@@ -56,8 +56,11 @@ final media3PlayerServiceProvider = Provider<Media3PlayerService>((ref) {
 
   final statePersistenceService =
       ref.watch(playerStatePersistenceServiceProvider);
+  final fileDurationDatabaseService =
+      ref.watch(fileDurationDatabaseServiceProvider);
   final service = Media3PlayerService(
     statePersistenceService: statePersistenceService,
+    fileDurationDatabaseService: fileDurationDatabaseService,
   );
   ref.onDispose(() async {
     await service.dispose();
