@@ -35,6 +35,7 @@ class PlayerStateModel {
         currentIndex: state.currentIndex,
         playbackSpeed: state.playbackSpeed,
         playbackState: state.playbackState,
+        chapterNumber: state.chapterNumber,
       );
 
   /// Creates a new PlayerStateModel instance.
@@ -50,6 +51,7 @@ class PlayerStateModel {
     this.currentArtist,
     this.currentCoverPath,
     this.currentGroupPath,
+    this.chapterNumber,
   });
 
   /// Whether audio is currently playing.
@@ -85,6 +87,16 @@ class PlayerStateModel {
   /// Current group path (for navigation).
   final String? currentGroupPath;
 
+  /// Chapter number (1-based) from native player.
+  /// This is the single source of truth calculated in Kotlin.
+  /// If null, fallback to currentIndex + 1.
+  final int? chapterNumber;
+
+  /// Gets the current chapter number (1-based).
+  /// Uses value from native player if available, otherwise calculates from currentIndex.
+  int get chapterNumberValue =>
+      chapterNumber ?? (currentIndex >= 0 ? currentIndex + 1 : 1);
+
   /// Creates a copy with updated fields.
   PlayerStateModel copyWith({
     bool? isPlaying,
@@ -98,6 +110,7 @@ class PlayerStateModel {
     String? currentArtist,
     String? currentCoverPath,
     String? currentGroupPath,
+    int? chapterNumber,
   }) =>
       PlayerStateModel(
         isPlaying: isPlaying ?? this.isPlaying,
@@ -111,6 +124,7 @@ class PlayerStateModel {
         currentArtist: currentArtist ?? this.currentArtist,
         currentCoverPath: currentCoverPath ?? this.currentCoverPath,
         currentGroupPath: currentGroupPath ?? this.currentGroupPath,
+        chapterNumber: chapterNumber ?? this.chapterNumber,
       );
 }
 
@@ -191,7 +205,7 @@ class PlayerStateNotifier extends StateNotifier<PlayerStateModel> {
         },
         cancelOnError: false, // Don't cancel subscription on error
       );
-    } on Exception catch (e) {
+    } on Object catch (e) {
       // If subscription fails, log but don't block - state will be updated
       // when player is initialized and stream becomes available
       debugPrint('Failed to subscribe to player state stream: $e');
@@ -220,7 +234,7 @@ class PlayerStateNotifier extends StateNotifier<PlayerStateModel> {
     } on AudioFailure catch (e) {
       state = state.copyWith(error: e.message);
       rethrow;
-    } on Exception catch (e) {
+    } on Object catch (e) {
       state = state.copyWith(error: e.toString());
       throw AudioFailure('Failed to initialize: ${e.toString()}');
     }
@@ -261,7 +275,7 @@ class PlayerStateNotifier extends StateNotifier<PlayerStateModel> {
     } on AudioFailure catch (e) {
       state = state.copyWith(error: e.message);
       rethrow;
-    } on Exception catch (e) {
+    } on Object catch (e) {
       state = state.copyWith(error: e.toString());
       throw AudioFailure('Failed to set playlist: ${e.toString()}');
     }
@@ -276,7 +290,7 @@ class PlayerStateNotifier extends StateNotifier<PlayerStateModel> {
     } on AudioFailure catch (e) {
       state = state.copyWith(error: e.message);
       rethrow;
-    } on Exception catch (e) {
+    } on Object catch (e) {
       state = state.copyWith(error: e.toString());
       throw AudioFailure('Failed to play: ${e.toString()}');
     }
@@ -291,7 +305,7 @@ class PlayerStateNotifier extends StateNotifier<PlayerStateModel> {
     } on AudioFailure catch (e) {
       state = state.copyWith(error: e.message);
       rethrow;
-    } on Exception catch (e) {
+    } on Object catch (e) {
       state = state.copyWith(error: e.toString());
       throw AudioFailure('Failed to pause: ${e.toString()}');
     }
@@ -312,7 +326,7 @@ class PlayerStateNotifier extends StateNotifier<PlayerStateModel> {
     } on AudioFailure catch (e) {
       state = state.copyWith(error: e.message);
       rethrow;
-    } on Exception catch (e) {
+    } on Object catch (e) {
       state = state.copyWith(error: e.toString());
       throw AudioFailure('Failed to stop: ${e.toString()}');
     }
@@ -330,7 +344,7 @@ class PlayerStateNotifier extends StateNotifier<PlayerStateModel> {
     } on AudioFailure catch (e) {
       state = state.copyWith(error: e.message);
       rethrow;
-    } on Exception catch (e) {
+    } on Object catch (e) {
       state = state.copyWith(error: e.toString());
       throw AudioFailure('Failed to stop service and exit: ${e.toString()}');
     }
@@ -353,7 +367,7 @@ class PlayerStateNotifier extends StateNotifier<PlayerStateModel> {
     } on AudioFailure catch (e) {
       state = state.copyWith(error: e.message);
       rethrow;
-    } on Exception catch (e) {
+    } on Object catch (e) {
       state = state.copyWith(error: e.toString());
       throw AudioFailure('Failed to seek: ${e.toString()}');
     }
@@ -370,7 +384,7 @@ class PlayerStateNotifier extends StateNotifier<PlayerStateModel> {
     } on AudioFailure catch (e) {
       state = state.copyWith(error: e.message);
       rethrow;
-    } on Exception catch (e) {
+    } on Object catch (e) {
       state = state.copyWith(error: e.toString());
       throw AudioFailure('Failed to set speed: ${e.toString()}');
     }
@@ -385,7 +399,7 @@ class PlayerStateNotifier extends StateNotifier<PlayerStateModel> {
     } on AudioFailure catch (e) {
       state = state.copyWith(error: e.message);
       rethrow;
-    } on Exception catch (e) {
+    } on Object catch (e) {
       state = state.copyWith(error: e.toString());
       throw AudioFailure('Failed to skip next: ${e.toString()}');
     }
@@ -400,7 +414,7 @@ class PlayerStateNotifier extends StateNotifier<PlayerStateModel> {
     } on AudioFailure catch (e) {
       state = state.copyWith(error: e.message);
       rethrow;
-    } on Exception catch (e) {
+    } on Object catch (e) {
       state = state.copyWith(error: e.toString());
       throw AudioFailure('Failed to skip previous: ${e.toString()}');
     }
@@ -417,7 +431,7 @@ class PlayerStateNotifier extends StateNotifier<PlayerStateModel> {
     } on AudioFailure catch (e) {
       state = state.copyWith(error: e.message);
       rethrow;
-    } on Exception catch (e) {
+    } on Object catch (e) {
       state = state.copyWith(error: e.toString());
       throw AudioFailure('Failed to seek to track: ${e.toString()}');
     }
@@ -442,7 +456,7 @@ class PlayerStateNotifier extends StateNotifier<PlayerStateModel> {
     } on AudioFailure catch (e) {
       state = state.copyWith(error: e.message);
       rethrow;
-    } on Exception catch (e) {
+    } on Object catch (e) {
       state = state.copyWith(error: e.toString());
       throw AudioFailure(
           'Failed to seek to track and position: ${e.toString()}');
@@ -466,7 +480,7 @@ class PlayerStateNotifier extends StateNotifier<PlayerStateModel> {
     } on AudioFailure catch (e) {
       state = state.copyWith(error: e.message);
       rethrow;
-    } on Exception catch (e) {
+    } on Object catch (e) {
       state = state.copyWith(error: e.toString());
       throw AudioFailure('Failed to update metadata: ${e.toString()}');
     }

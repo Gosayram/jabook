@@ -138,7 +138,7 @@ class PlayerStateDatabaseService {
       );
 
       return true;
-    } on Exception catch (e) {
+    } on Object catch (e) {
       await _logger.log(
         level: 'error',
         subsystem: 'player_state_db',
@@ -212,7 +212,7 @@ class PlayerStateDatabaseService {
       );
 
       return state;
-    } on Exception catch (e) {
+    } on Object catch (e) {
       await _logger.log(
         level: 'error',
         subsystem: 'player_state_db',
@@ -246,7 +246,7 @@ class PlayerStateDatabaseService {
           'group_path': groupPath,
         },
       );
-    } on Exception catch (e) {
+    } on Object catch (e) {
       await _logger.log(
         level: 'error',
         subsystem: 'player_state_db',

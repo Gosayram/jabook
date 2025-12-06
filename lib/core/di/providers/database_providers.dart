@@ -14,6 +14,7 @@
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:jabook/core/data/local/database/app_database.dart';
+import 'package:jabook/core/player/file_duration_database_service.dart';
 
 /// Provider for AppDatabase instance.
 ///
@@ -24,3 +25,14 @@ import 'package:jabook/core/data/local/database/app_database.dart';
 /// with code that still uses the static getInstance() method.
 final appDatabaseProvider =
     Provider<AppDatabase>((ref) => AppDatabase.getInstance());
+
+/// Provider for FileDurationDatabaseService instance.
+///
+/// This provider creates a FileDurationDatabaseService instance that uses
+/// the AppDatabase to persist audio file durations across app restarts.
+final fileDurationDatabaseServiceProvider =
+    Provider<FileDurationDatabaseService>(
+  (ref) => FileDurationDatabaseService(
+    appDatabase: ref.watch(appDatabaseProvider),
+  ),
+);

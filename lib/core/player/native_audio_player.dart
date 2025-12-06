@@ -28,6 +28,7 @@ class AudioPlayerState {
     required this.currentIndex,
     required this.playbackSpeed,
     required this.playbackState,
+    this.chapterNumber,
   });
 
   /// Creates [AudioPlayerState] from a map.
@@ -41,6 +42,7 @@ class AudioPlayerState {
         currentIndex: (map['currentIndex'] as num?)?.toInt() ?? 0,
         playbackSpeed: (map['playbackSpeed'] as num?)?.toDouble() ?? 1.0,
         playbackState: (map['playbackState'] as num?)?.toInt() ?? 0,
+        chapterNumber: (map['chapterNumber'] as num?)?.toInt(),
       );
 
   /// Whether audio is currently playing.
@@ -54,6 +56,11 @@ class AudioPlayerState {
 
   /// Current track index in playlist.
   final int currentIndex;
+
+  /// Chapter number (1-based) from native player.
+  /// This is the single source of truth calculated in Kotlin.
+  /// If null, fallback to currentIndex + 1.
+  final int? chapterNumber;
 
   /// Playback speed (1.0 = normal speed).
   final double playbackSpeed;
@@ -112,7 +119,7 @@ class NativeAudioPlayer {
     int maxRetries = _maxInitRetries,
   }) async {
     var attempt = 0;
-    Exception? lastException;
+    Object? lastException;
 
     while (attempt < maxRetries) {
       try {
@@ -182,7 +189,7 @@ class NativeAudioPlayer {
 
         // Wait before retry
         await Future.delayed(Duration(milliseconds: delayMs));
-      } on Exception catch (e) {
+      } on Object catch (e) {
         // Non-PlatformException errors are not retryable
         lastException = e;
         rethrow;
@@ -258,7 +265,7 @@ class NativeAudioPlayer {
       );
       // Don't set _isInitialized = true, so it will retry on first use
       throw AudioFailure('Failed to initialize: ${e.message ?? e.code}');
-    } on Exception catch (e) {
+    } on Object catch (e) {
       // Log as warning instead of error - player will initialize on first use
       await _logger.log(
         level: 'warning',
@@ -373,7 +380,7 @@ class NativeAudioPlayer {
         },
       );
       throw AudioFailure('Failed to set playlist: ${e.message ?? e.code}');
-    } on Exception catch (e) {
+    } on Object catch (e) {
       await _logger.log(
         level: 'error',
         subsystem: 'audio',
@@ -409,7 +416,7 @@ class NativeAudioPlayer {
         extra: {'code': e.code, 'message': e.message},
       );
       throw AudioFailure('Failed to play: ${e.message ?? e.code}');
-    } on Exception catch (e) {
+    } on Object catch (e) {
       await _logger.log(
         level: 'error',
         subsystem: 'audio',
@@ -428,7 +435,7 @@ class NativeAudioPlayer {
       await _channel.invokeMethod('pause');
     } on PlatformException catch (e) {
       throw AudioFailure('Failed to pause: ${e.message ?? e.code}');
-    } on Exception catch (e) {
+    } on Object catch (e) {
       throw AudioFailure('Failed to pause: ${e.toString()}');
     }
   }
@@ -441,7 +448,7 @@ class NativeAudioPlayer {
       await _channel.invokeMethod('stop');
     } on PlatformException catch (e) {
       throw AudioFailure('Failed to stop: ${e.message ?? e.code}');
-    } on Exception catch (e) {
+    } on Object catch (e) {
       throw AudioFailure('Failed to stop: ${e.toString()}');
     }
   }
@@ -469,7 +476,7 @@ class NativeAudioPlayer {
       });
     } on PlatformException catch (e) {
       throw AudioFailure('Failed to seek: ${e.message ?? e.code}');
-    } on Exception catch (e) {
+    } on Object catch (e) {
       throw AudioFailure('Failed to seek: ${e.toString()}');
     }
   }
@@ -484,7 +491,7 @@ class NativeAudioPlayer {
       await _channel.invokeMethod('setSpeed', {'speed': speed});
     } on PlatformException catch (e) {
       throw AudioFailure('Failed to set speed: ${e.message ?? e.code}');
-    } on Exception catch (e) {
+    } on Object catch (e) {
       throw AudioFailure('Failed to set speed: ${e.toString()}');
     }
   }
@@ -507,7 +514,7 @@ class NativeAudioPlayer {
       throw AudioFailure(
         'Failed to update skip durations: ${e.message ?? e.code}',
       );
-    } on Exception catch (e) {
+    } on Object catch (e) {
       throw AudioFailure('Failed to update skip durations: ${e.toString()}');
     }
   }
@@ -527,7 +534,7 @@ class NativeAudioPlayer {
       throw AudioFailure(
         'Failed to set inactivity timeout: ${e.message ?? e.code}',
       );
-    } on Exception catch (e) {
+    } on Object catch (e) {
       throw AudioFailure('Failed to set inactivity timeout: ${e.toString()}');
     }
   }
@@ -547,7 +554,7 @@ class NativeAudioPlayer {
       throw AudioFailure(
         'Failed to set sleep timer: ${e.message ?? e.code}',
       );
-    } on Exception catch (e) {
+    } on Object catch (e) {
       throw AudioFailure('Failed to set sleep timer: ${e.toString()}');
     }
   }
@@ -562,7 +569,7 @@ class NativeAudioPlayer {
       throw AudioFailure(
         'Failed to set sleep timer end of chapter: ${e.message ?? e.code}',
       );
-    } on Exception catch (e) {
+    } on Object catch (e) {
       throw AudioFailure(
         'Failed to set sleep timer end of chapter: ${e.toString()}',
       );
@@ -579,7 +586,7 @@ class NativeAudioPlayer {
       throw AudioFailure(
         'Failed to cancel sleep timer: ${e.message ?? e.code}',
       );
-    } on Exception catch (e) {
+    } on Object catch (e) {
       throw AudioFailure('Failed to cancel sleep timer: ${e.toString()}');
     }
   }
@@ -602,7 +609,7 @@ class NativeAudioPlayer {
         extra: {'code': e.code, 'message': e.message},
       );
       return null;
-    } on Exception catch (e) {
+    } on Object catch (e) {
       await _logger.log(
         level: 'warning',
         subsystem: 'audio',
@@ -629,7 +636,7 @@ class NativeAudioPlayer {
         extra: {'code': e.code, 'message': e.message},
       );
       return false;
-    } on Exception catch (e) {
+    } on Object catch (e) {
       await _logger.log(
         level: 'warning',
         subsystem: 'audio',
@@ -671,7 +678,7 @@ class NativeAudioPlayer {
       throw AudioFailure(
         'Failed to configure audio processing: ${e.message ?? e.code}',
       );
-    } on Exception catch (e) {
+    } on Object catch (e) {
       throw AudioFailure(
         'Failed to configure audio processing: ${e.toString()}',
       );
@@ -687,7 +694,7 @@ class NativeAudioPlayer {
       return position ?? 0;
     } on PlatformException catch (e) {
       throw AudioFailure('Failed to get position: ${e.message ?? e.code}');
-    } on Exception catch (e) {
+    } on Object catch (e) {
       throw AudioFailure('Failed to get position: ${e.toString()}');
     }
   }
@@ -701,7 +708,7 @@ class NativeAudioPlayer {
       return duration ?? 0;
     } on PlatformException catch (e) {
       throw AudioFailure('Failed to get duration: ${e.message ?? e.code}');
-    } on Exception catch (e) {
+    } on Object catch (e) {
       throw AudioFailure('Failed to get duration: ${e.toString()}');
     }
   }
@@ -722,12 +729,13 @@ class NativeAudioPlayer {
           currentIndex: 0,
           playbackSpeed: 1.0,
           playbackState: 0,
+          chapterNumber: 1,
         );
       }
       return AudioPlayerState.fromMap(stateMap);
     } on PlatformException catch (e) {
       throw AudioFailure('Failed to get state: ${e.message ?? e.code}');
-    } on Exception catch (e) {
+    } on Object catch (e) {
       throw AudioFailure('Failed to get state: ${e.toString()}');
     }
   }
@@ -738,7 +746,7 @@ class NativeAudioPlayer {
       await _channel.invokeMethod('next');
     } on PlatformException catch (e) {
       throw AudioFailure('Failed to skip next: ${e.message ?? e.code}');
-    } on Exception catch (e) {
+    } on Object catch (e) {
       throw AudioFailure('Failed to skip next: ${e.toString()}');
     }
   }
@@ -749,7 +757,7 @@ class NativeAudioPlayer {
       await _channel.invokeMethod('previous');
     } on PlatformException catch (e) {
       throw AudioFailure('Failed to skip previous: ${e.message ?? e.code}');
-    } on Exception catch (e) {
+    } on Object catch (e) {
       throw AudioFailure('Failed to skip previous: ${e.toString()}');
     }
   }
@@ -764,7 +772,7 @@ class NativeAudioPlayer {
       await _channel.invokeMethod('seekToTrack', {'index': index});
     } on PlatformException catch (e) {
       throw AudioFailure('Failed to seek to track: ${e.message ?? e.code}');
-    } on Exception catch (e) {
+    } on Object catch (e) {
       throw AudioFailure('Failed to seek to track: ${e.toString()}');
     }
   }
@@ -779,8 +787,84 @@ class NativeAudioPlayer {
       await _channel.invokeMethod('updateMetadata', {'metadata': metadata});
     } on PlatformException catch (e) {
       throw AudioFailure('Failed to update metadata: ${e.message ?? e.code}');
-    } on Exception catch (e) {
+    } on Object catch (e) {
       throw AudioFailure('Failed to update metadata: ${e.toString()}');
+    }
+  }
+
+  /// Gets file duration from cache or database.
+  ///
+  /// First checks Kotlin cache, then Flutter database.
+  /// Returns duration in milliseconds, or null if not found.
+  Future<int?> getFileDuration(String filePath) async {
+    try {
+      // First check Kotlin cache (fast path)
+      final cachedDuration = await _channel.invokeMethod<int?>(
+        'getFileDuration',
+        {'filePath': filePath},
+      );
+      if (cachedDuration != null && cachedDuration > 0) {
+        return cachedDuration;
+      }
+
+      // Cache miss - check database
+      // This will be handled by the caller using FileDurationDatabaseService
+      return null;
+    } on PlatformException catch (e) {
+      await _logger.log(
+        level: 'warning',
+        subsystem: 'audio',
+        message: 'Failed to get file duration from cache',
+        cause: e.toString(),
+      );
+      return null;
+    } on Object catch (e) {
+      await _logger.log(
+        level: 'warning',
+        subsystem: 'audio',
+        message: 'Exception getting file duration from cache',
+        cause: e.toString(),
+      );
+      return null;
+    }
+  }
+
+  /// Saves file duration to cache and database.
+  ///
+  /// Saves to Kotlin cache immediately, then to Flutter database.
+  /// [filePath] is the absolute path to the audio file.
+  /// [durationMs] is the duration in milliseconds.
+  /// [source] indicates the source: "player" (from ExoPlayer) or "retriever" (from MediaMetadataRetriever).
+  Future<void> saveFileDuration(
+    String filePath,
+    int durationMs,
+    String source,
+  ) async {
+    try {
+      // Save to Kotlin cache first (fast path)
+      await _channel.invokeMethod('saveFileDuration', {
+        'filePath': filePath,
+        'durationMs': durationMs,
+        'source': source,
+      });
+
+      // Save to database will be handled by the caller using FileDurationDatabaseService
+    } on PlatformException catch (e) {
+      await _logger.log(
+        level: 'warning',
+        subsystem: 'audio',
+        message: 'Failed to save file duration to cache',
+        cause: e.toString(),
+      );
+      // Don't throw - saving to cache is not critical
+    } on Object catch (e) {
+      await _logger.log(
+        level: 'warning',
+        subsystem: 'audio',
+        message: 'Exception saving file duration to cache',
+        cause: e.toString(),
+      );
+      // Don't throw - saving to cache is not critical
     }
   }
 
@@ -808,7 +892,7 @@ class NativeAudioPlayer {
         extra: {'code': e.code, 'message': e.message},
       );
       return {};
-    } on Exception catch (e) {
+    } on Object catch (e) {
       await _logger.log(
         level: 'warning',
         subsystem: 'audio',
@@ -842,7 +926,7 @@ class NativeAudioPlayer {
         extra: {'code': e.code, 'message': e.message, 'filePath': filePath},
       );
       return null;
-    } on Exception catch (e) {
+    } on Object catch (e) {
       await _logger.log(
         level: 'warning',
         subsystem: 'audio',
@@ -886,7 +970,7 @@ class NativeAudioPlayer {
       throw AudioFailure(
         'Failed to seek to track and position: ${e.message ?? e.code}',
       );
-    } on Exception catch (e) {
+    } on Object catch (e) {
       throw AudioFailure(
           'Failed to seek to track and position: ${e.toString()}');
     }
@@ -938,7 +1022,7 @@ class NativeAudioPlayer {
       throw AudioFailure(
         'Failed to stop service and exit: ${e.message ?? e.code}',
       );
-    } on Exception catch (e) {
+    } on Object catch (e) {
       await _logger.log(
         level: 'error',
         subsystem: 'audio',

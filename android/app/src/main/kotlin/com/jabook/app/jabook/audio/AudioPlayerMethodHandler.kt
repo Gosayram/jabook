@@ -728,6 +728,39 @@ class AudioPlayerMethodHandler(
                         result.error("EXCEPTION", e.message ?: "Failed to stop service and exit", null)
                     }
                 }
+                "getFileDuration" -> {
+                    val filePath = call.argument<String>("filePath")
+                    if (filePath == null) {
+                        result.error("INVALID_ARGUMENT", "filePath is required", null)
+                        return
+                    }
+
+                    // Get duration from service's cache first (fast path)
+                    val service = getService()
+                    val cachedDuration = service?.getCachedDuration(filePath)
+                    if (cachedDuration != null && cachedDuration > 0) {
+                        result.success(cachedDuration)
+                        return
+                    }
+
+                    // Cache miss - return null, Flutter will check database and call saveFileDuration if found
+                    result.success(null)
+                }
+                "saveFileDuration" -> {
+                    val filePath = call.argument<String>("filePath")
+                    val durationMs = call.argument<Long>("durationMs")
+                    val source = call.argument<String>("source") ?: "player"
+
+                    if (filePath == null || durationMs == null || durationMs <= 0) {
+                        result.error("INVALID_ARGUMENT", "filePath and durationMs (positive) are required", null)
+                        return
+                    }
+
+                    // Save duration to service's cache
+                    val service = getService()
+                    service?.saveDurationToCache(filePath, durationMs)
+                    result.success(true)
+                }
                 else -> result.notImplemented()
             }
         } catch (e: Exception) {

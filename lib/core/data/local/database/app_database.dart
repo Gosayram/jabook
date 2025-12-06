@@ -284,6 +284,20 @@ class AppDatabase {
   StoreRef<String, Map<String, dynamic>> get playerStateStore =>
       StoreRef('player_state');
 
+  /// Gets the file duration store.
+  ///
+  /// This store caches audio file durations to avoid repeated queries
+  /// and to persist durations across app restarts.
+  /// Primary key is file_path (String).
+  /// Each entry contains:
+  /// - file_path: String - Absolute path to the audio file
+  /// - duration_ms: int - Duration in milliseconds
+  /// - source: String - Source of duration: "player" (from ExoPlayer) or "retriever" (from MediaMetadataRetriever)
+  /// - saved_at: String - ISO 8601 timestamp when duration was saved
+  /// - updated_at: String? - Optional ISO 8601 timestamp when duration was last updated
+  StoreRef<String, Map<String, dynamic>> get fileDurationStore =>
+      StoreRef('file_duration');
+
   /// Closes the database connection.
   Future<void> close() async {
     if (_isInitialized && _db != null) {

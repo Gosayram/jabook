@@ -83,6 +83,10 @@ class PlayerState {
   /// Checks if playback is buffering.
   bool get isBuffering => playbackState == 1;
 
+  /// Gets the current chapter number (1-based).
+  /// Returns 1 if currentIndex is invalid (negative or out of bounds).
+  int get chapterNumber => currentIndex >= 0 ? currentIndex + 1 : 1;
+
   /// Creates a copy with updated fields.
   PlayerState copyWith({
     bool? isPlaying,

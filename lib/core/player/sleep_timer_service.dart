@@ -122,7 +122,7 @@ class SleepTimerService {
           message: 'Native sleep timer set',
           extra: {'minutes': minutes},
         );
-      } on Exception catch (e) {
+      } on Object catch (e) {
         await _logger.log(
           level: 'error',
           subsystem: 'player',
@@ -164,7 +164,7 @@ class SleepTimerService {
         subsystem: 'player',
         message: 'Native sleep timer set to end of chapter',
       );
-    } on Exception catch (e) {
+    } on Object catch (e) {
       await _logger.log(
         level: 'error',
         subsystem: 'player',
@@ -224,7 +224,7 @@ class SleepTimerService {
         subsystem: 'player',
         message: 'Native sleep timer cancellation requested',
       );
-    } on Exception catch (e) {
+    } on Object catch (e) {
       debugPrint('🔴 [SLEEP_TIMER] Failed to cancel native timer: $e');
       await _logger.log(
         level: 'warning',
@@ -268,7 +268,7 @@ class SleepTimerService {
           message: 'Native timer successfully cancelled',
         );
       }
-    } on Exception catch (e) {
+    } on Object catch (e) {
       await _logger.log(
         level: 'warning',
         subsystem: 'player',
@@ -306,7 +306,7 @@ class SleepTimerService {
           message: 'Native sleep timer cancelled',
         );
         debugPrint('🟢 [SLEEP_TIMER] Native timer cancelled');
-      } on Exception catch (e) {
+      } on Object catch (e) {
         await _logger.log(
           level: 'warning',
           subsystem: 'player',
