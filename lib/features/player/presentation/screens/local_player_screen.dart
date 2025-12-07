@@ -588,8 +588,12 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
       int? initialTrackIndex;
       int? initialPosition;
       try {
+        // Restore position with validation using file count
         savedPosition = await playerNotifier
-            .restorePosition(widget.group.groupPath)
+            .restorePosition(
+          widget.group.groupPath,
+          fileCount: widget.group.files.length,
+        )
             .timeout(
           const Duration(milliseconds: 500),
           onTimeout: () {
@@ -605,6 +609,7 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
         );
 
         // Extract initialTrackIndex and initialPosition from savedPosition if valid
+        // Note: restorePosition already validates the position, but we do additional checks here
         if (savedPosition != null) {
           final trackIndex = savedPosition['trackIndex'];
           final positionMs = savedPosition['positionMs'];
@@ -625,7 +630,18 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
               },
             );
           } else {
-            savedPosition = null; // Invalid saved position
+            // Invalid saved position (should not happen after validation, but check anyway)
+            savedPosition = null;
+            await _logger.log(
+              level: 'warning',
+              subsystem: 'audio',
+              message: 'Invalid saved position after validation',
+              extra: {
+                'track_index': trackIndex,
+                'position_ms': positionMs,
+                'file_count': widget.group.files.length,
+              },
+            );
           }
         }
       } on Exception catch (e) {

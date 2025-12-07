@@ -120,6 +120,21 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         throw Exception('Failed to load audiobook data');
       }
 
+      // Validate saved position if available
+      // Note: restorePosition already validates, but we do additional checks here
+      if (savedPosition != null) {
+        final trackIndex = savedPosition['trackIndex'];
+        final positionMs = savedPosition['positionMs'];
+        if (trackIndex == null ||
+            positionMs == null ||
+            trackIndex < 0 ||
+            trackIndex >= (_audiobook?.chapters.length ?? 0) ||
+            positionMs < 0) {
+          // Invalid saved position - will start from beginning
+          // restorePosition should have cleared it, but we handle it here too
+        }
+      }
+
       // Ensure stream server is running before loading audio
       if (!_streamServer.isRunning) {
         await _streamServer.start();

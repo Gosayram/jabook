@@ -568,11 +568,19 @@ class Media3PlayerService {
   /// Restores saved playback position for a group.
   ///
   /// [groupPath] is the unique path identifying the group.
+  /// [fileCount] is optional and used to validate the saved track index.
   ///
-  /// Returns a map with 'trackIndex' and 'positionMs', or null if no saved position exists.
-  Future<Map<String, int>?> restorePosition(String groupPath) async {
+  /// Returns a map with 'trackIndex' and 'positionMs', or null if no saved position exists
+  /// or if the saved position is invalid.
+  Future<Map<String, int>?> restorePosition(
+    String groupPath, {
+    int? fileCount,
+  }) async {
     try {
-      final position = await _positionService.restorePosition(groupPath);
+      final position = await _positionService.restorePosition(
+        groupPath,
+        fileCount: fileCount,
+      );
       await _logger.log(
         level: 'info',
         subsystem: 'audio',
@@ -580,6 +588,7 @@ class Media3PlayerService {
         extra: {
           'group_path': groupPath,
           'has_position': position != null,
+          'file_count': fileCount,
           if (position != null) ...{
             'track_index': position['trackIndex'],
             'position_ms': position['positionMs'],

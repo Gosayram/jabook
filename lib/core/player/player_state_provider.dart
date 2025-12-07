@@ -493,8 +493,18 @@ class PlayerStateNotifier extends StateNotifier<PlayerStateModel> {
   /// [groupPath] is the unique path identifying the group.
   ///
   /// Returns a map with 'trackIndex' and 'positionMs', or null if no saved position exists.
-  Future<Map<String, int>?> restorePosition(String groupPath) async =>
-      _service.restorePosition(groupPath);
+  /// Restores saved playback position for a group.
+  ///
+  /// [groupPath] is the unique path identifying the group.
+  /// [fileCount] is optional and used to validate the saved track index.
+  ///
+  /// Returns a map with 'trackIndex' and 'positionMs', or null if no saved position exists
+  /// or if the saved position is invalid.
+  Future<Map<String, int>?> restorePosition(
+    String groupPath, {
+    int? fileCount,
+  }) async =>
+      _service.restorePosition(groupPath, fileCount: fileCount);
 
   /// Restores full player state.
   ///

@@ -90,6 +90,10 @@ class AudioPlayerService : MediaSessionService() {
     @Volatile
     private var lastPlaylistLoadTime: Long = 0
 
+    // Periodic position saving (inspired by lissen-android PlaybackSynchronizationService)
+    private var positionSaveJob: kotlinx.coroutines.Job? = null
+    private var lastPositionSaveTime: Long = 0
+
     // Store current playlist state for restoration after player recreation
     private var currentFilePaths: List<String>? = null
     private var savedPlaybackState: SavedPlaybackState? = null
@@ -148,6 +152,7 @@ class AudioPlayerService : MediaSessionService() {
                     isPlaylistLoading = { isPlaylistLoading },
                     getActualTrackIndex = { actualTrackIndex },
                     getCurrentFilePaths = { currentFilePaths },
+                    getDurationForFile = { filePath -> getDurationForFile(filePath) },
                 )
             android.util.Log.i(
                 "AudioPlayerService",
@@ -575,6 +580,7 @@ class AudioPlayerService : MediaSessionService() {
                     isPlaylistLoading = { isPlaylistLoading },
                     getActualTrackIndex = { actualTrackIndex },
                     getCurrentFilePaths = { currentFilePaths },
+                    getDurationForFile = { filePath -> getDurationForFile(filePath) },
                 )
             android.util.Log.i(
                 "AudioPlayerService",
@@ -954,7 +960,8 @@ class AudioPlayerService : MediaSessionService() {
 
             // Save state if we have a playlist AND playlist is not currently loading
             // This prevents saving incorrect state when Flutter is setting a new playlist
-            if (hasPlaylist && currentFilePaths != null && currentFilePaths!!.isNotEmpty() && !isPlaylistLoading) {
+            val filePathsForSave = currentFilePaths
+            if (hasPlaylist && filePathsForSave != null && filePathsForSave.isNotEmpty() && !isPlaylistLoading) {
                 savedPlaybackState =
                     SavedPlaybackState(
                         currentIndex = currentIndex,
@@ -1006,37 +1013,38 @@ class AudioPlayerService : MediaSessionService() {
             val timeSinceLastLoad = System.currentTimeMillis() - lastPlaylistLoadTime
             val wasRecentlyLoaded = timeSinceLastLoad < 2000L // 2 seconds
 
-            if (savedPlaybackState != null &&
-                currentFilePaths != null &&
-                currentFilePaths!!.isNotEmpty() &&
+            val savedStateForRestore = savedPlaybackState
+            val filePathsForRestore = currentFilePaths
+            if (savedStateForRestore != null &&
+                filePathsForRestore != null &&
+                filePathsForRestore.isNotEmpty() &&
                 !isPlaylistLoading &&
                 !wasRecentlyLoaded
             ) {
-                val savedState = savedPlaybackState!!
                 android.util.Log.d(
                     "AudioPlayerService",
-                    "Restoring playlist and position: ${currentFilePaths!!.size} items, index=${savedState.currentIndex}, position=${savedState.currentPosition}",
+                    "Restoring playlist and position: ${filePathsForRestore.size} items, index=${savedStateForRestore.currentIndex}, position=${savedStateForRestore.currentPosition}",
                 )
 
                 // CRITICAL: Initialize actualTrackIndex from saved state
-                actualTrackIndex = savedState.currentIndex.coerceIn(0, currentFilePaths!!.size - 1)
+                actualTrackIndex = savedStateForRestore.currentIndex.coerceIn(0, filePathsForRestore.size - 1)
                 android.util.Log.d(
                     "AudioPlayerService",
-                    "Initialized actualTrackIndex to $actualTrackIndex (from savedState.currentIndex=${savedState.currentIndex})",
+                    "Initialized actualTrackIndex to $actualTrackIndex (from savedState.currentIndex=${savedStateForRestore.currentIndex})",
                 )
 
                 // Mark as loading to prevent conflicts
                 isPlaylistLoading = true
-                currentLoadingPlaylist = currentFilePaths
+                currentLoadingPlaylist = filePathsForRestore
 
                 // Restore playlist asynchronously
                 playerServiceScope.launch {
                     try {
                         playlistManager?.preparePlaybackOptimized(
-                            currentFilePaths!!,
+                            filePathsForRestore,
                             currentMetadata,
-                            savedState.currentIndex,
-                            savedState.currentPosition,
+                            savedStateForRestore.currentIndex,
+                            savedStateForRestore.currentPosition,
                         ) ?: throw IllegalStateException("PlaylistManager not initialized")
 
                         // Position is already applied in preparePlaybackOptimized if firstTrackIndex == savedState.currentIndex
@@ -1053,22 +1061,24 @@ class AudioPlayerService : MediaSessionService() {
 
                         // Check if position needs to be applied (if target track differs from first loaded track)
                         val newPlayer = getActivePlayer()
-                        val firstTrackIndex = savedState.currentIndex.coerceIn(0, currentFilePaths!!.size - 1)
-                        if (firstTrackIndex != savedState.currentIndex && newPlayer.mediaItemCount > savedState.currentIndex) {
-                            newPlayer.seekTo(savedState.currentIndex, savedState.currentPosition)
+                        val firstTrackIndex = savedStateForRestore.currentIndex.coerceIn(0, filePathsForRestore.size - 1)
+                        if (firstTrackIndex != savedStateForRestore.currentIndex &&
+                            newPlayer.mediaItemCount > savedStateForRestore.currentIndex
+                        ) {
+                            newPlayer.seekTo(savedStateForRestore.currentIndex, savedStateForRestore.currentPosition)
                             android.util.Log.d(
                                 "AudioPlayerService",
-                                "Restored position (target differs from first track): index=${savedState.currentIndex}, position=${savedState.currentPosition}",
+                                "Restored position (target differs from first track): index=${savedStateForRestore.currentIndex}, position=${savedStateForRestore.currentPosition}",
                             )
                         } else {
                             android.util.Log.d(
                                 "AudioPlayerService",
-                                "Position already applied in preparePlaybackOptimized: index=${savedState.currentIndex}, position=${savedState.currentPosition}",
+                                "Position already applied in preparePlaybackOptimized: index=${savedStateForRestore.currentIndex}, position=${savedStateForRestore.currentPosition}",
                             )
                         }
 
                         // Restore playback state
-                        if (savedState.isPlaying) {
+                        if (savedStateForRestore.isPlaying) {
                             newPlayer.playWhenReady = true
                             android.util.Log.d("AudioPlayerService", "Restored playback: playing")
                         }
@@ -1465,20 +1475,36 @@ class AudioPlayerService : MediaSessionService() {
             android.util.Log.e("AudioPlayerService", "MetadataManager not initialized")
         }
 
-    fun play() =
+    fun play() {
         playbackController?.play() ?: run {
             android.util.Log.e("AudioPlayerService", "PlaybackController not initialized")
+            return
         }
+        // Start periodic position saving when playback starts
+        startPeriodicPositionSaving()
+    }
 
-    fun pause() =
+    fun pause() {
         playbackController?.pause() ?: run {
             android.util.Log.e("AudioPlayerService", "PlaybackController not initialized")
+            return
         }
+        // Save position immediately when pausing (critical event)
+        playbackPositionSaver?.savePosition("pause")
+        // Stop periodic saving when paused (will resume when playing again)
+        stopPeriodicPositionSaving()
+    }
 
-    fun stop() =
+    fun stop() {
         playbackController?.stop() ?: run {
             android.util.Log.e("AudioPlayerService", "PlaybackController not initialized")
+            return
         }
+        // Save position immediately when stopping (critical event)
+        playbackPositionSaver?.savePosition("stop")
+        // Stop periodic saving when stopped
+        stopPeriodicPositionSaving()
+    }
 
     /**
      * Stops playback and releases all resources.
@@ -1756,9 +1782,104 @@ class AudioPlayerService : MediaSessionService() {
             android.util.Log.e("AudioPlayerService", "UnloadManager not initialized")
         }
 
+    /**
+     * Starts periodic position saving with adaptive intervals.
+     *
+     * Inspired by lissen-android's PlaybackSynchronizationService.
+     * Saves more frequently (every 5s) when near start/end of track,
+     * less frequently (every 30s) in the middle.
+     * This improves position accuracy while maintaining reasonable performance.
+     */
+    private fun startPeriodicPositionSaving() {
+        stopPeriodicPositionSaving() // Stop existing job if any
+
+        if (currentGroupPath == null) {
+            android.util.Log.v("AudioPlayerService", "Periodic position saving not started: no groupPath")
+            return
+        }
+
+        android.util.Log.d("AudioPlayerService", "Starting periodic position saving with adaptive intervals")
+        positionSaveJob =
+            playerServiceScope.launch {
+                while (true) {
+                    try {
+                        val player = getActivePlayer()
+
+                        // Only save if playing and not loading playlist
+                        if (!player.isPlaying || isPlaylistLoading) {
+                            delay(5000) // Check again in 5 seconds
+                            continue
+                        }
+
+                        val position = player.currentPosition
+                        val duration = player.duration
+
+                        if (duration <= 0) {
+                            // Duration unknown, save with default interval
+                            delay(10000) // 10 seconds default
+                            playbackPositionSaver?.savePosition("periodic")
+                            continue
+                        }
+
+                        // Calculate position ratio (0.0 to 1.0)
+                        val positionRatio = position.toDouble() / duration.toDouble()
+
+                        // Define "near start" and "near end" thresholds
+                        // Save frequently if within first 10% or last 10% of track
+                        val nearStartThreshold = 0.1 // 10% from start
+                        val nearEndThreshold = 0.9 // 10% from end
+
+                        val isNearStart = positionRatio < nearStartThreshold
+                        val isNearEnd = positionRatio > nearEndThreshold
+
+                        // Calculate time since last save
+                        val now = System.currentTimeMillis()
+                        val timeSinceLastSave = now - lastPositionSaveTime
+
+                        // Save if:
+                        // - Near start/end and 5+ seconds passed (frequent saves)
+                        // - In middle and 30+ seconds passed (less frequent)
+                        val shouldSave =
+                            when {
+                                isNearStart || isNearEnd -> timeSinceLastSave >= 5000L // 5 seconds
+                                else -> timeSinceLastSave >= 30000L // 30 seconds
+                            }
+
+                        if (shouldSave || lastPositionSaveTime == 0L) {
+                            playbackPositionSaver?.savePosition("periodic")
+                            lastPositionSaveTime = now
+                        }
+
+                        // Wait before next check (adaptive delay)
+                        val delayMs =
+                            when {
+                                isNearStart || isNearEnd -> 5000L // Check every 5 seconds
+                                else -> 10000L // Check every 10 seconds
+                            }
+                        delay(delayMs)
+                    } catch (e: Exception) {
+                        android.util.Log.w("AudioPlayerService", "Error in periodic position saving", e)
+                        delay(10000) // Wait before retrying
+                    }
+                }
+            }
+    }
+
+    /**
+     * Stops periodic position saving.
+     */
+    private fun stopPeriodicPositionSaving() {
+        positionSaveJob?.cancel()
+        positionSaveJob = null
+        android.util.Log.v("AudioPlayerService", "Stopped periodic position saving")
+    }
+
     override fun onDestroy() {
         instance = null
         isFullyInitializedFlag = false
+
+        // Stop periodic position saving
+        stopPeriodicPositionSaving()
 
         // Save position before destroying (critical - process may terminate)
         try {

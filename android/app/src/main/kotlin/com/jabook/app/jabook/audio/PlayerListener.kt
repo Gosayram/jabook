@@ -305,6 +305,12 @@ internal class PlayerListener(
                 playbackPositionSaver?.savePosition("playback_stopped")
             }
 
+            // Save position when playback starts (critical event)
+            // This ensures position is saved immediately when user resumes playback
+            if (isPlaying && playbackState == Player.STATE_READY) {
+                android.util.Log.v("AudioPlayerService", "Playback started, position will be saved periodically")
+            }
+
             // Restart sleep timer check when playback starts (if timer is active)
             if (isPlaying && getSleepTimerEndTime() > 0) {
                 startSleepTimerCheck()

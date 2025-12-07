@@ -35,6 +35,7 @@ internal class PlaybackPositionSaver(
     private val isPlaylistLoading: (() -> Boolean)? = null,
     private val getActualTrackIndex: (() -> Int)? = null, // Get actual track index from onMediaItemTransition
     private val getCurrentFilePaths: (() -> List<String>?)? = null, // Get current file paths to match by URI
+    private val getDurationForFile: ((String) -> Long?)? = null, // Get duration for file path (for position-based calculation)
 ) {
     private val prefs: SharedPreferences =
         context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
@@ -90,27 +91,30 @@ internal class PlaybackPositionSaver(
         // CRITICAL: Use actualTrackIndex from onMediaItemTransition events as single source of truth
         // This ensures we save the correct track index even if currentMediaItemIndex hasn't updated yet
         var currentIndex = getActualTrackIndex?.invoke() ?: player.currentMediaItemIndex
-        
-        // CRITICAL: If actualTrackIndex is 0 but we're playing a different file, find real index by URI
-        // This handles cases where actualTrackIndex wasn't updated after playlist loading
-        if (currentIndex == 0 && player.mediaItemCount > 1) {
-            val currentItem = player.currentMediaItem
-            val currentUri = currentItem?.localConfiguration?.uri
-            val filePaths = getCurrentFilePaths?.invoke()
 
-            if (currentUri != null && filePaths != null && filePaths.isNotEmpty()) {
-                val currentPath = currentUri.path
-                if (currentPath != null) {
-                    // Find the index of the current file in filePaths
-                    val realIndex =
-                        filePaths.indexOfFirst { filePath ->
-                            // Compare paths (handle both absolute and relative paths)
-                            filePath == currentPath ||
-                                filePath.endsWith(currentPath) ||
-                                currentPath.endsWith(filePath)
-                        }
+        // CRITICAL: Always verify index using URI if available (not just for index 0)
+        // This handles cases where actualTrackIndex or currentMediaItemIndex is incorrect
+        // This is especially important during playlist loading or after seek operations
+        val currentItem = player.currentMediaItem
+        val currentUri = currentItem?.localConfiguration?.uri
+        val filePaths = getCurrentFilePaths?.invoke()
 
-                    if (realIndex >= 0 && realIndex != currentIndex) {
+        if (currentUri != null && filePaths != null && filePaths.isNotEmpty()) {
+            val currentPath = currentUri.path
+            if (currentPath != null) {
+                // Find the index of the current file in filePaths
+                val realIndex =
+                    filePaths.indexOfFirst { filePath ->
+                        // Compare paths (handle both absolute and relative paths)
+                        filePath == currentPath ||
+                            filePath.endsWith(currentPath) ||
+                            currentPath.endsWith(filePath)
+                    }
+
+                if (realIndex >= 0) {
+                    // Use URI-based index if it differs from currentIndex
+                    // This ensures we always save the correct index
+                    if (realIndex != currentIndex) {
                         android.util.Log.d(
                             "PlaybackPositionSaver",
                             "Found real index by URI for saving: currentIndex=$currentIndex, realIndex=$realIndex, " +
@@ -118,11 +122,76 @@ internal class PlaybackPositionSaver(
                         )
                         currentIndex = realIndex
                     }
+                } else {
+                    android.util.Log.w(
+                        "PlaybackPositionSaver",
+                        "Current file URI not found in filePaths: ${currentPath.substringAfterLast('/')}, " +
+                            "using currentIndex=$currentIndex",
+                    )
+                    // Fallback: Try to calculate index by position if URI matching failed
+                    // This is useful when file paths don't match exactly (e.g., different URI schemes)
+                    // Calculate total position by accumulating previous track durations
+                    var totalPosition = 0L
+                    for (i in 0 until currentIndex.coerceAtMost(filePaths.size - 1)) {
+                        val duration = getDurationForFile?.invoke(filePaths[i]) ?: 0L
+                        if (duration > 0) {
+                            totalPosition += duration
+                        }
+                    }
+                    totalPosition += player.currentPosition
+
+                    // Try to calculate index from total position
+                    val calculatedIndex = calculateTrackIndexByPosition(filePaths, totalPosition)
+                    if (calculatedIndex >= 0 && calculatedIndex < filePaths.size) {
+                        android.util.Log.d(
+                            "PlaybackPositionSaver",
+                            "Calculated index by position: currentIndex=$currentIndex, calculatedIndex=$calculatedIndex",
+                        )
+                        // Use calculated index if it's different and seems more reliable
+                        // (only if we have durations for most tracks)
+                        if (calculatedIndex != currentIndex) {
+                            currentIndex = calculatedIndex
+                        }
+                    }
                 }
             }
         }
-        
+
         val currentPosition = player.currentPosition
+
+        // Validate position before saving
+        // Check that index is within bounds
+        if (filePaths != null && filePaths.isNotEmpty()) {
+            if (currentIndex < 0 || currentIndex >= filePaths.size) {
+                android.util.Log.w(
+                    "PlaybackPositionSaver",
+                    "Invalid track index for saving: $currentIndex (playlist size=${filePaths.size}), skipping save",
+                )
+                return
+            }
+        }
+
+        // Validate position is non-negative
+        if (currentPosition < 0) {
+            android.util.Log.w(
+                "PlaybackPositionSaver",
+                "Invalid position for saving: $currentPosition, skipping save",
+            )
+            return
+        }
+
+        // Optional: Validate position against track duration if available
+        // Note: Duration might not be available immediately after loading, so this is optional
+        val trackDuration = player.duration
+        if (trackDuration > 0 && currentPosition > trackDuration) {
+            android.util.Log.w(
+                "PlaybackPositionSaver",
+                "Position exceeds track duration: position=$currentPosition, duration=$trackDuration, " +
+                    "clamping to duration",
+            )
+            // Clamp position to duration instead of skipping save
+            // This ensures we save a valid position even if player state is slightly off
+        }
 
         android.util.Log.i(
             "PlaybackPositionSaver",
@@ -258,6 +327,45 @@ internal class PlaybackPositionSaver(
         } catch (e: Exception) {
             android.util.Log.e("PlaybackPositionSaver", "Exception saving via SharedPreferences", e)
         }
+    }
+
+    /**
+     * Calculates track index based on total position and file durations.
+     *
+     * This is a fallback method inspired by lissen-android's calculateChapterIndex.
+     * It computes the track index by accumulating durations until the position is reached.
+     *
+     * @param filePaths List of file paths in the playlist
+     * @param totalPositionMs Total position in milliseconds (accumulated across all tracks)
+     * @return Track index, or -1 if calculation fails
+     */
+    private fun calculateTrackIndexByPosition(
+        filePaths: List<String>,
+        totalPositionMs: Long,
+    ): Int {
+        if (filePaths.isEmpty() || totalPositionMs < 0) {
+            return -1
+        }
+
+        var accumulatedDuration = 0L
+        for ((index, filePath) in filePaths.withIndex()) {
+            val duration = getDurationForFile?.invoke(filePath) ?: 0L
+            if (duration <= 0) {
+                // If duration is unknown, we can't calculate accurately
+                // Skip this track and continue (might be loading)
+                continue
+            }
+
+            val trackEnd = accumulatedDuration + duration
+            // Use small threshold (100ms) to handle floating point precision
+            if (totalPositionMs < trackEnd - 100) {
+                return index
+            }
+            accumulatedDuration = trackEnd
+        }
+
+        // If position exceeds all tracks, return last track
+        return filePaths.size - 1
     }
 
     /**

@@ -59,9 +59,14 @@ class PlaybackPositionService {
   /// Restores the saved playback position for a group.
   ///
   /// The [groupPath] parameter is the unique path identifying the group.
+  /// [fileCount] is optional and used to validate the saved track index.
   ///
-  /// Returns a map with 'trackIndex' and 'positionMs', or null if no saved position exists.
-  Future<Map<String, int>?> restorePosition(String groupPath) async {
+  /// Returns a map with 'trackIndex' and 'positionMs', or null if no saved position exists
+  /// or if the saved position is invalid.
+  Future<Map<String, int>?> restorePosition(
+    String groupPath, {
+    int? fileCount,
+  }) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final trackIndexKey = '$_trackIndexPrefix${_sanitizeKey(groupPath)}';
@@ -73,10 +78,26 @@ class PlaybackPositionService {
         return null;
       }
 
+      // Validate track index if fileCount is provided
+      if (fileCount != null) {
+        if (trackIndex < 0 || trackIndex >= fileCount) {
+          // Invalid index - clear saved position
+          await clearPosition(groupPath);
+          return null;
+        }
+      }
+
       final trackPositionKey = '${trackPositionKeyPrefix}_$trackIndex';
       final positionMs = prefs.getInt(trackPositionKey);
 
       if (positionMs == null) {
+        return null;
+      }
+
+      // Validate position (must be non-negative)
+      if (positionMs < 0) {
+        // Invalid position - clear saved position
+        await clearPosition(groupPath);
         return null;
       }
 
@@ -86,6 +107,47 @@ class PlaybackPositionService {
       };
     } on Exception {
       return null;
+    }
+  }
+
+  /// Validates a saved playback position.
+  ///
+  /// Checks if the saved position is valid for the given group.
+  /// [fileCount] is the number of files in the group.
+  /// [trackDurations] is an optional map of track index to duration in milliseconds.
+  ///
+  /// Returns true if the position is valid, false otherwise.
+  Future<bool> validatePosition(
+    String groupPath,
+    int fileCount, {
+    Map<int, int>? trackDurations,
+  }) async {
+    try {
+      final position = await restorePosition(groupPath, fileCount: fileCount);
+      if (position == null) {
+        return false;
+      }
+
+      final trackIndex = position['trackIndex']!;
+      final positionMs = position['positionMs']!;
+
+      // Validate track index
+      if (trackIndex < 0 || trackIndex >= fileCount) {
+        return false;
+      }
+
+      // Validate position against track duration if provided
+      if (trackDurations != null) {
+        final duration = trackDurations[trackIndex];
+        if (duration != null && positionMs > duration) {
+          // Position exceeds track duration - invalid
+          return false;
+        }
+      }
+
+      return true;
+    } on Exception {
+      return false;
     }
   }
 
