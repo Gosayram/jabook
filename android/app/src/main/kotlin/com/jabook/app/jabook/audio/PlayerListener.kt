@@ -21,6 +21,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import com.jabook.app.jabook.audio.ErrorHandler
+import kotlinx.coroutines.CompletableDeferred
 import java.io.File
 
 /**
@@ -47,10 +48,41 @@ internal class PlayerListener(
     private val setLastCompletedTrackIndex: ((Int) -> Unit)? = null,
     private val getLastCompletedTrackIndex: (() -> Int)? = null,
     private val getActualPlaylistSize: (() -> Int)? = null, // Get actual playlist size from filePaths
+    private val playbackPositionSaver: PlaybackPositionSaver? = null,
+    private val updateActualTrackIndex: ((Int) -> Unit)? = null, // Callback to update actual track index
+    private val isPlaylistLoading: (() -> Boolean)? = null, // Check if playlist is currently loading
 ) : Player.Listener {
     private var retryCount = 0
     private val maxRetries = 3
     private val retryDelayMs = 2000L // 2 seconds
+
+    // CRITICAL: Deferred for waiting on track switch events
+    // This allows PlaylistManager to wait for onMediaItemTransition instead of polling
+    @Volatile
+    private var pendingTrackSwitchDeferred: CompletableDeferred<Int>? = null
+
+    /**
+     * Sets a deferred to be completed when track switch occurs.
+     * Used by PlaylistManager to wait for onMediaItemTransition event.
+     *
+     * @param deferred CompletableDeferred to complete with new track index
+     */
+    fun setPendingTrackSwitchDeferred(deferred: CompletableDeferred<Int>) {
+        pendingTrackSwitchDeferred = deferred
+        android.util.Log.d(
+            "AudioPlayerService",
+            "Set pendingTrackSwitchDeferred: waiting for track switch event",
+        )
+    }
+
+    /**
+     * Clears the pending deferred (cancels waiting for track switch).
+     */
+    fun clearPendingTrackSwitchDeferred() {
+        pendingTrackSwitchDeferred?.cancel()
+        pendingTrackSwitchDeferred = null
+        android.util.Log.d("AudioPlayerService", "Cleared pendingTrackSwitchDeferred")
+    }
 
     // Handler for periodic position checks to detect end of file when duration is incorrect
     private val positionCheckHandler = android.os.Handler(android.os.Looper.getMainLooper())
@@ -264,6 +296,15 @@ internal class PlayerListener(
                 "EVENT_IS_PLAYING_CHANGED: isPlaying=$isPlaying, playWhenReady=${player.playWhenReady}, playbackState=$stateName, mediaItemCount=${player.mediaItemCount}",
             )
 
+            // Save position when playback stops (if not by user request)
+            // This handles cases where playback stops due to system events
+            if (!isPlaying && !player.playWhenReady && playbackState == Player.STATE_READY) {
+                // Playback stopped but player is still ready (not ended)
+                // This might be due to system events, save position
+                android.util.Log.d("AudioPlayerService", "Playback stopped (not by user), saving position")
+                playbackPositionSaver?.savePosition("playback_stopped")
+            }
+
             // Restart sleep timer check when playback starts (if timer is active)
             if (isPlaying && getSleepTimerEndTime() > 0) {
                 startSleepTimerCheck()
@@ -315,6 +356,52 @@ internal class PlayerListener(
 
         // Handle media item transitions
         if (events.contains(Player.EVENT_MEDIA_ITEM_TRANSITION)) {
+            // CRITICAL: Update actual track index from onMediaItemTransition event
+            // This is the single source of truth for current track index
+            val currentIndex = player.currentMediaItemIndex
+            if (currentIndex >= 0) {
+                // CRITICAL: Don't update actualTrackIndex to 0 during playlist loading
+                // ExoPlayer may switch to first track (index 0) during loading, which would reset our target index
+                val isLoading = isPlaylistLoading?.invoke() ?: false
+                if (!isLoading || currentIndex != 0) {
+                    updateActualTrackIndex?.invoke(currentIndex)
+                    android.util.Log.v(
+                        "AudioPlayerService",
+                        "Updated actualTrackIndex to $currentIndex from EVENT_MEDIA_ITEM_TRANSITION " +
+                            "(isLoading=$isLoading)",
+                    )
+                } else {
+                    android.util.Log.v(
+                        "AudioPlayerService",
+                        "Skipped updating actualTrackIndex to 0 during playlist loading " +
+                            "(isLoading=$isLoading, currentIndex=$currentIndex)",
+                    )
+                }
+
+                // CRITICAL: Complete deferred if waiting for track switch
+                // This allows PlaylistManager to wait for onMediaItemTransition instead of polling
+                pendingTrackSwitchDeferred?.let { deferred ->
+                    try {
+                        deferred.complete(currentIndex)
+                        android.util.Log.d(
+                            "AudioPlayerService",
+                            "Completed pendingTrackSwitchDeferred with index $currentIndex",
+                        )
+                    } catch (e: Exception) {
+                        android.util.Log.w(
+                            "AudioPlayerService",
+                            "Failed to complete pendingTrackSwitchDeferred: ${e.message}",
+                        )
+                    } finally {
+                        pendingTrackSwitchDeferred = null
+                    }
+                }
+            }
+
+            // Save position of previous track before transitioning
+            // This ensures position is saved even during rapid track changes
+            playbackPositionSaver?.savePosition("track_changed")
+
             // Track changed - restart position check for new track
             stopPositionCheck()
             // Reset position tracking for new track
@@ -327,7 +414,6 @@ internal class PlayerListener(
             getNotificationManager()?.updateNotification()
 
             // Log track transition for debugging (inspired by lissen-android logging)
-            val currentIndex = player.currentMediaItemIndex
             // Use actual playlist size from filePaths if available, otherwise use player.mediaItemCount
             val totalTracks = getActualPlaylistSize?.invoke() ?: player.mediaItemCount
 
@@ -391,6 +477,44 @@ internal class PlayerListener(
     override fun onIsPlayingChanged(isPlaying: Boolean) {
         // This is also handled in onEvents, but kept for explicit handling
         getNotificationManager()?.updateNotification()
+    }
+
+    /**
+     * Handles playWhenReady changes, including audio focus loss events.
+     *
+     * This is called when playback is paused/resumed, including when audio focus is lost
+     * (e.g., incoming call, other audio app starts).
+     */
+    override fun onPlayWhenReadyChanged(
+        playWhenReady: Boolean,
+        reason: Int,
+    ) {
+        val reasonText =
+            when (reason) {
+                Player.PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST -> "USER_REQUEST"
+                Player.PLAY_WHEN_READY_CHANGE_REASON_AUDIO_FOCUS_LOSS -> "AUDIO_FOCUS_LOSS"
+                Player.PLAY_WHEN_READY_CHANGE_REASON_AUDIO_BECOMING_NOISY -> "AUDIO_BECOMING_NOISY"
+                Player.PLAY_WHEN_READY_CHANGE_REASON_REMOTE -> "REMOTE"
+                else -> "UNKNOWN($reason)"
+            }
+        android.util.Log.i(
+            "AudioPlayerService",
+            "onPlayWhenReadyChanged: playWhenReady=$playWhenReady, reason=$reasonText",
+        )
+
+        // Save position when playback stops due to audio focus loss or becoming noisy
+        if (!playWhenReady) {
+            when (reason) {
+                Player.PLAY_WHEN_READY_CHANGE_REASON_AUDIO_FOCUS_LOSS -> {
+                    android.util.Log.i("AudioPlayerService", "Audio focus lost, saving position")
+                    playbackPositionSaver?.savePosition("audio_focus_lost")
+                }
+                Player.PLAY_WHEN_READY_CHANGE_REASON_AUDIO_BECOMING_NOISY -> {
+                    android.util.Log.i("AudioPlayerService", "Audio becoming noisy, saving position")
+                    playbackPositionSaver?.savePosition("audio_becoming_noisy")
+                }
+            }
+        }
     }
 
     override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
@@ -542,6 +666,47 @@ internal class PlayerListener(
         // This is also handled in onEvents, but kept for explicit handling if needed
         val currentIndex = getActivePlayer().currentMediaItemIndex
         android.util.Log.d("AudioPlayerService", "Media item transition (explicit): index=$currentIndex, reason=$reason")
+
+        // CRITICAL: Update actual track index from onMediaItemTransition event
+        // This is the single source of truth for current track index
+        if (currentIndex >= 0) {
+            // CRITICAL: Don't update actualTrackIndex to 0 during playlist loading
+            // ExoPlayer may switch to first track (index 0) during loading, which would reset our target index
+            val isLoading = isPlaylistLoading?.invoke() ?: false
+            if (!isLoading || currentIndex != 0) {
+                updateActualTrackIndex?.invoke(currentIndex)
+                android.util.Log.v(
+                    "AudioPlayerService",
+                    "Updated actualTrackIndex to $currentIndex from onMediaItemTransition " +
+                        "(isLoading=$isLoading)",
+                )
+            } else {
+                android.util.Log.v(
+                    "AudioPlayerService",
+                    "Skipped updating actualTrackIndex to 0 during playlist loading " +
+                        "(isLoading=$isLoading, currentIndex=$currentIndex)",
+                )
+            }
+
+            // CRITICAL: Complete deferred if waiting for track switch
+            // This allows PlaylistManager to wait for onMediaItemTransition instead of polling
+            pendingTrackSwitchDeferred?.let { deferred ->
+                try {
+                    deferred.complete(currentIndex)
+                    android.util.Log.d(
+                        "AudioPlayerService",
+                        "Completed pendingTrackSwitchDeferred with index $currentIndex (explicit handler)",
+                    )
+                } catch (e: Exception) {
+                    android.util.Log.w(
+                        "AudioPlayerService",
+                        "Failed to complete pendingTrackSwitchDeferred: ${e.message}",
+                    )
+                } finally {
+                    pendingTrackSwitchDeferred = null
+                }
+            }
+        }
 
         // Check sleep timer "end of chapter" mode (inspired by EasyBook)
         // Trigger when track transitions automatically (not manual seek)

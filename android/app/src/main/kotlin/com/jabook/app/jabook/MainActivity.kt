@@ -31,6 +31,31 @@ class MainActivity : FlutterActivity() {
 
     companion object {
         private const val REQUEST_CODE_OPEN_DIRECTORY = 1001
+
+        // Store MethodChannel for AudioPlayerService (set when Flutter engine is configured)
+        @Volatile
+        private var audioPlayerMethodChannel: MethodChannel? = null
+
+        /**
+         * Gets the stored MethodChannel for AudioPlayerService.
+         * Called by AudioPlayerService when it's created to get the MethodChannel
+         * that was set in configureFlutterEngine.
+         */
+        fun getAudioPlayerMethodChannel(): MethodChannel? = audioPlayerMethodChannel
+
+        /**
+         * Sets the MethodChannel for AudioPlayerService.
+         * Called from configureFlutterEngine when Flutter engine is configured.
+         */
+        fun setAudioPlayerMethodChannel(channel: MethodChannel?) {
+            audioPlayerMethodChannel = channel
+            android.util.Log.d("MainActivity", "AudioPlayerMethodChannel stored: ${channel != null}")
+            // Try to set it in service if service already exists
+            val service =
+                com.jabook.app.jabook.audio.AudioPlayerService
+                    .getInstance()
+            service?.setMethodChannel(channel)
+        }
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
@@ -402,6 +427,26 @@ class MainActivity : FlutterActivity() {
         audioPlayerChannel.setMethodCallHandler(
             AudioPlayerMethodHandler(this),
         )
+
+        // Store MethodChannel for AudioPlayerService (will be set when service is created)
+        // This allows PlaybackPositionSaver to save position via MethodChannel
+        setAudioPlayerMethodChannel(audioPlayerChannel)
+
+        // Try to set it immediately if service already exists
+        try {
+            val service =
+                com.jabook.app.jabook.audio.AudioPlayerService
+                    .getInstance()
+            if (service != null) {
+                android.util.Log.i("MainActivity", "Setting MethodChannel in AudioPlayerService: service exists")
+                service.setMethodChannel(audioPlayerChannel)
+                android.util.Log.i("MainActivity", "MethodChannel set successfully in AudioPlayerService")
+            } else {
+                android.util.Log.d("MainActivity", "AudioPlayerService not yet created, MethodChannel will be set when service is created")
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("MainActivity", "Failed to set MethodChannel in AudioPlayerService", e)
+        }
 
         // Register PlayerLifecycleChannel for tracking player initialization state
         val playerLifecycleChannel =
@@ -1015,6 +1060,43 @@ class MainActivity : FlutterActivity() {
                 val channel = MethodChannel(messenger, "com.jabook.app.jabook/notification")
                 channel.invokeMethod("openPlayer", null)
             }
+        }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        // Save playback position when activity is paused
+        // This is critical for preserving position when app goes to background
+        try {
+            val service =
+                com.jabook.app.jabook.audio.AudioPlayerService
+                    .getInstance()
+            if (service != null) {
+                android.util.Log.d("MainActivity", "Activity paused, triggering position save")
+                // Trigger save via service's PlaybackPositionSaver
+                // The service will use MethodChannel to save in Flutter
+                service.triggerPositionSave()
+            }
+        } catch (e: Exception) {
+            android.util.Log.w("MainActivity", "Failed to save position on pause", e)
+        }
+    }
+
+    override fun onStop() {
+        super.onStop()
+        // Save playback position when activity is stopped
+        // Additional safety measure for position preservation
+        try {
+            val service =
+                com.jabook.app.jabook.audio.AudioPlayerService
+                    .getInstance()
+            if (service != null) {
+                android.util.Log.d("MainActivity", "Activity stopped, triggering position save")
+                // Trigger save via service's PlaybackPositionSaver
+                service.triggerPositionSave()
+            }
+        } catch (e: Exception) {
+            android.util.Log.w("MainActivity", "Failed to save position on stop", e)
         }
     }
 

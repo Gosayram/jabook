@@ -99,6 +99,11 @@ class Media3PlayerService {
       final initDuration = DateTime.now().difference(initStart).inMilliseconds;
       _isInitialized = true;
 
+      // Set up callback for position saving from Kotlin
+      NativeAudioPlayer.onSavePositionFromNative = (trackIndex, positionMs) {
+        saveCurrentPosition(trackIndex: trackIndex, positionMs: positionMs);
+      };
+
       await _logger.log(
         level: 'info',
         subsystem: 'audio',
@@ -141,6 +146,7 @@ class Media3PlayerService {
   /// [groupPath] is the unique path for saving playback positions.
   /// [initialTrackIndex] is optional track index to load first (for saved position optimization).
   /// If provided, only this track is loaded synchronously, others load asynchronously for fast startup.
+  /// [initialPosition] is optional position in milliseconds to seek to after loading initial track.
   ///
   /// Throws [AudioFailure] if setting playlist fails.
   Future<void> setPlaylist(
@@ -148,6 +154,7 @@ class Media3PlayerService {
     Map<String, String>? metadata,
     String? groupPath,
     int? initialTrackIndex,
+    int? initialPosition,
   }) async {
     if (!_isInitialized) {
       await initialize();
@@ -169,6 +176,8 @@ class Media3PlayerService {
         filePaths,
         metadata: metadata,
         initialTrackIndex: initialTrackIndex,
+        initialPosition: initialPosition,
+        groupPath: groupPath,
       );
       _currentGroupPath = groupPath;
 
@@ -561,8 +570,34 @@ class Media3PlayerService {
   /// [groupPath] is the unique path identifying the group.
   ///
   /// Returns a map with 'trackIndex' and 'positionMs', or null if no saved position exists.
-  Future<Map<String, int>?> restorePosition(String groupPath) async =>
-      _positionService.restorePosition(groupPath);
+  Future<Map<String, int>?> restorePosition(String groupPath) async {
+    try {
+      final position = await _positionService.restorePosition(groupPath);
+      await _logger.log(
+        level: 'info',
+        subsystem: 'audio',
+        message: 'Restoring position for group',
+        extra: {
+          'group_path': groupPath,
+          'has_position': position != null,
+          if (position != null) ...{
+            'track_index': position['trackIndex'],
+            'position_ms': position['positionMs'],
+          },
+        },
+      );
+      return position;
+    } on Exception catch (e) {
+      await _logger.log(
+        level: 'warning',
+        subsystem: 'audio',
+        message: 'Failed to restore position',
+        cause: e.toString(),
+        extra: {'group_path': groupPath},
+      );
+      return null;
+    }
+  }
 
   /// Starts periodic position saving with improved frequency.
   ///
@@ -663,8 +698,62 @@ class Media3PlayerService {
   ///
   /// This method can be called from app lifecycle handlers to ensure
   /// position is saved when app is paused or closed.
-  Future<void> saveCurrentPosition() async {
-    await _saveCurrentPosition();
+  ///
+  /// [trackIndex] and [positionMs] are optional parameters from native side.
+  /// If provided, they will be used instead of getting state from player.
+  Future<void> saveCurrentPosition({
+    int? trackIndex,
+    int? positionMs,
+  }) async {
+    if (trackIndex != null && positionMs != null) {
+      // Use provided parameters from native side
+      if (_currentGroupPath != null) {
+        try {
+          await _logger.log(
+            level: 'info',
+            subsystem: 'audio',
+            message: 'Saving position from native',
+            extra: {
+              'group_path': _currentGroupPath,
+              'track_index': trackIndex,
+              'position_ms': positionMs,
+            },
+          );
+          await _positionService.savePosition(
+            _currentGroupPath!,
+            trackIndex,
+            positionMs,
+          );
+          // Also update full state
+          await _updateFullState();
+        } on Exception catch (e) {
+          await _logger.log(
+            level: 'warning',
+            subsystem: 'audio',
+            message: 'Failed to save position from native',
+            cause: e.toString(),
+            extra: {
+              'group_path': _currentGroupPath,
+              'track_index': trackIndex,
+              'position_ms': positionMs,
+            },
+          );
+        }
+      } else {
+        await _logger.log(
+          level: 'warning',
+          subsystem: 'audio',
+          message: 'Cannot save position: _currentGroupPath is null',
+          extra: {
+            'track_index': trackIndex,
+            'position_ms': positionMs,
+          },
+        );
+      }
+    } else {
+      // Get state from player (default behavior)
+      await _saveCurrentPosition();
+    }
   }
 
   /// Saves full player state including playlist, position, speed, etc.

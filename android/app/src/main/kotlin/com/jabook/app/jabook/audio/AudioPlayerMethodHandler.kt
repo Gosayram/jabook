@@ -211,6 +211,23 @@ class AudioPlayerMethodHandler(
                     val filePaths = call.argument<List<String>>("filePaths") ?: emptyList()
                     val metadata = call.argument<Map<String, String>>("metadata")
                     val initialTrackIndex = call.argument<Int?>("initialTrackIndex")
+                    // Handle both Int and Long types from Flutter MethodChannel
+                    val initialPositionArg = call.argument<Any?>("initialPosition")
+                    val initialPosition: Long? =
+                        when (initialPositionArg) {
+                            is Long -> initialPositionArg
+                            is Int -> initialPositionArg.toLong()
+                            is Number -> initialPositionArg.toLong()
+                            null -> null
+                            else -> {
+                                android.util.Log.w(
+                                    "AudioPlayerMethodHandler",
+                                    "initialPosition has unexpected type: ${initialPositionArg.javaClass}, treating as null",
+                                )
+                                null
+                            }
+                        }
+                    val groupPath = call.argument<String?>("groupPath")
                     if (filePaths.isEmpty()) {
                         result.error("INVALID_ARGUMENT", "File paths list cannot be empty", null)
                         return
@@ -222,11 +239,11 @@ class AudioPlayerMethodHandler(
                         return
                     }
 
-                    service.setPlaylist(filePaths, metadata, initialTrackIndex) { success, exception ->
+                    service.setPlaylist(filePaths, metadata, initialTrackIndex, initialPosition, groupPath) { success, exception ->
                         if (success) {
                             android.util.Log.d(
                                 "AudioPlayerMethodHandler",
-                                "Playlist set successfully via callback (initialTrackIndex=$initialTrackIndex)",
+                                "Playlist set successfully via callback (initialTrackIndex=$initialTrackIndex, initialPosition=$initialPosition, groupPath=$groupPath)",
                             )
                             result.success(true)
                         } else {
@@ -612,16 +629,22 @@ class AudioPlayerMethodHandler(
                 }
                 "saveCurrentPosition" -> {
                     // Save current playback position
-                    // This is called from broadcast receiver when inactivity timer expires
-                    // or from Flutter when app lifecycle changes
+                    // This is called from PlaybackPositionSaver when position needs to be saved
+                    // (e.g., audio focus loss, service destroy, etc.)
                     executeWithRetry(
                         action = {
-                            // Position is saved by Media3PlayerService (Dart) which saves periodically
-                            // This method just acknowledges the call - actual saving happens in Dart
+                            val trackIndex = call.argument<Int>("trackIndex")
+                            val positionMs = call.argument<Long>("positionMs")?.toInt()
+
                             android.util.Log.d(
                                 "AudioPlayerMethodHandler",
-                                "saveCurrentPosition called - position saving handled by Media3PlayerService",
+                                "saveCurrentPosition called: trackIndex=$trackIndex, positionMs=$positionMs",
                             )
+
+                            // If parameters are provided, trigger save via service
+                            // The service will use PlaybackPositionSaver which will call Flutter
+                            // For now, we just acknowledge - actual saving happens via PlaybackPositionSaver
+                            // which calls this method with parameters, and Flutter will handle it
                             result.success(true)
                         },
                         onError = { e ->

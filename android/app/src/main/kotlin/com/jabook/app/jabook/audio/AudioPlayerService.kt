@@ -66,6 +66,7 @@ class AudioPlayerService : MediaSessionService() {
     private var metadataManager: MetadataManager? = null
     private var playerStateHelper: PlayerStateHelper? = null
     private var unloadManager: UnloadManager? = null
+    private var playbackPositionSaver: PlaybackPositionSaver? = null
 
     // Sleep timer manager
     private var sleepTimerManager: SleepTimerManager? = null
@@ -74,9 +75,27 @@ class AudioPlayerService : MediaSessionService() {
     private var isBookCompleted = false
     private var lastCompletedTrackIndex: Int = -1 // Store last track index when book is completed
 
+    // CRITICAL: Track actual track index from onMediaItemTransition events
+    // This is the single source of truth for current track index, as ExoPlayer's
+    // currentMediaItemIndex may not update immediately after seekTo()
+    @Volatile
+    private var actualTrackIndex: Int = -1
+
+    // Track if playlist is currently being loaded to prevent duplicate calls
+    @Volatile
+    private var isPlaylistLoading = false
+    private var currentLoadingPlaylist: List<String>? = null
+
+    // Track when playlist was last loaded from Flutter to prevent stale state restoration
+    @Volatile
+    private var lastPlaylistLoadTime: Long = 0
+
     // Store current playlist state for restoration after player recreation
     private var currentFilePaths: List<String>? = null
     private var savedPlaybackState: SavedPlaybackState? = null
+
+    // Store current groupPath for position saving (fallback when MethodChannel unavailable)
+    private var currentGroupPath: String? = null
 
     // Cache for file durations (filePath -> duration in ms)
     // According to best practices: cache duration after getting it from player (primary source)
@@ -88,6 +107,9 @@ class AudioPlayerService : MediaSessionService() {
     // This allows PlayerStateHelper to request durations from database when cache miss
     private var getDurationFromDbCallback: ((String) -> Long?)? = null
 
+    // MethodChannel for communication with Flutter (set from MainActivity)
+    private var methodChannel: io.flutter.plugin.common.MethodChannel? = null
+
     /**
      * Sets callback for getting duration from database.
      * This is called from Flutter via MethodChannel to enable database lookup.
@@ -96,6 +118,47 @@ class AudioPlayerService : MediaSessionService() {
      */
     fun setGetDurationFromDbCallback(callback: ((String) -> Long?)?) {
         getDurationFromDbCallback = callback
+    }
+
+    /**
+     * Sets MethodChannel for communication with Flutter.
+     * This is called from MainActivity to enable position saving via MethodChannel.
+     *
+     * @param channel MethodChannel instance
+     */
+    fun setMethodChannel(channel: io.flutter.plugin.common.MethodChannel?) {
+        android.util.Log.i(
+            "AudioPlayerService",
+            "setMethodChannel called: channel=${channel != null}, service instance=${instance != null}",
+        )
+        methodChannel = channel
+        // Update PlaybackPositionSaver if already initialized
+        playbackPositionSaver?.let { saver ->
+            android.util.Log.d(
+                "AudioPlayerService",
+                "Recreating PlaybackPositionSaver with MethodChannel: channel=${channel != null}",
+            )
+            // Recreate with new MethodChannel
+            playbackPositionSaver =
+                PlaybackPositionSaver(
+                    getActivePlayer = { getActivePlayer() },
+                    methodChannel = channel,
+                    context = this,
+                    getGroupPath = { currentGroupPath },
+                    isPlaylistLoading = { isPlaylistLoading },
+                    getActualTrackIndex = { actualTrackIndex },
+                    getCurrentFilePaths = { currentFilePaths },
+                )
+            android.util.Log.i(
+                "AudioPlayerService",
+                "PlaybackPositionSaver recreated with MethodChannel: ${playbackPositionSaver != null}",
+            )
+        } ?: run {
+            android.util.Log.d(
+                "AudioPlayerService",
+                "PlaybackPositionSaver not yet initialized, will use MethodChannel when created",
+            )
+        }
     }
 
     /**
@@ -162,10 +225,11 @@ class AudioPlayerService : MediaSessionService() {
 
     private val playerServiceScope = MainScope()
 
-    // Limited dispatcher for MediaItem creation (max 4 parallel tasks)
-    // This prevents overwhelming the system with too many concurrent I/O operations
+    // Limited dispatcher for MediaItem creation (max 16 parallel tasks)
+    // Increased parallelism for faster loading on modern devices with fast storage
+    // Modern devices can handle more concurrent I/O operations efficiently
     @OptIn(ExperimentalCoroutinesApi::class)
-    private val mediaItemDispatcher = Dispatchers.IO.limitedParallelism(4)
+    private val mediaItemDispatcher = Dispatchers.IO.limitedParallelism(16)
 
     companion object {
         const val ACTION_EXIT_APP = "com.jabook.app.jabook.audio.EXIT_APP"
@@ -421,6 +485,7 @@ class AudioPlayerService : MediaSessionService() {
             sleepTimerManager?.restoreTimerState()
 
             // Initialize PlaylistManager
+            // Note: playerListener is created later, so we use a callback that will be set when listener is ready
             playlistManager =
                 PlaylistManager(
                     context = this,
@@ -430,6 +495,16 @@ class AudioPlayerService : MediaSessionService() {
                     playerServiceScope = playerServiceScope,
                     mediaItemDispatcher = mediaItemDispatcher,
                     getFlavorSuffix = { Companion.getFlavorSuffix(this) },
+                    setPendingTrackSwitchDeferred = { deferred ->
+                        // Set deferred in PlayerListener when it's available
+                        playerListener?.setPendingTrackSwitchDeferred(deferred)
+                            ?: run {
+                                android.util.Log.w(
+                                    "AudioPlayerService",
+                                    "PlayerListener not yet initialized, cannot set pendingTrackSwitchDeferred",
+                                )
+                            }
+                    },
                 )
 
             // Initialize PlaybackController
@@ -469,7 +544,42 @@ class AudioPlayerService : MediaSessionService() {
                     getDurationForFile = { filePath -> getDurationForFile(filePath) },
                     getLastCompletedTrackIndex = { lastCompletedTrackIndex },
                     getActualPlaylistSize = { currentFilePaths?.size ?: 0 },
+                    getActualTrackIndex = { actualTrackIndex },
+                    getCurrentFilePaths = { currentFilePaths },
                 )
+
+            // Try to get MethodChannel from MainActivity if not set yet
+            if (methodChannel == null) {
+                methodChannel =
+                    com.jabook.app.jabook.MainActivity
+                        .getAudioPlayerMethodChannel()
+                android.util.Log.d(
+                    "AudioPlayerService",
+                    "Retrieved MethodChannel from MainActivity: ${methodChannel != null}",
+                )
+            }
+
+            // Initialize PlaybackPositionSaver
+            // Note: methodChannel may be null at this point (set later in MainActivity)
+            // It will be updated via setMethodChannel() when MainActivity configures Flutter engine
+            android.util.Log.d(
+                "AudioPlayerService",
+                "Creating PlaybackPositionSaver: methodChannel=${methodChannel != null}",
+            )
+            playbackPositionSaver =
+                PlaybackPositionSaver(
+                    getActivePlayer = { getActivePlayer() },
+                    methodChannel = methodChannel,
+                    context = this,
+                    getGroupPath = { currentGroupPath },
+                    isPlaylistLoading = { isPlaylistLoading },
+                    getActualTrackIndex = { actualTrackIndex },
+                    getCurrentFilePaths = { currentFilePaths },
+                )
+            android.util.Log.i(
+                "AudioPlayerService",
+                "PlaybackPositionSaver created: ${playbackPositionSaver != null}, methodChannel=${methodChannel != null}",
+            )
 
             // Initialize UnloadManager
             unloadManager =
@@ -784,6 +894,9 @@ class AudioPlayerService : MediaSessionService() {
                     setLastCompletedTrackIndex = { index -> lastCompletedTrackIndex = index },
                     getLastCompletedTrackIndex = { lastCompletedTrackIndex },
                     getActualPlaylistSize = { currentFilePaths?.size ?: 0 },
+                    playbackPositionSaver = playbackPositionSaver,
+                    updateActualTrackIndex = { index -> updateActualTrackIndex(index) },
+                    isPlaylistLoading = { isPlaylistLoading },
                 )
 
             activePlayer.addListener(playerListener!!)
@@ -832,14 +945,16 @@ class AudioPlayerService : MediaSessionService() {
             )
 
             // Save current playback state before recreating player
+            // BUT only if playlist is not currently loading (prevent saving stale state)
             val activePlayer = getActivePlayer()
             val wasPlaying = activePlayer.isPlaying
             val currentIndex = activePlayer.currentMediaItemIndex
             val currentPosition = activePlayer.currentPosition
             val hasPlaylist = activePlayer.mediaItemCount > 0
 
-            // Save state if we have a playlist
-            if (hasPlaylist && currentFilePaths != null && currentFilePaths!!.isNotEmpty()) {
+            // Save state if we have a playlist AND playlist is not currently loading
+            // This prevents saving incorrect state when Flutter is setting a new playlist
+            if (hasPlaylist && currentFilePaths != null && currentFilePaths!!.isNotEmpty() && !isPlaylistLoading) {
                 savedPlaybackState =
                     SavedPlaybackState(
                         currentIndex = currentIndex,
@@ -849,6 +964,11 @@ class AudioPlayerService : MediaSessionService() {
                 android.util.Log.d(
                     "AudioPlayerService",
                     "Saved playback state before player recreation: index=$currentIndex, position=$currentPosition, isPlaying=$wasPlaying",
+                )
+            } else if (isPlaylistLoading) {
+                android.util.Log.d(
+                    "AudioPlayerService",
+                    "Skipping state save: playlist is currently loading (index=$currentIndex would be stale)",
                 )
             }
 
@@ -880,12 +1000,34 @@ class AudioPlayerService : MediaSessionService() {
             android.util.Log.d("AudioPlayerService", "Updated NotificationManager with new player reference")
 
             // Restore playlist and position if we had a playlist before
-            if (savedPlaybackState != null && currentFilePaths != null && currentFilePaths!!.isNotEmpty()) {
+            // BUT only if we're not already loading a playlist (prevent conflicts)
+            // CRITICAL: Also check if playlist was loaded recently (within 2 seconds) - if so, don't restore stale state
+            // This prevents restoration of incorrect state after Flutter loads correct playlist
+            val timeSinceLastLoad = System.currentTimeMillis() - lastPlaylistLoadTime
+            val wasRecentlyLoaded = timeSinceLastLoad < 2000L // 2 seconds
+
+            if (savedPlaybackState != null &&
+                currentFilePaths != null &&
+                currentFilePaths!!.isNotEmpty() &&
+                !isPlaylistLoading &&
+                !wasRecentlyLoaded
+            ) {
                 val savedState = savedPlaybackState!!
                 android.util.Log.d(
                     "AudioPlayerService",
                     "Restoring playlist and position: ${currentFilePaths!!.size} items, index=${savedState.currentIndex}, position=${savedState.currentPosition}",
                 )
+
+                // CRITICAL: Initialize actualTrackIndex from saved state
+                actualTrackIndex = savedState.currentIndex.coerceIn(0, currentFilePaths!!.size - 1)
+                android.util.Log.d(
+                    "AudioPlayerService",
+                    "Initialized actualTrackIndex to $actualTrackIndex (from savedState.currentIndex=${savedState.currentIndex})",
+                )
+
+                // Mark as loading to prevent conflicts
+                isPlaylistLoading = true
+                currentLoadingPlaylist = currentFilePaths
 
                 // Restore playlist asynchronously
                 playerServiceScope.launch {
@@ -894,9 +1036,11 @@ class AudioPlayerService : MediaSessionService() {
                             currentFilePaths!!,
                             currentMetadata,
                             savedState.currentIndex,
+                            savedState.currentPosition,
                         ) ?: throw IllegalStateException("PlaylistManager not initialized")
 
-                        // Wait for player to be ready
+                        // Position is already applied in preparePlaybackOptimized if firstTrackIndex == savedState.currentIndex
+                        // Only wait for player to be ready and restore playback state
                         var attempts = 0
                         while (attempts < 50) {
                             val newPlayer = getActivePlayer()
@@ -907,20 +1051,26 @@ class AudioPlayerService : MediaSessionService() {
                             attempts++
                         }
 
-                        // Restore position
+                        // Check if position needs to be applied (if target track differs from first loaded track)
                         val newPlayer = getActivePlayer()
-                        if (newPlayer.mediaItemCount > savedState.currentIndex) {
+                        val firstTrackIndex = savedState.currentIndex.coerceIn(0, currentFilePaths!!.size - 1)
+                        if (firstTrackIndex != savedState.currentIndex && newPlayer.mediaItemCount > savedState.currentIndex) {
                             newPlayer.seekTo(savedState.currentIndex, savedState.currentPosition)
                             android.util.Log.d(
                                 "AudioPlayerService",
-                                "Restored position: index=${savedState.currentIndex}, position=${savedState.currentPosition}",
+                                "Restored position (target differs from first track): index=${savedState.currentIndex}, position=${savedState.currentPosition}",
                             )
+                        } else {
+                            android.util.Log.d(
+                                "AudioPlayerService",
+                                "Position already applied in preparePlaybackOptimized: index=${savedState.currentIndex}, position=${savedState.currentPosition}",
+                            )
+                        }
 
-                            // Restore playback state
-                            if (savedState.isPlaying) {
-                                newPlayer.playWhenReady = true
-                                android.util.Log.d("AudioPlayerService", "Restored playback: playing")
-                            }
+                        // Restore playback state
+                        if (savedState.isPlaying) {
+                            newPlayer.playWhenReady = true
+                            android.util.Log.d("AudioPlayerService", "Restored playback: playing")
                         }
 
                         // Clear saved state
@@ -931,8 +1081,19 @@ class AudioPlayerService : MediaSessionService() {
                     } catch (e: Exception) {
                         android.util.Log.e("AudioPlayerService", "Failed to restore playlist after player recreation", e)
                         savedPlaybackState = null
+                    } finally {
+                        // Clear loading flag when done
+                        isPlaylistLoading = false
+                        currentLoadingPlaylist = null
                     }
                 }
+            } else if (wasRecentlyLoaded) {
+                android.util.Log.d(
+                    "AudioPlayerService",
+                    "Skipping state restoration: playlist was loaded recently " +
+                        "(${timeSinceLastLoad}ms ago), using Flutter-provided position instead",
+                )
+                savedPlaybackState = null // Clear stale state
             }
         } catch (e: Exception) {
             android.util.Log.e("AudioPlayerService", "Failed to configure ExoPlayer with processors", e)
@@ -943,6 +1104,22 @@ class AudioPlayerService : MediaSessionService() {
      * Gets the active ExoPlayer instance (custom with processors or singleton).
      */
     private fun getActivePlayer(): ExoPlayer = customExoPlayer ?: exoPlayer
+
+    /**
+     * Updates the actual track index from onMediaItemTransition events.
+     * This is the single source of truth for current track index.
+     *
+     * @param index The actual track index from ExoPlayer's onMediaItemTransition event
+     */
+    private fun updateActualTrackIndex(index: Int) {
+        if (index >= 0) {
+            actualTrackIndex = index
+            android.util.Log.v(
+                "AudioPlayerService",
+                "Updated actualTrackIndex to $index (from onMediaItemTransition)",
+            )
+        }
+    }
 
     /**
      * Sets playlist from file paths or URLs.
@@ -959,33 +1136,99 @@ class AudioPlayerService : MediaSessionService() {
      * @param filePaths List of absolute file paths or HTTP(S) URLs to audio files
      * @param metadata Optional metadata map (title, artist, album, etc.)
      * @param initialTrackIndex Optional track index to load first (for saved position). If null, loads first track.
+     * @param initialPosition Optional position in milliseconds to seek to after loading initial track
+     * @param groupPath Optional group path for saving playback position (used for fallback saving)
      * @param callback Optional callback to notify when playlist is ready (for Flutter)
      */
     fun setPlaylist(
         filePaths: List<String>,
         metadata: Map<String, String>? = null,
         initialTrackIndex: Int? = null,
+        initialPosition: Long? = null,
+        groupPath: String? = null,
         callback: ((Boolean, Exception?) -> Unit)? = null,
     ) {
+        // Prevent duplicate calls - if playlist is already loading, ignore
+        // This prevents race conditions when Flutter calls setPlaylist multiple times
+        if (isPlaylistLoading) {
+            android.util.Log.w(
+                "AudioPlayerService",
+                "Playlist already loading, ignoring duplicate setPlaylist call: ${filePaths.size} items, initialTrackIndex=$initialTrackIndex",
+            )
+            callback?.invoke(true, null) // Call callback to unblock Flutter
+            return
+        }
+
+        // Clear saved state to prevent restoration from interfering with new playlist
+        // This ensures we use the correct initialTrackIndex from Flutter, not stale saved state
+        savedPlaybackState = null
+
         // Reset book completion flag when setting new playlist
         isBookCompleted = false
         lastCompletedTrackIndex = -1 // Reset saved index for new book
 
+        // CRITICAL: Initialize actualTrackIndex from initialTrackIndex or default to 0
+        // This ensures we have a valid index even before onMediaItemTransition fires
+        actualTrackIndex = initialTrackIndex?.coerceIn(0, filePaths.size - 1) ?: 0
+        android.util.Log.d(
+            "AudioPlayerService",
+            "Initialized actualTrackIndex to $actualTrackIndex (from initialTrackIndex=$initialTrackIndex)",
+        )
+
         // Clear duration cache when setting new playlist
         durationCache.clear()
 
-        // Store file paths for potential restoration after player recreation
+        // Store file paths and groupPath for potential restoration after player recreation
         currentFilePaths = filePaths
         currentMetadata = metadata
-        android.util.Log.d("AudioPlayerService", "Setting playlist with ${filePaths.size} items, initialTrackIndex=$initialTrackIndex")
+        currentGroupPath = groupPath
+
+        // Save groupPath to SharedPreferences for fallback position saving
+        if (groupPath != null) {
+            saveGroupPathToSharedPreferences(groupPath)
+        }
+
+        android.util.Log.d(
+            "AudioPlayerService",
+            "Setting playlist with ${filePaths.size} items, initialTrackIndex=$initialTrackIndex, initialPosition=$initialPosition, groupPath=$groupPath",
+        )
+
+        // Mark as loading and record load time
+        isPlaylistLoading = true
+        currentLoadingPlaylist = filePaths
+        lastPlaylistLoadTime = System.currentTimeMillis()
 
         playerServiceScope.launch {
             try {
-                playlistManager?.preparePlaybackOptimized(filePaths, metadata, initialTrackIndex)
+                playlistManager?.preparePlaybackOptimized(filePaths, metadata, initialTrackIndex, initialPosition)
                     ?: throw IllegalStateException("PlaylistManager not initialized")
                 android.util.Log.d("AudioPlayerService", "Playlist prepared successfully")
+
+                // Call callback first to unblock Flutter
                 withContext(Dispatchers.Main) {
                     callback?.invoke(true, null)
+                }
+
+                // Apply initial position if provided (in background, non-blocking)
+                // NOTE: If firstTrackIndex == initialTrackIndex, position is already applied in preparePlaybackOptimized
+                // Only apply here if target track is different from first loaded track
+                if (initialTrackIndex != null && initialPosition != null && initialPosition > 0) {
+                    val firstTrackIndex = initialTrackIndex.coerceIn(0, filePaths.size - 1)
+                    if (firstTrackIndex != initialTrackIndex) {
+                        android.util.Log.d(
+                            "AudioPlayerService",
+                            "Target track ($initialTrackIndex) differs from first loaded track ($firstTrackIndex), scheduling position application",
+                        )
+                        // Apply position in background without blocking callback
+                        playerServiceScope.launch {
+                            applyInitialPosition(initialTrackIndex, initialPosition)
+                        }
+                    } else {
+                        android.util.Log.d(
+                            "AudioPlayerService",
+                            "Target track ($initialTrackIndex) is first loaded track, position already applied in preparePlaybackOptimized",
+                        )
+                    }
                 }
             } catch (e: Exception) {
                 android.util.Log.e("AudioPlayerService", "Failed to prepare playback", e)
@@ -993,7 +1236,209 @@ class AudioPlayerService : MediaSessionService() {
                 withContext(Dispatchers.Main) {
                     callback?.invoke(false, e)
                 }
+            } finally {
+                // Clear loading flag when done
+                isPlaylistLoading = false
+                currentLoadingPlaylist = null
             }
+        }
+    }
+
+    /**
+     * Applies initial position after playlist is loaded.
+     * This is called in background to avoid blocking setPlaylist callback.
+     *
+     * OPTIMIZATION: If the target track is already loaded as the first track (which is the case
+     * when initialTrackIndex is provided), we can apply the position immediately without waiting
+     * for all tracks to load. This provides a smooth, instant resume experience.
+     *
+     * @param trackIndex Track index to seek to
+     * @param positionMs Position in milliseconds to seek to
+     */
+    private suspend fun applyInitialPosition(
+        trackIndex: Int,
+        positionMs: Long,
+    ) {
+        android.util.Log.d(
+            "AudioPlayerService",
+            "Waiting for player to be ready and track loaded before applying initial position: track=$trackIndex, position=${positionMs}ms",
+        )
+
+        // Check if target track is already the current track (loaded first)
+        val initialPlayer = getActivePlayer()
+        val currentIndex = initialPlayer.currentMediaItemIndex
+        val isTargetTrackAlreadyCurrent = currentIndex == trackIndex
+
+        if (isTargetTrackAlreadyCurrent) {
+            android.util.Log.d(
+                "AudioPlayerService",
+                "Target track $trackIndex is already current track, applying position immediately for smooth resume",
+            )
+        }
+
+        // Wait for player to be ready AND the target track to be loaded
+        var attempts = 0
+        val maxAttempts = 50 // 5 seconds max wait (reduced since we don't need all tracks)
+        var playerReady = false
+        var trackLoaded = false
+
+        while (attempts < maxAttempts) {
+            val checkPlayer = getActivePlayer()
+            val state = checkPlayer.playbackState
+            val mediaItemCount = checkPlayer.mediaItemCount
+            val currentMediaItemIndex = checkPlayer.currentMediaItemIndex
+
+            if (attempts % 10 == 0) { // Log every second
+                android.util.Log.v(
+                    "AudioPlayerService",
+                    "Waiting for player ready and track loaded: attempt=$attempts, state=$state, mediaItemCount=$mediaItemCount, currentIndex=$currentMediaItemIndex, needTrack=$trackIndex",
+                )
+            }
+
+            // Check if player is ready
+            val isPlayerReady = state == Player.STATE_READY || state == Player.STATE_BUFFERING
+            // Check if target track is loaded
+            val isTrackLoaded = mediaItemCount > trackIndex
+
+            // OPTIMIZATION: If target track is already current, we can apply position immediately
+            // without waiting for all tracks. This provides instant, smooth resume.
+            // Only wait for all tracks if target track is NOT the first loaded track.
+            val expectedTrackCount = currentFilePaths?.size
+            val shouldWaitForAllTracks = !isTargetTrackAlreadyCurrent && expectedTrackCount != null
+            val allTracksLoaded = !shouldWaitForAllTracks || mediaItemCount >= expectedTrackCount
+
+            if (isPlayerReady && isTrackLoaded && allTracksLoaded) {
+                playerReady = true
+                trackLoaded = true
+                android.util.Log.d(
+                    "AudioPlayerService",
+                    "Player is ready, track $trackIndex is loaded (current=$currentMediaItemIndex, mediaItemCount=$mediaItemCount), applying initial position immediately",
+                )
+                break
+            }
+
+            // Log progress every second
+            if (attempts % 10 == 0) {
+                android.util.Log.v(
+                    "AudioPlayerService",
+                    "Waiting: ready=$isPlayerReady, trackLoaded=$isTrackLoaded, allTracksLoaded=$allTracksLoaded, currentIndex=$currentMediaItemIndex",
+                )
+            }
+
+            delay(100)
+            attempts++
+        }
+
+        if (!playerReady || !trackLoaded) {
+            android.util.Log.w(
+                "AudioPlayerService",
+                "Player not ready or track not loaded after $maxAttempts attempts: playerReady=$playerReady, trackLoaded=$trackLoaded, will try to apply position anyway",
+            )
+        }
+
+        val expectedTrackCount = currentFilePaths?.size
+        if (expectedTrackCount != null) {
+            val finalPlayer = getActivePlayer()
+            val finalCount = finalPlayer.mediaItemCount
+            if (finalCount != expectedTrackCount) {
+                android.util.Log.w(
+                    "AudioPlayerService",
+                    "Track count mismatch: expected=$expectedTrackCount, actual=$finalCount (possible duplicates detected)",
+                )
+            }
+        }
+
+        // Seek to saved position
+        val player = getActivePlayer()
+        val currentState = player.playbackState
+        val currentMediaItemIndex = player.currentMediaItemIndex
+        var currentMediaItemCount = player.mediaItemCount
+
+        // OPTIMIZATION: If target track is already current, apply position immediately
+        // This provides instant, smooth resume without waiting for all tracks
+        if (currentMediaItemIndex == trackIndex) {
+            android.util.Log.d(
+                "AudioPlayerService",
+                "Target track $trackIndex is already current, applying position immediately for smooth resume",
+            )
+            // Small delay to ensure player is stable
+            delay(100)
+        } else {
+            // If target track is not current, we need to wait a bit more and potentially
+            // wait for all tracks to prevent playlist resets during seekTo
+            android.util.Log.d(
+                "AudioPlayerService",
+                "Target track $trackIndex is not current (current=$currentMediaItemIndex), waiting for stability",
+            )
+            delay(200) // Small delay to let parallel loading stabilize
+
+            // Only wait for all tracks if target is not the first loaded track
+            if (expectedTrackCount != null && currentMediaItemCount < expectedTrackCount) {
+                android.util.Log.d(
+                    "AudioPlayerService",
+                    "Waiting for all tracks to load: current=$currentMediaItemCount, expected=$expectedTrackCount",
+                )
+                var waitAttempts = 0
+                val maxWaitAttempts = 20 // 2 seconds (reduced for faster resume)
+                while (waitAttempts < maxWaitAttempts && currentMediaItemCount < expectedTrackCount) {
+                    delay(100)
+                    val checkPlayer = getActivePlayer()
+                    val newCount = checkPlayer.mediaItemCount
+                    if (newCount >= expectedTrackCount) {
+                        android.util.Log.d(
+                            "AudioPlayerService",
+                            "All tracks loaded: $newCount/$expectedTrackCount",
+                        )
+                        break
+                    }
+                    currentMediaItemCount = newCount
+                    waitAttempts++
+                }
+            }
+        }
+
+        android.util.Log.d(
+            "AudioPlayerService",
+            "Attempting to apply initial position: track=$trackIndex, position=${positionMs}ms, currentIndex=$currentMediaItemIndex, mediaItemCount=$currentMediaItemCount, state=$currentState",
+        )
+
+        if (currentMediaItemCount > trackIndex) {
+            android.util.Log.i(
+                "AudioPlayerService",
+                "Applying initial position: track=$trackIndex, position=${positionMs}ms (all tracks loaded: $currentMediaItemCount)",
+            )
+            seekToTrackAndPosition(trackIndex, positionMs)
+        } else {
+            android.util.Log.w(
+                "AudioPlayerService",
+                "Cannot apply initial position: track index $trackIndex not yet loaded (mediaItemCount=$currentMediaItemCount), waiting for track to load...",
+            )
+            // Wait for the track to be loaded (with additional timeout)
+            var retryAttempts = 0
+            val maxRetryAttempts = 50 // 5 more seconds
+            while (retryAttempts < maxRetryAttempts) {
+                delay(200)
+                val retryPlayer = getActivePlayer()
+                if (retryPlayer.mediaItemCount > trackIndex) {
+                    android.util.Log.i(
+                        "AudioPlayerService",
+                        "Track $trackIndex loaded after waiting, applying initial position: position=${positionMs}ms",
+                    )
+                    seekToTrackAndPosition(trackIndex, positionMs)
+                    return
+                }
+                retryAttempts++
+                if (retryAttempts % 10 == 0) {
+                    android.util.Log.v(
+                        "AudioPlayerService",
+                        "Still waiting for track $trackIndex to load: mediaItemCount=${retryPlayer.mediaItemCount}, retryAttempt=$retryAttempts",
+                    )
+                }
+            }
+            android.util.Log.e(
+                "AudioPlayerService",
+                "Failed to apply initial position: track $trackIndex never loaded after waiting (final mediaItemCount=${getActivePlayer().mediaItemCount})",
+            )
         }
     }
 
@@ -1067,10 +1512,55 @@ class AudioPlayerService : MediaSessionService() {
         }
     }
 
-    private fun saveCurrentPosition() =
-        positionManager?.saveCurrentPosition() ?: run {
-            android.util.Log.e("AudioPlayerService", "PositionManager not initialized")
+    private fun saveCurrentPosition() {
+        // Use PlaybackPositionSaver if available (preferred), otherwise fallback to PositionManager
+        playbackPositionSaver?.savePosition("manual") ?: run {
+            positionManager?.saveCurrentPosition() ?: run {
+                android.util.Log.e("AudioPlayerService", "Neither PlaybackPositionSaver nor PositionManager initialized")
+            }
         }
+    }
+
+    /**
+     * Public method to save current position.
+     * Called from MainActivity lifecycle events (onPause, onStop).
+     */
+    fun triggerPositionSave() {
+        saveCurrentPosition()
+    }
+
+    /**
+     * Gets current groupPath for position saving.
+     * Used by PlaybackPositionSaver for fallback saving.
+     *
+     * @return Current groupPath or null if not set
+     */
+    fun getCurrentGroupPath(): String? = currentGroupPath
+
+    /**
+     * Saves groupPath to SharedPreferences for fallback position saving.
+     * This allows PlaybackPositionSaver to save position even when MethodChannel is unavailable.
+     *
+     * @param groupPath Group path to save
+     */
+    private fun saveGroupPathToSharedPreferences(groupPath: String) {
+        try {
+            val prefs = getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+            val sanitizedPath = sanitizeGroupPath(groupPath)
+            prefs.edit().putString("current_group_path", sanitizedPath).apply()
+            android.util.Log.d("AudioPlayerService", "Saved groupPath to SharedPreferences: $sanitizedPath")
+        } catch (e: Exception) {
+            android.util.Log.w("AudioPlayerService", "Failed to save groupPath to SharedPreferences", e)
+        }
+    }
+
+    /**
+     * Sanitizes a group path to be used as a SharedPreferences key.
+     *
+     * @param path Group path to sanitize
+     * @return Sanitized path
+     */
+    private fun sanitizeGroupPath(path: String): String = path.replace(Regex("[^\\w\\-.]"), "_")
 
     fun seekTo(positionMs: Long) =
         playbackController?.seekTo(positionMs) ?: run {
@@ -1269,6 +1759,13 @@ class AudioPlayerService : MediaSessionService() {
     override fun onDestroy() {
         instance = null
         isFullyInitializedFlag = false
+
+        // Save position before destroying (critical - process may terminate)
+        try {
+            playbackPositionSaver?.savePosition("service_destroyed")
+        } catch (e: Exception) {
+            android.util.Log.e("AudioPlayerService", "Failed to save position in onDestroy", e)
+        }
 
         // ExoPlayer manages AudioFocus automatically, no need to abandon manually
 

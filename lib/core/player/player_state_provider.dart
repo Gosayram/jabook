@@ -93,9 +93,9 @@ class PlayerStateModel {
   final int? chapterNumber;
 
   /// Gets the current chapter number (1-based).
-  /// Uses value from native player if available, otherwise calculates from currentIndex.
-  int get chapterNumberValue =>
-      chapterNumber ?? (currentIndex >= 0 ? currentIndex + 1 : 1);
+  /// Always uses value from native player (Kotlin) - single source of truth.
+  /// Kotlin always provides chapterNumber, so this should never be null.
+  int get chapterNumberValue => chapterNumber ?? 1;
 
   /// Creates a copy with updated fields.
   PlayerStateModel copyWith({
@@ -257,6 +257,7 @@ class PlayerStateNotifier extends StateNotifier<PlayerStateModel> {
     Map<String, String>? metadata,
     String? groupPath,
     int? initialTrackIndex,
+    int? initialPosition,
   }) async {
     try {
       await _service.setPlaylist(
@@ -264,6 +265,7 @@ class PlayerStateNotifier extends StateNotifier<PlayerStateModel> {
         metadata: metadata,
         groupPath: groupPath,
         initialTrackIndex: initialTrackIndex,
+        initialPosition: initialPosition,
       );
       // Update state with metadata
       state = state.copyWith(

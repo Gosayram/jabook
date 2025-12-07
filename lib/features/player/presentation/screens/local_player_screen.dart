@@ -581,11 +581,12 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
             '🔵 [PLAYER_INIT] Player already initialized (playbackState=${currentState.playbackState}), skipping');
       }
 
-      // CRITICAL OPTIMIZATION: Get saved position FIRST to determine initialTrackIndex
-      // This allows us to load only the needed track synchronously, others load asynchronously
+      // CRITICAL OPTIMIZATION: Get saved position FIRST to determine initialTrackIndex and initialPosition
+      // This allows us to load only the needed track synchronously and apply position immediately
       // This dramatically speeds up player startup for large playlists
       Map<String, int>? savedPosition;
       int? initialTrackIndex;
+      int? initialPosition;
       try {
         savedPosition = await playerNotifier
             .restorePosition(widget.group.groupPath)
@@ -603,7 +604,7 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
           },
         );
 
-        // Extract initialTrackIndex from savedPosition if valid
+        // Extract initialTrackIndex and initialPosition from savedPosition if valid
         if (savedPosition != null) {
           final trackIndex = savedPosition['trackIndex'];
           final positionMs = savedPosition['positionMs'];
@@ -613,13 +614,14 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
               positionMs != null &&
               positionMs > 0) {
             initialTrackIndex = trackIndex;
+            initialPosition = positionMs;
             await _logger.log(
               level: 'info',
               subsystem: 'audio',
               message: 'Using saved position for initial track loading',
               extra: {
                 'initial_track_index': initialTrackIndex,
-                'position_ms': positionMs,
+                'initial_position_ms': initialPosition,
               },
             );
           } else {
@@ -636,10 +638,14 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
         savedPosition = null;
       }
 
-      // Load audio sources with initialTrackIndex optimization
+      // Load audio sources with initialTrackIndex and initialPosition optimization
       // Only the initial track (or first track) is loaded synchronously
+      // Position is applied automatically after track is loaded
       // Remaining tracks load asynchronously in background for fast startup
-      await _loadAudioSources(initialTrackIndex: initialTrackIndex);
+      await _loadAudioSources(
+        initialTrackIndex: initialTrackIndex,
+        initialPosition: initialPosition,
+      );
 
       // Apply audio settings (speed and skip duration) in parallel with waiting for ready
       // This speeds up initialization
@@ -649,18 +655,21 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
       ]);
 
       // Start playback - either from saved position or from beginning
+      // Note: If initialPosition was provided to setPlaylist, position is already applied
+      // This code is a fallback in case position wasn't applied automatically
       if (mounted) {
         final currentState = ref.read(playerStateProvider);
 
-        // Check if we have valid saved position
-        if (savedPosition != null) {
+        // Check if we have valid saved position that wasn't applied via initialPosition
+        // (This should rarely happen now that we pass initialPosition to setPlaylist)
+        if (savedPosition != null && initialPosition == null) {
           final trackIndex = savedPosition['trackIndex']!;
           final positionMs = savedPosition['positionMs']!;
 
           if (trackIndex >= 0 &&
               trackIndex < widget.group.files.length &&
               positionMs > 0) {
-            // Valid saved position - restore it
+            // Valid saved position - restore it (fallback)
             try {
               // Player should already be ready from _waitForPlayerReady() above
               // Just do a quick check (max 500ms) to ensure it's ready
@@ -690,7 +699,7 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
                 await _logger.log(
                   level: 'info',
                   subsystem: 'audio',
-                  message: 'Restored playback position',
+                  message: 'Restored playback position (fallback)',
                   extra: {
                     'track_index': trackIndex,
                     'position_ms': positionMs,
@@ -711,6 +720,21 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
             // Invalid saved position
             savedPosition = null;
           }
+        } else if (savedPosition != null && initialPosition != null) {
+          // Position was already applied via initialPosition in setPlaylist
+          // Just start playback if needed
+          if (!currentState.isPlaying) {
+            await playerNotifier.play();
+          }
+          await _logger.log(
+            level: 'info',
+            subsystem: 'audio',
+            message: 'Position applied via initialPosition in setPlaylist',
+            extra: {
+              'track_index': savedPosition['trackIndex'],
+              'position_ms': savedPosition['positionMs'],
+            },
+          );
         }
 
         // If no valid saved position, start from beginning
@@ -940,8 +964,12 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
   ///
   /// [initialTrackIndex] is optional track index to load first (for saved position optimization).
   /// If provided, only this track is loaded synchronously, others load asynchronously in background.
+  /// [initialPosition] is optional position in milliseconds to seek to after loading initial track.
   /// This dramatically speeds up player startup for large playlists.
-  Future<void> _loadAudioSources({int? initialTrackIndex}) async {
+  Future<void> _loadAudioSources({
+    int? initialTrackIndex,
+    int? initialPosition,
+  }) async {
     try {
       // Check permissions first
       final hasPermission = await _permissionService.hasStoragePermission();
@@ -1017,11 +1045,13 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
           'accessible_files': accessibleFiles.length,
           'total_files': filePaths.length,
           'initial_track_index': initialTrackIndex,
+          'initial_position_ms': initialPosition,
         },
       );
 
-      // Load audio sources with initialTrackIndex optimization
+      // Load audio sources with initialTrackIndex and initialPosition optimization
       // Only the initial track (or first track) is loaded synchronously
+      // Position is applied automatically after track is loaded
       // Remaining tracks load asynchronously in background for fast startup
       final metadata = <String, String>{
         'title': widget.group.groupName,
@@ -1037,6 +1067,7 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
         metadata: metadata,
         groupPath: widget.group.groupPath,
         initialTrackIndex: initialTrackIndex,
+        initialPosition: initialPosition,
       );
 
       // Update currentAudiobookGroupProvider to ensure all UI components are synchronized

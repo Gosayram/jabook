@@ -82,6 +82,10 @@ class NativeAudioPlayer {
     'com.jabook.app.jabook/audio_player',
   );
 
+  /// Callback for saving position from Kotlin.
+  /// Set by Media3PlayerService to handle position saving requests from native side.
+  static Function(int trackIndex, int positionMs)? _onSavePositionFromNative;
+
   /// Logger for structured logging.
   final StructuredLogger _logger = StructuredLogger();
 
@@ -235,6 +239,7 @@ class NativeAudioPlayer {
 
       _isInitialized = true;
       _startStateUpdates();
+      _setupMethodChannelHandler();
 
       await _logger.log(
         level: 'info',
@@ -286,6 +291,8 @@ class NativeAudioPlayer {
   /// [metadata] is optional metadata (title, artist, album, artworkUri).
   /// [initialTrackIndex] is optional track index to load first (for saved position optimization).
   /// If provided, only this track is loaded synchronously, others load asynchronously.
+  /// [initialPosition] is optional position in milliseconds to seek to after loading initial track.
+  /// [groupPath] is optional group path for saving playback position (used for fallback saving in Kotlin).
   ///
   /// Throws [AudioFailure] if setting playlist fails.
   /// Uses retry logic for SERVICE_UNAVAILABLE errors.
@@ -293,6 +300,8 @@ class NativeAudioPlayer {
     List<String> filePaths, {
     Map<String, String>? metadata,
     int? initialTrackIndex,
+    int? initialPosition,
+    String? groupPath,
   }) async {
     if (!_isInitialized) {
       await initialize();
@@ -316,6 +325,8 @@ class NativeAudioPlayer {
           'filePaths': filePaths,
           'metadata': metadata,
           if (initialTrackIndex != null) 'initialTrackIndex': initialTrackIndex,
+          if (initialPosition != null) 'initialPosition': initialPosition,
+          if (groupPath != null) 'groupPath': groupPath,
         },
         maxRetries: 2, // Fewer retries for setPlaylist
       ).timeout(
@@ -1033,6 +1044,37 @@ class NativeAudioPlayer {
     }
   }
 
+  /// Sets callback for saving position from Kotlin.
+  /// Called by Media3PlayerService to handle position saving requests.
+  static set onSavePositionFromNative(
+      Function(int trackIndex, int positionMs)? callback) {
+    _onSavePositionFromNative = callback;
+  }
+
+  /// Sets up MethodChannel handler for calls from Kotlin (e.g., saveCurrentPosition).
+  void _setupMethodChannelHandler() {
+    _channel.setMethodCallHandler((call) async {
+      if (call.method == 'saveCurrentPosition') {
+        final trackIndex = call.arguments['trackIndex'] as int?;
+        final positionMs = call.arguments['positionMs'] as int?;
+        if (trackIndex != null &&
+            positionMs != null &&
+            _onSavePositionFromNative != null) {
+          try {
+            _onSavePositionFromNative!(trackIndex, positionMs);
+          } on Exception catch (e) {
+            await _logger.log(
+              level: 'warning',
+              subsystem: 'audio',
+              message: 'Failed to save position from native',
+              cause: e.toString(),
+            );
+          }
+        }
+      }
+    });
+  }
+
   /// Disposes resources and stops the native player.
   Future<void> dispose() async {
     _stateUpdateTimer?.cancel();
@@ -1044,6 +1086,9 @@ class NativeAudioPlayer {
     } on Exception {
       // Ignore errors during dispose
     }
+
+    _channel.setMethodCallHandler(null);
+    _onSavePositionFromNative = null;
 
     await _stateController.close();
   }

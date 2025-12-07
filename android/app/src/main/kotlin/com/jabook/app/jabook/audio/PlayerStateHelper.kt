@@ -26,6 +26,8 @@ internal class PlayerStateHelper(
     private val getDurationForFile: ((String) -> Long?)? = null,
     private val getLastCompletedTrackIndex: (() -> Int)? = null,
     private val getActualPlaylistSize: (() -> Int)? = null, // Get actual playlist size from filePaths
+    private val getActualTrackIndex: (() -> Int)? = null, // Get actual track index from onMediaItemTransition
+    private val getCurrentFilePaths: (() -> List<String>?)? = null, // Get current file paths to match by URI
 ) {
     /**
      * Gets current playback position.
@@ -158,11 +160,77 @@ internal class PlayerStateHelper(
             duration = 0L
         }
 
-        // Get current index - use saved index if book is completed and index was reset or out of bounds
-        var currentIndex = player.currentMediaItemIndex
+        // CRITICAL: Use actualTrackIndex from onMediaItemTransition events as primary source
+        // This ensures we get the correct track index even if currentMediaItemIndex hasn't updated yet
+        var currentIndex = getActualTrackIndex?.invoke() ?: player.currentMediaItemIndex
         val savedIndex = getLastCompletedTrackIndex?.invoke() ?: -1
         // Use actual playlist size from filePaths if available, otherwise use player.mediaItemCount
         val totalTracks = getActualPlaylistSize?.invoke() ?: player.mediaItemCount
+
+        // CRITICAL: If currentIndex seems wrong (e.g., 0 but playing file 7), try to find real index by URI
+        // This handles cases where ExoPlayer's currentMediaItemIndex doesn't match the actual playing file
+        if (currentIndex == 0 && totalTracks > 1) {
+            val currentItem = player.currentMediaItem
+            val currentUri = currentItem?.localConfiguration?.uri
+            val filePaths = getCurrentFilePaths?.invoke()
+
+            if (currentUri != null && filePaths != null && filePaths.isNotEmpty()) {
+                val currentPath = currentUri.path
+                if (currentPath != null) {
+                    // Find the index of the current file in filePaths
+                    val realIndex =
+                        filePaths.indexOfFirst { filePath ->
+                            // Compare paths (handle both absolute and relative paths)
+                            filePath == currentPath ||
+                                filePath.endsWith(currentPath) ||
+                                currentPath.endsWith(filePath)
+                        }
+
+                    if (realIndex >= 0 && realIndex != currentIndex) {
+                        android.util.Log.d(
+                            "AudioPlayerService",
+                            "Found real index by URI: currentIndex=$currentIndex, realIndex=$realIndex, " +
+                                "file=${currentPath.substringAfterLast('/')}",
+                        )
+                        currentIndex = realIndex
+                    }
+                }
+            }
+        }
+
+        // CRITICAL: Try to extract chapter number from filename if available
+        // This handles cases where file order doesn't match chapter numbers (e.g., 08.mp3 at index 8 should be chapter 8, not 9)
+        var chapterNumberFromFilename: Int? = null
+        val currentItem = player.currentMediaItem
+        val currentUri = currentItem?.localConfiguration?.uri
+        if (currentUri != null) {
+            val currentPath = currentUri.path
+            if (currentPath != null) {
+                val fileName = currentPath.substringAfterLast('/')
+                // Try to extract number from filename (e.g., "08.mp3" -> 8, "01.mp3" -> 1)
+                val numberMatch = Regex("""^(\d+)""").find(fileName)
+                if (numberMatch != null) {
+                    val numberStr = numberMatch.groupValues[1]
+                    val number = numberStr.toIntOrNull()
+                    if (number != null && number > 0) {
+                        chapterNumberFromFilename = number
+                        android.util.Log.d(
+                            "AudioPlayerService",
+                            "Extracted chapter number from filename: file=$fileName, chapterNumber=$chapterNumberFromFilename",
+                        )
+                    }
+                }
+            }
+        }
+
+        // Log current state for debugging
+        android.util.Log.v(
+            "AudioPlayerService",
+            "PlayerStateHelper: actualTrackIndex=${getActualTrackIndex?.invoke()}, " +
+                "currentMediaItemIndex=${player.currentMediaItemIndex}, totalTracks=$totalTracks, " +
+                "savedIndex=$savedIndex, using currentIndex=$currentIndex",
+        )
+
         if (savedIndex >= 0 &&
             totalTracks > 0 &&
             savedIndex < totalTracks &&
@@ -184,10 +252,38 @@ internal class PlayerStateHelper(
                 "Index out of bounds ($currentIndex >= $totalTracks), using last track index $lastTrackIndex",
             )
             currentIndex = lastTrackIndex
+        } else if (currentIndex < 0 && totalTracks > 0) {
+            // Index is negative - use 0 as fallback
+            android.util.Log.w(
+                "AudioPlayerService",
+                "Index is negative ($currentIndex), using 0 as fallback",
+            )
+            currentIndex = 0
         }
 
         // Calculate chapter number (1-based) - single source of truth
-        val chapterNumber = if (currentIndex >= 0) currentIndex + 1 else 1
+        // CRITICAL: Prefer chapter number from filename if available, otherwise use index-based calculation
+        // This handles cases where file order doesn't match chapter numbers (e.g., 08.mp3 at index 8 should be chapter 8, not 9)
+        val chapterNumber =
+            if (chapterNumberFromFilename != null) {
+                // Use chapter number extracted from filename (most accurate)
+                chapterNumberFromFilename!!
+            } else if (currentIndex >= 0 && currentIndex < totalTracks) {
+                // Fallback to index-based calculation (currentIndex + 1)
+                currentIndex + 1
+            } else {
+                // Fallback to 1 if index is invalid
+                android.util.Log.w(
+                    "AudioPlayerService",
+                    "Invalid currentIndex ($currentIndex) or totalTracks ($totalTracks), using chapterNumber=1",
+                )
+                1
+            }
+
+        android.util.Log.v(
+            "AudioPlayerService",
+            "PlayerStateHelper: final currentIndex=$currentIndex, chapterNumber=$chapterNumber",
+        )
 
         return mapOf(
             "isPlaying" to player.isPlaying,
