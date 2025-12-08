@@ -50,6 +50,7 @@ object BridgeInitializer {
     fun initializeBridge(
         context: Context,
         flutterEngine: FlutterEngine,
+        eventChannelHandler: EventChannelHandler,
     ) {
         try {
             // Get dependencies from Hilt
@@ -118,8 +119,6 @@ object BridgeInitializer {
                     bridgeScope,
                     context,
                 )
-
-            val eventChannelHandler = EventChannelHandler(bridgeScope)
 
             // Register MethodChannel (using different name for parallel operation)
             val methodChannel =

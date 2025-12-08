@@ -172,6 +172,7 @@ internal class PlayerConfigurator(
 
                 // Copy listener from singleton player (using instance from this class)
                 playerListener?.let { customExoPlayer?.addListener(it) }
+                service.bridgePlayerListener?.let { customExoPlayer?.addListener(it) }
 
                 android.util.Log.i(
                     "AudioPlayerService",

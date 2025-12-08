@@ -373,67 +373,54 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       final filePaths = <String>[];
       final matchedChapters = <Chapter>[];
 
-      // Match chapters to files by position
-      // Take minimum of chapters and files to avoid index out of bounds
-      final maxCount = _sortedChapters!.length < allFiles.length
-          ? _sortedChapters!.length
-          : allFiles.length;
+      // Match chapters to files
+      // If counts match, map 1:1.
+      // If counts mismatch (partial download), use file names to avoid showing wrong chapter info.
+      final useFileNames = _sortedChapters!.length != allFiles.length;
 
-      for (var i = 0; i < maxCount; i++) {
-        filePaths.add(allFiles[i]);
-        matchedChapters.add(_sortedChapters![i]);
+      // File paths are already sorted naturally by LibraryFileFinder
+
+      for (var i = 0; i < allFiles.length; i++) {
+        final filePath = allFiles[i];
+        final fileName = filePath.split('/').last;
+
+        if (!useFileNames && i < _sortedChapters!.length) {
+          // Perfect match scenario
+          matchedChapters.add(_sortedChapters![i]);
+          filePaths.add(filePath);
+        } else {
+          // Mismatch or overflow - create synthetic chapter from file
+          // using file name as title.
+          // This ensures we don't show "Chapter 1" for "Book 12".
+          matchedChapters.add(Chapter(
+            title: fileName,
+            fileIndex: i, // Use current index
+            durationMs: 0, // Unknown
+            startByte: 0,
+            endByte: 0,
+          ));
+          filePaths.add(filePath);
+        }
       }
 
-      // Update _sortedChapters to match the order of files
+      // Update _sortedChapters to match the playlist exactly
       _sortedChapters = matchedChapters;
 
-      // Log detailed mapping for debugging
+      // Log mapping decision
       unawaited(StructuredLogger().log(
         level: 'info',
         subsystem: 'player',
-        message: 'Created playlist by matching chapters to files by position',
+        message: useFileNames
+            ? 'Using filenames for playlist titles due to chapter count mismatch (Partial download?)'
+            : 'Using metadata chapters for playlist titles',
         extra: {
           'bookId': widget.bookId,
           'totalChapters': _audiobook!.chapters.length,
           'totalFiles': allFiles.length,
-          'matchedCount': matchedChapters.length,
+          'useFileNames': useFileNames,
           'playlistSize': filePaths.length,
-          'fileOrder': allFiles.take(10).map((p) => p.split('/').last).toList(),
-          'mapping': matchedChapters.asMap().entries.take(10).map((e) {
-            final filePath = e.key < filePaths.length ? filePaths[e.key] : null;
-            return {
-              'playlistIndex': e.key,
-              'chapterTitle': e.value.title,
-              'chapterFileIndex': e.value.fileIndex,
-              'fileName': filePath?.split('/').last,
-            };
-          }).toList(),
-        },
-      ));
-
-      // Log detailed mapping for debugging
-      unawaited(StructuredLogger().log(
-        level: 'info',
-        subsystem: 'player',
-        message: 'Created playlist by matching chapters to files by filename',
-        extra: {
-          'bookId': widget.bookId,
-          'totalChapters': _audiobook!.chapters.length,
-          'matchedChapters': _sortedChapters!.length,
-          'totalFiles': allFiles.length,
-          'playlistSize': filePaths.length,
-          'mapping': _sortedChapters!.asMap().entries.map((e) {
-            final filePath = e.key < filePaths.length ? filePaths[e.key] : null;
-            return {
-              'playlistIndex': e.key,
-              'chapterTitle': e.value.title,
-              'chapterFileIndex': e.value.fileIndex,
-              'filePath': filePath,
-              'fileName': filePath?.split('/').last,
-            };
-          }).toList(),
-          'allFilesOrder':
-              allFiles.take(10).map((p) => p.split('/').last).toList(),
+          'sampleMapping':
+              filePaths.take(5).map((p) => p.split('/').last).toList(),
         },
       ));
 

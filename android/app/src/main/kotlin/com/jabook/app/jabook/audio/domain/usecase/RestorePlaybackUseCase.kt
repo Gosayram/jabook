@@ -51,6 +51,7 @@ class RestorePlaybackUseCase
                                     currentTrackIndex = entity.trackIndex,
                                     playbackSpeed = 1.0f,
                                     bufferedPosition = 0L,
+                                    playbackState = 0, // IDLE - will be updated when player loads
                                 ),
                             )
                         } else {

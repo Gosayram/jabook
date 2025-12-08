@@ -149,6 +149,19 @@ class AudioPlayerServiceInitializer(
             // 2. Player state (playWhenReady, playbackState, currentMediaItem, etc.)
             // 3. MediaMetadata from current MediaItem
             // No manual notification updates needed!
+            // Check if session already exists to prevent "Session ID must be unique" error
+            if (service.mediaLibrarySession != null) {
+                android.util.Log.w(
+                    "AudioPlayerService",
+                    "MediaLibrarySession already exists, releasing old session before creating new one",
+                )
+                try {
+                    service.mediaLibrarySession?.release()
+                } catch (e: Exception) {
+                    android.util.Log.e("AudioPlayerService", "Failed to release existing session", e)
+                }
+                service.mediaLibrarySession = null
+            }
             try {
                 // Use getSingleTopActivity() for proper navigation when app is active
                 // This allows user to navigate back to previous screen when pressing back
@@ -171,11 +184,12 @@ class AudioPlayerServiceInitializer(
                         ),
                     )
 
-                singleTopActivity?.let {
-                    mediaLibrarySessionBuilder.setSessionActivity(it)
-                }
-
-                val mediaLibrarySession = mediaLibrarySessionBuilder.build()
+                // Build MediaLibrarySession (Media3 automatically generates unique session ID)
+                // Based on Media3 DemoPlaybackService example
+                val mediaLibrarySession =
+                    mediaLibrarySessionBuilder
+                        .also { builder -> singleTopActivity?.let { builder.setSessionActivity(it) } }
+                        .build()
 
                 // Reserve slots for skip buttons to prevent custom actions jumping
                 // Based on Media3 DemoPlaybackService example
@@ -254,14 +268,8 @@ class AudioPlayerServiceInitializer(
                 // Or I can just make the field internal in AudioPlayerService.
                 // I'll choose to make field internal.
 
-                // Wait, I'm already inside `write_to_file`.
-                // I will finish this tool call with `service.mediaLibrarySession = ...`
-                // and then immediately call `multi_replace_file_content` to make the field internal.
-                // The user won't likely try to compile in between.
-
-                /*
+                // Assign the session to service
                 service.mediaLibrarySession = mediaLibrarySession
-                 */
 
                 android.util.Log.i(
                     "AudioPlayerService",

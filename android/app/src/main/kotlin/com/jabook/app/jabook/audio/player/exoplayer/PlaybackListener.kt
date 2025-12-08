@@ -73,6 +73,7 @@ class PlaybackListener : Player.Listener {
                 currentTrackIndex = player.currentMediaItemIndex,
                 playbackSpeed = player.playbackParameters.speed,
                 bufferedPosition = player.bufferedPosition,
+                playbackState = player.playbackState, // 0 = idle, 1 = buffering, 2 = ready, 3 = ended
             )
     }
 

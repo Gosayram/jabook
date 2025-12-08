@@ -16,12 +16,19 @@ import androidx.annotation.RequiresApi
 import com.jabook.app.jabook.audio.AudioPlayerMethodHandler
 import com.jabook.app.jabook.audio.PositionConstants
 import com.jabook.app.jabook.audio.bridge.BridgeInitializer
+import com.jabook.app.jabook.audio.bridge.EventChannelHandler
 import com.jabook.app.jabook.download.DownloadServiceMethodHandler
-import io.flutter.embedding.android.FlutterActivity
+import dagger.hilt.android.AndroidEntryPoint
+import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
+import javax.inject.Inject
 
-class MainActivity : FlutterActivity() {
+@AndroidEntryPoint
+class MainActivity : FlutterFragmentActivity() {
+    @Inject
+    lateinit var eventChannelHandler: EventChannelHandler
+
     private var directoryPickerResult: MethodChannel.Result? = null
     private var positionSaveReceiver: BroadcastReceiver? = null
     private var exitAppReceiver: BroadcastReceiver? = null
@@ -451,7 +458,7 @@ class MainActivity : FlutterActivity() {
 
         // Initialize new FlutterBridge (parallel to old API for gradual migration)
         try {
-            BridgeInitializer.initializeBridge(this, flutterEngine)
+            BridgeInitializer.initializeBridge(this, flutterEngine, eventChannelHandler)
             android.util.Log.i("MainActivity", "New FlutterBridge initialized for gradual migration")
         } catch (e: Exception) {
             android.util.Log.e("MainActivity", "Failed to initialize new FlutterBridge", e)

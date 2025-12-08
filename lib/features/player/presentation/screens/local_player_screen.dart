@@ -669,10 +669,27 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
 
       // Apply audio settings (speed and skip duration) in parallel with waiting for ready
       // This speeds up initialization
-      await Future.wait([
-        _waitForPlayerReady(),
-        _applyAudioSettings(),
-      ]);
+      // Wrap in try-catch to prevent non-critical errors from showing error message
+      try {
+        await Future.wait([
+          _waitForPlayerReady(),
+          _applyAudioSettings(),
+        ]);
+      } on Exception catch (e) {
+        // Log but don't fail - audio settings are not critical for playback
+        await _logger.log(
+          level: 'warning',
+          subsystem: 'audio',
+          message: 'Failed to apply audio settings (non-critical)',
+          cause: e.toString(),
+        );
+        // Still wait for player to be ready even if settings failed
+        try {
+          await _waitForPlayerReady();
+        } on Exception {
+          // Ignore - will be handled by outer catch
+        }
+      }
 
       // Start playback - either from saved position or from beginning
       // Note: If initialPosition was provided to setPlaylist, position is already applied
@@ -1097,10 +1114,33 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
 
       // Update currentAudiobookGroupProvider to ensure all UI components are synchronized
       // This ensures mini player, notification, and main player all use the same data source
-      ref.read(currentAudiobookGroupProvider.notifier).state = widget.group;
+      // Wrap in try-catch to prevent non-critical errors from showing error message
+      try {
+        ref.read(currentAudiobookGroupProvider.notifier).state = widget.group;
+      } on Exception catch (e) {
+        // Log but don't fail - provider update is not critical for playback
+        await _logger.log(
+          level: 'warning',
+          subsystem: 'audio',
+          message:
+              'Failed to update currentAudiobookGroupProvider (non-critical)',
+          cause: e.toString(),
+        );
+      }
 
       // Update metadata after playlist is set
-      _updateMetadata();
+      // Wrap in try-catch to prevent non-critical metadata errors from showing error message
+      try {
+        _updateMetadata();
+      } on Exception catch (e) {
+        // Log but don't fail - metadata update is not critical for playback
+        await _logger.log(
+          level: 'warning',
+          subsystem: 'audio',
+          message: 'Failed to update metadata (non-critical)',
+          cause: e.toString(),
+        );
+      }
     } on AudioFailure {
       rethrow;
     } on Exception catch (e) {
@@ -1490,7 +1530,15 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
         _isPlayerLoading || playerState.playbackState == 1; // 1 = buffering
     // Only show error if player initialization is complete and not loading
     // This prevents showing error messages during initial loading
-    final hasError = !isLoading && (_hasError || playerState.error != null);
+    // Also don't show error if player is ready (playbackState == 2) or playing - means it recovered
+    // Also check if player has duration > 0 - means it's working even if playbackState not updated yet
+    final isPlayerReady = playerState.playbackState == 2; // 2 = ready
+    final hasDuration = playerState.duration > 0; // Player has loaded media
+    final isPlayerWorking =
+        isPlayerReady || playerState.isPlaying || hasDuration;
+    final hasError = !isLoading &&
+        !isPlayerWorking &&
+        (_hasError || playerState.error != null);
     final errorMessage = _errorMessage ?? playerState.error;
 
     // Extract author from groupName (format: "Author - Title")

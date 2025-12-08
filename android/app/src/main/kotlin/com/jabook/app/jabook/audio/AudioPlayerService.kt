@@ -66,6 +66,11 @@ class AudioPlayerService : MediaLibraryService() {
     @Inject
     lateinit var playerPersistenceManager: PlayerPersistenceManager
 
+    @Inject
+    lateinit var eventChannelHandler: com.jabook.app.jabook.audio.bridge.EventChannelHandler
+
+    internal var bridgePlayerListener: com.jabook.app.jabook.audio.bridge.BridgePlayerListener? = null
+
     internal var mediaLibrarySession: MediaLibrarySession? = null
 
     // Keep mediaSession for backward compatibility during migration
@@ -384,6 +389,14 @@ class AudioPlayerService : MediaLibraryService() {
         // Initialize service components using extracted initializer
         // This handles all complex logic previously directly in onCreate
         AudioPlayerServiceInitializer(this).initialize()
+
+        // Setup Bridge Listener for EventChannel updates
+        // This connects the player events to the Flutter V2 EventChannel
+        bridgePlayerListener =
+            com.jabook.app.jabook.audio.bridge
+                .BridgePlayerListener(eventChannelHandler) { getActivePlayer() }
+        exoPlayer.addListener(bridgePlayerListener!!)
+        android.util.Log.i("AudioPlayerService", "BridgePlayerListener attached to ExoPlayer")
     }
 
     override fun onStartCommand(
@@ -825,6 +838,10 @@ class AudioPlayerService : MediaLibraryService() {
     }
 
     override fun onDestroy() {
+        // Release bridge listener
+        bridgePlayerListener?.release()
+        bridgePlayerListener = null
+
         // Delegate to lifecycle manager
         lifecycleManager?.onDestroy()
         super.onDestroy()

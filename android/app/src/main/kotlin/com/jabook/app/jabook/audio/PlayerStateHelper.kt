@@ -106,34 +106,12 @@ internal class PlayerStateHelper(
                             getDurationCache()[filePath] = duration
                             android.util.Log.d("AudioPlayerService", "Got duration from database for $filePath: ${duration}ms")
                         } else {
-                            // Database miss - try MediaMetadataRetriever as fallback
-                            // Fallback: use MediaMetadataRetriever (only if player didn't provide duration)
-                            try {
-                                val retriever = android.media.MediaMetadataRetriever()
-                                retriever.setDataSource(filePath)
-                                val retrieverDuration =
-                                    retriever.extractMetadata(
-                                        android.media.MediaMetadataRetriever.METADATA_KEY_DURATION,
-                                    )
-                                retriever.release()
-                                if (retrieverDuration != null) {
-                                    val parsedDuration = retrieverDuration.toLongOrNull()
-                                    if (parsedDuration != null && parsedDuration > 0) {
-                                        duration = parsedDuration
-                                        // Cache it for future use
-                                        getDurationCache()[filePath] = duration
-                                        android.util.Log.d(
-                                            "AudioPlayerService",
-                                            "Got duration from MediaMetadataRetriever (fallback) for $filePath: ${duration}ms",
-                                        )
-                                    }
-                                }
-                            } catch (e: Exception) {
-                                android.util.Log.w(
-                                    "AudioPlayerService",
-                                    "Failed to get duration from MediaMetadataRetriever for $filePath: ${e.message}",
-                                )
-                            }
+                            // Database miss - do NOT use MediaMetadataRetriever on main thread
+                            // It causes ANRs and UI freezes. rely on player.duration or 0.
+                            android.util.Log.w(
+                                "AudioPlayerService",
+                                "Duration missing for $filePath, skipping synchronous MediaMetadataRetriever to avoid freeze",
+                            )
                         }
                     }
                 }

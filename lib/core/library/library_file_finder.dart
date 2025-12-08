@@ -87,7 +87,7 @@ class LibraryFileFinder {
       }
     }
 
-    audioFiles.sort((a, b) => a.path.compareTo(b.path));
+    audioFiles.sort((a, b) => _comparePaths(a.path, b.path));
     return audioFiles.map((f) => f.path).toList();
   }
 
@@ -123,7 +123,7 @@ class LibraryFileFinder {
       final audioFiles = <String>[];
 
       await _collectAudioFilesFromContentUri(entries, audioFiles);
-      audioFiles.sort();
+      audioFiles.sort(_comparePaths);
 
       return audioFiles;
     } on Exception {
@@ -192,7 +192,7 @@ class LibraryFileFinder {
     }
 
     // Sort by path for consistency
-    audioFiles.sort((a, b) => a.path.compareTo(b.path));
+    audioFiles.sort((a, b) => _comparePaths(a.path, b.path));
 
     // Return file by index
     if (fileIndex >= 0 && fileIndex < audioFiles.length) {
@@ -302,7 +302,7 @@ class LibraryFileFinder {
       }
     }
 
-    audioFiles.sort((a, b) => a.path.compareTo(b.path));
+    audioFiles.sort((a, b) => _comparePaths(a.path, b.path));
 
     if (fileIndex >= 0 && fileIndex < audioFiles.length) {
       return audioFiles[fileIndex].path;
@@ -331,7 +331,7 @@ class LibraryFileFinder {
       await _collectAudioFilesFromContentUri(entries, audioFiles);
 
       // Sort by URI for consistency
-      audioFiles.sort();
+      audioFiles.sort(_comparePaths);
 
       // Return file by index
       if (fileIndex >= 0 && fileIndex < audioFiles.length) {
@@ -372,5 +372,66 @@ class LibraryFileFinder {
   bool _isAudioFile(String filePath) {
     final extension = path.extension(filePath).toLowerCase();
     return _audioExtensions.contains(extension);
+  }
+
+  /// Compares two paths using natural sorting on each segment.
+  ///
+  /// This ensures that:
+  /// 1. Directories are sorted numerically: "Vol 1/..." < "Vol 2/..." < "Vol 10/..."
+  /// 2. Files are sorted numerically: "1.mp3" < "2.mp3" < "10.mp3"
+  int _comparePaths(String pathA, String pathB) {
+    // Split paths into segments (directories and filename)
+    final partsA = path.split(pathA);
+    final partsB = path.split(pathB);
+
+    // Compare common segments
+    final len = partsA.length < partsB.length ? partsA.length : partsB.length;
+    for (var i = 0; i < len; i++) {
+      final segA = partsA[i];
+      final segB = partsB[i];
+
+      // Skip identical segments
+      if (segA == segB) continue;
+
+      // Natural sort for differing segments
+      final cmp = _naturalCompare(segA, segB);
+      if (cmp != 0) return cmp;
+    }
+
+    // If all common segments are equal, shorter path comes first (parent vs child)
+    return partsA.length.compareTo(partsB.length);
+  }
+
+  /// Compares two strings using natural sort order (handling embedded numbers).
+  int _naturalCompare(String a, String b) {
+    final nameA = a.toLowerCase();
+    final nameB = b.toLowerCase();
+
+    // Try to extract the *first* number in the string to sort by
+    // LIMITATION: This is a simple natural sort. For complex strings like "v1.2.3",
+    // it only looks at the first number found ("1").
+    final numberA = _extractNumber(nameA);
+    final numberB = _extractNumber(nameB);
+
+    if (numberA != null && numberB != null) {
+      // If the numbers are different, sort by number
+      if (numberA != numberB) {
+        return numberA.compareTo(numberB);
+      }
+      // If numbers are same (e.g. "file 01" vs "file 1"), fall back to string comparison
+      // But typically we might want to be smarter. For now standard string compare is fine.
+    }
+
+    return nameA.compareTo(nameB);
+  }
+
+  /// Extracts the first number found in the string.
+  /// Returns null if no number is found.
+  int? _extractNumber(String text) {
+    final match = RegExp(r'(\d+)').firstMatch(text);
+    if (match != null) {
+      return int.tryParse(match.group(0)!);
+    }
+    return null;
   }
 }

@@ -158,7 +158,13 @@ class SimplePlayerNotifier extends StateNotifier<SimplePlayerState> {
       _stateSubscription = stateStream.listen().listen(
         (event) {
           final newState = SimplePlayerState.fromMap(event);
-          state = newState;
+          // Clear error if player is ready or playing (means it recovered from error)
+          // Only clear if new state doesn't have error (native layer cleared it)
+          final shouldClearError = (newState.playbackState == 2 || // 2 = ready
+                  newState.isPlaying) &&
+              newState.error == null &&
+              state.error != null;
+          state = shouldClearError ? newState.copyWith() : newState;
         },
         onError: (error) {
           state = state.copyWith(

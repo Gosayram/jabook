@@ -24,6 +24,7 @@ data class PlaybackState(
     val currentTrackIndex: Int,
     val playbackSpeed: Float = 1.0f,
     val bufferedPosition: Long = 0L,
+    val playbackState: Int = 0, // 0 = idle, 1 = buffering, 2 = ready, 3 = ended
 ) {
     /**
      * Returns the progress as a percentage (0.0 to 1.0).
@@ -54,6 +55,7 @@ data class PlaybackState(
                 currentTrackIndex = 0,
                 playbackSpeed = 1.0f,
                 bufferedPosition = 0L,
+                playbackState = 0, // IDLE
             )
     }
 }
