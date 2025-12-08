@@ -27,6 +27,7 @@ import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
@@ -72,8 +73,8 @@ class MethodChannelHandler
                 "previous" -> handlePrevious(call, result)
                 "stop" -> handleStop(call, result)
                 "stopServiceAndExit" -> handleStopServiceAndExit(call, result)
-                "restoreFullState" -> handleRestoreFullState(call, result)
-                "updateSavedStateSettings" -> handleUpdateSavedStateSettings(call, result)
+                // Note: restoreFullState and updateSavedStateSettings are not implemented
+                // These methods may be added in the future if needed
                 else -> result.notImplemented()
             }
         }
@@ -355,14 +356,14 @@ class MethodChannelHandler
                         return@launch
                     }
 
-                    // Use playerPersistenceManager to restore position
-                    val position = service.playerPersistenceManager.restorePosition(groupPath, fileCount)
+                    // Use playerPersistenceManager to retrieve persisted state
+                    val persistedState = service.playerPersistenceManager.retrievePersistedPlayerState()
                     withContext(Dispatchers.Main) {
-                        if (position != null) {
+                        if (persistedState != null && persistedState.groupPath == groupPath) {
                             result.success(
                                 mapOf(
-                                    "trackIndex" to position["trackIndex"],
-                                    "positionMs" to position["positionMs"],
+                                    "trackIndex" to persistedState.currentIndex,
+                                    "positionMs" to persistedState.currentPosition,
                                 ),
                             )
                         } else {
@@ -527,7 +528,7 @@ class MethodChannelHandler
                 return
             }
             try {
-                service.setPlaybackSpeed(speed)
+                service.setSpeed(speed)
                 result.success(true)
             } catch (e: Exception) {
                 result.error("EXCEPTION", e.message, null)

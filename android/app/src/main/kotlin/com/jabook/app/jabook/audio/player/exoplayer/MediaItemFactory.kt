@@ -48,9 +48,8 @@ object MediaItemFactory {
         if (data.album != null) {
             metadataBuilder.setAlbumTitle(data.album)
         }
-        if (data.duration != null && data.duration > 0) {
-            metadataBuilder.setDurationMillis(data.duration)
-        }
+        // Note: Duration is automatically extracted from media file by ExoPlayer
+        // No need to set it manually in MediaMetadata
 
         builder.setMediaMetadata(metadataBuilder.build())
         return builder.build()

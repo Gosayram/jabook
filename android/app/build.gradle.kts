@@ -198,19 +198,23 @@ afterEvaluate {
         }
 }
 
-// Configure kapt for Dagger Hilt
+// Configure kapt for Dagger Hilt and Room
 // Note: Some kapt options may show warnings if not used by processors.
 // This is normal and doesn't affect functionality.
 kapt {
     correctErrorTypes = true
     useBuildCache = true
+    // Room schema export location
+    arguments {
+        arg("room.schemaLocation", "$projectDir/schemas")
+    }
     // These options are set automatically by Hilt plugin
     // Warnings about unrecognized options can be safely ignored
 }
 
 dependencies {
     // Desugaring for flutter_local_notifications
-    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
 
     // AppCompat for AppCompatActivity and AlertDialog
     implementation("androidx.appcompat:appcompat:1.7.1")
@@ -231,20 +235,20 @@ dependencies {
 
     // Android 14+ specific dependencies
     // Add support for Android 14+ foreground service types
-    implementation("androidx.work:work-runtime:2.9.0")
+    implementation("androidx.work:work-runtime:2.11.0")
 
     // Add coroutines support for proper async handling
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-guava:1.7.3")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-guava:1.10.2")
 
     // Room database for local storage
-    val roomVersion = "2.6.1"
+    val roomVersion = "2.8.4"
     implementation("androidx.room:room-runtime:$roomVersion")
     implementation("androidx.room:room-ktx:$roomVersion")
     kapt("androidx.room:room-compiler:$roomVersion")
 
     // DataStore for preferences
-    implementation("androidx.datastore:datastore-preferences:1.1.1")
+    implementation("androidx.datastore:datastore-preferences:1.1.7")
 
     // Note: Media3 1.8.0 is the current stable version with full Android 14+ support
     // Previous alpha/beta versions (1.3.0, 1.4.0) had compatibility issues
@@ -252,7 +256,7 @@ dependencies {
 
     // Media library for MediaStyle notification (required for MediaStyle class)
     // MediaStyle is part of androidx.media, not androidx.core
-    implementation("androidx.media:media:1.7.0")
+    implementation("androidx.media:media:1.7.1")
 
     // OkHttp for network requests in MediaDataSourceFactory
     implementation("com.squareup.okhttp3:okhttp:5.3.2")

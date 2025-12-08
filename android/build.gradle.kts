@@ -33,14 +33,40 @@ subprojects {
                 
                 if (currentNamespace == null) {
                     val setNamespace = android.javaClass.getMethod("setNamespace", String::class.java)
-                    // Use a safe fallback if group is invalid
-                    val packageName = if (project.group.toString() == "unspecified") {
-                        "com.example.${project.name}"
-                    } else {
-                        project.group.toString()
-                    }
+                    
+                    // Known namespace mappings for Flutter plugins
+                    val knownNamespaces = mapOf(
+                        "flutter_media_metadata" to "com.alexmercerind.flutter_media_metadata",
+                    )
+                    
+                    val packageName = knownNamespaces[project.name]
+                        ?: run {
+                            // Try to extract from AndroidManifest.xml if it exists
+                            val manifestFile = project.file("src/main/AndroidManifest.xml")
+                            if (manifestFile.exists()) {
+                                val manifestContent = manifestFile.readText()
+                                val packageMatch = Regex("""package=["']([^"']+)["']""").find(manifestContent)
+                                packageMatch?.groupValues?.get(1)
+                            } else {
+                                null
+                            }
+                        } ?: run {
+                            // Use group if valid, otherwise fallback
+                            if (project.group.toString() != "unspecified") {
+                                project.group.toString()
+                            } else {
+                                "com.example.${project.name}"
+                            }
+                        }
+                    
                     setNamespace.invoke(android, packageName)
-                    println("Set namespace for ${project.name} to $packageName")
+                    // Only log if namespace was set (not if it was already set)
+                    if (packageName != null) {
+                        // Suppress log for known plugins to reduce noise
+                        if (project.name !in knownNamespaces.keys) {
+                            println("Set namespace for ${project.name} to $packageName")
+                        }
+                    }
                 }
             } catch (e: Exception) {
                 // Ignore if method not found

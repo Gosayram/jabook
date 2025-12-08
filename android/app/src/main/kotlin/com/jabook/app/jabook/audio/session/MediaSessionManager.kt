@@ -89,12 +89,13 @@ class MediaSessionManager
 
         /**
          * Updates the MediaMetadata.
+         * Note: MediaMetadata is read-only in Player and is automatically updated from MediaItem.
+         * This method is kept for API compatibility but does not modify player state.
          */
         fun updateMetadata(metadata: MediaMetadata) {
-            mediaSession?.let { session ->
-                player.mediaMetadata = metadata
-                android.util.Log.d("MediaSessionManager", "Metadata updated: ${metadata.title}")
-            }
+            // MediaMetadata is read-only in Player - it's automatically updated from MediaItem
+            // MediaSession automatically reflects metadata from Player's current MediaItem
+            android.util.Log.d("MediaSessionManager", "Metadata update requested: ${metadata.title}")
         }
 
         /**

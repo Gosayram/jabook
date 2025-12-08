@@ -138,8 +138,8 @@ class SavedPlayerStateRepository
         /**
          * Parses metadata from JSON string.
          */
-        fun parseMetadata(metadataJson: String?): Map<String, String>? =
-            try {
+        fun parseMetadata(metadataJson: String?): Map<String, String>? {
+            return try {
                 if (metadataJson == null || metadataJson.isEmpty()) {
                     return null
                 }
@@ -154,6 +154,7 @@ class SavedPlayerStateRepository
             } catch (e: Exception) {
                 null
             }
+        }
 
         /**
          * Deletes a saved player state.

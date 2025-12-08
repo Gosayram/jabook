@@ -12,7 +12,7 @@ import javax.inject.Singleton
 class PlayerPersistenceManager
     @Inject
     constructor(
-        @ApplicationContext private val context: Context,
+        @param:ApplicationContext private val context: Context,
     ) {
         companion object {
             private const val PREFS_NAME = "FlutterSharedPreferences"

@@ -47,9 +47,8 @@ object MediaMetadataBuilder {
             builder.setArtist(author)
         }
 
-        if (duration != null && duration > 0) {
-            builder.setDurationMillis(duration)
-        }
+        // Note: Duration is automatically extracted from media file by ExoPlayer
+        // No need to set it manually in MediaMetadata
 
         return builder.build()
     }

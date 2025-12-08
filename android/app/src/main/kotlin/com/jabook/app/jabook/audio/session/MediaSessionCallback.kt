@@ -18,6 +18,7 @@ import androidx.media3.common.Player
 import androidx.media3.session.MediaSession
 import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionResult
+import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 
 /**
@@ -39,48 +40,27 @@ class MediaSessionCallback(
         const val FORWARD_COMMAND = "com.jabook.app.jabook.audio.FORWARD"
     }
 
-    override fun onPlay(session: MediaSession): ListenableFuture<SessionResult> {
-        onPlay()
-        return super.onPlay(session)
-    }
-
-    override fun onPause(session: MediaSession): ListenableFuture<SessionResult> {
-        onPause()
-        return super.onPause(session)
-    }
-
-    override fun onSkipToNextMediaItem(session: MediaSession): ListenableFuture<SessionResult> {
-        onSkipToNext()
-        return super.onSkipToNextMediaItem(session)
-    }
-
-    override fun onSkipToPreviousMediaItem(session: MediaSession): ListenableFuture<SessionResult> {
-        onSkipToPrevious()
-        return super.onSkipToPreviousMediaItem(session)
-    }
-
-    override fun onSeekTo(
-        session: MediaSession,
-        positionMs: Long,
-    ): ListenableFuture<SessionResult> {
-        player.seekTo(positionMs)
-        return super.onSeekTo(session, positionMs)
-    }
+    // Note: onPlay, onPause, onSkipToNextMediaItem, onSkipToPreviousMediaItem, and onSeekTo
+    // are not available in MediaSession.Callback in Media3 1.8.0. MediaSession automatically
+    // delegates these commands to the Player. We use Player listeners to intercept state
+    // changes if needed. The onPlay and onPause callbacks are kept in the constructor for
+    // API compatibility but are not used in MediaSession.Callback.
 
     override fun onCustomCommand(
         session: MediaSession,
+        controller: MediaSession.ControllerInfo,
         command: SessionCommand,
-        args: android.os.Bundle?,
+        args: android.os.Bundle,
     ): ListenableFuture<SessionResult> =
         when (command.customAction) {
             REWIND_COMMAND -> {
                 onRewind?.invoke()
-                SessionResult(SessionResult.RESULT_SUCCESS)
+                Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
             }
             FORWARD_COMMAND -> {
                 onForward?.invoke()
-                SessionResult(SessionResult.RESULT_SUCCESS)
+                Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
             }
-            else -> super.onCustomCommand(session, command, args)
+            else -> super.onCustomCommand(session, controller, command, args)
         }
 }
