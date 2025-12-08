@@ -333,4 +333,197 @@ internal class PlaybackController(
             resetInactivityTimer()
         }
     }
+
+    /**
+     * Applies initial position after playlist is loaded.
+     * This is called in background to avoid blocking setPlaylist callback.
+     *
+     * @param trackIndex Track index to seek to
+     * @param positionMs Position in milliseconds to seek to
+     * @param expectedTrackCount Total expected tracks (for validation)
+     */
+    suspend fun applyInitialPosition(
+        trackIndex: Int,
+        positionMs: Long,
+        expectedTrackCount: Int?,
+    ) {
+        android.util.Log.d(
+            "AudioPlayerService",
+            "Waiting for player to be ready and track loaded before applying initial position: track=$trackIndex, position=${positionMs}ms",
+        )
+
+        // Check if target track is already the current track (loaded first)
+        val initialPlayer = getActivePlayer()
+        val currentIndex = initialPlayer.currentMediaItemIndex
+        val isTargetTrackAlreadyCurrent = currentIndex == trackIndex
+
+        if (isTargetTrackAlreadyCurrent) {
+            android.util.Log.d(
+                "AudioPlayerService",
+                "Target track $trackIndex is already current track, applying position immediately for smooth resume",
+            )
+        }
+
+        // Wait for player to be ready AND the target track to be loaded
+        var attempts = 0
+        val maxAttempts = 50 // 5 seconds max wait (reduced since we don't need all tracks)
+        var playerReady = false
+        var trackLoaded = false
+
+        while (attempts < maxAttempts) {
+            val checkPlayer = getActivePlayer()
+            val state = checkPlayer.playbackState
+            val mediaItemCount = checkPlayer.mediaItemCount
+            val currentMediaItemIndex = checkPlayer.currentMediaItemIndex
+
+            if (attempts % 10 == 0) { // Log every second
+                android.util.Log.v(
+                    "AudioPlayerService",
+                    "Waiting for player ready and track loaded: attempt=$attempts, state=$state, mediaItemCount=$mediaItemCount, currentIndex=$currentMediaItemIndex, needTrack=$trackIndex",
+                )
+            }
+
+            // Check if player is ready
+            val isPlayerReady = state == Player.STATE_READY || state == Player.STATE_BUFFERING
+            // Check if target track is loaded
+            val isTrackLoaded = mediaItemCount > trackIndex
+
+            // OPTIMIZATION: If target track is already current, we can apply position immediately
+            // without waiting for all tracks. This provides instant, smooth resume.
+            // Only wait for all tracks if target track is NOT the first loaded track.
+            val shouldWaitForAllTracks = !isTargetTrackAlreadyCurrent && expectedTrackCount != null
+            val allTracksLoaded = !shouldWaitForAllTracks || mediaItemCount >= (expectedTrackCount ?: 0)
+
+            if (isPlayerReady && isTrackLoaded && allTracksLoaded) {
+                playerReady = true
+                trackLoaded = true
+                android.util.Log.d(
+                    "AudioPlayerService",
+                    "Player is ready, track $trackIndex is loaded (current=$currentMediaItemIndex, mediaItemCount=$mediaItemCount), applying initial position immediately",
+                )
+                break
+            }
+
+            // Log progress every second
+            if (attempts % 10 == 0) {
+                android.util.Log.v(
+                    "AudioPlayerService",
+                    "Waiting: ready=$isPlayerReady, trackLoaded=$isTrackLoaded, allTracksLoaded=$allTracksLoaded, currentIndex=$currentMediaItemIndex",
+                )
+            }
+
+            delay(100)
+            attempts++
+        }
+
+        if (!playerReady || !trackLoaded) {
+            android.util.Log.w(
+                "AudioPlayerService",
+                "Player not ready or track not loaded after $maxAttempts attempts: playerReady=$playerReady, trackLoaded=$trackLoaded, will try to apply position anyway",
+            )
+        }
+
+        if (expectedTrackCount != null) {
+            val finalPlayer = getActivePlayer()
+            val finalCount = finalPlayer.mediaItemCount
+            if (finalCount != expectedTrackCount) {
+                android.util.Log.w(
+                    "AudioPlayerService",
+                    "Track count mismatch: expected=$expectedTrackCount, actual=$finalCount (possible duplicates detected)",
+                )
+            }
+        }
+
+        // Seek to saved position
+        val player = getActivePlayer()
+        val currentMediaItemIndex = player.currentMediaItemIndex
+        var currentMediaItemCount = player.mediaItemCount
+
+        // OPTIMIZATION: If target track is already current, apply position immediately
+        // This provides instant, smooth resume without waiting for all tracks
+        if (currentMediaItemIndex == trackIndex) {
+            android.util.Log.d(
+                "AudioPlayerService",
+                "Target track $trackIndex is already current, applying position immediately for smooth resume",
+            )
+            // Small delay to ensure player is stable
+            delay(100)
+        } else {
+            // If target track is not current, we need to wait a bit more and potentially
+            // wait for all tracks to prevent playlist resets during seekTo
+            android.util.Log.d(
+                "AudioPlayerService",
+                "Target track $trackIndex is not current (current=$currentMediaItemIndex), waiting for stability",
+            )
+            delay(200) // Small delay to let parallel loading stabilize
+
+            // Only wait for all tracks if target is not the first loaded track
+            if (expectedTrackCount != null && currentMediaItemCount < expectedTrackCount) {
+                android.util.Log.d(
+                    "AudioPlayerService",
+                    "Waiting for all tracks to load: current=$currentMediaItemCount, expected=$expectedTrackCount",
+                )
+                var waitAttempts = 0
+                val maxWaitAttempts = 20 // 2 seconds (reduced for faster resume)
+                while (waitAttempts < maxWaitAttempts && currentMediaItemCount < expectedTrackCount) {
+                    delay(100)
+                    val checkPlayer = getActivePlayer()
+                    val newCount = checkPlayer.mediaItemCount
+                    if (newCount >= expectedTrackCount) {
+                        android.util.Log.d(
+                            "AudioPlayerService",
+                            "All tracks loaded: $newCount/$expectedTrackCount",
+                        )
+                        break
+                    }
+                    currentMediaItemCount = newCount
+                    waitAttempts++
+                }
+            }
+        }
+
+        android.util.Log.d(
+            "AudioPlayerService",
+            "Attempting to apply initial position: track=$trackIndex, position=${positionMs}ms, currentIndex=$currentMediaItemIndex, mediaItemCount=$currentMediaItemCount",
+        )
+
+        if (currentMediaItemCount > trackIndex) {
+            android.util.Log.i(
+                "AudioPlayerService",
+                "Applying initial position: track=$trackIndex, position=${positionMs}ms (all tracks loaded: $currentMediaItemCount)",
+            )
+            seekToTrackAndPosition(trackIndex, positionMs)
+        } else {
+            android.util.Log.w(
+                "AudioPlayerService",
+                "Cannot apply initial position: track index $trackIndex not yet loaded (mediaItemCount=$currentMediaItemCount), waiting for track to load...",
+            )
+            // Wait for the track to be loaded (with additional timeout)
+            var retryAttempts = 0
+            val maxRetryAttempts = 50 // 5 more seconds
+            while (retryAttempts < maxRetryAttempts) {
+                delay(200)
+                val retryPlayer = getActivePlayer()
+                if (retryPlayer.mediaItemCount > trackIndex) {
+                    android.util.Log.i(
+                        "AudioPlayerService",
+                        "Track $trackIndex loaded after waiting, applying initial position: position=${positionMs}ms",
+                    )
+                    seekToTrackAndPosition(trackIndex, positionMs)
+                    return
+                }
+                retryAttempts++
+                if (retryAttempts % 10 == 0) {
+                    android.util.Log.v(
+                        "AudioPlayerService",
+                        "Waiting for track load: $retryAttempts",
+                    )
+                }
+            }
+            android.util.Log.e(
+                "AudioPlayerService",
+                "Failed to apply initial position: track $trackIndex never loaded",
+            )
+        }
+    }
 }

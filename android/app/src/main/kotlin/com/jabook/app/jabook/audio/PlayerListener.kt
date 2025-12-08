@@ -51,6 +51,7 @@ internal class PlayerListener(
     private val playbackPositionSaver: PlaybackPositionSaver? = null,
     private val updateActualTrackIndex: ((Int) -> Unit)? = null, // Callback to update actual track index
     private val isPlaylistLoading: (() -> Boolean)? = null, // Check if playlist is currently loading
+    private val storeCurrentMediaItem: (() -> Unit)? = null, // Callback to store current media item for playback resumption
 ) : Player.Listener {
     private var retryCount = 0
     private val maxRetries = 3
@@ -383,6 +384,9 @@ internal class PlayerListener(
                             "(isLoading=$isLoading, currentIndex=$currentIndex)",
                     )
                 }
+
+                // Store current media item for playback resumption
+                storeCurrentMediaItem?.invoke()
 
                 // CRITICAL: Complete deferred if waiting for track switch
                 // This allows PlaylistManager to wait for onMediaItemTransition instead of polling

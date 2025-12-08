@@ -530,6 +530,18 @@ class AudioPlayerMethodHandler(
                         result.success(true)
                     }
                 }
+                "setNotificationType" -> {
+                    val isMinimal = call.argument<Boolean>("isMinimal") ?: false
+                    executeWithRetry(
+                        action = {
+                            getService()?.setNotificationType(isMinimal)
+                            result.success(true)
+                        },
+                        onError = { e ->
+                            result.error("EXCEPTION", e.message ?: "Failed to set notification type", null)
+                        },
+                    )
+                }
                 "seekToTrackAndPosition" -> {
                     val trackIndex = call.argument<Int>("trackIndex") ?: 0
 

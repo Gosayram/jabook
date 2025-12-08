@@ -12,13 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:jabook/core/di/providers/player_providers.dart';
 import 'package:jabook/core/library/cover_fallback_service.dart';
+import 'package:jabook/core/performance/performance_service.dart';
 import 'package:jabook/core/player/native_audio_player.dart';
 import 'package:jabook/core/player/player_state_provider.dart';
 
@@ -34,14 +37,43 @@ class MiniPlayerWidget extends ConsumerStatefulWidget {
   ConsumerState<MiniPlayerWidget> createState() => _MiniPlayerWidgetState();
 }
 
-class _MiniPlayerWidgetState extends ConsumerState<MiniPlayerWidget> {
+class _MiniPlayerWidgetState extends ConsumerState<MiniPlayerWidget>
+    with SingleTickerProviderStateMixin {
   String? _embeddedArtworkPath;
   String?
       _groupArtworkPath; // First found artwork path for the group (global setting)
 
+  // Debounce timer for artwork updates to prevent excessive reloads
+  Timer? _artworkUpdateTimer;
+
+  // Visual feedback state for swipe gestures
+  double _swipeOpacity = 1.0;
+  String? _swipeDirection; // 'up', 'down', 'left', 'right', null
+  late AnimationController _swipeAnimationController;
+  late Animation<double> _swipeOpacityAnimation;
+
   @override
   void initState() {
     super.initState();
+    // Initialize swipe animation controller
+    _swipeAnimationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 200),
+    );
+    _swipeOpacityAnimation = Tween<double>(begin: 1.0, end: 0.6).animate(
+      CurvedAnimation(
+        parent: _swipeAnimationController,
+        curve: Curves.easeInOut,
+      ),
+    );
+    _swipeOpacityAnimation.addListener(() {
+      if (mounted) {
+        setState(() {
+          _swipeOpacity = _swipeOpacityAnimation.value;
+        });
+      }
+    });
+
     // Check for embedded artwork after first frame
     WidgetsBinding.instance.addPostFrameCallback((_) {
       // Load first available artwork from group (global setting)
@@ -56,7 +88,25 @@ class _MiniPlayerWidgetState extends ConsumerState<MiniPlayerWidget> {
   void didUpdateWidget(MiniPlayerWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
     // Re-check embedded artwork when widget updates (e.g., track changes)
-    _checkEmbeddedArtwork();
+    // Use debounce to prevent excessive updates
+    _debouncedCheckEmbeddedArtwork();
+  }
+
+  @override
+  void dispose() {
+    _artworkUpdateTimer?.cancel();
+    _swipeAnimationController.dispose();
+    super.dispose();
+  }
+
+  /// Debounced version of _checkEmbeddedArtwork to prevent excessive updates.
+  void _debouncedCheckEmbeddedArtwork() {
+    _artworkUpdateTimer?.cancel();
+    _artworkUpdateTimer = Timer(const Duration(milliseconds: 200), () {
+      if (mounted) {
+        _checkEmbeddedArtwork();
+      }
+    });
   }
 
   /// Loads the first available artwork from group files (global setting).
@@ -223,7 +273,7 @@ class _MiniPlayerWidgetState extends ConsumerState<MiniPlayerWidget> {
         }
         // Check if track index changed (new track)
         if (previous?.currentIndex != next.currentIndex) {
-          _checkEmbeddedArtwork();
+          _debouncedCheckEmbeddedArtwork();
         }
         // Update if cover path changed (but prioritize group artwork)
         if (previous?.currentCoverPath != next.currentCoverPath) {
@@ -236,7 +286,7 @@ class _MiniPlayerWidgetState extends ConsumerState<MiniPlayerWidget> {
             }
           } else {
             // If cover path was cleared, try to reload
-            _checkEmbeddedArtwork();
+            _debouncedCheckEmbeddedArtwork();
           }
         }
       })
@@ -252,150 +302,440 @@ class _MiniPlayerWidgetState extends ConsumerState<MiniPlayerWidget> {
         }
       });
 
-    // Show mini player only when there's an active track (not idle)
-    if (playerState.playbackState == 0) {
-      // 0 = idle
-      return const SizedBox.shrink();
-    }
+    final performanceClassAsync = ref.watch(performanceClassProvider);
+    final isLowEnd = performanceClassAsync.value == PerformanceClass.low;
+
+    // AnimatedSize for smooth appearance/disappearance
+    // RepaintBoundary isolates the entire player content for better performance
+    // Disable animation for low-end devices
+    return RepaintBoundary(
+      child: isLowEnd
+          ? (playerState.playbackState == 0
+              ? const SizedBox.shrink()
+              : _buildPlayerContent(context, playerState, isLowEnd))
+          : AnimatedSize(
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeInOut,
+              child: playerState.playbackState == 0
+                  ? const SizedBox.shrink()
+                  : _buildPlayerContent(context, playerState, isLowEnd),
+            ),
+    );
+  }
+
+  Widget _buildPlayerContent(
+      BuildContext context, PlayerStateModel playerState, bool isLowEnd) {
+    final coverPath = _groupArtworkPath ??
+        _embeddedArtworkPath ??
+        playerState.currentCoverPath;
 
     return GestureDetector(
-      onTap: () => _openFullPlayer(context, ref, playerState),
+      onTap: () {
+        HapticFeedback.selectionClick();
+        _openFullPlayer(context, ref, playerState);
+      },
+      onVerticalDragStart: (details) {
+        // Visual feedback: start swipe animation
+        _swipeAnimationController.forward();
+        HapticFeedback.lightImpact();
+      },
+      onVerticalDragUpdate: (details) {
+        // Visual feedback: show direction indicator
+        if (details.primaryDelta != null) {
+          if (details.primaryDelta! < 0) {
+            // Swiping up
+            setState(() {
+              _swipeDirection = 'up';
+            });
+          } else {
+            // Swiping down
+            setState(() {
+              _swipeDirection = 'down';
+            });
+          }
+        }
+      },
       onVerticalDragEnd: (details) {
-        // Swipe up to expand to full player
-        if (details.primaryVelocity != null &&
-            details.primaryVelocity! < -500) {
-          _openFullPlayer(context, ref, playerState);
+        // Reset visual feedback
+        _swipeAnimationController.reverse();
+        setState(() {
+          _swipeDirection = null;
+        });
+
+        if (details.primaryVelocity != null) {
+          if (details.primaryVelocity! < -500) {
+            // Swipe up to expand to full player
+            HapticFeedback.mediumImpact();
+            _openFullPlayer(context, ref, playerState);
+          } else if (details.primaryVelocity! > 500) {
+            // Swipe down to stop playback
+            HapticFeedback.mediumImpact();
+            _stopPlayback(ref);
+          }
+        }
+      },
+      onHorizontalDragStart: (details) {
+        // Visual feedback: start swipe animation
+        _swipeAnimationController.forward();
+        HapticFeedback.lightImpact();
+      },
+      onHorizontalDragUpdate: (details) {
+        // Visual feedback: show direction indicator
+        if (details.primaryDelta != null) {
+          if (details.primaryDelta! < 0) {
+            // Swiping left
+            setState(() {
+              _swipeDirection = 'left';
+            });
+          } else {
+            // Swiping right
+            setState(() {
+              _swipeDirection = 'right';
+            });
+          }
         }
       },
       onHorizontalDragEnd: (details) {
+        // Reset visual feedback
+        _swipeAnimationController.reverse();
+        setState(() {
+          _swipeDirection = null;
+        });
+
         // Swipe left for next track, swipe right for previous track
         if (details.primaryVelocity != null) {
           if (details.primaryVelocity! < -500) {
             // Swipe left - next track
+            HapticFeedback.lightImpact();
             _skipNext(ref);
           } else if (details.primaryVelocity! > 500) {
             // Swipe right - previous track
+            HapticFeedback.lightImpact();
             _skipPrevious(ref);
           }
         }
       },
-      child: Container(
-        height: 52, // Reduced from 64 (20% decrease)
-        decoration: BoxDecoration(
-          color: Theme.of(context).cardColor,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.1),
-              blurRadius: 4,
-              offset: const Offset(0, -2),
+      child: Opacity(
+        opacity: _swipeOpacity,
+        child: Container(
+          height: 52, // Reduced from 64 (20% decrease)
+          decoration: BoxDecoration(
+            // Subtle gradient for visual enhancement
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Theme.of(context).cardColor,
+                Theme.of(context).cardColor.withValues(alpha: 0.95),
+              ],
             ),
-          ],
-        ),
-        child: Row(
-          children: [
-            // Cover image - prioritize group artwork, then embedded artwork, then currentCoverPath
-            _buildCoverImage(
-              context,
-              _groupArtworkPath ??
-                  _embeddedArtworkPath ??
-                  playerState.currentCoverPath,
-            ),
-            const SizedBox(width: 12),
-            // Track info and progress
-            Flexible(
-              flex: 2,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Title
-                  Text(
-                    playerState.currentTitle ?? 'Unknown',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.w500,
-                        ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 2),
-                  // Artist
-                  if (playerState.currentArtist != null)
-                    Text(
-                      playerState.currentArtist!,
-                      style: Theme.of(context).textTheme.bodySmall,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  const SizedBox(height: 4),
-                  // Progress bar
-                  _buildProgressBar(context, playerState),
-                ],
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.1),
+                blurRadius: 4,
+                offset: const Offset(0, -2),
               ),
-            ),
-            // Player controls - centered and expanding to fill available space
-            Flexible(
-              flex: 3,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  // Previous track button
-                  IconButton(
-                    icon: const Icon(Icons.skip_previous),
-                    onPressed: () => _skipPrevious(ref),
-                    tooltip: 'Previous track',
-                  ),
-                  // Play/Pause button
-                  IconButton(
-                    icon: Icon(
-                      playerState.isPlaying ? Icons.pause : Icons.play_arrow,
-                    ),
-                    onPressed: () => _togglePlayPause(ref),
-                    tooltip: playerState.isPlaying ? 'Pause' : 'Play',
-                  ),
-                  // Next track button
-                  IconButton(
-                    icon: const Icon(Icons.skip_next),
-                    onPressed: () => _skipNext(ref),
-                    tooltip: 'Next track',
-                  ),
-                ],
-              ),
-            ),
-          ],
+            ],
+          ),
+          // Visual indicator for swipe direction
+          child: Stack(
+            children: [
+              // Main content
+              // Main content
+              _buildMainContent(context, playerState, coverPath, isLowEnd),
+              // Swipe direction indicator overlay
+              if (_swipeDirection != null)
+                _buildSwipeIndicator(context, _swipeDirection!),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildCoverImage(BuildContext context, String? coverPath) {
+  Widget _buildMainContent(
+    BuildContext context,
+    PlayerStateModel playerState,
+    String? coverPath,
+    bool isLowEnd,
+  ) =>
+      Row(
+        children: [
+          // Cover image with AnimatedSwitcher for smooth transitions
+          // RepaintBoundary isolates cover image repaints for better performance
+          RepaintBoundary(
+            child: isLowEnd
+                ? _buildCoverImage(
+                    context,
+                    coverPath,
+                    key: ValueKey(coverPath),
+                  )
+                : AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 300),
+                    transitionBuilder: (child, animation) => FadeTransition(
+                      opacity: animation,
+                      child: child,
+                    ),
+                    child: _buildCoverImage(
+                      context,
+                      coverPath,
+                      key: ValueKey(coverPath),
+                    ),
+                  ),
+          ),
+          const SizedBox(width: 12),
+          // Track info and progress with AnimatedSwitcher for metadata
+          Flexible(
+            flex: 2,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Title with fade animation
+                // Title with fade animation
+                isLowEnd
+                    ? Text(
+                        playerState.currentTitle ?? 'Unknown',
+                        key: ValueKey(playerState.currentTitle),
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.w500,
+                            ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      )
+                    : AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 200),
+                        transitionBuilder: (child, animation) => FadeTransition(
+                          opacity: animation,
+                          child: child,
+                        ),
+                        child: Text(
+                          playerState.currentTitle ?? 'Unknown',
+                          key: ValueKey(playerState.currentTitle),
+                          style:
+                              Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                const SizedBox(height: 2),
+                // Artist with fade animation
+                if (playerState.currentArtist != null)
+                  // Artist with fade animation
+                  if (playerState.currentArtist != null)
+                    isLowEnd
+                        ? Text(
+                            playerState.currentArtist!,
+                            key: ValueKey(playerState.currentArtist),
+                            style: Theme.of(context).textTheme.bodySmall,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          )
+                        : AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 200),
+                            transitionBuilder: (child, animation) =>
+                                FadeTransition(
+                              opacity: animation,
+                              child: child,
+                            ),
+                            child: Text(
+                              playerState.currentArtist!,
+                              key: ValueKey(playerState.currentArtist),
+                              style: Theme.of(context).textTheme.bodySmall,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                const SizedBox(height: 4),
+                // Progress bar with RepaintBoundary for performance
+                RepaintBoundary(
+                  child: _buildProgressBar(context, playerState),
+                ),
+              ],
+            ),
+          ),
+          // Player controls - centered and expanding to fill available space
+          Flexible(
+            flex: 3,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // Previous track button
+                IconButton(
+                  icon: const Icon(Icons.skip_previous),
+                  onPressed: () {
+                    HapticFeedback.selectionClick();
+                    _skipPrevious(ref);
+                  },
+                  tooltip: 'Previous track',
+                ),
+                // Play/Pause button with AnimatedSwitcher
+                // Play/Pause button with AnimatedSwitcher
+                isLowEnd
+                    ? IconButton(
+                        key: ValueKey(playerState.isPlaying),
+                        icon: Icon(
+                          playerState.isPlaying
+                              ? Icons.pause
+                              : Icons.play_arrow,
+                        ),
+                        onPressed: () {
+                          HapticFeedback.selectionClick();
+                          _togglePlayPause(ref);
+                        },
+                        tooltip: playerState.isPlaying ? 'Pause' : 'Play',
+                      )
+                    : AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 200),
+                        transitionBuilder: (child, animation) =>
+                            ScaleTransition(
+                          scale: animation,
+                          child: child,
+                        ),
+                        child: IconButton(
+                          key: ValueKey(playerState.isPlaying),
+                          icon: Icon(
+                            playerState.isPlaying
+                                ? Icons.pause
+                                : Icons.play_arrow,
+                          ),
+                          onPressed: () {
+                            HapticFeedback.selectionClick();
+                            _togglePlayPause(ref);
+                          },
+                          tooltip: playerState.isPlaying ? 'Pause' : 'Play',
+                        ),
+                      ),
+                // Next track button
+                IconButton(
+                  icon: const Icon(Icons.skip_next),
+                  onPressed: () {
+                    HapticFeedback.selectionClick();
+                    _skipNext(ref);
+                  },
+                  tooltip: 'Next track',
+                ),
+              ],
+            ),
+          ),
+        ],
+      );
+
+  Widget _buildSwipeIndicator(BuildContext context, String direction) {
+    IconData icon;
+    String label;
+    Alignment alignment;
+
+    switch (direction) {
+      case 'up':
+        icon = Icons.keyboard_arrow_up;
+        label = 'Open player';
+        alignment = Alignment.topCenter;
+        break;
+      case 'down':
+        icon = Icons.keyboard_arrow_down;
+        label = 'Stop';
+        alignment = Alignment.bottomCenter;
+        break;
+      case 'left':
+        icon = Icons.keyboard_arrow_left;
+        label = 'Next';
+        alignment = Alignment.centerLeft;
+        break;
+      case 'right':
+        icon = Icons.keyboard_arrow_right;
+        label = 'Previous';
+        alignment = Alignment.centerRight;
+        break;
+      default:
+        icon = Icons.arrow_forward;
+        label = '';
+        alignment = Alignment.center;
+    }
+
+    return Positioned.fill(
+      child: Align(
+        alignment: alignment,
+        child: Container(
+          margin: const EdgeInsets.all(8),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.9),
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.2),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, color: Colors.white, size: 20),
+              if (label.isNotEmpty) ...[
+                const SizedBox(width: 4),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCoverImage(
+    BuildContext context,
+    String? coverPath, {
+    Key? key,
+  }) {
     if (coverPath != null) {
       final coverFile = File(coverPath);
       if (coverFile.existsSync()) {
         return Container(
+          key: key,
           width: 52,
           height: 52,
           decoration: BoxDecoration(
             color: Colors.grey[300],
+            borderRadius:
+                BorderRadius.circular(4), // Material 3 rounded corners
           ),
-          child: Image.file(
-            coverFile,
-            width: 64,
-            height: 64,
-            fit: BoxFit.cover,
-            cacheWidth: 128, // 2x for retina displays
-            errorBuilder: (_, __, ___) => _buildDefaultCover(),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: Image.file(
+              coverFile,
+              width: 52,
+              height: 52,
+              fit: BoxFit.cover,
+              cacheWidth: 128, // 2x for retina displays
+              errorBuilder: (_, __, ___) => _buildDefaultCover(key: key),
+            ),
           ),
         );
       }
     }
-    return _buildDefaultCover();
+    return _buildDefaultCover(key: key);
   }
 
-  Widget _buildDefaultCover() => Container(
-        width: 64,
-        height: 64,
-        decoration: BoxDecoration(
-          color: Colors.grey[300],
+  Widget _buildDefaultCover({Key? key}) => Container(
+        key: key,
+        width: 52,
+        height: 52,
+        decoration: const BoxDecoration(
+          color: Color(0xFFE0E0E0), // Colors.grey[300] as const
+          borderRadius: BorderRadius.all(
+              Radius.circular(4)), // Material 3 rounded corners
         ),
         child: const Icon(Icons.audiotrack, size: 32, color: Colors.grey),
       );
@@ -405,11 +745,11 @@ class _MiniPlayerWidgetState extends ConsumerState<MiniPlayerWidget> {
         state.duration > 0 ? state.currentPosition / state.duration : 0.0;
 
     return ClipRRect(
-      borderRadius: BorderRadius.circular(2),
+      borderRadius: const BorderRadius.all(Radius.circular(2)),
       child: LinearProgressIndicator(
         value: progress.clamp(0.0, 1.0),
         minHeight: 2,
-        backgroundColor: Colors.grey[300],
+        backgroundColor: const Color(0xFFE0E0E0), // Colors.grey[300] as const
         valueColor: AlwaysStoppedAnimation<Color>(
           Theme.of(context).primaryColor,
         ),
@@ -433,6 +773,10 @@ class _MiniPlayerWidgetState extends ConsumerState<MiniPlayerWidget> {
 
   void _skipNext(WidgetRef ref) {
     ref.read(playerStateProvider.notifier).next();
+  }
+
+  void _stopPlayback(WidgetRef ref) {
+    ref.read(playerStateProvider.notifier).stop();
   }
 
   void _openFullPlayer(

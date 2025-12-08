@@ -23,10 +23,13 @@ import androidx.media3.database.StandaloneDatabaseProvider
 import androidx.media3.datasource.cache.Cache
 import androidx.media3.datasource.cache.LeastRecentlyUsedCacheEvictor
 import androidx.media3.datasource.cache.SimpleCache
+import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.RenderersFactory
 import com.jabook.app.jabook.audio.processors.AudioProcessingSettings
+import com.jabook.app.jabook.utils.PerformanceClass
+import com.jabook.app.jabook.utils.PerformanceUtils
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -129,10 +132,14 @@ object MediaModule {
         // Match lissen-android configuration exactly
         // Note: AudioProcessors are configured dynamically in AudioPlayerService
         // based on user settings, not here in the singleton
+        // Create optimized LoadControl
+        val loadControl = createOptimizedLoadControl(context)
+
         val player =
             try {
                 ExoPlayer
                     .Builder(context)
+                    .setLoadControl(loadControl)
                     .setHandleAudioBecomingNoisy(true)
                     .setAudioAttributes(
                         AudioAttributes
@@ -197,6 +204,7 @@ object MediaModule {
                     ExoPlayer
                         .Builder(context)
                         .setRenderersFactory(renderersFactory)
+                        .setLoadControl(createOptimizedLoadControl(context))
                         .setHandleAudioBecomingNoisy(true)
                         .setAudioAttributes(
                             AudioAttributes
@@ -221,6 +229,23 @@ object MediaModule {
         android.util.Log.d("MediaModule", "ExoPlayer with processors provided (${initDuration}ms)")
 
         return player
+    }
+
+    private fun createOptimizedLoadControl(context: Context): androidx.media3.exoplayer.LoadControl {
+        val performanceClass = PerformanceUtils.getPerformanceClass(context)
+        val loadControlBuilder = DefaultLoadControl.Builder()
+
+        if (performanceClass == PerformanceClass.LOW) {
+            // For low-end devices, reduce buffer sizes to save memory
+            loadControlBuilder
+                .setBufferDurationsMs(
+                    15000,
+                    30000,
+                    1500,
+                    3000,
+                ).setTargetBufferBytes(32 * 1024 * 1024)
+        }
+        return loadControlBuilder.build()
     }
 
     /**

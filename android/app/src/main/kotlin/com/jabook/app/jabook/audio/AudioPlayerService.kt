@@ -14,105 +14,155 @@
 
 package com.jabook.app.jabook.audio
 
+import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Build
 import androidx.annotation.OptIn
+import androidx.core.app.TaskStackBuilder
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
-import androidx.media3.datasource.cache.Cache
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.session.MediaLibraryService
+import androidx.media3.session.MediaLibraryService.MediaLibrarySession
 import androidx.media3.session.MediaSession
-import androidx.media3.session.MediaSessionService
+import com.jabook.app.jabook.MainActivity
 import com.jabook.app.jabook.audio.processors.AudioProcessingSettings
-import com.jabook.app.jabook.audio.processors.AudioProcessorFactory
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.MainScope
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.SupervisorJob
+import okhttp3.Cache
 import javax.inject.Inject
 
 /**
  * Native audio player service using Media3 ExoPlayer.
  *
- * This service extends MediaSessionService for proper integration with Android's
- * media controls, Android Auto, Wear OS, and system notifications.
+ * This service extends MediaLibraryService for proper integration with Android's
+ * media controls, Android Auto, Wear OS, system notifications, and playback resumption.
+ *
+ * MediaLibraryService provides:
+ * - Automatic notification management (no manual updates needed)
+ * - Playback resumption support (onPlaybackResumption callback)
+ * - Better integration with Quick Settings media controls
  *
  * Uses Dagger Hilt for dependency injection (ExoPlayer and Cache as singletons).
  */
 @OptIn(UnstableApi::class)
 @AndroidEntryPoint
-class AudioPlayerService : MediaSessionService() {
+class AudioPlayerService : MediaLibraryService() {
     @Inject
     lateinit var exoPlayer: ExoPlayer
 
     @Inject
-    lateinit var mediaCache: Cache
-    private var mediaSession: MediaSession? = null
-    private var notificationManager: NotificationManager? = null
-    private var mediaSessionManager: MediaSessionManager? = null
-    private var playbackTimer: PlaybackTimer? = null
-    private var inactivityTimer: InactivityTimer? = null
-    private var currentMetadata: Map<String, String>? = null
-    private var embeddedArtworkPath: String? = null // Path to saved embedded artwork
-    private var playlistManager: PlaylistManager? = null
-    private var playbackController: PlaybackController? = null
-    private var notificationHelper: NotificationHelper? = null
-    private var positionManager: PositionManager? = null
-    private var metadataManager: MetadataManager? = null
-    private var playerStateHelper: PlayerStateHelper? = null
-    private var unloadManager: UnloadManager? = null
-    private var playbackPositionSaver: PlaybackPositionSaver? = null
+    @javax.inject.Named("okhttp")
+    lateinit var mediaCache: okhttp3.Cache
+
+    // Media3 cache for streaming (different from network cache)
+    @Inject
+    lateinit var media3Cache: androidx.media3.datasource.cache.Cache
+
+    @Inject
+    lateinit var playerPersistenceManager: PlayerPersistenceManager
+
+    internal var mediaLibrarySession: MediaLibrarySession? = null
+
+    // Keep mediaSession for backward compatibility during migration
+    internal var mediaSession: MediaSession? = null
+    internal var notificationManager: NotificationManager? = null
+    internal var notificationHelper: NotificationHelper? = null
+    internal var mediaSessionManager: MediaSessionManager? = null
+    internal var playbackTimer: PlaybackTimer? = null
+    internal var inactivityTimer: InactivityTimer? = null
+    internal var playlistManager: PlaylistManager? = null
+    internal var isPlaylistLoading: Boolean
+        get() = playlistManager?.isPlaylistLoading ?: false
+        set(_) { /* Read-only from service perspective */ }
+
+    // Current metadata delegated to PlaylistManager
+    internal var currentMetadata: Map<String, String>?
+        get() = playlistManager?.currentMetadata
+        set(value) { /* Read-only or handled via PlaylistManager? Service uses it in MetadataManager init */ }
+
+    internal var lifecycleManager: ServiceLifecycleManager? = null
+    internal var intentHandler: ServiceIntentHandler? = null
+    internal var playerConfigurator: PlayerConfigurator? = null
+
+    internal var embeddedArtworkPath: String? = null // Path to saved embedded artwork
+    internal var playbackController: PlaybackController? = null
+    internal var positionManager: PositionManager? = null
+    internal var metadataManager: MetadataManager? = null
+    internal var playerStateHelper: PlayerStateHelper? = null
+    internal var unloadManager: UnloadManager? = null
+    internal var playbackPositionSaver: PlaybackPositionSaver? = null
 
     // Sleep timer manager
-    private var sleepTimerManager: SleepTimerManager? = null
+    internal var sleepTimerManager: SleepTimerManager? = null
 
-    // Book completion flag to prevent auto-resume after book is finished
-    private var isBookCompleted = false
-    private var lastCompletedTrackIndex: Int = -1 // Store last track index when book is completed
+    // Book completion flag
+    internal var isBookCompleted: Boolean
+        get() = playlistManager?.isBookCompleted ?: false
+        set(value) {
+            playlistManager?.isBookCompleted = value
+        }
 
-    // CRITICAL: Track actual track index from onMediaItemTransition events
-    // This is the single source of truth for current track index, as ExoPlayer's
-    // currentMediaItemIndex may not update immediately after seekTo()
-    @Volatile
-    private var actualTrackIndex: Int = -1
+    internal var lastCompletedTrackIndex: Int
+        get() = playlistManager?.lastCompletedTrackIndex ?: -1
+        set(value) {
+            playlistManager?.lastCompletedTrackIndex = value
+        }
+
+    // Actual track index from player events (single source of truth)
+    // Delegated to PlaylistManager
+    internal var actualTrackIndex: Int
+        get() = playlistManager?.actualTrackIndex ?: 0
+        set(value) {
+            playlistManager?.actualTrackIndex = value
+        }
 
     // Track if playlist is currently being loaded to prevent duplicate calls
-    @Volatile
-    private var isPlaylistLoading = false
-    private var currentLoadingPlaylist: List<String>? = null
+    // This is now delegated to PlaylistManager
+    // internal var isPlaylistLoading = false // Removed as it's now a delegated property
 
-    // Track when playlist was last loaded from Flutter to prevent stale state restoration
-    @Volatile
-    private var lastPlaylistLoadTime: Long = 0
+    internal var currentLoadingPlaylist: List<String>?
+        get() = playlistManager?.currentLoadingPlaylist
+        set(_) { /* Read-only via AudioPlayerService */ }
 
-    // Periodic position saving (inspired by lissen-android PlaybackSynchronizationService)
-    private var positionSaveJob: kotlinx.coroutines.Job? = null
-    private var lastPositionSaveTime: Long = 0
+    // Track when playlist was last loaded
+    internal var lastPlaylistLoadTime: Long
+        get() = playlistManager?.lastPlaylistLoadTime ?: 0
+        set(_) { /* Read-only via AudioPlayerService */ }
+
+    // Periodic position saving designated to PlaybackPositionSaver
+    // private var positionSaveJob: kotlinx.coroutines.Job? = null // Removed
+    // private var lastPositionSaveTime: Long = 0 // Removed
 
     // Store current playlist state for restoration after player recreation
-    private var currentFilePaths: List<String>? = null
-    private var savedPlaybackState: SavedPlaybackState? = null
+    // Store current playlist state for restoration after player recreation
+    internal var currentFilePaths: List<String>?
+        get() = playlistManager?.currentFilePaths
+        set(_) { /* Read-only via AudioPlayerService - set via SetPlaylist */ }
 
-    // Store current groupPath for position saving (fallback when MethodChannel unavailable)
-    private var currentGroupPath: String? = null
+    private var savedPlaybackState: SavedPlaybackState?
+        get() = playlistManager?.savedPlaybackState
+        set(value) {
+            playlistManager?.savedPlaybackState = value
+        }
+
+    // Store current groupPath delegated to PlaylistManager
+    internal val currentGroupPath: String?
+        get() = playlistManager?.currentGroupPath
 
     // Cache for file durations (filePath -> duration in ms)
     // According to best practices: cache duration after getting it from player (primary source)
     // or MediaMetadataRetriever (fallback). This avoids repeated calls and improves performance.
     // This cache is synchronized with database via MethodChannel (Flutter side).
-    private val durationCache = mutableMapOf<String, Long>()
-
-    // Callback for getting duration from database (set from Flutter via MethodChannel)
-    // This allows PlayerStateHelper to request durations from database when cache miss
-    private var getDurationFromDbCallback: ((String) -> Long?)? = null
+    // DurationManager handles caching and database retrieval
+    internal val durationManager = DurationManager()
 
     // MethodChannel for communication with Flutter (set from MainActivity)
-    private var methodChannel: io.flutter.plugin.common.MethodChannel? = null
+    internal var methodChannel: io.flutter.plugin.common.MethodChannel? = null
 
     /**
      * Sets callback for getting duration from database.
@@ -121,7 +171,7 @@ class AudioPlayerService : MediaSessionService() {
      * @param callback Callback that takes file path and returns duration in ms, or null
      */
     fun setGetDurationFromDbCallback(callback: ((String) -> Long?)?) {
-        getDurationFromDbCallback = callback
+        durationManager.setGetDurationFromDbCallback(callback)
     }
 
     /**
@@ -173,23 +223,7 @@ class AudioPlayerService : MediaSessionService() {
      * @param filePath Absolute path to the audio file
      * @return Duration in milliseconds, or null if not found
      */
-    fun getDurationForFile(filePath: String): Long? {
-        // Check cache first (fast path)
-        val cached = durationCache[filePath]
-        if (cached != null && cached > 0) {
-            return cached
-        }
-
-        // Cache miss - try database via callback
-        val dbDuration = getDurationFromDbCallback?.invoke(filePath)
-        if (dbDuration != null && dbDuration > 0) {
-            // Cache it for future use
-            durationCache[filePath] = dbDuration
-            return dbDuration
-        }
-
-        return null
-    }
+    fun getDurationForFile(filePath: String): Long? = durationManager.getDurationForFile(filePath)
 
     /**
      * Gets cached duration for file path.
@@ -197,7 +231,7 @@ class AudioPlayerService : MediaSessionService() {
      * @param filePath Absolute path to the audio file
      * @return Cached duration in milliseconds, or null if not cached
      */
-    fun getCachedDuration(filePath: String): Long? = durationCache[filePath]
+    fun getCachedDuration(filePath: String): Long? = durationManager.getCachedDuration(filePath)
 
     /**
      * Saves duration to cache.
@@ -209,32 +243,23 @@ class AudioPlayerService : MediaSessionService() {
         filePath: String,
         durationMs: Long,
     ) {
-        durationCache[filePath] = durationMs
+        durationManager.saveDurationToCache(filePath, durationMs)
     }
 
-    // Audio processing settings (default: all disabled except normalization)
-    private var audioProcessingSettings: AudioProcessingSettings = AudioProcessingSettings.defaults()
+    // Audio processing settings
+    // internal var audioProcessingSettings = AudioProcessingSettings() // Delegated to PlayerConfigurator
 
-    /**
-     * Data class to store playback state before player recreation.
-     */
-    private data class SavedPlaybackState(
-        val currentIndex: Int,
-        val currentPosition: Long,
-        val isPlaying: Boolean,
-    )
+    // Custom ExoPlayer instance (wraps singleton ExoPlayer)
+    // internal var customExoPlayer: ExoPlayer? = null // Delegated to PlayerConfigurator
+    internal var customExoPlayer: ExoPlayer? = null
 
-    // Custom ExoPlayer with processors (if audio processing is enabled)
-    // Note: We keep the singleton exoPlayer for cases without processing
-    private var customExoPlayer: ExoPlayer? = null
-
-    private val playerServiceScope = MainScope()
+    internal val playerServiceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
     // Limited dispatcher for MediaItem creation (max 16 parallel tasks)
     // Increased parallelism for faster loading on modern devices with fast storage
     // Modern devices can handle more concurrent I/O operations efficiently
     @OptIn(ExperimentalCoroutinesApi::class)
-    private val mediaItemDispatcher = Dispatchers.IO.limitedParallelism(16)
+    internal val mediaItemDispatcher = Dispatchers.IO.limitedParallelism(16)
 
     companion object {
         const val ACTION_EXIT_APP = "com.jabook.app.jabook.audio.EXIT_APP"
@@ -248,7 +273,7 @@ class AudioPlayerService : MediaSessionService() {
          * Gets flavor suffix for non-prod builds.
          * Returns formatted flavor name (capitalized) or empty string for prod.
          */
-        private fun getFlavorSuffix(context: Context): String {
+        internal fun getFlavorSuffix(context: Context): String {
             val packageName = context.packageName
             val flavor =
                 when {
@@ -264,576 +289,108 @@ class AudioPlayerService : MediaSessionService() {
 
     /**
      * Flag indicating if service is fully initialized and ready to use.
-     * Service is ready when MediaSession is created and all components are initialized.
+     * Service is ready when MediaLibrarySession is created and all components are initialized.
      */
     @Volatile
-    private var isFullyInitializedFlag = false
+    internal var isFullyInitializedFlag = false
+
+    // Flag to indicate if "Minimal Notification" mode is enabled
+    // If true, artwork loading will be skipped to show a smaller notification
+    internal var isMinimalNotification = false
 
     /**
      * Checks if service is fully initialized and ready to use.
      *
      * @return true if service is ready, false otherwise
      */
-    fun isFullyInitialized(): Boolean = isFullyInitializedFlag && mediaSession != null
+    fun isFullyInitialized(): Boolean = isFullyInitializedFlag && (mediaLibrarySession != null || mediaSession != null)
 
     /**
-     * Gets the MediaSession instance.
+     * Gets the MediaLibrarySession instance.
      * Used by AudioPlayerMethodHandler to check if service is fully ready.
      */
-    fun getMediaSession(): MediaSession? = mediaSession
+    fun getMediaSession(): MediaSession? = mediaLibrarySession ?: mediaSession
 
+    /**
+     * Returns the single top activity. It is used by the notification when the app task is
+     * active and an activity is in the fore or background.
+     *
+     * Tapping the notification then typically should trigger a single top activity. This way, the
+     * user navigates to the previous activity when pressing back.
+     *
+     * Based on Media3 DemoPlaybackService example.
+     */
+    internal fun getSingleTopActivity(): PendingIntent? {
+        val immutableFlag =
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                PendingIntent.FLAG_IMMUTABLE
+            } else {
+                0
+            }
+        return PendingIntent.getActivity(
+            this,
+            0,
+            Intent(this, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                putExtra("open_player", true) // Signal to Flutter to open player screen
+            },
+            immutableFlag or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
+    }
+
+    /**
+     * Returns a back stacked session activity that is used by the notification when the service is
+     * running standalone as a foreground service. This is typically the case after the app has been
+     * dismissed from the recent tasks, or after automatic playback resumption.
+     *
+     * Typically, a playback activity should be started with a stack of activities underneath. This
+     * way, when pressing back, the user doesn't land on the home screen of the device, but on an
+     * activity defined in the back stack.
+     *
+     * Based on Media3 DemoPlaybackService example.
+     * Uses TaskStackBuilder to create proper back stack: MainActivity -> (Player Screen via Flutter)
+     */
+    internal fun getBackStackedActivity(): PendingIntent? {
+        val immutableFlag =
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                PendingIntent.FLAG_IMMUTABLE
+            } else {
+                0
+            }
+        return TaskStackBuilder.create(this).run {
+            // Add MainActivity to back stack
+            addNextIntent(
+                Intent(this@AudioPlayerService, MainActivity::class.java),
+            )
+            // MainActivity will handle opening player screen via Flutter (open_player flag)
+            // Flutter navigation is handled in MainActivity.onNewIntent() and onResume()
+            getPendingIntent(0, immutableFlag or PendingIntent.FLAG_UPDATE_CURRENT)
+        }
+    }
+
+    @OptIn(UnstableApi::class) // MediaSessionService.setListener
     override fun onCreate() {
         super.onCreate()
         instance = this
 
-        val onCreateStartTime = System.currentTimeMillis()
-        android.util.Log.d("AudioPlayerService", "onCreate started")
+        // Set MediaSessionService.Listener for handling foreground service start exceptions
+        // This is required for Android 12+ when system doesn't allow foreground service start
+        setListener(MediaSessionServiceListener(this))
 
-        // Initialize NotificationHelper FIRST - it's needed for startForeground()
-        notificationHelper = NotificationHelper(this)
+        // Set custom MediaNotification.Provider to handle "Minimal Notification" mode
+        // We use the DefaultMediaNotificationProvider but intercept Bitmap loading
+        setMediaNotificationProvider(AudioPlayerNotificationProvider(this))
 
-        // CRITICAL FIX: Call startForeground() IMMEDIATELY for ALL Android 8.0+ (O and above)
-        // Android 8.0+ requires startForeground() within 5 seconds or service will be killed
-        // This MUST be called FIRST, before any other operations, to prevent crashes
-        // This prevents crash: "Context.startForegroundService() did not then call Service.startForeground()"
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) { // Android 8.0+
-            try {
-                // Create notification BEFORE calling startForeground() (required)
-                val tempNotification =
-                    notificationHelper?.createMinimalNotification()
-                        ?: throw IllegalStateException("NotificationHelper not initialized")
-                startForeground(NotificationHelper.NOTIFICATION_ID, tempNotification)
-                android.util.Log.d(
-                    "AudioPlayerService",
-                    "startForeground() called immediately for Android ${Build.VERSION.SDK_INT} (critical fix)",
-                )
-            } catch (e: Exception) {
-                android.util.Log.e(
-                    "AudioPlayerService",
-                    "Failed to call startForeground() immediately",
-                    e,
-                )
-                // Try fallback notification
-                try {
-                    val fallbackNotification =
-                        notificationHelper?.createFallbackNotification()
-                            ?: throw IllegalStateException("NotificationHelper not initialized")
-                    startForeground(NotificationHelper.NOTIFICATION_ID, fallbackNotification)
-                    android.util.Log.w("AudioPlayerService", "Used fallback notification after exception")
-                } catch (e2: Exception) {
-                    android.util.Log.e(
-                        "AudioPlayerService",
-                        "CRITICAL: Failed to call startForeground() with fallback - service may crash",
-                        e2,
-                    )
-                    // Service will likely crash, but we tried our best
-                }
-            }
-        }
-
-        try {
-            // Check Hilt initialization before using @Inject fields
-            // This prevents crashes if Hilt is not ready
-            // CRITICAL: For local files, we don't need cache, so we can proceed even if cache is slow
-            try {
-                if (!::exoPlayer.isInitialized) {
-                    android.util.Log.w("AudioPlayerService", "ExoPlayer not initialized, waiting...")
-                    throw IllegalStateException("ExoPlayer not ready")
-                }
-                // Cache is optional - for local files it's not used, so we don't block on it
-                // But we still check it to ensure Hilt is ready
-                if (!::mediaCache.isInitialized) {
-                    android.util.Log.w("AudioPlayerService", "MediaCache not initialized yet (may be slow), but continuing for local files")
-                    // Don't throw - cache is not needed for local files
-                }
-            } catch (e: UninitializedPropertyAccessException) {
-                ErrorHandler.handleGeneralError("AudioPlayerService", e, "Hilt not initialized")
-                throw IllegalStateException("Hilt dependencies not ready", e)
-            }
-
-            // Validate Android 14+ requirements before initialization (fast check)
-            // These checks are lightweight and should not block initialization
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                if (!ErrorHandler.validateAndroid14Requirements(this)) {
-                    android.util.Log.e("AudioPlayerService", "Android 14+ requirements validation failed")
-                    throw IllegalStateException("Android 14+ requirements not met")
-                }
-            }
-
-            // Validate Color OS specific requirements (if applicable) - fast check
-            if (ErrorHandler.isColorOS()) {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                    if (!ErrorHandler.validateColorOSRequirements(this)) {
-                        android.util.Log.e("AudioPlayerService", "Color OS requirements validation failed")
-                        throw IllegalStateException("Color OS requirements not met")
-                    }
-                }
-                android.util.Log.d("AudioPlayerService", "Color OS detected, special handling enabled")
-            }
-
-            // Inspired by lissen-android: minimize synchronous operations in onCreate()
-            // Hilt dependencies (ExoPlayer and Cache) are injected automatically
-            // They are created lazily on first access, not in onCreate()
-
-            // Configure ExoPlayer (already created via Hilt, accessed lazily)
-            // This is lightweight - just adding listener and setting flags
-            configurePlayer()
-
-            // Create MediaSessionManager with callbacks for play/pause and rewind/forward
-            // Note: MediaSession automatically handles play/pause through Player,
-            // but we intercept these commands to ensure notification is updated
-            mediaSessionManager =
-                MediaSessionManager(
-                    this,
-                    getActivePlayer(),
-                    playCallback = {
-                        android.util.Log.d("AudioPlayerService", "MediaSession play callback called")
-                        play()
-                        // Update notification immediately to show pause button
-                        notificationManager?.updateNotification()
-                    },
-                    pauseCallback = {
-                        android.util.Log.d("AudioPlayerService", "MediaSession pause callback called")
-                        pause()
-                        // Update notification immediately to show play button
-                        notificationManager?.updateNotification()
-                    },
-                )
-            mediaSessionManager?.setCallbacks(
-                rewindCallback = {
-                    // Use current rewind duration from MediaSessionManager
-                    val duration = mediaSessionManager?.getRewindDuration() ?: 15L
-                    rewind(duration.toInt())
-                },
-                forwardCallback = {
-                    // Use current forward duration from MediaSessionManager
-                    val duration = mediaSessionManager?.getForwardDuration() ?: 30L
-                    forward(duration.toInt())
-                },
-            )
-
-            // Create MediaSession once in onCreate (inspired by lissen-android)
-            // MediaSessionService will use it via onGetSession()
-            mediaSession = mediaSessionManager!!.getMediaSession()
-            android.util.Log.i("AudioPlayerService", "MediaSession created, session: ${mediaSession != null}")
-
-            // Create notification manager with MediaSession
-            // Get skip durations from MediaSessionManager (uses actual settings: book-specific or global)
-            // MediaSessionManager is initialized with defaults, but will be updated when settings are applied
-            val currentRewindSeconds =
-                mediaSessionManager?.getRewindDuration()
-                    ?: throw IllegalStateException("MediaSessionManager not initialized")
-            val currentForwardSeconds =
-                mediaSessionManager?.getForwardDuration()
-                    ?: throw IllegalStateException("MediaSessionManager not initialized")
-
-            notificationManager =
-                NotificationManager(
-                    context = this,
-                    player = getActivePlayer(),
-                    mediaSession = mediaSession,
-                    metadata = currentMetadata,
-                    embeddedArtworkPath = embeddedArtworkPath,
-                    rewindSeconds = currentRewindSeconds,
-                    forwardSeconds = currentForwardSeconds,
-                )
-
-            // Update notification with full media controls after MediaSession is created
-            // This replaces the minimal notification used for startForeground()
-            // Do this asynchronously to avoid blocking onCreate() - notification update can happen in background
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                // Post notification update to handler to avoid blocking onCreate()
-                android.os.Handler(android.os.Looper.getMainLooper()).post {
-                    try {
-                        notificationManager?.updateNotification()
-                        android.util.Log.d("AudioPlayerService", "Notification updated with media controls")
-                    } catch (e: Exception) {
-                        android.util.Log.w("AudioPlayerService", "Failed to update notification, using minimal notification", e)
-                        // Continue with minimal notification - service is still functional
-                    }
-                }
-            }
-
-            // Initialize playback timer (inspired by lissen-android)
-            playbackTimer = PlaybackTimer(this, getActivePlayer())
-
-            // Initialize inactivity timer for automatic resource cleanup
-            inactivityTimer =
-                InactivityTimer(
-                    context = this,
-                    player = getActivePlayer(),
-                    onTimerExpired = {
-                        android.util.Log.i("AudioPlayerService", "Inactivity timer expired, unloading player")
-                        // Check if service is still alive before unloading
-                        if (instance != null && isFullyInitializedFlag) {
-                            unloadPlayerDueToInactivity()
-                        } else {
-                            android.util.Log.w("AudioPlayerService", "Service already destroyed, skipping unload")
-                        }
-                    },
-                )
-
-            // ExoPlayer manages AudioFocus automatically when handleAudioFocus=true
-            // No need for manual AudioFocus management
-
-            // Initialize SleepTimerManager
-            sleepTimerManager =
-                SleepTimerManager(
-                    context = this,
-                    packageName = packageName,
-                    playerServiceScope = playerServiceScope,
-                    getActivePlayer = { getActivePlayer() },
-                    sendBroadcast = { sendBroadcast(it) },
-                )
-
-            // Restore sleep timer state after service is initialized
-            sleepTimerManager?.restoreTimerState()
-
-            // Initialize PlaylistManager
-            // Note: playerListener is created later, so we use a callback that will be set when listener is ready
-            playlistManager =
-                PlaylistManager(
-                    context = this,
-                    mediaCache = mediaCache,
-                    getActivePlayer = { getActivePlayer() },
-                    getNotificationManager = { notificationManager },
-                    playerServiceScope = playerServiceScope,
-                    mediaItemDispatcher = mediaItemDispatcher,
-                    getFlavorSuffix = { Companion.getFlavorSuffix(this) },
-                    setPendingTrackSwitchDeferred = { deferred ->
-                        // Set deferred in PlayerListener when it's available
-                        playerListener?.setPendingTrackSwitchDeferred(deferred)
-                            ?: run {
-                                android.util.Log.w(
-                                    "AudioPlayerService",
-                                    "PlayerListener not yet initialized, cannot set pendingTrackSwitchDeferred",
-                                )
-                            }
-                    },
-                )
-
-            // Initialize PlaybackController
-            playbackController =
-                PlaybackController(
-                    getActivePlayer = { getActivePlayer() },
-                    playerServiceScope = playerServiceScope,
-                    resetInactivityTimer = { inactivityTimer?.resetTimer() },
-                )
-
-            // Initialize PositionManager
-            positionManager =
-                PositionManager(
-                    context = this,
-                    getActivePlayer = { getActivePlayer() },
-                    packageName = packageName,
-                    sendBroadcast = { sendBroadcast(it) },
-                )
-
-            // Initialize MetadataManager
-            metadataManager =
-                MetadataManager(
-                    context = this,
-                    getActivePlayer = { getActivePlayer() },
-                    getNotificationManager = { notificationManager },
-                    getEmbeddedArtworkPath = { embeddedArtworkPath },
-                    setEmbeddedArtworkPath = { embeddedArtworkPath = it },
-                    getCurrentMetadata = { currentMetadata },
-                    setCurrentMetadata = { currentMetadata = it },
-                )
-
-            // Initialize PlayerStateHelper
-            playerStateHelper =
-                PlayerStateHelper(
-                    getActivePlayer = { getActivePlayer() },
-                    getDurationCache = { durationCache },
-                    getDurationForFile = { filePath -> getDurationForFile(filePath) },
-                    getLastCompletedTrackIndex = { lastCompletedTrackIndex },
-                    getActualPlaylistSize = { currentFilePaths?.size ?: 0 },
-                    getActualTrackIndex = { actualTrackIndex },
-                    getCurrentFilePaths = { currentFilePaths },
-                )
-
-            // Try to get MethodChannel from MainActivity if not set yet
-            if (methodChannel == null) {
-                methodChannel =
-                    com.jabook.app.jabook.MainActivity
-                        .getAudioPlayerMethodChannel()
-                android.util.Log.d(
-                    "AudioPlayerService",
-                    "Retrieved MethodChannel from MainActivity: ${methodChannel != null}",
-                )
-            }
-
-            // Initialize PlaybackPositionSaver
-            // Note: methodChannel may be null at this point (set later in MainActivity)
-            // It will be updated via setMethodChannel() when MainActivity configures Flutter engine
-            android.util.Log.d(
-                "AudioPlayerService",
-                "Creating PlaybackPositionSaver: methodChannel=${methodChannel != null}",
-            )
-            playbackPositionSaver =
-                PlaybackPositionSaver(
-                    getActivePlayer = { getActivePlayer() },
-                    methodChannel = methodChannel,
-                    context = this,
-                    getGroupPath = { currentGroupPath },
-                    isPlaylistLoading = { isPlaylistLoading },
-                    getActualTrackIndex = { actualTrackIndex },
-                    getCurrentFilePaths = { currentFilePaths },
-                    getDurationForFile = { filePath -> getDurationForFile(filePath) },
-                )
-            android.util.Log.i(
-                "AudioPlayerService",
-                "PlaybackPositionSaver created: ${playbackPositionSaver != null}, methodChannel=${methodChannel != null}",
-            )
-
-            // Initialize UnloadManager
-            unloadManager =
-                UnloadManager(
-                    context = this,
-                    getActivePlayer = { getActivePlayer() },
-                    getCustomExoPlayer = { customExoPlayer },
-                    releaseCustomExoPlayer = {
-                        customExoPlayer?.release()
-                        customExoPlayer = null
-                    },
-                    getMediaSession = { mediaSession },
-                    releaseMediaSession = {
-                        mediaSession?.release()
-                        mediaSession = null
-                    },
-                    getMediaSessionManager = { mediaSessionManager },
-                    releaseMediaSessionManager = {
-                        mediaSessionManager?.release()
-                        mediaSessionManager = null
-                    },
-                    getInactivityTimer = { inactivityTimer },
-                    releaseInactivityTimer = {
-                        inactivityTimer?.release()
-                        inactivityTimer = null
-                    },
-                    getPlaybackTimer = { playbackTimer },
-                    releasePlaybackTimer = {
-                        playbackTimer?.release()
-                        playbackTimer = null
-                    },
-                    getCurrentMetadata = { currentMetadata },
-                    setCurrentMetadata = { currentMetadata = it },
-                    getEmbeddedArtworkPath = { embeddedArtworkPath },
-                    setEmbeddedArtworkPath = { embeddedArtworkPath = it },
-                    saveCurrentPosition = { saveCurrentPosition() },
-                    stopForeground = { flags -> stopForeground(flags) },
-                    stopSelf = { stopSelf() },
-                )
-
-            // Mark service as fully initialized after all components are ready
-            // MediaSession is created, so service is ready to use
-            isFullyInitializedFlag = true
-
-            val onCreateDuration = System.currentTimeMillis() - onCreateStartTime
-            android.util.Log.i(
-                "AudioPlayerService",
-                "Service onCreate completed successfully in ${onCreateDuration}ms, fully initialized: $isFullyInitializedFlag",
-            )
-        } catch (e: Exception) {
-            ErrorHandler.handleGeneralError("AudioPlayerService", e, "Service initialization failed")
-            isFullyInitializedFlag = false
-            throw e
-        }
-    }
-
-    override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? {
-        // Return MediaSession for MediaSessionService
-        // MediaSessionService automatically manages foreground service and notifications
-        // Inspired by lissen-android: return already created session from onCreate()
-        android.util.Log.i(
-            "AudioPlayerService",
-            "onGetSession() called by: ${controllerInfo.packageName}, mediaSession: ${mediaSession != null}",
-        )
-        if (mediaSession == null) {
-            android.util.Log.w("AudioPlayerService", "MediaSession is null in onGetSession(), creating fallback")
-            // Fallback: create session if somehow it wasn't created in onCreate()
-            // This should not happen in normal flow, but provides safety
-            mediaSession = mediaSessionManager?.getMediaSession()
-            android.util.Log.w("AudioPlayerService", "Fallback MediaSession created: ${mediaSession != null}")
-        }
-        return mediaSession
+        // Initialize service components using extracted initializer
+        // This handles all complex logic previously directly in onCreate
+        AudioPlayerServiceInitializer(this).initialize()
     }
 
     override fun onStartCommand(
         intent: Intent?,
         flags: Int,
         startId: Int,
-    ): Int {
-        super.onStartCommand(intent, flags, startId)
-
-        // CRITICAL: For ALL Android 8.0+, ensure startForeground() is called
-        // This is especially important for problematic devices (Xiaomi, etc.)
-        // If onCreate() didn't call it (e.g., service was restarted), call it here
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) { // Android 8.0+
-            try {
-                // Check if notification manager is ready
-                if (notificationManager != null) {
-                    // Update notification (this will call startForeground if needed)
-                    notificationManager?.updateNotification()
-                } else {
-                    // Fallback: create minimal notification and call startForeground
-                    val tempNotification =
-                        notificationHelper?.createMinimalNotification()
-                            ?: throw IllegalStateException("NotificationHelper not initialized")
-                    startForeground(NotificationHelper.NOTIFICATION_ID, tempNotification)
-                    android.util.Log.d(
-                        "AudioPlayerService",
-                        "startForeground() called in onStartCommand for Android ${Build.VERSION.SDK_INT}",
-                    )
-                }
-            } catch (e: Exception) {
-                android.util.Log.w(
-                    "AudioPlayerService",
-                    "Failed to ensure startForeground() in onStartCommand",
-                    e,
-                )
-                // Try fallback notification
-                try {
-                    val fallbackNotification =
-                        notificationHelper?.createFallbackNotification()
-                            ?: throw IllegalStateException("NotificationHelper not initialized")
-                    startForeground(NotificationHelper.NOTIFICATION_ID, fallbackNotification)
-                    android.util.Log.w(
-                        "AudioPlayerService",
-                        "Used fallback notification in onStartCommand after exception",
-                    )
-                } catch (e2: Exception) {
-                    android.util.Log.e(
-                        "AudioPlayerService",
-                        "CRITICAL: Failed to call startForeground() in onStartCommand - service may crash",
-                        e2,
-                    )
-                }
-            }
-        }
-
-        // Handle actions from notification and timer
-        // CRITICAL: Enhanced logging for Play/Pause to diagnose Samsung issues
-        val action = intent?.action
-        android.util.Log.d(
-            "AudioPlayerService",
-            "onStartCommand called with action: $action, intent: $intent, flags: $flags, startId: $startId",
-        )
-
-        when (action) {
-            com.jabook.app.jabook.audio.NotificationManager.ACTION_PLAY -> {
-                android.util.Log.i(
-                    "AudioPlayerService",
-                    "ACTION_PLAY received from notification. Current state: playWhenReady=${getActivePlayer().playWhenReady}, " +
-                        "playbackState=${getActivePlayer().playbackState}",
-                )
-                try {
-                    play()
-                    android.util.Log.d("AudioPlayerService", "play() called successfully, updating notification")
-                    // Immediately update notification to show pause button
-                    // This provides instant feedback before player state actually changes
-                    notificationManager?.updateNotification()
-                } catch (e: Exception) {
-                    android.util.Log.e("AudioPlayerService", "Failed to execute ACTION_PLAY", e)
-                }
-            }
-            com.jabook.app.jabook.audio.NotificationManager.ACTION_PAUSE -> {
-                android.util.Log.i(
-                    "AudioPlayerService",
-                    "ACTION_PAUSE received from notification. Current state: playWhenReady=${getActivePlayer().playWhenReady}, " +
-                        "playbackState=${getActivePlayer().playbackState}",
-                )
-                try {
-                    pause()
-                    android.util.Log.d("AudioPlayerService", "pause() called successfully, updating notification")
-                    // Immediately update notification to show play button
-                    // This provides instant feedback before player state actually changes
-                    notificationManager?.updateNotification()
-                } catch (e: Exception) {
-                    android.util.Log.e("AudioPlayerService", "Failed to execute ACTION_PAUSE", e)
-                }
-            }
-            com.jabook.app.jabook.audio.NotificationManager.ACTION_NEXT -> {
-                android.util.Log.d("AudioPlayerService", "User action detected from notification: NEXT, resetting inactivity timer")
-                next()
-            }
-            com.jabook.app.jabook.audio.NotificationManager.ACTION_PREVIOUS -> {
-                android.util.Log.d("AudioPlayerService", "User action detected from notification: PREVIOUS, resetting inactivity timer")
-                previous()
-            }
-            com.jabook.app.jabook.audio.NotificationManager.ACTION_REWIND -> {
-                android.util.Log.d("AudioPlayerService", "User action detected from notification: REWIND, resetting inactivity timer")
-                val rewindSeconds = mediaSessionManager?.getRewindDuration()?.toInt() ?: 15
-                rewind(rewindSeconds)
-            }
-            com.jabook.app.jabook.audio.NotificationManager.ACTION_FORWARD -> {
-                android.util.Log.d("AudioPlayerService", "User action detected from notification: FORWARD, resetting inactivity timer")
-                val forwardSeconds = mediaSessionManager?.getForwardDuration()?.toInt() ?: 30
-                forward(forwardSeconds)
-            }
-            com.jabook.app.jabook.audio.NotificationManager.ACTION_STOP -> {
-                android.util.Log.d("AudioPlayerService", "User action detected from notification: STOP")
-                stopAndCleanup()
-                stopForeground(STOP_FOREGROUND_REMOVE)
-                stopSelf()
-            }
-
-            // Handle timer actions (inspired by lissen-android)
-            PlaybackTimer.ACTION_TIMER_EXPIRED -> {
-                // Timer expired - playback should already be paused by PlaybackTimer
-                android.util.Log.d("AudioPlayerService", "Timer expired, playback paused")
-            }
-            InactivityTimer.ACTION_INACTIVITY_TIMER_EXPIRED -> {
-                // Inactivity timer expired - unload player
-                android.util.Log.i("AudioPlayerService", "Inactivity timer expired, unloading player")
-                unloadPlayerDueToInactivity()
-            }
-            ACTION_EXIT_APP -> {
-                // Sleep timer expired - stop service and exit app
-                // Only process if service is fully initialized to avoid stopping during initialization
-                android.util.Log.d(
-                    "AudioPlayerService",
-                    "ACTION_EXIT_APP received: isFullyInitialized=$isFullyInitializedFlag, mediaSession=${mediaSession != null}",
-                )
-                if (isFullyInitializedFlag && mediaSession != null) {
-                    android.util.Log.i("AudioPlayerService", "Exit app requested by sleep timer, service is initialized, proceeding")
-                    try {
-                        stopAndCleanup()
-                        stopForeground(STOP_FOREGROUND_REMOVE)
-                        stopSelf()
-                        // Send broadcast to finish activity
-                        val exitIntent =
-                            Intent("com.jabook.app.jabook.EXIT_APP").apply {
-                                setPackage(packageName) // Set package for explicit broadcast
-                            }
-                        android.util.Log.d("AudioPlayerService", "Sending EXIT_APP broadcast")
-                        sendBroadcast(exitIntent)
-                        android.util.Log.i("AudioPlayerService", "EXIT_APP broadcast sent successfully")
-                    } catch (e: Exception) {
-                        android.util.Log.e("AudioPlayerService", "Error during exit app cleanup", e)
-                        // Try to stop service anyway
-                        try {
-                            stopSelf()
-                        } catch (e2: Exception) {
-                            android.util.Log.e("AudioPlayerService", "Failed to stop service", e2)
-                        }
-                    }
-                } else {
-                    android.util.Log.w(
-                        "AudioPlayerService",
-                        "Exit app requested but service not initialized yet (isFullyInitialized=$isFullyInitializedFlag, mediaSession=${mediaSession != null}), ignoring to prevent white screen",
-                    )
-                    // Don't process exit request if service is not ready - this prevents
-                    // accidental app exit during initialization
-                }
-            }
-        }
-
-        // Return START_STICKY to restart service if killed by system
-        // This is important for problematic devices that kill background services
-        return START_STICKY
-    }
+    ): Int = intentHandler?.onStartCommand(intent, flags, startId) ?: super.onStartCommand(intent, flags, startId)
 
     /**
      * Starts sleep timer.
@@ -862,8 +419,10 @@ class AudioPlayerService : MediaSessionService() {
 
     /**
      * Player event listener instance.
+     * Delegated to PlayerConfigurator.
      */
-    private var playerListener: PlayerListener? = null
+    internal val playerListener: PlayerListener?
+        get() = playerConfigurator?.playerListener
 
     /**
      * Configures ExoPlayer instance (already created via Hilt).
@@ -874,50 +433,9 @@ class AudioPlayerService : MediaSessionService() {
      *
      * Inspired by lissen-android: lightweight configuration, no heavy operations.
      */
-    private fun configurePlayer() {
-        try {
-            // Match lissen-android: just add listener, no additional configuration
-            // ExoPlayer is already configured in MediaModule with AudioAttributes
-            val activePlayer = getActivePlayer()
-
-            // Create PlayerListener with dependencies
-            playerListener =
-                PlayerListener(
-                    context = this,
-                    getActivePlayer = { getActivePlayer() },
-                    getNotificationManager = { notificationManager },
-                    getIsBookCompleted = { isBookCompleted },
-                    setIsBookCompleted = { isBookCompleted = it },
-                    getSleepTimerEndOfChapter = { sleepTimerManager?.sleepTimerEndOfChapter ?: false },
-                    getSleepTimerEndTime = { sleepTimerManager?.sleepTimerEndTime ?: 0L },
-                    cancelSleepTimer = { sleepTimerManager?.cancelSleepTimer() },
-                    sendTimerExpiredEvent = { /* Handled by SleepTimerManager */ },
-                    saveCurrentPosition = { saveCurrentPosition() },
-                    startSleepTimerCheck = { sleepTimerManager?.startSleepTimerCheck() },
-                    getEmbeddedArtworkPath = { embeddedArtworkPath },
-                    setEmbeddedArtworkPath = { embeddedArtworkPath = it },
-                    getCurrentMetadata = { currentMetadata },
-                    setLastCompletedTrackIndex = { index -> lastCompletedTrackIndex = index },
-                    getLastCompletedTrackIndex = { lastCompletedTrackIndex },
-                    getActualPlaylistSize = { currentFilePaths?.size ?: 0 },
-                    playbackPositionSaver = playbackPositionSaver,
-                    updateActualTrackIndex = { index -> updateActualTrackIndex(index) },
-                    isPlaylistLoading = { isPlaylistLoading },
-                )
-
-            activePlayer.addListener(playerListener!!)
-
-            // Match lissen-android: don't set WakeMode or ScrubbingMode
-            // These may interfere with AudioFocus handling
-
-            // Initialize repeat and shuffle modes (lissen-android doesn't set these either, but it's safe)
-            activePlayer.repeatMode = Player.REPEAT_MODE_OFF
-            activePlayer.shuffleModeEnabled = false
-
-            android.util.Log.d("AudioPlayerService", "ExoPlayer configured (provided via Hilt)")
-        } catch (e: Exception) {
-            android.util.Log.e("AudioPlayerService", "Failed to configure ExoPlayer", e)
-            throw e
+    internal fun configurePlayer() {
+        playerConfigurator?.configurePlayer() ?: run {
+            android.util.Log.e("AudioPlayerService", "PlayerConfigurator not initialized")
         }
     }
 
@@ -932,188 +450,15 @@ class AudioPlayerService : MediaSessionService() {
      */
     @OptIn(UnstableApi::class)
     fun configureExoPlayer(settings: AudioProcessingSettings) {
-        try {
-            // Store settings
-            audioProcessingSettings = settings
-
-            // Create processor chain
-            val processors = AudioProcessorFactory.createProcessorChain(settings)
-
-            android.util.Log.d(
-                "AudioPlayerService",
-                "Audio processing settings updated: " +
-                    "normalizeVolume=${settings.normalizeVolume}, " +
-                    "volumeBoost=${settings.volumeBoostLevel}, " +
-                    "drc=${settings.drcLevel}, " +
-                    "speechEnhancer=${settings.speechEnhancer}, " +
-                    "autoLeveling=${settings.autoVolumeLeveling}, " +
-                    "processors=${processors.size}",
-            )
-
-            // Save current playback state before recreating player
-            // BUT only if playlist is not currently loading (prevent saving stale state)
-            val activePlayer = getActivePlayer()
-            val wasPlaying = activePlayer.isPlaying
-            val currentIndex = activePlayer.currentMediaItemIndex
-            val currentPosition = activePlayer.currentPosition
-            val hasPlaylist = activePlayer.mediaItemCount > 0
-
-            // Save state if we have a playlist AND playlist is not currently loading
-            // This prevents saving incorrect state when Flutter is setting a new playlist
-            val filePathsForSave = currentFilePaths
-            if (hasPlaylist && filePathsForSave != null && filePathsForSave.isNotEmpty() && !isPlaylistLoading) {
-                savedPlaybackState =
-                    SavedPlaybackState(
-                        currentIndex = currentIndex,
-                        currentPosition = currentPosition,
-                        isPlaying = wasPlaying,
-                    )
-                android.util.Log.d(
-                    "AudioPlayerService",
-                    "Saved playback state before player recreation: index=$currentIndex, position=$currentPosition, isPlaying=$wasPlaying",
-                )
-            } else if (isPlaylistLoading) {
-                android.util.Log.d(
-                    "AudioPlayerService",
-                    "Skipping state save: playlist is currently loading (index=$currentIndex would be stale)",
-                )
-            }
-
-            // If processors are needed, create custom ExoPlayer
-            if (processors.isNotEmpty()) {
-                // Release old custom player if exists
-                customExoPlayer?.release()
-                customExoPlayer = null
-
-                // Create new ExoPlayer with processors
-                customExoPlayer = MediaModule.createExoPlayerWithProcessors(this, settings)
-
-                // Copy listener from singleton player
-                playerListener?.let { customExoPlayer?.addListener(it) }
-
-                android.util.Log.i(
-                    "AudioPlayerService",
-                    "Created custom ExoPlayer with ${processors.size} AudioProcessors",
-                )
-            } else {
-                // No processors needed, release custom player if exists
-                customExoPlayer?.release()
-                customExoPlayer = null
-                android.util.Log.d("AudioPlayerService", "No processors needed, using singleton ExoPlayer")
-            }
-
-            // Update NotificationManager with new player reference
-            notificationManager?.updatePlayer(getActivePlayer())
-            android.util.Log.d("AudioPlayerService", "Updated NotificationManager with new player reference")
-
-            // Restore playlist and position if we had a playlist before
-            // BUT only if we're not already loading a playlist (prevent conflicts)
-            // CRITICAL: Also check if playlist was loaded recently (within 2 seconds) - if so, don't restore stale state
-            // This prevents restoration of incorrect state after Flutter loads correct playlist
-            val timeSinceLastLoad = System.currentTimeMillis() - lastPlaylistLoadTime
-            val wasRecentlyLoaded = timeSinceLastLoad < 2000L // 2 seconds
-
-            val savedStateForRestore = savedPlaybackState
-            val filePathsForRestore = currentFilePaths
-            if (savedStateForRestore != null &&
-                filePathsForRestore != null &&
-                filePathsForRestore.isNotEmpty() &&
-                !isPlaylistLoading &&
-                !wasRecentlyLoaded
-            ) {
-                android.util.Log.d(
-                    "AudioPlayerService",
-                    "Restoring playlist and position: ${filePathsForRestore.size} items, index=${savedStateForRestore.currentIndex}, position=${savedStateForRestore.currentPosition}",
-                )
-
-                // CRITICAL: Initialize actualTrackIndex from saved state
-                actualTrackIndex = savedStateForRestore.currentIndex.coerceIn(0, filePathsForRestore.size - 1)
-                android.util.Log.d(
-                    "AudioPlayerService",
-                    "Initialized actualTrackIndex to $actualTrackIndex (from savedState.currentIndex=${savedStateForRestore.currentIndex})",
-                )
-
-                // Mark as loading to prevent conflicts
-                isPlaylistLoading = true
-                currentLoadingPlaylist = filePathsForRestore
-
-                // Restore playlist asynchronously
-                playerServiceScope.launch {
-                    try {
-                        playlistManager?.preparePlaybackOptimized(
-                            filePathsForRestore,
-                            currentMetadata,
-                            savedStateForRestore.currentIndex,
-                            savedStateForRestore.currentPosition,
-                        ) ?: throw IllegalStateException("PlaylistManager not initialized")
-
-                        // Position is already applied in preparePlaybackOptimized if firstTrackIndex == savedState.currentIndex
-                        // Only wait for player to be ready and restore playback state
-                        var attempts = 0
-                        while (attempts < 50) {
-                            val newPlayer = getActivePlayer()
-                            if (newPlayer.playbackState == Player.STATE_READY || newPlayer.playbackState == Player.STATE_BUFFERING) {
-                                break
-                            }
-                            delay(100)
-                            attempts++
-                        }
-
-                        // Check if position needs to be applied (if target track differs from first loaded track)
-                        val newPlayer = getActivePlayer()
-                        val firstTrackIndex = savedStateForRestore.currentIndex.coerceIn(0, filePathsForRestore.size - 1)
-                        if (firstTrackIndex != savedStateForRestore.currentIndex &&
-                            newPlayer.mediaItemCount > savedStateForRestore.currentIndex
-                        ) {
-                            newPlayer.seekTo(savedStateForRestore.currentIndex, savedStateForRestore.currentPosition)
-                            android.util.Log.d(
-                                "AudioPlayerService",
-                                "Restored position (target differs from first track): index=${savedStateForRestore.currentIndex}, position=${savedStateForRestore.currentPosition}",
-                            )
-                        } else {
-                            android.util.Log.d(
-                                "AudioPlayerService",
-                                "Position already applied in preparePlaybackOptimized: index=${savedStateForRestore.currentIndex}, position=${savedStateForRestore.currentPosition}",
-                            )
-                        }
-
-                        // Restore playback state
-                        if (savedStateForRestore.isPlaying) {
-                            newPlayer.playWhenReady = true
-                            android.util.Log.d("AudioPlayerService", "Restored playback: playing")
-                        }
-
-                        // Clear saved state
-                        savedPlaybackState = null
-
-                        // Update notification to reflect new player state
-                        notificationManager?.updateNotification()
-                    } catch (e: Exception) {
-                        android.util.Log.e("AudioPlayerService", "Failed to restore playlist after player recreation", e)
-                        savedPlaybackState = null
-                    } finally {
-                        // Clear loading flag when done
-                        isPlaylistLoading = false
-                        currentLoadingPlaylist = null
-                    }
-                }
-            } else if (wasRecentlyLoaded) {
-                android.util.Log.d(
-                    "AudioPlayerService",
-                    "Skipping state restoration: playlist was loaded recently " +
-                        "(${timeSinceLastLoad}ms ago), using Flutter-provided position instead",
-                )
-                savedPlaybackState = null // Clear stale state
-            }
-        } catch (e: Exception) {
-            android.util.Log.e("AudioPlayerService", "Failed to configure ExoPlayer with processors", e)
+        playerConfigurator?.configureExoPlayer(settings) ?: run {
+            android.util.Log.e("AudioPlayerService", "PlayerConfigurator not initialized")
         }
     }
 
     /**
      * Gets the active ExoPlayer instance (custom with processors or singleton).
      */
-    private fun getActivePlayer(): ExoPlayer = customExoPlayer ?: exoPlayer
+    internal fun getActivePlayer(): ExoPlayer = playerConfigurator?.getActivePlayer(exoPlayer) ?: exoPlayer
 
     /**
      * Updates the actual track index from onMediaItemTransition events.
@@ -1121,14 +466,9 @@ class AudioPlayerService : MediaSessionService() {
      *
      * @param index The actual track index from ExoPlayer's onMediaItemTransition event
      */
-    private fun updateActualTrackIndex(index: Int) {
-        if (index >= 0) {
-            actualTrackIndex = index
-            android.util.Log.v(
-                "AudioPlayerService",
-                "Updated actualTrackIndex to $index (from onMediaItemTransition)",
-            )
-        }
+    internal fun updateActualTrackIndex(index: Int) {
+        playlistManager?.actualTrackIndex = index
+        android.util.Log.d("AudioPlayerService", "Updated actualTrackIndex to $index")
     }
 
     /**
@@ -1158,99 +498,16 @@ class AudioPlayerService : MediaSessionService() {
         groupPath: String? = null,
         callback: ((Boolean, Exception?) -> Unit)? = null,
     ) {
-        // Prevent duplicate calls - if playlist is already loading, ignore
-        // This prevents race conditions when Flutter calls setPlaylist multiple times
-        if (isPlaylistLoading) {
-            android.util.Log.w(
-                "AudioPlayerService",
-                "Playlist already loading, ignoring duplicate setPlaylist call: ${filePaths.size} items, initialTrackIndex=$initialTrackIndex",
-            )
-            callback?.invoke(true, null) // Call callback to unblock Flutter
-            return
-        }
-
-        // Clear saved state to prevent restoration from interfering with new playlist
-        // This ensures we use the correct initialTrackIndex from Flutter, not stale saved state
-        savedPlaybackState = null
-
-        // Reset book completion flag when setting new playlist
-        isBookCompleted = false
-        lastCompletedTrackIndex = -1 // Reset saved index for new book
-
-        // CRITICAL: Initialize actualTrackIndex from initialTrackIndex or default to 0
-        // This ensures we have a valid index even before onMediaItemTransition fires
-        actualTrackIndex = initialTrackIndex?.coerceIn(0, filePaths.size - 1) ?: 0
-        android.util.Log.d(
-            "AudioPlayerService",
-            "Initialized actualTrackIndex to $actualTrackIndex (from initialTrackIndex=$initialTrackIndex)",
-        )
-
-        // Clear duration cache when setting new playlist
-        durationCache.clear()
-
-        // Store file paths and groupPath for potential restoration after player recreation
-        currentFilePaths = filePaths
-        currentMetadata = metadata
-        currentGroupPath = groupPath
-
-        // Save groupPath to SharedPreferences for fallback position saving
-        if (groupPath != null) {
-            saveGroupPathToSharedPreferences(groupPath)
-        }
-
-        android.util.Log.d(
-            "AudioPlayerService",
-            "Setting playlist with ${filePaths.size} items, initialTrackIndex=$initialTrackIndex, initialPosition=$initialPosition, groupPath=$groupPath",
-        )
-
-        // Mark as loading and record load time
-        isPlaylistLoading = true
-        currentLoadingPlaylist = filePaths
-        lastPlaylistLoadTime = System.currentTimeMillis()
-
-        playerServiceScope.launch {
-            try {
-                playlistManager?.preparePlaybackOptimized(filePaths, metadata, initialTrackIndex, initialPosition)
-                    ?: throw IllegalStateException("PlaylistManager not initialized")
-                android.util.Log.d("AudioPlayerService", "Playlist prepared successfully")
-
-                // Call callback first to unblock Flutter
-                withContext(Dispatchers.Main) {
-                    callback?.invoke(true, null)
-                }
-
-                // Apply initial position if provided (in background, non-blocking)
-                // NOTE: If firstTrackIndex == initialTrackIndex, position is already applied in preparePlaybackOptimized
-                // Only apply here if target track is different from first loaded track
-                if (initialTrackIndex != null && initialPosition != null && initialPosition > 0) {
-                    val firstTrackIndex = initialTrackIndex.coerceIn(0, filePaths.size - 1)
-                    if (firstTrackIndex != initialTrackIndex) {
-                        android.util.Log.d(
-                            "AudioPlayerService",
-                            "Target track ($initialTrackIndex) differs from first loaded track ($firstTrackIndex), scheduling position application",
-                        )
-                        // Apply position in background without blocking callback
-                        playerServiceScope.launch {
-                            applyInitialPosition(initialTrackIndex, initialPosition)
-                        }
-                    } else {
-                        android.util.Log.d(
-                            "AudioPlayerService",
-                            "Target track ($initialTrackIndex) is first loaded track, position already applied in preparePlaybackOptimized",
-                        )
-                    }
-                }
-            } catch (e: Exception) {
-                android.util.Log.e("AudioPlayerService", "Failed to prepare playback", e)
-                ErrorHandler.handleGeneralError("AudioPlayerService", e, "preparePlayback failed")
-                withContext(Dispatchers.Main) {
-                    callback?.invoke(false, e)
-                }
-            } finally {
-                // Clear loading flag when done
-                isPlaylistLoading = false
-                currentLoadingPlaylist = null
-            }
+        playlistManager?.setPlaylist(
+            filePaths,
+            metadata,
+            initialTrackIndex,
+            initialPosition,
+            groupPath,
+            callback,
+        ) ?: run {
+            android.util.Log.e("AudioPlayerService", "PlaylistManager not initialized")
+            callback?.invoke(false, IllegalStateException("PlaylistManager not initialized"))
         }
     }
 
@@ -1259,199 +516,8 @@ class AudioPlayerService : MediaSessionService() {
      * This is called in background to avoid blocking setPlaylist callback.
      *
      * OPTIMIZATION: If the target track is already loaded as the first track (which is the case
-     * when initialTrackIndex is provided), we can apply the position immediately without waiting
-     * for all tracks to load. This provides a smooth, instant resume experience.
-     *
-     * @param trackIndex Track index to seek to
-     * @param positionMs Position in milliseconds to seek to
+     * when initialTrackIndex is provided), we can apply the position immediately without waiting.
      */
-    private suspend fun applyInitialPosition(
-        trackIndex: Int,
-        positionMs: Long,
-    ) {
-        android.util.Log.d(
-            "AudioPlayerService",
-            "Waiting for player to be ready and track loaded before applying initial position: track=$trackIndex, position=${positionMs}ms",
-        )
-
-        // Check if target track is already the current track (loaded first)
-        val initialPlayer = getActivePlayer()
-        val currentIndex = initialPlayer.currentMediaItemIndex
-        val isTargetTrackAlreadyCurrent = currentIndex == trackIndex
-
-        if (isTargetTrackAlreadyCurrent) {
-            android.util.Log.d(
-                "AudioPlayerService",
-                "Target track $trackIndex is already current track, applying position immediately for smooth resume",
-            )
-        }
-
-        // Wait for player to be ready AND the target track to be loaded
-        var attempts = 0
-        val maxAttempts = 50 // 5 seconds max wait (reduced since we don't need all tracks)
-        var playerReady = false
-        var trackLoaded = false
-
-        while (attempts < maxAttempts) {
-            val checkPlayer = getActivePlayer()
-            val state = checkPlayer.playbackState
-            val mediaItemCount = checkPlayer.mediaItemCount
-            val currentMediaItemIndex = checkPlayer.currentMediaItemIndex
-
-            if (attempts % 10 == 0) { // Log every second
-                android.util.Log.v(
-                    "AudioPlayerService",
-                    "Waiting for player ready and track loaded: attempt=$attempts, state=$state, mediaItemCount=$mediaItemCount, currentIndex=$currentMediaItemIndex, needTrack=$trackIndex",
-                )
-            }
-
-            // Check if player is ready
-            val isPlayerReady = state == Player.STATE_READY || state == Player.STATE_BUFFERING
-            // Check if target track is loaded
-            val isTrackLoaded = mediaItemCount > trackIndex
-
-            // OPTIMIZATION: If target track is already current, we can apply position immediately
-            // without waiting for all tracks. This provides instant, smooth resume.
-            // Only wait for all tracks if target track is NOT the first loaded track.
-            val expectedTrackCount = currentFilePaths?.size
-            val shouldWaitForAllTracks = !isTargetTrackAlreadyCurrent && expectedTrackCount != null
-            val allTracksLoaded = !shouldWaitForAllTracks || mediaItemCount >= expectedTrackCount
-
-            if (isPlayerReady && isTrackLoaded && allTracksLoaded) {
-                playerReady = true
-                trackLoaded = true
-                android.util.Log.d(
-                    "AudioPlayerService",
-                    "Player is ready, track $trackIndex is loaded (current=$currentMediaItemIndex, mediaItemCount=$mediaItemCount), applying initial position immediately",
-                )
-                break
-            }
-
-            // Log progress every second
-            if (attempts % 10 == 0) {
-                android.util.Log.v(
-                    "AudioPlayerService",
-                    "Waiting: ready=$isPlayerReady, trackLoaded=$isTrackLoaded, allTracksLoaded=$allTracksLoaded, currentIndex=$currentMediaItemIndex",
-                )
-            }
-
-            delay(100)
-            attempts++
-        }
-
-        if (!playerReady || !trackLoaded) {
-            android.util.Log.w(
-                "AudioPlayerService",
-                "Player not ready or track not loaded after $maxAttempts attempts: playerReady=$playerReady, trackLoaded=$trackLoaded, will try to apply position anyway",
-            )
-        }
-
-        val expectedTrackCount = currentFilePaths?.size
-        if (expectedTrackCount != null) {
-            val finalPlayer = getActivePlayer()
-            val finalCount = finalPlayer.mediaItemCount
-            if (finalCount != expectedTrackCount) {
-                android.util.Log.w(
-                    "AudioPlayerService",
-                    "Track count mismatch: expected=$expectedTrackCount, actual=$finalCount (possible duplicates detected)",
-                )
-            }
-        }
-
-        // Seek to saved position
-        val player = getActivePlayer()
-        val currentState = player.playbackState
-        val currentMediaItemIndex = player.currentMediaItemIndex
-        var currentMediaItemCount = player.mediaItemCount
-
-        // OPTIMIZATION: If target track is already current, apply position immediately
-        // This provides instant, smooth resume without waiting for all tracks
-        if (currentMediaItemIndex == trackIndex) {
-            android.util.Log.d(
-                "AudioPlayerService",
-                "Target track $trackIndex is already current, applying position immediately for smooth resume",
-            )
-            // Small delay to ensure player is stable
-            delay(100)
-        } else {
-            // If target track is not current, we need to wait a bit more and potentially
-            // wait for all tracks to prevent playlist resets during seekTo
-            android.util.Log.d(
-                "AudioPlayerService",
-                "Target track $trackIndex is not current (current=$currentMediaItemIndex), waiting for stability",
-            )
-            delay(200) // Small delay to let parallel loading stabilize
-
-            // Only wait for all tracks if target is not the first loaded track
-            if (expectedTrackCount != null && currentMediaItemCount < expectedTrackCount) {
-                android.util.Log.d(
-                    "AudioPlayerService",
-                    "Waiting for all tracks to load: current=$currentMediaItemCount, expected=$expectedTrackCount",
-                )
-                var waitAttempts = 0
-                val maxWaitAttempts = 20 // 2 seconds (reduced for faster resume)
-                while (waitAttempts < maxWaitAttempts && currentMediaItemCount < expectedTrackCount) {
-                    delay(100)
-                    val checkPlayer = getActivePlayer()
-                    val newCount = checkPlayer.mediaItemCount
-                    if (newCount >= expectedTrackCount) {
-                        android.util.Log.d(
-                            "AudioPlayerService",
-                            "All tracks loaded: $newCount/$expectedTrackCount",
-                        )
-                        break
-                    }
-                    currentMediaItemCount = newCount
-                    waitAttempts++
-                }
-            }
-        }
-
-        android.util.Log.d(
-            "AudioPlayerService",
-            "Attempting to apply initial position: track=$trackIndex, position=${positionMs}ms, currentIndex=$currentMediaItemIndex, mediaItemCount=$currentMediaItemCount, state=$currentState",
-        )
-
-        if (currentMediaItemCount > trackIndex) {
-            android.util.Log.i(
-                "AudioPlayerService",
-                "Applying initial position: track=$trackIndex, position=${positionMs}ms (all tracks loaded: $currentMediaItemCount)",
-            )
-            seekToTrackAndPosition(trackIndex, positionMs)
-        } else {
-            android.util.Log.w(
-                "AudioPlayerService",
-                "Cannot apply initial position: track index $trackIndex not yet loaded (mediaItemCount=$currentMediaItemCount), waiting for track to load...",
-            )
-            // Wait for the track to be loaded (with additional timeout)
-            var retryAttempts = 0
-            val maxRetryAttempts = 50 // 5 more seconds
-            while (retryAttempts < maxRetryAttempts) {
-                delay(200)
-                val retryPlayer = getActivePlayer()
-                if (retryPlayer.mediaItemCount > trackIndex) {
-                    android.util.Log.i(
-                        "AudioPlayerService",
-                        "Track $trackIndex loaded after waiting, applying initial position: position=${positionMs}ms",
-                    )
-                    seekToTrackAndPosition(trackIndex, positionMs)
-                    return
-                }
-                retryAttempts++
-                if (retryAttempts % 10 == 0) {
-                    android.util.Log.v(
-                        "AudioPlayerService",
-                        "Still waiting for track $trackIndex to load: mediaItemCount=${retryPlayer.mediaItemCount}, retryAttempt=$retryAttempts",
-                    )
-                }
-            }
-            android.util.Log.e(
-                "AudioPlayerService",
-                "Failed to apply initial position: track $trackIndex never loaded after waiting (final mediaItemCount=${getActivePlayer().mediaItemCount})",
-            )
-        }
-    }
-
     fun seekToTrackAndPosition(
         trackIndex: Int,
         positionMs: Long,
@@ -1475,13 +541,27 @@ class AudioPlayerService : MediaSessionService() {
             android.util.Log.e("AudioPlayerService", "MetadataManager not initialized")
         }
 
+    /**
+     * Sets notification type (full or minimal).
+     *
+     * @param isMinimal true for minimal notification (Play/Pause only),
+     * false for full notification (all controls)
+     */
+    fun setNotificationType(isMinimal: Boolean) {
+        // TODO: This functionality may not be needed with MediaLibraryService
+        // MediaLibraryService automatically manages notifications based on Player state
+        // If we need custom notification types, we should configure MediaButtonPreferences instead
+        notificationManager?.setNotificationType(isMinimal)
+        // MediaLibraryService automatically updates notification when Player state changes
+    }
+
     fun play() {
         playbackController?.play() ?: run {
             android.util.Log.e("AudioPlayerService", "PlaybackController not initialized")
             return
         }
         // Start periodic position saving when playback starts
-        startPeriodicPositionSaving()
+        playbackPositionSaver?.startPeriodicPositionSaving()
     }
 
     fun pause() {
@@ -1491,8 +571,10 @@ class AudioPlayerService : MediaSessionService() {
         }
         // Save position immediately when pausing (critical event)
         playbackPositionSaver?.savePosition("pause")
+        // Store media item for playback resumption
+        storeCurrentMediaItem()
         // Stop periodic saving when paused (will resume when playing again)
-        stopPeriodicPositionSaving()
+        playbackPositionSaver?.stopPeriodicPositionSaving()
     }
 
     fun stop() {
@@ -1502,8 +584,10 @@ class AudioPlayerService : MediaSessionService() {
         }
         // Save position immediately when stopping (critical event)
         playbackPositionSaver?.savePosition("stop")
+        // Store media item for playback resumption
+        storeCurrentMediaItem()
         // Stop periodic saving when stopped
-        stopPeriodicPositionSaving()
+        playbackPositionSaver?.stopPeriodicPositionSaving()
     }
 
     /**
@@ -1514,31 +598,13 @@ class AudioPlayerService : MediaSessionService() {
      * playback is permanently stopped (e.g., from Stop button in notification).
      */
     fun stopAndCleanup() {
-        // Clear duration cache to free memory
-        durationCache.clear()
-        val player = getActivePlayer()
-        try {
-            android.util.Log.d("AudioPlayerService", "stopAndCleanup() called, stopping player and releasing resources")
-            player.stop()
-            player.clearMediaItems()
-            playbackTimer?.stopTimer()
-            inactivityTimer?.stopTimer()
-
-            // Release MediaSession
-            mediaSessionManager?.release()
-            mediaSession = null
-
-            // Cancel notification
-            notificationManager = null
-
-            android.util.Log.d("AudioPlayerService", "Player stopped and resources released")
-        } catch (e: Exception) {
-            android.util.Log.e("AudioPlayerService", "Failed to stop and cleanup", e)
-            ErrorHandler.handleGeneralError("AudioPlayerService", e, "Stop and cleanup execution")
+        lifecycleManager?.stopAndCleanup() ?: run {
+            android.util.Log.e("AudioPlayerService", "ServiceLifecycleManager not initialized for stopAndCleanup")
+            // Fallback manual cleanup if needed, or just log error
         }
     }
 
-    private fun saveCurrentPosition() {
+    internal fun saveCurrentPosition() {
         // Use PlaybackPositionSaver if available (preferred), otherwise fallback to PositionManager
         playbackPositionSaver?.savePosition("manual") ?: run {
             positionManager?.saveCurrentPosition() ?: run {
@@ -1548,45 +614,15 @@ class AudioPlayerService : MediaSessionService() {
     }
 
     /**
-     * Public method to save current position.
-     * Called from MainActivity lifecycle events (onPause, onStop).
+     * Stores current media item detailed state for persistence.
+     * Delegated to PlaybackPositionSaver.
+     *
+     * Based on Media3 DemoPlaybackService example.
      */
-    fun triggerPositionSave() {
-        saveCurrentPosition()
+    @OptIn(UnstableApi::class) // Player.listen, BitmapLoader
+    internal fun storeCurrentMediaItem() {
+        playbackPositionSaver?.storeCurrentMediaItem()
     }
-
-    /**
-     * Gets current groupPath for position saving.
-     * Used by PlaybackPositionSaver for fallback saving.
-     *
-     * @return Current groupPath or null if not set
-     */
-    fun getCurrentGroupPath(): String? = currentGroupPath
-
-    /**
-     * Saves groupPath to SharedPreferences for fallback position saving.
-     * This allows PlaybackPositionSaver to save position even when MethodChannel is unavailable.
-     *
-     * @param groupPath Group path to save
-     */
-    private fun saveGroupPathToSharedPreferences(groupPath: String) {
-        try {
-            val prefs = getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
-            val sanitizedPath = sanitizeGroupPath(groupPath)
-            prefs.edit().putString("current_group_path", sanitizedPath).apply()
-            android.util.Log.d("AudioPlayerService", "Saved groupPath to SharedPreferences: $sanitizedPath")
-        } catch (e: Exception) {
-            android.util.Log.w("AudioPlayerService", "Failed to save groupPath to SharedPreferences", e)
-        }
-    }
-
-    /**
-     * Sanitizes a group path to be used as a SharedPreferences key.
-     *
-     * @param path Group path to sanitize
-     * @return Sanitized path
-     */
-    private fun sanitizeGroupPath(path: String): String = path.replace(Regex("[^\\w\\-.]"), "_")
 
     fun seekTo(positionMs: Long) =
         playbackController?.seekTo(positionMs) ?: run {
@@ -1782,141 +818,24 @@ class AudioPlayerService : MediaSessionService() {
             android.util.Log.e("AudioPlayerService", "UnloadManager not initialized")
         }
 
-    /**
-     * Starts periodic position saving with adaptive intervals.
-     *
-     * Inspired by lissen-android's PlaybackSynchronizationService.
-     * Saves more frequently (every 5s) when near start/end of track,
-     * less frequently (every 30s) in the middle.
-     * This improves position accuracy while maintaining reasonable performance.
-     */
-    private fun startPeriodicPositionSaving() {
-        stopPeriodicPositionSaving() // Stop existing job if any
+    // Periodic position saving methods removed (delegated to PlaybackPositionSaver)
 
-        if (currentGroupPath == null) {
-            android.util.Log.v("AudioPlayerService", "Periodic position saving not started: no groupPath")
-            return
-        }
-
-        android.util.Log.d("AudioPlayerService", "Starting periodic position saving with adaptive intervals")
-        positionSaveJob =
-            playerServiceScope.launch {
-                while (true) {
-                    try {
-                        val player = getActivePlayer()
-
-                        // Only save if playing and not loading playlist
-                        if (!player.isPlaying || isPlaylistLoading) {
-                            delay(5000) // Check again in 5 seconds
-                            continue
-                        }
-
-                        val position = player.currentPosition
-                        val duration = player.duration
-
-                        if (duration <= 0) {
-                            // Duration unknown, save with default interval
-                            delay(10000) // 10 seconds default
-                            playbackPositionSaver?.savePosition("periodic")
-                            continue
-                        }
-
-                        // Calculate position ratio (0.0 to 1.0)
-                        val positionRatio = position.toDouble() / duration.toDouble()
-
-                        // Define "near start" and "near end" thresholds
-                        // Save frequently if within first 10% or last 10% of track
-                        val nearStartThreshold = 0.1 // 10% from start
-                        val nearEndThreshold = 0.9 // 10% from end
-
-                        val isNearStart = positionRatio < nearStartThreshold
-                        val isNearEnd = positionRatio > nearEndThreshold
-
-                        // Calculate time since last save
-                        val now = System.currentTimeMillis()
-                        val timeSinceLastSave = now - lastPositionSaveTime
-
-                        // Save if:
-                        // - Near start/end and 5+ seconds passed (frequent saves)
-                        // - In middle and 30+ seconds passed (less frequent)
-                        val shouldSave =
-                            when {
-                                isNearStart || isNearEnd -> timeSinceLastSave >= 5000L // 5 seconds
-                                else -> timeSinceLastSave >= 30000L // 30 seconds
-                            }
-
-                        if (shouldSave || lastPositionSaveTime == 0L) {
-                            playbackPositionSaver?.savePosition("periodic")
-                            lastPositionSaveTime = now
-                        }
-
-                        // Wait before next check (adaptive delay)
-                        val delayMs =
-                            when {
-                                isNearStart || isNearEnd -> 5000L // Check every 5 seconds
-                                else -> 10000L // Check every 10 seconds
-                            }
-                        delay(delayMs)
-                    } catch (e: Exception) {
-                        android.util.Log.w("AudioPlayerService", "Error in periodic position saving", e)
-                        delay(10000) // Wait before retrying
-                    }
-                }
-            }
-    }
-
-    /**
-     * Stops periodic position saving.
-     */
-    private fun stopPeriodicPositionSaving() {
-        positionSaveJob?.cancel()
-        positionSaveJob = null
-        android.util.Log.v("AudioPlayerService", "Stopped periodic position saving")
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        lifecycleManager?.onTaskRemoved(rootIntent) ?: super.onTaskRemoved(rootIntent)
     }
 
     override fun onDestroy() {
-        instance = null
-        isFullyInitializedFlag = false
-
-        // Stop periodic position saving
-        stopPeriodicPositionSaving()
-
-        // Save position before destroying (critical - process may terminate)
-        try {
-            playbackPositionSaver?.savePosition("service_destroyed")
-        } catch (e: Exception) {
-            android.util.Log.e("AudioPlayerService", "Failed to save position in onDestroy", e)
-        }
-
-        // ExoPlayer manages AudioFocus automatically, no need to abandon manually
-
-        // Stop sleep timer check
-        sleepTimerManager?.stopSleepTimerCheck()
-
-        // Cancel coroutine scope (inspired by lissen-android)
-        playerServiceScope.cancel()
-
-        // IMPORTANT: Do NOT call exoPlayer.release() - it's a singleton via Hilt!
-        // Hilt automatically manages the lifecycle of ExoPlayer
-        // Just clear MediaItems, but don't release the player
-        try {
-            getActivePlayer().clearMediaItems()
-        } catch (e: Exception) {
-            android.util.Log.w("AudioPlayerService", "Error clearing media items", e)
-        }
-
-        // Release custom player if exists
-        customExoPlayer?.release()
-        customExoPlayer = null
-
-        // Cleanup other resources
-        // NOTE: Do NOT release mediaCache - it's a singleton via Hilt and will be managed by Hilt
-
-        mediaSession?.release()
-        mediaSession = null
-        mediaSessionManager?.release()
-        playbackTimer?.release()
-        inactivityTimer?.release()
+        // Delegate to lifecycle manager
+        lifecycleManager?.onDestroy()
         super.onDestroy()
     }
+
+    /**
+     * This method is only required to be implemented on Android 12 or above when an attempt is made
+     * by a media controller to resume playback when the MediaSessionService is in the background.
+     *
+     * This can happen when:
+     * - Notification permission is not granted (Android 13+)
+     */
+    override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaLibrarySession? = mediaLibrarySession
 }

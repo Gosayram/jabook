@@ -235,6 +235,7 @@ dependencies {
 
     // Add coroutines support for proper async handling
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-guava:1.7.3")
 
     // Note: Media3 1.8.0 is the current stable version with full Android 14+ support
     // Previous alpha/beta versions (1.3.0, 1.4.0) had compatibility issues

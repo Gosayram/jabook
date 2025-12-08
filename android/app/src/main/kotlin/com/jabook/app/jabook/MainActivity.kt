@@ -1075,7 +1075,7 @@ class MainActivity : FlutterActivity() {
                 android.util.Log.d("MainActivity", "Activity paused, triggering position save")
                 // Trigger save via service's PlaybackPositionSaver
                 // The service will use MethodChannel to save in Flutter
-                service.triggerPositionSave()
+                service.saveCurrentPosition()
             }
         } catch (e: Exception) {
             android.util.Log.w("MainActivity", "Failed to save position on pause", e)
@@ -1093,7 +1093,7 @@ class MainActivity : FlutterActivity() {
             if (service != null) {
                 android.util.Log.d("MainActivity", "Activity stopped, triggering position save")
                 // Trigger save via service's PlaybackPositionSaver
-                service.triggerPositionSave()
+                service.saveCurrentPosition()
             }
         } catch (e: Exception) {
             android.util.Log.w("MainActivity", "Failed to save position on stop", e)

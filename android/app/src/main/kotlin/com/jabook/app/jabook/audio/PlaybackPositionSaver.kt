@@ -16,16 +16,24 @@ package com.jabook.app.jabook.audio
 
 import android.content.Context
 import android.content.SharedPreferences
+import androidx.annotation.OptIn
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import io.flutter.plugin.common.MethodChannel
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 /**
- * Centralized class for saving playback position.
+ * Centralized class for saving playback position and state.
  *
  * All position saving logic is in this file for easy reading and maintenance.
  * Uses two-level strategy:
  * 1. MethodChannel → Flutter (primary path)
  * 2. SharedPreferences directly (fallback)
+ *
+ * Also handles periodic position saving and full media item state persistence.
  */
 internal class PlaybackPositionSaver(
     private val getActivePlayer: () -> ExoPlayer,
@@ -36,12 +44,20 @@ internal class PlaybackPositionSaver(
     private val getActualTrackIndex: (() -> Int)? = null, // Get actual track index from onMediaItemTransition
     private val getCurrentFilePaths: (() -> List<String>?)? = null, // Get current file paths to match by URI
     private val getDurationForFile: ((String) -> Long?)? = null, // Get duration for file path (for position-based calculation)
+    private val playerPersistenceManager: PlayerPersistenceManager? = null,
+    private val coroutineScope: CoroutineScope? = null,
+    private val getEmbeddedArtworkPath: (() -> String?)? = null,
+    private val getCurrentMetadata: (() -> Map<String, String>?)? = null,
 ) {
     private val prefs: SharedPreferences =
         context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
 
     private var lastSaveTime: Long = 0
     private val minSaveIntervalMs = 2000L // Minimum 2 seconds between saves
+
+    // Periodic position saving
+    private var positionSaveJob: Job? = null
+    private var lastPeriodicSaveTime: Long = 0
 
     // Key prefixes matching Flutter PlaybackPositionService
     private val groupPositionPrefix = "group_pos_"
@@ -62,7 +78,9 @@ internal class PlaybackPositionSaver(
         if (now - lastSaveTime < minSaveIntervalMs &&
             reason != "service_destroyed" &&
             reason != "activity_paused" &&
-            reason != "activity_stopped"
+            reason != "activity_stopped" &&
+            reason != "pause" &&
+            reason != "stop"
         ) {
             android.util.Log.v(
                 "PlaybackPositionSaver",
@@ -210,6 +228,151 @@ internal class PlaybackPositionSaver(
             )
             savePositionViaSharedPreferences(currentIndex, currentPosition)
         }
+    }
+
+    /**
+     * Stores current media item detailed state for persistence.
+     * Called when media item changes or playback position changes significantly.
+     */
+    @OptIn(UnstableApi::class) // For mediaMetadata
+    fun storeCurrentMediaItem() {
+        if (playerPersistenceManager == null || coroutineScope == null) {
+            android.util.Log.w("PlaybackPositionSaver", "Cannot store media item: deps not initialized")
+            return
+        }
+
+        val player = getActivePlayer()
+        val currentMediaItem = player.currentMediaItem ?: return
+        val mediaId = currentMediaItem.mediaId ?: return
+
+        // Get current position and duration
+        val positionMs = player.currentPosition
+        val durationMs = player.duration
+
+        // Get artwork path (prefer embedded, fallback to metadata)
+        val artworkPath =
+            getEmbeddedArtworkPath?.invoke()
+                ?: currentMediaItem.mediaMetadata.artworkUri?.toString()
+                ?: ""
+
+        // Get metadata
+        val currentMetadataMap = getCurrentMetadata?.invoke()
+        val title = currentMetadataMap?.get("title") ?: currentMediaItem.mediaMetadata.title?.toString() ?: ""
+        val artist = currentMetadataMap?.get("artist") ?: currentMediaItem.mediaMetadata.artist?.toString() ?: ""
+        val groupPath = getGroupPath?.invoke() ?: ""
+
+        // Save to SharedPreferences asynchronously
+        coroutineScope.launch {
+            playerPersistenceManager.saveCurrentMediaItem(
+                mediaId,
+                positionMs,
+                durationMs,
+                artworkPath,
+                title,
+                artist,
+                groupPath,
+            )
+        }
+    }
+
+    /**
+     * Starts periodic position saving with adaptive intervals.
+     *
+     * Inspired by lissen-android's PlaybackSynchronizationService.
+     * Saves more frequently (every 5s) when near start/end of track,
+     * less frequently (every 30s) in the middle.
+     * This improves position accuracy while maintaining reasonable performance.
+     */
+    fun startPeriodicPositionSaving() {
+        stopPeriodicPositionSaving() // Stop existing job if any
+
+        if (getGroupPath?.invoke() == null) {
+            android.util.Log.v("PlaybackPositionSaver", "Periodic position saving not started: no groupPath")
+            return
+        }
+
+        if (coroutineScope == null) {
+            android.util.Log.e("PlaybackPositionSaver", "Cannot start periodic saving: coroutineScope is null")
+            return
+        }
+
+        android.util.Log.d("PlaybackPositionSaver", "Starting periodic position saving with adaptive intervals")
+        positionSaveJob =
+            coroutineScope.launch {
+                while (true) {
+                    try {
+                        val player = getActivePlayer()
+
+                        // Only save if playing and not loading playlist
+                        if (!player.isPlaying || isPlaylistLoading?.invoke() == true) {
+                            delay(5000) // Check again in 5 seconds
+                            continue
+                        }
+
+                        val position = player.currentPosition
+                        val duration = player.duration
+
+                        if (duration <= 0) {
+                            // Duration unknown, save with default interval
+                            delay(10000) // 10 seconds default
+                            savePosition("periodic")
+                            // Also store media item for playback resumption
+                            storeCurrentMediaItem()
+                            continue
+                        }
+
+                        // Calculate position ratio (0.0 to 1.0)
+                        val positionRatio = position.toDouble() / duration.toDouble()
+
+                        // Define "near start" and "near end" thresholds
+                        // Save frequently if within first 10% or last 10% of track
+                        val nearStartThreshold = 0.1 // 10% from start
+                        val nearEndThreshold = 0.9 // 10% from end
+                        val isNearStart = positionRatio < nearStartThreshold
+                        val isNearEnd = positionRatio > nearEndThreshold
+
+                        // Calculate time since last save
+                        val now = System.currentTimeMillis()
+                        val timeSinceLastSave = now - lastPeriodicSaveTime
+
+                        // Save if:
+                        // - Near start/end and 5+ seconds passed (frequent saves)
+                        // - In middle and 30+ seconds passed (less frequent)
+                        val shouldSave =
+                            when {
+                                isNearStart || isNearEnd -> timeSinceLastSave >= 5000L // 5 seconds
+                                else -> timeSinceLastSave >= 30000L // 30 seconds
+                            }
+
+                        if (shouldSave || lastPeriodicSaveTime == 0L) {
+                            savePosition("periodic")
+                            // Also store media item for playback resumption
+                            storeCurrentMediaItem()
+                            lastPeriodicSaveTime = now
+                        }
+
+                        // Wait before next check (adaptive delay)
+                        val delayMs =
+                            when {
+                                isNearStart || isNearEnd -> 5000L // Check every 5 seconds
+                                else -> 10000L // Check every 10 seconds
+                            }
+                        delay(delayMs)
+                    } catch (e: Exception) {
+                        android.util.Log.w("PlaybackPositionSaver", "Error in periodic position saving", e)
+                        delay(10000) // Wait before retrying
+                    }
+                }
+            }
+    }
+
+    /**
+     * Stops periodic position saving.
+     */
+    fun stopPeriodicPositionSaving() {
+        positionSaveJob?.cancel()
+        positionSaveJob = null
+        android.util.Log.v("PlaybackPositionSaver", "Stopped periodic position saving")
     }
 
     /**

@@ -28,7 +28,9 @@ import 'package:jabook/core/infrastructure/config/audio_settings_provider.dart';
 import 'package:jabook/core/infrastructure/config/book_audio_settings_service.dart';
 import 'package:jabook/core/infrastructure/config/language_manager.dart';
 import 'package:jabook/core/infrastructure/config/language_provider.dart';
+import 'package:jabook/core/infrastructure/config/notification_settings_provider.dart';
 import 'package:jabook/core/infrastructure/permissions/permission_service.dart';
+import 'package:jabook/core/player/native_audio_player.dart';
 import 'package:jabook/core/player/player_state_provider.dart';
 import 'package:jabook/core/utils/app_title_utils.dart';
 import 'package:jabook/features/settings/presentation/widgets/dialogs/audio_dialogs.dart';
@@ -47,6 +49,7 @@ import 'package:jabook/features/settings/presentation/widgets/settings_sections/
 import 'package:jabook/features/settings/presentation/widgets/settings_sections/library_folder_section.dart';
 import 'package:jabook/features/settings/presentation/widgets/settings_sections/metadata_section.dart';
 import 'package:jabook/features/settings/presentation/widgets/settings_sections/mirror_section.dart';
+import 'package:jabook/features/settings/presentation/widgets/settings_sections/notification_section.dart';
 import 'package:jabook/features/settings/presentation/widgets/settings_sections/permissions_section.dart';
 import 'package:jabook/features/settings/presentation/widgets/settings_sections/rutracker_session_section.dart';
 import 'package:jabook/features/settings/presentation/widgets/settings_sections/theme_section.dart';
@@ -91,7 +94,26 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadDownloadFolder();
       _loadLibraryFolders();
+      _setupNotificationSettingsListener();
     });
+  }
+
+  void _setupNotificationSettingsListener() {
+    // Listen to notification settings changes and update native player
+    ref.listen(notificationSettingsProvider, (previous, next) {
+      if (previous?.notificationType != next.notificationType) {
+        _updateNotificationType(next.notificationType);
+      }
+    });
+  }
+
+  Future<void> _updateNotificationType(NotificationType type) async {
+    try {
+      final nativePlayer = NativeAudioPlayer();
+      await nativePlayer.setNotificationType(type == NotificationType.minimal);
+    } on Exception catch (e) {
+      debugPrint('Failed to update notification type: $e');
+    }
   }
 
   Future<void> _loadLanguagePreference() async {
@@ -338,6 +360,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
 
           const SizedBox(height: 24),
+
+          // Notification Settings Section (Android only)
+          if (Platform.isAndroid)
+            Semantics(
+              container: true,
+              label: 'Notification settings',
+              child: const NotificationSection(),
+            ),
+
+          if (Platform.isAndroid) const SizedBox(height: 24),
 
           // Download Settings Section
           Semantics(

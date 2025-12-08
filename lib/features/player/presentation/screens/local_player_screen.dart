@@ -24,6 +24,7 @@ import 'package:jabook/core/domain/library/entities/local_audiobook_group.dart';
 import 'package:jabook/core/infrastructure/config/audio_settings_manager.dart';
 import 'package:jabook/core/infrastructure/config/audio_settings_provider.dart';
 import 'package:jabook/core/infrastructure/config/book_audio_settings_service.dart';
+import 'package:jabook/core/infrastructure/config/notification_settings_provider.dart';
 import 'package:jabook/core/infrastructure/errors/failures.dart';
 import 'package:jabook/core/infrastructure/logging/structured_logger.dart';
 import 'package:jabook/core/infrastructure/permissions/permission_service.dart';
@@ -1239,6 +1240,22 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
           level: 'warning',
           subsystem: 'audio',
           message: 'Failed to set inactivity timeout',
+          cause: e.toString(),
+        );
+      }
+
+      // Apply notification settings
+      try {
+        final notificationSettings = ref.read(notificationSettingsProvider);
+        final nativePlayer = NativeAudioPlayer();
+        await nativePlayer.setNotificationType(
+          notificationSettings.notificationType == NotificationType.minimal,
+        );
+      } on Exception catch (e) {
+        await _logger.log(
+          level: 'warning',
+          subsystem: 'audio',
+          message: 'Failed to apply notification settings',
           cause: e.toString(),
         );
       }

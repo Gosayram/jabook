@@ -507,6 +507,24 @@ class NativeAudioPlayer {
     }
   }
 
+  /// Sets notification type (minimal or full).
+  ///
+  /// [isMinimal] true for minimal notification, false for full.
+  Future<void> setNotificationType(bool isMinimal) async {
+    try {
+      await _channel.invokeMethod(
+        'setNotificationType',
+        {'isMinimal': isMinimal},
+      );
+    } on PlatformException catch (e) {
+      throw AudioFailure(
+        'Failed to set notification type: ${e.message ?? e.code}',
+      );
+    } on Object catch (e) {
+      throw AudioFailure('Failed to set notification type: ${e.toString()}');
+    }
+  }
+
   /// Updates skip durations for MediaSessionManager.
   ///
   /// [rewindSeconds] is the duration in seconds for rewind action.

@@ -31,8 +31,8 @@ internal class NotificationHelper(
     private val context: Context,
 ) {
     companion object {
-        const val NOTIFICATION_ID = 1
-        private const val CHANNEL_ID = "jabook_audio_playback"
+        internal const val CHANNEL_ID = "media_playback_channel"
+        internal const val NOTIFICATION_ID = 1
     }
 
     /**

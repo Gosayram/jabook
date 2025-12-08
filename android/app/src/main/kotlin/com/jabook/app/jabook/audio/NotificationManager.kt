@@ -46,11 +46,27 @@ class NotificationManager(
     private var forwardSeconds: Long, // Must be provided from MediaSessionManager to use actual settings (book-specific or global)
 ) {
     /**
+     * Whether to use minimal notification (Play/Pause only) or full notification (all controls).
+     */
+    private var isMinimalNotification: Boolean = false
+
+    /**
      * Updates the player reference. This is needed when the player is recreated.
      */
     fun updatePlayer(newPlayer: ExoPlayer) {
         player = newPlayer
         android.util.Log.d("NotificationManager", "Player reference updated")
+    }
+
+    /**
+     * Sets notification type (full or minimal).
+     *
+     * @param isMinimal true for minimal notification (Play/Pause only),
+     * false for full notification (all controls)
+     */
+    fun setNotificationType(isMinimal: Boolean) {
+        isMinimalNotification = isMinimal
+        android.util.Log.d("NotificationManager", "Notification type set to: ${if (isMinimal) "minimal" else "full"}")
     }
 
     private val notificationManager: AndroidNotificationManager =
@@ -140,6 +156,10 @@ class NotificationManager(
      * @return Notification instance
      */
     fun createNotification(): Notification {
+        // Use minimal notification if requested
+        if (isMinimalNotification) {
+            return createMinimalMediaNotification()
+        }
         val intent =
             Intent(context, MainActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
@@ -785,6 +805,225 @@ class NotificationManager(
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setOnlyAlertOnce(true)
             .build()
+    }
+
+    /**
+     * Creates minimal media notification with only Play/Pause button.
+     *
+     * This notification preserves MediaSession integration for system controls
+     * (Quick Settings, lockscreen, Android Auto, Wear OS) while showing only
+     * Play/Pause button in the notification itself.
+     *
+     * @return Notification instance
+     */
+    private fun createMinimalMediaNotification(): Notification {
+        val intent =
+            Intent(context, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
+                putExtra("open_player", true)
+            }
+        val pendingIntent =
+            PendingIntent.getActivity(
+                context,
+                0,
+                intent,
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+            )
+
+        // Determine Play/Pause button
+        val shouldShowPlay = Util.shouldShowPlayButton(player, true)
+        val playPauseAction =
+            if (shouldShowPlay) {
+                NotificationCompat.Action(
+                    android.R.drawable.ic_media_play,
+                    "Play",
+                    createPlaybackAction(ACTION_PLAY),
+                )
+            } else {
+                NotificationCompat.Action(
+                    android.R.drawable.ic_media_pause,
+                    "Pause",
+                    createPlaybackAction(ACTION_PAUSE),
+                )
+            }
+
+        // Get metadata
+        val flavorSuffix = Companion.getFlavorSuffix(context)
+        val flavorText = if (flavorSuffix.isEmpty()) "" else " - $flavorSuffix"
+        val title = metadata?.get("title") ?: "jabook Audio"
+        val artist = metadata?.get("artist") ?: "Playing audio"
+        val currentMediaItem = player.currentMediaItem
+        val baseTitle = currentMediaItem?.mediaMetadata?.title?.toString() ?: title
+        val displayTitle = if (flavorText.isEmpty()) baseTitle else "$baseTitle$flavorText"
+        val displayArtist = currentMediaItem?.mediaMetadata?.artist?.toString() ?: artist
+
+        // Load cover image for small icon (same logic as full notification)
+        var largeIcon: android.graphics.Bitmap? = null
+        val mediaMetadata = currentMediaItem?.mediaMetadata
+
+        if (largeIcon == null && embeddedArtworkPath != null) {
+            try {
+                val artworkFile = java.io.File(embeddedArtworkPath!!)
+                if (artworkFile.exists() && artworkFile.length() > 0) {
+                    largeIcon = BitmapFactory.decodeFile(artworkFile.absolutePath)
+                }
+            } catch (e: Exception) {
+                android.util.Log.w("NotificationManager", "Failed to load cover from embeddedArtworkPath", e)
+            }
+        }
+
+        if (largeIcon == null && mediaMetadata != null) {
+            try {
+                val artworkUri = mediaMetadata.artworkUri
+                if (artworkUri != null) {
+                    try {
+                        if (artworkUri.scheme == "file") {
+                            val filePath = artworkUri.path
+                            if (filePath != null) {
+                                largeIcon = BitmapFactory.decodeFile(filePath)
+                            }
+                        } else {
+                            val inputStream = context.contentResolver.openInputStream(artworkUri)
+                            if (inputStream != null) {
+                                largeIcon = BitmapFactory.decodeStream(inputStream)
+                                inputStream.close()
+                            }
+                        }
+                    } catch (e: Exception) {
+                        android.util.Log.w("NotificationManager", "Failed to load cover from artworkUri", e)
+                    }
+                }
+
+                if (largeIcon == null) {
+                    val artworkData = mediaMetadata.artworkData
+                    if (artworkData != null && artworkData.isNotEmpty()) {
+                        largeIcon = BitmapFactory.decodeByteArray(artworkData, 0, artworkData.size)
+                    }
+                }
+            } catch (e: Exception) {
+                android.util.Log.w("NotificationManager", "Failed to load embedded cover", e)
+            }
+        }
+
+        // Create small icon from cover (same logic as full notification)
+        var smallIcon: android.graphics.drawable.Icon? = null
+        var smallIconResId: Int = android.R.drawable.ic_media_play
+
+        if (largeIcon != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            try {
+                val smallIconSize = (24 * context.resources.displayMetrics.density).toInt()
+                val smallIconBitmap =
+                    android.graphics.Bitmap.createScaledBitmap(
+                        largeIcon,
+                        smallIconSize,
+                        smallIconSize,
+                        true,
+                    )
+                smallIcon =
+                    android.graphics.drawable.Icon
+                        .createWithBitmap(smallIconBitmap)
+            } catch (e: Exception) {
+                android.util.Log.e("NotificationManager", "Failed to create custom icon", e)
+            }
+        }
+
+        try {
+            val appIconId = context.applicationInfo.icon
+            if (appIconId != 0) {
+                smallIconResId = appIconId
+            }
+        } catch (e: Exception) {
+            // Use default
+        }
+
+        // Create MediaStyle with MediaSession token (CRITICAL for system integration)
+        val mediaStyle = MediaStyle()
+
+        // Set MediaSession token for system controls
+        if (mediaSession != null) {
+            try {
+                val sessionToken = mediaSession.getToken()
+                try {
+                    val sessionTokenClass = sessionToken.javaClass
+                    val getTokenMethod = sessionTokenClass.getMethod("getToken")
+                    val nativeToken = getTokenMethod.invoke(sessionToken) as? android.media.session.MediaSession.Token
+
+                    if (nativeToken != null) {
+                        try {
+                            val compatTokenClass = Class.forName("androidx.media.session.MediaSessionCompat\$Token")
+                            val fromTokenMethod = compatTokenClass.getMethod("fromToken", Any::class.java)
+                            val compatToken = fromTokenMethod.invoke(null, nativeToken)
+                            val setMediaSessionMethod = mediaStyle.javaClass.getMethod("setMediaSession", compatTokenClass)
+                            setMediaSessionMethod.invoke(mediaStyle, compatToken)
+                            android.util.Log.d("NotificationManager", "Minimal notification: MediaStyle configured with MediaSession token")
+                        } catch (e: Exception) {
+                            android.util.Log.e("NotificationManager", "Failed to set MediaSession token in minimal notification", e)
+                        }
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("NotificationManager", "Failed to get native token for minimal notification", e)
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("NotificationManager", "Failed to configure MediaSession in minimal notification", e)
+            }
+        }
+
+        // Build minimal notification with only Play/Pause button
+        // Compact view: only Play/Pause (index 0)
+        mediaStyle.setShowActionsInCompactView(0)
+
+        return if (smallIcon != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            // Use Notification.Builder for custom icon
+            Notification
+                .Builder(context, CHANNEL_ID)
+                .setSmallIcon(smallIcon)
+                .setContentTitle(displayTitle)
+                .setContentText(displayArtist)
+                .setContentIntent(pendingIntent)
+                .setVisibility(Notification.VISIBILITY_PUBLIC)
+                .setOnlyAlertOnce(true)
+                .setShowWhen(false)
+                .addAction(
+                    Notification.Action
+                        .Builder(
+                            if (shouldShowPlay) android.R.drawable.ic_media_play else android.R.drawable.ic_media_pause,
+                            if (shouldShowPlay) "Play" else "Pause",
+                            createPlaybackAction(if (shouldShowPlay) ACTION_PLAY else ACTION_PAUSE),
+                        ).build(),
+                ).setStyle(
+                    Notification
+                        .MediaStyle()
+                        .setShowActionsInCompactView(0)
+                        .setMediaSession(
+                            if (mediaSession != null) {
+                                try {
+                                    val sessionToken = mediaSession.getToken()
+                                    val sessionTokenClass = sessionToken.javaClass
+                                    val getTokenMethod = sessionTokenClass.getMethod("getToken")
+                                    val nativeToken = getTokenMethod.invoke(sessionToken) as? android.media.session.MediaSession.Token
+                                    nativeToken
+                                } catch (e: Exception) {
+                                    null
+                                }
+                            } else {
+                                null
+                            },
+                        ),
+                ).build()
+        } else {
+            // Use NotificationCompat.Builder for older Android versions
+            NotificationCompat
+                .Builder(context, CHANNEL_ID)
+                .setSmallIcon(smallIconResId)
+                .setContentTitle(displayTitle)
+                .setContentText(displayArtist)
+                .setContentIntent(pendingIntent)
+                .addAction(playPauseAction)
+                .setStyle(mediaStyle)
+                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+                .setOnlyAlertOnce(true)
+                .build()
+        }
     }
 
     /**

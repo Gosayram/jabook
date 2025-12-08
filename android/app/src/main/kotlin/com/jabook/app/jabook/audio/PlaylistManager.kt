@@ -20,10 +20,17 @@ import androidx.annotation.OptIn
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.DataSource
+import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.cache.Cache
+import androidx.media3.datasource.cache.CacheDataSink
+import androidx.media3.datasource.cache.CacheDataSource
+import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.MediaSource
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
+import com.jabook.app.jabook.audio.ErrorHandler
+import com.jabook.app.jabook.audio.SavedPlaybackState
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -33,7 +40,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
 import java.io.File
+import java.util.concurrent.TimeUnit
 
 /**
  * Manages playlist preparation and MediaSource creation.
@@ -50,10 +59,144 @@ internal class PlaylistManager(
     private val mediaItemDispatcher: kotlinx.coroutines.CoroutineDispatcher,
     private val getFlavorSuffix: () -> String,
     private val setPendingTrackSwitchDeferred: ((CompletableDeferred<Int>) -> Unit)? = null, // Callback to set deferred in PlayerListener
+    private val durationManager: DurationManager,
+    private val playerPersistenceManager: PlayerPersistenceManager,
+    private val playbackController: PlaybackController,
+    private val getCurrentTrackIndex: () -> Int = { 0 }, // fallback
 ) {
+    // State managed by PlaylistManager
+    var currentFilePaths: List<String>? = null
+        private set
+    var currentMetadata: Map<String, String>? = null
+        private set
+    var currentGroupPath: String? = null
+        private set
+    internal var isPlaylistLoading = false
+        internal set
+    internal var currentLoadingPlaylist: List<String>? = null
+        internal set
+    var lastPlaylistLoadTime: Long = 0
+        private set
+    var lastCompletedTrackIndex: Int = -1
+    var isBookCompleted = false
+    var actualTrackIndex: Int = 0
+
+    // Saved state for restoration
+    var savedPlaybackState: SavedPlaybackState? = null
+
     // Track active loading job to prevent duplicates
     @Volatile
     private var activeLoadingJob: Job? = null
+
+    /**
+     * Sets playlist from file paths or URLs.
+     *
+     * Supports both local file paths and HTTP(S) URLs for network streaming.
+     * Uses coroutines for async operations.
+     *
+     * @param filePaths List of absolute file paths or HTTP(S) URLs to audio files
+     * @param metadata Optional metadata map (title, artist, album, etc.)
+     * @param initialTrackIndex Optional track index to load first (for saved position). If null, loads first track.
+     * @param initialPosition Optional position in milliseconds to seek to after loading initial track
+     * @param groupPath Optional group path for saving playback position (used for fallback saving)
+     * @param callback Optional callback to notify when playlist is ready (for Flutter)
+     */
+    fun setPlaylist(
+        filePaths: List<String>,
+        metadata: Map<String, String>? = null,
+        initialTrackIndex: Int? = null,
+        initialPosition: Long? = null,
+        groupPath: String? = null,
+        callback: ((Boolean, Exception?) -> Unit)? = null,
+    ) {
+        // Prevent duplicate calls - if playlist is already loading, ignore
+        if (isPlaylistLoading) {
+            android.util.Log.w(
+                "AudioPlayerService",
+                "Playlist already loading, ignoring duplicate setPlaylist call: ${filePaths.size} items, initialTrackIndex=$initialTrackIndex",
+            )
+            callback?.invoke(true, null) // Call callback to unblock Flutter
+            return
+        }
+
+        // Clear saved state to prevent restoration from interfering with new playlist
+        savedPlaybackState = null
+
+        // Reset book completion flag when setting new playlist
+        isBookCompleted = false
+        lastCompletedTrackIndex = -1 // Reset saved index for new book
+
+        // Initialize actualTrackIndex from initialTrackIndex or default to 0
+        actualTrackIndex = initialTrackIndex?.coerceIn(0, filePaths.size - 1) ?: 0
+        android.util.Log.d(
+            "AudioPlayerService",
+            "Initialized actualTrackIndex to $actualTrackIndex (from initialTrackIndex=$initialTrackIndex)",
+        )
+
+        // Clear duration cache using DurationManager
+        durationManager.clearCache()
+
+        // Store file paths and groupPath
+        currentFilePaths = filePaths
+        currentMetadata = metadata
+        currentGroupPath = groupPath
+
+        // Save groupPath to SharedPreferences for fallback position saving
+        if (groupPath != null) {
+            playerPersistenceManager.saveGroupPathToSharedPreferences(groupPath)
+        }
+
+        android.util.Log.d(
+            "AudioPlayerService",
+            "Setting playlist with ${filePaths.size} items, initialTrackIndex=$initialTrackIndex, initialPosition=$initialPosition, groupPath=$groupPath",
+        )
+
+        // Mark as loading and record load time
+        isPlaylistLoading = true
+        currentLoadingPlaylist = filePaths
+        lastPlaylistLoadTime = System.currentTimeMillis()
+
+        playerServiceScope.launch {
+            try {
+                preparePlaybackOptimized(filePaths, metadata, initialTrackIndex, initialPosition)
+                android.util.Log.d("AudioPlayerService", "Playlist prepared successfully")
+
+                // Call callback first to unblock Flutter
+                withContext(Dispatchers.Main) {
+                    callback?.invoke(true, null)
+                }
+
+                // Apply initial position if provided (in background, non-blocking)
+                if (initialTrackIndex != null && initialPosition != null && initialPosition > 0) {
+                    val firstTrackIndex = initialTrackIndex.coerceIn(0, filePaths.size - 1)
+                    if (firstTrackIndex != initialTrackIndex) {
+                        android.util.Log.d(
+                            "AudioPlayerService",
+                            "Target track ($initialTrackIndex) differs from first loaded track ($firstTrackIndex), scheduling position application",
+                        )
+                        playerServiceScope.launch {
+                            playbackController.applyInitialPosition(initialTrackIndex, initialPosition, filePaths.size)
+                        }
+                    } else {
+                        android.util.Log.d(
+                            "AudioPlayerService",
+                            "Target track ($initialTrackIndex) is first loaded track, position already applied in preparePlaybackOptimized",
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("AudioPlayerService", "Failed to prepare playback", e)
+                ErrorHandler.handleGeneralError("AudioPlayerService", e, "preparePlayback failed")
+                withContext(Dispatchers.Main) {
+                    callback?.invoke(false, e)
+                }
+            } finally {
+                // Clear loading flag when done
+                isPlaylistLoading = false
+                currentLoadingPlaylist = null
+            }
+        }
+    }
 
     /**
      * Prepares playback asynchronously with optimized lazy loading.
@@ -73,7 +216,7 @@ internal class PlaylistManager(
         initialPosition: Long? = null,
     ) = withContext(Dispatchers.IO) {
         try {
-            val dataSourceFactory = MediaDataSourceFactory(context, mediaCache)
+            val dataSourceFactory = SimpleMediaDataSourceFactory()
 
             // Determine which track to load first
             // CRITICAL: Always load track 0 first, then switch to target track after all tracks are loaded
@@ -596,11 +739,11 @@ internal class PlaylistManager(
      * Creates a MediaSource for a specific file index.
      * Helper method to avoid code duplication.
      */
-    fun createMediaSourceForIndex(
+    private fun createMediaSourceForIndex(
         filePaths: List<String>,
         index: Int,
         metadata: Map<String, String>?,
-        dataSourceFactory: MediaDataSourceFactory,
+        dataSourceFactory: SimpleMediaDataSourceFactory,
     ): MediaSource {
         val path = filePaths[index]
 
@@ -675,5 +818,55 @@ internal class PlaylistManager(
         return ProgressiveMediaSource
             .Factory(sourceFactory)
             .createMediaSource(mediaItem)
+    }
+
+    /**
+     * DataSource factory for media playback with caching and network support.
+     * Private inner class to avoid build duplication issues.
+     */
+    private inner class SimpleMediaDataSourceFactory : DataSource.Factory {
+        // OkHttp client for network requests
+        private val okHttpClient by lazy {
+            OkHttpClient
+                .Builder()
+                .connectTimeout(30, TimeUnit.SECONDS)
+                .readTimeout(30, TimeUnit.SECONDS)
+                .writeTimeout(30, TimeUnit.SECONDS)
+                .build()
+        }
+
+        private val okHttpFactory by lazy {
+            OkHttpDataSource.Factory(okHttpClient)
+        }
+
+        private val defaultFactory by lazy {
+            DefaultDataSource.Factory(context)
+        }
+
+        private val cacheFactory by lazy {
+            CacheDataSource
+                .Factory()
+                .setCache(mediaCache)
+                .setUpstreamDataSourceFactory(DefaultDataSource.Factory(context, okHttpFactory))
+                .setCacheWriteDataSinkFactory(
+                    CacheDataSink
+                        .Factory()
+                        .setCache(mediaCache)
+                        .setFragmentSize(CacheDataSink.DEFAULT_FRAGMENT_SIZE),
+                ).setFlags(CacheDataSource.FLAG_BLOCK_ON_CACHE or CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
+        }
+
+        override fun createDataSource(): DataSource = defaultFactory.createDataSource()
+
+        fun createDataSourceFactoryForUri(uri: Uri): DataSource.Factory {
+            val isNetworkUri = uri.scheme == "http" || uri.scheme == "https"
+            val isLocalFile = uri.scheme == "file" || uri.scheme == null
+
+            return when {
+                isNetworkUri -> cacheFactory
+                isLocalFile -> defaultFactory
+                else -> defaultFactory
+            }
+        }
     }
 }
