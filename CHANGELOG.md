@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump packages
 - Exclude test_results folder for copyright heads
 - Migrate player to new bridge API with Kotlin state persistence
+- Migrate to Java 21 and replace kapt with KSP for Room
 - Refactor audio player service architecture
 
 ### Fixed
@@ -30,8 +31,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix playback position restoration and prevent playlist loading conflicts
 - HttpCache validation
 - Player validation
+- Resolve audio player bridging and playlist sorting issues
 - Resolve compilation warnings and deprecated API usage
 - Resolve Kotlin 2.2.0 compilation errors and update dependencies
+- Resolve kotlinx-serialization version conflict in kapt and suppress manifest warnings
 - Room version and build namespace for validation
 
 ## [1.2.6] - 2025-12-06
