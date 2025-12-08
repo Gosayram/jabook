@@ -249,8 +249,13 @@ dependencies {
     val roomVersion = "2.8.4"
     implementation("androidx.room:room-runtime:$roomVersion")
     implementation("androidx.room:room-ktx:$roomVersion")
-    kapt("androidx.room:room-compiler:$roomVersion")
+    kapt("androidx.room:room-compiler:$roomVersion") {
+        // Exclude any old kotlinx-serialization versions that Room might bring transitively
+        exclude(group = "org.jetbrains.kotlinx", module = "kotlinx-serialization-json")
+        exclude(group = "org.jetbrains.kotlinx", module = "kotlinx-serialization-core")
+    }
     // Add kotlinx-serialization to kapt compile classpath for Room compiler
+    // This must be added after Room compiler to ensure correct version is used
     kapt("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
 
     // DataStore for preferences
@@ -285,6 +290,33 @@ configurations.all {
                 useVersion(kotlinxSerializationVersion)
             }
         }
+    }
+}
+
+// Explicitly configure kapt to use the correct kotlinx-serialization version
+// This is needed because kapt uses a separate classpath that may not respect resolutionStrategy
+afterEvaluate {
+    // Force version for all kapt-related configurations
+    configurations.matching { it.name.startsWith("kapt") || it.name.contains("kapt") }.configureEach {
+        resolutionStrategy {
+            force("org.jetbrains.kotlinx:kotlinx-serialization-json:$kotlinxSerializationVersion")
+            force("org.jetbrains.kotlinx:kotlinx-serialization-core:$kotlinxSerializationVersion")
+            eachDependency {
+                if (requested.group == "org.jetbrains.kotlinx" && requested.name.startsWith("kotlinx-serialization")) {
+                    useVersion(kotlinxSerializationVersion)
+                }
+            }
+        }
+    }
+
+    // Also explicitly add kotlinx-serialization to kapt classpath as a dependency
+    // This ensures it's available even if resolutionStrategy doesn't work
+    try {
+        configurations.findByName("kapt")?.dependencies?.add(
+            project.dependencies.create("org.jetbrains.kotlinx:kotlinx-serialization-json:$kotlinxSerializationVersion"),
+        )
+    } catch (e: Exception) {
+        // Ignore if configuration doesn't exist or is already configured
     }
 }
 

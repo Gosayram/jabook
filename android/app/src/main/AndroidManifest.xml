@@ -79,7 +79,9 @@
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
         android:manageSpaceActivity=".DataManagementActivity"
-        tools:targetApi="34">
+        tools:targetApi="34"
+        tools:replace="android:label"
+        tools:ignore="NamespaceTypo">
         
         <!-- requestLegacyExternalStorage removed: not supported on Android 11+ (API 30+) -->
         <!-- App uses app-specific directory which doesn't require this attribute -->
