@@ -14,21 +14,25 @@
 
 import 'dart:async';
 
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:jabook/core/di/providers/database_providers.dart';
+import 'package:jabook/core/di/providers/simple_player_providers.dart';
 import 'package:jabook/core/favorites/favorites_provider.dart';
 import 'package:jabook/core/infrastructure/endpoints/endpoint_manager.dart';
 import 'package:jabook/core/infrastructure/logging/structured_logger.dart';
+import 'package:jabook/core/library/library_file_finder.dart';
 import 'package:jabook/core/net/dio_client.dart';
 import 'package:jabook/core/parse/rutracker_parser.dart';
-import 'package:jabook/core/player/player_state_provider.dart';
 import 'package:jabook/core/stream/local_stream_server.dart';
 import 'package:jabook/core/utils/app_title_utils.dart';
-import 'package:jabook/core/utils/responsive_utils.dart';
+import 'package:jabook/features/player/presentation/widgets/chapter_indicator.dart';
 import 'package:jabook/features/player/presentation/widgets/chapters_bottom_sheet.dart';
+import 'package:jabook/features/player/presentation/widgets/nearby_chapters_carousel.dart';
+import 'package:jabook/features/player/presentation/widgets/player_controls.dart';
+import 'package:jabook/features/player/presentation/widgets/player_info.dart';
+import 'package:jabook/features/player/presentation/widgets/player_progress.dart';
 import 'package:jabook/l10n/app_localizations.dart';
 
 /// Main audiobook player screen.
@@ -53,12 +57,15 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   final LocalStreamServer _streamServer = LocalStreamServer();
 
   Audiobook? _audiobook;
+  // Sorted chapters by fileIndex - used for playlist creation and navigation
+  // This ensures playlist index corresponds to fileIndex
+  List<Chapter>? _sortedChapters;
   bool _isInitialized = false;
   bool _hasError = false;
   String? _errorMessage;
   // Local state for slider during dragging
   double? _sliderValue;
-  bool _isDragging = false;
+  final bool _isDragging = false;
 
   @override
   void initState() {
@@ -77,8 +84,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 
   Future<void> _initializePlayer() async {
     try {
-      final playerNotifier = ref.read(playerStateProvider.notifier);
-      final currentState = ref.read(playerStateProvider);
+      // Use new simplePlayerProvider for all operations
+      final simplePlayerNotifier = ref.read(simplePlayerProvider.notifier);
+      // Also get new provider for basic state
+      final currentState = ref.read(simplePlayerProvider);
 
       // ALWAYS recreate playlist to ensure mapping is correct
       // (removed check for existing player state)
@@ -91,14 +100,17 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       });
 
       // Initialize player service (only if not already initialized)
+      // Note: initialize() is not yet available in simplePlayerProvider,
+      // Use new simplePlayerProvider for initialization
       if (currentState.playbackState == 0) {
-        await playerNotifier.initialize();
+        await simplePlayerNotifier.initialize();
       }
 
       // Load audiobook from RuTracker and restore position in parallel
+      // Use new simplePlayerProvider for restorePosition
       final results = await Future.wait([
         _loadAudiobookFromRutracker(),
-        playerNotifier.restorePosition(widget.bookId),
+        simplePlayerNotifier.restorePosition(widget.bookId),
       ]);
       final savedPosition = results[1] as Map<String, int>?;
 
@@ -109,18 +121,52 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 
       // Validate saved position if available
       // Note: restorePosition already validates, but we do additional checks here
+      // CRITICAL: After sorting chapters by fileIndex, we need to map saved trackIndex
+      // to the new sorted position. The saved trackIndex was the playlist index,
+      // which may have been based on unsorted chapters. We need to find the chapter
+      // that was at that position and use its fileIndex to find the new position.
       int? initialTrackIndex;
       int? initialPositionMs;
-      if (savedPosition != null) {
-        final trackIndex = savedPosition['trackIndex'];
+      if (savedPosition != null && _audiobook != null) {
+        final savedTrackIndex = savedPosition['trackIndex'];
         final positionMs = savedPosition['positionMs'];
-        if (trackIndex != null &&
+
+        if (savedTrackIndex != null &&
             positionMs != null &&
-            trackIndex >= 0 &&
-            trackIndex < (_audiobook?.chapters.length ?? 0) &&
+            savedTrackIndex >= 0 &&
+            savedTrackIndex < _audiobook!.chapters.length &&
             positionMs >= 0) {
-          initialTrackIndex = trackIndex;
-          initialPositionMs = positionMs;
+          // Ensure sorted chapters are available
+          if (_sortedChapters == null || _sortedChapters!.isEmpty) {
+            _sortedChapters = List<Chapter>.from(_audiobook!.chapters)
+              ..sort((a, b) => a.fileIndex.compareTo(b.fileIndex));
+          }
+
+          // Find the chapter that was at the saved track index
+          // The saved trackIndex was the position in the old playlist
+          // We need to find which chapter's fileIndex corresponds to that position
+          if (savedTrackIndex < _sortedChapters!.length) {
+            // Find chapter by matching fileIndex from old position
+            // The old playlist may have been unsorted, so we need to find
+            // the chapter that was at savedTrackIndex and map it to new sorted position
+            final oldChapter = _audiobook!.chapters[savedTrackIndex];
+            // Find this chapter's position in sorted list
+            final newIndex = _sortedChapters!.indexWhere(
+              (ch) => ch.fileIndex == oldChapter.fileIndex,
+            );
+
+            if (newIndex >= 0 && newIndex < _sortedChapters!.length) {
+              initialTrackIndex = newIndex;
+              initialPositionMs = positionMs;
+            } else {
+              // Fallback: use savedTrackIndex if chapter not found
+              // This handles edge cases where chapter structure changed
+              initialTrackIndex = savedTrackIndex < _sortedChapters!.length
+                  ? savedTrackIndex
+                  : null;
+              initialPositionMs = positionMs;
+            }
+          }
         }
       }
 
@@ -147,11 +193,12 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 
       // Start playback in background (non-blocking)
       // Note: Position is already restored via initialTrackIndex/initialPosition in setPlaylist
+      // Use new simplePlayerProvider for play()
       if (savedPosition != null && mounted) {
         unawaited(
           Future.delayed(const Duration(milliseconds: 300), () {
             if (mounted) {
-              playerNotifier.play();
+              simplePlayerNotifier.play();
             }
           }),
         );
@@ -160,7 +207,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         unawaited(
           Future.delayed(const Duration(milliseconds: 300), () {
             if (mounted) {
-              playerNotifier.play();
+              simplePlayerNotifier.play();
             }
           }),
         );
@@ -193,8 +240,13 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
           baseUrl: base,
         );
         if (parsed != null) {
+          // Sort chapters by fileIndex to ensure playlist order matches file order
+          final sortedChapters = List<Chapter>.from(parsed.chapters)
+            ..sort((a, b) => a.fileIndex.compareTo(b.fileIndex));
+
           setState(() {
             _audiobook = parsed;
+            _sortedChapters = sortedChapters;
           });
           // Log audiobook loaded
           unawaited(StructuredLogger().log(
@@ -234,9 +286,12 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   }) async {
     if (_audiobook == null || _audiobook!.chapters.isEmpty) {
       // Fallback to demo audio if no chapters available
-      final playerNotifier = ref.read(playerStateProvider.notifier);
-      await playerNotifier.setPlaylist(
-        ['https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3'],
+      // Use new simplePlayerProvider for setPlaylist
+      final simplePlayerNotifier = ref.read(simplePlayerProvider.notifier);
+      await simplePlayerNotifier.setPlaylist(
+        filePaths: [
+          'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3'
+        ],
         metadata: {
           'title': 'Demo Audio',
           'artist': 'SoundHelix',
@@ -276,15 +331,111 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         await _streamServer.start();
       }
 
-      // Create playlist from chapters in their array order
-      // Chapter navigation uses array index (position in chapters array)
-      // which corresponds to position in the playlist
+      // CRITICAL FIX: Use file order from disk, match chapters by position
+      // The problem: chapters from description have fileIndex as sequential number,
+      // but the actual files in directory are sorted by path. The fileIndex in chapters
+      // may not correspond to the actual file order after sorting.
+      //
+      // Solution: Get all files sorted by path, then match chapters to files by position.
+      // This ensures that playlist order matches the actual file order on disk.
+      // We assume that chapters are already in the correct order matching file order.
+      final fileFinder = LibraryFileFinder();
 
-      // Create URLs for all chapters in original order
-      final streamUrls = _audiobook!.chapters
-          .map((chapter) =>
-              _streamServer.getStreamUrl(widget.bookId, chapter.fileIndex))
-          .toList();
+      // Get all files from directory, sorted by path
+      final allFiles = await fileFinder.getAllFilesByBookId(widget.bookId);
+
+      if (allFiles.isEmpty) {
+        await StructuredLogger().log(
+          level: 'warning',
+          subsystem: 'player',
+          message: 'No files found for audiobook',
+          extra: {'bookId': widget.bookId},
+        );
+        if (mounted) {
+          setState(() {
+            _hasError = true;
+            _errorMessage =
+                'Files not found. Please download the audiobook first.';
+          });
+        }
+        return;
+      }
+
+      // Sort chapters by fileIndex to maintain original order
+      // This order should match the order files appear in the directory
+      if (_sortedChapters == null || _sortedChapters!.isEmpty) {
+        _sortedChapters = List<Chapter>.from(_audiobook!.chapters)
+          ..sort((a, b) => a.fileIndex.compareTo(b.fileIndex));
+      }
+
+      // Use file order from disk (sorted by path)
+      // Match chapters to files by position: chapter[0] -> file[0], chapter[1] -> file[1], etc.
+      final filePaths = <String>[];
+      final matchedChapters = <Chapter>[];
+
+      // Match chapters to files by position
+      // Take minimum of chapters and files to avoid index out of bounds
+      final maxCount = _sortedChapters!.length < allFiles.length
+          ? _sortedChapters!.length
+          : allFiles.length;
+
+      for (var i = 0; i < maxCount; i++) {
+        filePaths.add(allFiles[i]);
+        matchedChapters.add(_sortedChapters![i]);
+      }
+
+      // Update _sortedChapters to match the order of files
+      _sortedChapters = matchedChapters;
+
+      // Log detailed mapping for debugging
+      unawaited(StructuredLogger().log(
+        level: 'info',
+        subsystem: 'player',
+        message: 'Created playlist by matching chapters to files by position',
+        extra: {
+          'bookId': widget.bookId,
+          'totalChapters': _audiobook!.chapters.length,
+          'totalFiles': allFiles.length,
+          'matchedCount': matchedChapters.length,
+          'playlistSize': filePaths.length,
+          'fileOrder': allFiles.take(10).map((p) => p.split('/').last).toList(),
+          'mapping': matchedChapters.asMap().entries.take(10).map((e) {
+            final filePath = e.key < filePaths.length ? filePaths[e.key] : null;
+            return {
+              'playlistIndex': e.key,
+              'chapterTitle': e.value.title,
+              'chapterFileIndex': e.value.fileIndex,
+              'fileName': filePath?.split('/').last,
+            };
+          }).toList(),
+        },
+      ));
+
+      // Log detailed mapping for debugging
+      unawaited(StructuredLogger().log(
+        level: 'info',
+        subsystem: 'player',
+        message: 'Created playlist by matching chapters to files by filename',
+        extra: {
+          'bookId': widget.bookId,
+          'totalChapters': _audiobook!.chapters.length,
+          'matchedChapters': _sortedChapters!.length,
+          'totalFiles': allFiles.length,
+          'playlistSize': filePaths.length,
+          'mapping': _sortedChapters!.asMap().entries.map((e) {
+            final filePath = e.key < filePaths.length ? filePaths[e.key] : null;
+            return {
+              'playlistIndex': e.key,
+              'chapterTitle': e.value.title,
+              'chapterFileIndex': e.value.fileIndex,
+              'filePath': filePath,
+              'fileName': filePath?.split('/').last,
+            };
+          }).toList(),
+          'allFilesOrder':
+              allFiles.take(10).map((p) => p.split('/').last).toList(),
+        },
+      ));
 
       // Prepare metadata
       Uri? art;
@@ -303,11 +454,12 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         if (art != null) 'artworkUri': art.toString(),
       };
 
-      // Set playlist with all chapters
+      // Set playlist with all chapters using real file paths
       // Use initialTrackIndex and initialPosition to immediately load the saved track
-      final playerNotifier = ref.read(playerStateProvider.notifier);
-      await playerNotifier.setPlaylist(
-        streamUrls,
+      // Use new simplePlayerProvider for setPlaylist
+      final simplePlayerNotifier = ref.read(simplePlayerProvider.notifier);
+      await simplePlayerNotifier.setPlaylist(
+        filePaths: filePaths,
         metadata: metadata,
         groupPath: widget.bookId,
         initialTrackIndex: initialTrackIndex,
@@ -360,8 +512,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   }
 
   void _playPause() {
-    final playerNotifier = ref.read(playerStateProvider.notifier);
-    final state = ref.read(playerStateProvider);
+    final playerNotifier = ref.read(simplePlayerProvider.notifier);
+    final state = ref.read(simplePlayerProvider);
     if (state.isPlaying) {
       playerNotifier.pause();
     } else {
@@ -369,63 +521,81 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     }
   }
 
-  /// Called when user starts dragging the slider.
-  void _onSliderStart(double value) {
-    setState(() {
-      _isDragging = true;
-      _sliderValue = value;
-    });
-  }
-
-  /// Called while user is dragging the slider.
-  void _onSliderChanged(double value) {
-    setState(() {
-      _sliderValue = value.clamp(0.0, 1.0);
-    });
-  }
-
-  /// Called when user finishes dragging the slider.
-  void _onSliderEnd(double value) {
-    final state = ref.read(playerStateProvider);
-    final positionMs =
-        (value * state.duration).round().clamp(0, state.duration);
-    final position = Duration(milliseconds: positionMs);
-
-    ref.read(playerStateProvider.notifier).seek(position);
-
-    // Reset local state
-    setState(() {
-      _isDragging = false;
-      _sliderValue = null;
-    });
-  }
-
   void _seekToChapter(Chapter chapter) {
     if (_audiobook == null) return;
 
-    final playerNotifier = ref.read(playerStateProvider.notifier);
+    // Use new simplePlayerProvider for seekToTrack
+    final simplePlayerNotifier = ref.read(simplePlayerProvider.notifier);
 
-    // For playlist: find chapter position in chapters array
-    // The playlist is created in the same order as the chapters array,
-    // so array index = playlist index
+    // CRITICAL: Playlist is created by matching chapters to files by filename
+    // _sortedChapters contains chapters in the same order as files in the playlist
     if (_audiobook!.chapters.length > 1) {
-      // Find the chapter in the chapters array
-      final chapterIndex = _audiobook!.chapters.indexOf(chapter);
+      // Ensure sorted chapters are available (should be set during _loadAudioSource)
+      if (_sortedChapters == null || _sortedChapters!.isEmpty) {
+        // Fallback: if _sortedChapters not set, sort by fileIndex
+        _sortedChapters = List<Chapter>.from(_audiobook!.chapters)
+          ..sort((a, b) => a.fileIndex.compareTo(b.fileIndex));
+      }
 
-      if (chapterIndex < 0 || chapterIndex >= _audiobook!.chapters.length) {
-        // Chapter not found, abort
+      // Find the chapter's position in the sorted list
+      // Since _sortedChapters matches the playlist order, the index here
+      // directly corresponds to the playlist index
+      var playlistIndex = _sortedChapters!.indexWhere(
+        (ch) => ch.title == chapter.title && ch.fileIndex == chapter.fileIndex,
+      );
+
+      // Fallback: if exact match not found, try by title only
+      if (playlistIndex < 0) {
+        playlistIndex = _sortedChapters!.indexWhere(
+          (ch) => ch.title == chapter.title,
+        );
+      }
+
+      // Fallback: if still not found, try by fileIndex (for backward compatibility)
+      if (playlistIndex < 0) {
+        playlistIndex = _sortedChapters!.indexWhere(
+          (ch) => ch.fileIndex == chapter.fileIndex,
+        );
+      }
+
+      // Log for debugging
+      unawaited(StructuredLogger().log(
+        level: 'info',
+        subsystem: 'player',
+        message: 'Seeking to chapter',
+        extra: {
+          'chapterTitle': chapter.title,
+          'chapterFileIndex': chapter.fileIndex,
+          'playlistIndex': playlistIndex,
+          'sortedChaptersCount': _sortedChapters!.length,
+          'originalChaptersCount': _audiobook!.chapters.length,
+        },
+      ));
+
+      if (playlistIndex < 0 || playlistIndex >= _sortedChapters!.length) {
+        // Chapter not found in sorted list, abort
+        unawaited(StructuredLogger().log(
+          level: 'warning',
+          subsystem: 'player',
+          message: 'Chapter not found in sorted list',
+          extra: {
+            'chapterTitle': chapter.title,
+            'chapterFileIndex': chapter.fileIndex,
+            'sortedChaptersCount': _sortedChapters!.length,
+          },
+        ));
         return;
       }
 
-      // Perform the seek using array index (which equals playlist index)
-      playerNotifier
-        ..seekToTrack(chapterIndex)
-        ..seek(Duration.zero);
+      // Perform the seek using sorted index (which equals playlist index)
+      simplePlayerNotifier
+        ..seekToTrack(playlistIndex)
+        ..seek(0);
     } else {
       // For single file: seek to chapter start position
       final target = Duration(
           milliseconds: chapter.startByte > 0 ? 0 : (chapter.durationMs ~/ 2));
-      playerNotifier.seek(target);
+      simplePlayerNotifier.seek(target.inMilliseconds);
     }
 
     // Update metadata with chapter info
@@ -438,7 +608,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       }
     } on Exception catch (_) {}
 
-    playerNotifier.updateMetadata({
+    simplePlayerNotifier.updateMetadata({
       'title': '${_audiobook!.title} — ${chapter.title}',
       'artist': _audiobook!.author,
       'album': _audiobook!.category,
@@ -447,16 +617,17 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   }
 
   void _prevChapter() {
-    final state = ref.read(playerStateProvider);
-    if (state.currentIndex > 0) {
-      ref.read(playerStateProvider.notifier).previous();
+    final state = ref.read(simplePlayerProvider);
+    if (state.currentTrackIndex > 0) {
+      ref.read(simplePlayerProvider.notifier).previous();
     }
   }
 
   void _nextChapter() {
-    final state = ref.read(playerStateProvider);
-    if (state.currentIndex < (_audiobook?.chapters.length ?? 0) - 1) {
-      ref.read(playerStateProvider.notifier).next();
+    final state = ref.read(simplePlayerProvider);
+    if (_sortedChapters != null &&
+        state.currentTrackIndex < _sortedChapters!.length - 1) {
+      ref.read(simplePlayerProvider.notifier).next();
     }
   }
 
@@ -611,7 +782,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   }
 
   Widget _buildBody() {
-    final playerState = ref.watch(playerStateProvider);
+    // Use new simplePlayerProvider for UI state
+    final playerState = ref.watch(simplePlayerProvider);
     final isLoading =
         !_isInitialized || playerState.playbackState == 1; // 1 = buffering
     final hasError = !isLoading && (_hasError || playerState.error != null);
@@ -661,7 +833,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         'audiobookNull': _audiobook == null,
         'chaptersCount': _audiobook?.chapters.length ?? 0,
         'chaptersEmpty': _audiobook?.chapters.isEmpty ?? true,
-        'currentIndex': playerState.currentIndex,
+        'currentIndex': playerState.currentTrackIndex,
         'bottomPadding': bottomPadding,
         'isInitialized': _isInitialized,
         'hasError': _hasError,
@@ -677,395 +849,87 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
           child: Column(
             children: [
               // Audiobook info
-              Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Cover image if available
-                    Builder(builder: (context) {
-                      try {
-                        // ignore: deprecated_member_use_from_same_package
-                        final coverUrl =
-                            (_audiobook as dynamic).coverUrl as String?;
-                        if (coverUrl != null && coverUrl.isNotEmpty) {
-                          return RepaintBoundary(
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(8),
-                              child: CachedNetworkImage(
-                                imageUrl: coverUrl,
-                                width: 96,
-                                height: 96,
-                                fit: BoxFit.cover,
-                                placeholder: (context, url) => Container(
-                                  width: 96,
-                                  height: 96,
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .surfaceContainerHighest,
-                                  child: const Center(
-                                    child: SizedBox(
-                                      width: 24,
-                                      height: 24,
-                                      child: CircularProgressIndicator(
-                                          strokeWidth: 2),
-                                    ),
-                                  ),
-                                ),
-                                errorWidget: (context, url, error) => Container(
-                                  width: 96,
-                                  height: 96,
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .errorContainer,
-                                  child: Icon(
-                                    Icons.error_outline,
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onErrorContainer,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          );
-                        }
-                      } on Exception catch (_) {}
-                      return const SizedBox(width: 0, height: 0);
-                    }),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            _audiobook!.title,
-                            style: Theme.of(context).textTheme.headlineSmall,
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'by ${_audiobook!.author}',
-                            style: Theme.of(context).textTheme.titleMedium,
-                          ),
-                          const SizedBox(height: 16),
-                          Row(
-                            children: [
-                              Chip(
-                                label: Text(_audiobook!.category),
-                                backgroundColor: Colors.blue.shade100,
-                              ),
-                              const SizedBox(width: 8),
-                              Chip(
-                                label: Text(_audiobook!.size),
-                                backgroundColor: Colors.green.shade100,
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+              if (_audiobook != null)
+                PlayerInfo(
+                  title: _audiobook!.title,
+                  author: _audiobook!.author,
+                  coverUrl: (_audiobook as dynamic).coverUrl as String?,
+                  category: _audiobook!.category,
+                  size: _audiobook!.size,
                 ),
-              ),
 
               // Progress bar
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                child: Column(
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(_formatDuration(Duration(
-                            milliseconds: playerState.currentPosition))),
-                        Text(_formatDuration(
-                            Duration(milliseconds: playerState.duration))),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Slider(
-                      value: _isDragging && _sliderValue != null
-                          ? _sliderValue!.clamp(0.0, 1.0)
-                          : (playerState.duration > 0
-                              ? playerState.currentPosition /
-                                  playerState.duration
-                              : 0.0),
-                      onChanged:
-                          playerState.duration > 0 ? _onSliderChanged : null,
-                      onChangeStart:
-                          playerState.duration > 0 ? _onSliderStart : null,
-                      onChangeEnd:
-                          playerState.duration > 0 ? _onSliderEnd : null,
-                    ),
-                  ],
-                ),
+              PlayerProgress(
+                currentPosition: playerState.currentPosition,
+                duration: playerState.duration,
+                onSeek: (position) {
+                  ref
+                      .read(simplePlayerProvider.notifier)
+                      .seekDuration(Duration(milliseconds: position));
+                },
+                isDragging: _isDragging,
+                sliderValue: _sliderValue,
               ),
 
-              // Current chapter indicator - shows current chapter and allows quick navigation
+              // Current chapter indicator
               if (_audiobook != null &&
-                  _audiobook!.chapters.isNotEmpty &&
-                  playerState.currentIndex >= 0 &&
-                  playerState.currentIndex < _audiobook!.chapters.length)
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 16.0, vertical: 8.0),
-                  child: Card(
-                    elevation: 2,
-                    child: InkWell(
-                      onTap: _showChaptersBottomSheet,
-                      borderRadius: BorderRadius.circular(12),
-                      child: Padding(
-                        padding: const EdgeInsets.all(12.0),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.play_circle_filled,
-                              color: Theme.of(context).primaryColor,
-                              size: 24,
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    '${AppLocalizations.of(context)?.chaptersLabel ?? 'Chapter'} ${playerState.currentIndex + 1} / ${_audiobook!.chapters.length}',
-                                    style:
-                                        Theme.of(context).textTheme.bodySmall,
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    _audiobook!
-                                        .chapters[playerState.currentIndex]
-                                        .title,
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .titleMedium
-                                        ?.copyWith(
-                                          fontWeight: FontWeight.bold,
-                                          color: Theme.of(context).primaryColor,
-                                        ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Icon(
-                              Icons.chevron_right,
-                              color: Theme.of(context).primaryColor,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
+                  _sortedChapters != null &&
+                  _sortedChapters!.isNotEmpty &&
+                  playerState.currentTrackIndex >= 0 &&
+                  playerState.currentTrackIndex < _sortedChapters!.length)
+                ChapterIndicator(
+                  currentChapterIndex: playerState.currentTrackIndex,
+                  totalChapters: _sortedChapters!.length,
+                  currentChapterTitle:
+                      _sortedChapters![playerState.currentTrackIndex].title,
+                  onTap: _showChaptersBottomSheet,
                 ),
 
               // Player controls
-              Padding(
-                padding: EdgeInsets.only(
-                  left: ResponsiveUtils.getCompactPadding(context).left,
-                  right: ResponsiveUtils.getCompactPadding(context).right,
-                  top: ResponsiveUtils.getCompactPadding(context).top,
-                  bottom: ResponsiveUtils.getCompactPadding(context).bottom +
-                      16.0, // Base padding
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.skip_previous),
-                      onPressed:
-                          playerState.currentIndex > 0 ? _prevChapter : null,
-                      tooltip: _audiobook != null &&
-                              playerState.currentIndex > 0 &&
-                              playerState.currentIndex - 1 >= 0 &&
-                              playerState.currentIndex - 1 <
-                                  _audiobook!.chapters.length
-                          ? _audiobook!
-                              .chapters[playerState.currentIndex - 1].title
-                          : 'Previous chapter',
-                      iconSize: ResponsiveUtils.getIconSize(
-                        context,
-                        baseSize: ResponsiveUtils.isVerySmallScreen(context)
-                            ? 40
-                            : 48,
-                      ),
-                      constraints: BoxConstraints(
-                        minWidth:
-                            ResponsiveUtils.getMinTouchTarget(context) * 1.1,
-                        minHeight:
-                            ResponsiveUtils.getMinTouchTarget(context) * 1.1,
-                      ),
-                    ),
-                    SizedBox(
-                      width: ResponsiveUtils.getSpacing(
-                        context,
-                        baseSpacing: 32,
-                      ),
-                    ),
-                    IconButton(
-                      icon: Icon(playerState.isPlaying
-                          ? Icons.pause
-                          : Icons.play_arrow),
-                      onPressed: _playPause,
-                      iconSize: ResponsiveUtils.getIconSize(
-                        context,
-                        baseSize: ResponsiveUtils.isVerySmallScreen(context)
-                            ? 56
-                            : 64,
-                      ),
-                      constraints: BoxConstraints(
-                        minWidth:
-                            ResponsiveUtils.getMinTouchTarget(context) * 1.4,
-                        minHeight:
-                            ResponsiveUtils.getMinTouchTarget(context) * 1.4,
-                      ),
-                    ),
-                    SizedBox(
-                      width: ResponsiveUtils.getSpacing(
-                        context,
-                        baseSpacing: 32,
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.skip_next),
-                      onPressed: _nextChapter,
-                      tooltip: _audiobook != null &&
-                              playerState.currentIndex >= 0 &&
-                              playerState.currentIndex + 1 >= 0 &&
-                              playerState.currentIndex + 1 <
-                                  _audiobook!.chapters.length
-                          ? _audiobook!
-                              .chapters[playerState.currentIndex + 1].title
-                          : 'Next chapter',
-                      iconSize: ResponsiveUtils.getIconSize(
-                        context,
-                        baseSize: ResponsiveUtils.isVerySmallScreen(context)
-                            ? 40
-                            : 48,
-                      ),
-                      constraints: BoxConstraints(
-                        minWidth:
-                            ResponsiveUtils.getMinTouchTarget(context) * 1.1,
-                        minHeight:
-                            ResponsiveUtils.getMinTouchTarget(context) * 1.1,
-                      ),
-                    ),
-                  ],
-                ),
+              PlayerControls(
+                isPlaying: playerState.isPlaying,
+                onPlayPause: _playPause,
+                onPrevious:
+                    playerState.currentTrackIndex > 0 ? _prevChapter : null,
+                onNext: _nextChapter,
+                onSpeedChanged: (speed) {
+                  ref.read(simplePlayerProvider.notifier).setSpeed(speed);
+                },
+                currentSpeed: playerState.playbackSpeed,
+                canGoPrevious: playerState.currentTrackIndex > 0,
+                canGoNext: _sortedChapters != null &&
+                    playerState.currentTrackIndex < _sortedChapters!.length - 1,
+                previousTooltip: _sortedChapters != null &&
+                        playerState.currentTrackIndex > 0 &&
+                        playerState.currentTrackIndex - 1 >= 0 &&
+                        playerState.currentTrackIndex - 1 <
+                            _sortedChapters!.length
+                    ? _sortedChapters![playerState.currentTrackIndex - 1].title
+                    : null,
+                nextTooltip: _sortedChapters != null &&
+                        playerState.currentTrackIndex >= 0 &&
+                        playerState.currentTrackIndex + 1 >= 0 &&
+                        playerState.currentTrackIndex + 1 <
+                            _sortedChapters!.length
+                    ? _sortedChapters![playerState.currentTrackIndex + 1].title
+                    : null,
               ),
 
-              // Nearby chapters carousel - shows current + 2 prev + 2 next for quick navigation
-              if (_audiobook != null &&
-                  _audiobook!.chapters.length > 1 &&
-                  playerState.currentIndex >= 0 &&
-                  playerState.currentIndex < _audiobook!.chapters.length)
-                Padding(
-                  padding: const EdgeInsets.only(top: 8.0, bottom: 8.0),
-                  child: SizedBox(
-                    height: 90,
-                    child: ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                      itemCount: _audiobook!.chapters.length,
-                      itemBuilder: (context, index) {
-                        // DEFENSIVE: Validate index is in bounds
-                        if (index < 0 || index >= _audiobook!.chapters.length) {
-                          return const SizedBox.shrink();
-                        }
-
-                        final chapter = _audiobook!.chapters[index];
-                        final isCurrent = index == playerState.currentIndex;
-                        final distance =
-                            (index - playerState.currentIndex).abs();
-
-                        // Show only current + 2 prev + 2 next (total 5 chapters)
-                        if (distance > 2) return const SizedBox.shrink();
-
-                        return Padding(
-                          padding: const EdgeInsets.only(right: 8.0),
-                          child: GestureDetector(
-                            onTap: () => _seekToChapter(chapter),
-                            child: Container(
-                              width: 130,
-                              decoration: BoxDecoration(
-                                color: isCurrent
-                                    ? Theme.of(context)
-                                        .primaryColor
-                                        .withValues(alpha: 0.1)
-                                    : Theme.of(context).cardColor,
-                                borderRadius: BorderRadius.circular(12),
-                                border: isCurrent
-                                    ? Border.all(
-                                        color: Theme.of(context).primaryColor,
-                                        width: 2,
-                                      )
-                                    : Border.all(
-                                        color: Theme.of(context).dividerColor,
-                                      ),
-                              ),
-                              padding: const EdgeInsets.all(10.0),
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      if (isCurrent)
-                                        Icon(
-                                          Icons.play_circle_filled,
-                                          size: 16,
-                                          color: Theme.of(context).primaryColor,
-                                        ),
-                                      if (isCurrent) const SizedBox(width: 4),
-                                      Text(
-                                        '${index + 1}',
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .titleSmall
-                                            ?.copyWith(
-                                              fontWeight: isCurrent
-                                                  ? FontWeight.bold
-                                                  : FontWeight.normal,
-                                              color: isCurrent
-                                                  ? Theme.of(context)
-                                                      .primaryColor
-                                                  : null,
-                                            ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 6),
-                                  Expanded(
-                                    child: Text(chapter.title,
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .bodySmall,
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                        textAlign: TextAlign.center),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
+              // Nearby chapters carousel
+              if (_sortedChapters != null &&
+                  _sortedChapters!.length > 1 &&
+                  playerState.currentTrackIndex >= 0 &&
+                  playerState.currentTrackIndex < _sortedChapters!.length)
+                NearbyChaptersCarousel(
+                  chapters: _sortedChapters!,
+                  currentIndex: playerState.currentTrackIndex,
+                  onChapterSelected: _seekToChapter,
                 ),
             ],
           ),
         ),
       ),
     );
-  }
-
-  String _formatDuration(Duration duration) {
-    final minutes = duration.inMinutes.remainder(60);
-    final seconds = duration.inSeconds.remainder(60);
-    return '$minutes:${seconds.toString().padLeft(2, '0')}';
   }
 
   void _downloadAudiobook() {
@@ -1098,6 +962,6 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       if (art != null) 'artworkUri': art.toString(),
     };
 
-    ref.read(playerStateProvider.notifier).updateMetadata(metadata);
+    ref.read(simplePlayerProvider.notifier).updateMetadata(metadata);
   }
 }

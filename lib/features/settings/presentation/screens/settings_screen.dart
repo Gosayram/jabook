@@ -22,6 +22,7 @@ import 'package:go_router/go_router.dart';
 import 'package:jabook/core/backup/backup_service.dart';
 import 'package:jabook/core/di/providers/database_providers.dart';
 import 'package:jabook/core/di/providers/player_providers.dart';
+import 'package:jabook/core/di/providers/simple_player_providers.dart';
 import 'package:jabook/core/di/providers/utils_providers.dart';
 import 'package:jabook/core/infrastructure/config/app_config.dart';
 import 'package:jabook/core/infrastructure/config/audio_settings_provider.dart';
@@ -31,7 +32,8 @@ import 'package:jabook/core/infrastructure/config/language_provider.dart';
 import 'package:jabook/core/infrastructure/config/notification_settings_provider.dart';
 import 'package:jabook/core/infrastructure/permissions/permission_service.dart';
 import 'package:jabook/core/player/native_audio_player.dart';
-import 'package:jabook/core/player/player_state_provider.dart';
+import 'package:jabook/core/player/player_state_provider.dart'
+    show currentAudiobookGroupProvider;
 import 'package:jabook/core/utils/app_title_utils.dart';
 import 'package:jabook/features/settings/presentation/widgets/dialogs/audio_dialogs.dart';
 import 'package:jabook/features/settings/presentation/widgets/dialogs/folder_dialogs.dart';
@@ -642,25 +644,23 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
       // Safely access player state provider - wrap in try-catch to handle
       // cases where provider might not be ready yet
-      PlayerStateModel? playerState;
+      // Use new simplePlayerProvider for state check
       try {
-        playerState = ref.read(playerStateProvider);
+        final playerState = ref.read(simplePlayerProvider);
+        // Only apply if player is active
+        if (playerState.playbackState != 0) {
+          final playerService = ref.read(media3PlayerServiceProvider);
+          await playerService.configureAudioProcessing(
+            normalizeVolume: settings.normalizeVolume,
+            volumeBoostLevel: settings.volumeBoostLevel,
+            drcLevel: settings.drcLevel,
+            speechEnhancer: settings.speechEnhancer,
+            autoVolumeLeveling: settings.autoVolumeLeveling,
+          );
+        }
       } on Exception {
         // Provider not ready yet, skip applying settings
         return;
-      }
-
-      // Only apply if player is active
-      if (playerState?.playbackState != null &&
-          playerState!.playbackState != 0) {
-        final playerService = ref.read(media3PlayerServiceProvider);
-        await playerService.configureAudioProcessing(
-          normalizeVolume: settings.normalizeVolume,
-          volumeBoostLevel: settings.volumeBoostLevel,
-          drcLevel: settings.drcLevel,
-          speechEnhancer: settings.speechEnhancer,
-          autoVolumeLeveling: settings.autoVolumeLeveling,
-        );
       }
     } on Exception catch (e) {
       // Log error but don't show to user (settings are saved anyway)
@@ -676,23 +676,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
       // Safely access player state provider - wrap in try-catch to handle
       // cases where provider might not be ready yet
-      PlayerStateModel? playerState;
+      // Use new simplePlayerProvider for state check
       try {
-        playerState = ref.read(playerStateProvider);
+        final playerState = ref.read(simplePlayerProvider);
+        // Only update if player is initialized and playing
+        if (playerState.playbackState != 0) {
+          final audioSettings = ref.read(audioSettingsProvider);
+          final playerService = ref.read(media3PlayerServiceProvider);
+          await playerService.updateSkipDurations(
+            audioSettings.defaultRewindDuration,
+            audioSettings.defaultForwardDuration,
+          );
+        }
       } on Exception {
         // Provider not ready yet, skip update
         return;
-      }
-
-      // Only update if player is initialized and playing
-      if (playerState?.playbackState != null &&
-          playerState!.playbackState != 0) {
-        final audioSettings = ref.read(audioSettingsProvider);
-        final playerService = ref.read(media3PlayerServiceProvider);
-        await playerService.updateSkipDurations(
-          audioSettings.defaultRewindDuration,
-          audioSettings.defaultForwardDuration,
-        );
       }
     } on Exception {
       // Ignore errors - MediaSessionManager update is not critical
@@ -707,22 +705,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
       // Safely access player state provider - wrap in try-catch to handle
       // cases where provider might not be ready yet
-      PlayerStateModel? playerState;
+      // Use new simplePlayerProvider for state check
       try {
-        playerState = ref.read(playerStateProvider);
+        final playerState = ref.read(simplePlayerProvider);
+        // Only update if player is initialized
+        if (playerState.playbackState != 0) {
+          final audioSettings = ref.read(audioSettingsProvider);
+          final playerService = ref.read(media3PlayerServiceProvider);
+          await playerService.setInactivityTimeoutMinutes(
+            audioSettings.inactivityTimeoutMinutes,
+          );
+        }
       } on Exception {
         // Provider not ready yet, skip update
         return;
-      }
-
-      // Only update if player is initialized
-      if (playerState?.playbackState != null &&
-          playerState!.playbackState != 0) {
-        final audioSettings = ref.read(audioSettingsProvider);
-        final playerService = ref.read(media3PlayerServiceProvider);
-        await playerService.setInactivityTimeoutMinutes(
-          audioSettings.inactivityTimeoutMinutes,
-        );
       }
     } on Exception {
       // Ignore errors - inactivity timeout update is not critical
@@ -741,10 +737,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       // If player is active, reapply global settings
       // Safely access player state provider - wrap in try-catch to handle
       // cases where provider might not be ready yet
+      // Use new simplePlayerProvider for state check
       try {
-        final playerState = ref.read(playerStateProvider);
-        if (playerState.playbackState != 0 &&
-            playerState.currentGroupPath != null) {
+        final playerState = ref.read(simplePlayerProvider);
+        final currentGroup = ref.read(currentAudiobookGroupProvider);
+        if (playerState.playbackState != 0 && currentGroup != null) {
           // Player is active, but we can't directly access local_player_screen
           // The settings will be applied on next book load or app restart
         }

@@ -43,6 +43,94 @@ class LibraryFileFinder {
     '.wav',
   ];
 
+  /// Gets all audio files for a bookId, sorted by path.
+  ///
+  /// The [bookId] parameter is the book ID (numeric folder name).
+  ///
+  /// Returns a list of file paths sorted by path, or empty list if not found.
+  Future<List<String>> getAllFilesByBookId(String bookId) async {
+    // First, search in download directory
+    final downloadDir = await _storageUtils.getDefaultAudiobookPath();
+    final possiblePaths = [
+      path.join(downloadDir, bookId),
+      downloadDir,
+    ];
+
+    for (final basePath in possiblePaths) {
+      final files = await _getAllFilesInDirectory(basePath);
+      if (files.isNotEmpty) return files;
+    }
+
+    // If not found, search in library folders
+    final libraryFolders = await _storageUtils.getLibraryFolders();
+    for (final libraryFolder in libraryFolders) {
+      final files = await _getAllFilesInLibraryFolder(libraryFolder, bookId);
+      if (files.isNotEmpty) return files;
+    }
+
+    return [];
+  }
+
+  /// Gets all audio files in a directory, sorted by path.
+  Future<List<String>> _getAllFilesInDirectory(String directoryPath) async {
+    if (StoragePathUtils.isContentUri(directoryPath)) {
+      return _getAllFilesInContentUri(directoryPath);
+    }
+
+    final dir = Directory(directoryPath);
+    if (!await dir.exists()) return [];
+
+    final audioFiles = <File>[];
+    await for (final entity in dir.list(recursive: true)) {
+      if (entity is File && _isAudioFile(entity.path)) {
+        audioFiles.add(entity);
+      }
+    }
+
+    audioFiles.sort((a, b) => a.path.compareTo(b.path));
+    return audioFiles.map((f) => f.path).toList();
+  }
+
+  /// Gets all audio files in a library folder by bookId.
+  Future<List<String>> _getAllFilesInLibraryFolder(
+    String libraryFolder,
+    String bookId,
+  ) async {
+    final dir = Directory(libraryFolder);
+    if (!await dir.exists()) return [];
+
+    // Search for directory containing bookId
+    await for (final entity in dir.list(recursive: true)) {
+      if (entity is Directory) {
+        if (entity.path.contains(bookId)) {
+          return _getAllFilesInDirectory(entity.path);
+        }
+      }
+    }
+
+    return [];
+  }
+
+  /// Gets all audio files in a Content URI, sorted by URI.
+  Future<List<String>> _getAllFilesInContentUri(String uri) async {
+    if (_contentUriService == null) return [];
+
+    try {
+      final hasAccess = await _contentUriService.checkUriAccess(uri);
+      if (!hasAccess) return [];
+
+      final entries = await _contentUriService.listDirectory(uri);
+      final audioFiles = <String>[];
+
+      await _collectAudioFilesFromContentUri(entries, audioFiles);
+      audioFiles.sort();
+
+      return audioFiles;
+    } on Exception {
+      return [];
+    }
+  }
+
   /// Finds a file by bookId (for torrent books).
   ///
   /// The [bookId] parameter is the book ID (numeric folder name).

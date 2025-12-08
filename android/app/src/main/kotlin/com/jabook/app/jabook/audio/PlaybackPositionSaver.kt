@@ -120,6 +120,13 @@ internal class PlaybackPositionSaver(
         if (currentUri != null && filePaths != null && filePaths.isNotEmpty()) {
             val currentPath = currentUri.path
             if (currentPath != null) {
+                // Log for debugging
+                val currentFileName = currentPath.substringAfterLast('/')
+                android.util.Log.d(
+                    "PlaybackPositionSaver",
+                    "Looking for file: $currentFileName in filePaths (size=${filePaths.size}), currentIndex=$currentIndex",
+                )
+
                 // Find the index of the current file in filePaths
                 val realIndex =
                     filePaths.indexOfFirst { filePath ->

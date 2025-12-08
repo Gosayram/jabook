@@ -15,6 +15,7 @@ import android.webkit.CookieManager
 import androidx.annotation.RequiresApi
 import com.jabook.app.jabook.audio.AudioPlayerMethodHandler
 import com.jabook.app.jabook.audio.PositionConstants
+import com.jabook.app.jabook.audio.bridge.BridgeInitializer
 import com.jabook.app.jabook.download.DownloadServiceMethodHandler
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -446,6 +447,15 @@ class MainActivity : FlutterActivity() {
             }
         } catch (e: Exception) {
             android.util.Log.e("MainActivity", "Failed to set MethodChannel in AudioPlayerService", e)
+        }
+
+        // Initialize new FlutterBridge (parallel to old API for gradual migration)
+        try {
+            BridgeInitializer.initializeBridge(this, flutterEngine)
+            android.util.Log.i("MainActivity", "New FlutterBridge initialized for gradual migration")
+        } catch (e: Exception) {
+            android.util.Log.e("MainActivity", "Failed to initialize new FlutterBridge", e)
+            // Continue with old API if new bridge fails
         }
 
         // Register PlayerLifecycleChannel for tracking player initialization state

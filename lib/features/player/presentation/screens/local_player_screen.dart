@@ -20,6 +20,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:jabook/core/di/providers/player_providers.dart';
+import 'package:jabook/core/di/providers/simple_player_providers.dart';
 import 'package:jabook/core/domain/library/entities/local_audiobook_group.dart';
 import 'package:jabook/core/infrastructure/config/audio_settings_manager.dart';
 import 'package:jabook/core/infrastructure/config/audio_settings_provider.dart';
@@ -32,11 +33,8 @@ import 'package:jabook/core/library/cover_fallback_service.dart';
 import 'package:jabook/core/player/native_audio_player.dart';
 import 'package:jabook/core/player/playback_settings_provider.dart';
 import 'package:jabook/core/player/player_state_provider.dart'
-    show
-        PlayerStateModel,
-        PlayerStateNotifier,
-        currentAudiobookGroupProvider,
-        playerStateProvider;
+    show currentAudiobookGroupProvider;
+import 'package:jabook/core/player/simple_player_provider.dart';
 import 'package:jabook/core/player/sleep_timer_service.dart';
 import 'package:jabook/core/utils/responsive_utils.dart';
 import 'package:jabook/core/utils/safe_async.dart';
@@ -169,7 +167,8 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
         _groupArtworkPath = null;
       });
       // Stop previous playback before switching
-      ref.read(playerStateProvider.notifier).stop();
+      // Use new simplePlayerProvider for stop
+      ref.read(simplePlayerProvider.notifier).stop();
       // Update current group
       ref.read(currentAudiobookGroupProvider.notifier).state = widget.group;
       // Load first available artwork from new group
@@ -185,7 +184,7 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       try {
-        ref.listen(playerStateProvider, (previous, next) {
+        ref.listen(simplePlayerProvider, (previous, next) {
           if (!mounted) return;
 
           // Check if sleep timer is set to expire at end of chapter
@@ -213,7 +212,7 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
             }
           }
 
-          if (previous?.currentIndex != next.currentIndex) {
+          if (previous?.currentTrackIndex != next.currentTrackIndex) {
             // Track changed, update metadata
             _updateMetadata();
             // Check for embedded artwork from metadata
@@ -227,7 +226,7 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
         Future.delayed(const Duration(milliseconds: 500), () {
           if (mounted) {
             try {
-              ref.listen(playerStateProvider, (previous, next) {
+              ref.listen(simplePlayerProvider, (previous, next) {
                 if (!mounted) return;
 
                 // Check if sleep timer is set to expire at end of chapter
@@ -255,7 +254,7 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
                   }
                 }
 
-                if (previous?.currentIndex != next.currentIndex) {
+                if (previous?.currentTrackIndex != next.currentTrackIndex) {
                   _updateMetadata();
                   _checkEmbeddedArtwork();
                 }
@@ -458,20 +457,21 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
     try {
       // Safely access player state provider - wrap in try-catch to handle
       // cases where provider might not be ready yet
-      PlayerStateNotifier? playerNotifier;
-      PlayerStateModel? currentState;
+      // Use new simplePlayerProvider for all operations
+      SimplePlayerNotifier? playerNotifier;
+      SimplePlayerState? currentState;
 
       try {
-        playerNotifier = ref.read(playerStateProvider.notifier);
-        currentState = ref.read(playerStateProvider);
+        playerNotifier = ref.read(simplePlayerProvider.notifier);
+        currentState = ref.read(simplePlayerProvider);
       } on Exception catch (e) {
         // Provider not ready yet, wait a bit and retry
         debugPrint('Player state provider not ready yet: $e');
         await Future.delayed(const Duration(milliseconds: 100));
         if (!mounted) return;
         try {
-          playerNotifier = ref.read(playerStateProvider.notifier);
-          currentState = ref.read(playerStateProvider);
+          playerNotifier = ref.read(simplePlayerProvider.notifier);
+          currentState = ref.read(simplePlayerProvider);
         } on Exception catch (e2) {
           // Still not ready, show error
           if (mounted) {
@@ -524,7 +524,9 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
 
       // Check if player is already initialized and playing the same group
       // If yes, skip reinitialization to avoid interrupting playback
-      if (currentState.currentGroupPath == widget.group.groupPath &&
+      // Use currentAudiobookGroupProvider to check current group
+      final currentGroup = ref.read(currentAudiobookGroupProvider);
+      if (currentGroup?.groupPath == widget.group.groupPath &&
           currentState.playbackState != 0) {
         // Player is already playing this group - just mark as initialized
         // No need to reload or restore position, player is already at correct position
@@ -536,7 +538,7 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
           extra: {
             'group_path': widget.group.groupPath,
             'current_position': currentState.currentPosition,
-            'current_track': currentState.currentIndex,
+            'current_track': currentState.currentTrackIndex,
           },
         );
         if (mounted) {
@@ -570,7 +572,7 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
       }
 
       // Initialize player service (only if not already initialized)
-      // Media3PlayerService checks _isInitialized internally, but we can skip if already ready
+      // Use new simplePlayerProvider for initialize
       debugPrint('🔵 [PLAYER_INIT] Checking if player needs initialization...');
       if (currentState.playbackState == 0) {
         debugPrint(
@@ -590,6 +592,7 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
       int? initialPosition;
       try {
         // Restore position with validation using file count
+        // Use new simplePlayerProvider for restorePosition
         savedPosition = await playerNotifier
             .restorePosition(
           widget.group.groupPath,
@@ -675,8 +678,6 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
       // Note: If initialPosition was provided to setPlaylist, position is already applied
       // This code is a fallback in case position wasn't applied automatically
       if (mounted) {
-        final currentState = ref.read(playerStateProvider);
-
         // Check if we have valid saved position that wasn't applied via initialPosition
         // (This should rarely happen now that we pass initialPosition to setPlaylist)
         if (savedPosition != null && initialPosition == null) {
@@ -692,7 +693,7 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
               // Just do a quick check (max 500ms) to ensure it's ready
               var attempts = 0;
               while (attempts < 5 && mounted) {
-                final state = ref.read(playerStateProvider);
+                final state = ref.read(simplePlayerProvider);
                 if (state.playbackState == 2) {
                   // 2 = ready
                   break;
@@ -703,13 +704,15 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
 
               if (mounted) {
                 // Use optimized method to seek to track and position at once
+                // Use new simplePlayerProvider for seekToTrackAndPosition
                 await playerNotifier.seekToTrackAndPosition(
                   trackIndex,
                   Duration(milliseconds: positionMs),
                 );
 
                 // Start playback if not already playing
-                if (!currentState.isPlaying) {
+                final currentStateAfterSeek = ref.read(simplePlayerProvider);
+                if (!currentStateAfterSeek.isPlaying) {
                   await playerNotifier.play();
                 }
 
@@ -740,7 +743,8 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
         } else if (savedPosition != null && initialPosition != null) {
           // Position was already applied via initialPosition in setPlaylist
           // Just start playback if needed
-          if (!currentState.isPlaying) {
+          final currentStateAfterSetPlaylist = ref.read(simplePlayerProvider);
+          if (!currentStateAfterSetPlaylist.isPlaying) {
             await playerNotifier.play();
           }
           await _logger.log(
@@ -764,7 +768,8 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
 
           // Player should already be ready from _waitForPlayerReady() above
           // No need to wait - start playback immediately
-          final state = ref.read(playerStateProvider);
+          // Use new simplePlayerProvider for state check
+          final state = ref.read(simplePlayerProvider);
           if (!state.isPlaying && mounted) {
             try {
               await playerNotifier.play();
@@ -786,8 +791,9 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
       }
 
       // Restore repeat mode and sleep timer from saved state
-      final savedFullState =
-          await ref.read(playerStateProvider.notifier).restoreFullState();
+      // Use new simplePlayerProvider for restoreFullState
+      final savedFullState = await playerNotifier.restoreFullState(
+          groupPath: widget.group.groupPath);
       if (savedFullState != null &&
           savedFullState.groupPath == widget.group.groupPath) {
         // Restore repeat mode
@@ -820,7 +826,8 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
               Duration(seconds: savedFullState.sleepTimerRemainingSeconds!),
               () {
                 if (mounted) {
-                  ref.read(playerStateProvider.notifier).pause();
+                  // Use new simplePlayerProvider for pause
+                  ref.read(simplePlayerProvider.notifier).pause();
                   final localizations = AppLocalizations.of(context);
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
@@ -1078,9 +1085,10 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
           'coverPath': widget.group.coverPath!,
       };
 
-      final playerNotifier = ref.read(playerStateProvider.notifier);
+      // Use new simplePlayerProvider for setPlaylist
+      final playerNotifier = ref.read(simplePlayerProvider.notifier);
       await playerNotifier.setPlaylist(
-        accessibleFiles,
+        filePaths: accessibleFiles,
         metadata: metadata,
         groupPath: widget.group.groupPath,
         initialTrackIndex: initialTrackIndex,
@@ -1111,8 +1119,9 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
   }
 
   void _playPause() {
-    final playerNotifier = ref.read(playerStateProvider.notifier);
-    final state = ref.read(playerStateProvider);
+    // Use new simplePlayerProvider for play/pause
+    final playerNotifier = ref.read(simplePlayerProvider.notifier);
+    final state = ref.read(simplePlayerProvider);
     if (state.isPlaying) {
       playerNotifier.pause();
     } else {
@@ -1122,12 +1131,13 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
 
   Future<void> _seekToTrack(int index) async {
     if (index >= 0 && index < widget.group.files.length) {
-      final playerNotifier = ref.read(playerStateProvider.notifier);
+      // Use new simplePlayerProvider for seekToTrack
+      final playerNotifier = ref.read(simplePlayerProvider.notifier);
       await playerNotifier.seekToTrack(index);
-      await playerNotifier.seek(Duration.zero);
+      await playerNotifier.seekDuration(Duration.zero);
 
       // Start playback automatically after switching track
-      final currentState = ref.read(playerStateProvider);
+      final currentState = ref.read(simplePlayerProvider);
       if (!currentState.isPlaying) {
         await playerNotifier.play();
       }
@@ -1135,16 +1145,18 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
   }
 
   void _prevTrack() {
-    final state = ref.read(playerStateProvider);
-    if (state.currentIndex > 0) {
-      ref.read(playerStateProvider.notifier).previous();
+    // Use new simplePlayerProvider for previous
+    final state = ref.read(simplePlayerProvider);
+    if (state.currentTrackIndex > 0) {
+      ref.read(simplePlayerProvider.notifier).previous();
     }
   }
 
   void _nextTrack() {
-    final state = ref.read(playerStateProvider);
-    if (state.currentIndex < widget.group.files.length - 1) {
-      ref.read(playerStateProvider.notifier).next();
+    // Use new simplePlayerProvider for next
+    final state = ref.read(simplePlayerProvider);
+    if (state.currentTrackIndex < widget.group.files.length - 1) {
+      ref.read(simplePlayerProvider.notifier).next();
     }
   }
 
@@ -1168,12 +1180,13 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
   /// Updates metadata for current track.
   void _updateMetadata() {
     if (widget.group.files.isEmpty) return;
-    final state = ref.read(playerStateProvider);
-    if (state.currentIndex < 0 ||
-        state.currentIndex >= widget.group.files.length) {
+    // Use new simplePlayerProvider for state
+    final state = ref.read(simplePlayerProvider);
+    if (state.currentTrackIndex < 0 ||
+        state.currentTrackIndex >= widget.group.files.length) {
       return;
     }
-    final currentFile = widget.group.files[state.currentIndex];
+    final currentFile = widget.group.files[state.currentTrackIndex];
 
     // Build title with fallback to filename if displayName is empty
     final title = currentFile.displayName.isNotEmpty
@@ -1189,7 +1202,8 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
       if (widget.group.groupName.isNotEmpty) 'album': widget.group.groupName,
       if (widget.group.coverPath != null) 'coverPath': widget.group.coverPath!,
     };
-    ref.read(playerStateProvider.notifier).updateMetadata(metadata);
+    // Use new simplePlayerProvider for updateMetadata
+    ref.read(simplePlayerProvider.notifier).updateMetadata(metadata);
   }
 
   /// Applies audio settings (speed and skip duration) from settings or book-specific settings.
@@ -1211,9 +1225,10 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
           bookSettings?.forwardDuration ?? audioSettings.defaultForwardDuration;
 
       // Apply playback speed if different from current
-      final currentState = ref.read(playerStateProvider);
+      // Use new simplePlayerProvider for setSpeed
+      final currentState = ref.read(simplePlayerProvider);
       if ((currentState.playbackSpeed - playbackSpeed).abs() > 0.01) {
-        await ref.read(playerStateProvider.notifier).setSpeed(playbackSpeed);
+        await ref.read(simplePlayerProvider.notifier).setSpeed(playbackSpeed);
       }
 
       // Update skip durations in MediaSessionManager
@@ -1414,7 +1429,8 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
   /// [speed] is the playback speed (0.5 to 2.0).
   Future<void> _setSpeed(double speed) async {
     try {
-      await ref.read(playerStateProvider.notifier).setSpeed(speed);
+      // Use new simplePlayerProvider for setSpeed
+      await ref.read(simplePlayerProvider.notifier).setSpeed(speed);
 
       // Save as individual book setting
       final groupPath = widget.group.groupPath;
@@ -1447,22 +1463,22 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
     debugPrint('🟡 [PLAYER_INIT] build() called');
 
     // Safely access player state provider - handle cases where provider might not be ready yet
-    debugPrint('🟡 [PLAYER_INIT] Attempting to watch playerStateProvider...');
-    PlayerStateModel playerState;
+    // Use new simplePlayerProvider for state
+    debugPrint('🟡 [PLAYER_INIT] Attempting to watch simplePlayerProvider...');
+    SimplePlayerState playerState;
     try {
-      playerState = ref.watch(playerStateProvider);
-      debugPrint('🟡 [PLAYER_INIT] playerStateProvider watched successfully');
+      playerState = ref.watch(simplePlayerProvider);
+      debugPrint('🟡 [PLAYER_INIT] simplePlayerProvider watched successfully');
     } on Exception catch (e) {
       // Provider not ready yet, use default state
       debugPrint(
           '🔴 [PLAYER_INIT] Player state provider not ready in build: $e');
-      playerState = const PlayerStateModel(
+      playerState = const SimplePlayerState(
         isPlaying: false,
         currentPosition: 0,
         duration: 0,
-        currentIndex: 0,
+        currentTrackIndex: 0,
         playbackSpeed: 1.0,
-        playbackState: 0,
       );
     }
     debugPrint(
@@ -1734,10 +1750,10 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
       );
 
   /// Builds track/chapter title - large, prominent.
-  Widget _buildTrackTitle(PlayerStateModel state) {
+  Widget _buildTrackTitle(SimplePlayerState state) {
     final hasFiles = widget.group.files.isNotEmpty &&
-        state.currentIndex >= 0 &&
-        state.currentIndex < widget.group.files.length;
+        state.currentTrackIndex >= 0 &&
+        state.currentTrackIndex < widget.group.files.length;
 
     final chapterNumber = hasFiles ? state.chapterNumberValue : 1;
     final localizations = AppLocalizations.of(context);
@@ -1780,7 +1796,7 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
   }
 
   /// Builds track info - "Track X of Y" and percentage in one line.
-  Widget _buildTrackInfo(PlayerStateModel state) {
+  Widget _buildTrackInfo(SimplePlayerState state) {
     final totalTracks = widget.group.files.length;
     final currentTrack = state.chapterNumberValue.clamp(1, totalTracks);
     final progress =
@@ -1813,7 +1829,7 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
     );
   }
 
-  Widget _buildProgressSlider(PlayerStateModel state) {
+  Widget _buildProgressSlider(SimplePlayerState state) {
     final hasDuration = state.duration > 0;
     final hasError = state.error != null;
 
@@ -1838,7 +1854,8 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
 
   /// Called when user starts dragging the slider.
   void _onSliderStart(double value) {
-    final state = ref.read(playerStateProvider);
+    // Use new simplePlayerProvider for state
+    final state = ref.read(simplePlayerProvider);
     setState(() {
       _isDragging = true;
       _sliderValue = value;
@@ -1855,13 +1872,14 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
 
   /// Called when user finishes dragging the slider.
   void _onSliderEnd(double value) {
-    final state = ref.read(playerStateProvider);
+    // Use new simplePlayerProvider for seek
+    final state = ref.read(simplePlayerProvider);
     final positionMs =
         (value * state.duration).round().clamp(0, state.duration);
     final position = Duration(milliseconds: positionMs);
 
     // Perform actual seek
-    ref.read(playerStateProvider.notifier).seek(position);
+    ref.read(simplePlayerProvider.notifier).seekDuration(position);
 
     // Reset local state
     setState(() {
@@ -1873,7 +1891,7 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
 
   /// Builds time indicators - current time on left, total time on right.
   /// Shows skip information when dragging.
-  Widget _buildTimeIndicators(PlayerStateModel state) {
+  Widget _buildTimeIndicators(SimplePlayerState state) {
     if (_isDragging && _sliderValue != null && _initialPositionMs != null) {
       // Show skip information during dragging
       final newPositionMs =
@@ -1982,7 +2000,8 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
   /// Optimized for fast startup - only waits up to 1 second.
   Future<void> _waitForPlayerReady() async {
     // Check current state first - if already ready, don't wait
-    final initialState = ref.read(playerStateProvider);
+    // Use new simplePlayerProvider for state
+    final initialState = ref.read(simplePlayerProvider);
     if (initialState.playbackState == 2) {
       return; // Already ready
     }
@@ -1994,7 +2013,7 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
     var attempts = 0;
     const maxAttempts = 10; // 1 second max wait (10 * 100ms)
     while (attempts < maxAttempts && mounted) {
-      final state = ref.read(playerStateProvider);
+      final state = ref.read(simplePlayerProvider);
       if (state.playbackState == 2) {
         // Player is ready
         return;
@@ -2012,14 +2031,14 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
   }
 
   /// Builds compact chapters/tracks navigation block.
-  Widget _buildTrackNavigation(PlayerStateModel state) {
+  Widget _buildTrackNavigation(SimplePlayerState state) {
     if (widget.group.files.isEmpty) return const SizedBox.shrink();
-    if (state.currentIndex < 0 ||
-        state.currentIndex >= widget.group.files.length) {
+    if (state.currentTrackIndex < 0 ||
+        state.currentTrackIndex >= widget.group.files.length) {
       return const SizedBox.shrink();
     }
 
-    final currentIndex = state.currentIndex;
+    final currentIndex = state.currentTrackIndex;
     final files = widget.group.files;
     final totalTracks = files.length;
 
@@ -2145,7 +2164,7 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
     );
   }
 
-  Widget _buildPlaybackControls(PlayerStateModel state) {
+  Widget _buildPlaybackControls(SimplePlayerState state) {
     final isLoading = state.playbackState == 1; // 1 = buffering
 
     return Column(
@@ -2161,7 +2180,7 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
                 context,
                 baseSize: ResponsiveUtils.isVerySmallScreen(context) ? 28 : 32,
               ),
-              onPressed: state.currentIndex > 0 ? _prevTrack : null,
+              onPressed: state.currentTrackIndex > 0 ? _prevTrack : null,
               tooltip: 'Previous track',
               constraints: const BoxConstraints(
                 minWidth: 48.0, // Material 3 minimum touch target
@@ -2230,7 +2249,7 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
                 context,
                 baseSize: ResponsiveUtils.isVerySmallScreen(context) ? 28 : 32,
               ),
-              onPressed: state.currentIndex < widget.group.files.length - 1
+              onPressed: state.currentTrackIndex < widget.group.files.length - 1
                   ? _nextTrack
                   : null,
               tooltip: 'Next track',
@@ -2248,29 +2267,35 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
   /// Rewinds playback by configured seconds.
   Future<void> _rewind([int? seconds]) async {
     final rewindSeconds = seconds ?? await _getRewindDuration();
-    final state = ref.read(playerStateProvider);
+    // Use new simplePlayerProvider for seek
+    final state = ref.read(simplePlayerProvider);
     final currentPosition = Duration(milliseconds: state.currentPosition);
     final newPosition = currentPosition - Duration(seconds: rewindSeconds);
     final actualNewPosition =
         newPosition.isNegative ? Duration.zero : newPosition;
 
-    await ref.read(playerStateProvider.notifier).seek(actualNewPosition);
+    await ref
+        .read(simplePlayerProvider.notifier)
+        .seekDuration(actualNewPosition);
   }
 
   /// Forwards playback by configured seconds.
   Future<void> _forward([int? seconds]) async {
     final forwardSeconds = seconds ?? await _getForwardDuration();
-    final state = ref.read(playerStateProvider);
+    // Use new simplePlayerProvider for seek
+    final state = ref.read(simplePlayerProvider);
     final currentPosition = Duration(milliseconds: state.currentPosition);
     final duration = Duration(milliseconds: state.duration);
     final newPosition = currentPosition + Duration(seconds: forwardSeconds);
     final actualNewPosition = newPosition > duration ? duration : newPosition;
 
-    await ref.read(playerStateProvider.notifier).seek(actualNewPosition);
+    await ref
+        .read(simplePlayerProvider.notifier)
+        .seekDuration(actualNewPosition);
   }
 
   /// Builds a row with speed, repeat and sleep timer controls.
-  Widget _buildControlsRow(PlayerStateModel state) => Row(
+  Widget _buildControlsRow(SimplePlayerState state) => Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
           // Speed control
@@ -2282,7 +2307,8 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
         ],
       );
 
-  Widget _buildSpeedControl(PlayerStateModel state) => PopupMenuButton<double?>(
+  Widget _buildSpeedControl(SimplePlayerState state) =>
+      PopupMenuButton<double?>(
         tooltip: 'Playback speed',
         itemBuilder: (context) {
           final localizations = AppLocalizations.of(context);
@@ -2357,8 +2383,10 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
         final settingsNotifier = ref.read(playbackSettingsProvider.notifier);
         await settingsNotifier.cycleRepeatMode();
         // Update saved state with new repeat mode
+        // Use new simplePlayerProvider for updateSavedStateSettings
         final newSettings = ref.read(playbackSettingsProvider);
-        await ref.read(playerStateProvider.notifier).updateSavedStateSettings(
+        await ref.read(simplePlayerProvider.notifier).updateSavedStateSettings(
+              groupPath: widget.group.groupPath,
               repeatMode: newSettings.repeatMode.index,
             );
       },
@@ -2395,9 +2423,10 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
             debugPrint('🟢 [SLEEP_TIMER_UI] Cancelling timer...');
             await _sleepTimerService.cancelTimer();
             _stopSleepTimerUpdates();
+            // Use new simplePlayerProvider for updateSavedStateSettings
             await ref
-                .read(playerStateProvider.notifier)
-                .updateSavedStateSettings();
+                .read(simplePlayerProvider.notifier)
+                .updateSavedStateSettings(groupPath: widget.group.groupPath);
             if (mounted) {
               setState(() {});
               debugPrint(
@@ -2415,9 +2444,10 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
               debugPrint('🟡 [SLEEP_TIMER_UI] Cancel tapped (onTap)');
               await _sleepTimerService.cancelTimer();
               _stopSleepTimerUpdates();
+              // Use new simplePlayerProvider for updateSavedStateSettings
               await ref
-                  .read(playerStateProvider.notifier)
-                  .updateSavedStateSettings();
+                  .read(simplePlayerProvider.notifier)
+                  .updateSavedStateSettings(groupPath: widget.group.groupPath);
               if (mounted) {
                 setState(() {});
                 debugPrint(
@@ -2449,9 +2479,10 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
             debugPrint('🟢 [SLEEP_TIMER_UI] Cancelling timer...');
             await _sleepTimerService.cancelTimer();
             _stopSleepTimerUpdates();
+            // Use new simplePlayerProvider for updateSavedStateSettings
             await ref
-                .read(playerStateProvider.notifier)
-                .updateSavedStateSettings();
+                .read(simplePlayerProvider.notifier)
+                .updateSavedStateSettings(groupPath: widget.group.groupPath);
             if (mounted) {
               setState(() {});
               debugPrint(
@@ -2469,9 +2500,10 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
               debugPrint('🟡 [SLEEP_TIMER_UI] Cancel tapped (onTap)');
               await _sleepTimerService.cancelTimer();
               _stopSleepTimerUpdates();
+              // Use new simplePlayerProvider for updateSavedStateSettings
               await ref
-                  .read(playerStateProvider.notifier)
-                  .updateSavedStateSettings();
+                  .read(simplePlayerProvider.notifier)
+                  .updateSavedStateSettings(groupPath: widget.group.groupPath);
               if (mounted) {
                 setState(() {});
                 debugPrint(
@@ -2554,7 +2586,8 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
             }
 
             // Check if player is actually playing - don't exit if not playing
-            final currentState = ref.read(playerStateProvider);
+            // Use new simplePlayerProvider for state check
+            final currentState = ref.read(simplePlayerProvider);
             if (currentState.playbackState == 0 || !currentState.isPlaying) {
               await _logger.log(
                 level: 'info',
@@ -2573,7 +2606,8 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
             );
 
             // Stop playback
-            await ref.read(playerStateProvider.notifier).stop();
+            // Use new simplePlayerProvider for stop
+            await ref.read(simplePlayerProvider.notifier).stop();
 
             // Check mounted again after async operation
             if (!mounted) return;
@@ -2588,8 +2622,11 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
             );
 
             // Stop service and exit app
+            // Use new simplePlayerProvider for stopServiceAndExit
             try {
-              await ref.read(playerStateProvider.notifier).stopServiceAndExit();
+              await ref
+                  .read(simplePlayerProvider.notifier)
+                  .stopServiceAndExit();
             } on Exception catch (e) {
               // Log error but don't block UI
               await _logger.log(
@@ -2632,7 +2669,8 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
             }
 
             // Check if player is actually playing - don't exit if not playing
-            final currentState = ref.read(playerStateProvider);
+            // Use new simplePlayerProvider for state check
+            final currentState = ref.read(simplePlayerProvider);
             if (currentState.playbackState == 0 || !currentState.isPlaying) {
               await _logger.log(
                 level: 'info',
@@ -2650,7 +2688,8 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
             );
 
             // Stop playback
-            await ref.read(playerStateProvider.notifier).stop();
+            // Use new simplePlayerProvider for stop
+            await ref.read(simplePlayerProvider.notifier).stop();
 
             // Check mounted again after async operation
             if (!mounted) return;
@@ -2665,8 +2704,11 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
             );
 
             // Stop service and exit app
+            // Use new simplePlayerProvider for stopServiceAndExit
             try {
-              await ref.read(playerStateProvider.notifier).stopServiceAndExit();
+              await ref
+                  .read(simplePlayerProvider.notifier)
+                  .stopServiceAndExit();
             } on Exception catch (e) {
               // Log error but don't block UI
               await _logger.log(
@@ -2682,8 +2724,12 @@ class _LocalPlayerScreenState extends ConsumerState<LocalPlayerScreen> {
           setState(() {});
           _startSleepTimerUpdates();
           // Update saved state with sleep timer
+          // Use new simplePlayerProvider for updateSavedStateSettings
           final remainingSeconds = _sleepTimerService.remainingSeconds;
-          await ref.read(playerStateProvider.notifier).updateSavedStateSettings(
+          await ref
+              .read(simplePlayerProvider.notifier)
+              .updateSavedStateSettings(
+                groupPath: widget.group.groupPath,
                 sleepTimerRemainingSeconds: remainingSeconds,
               );
         }

@@ -20,10 +20,12 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:jabook/core/di/providers/player_providers.dart';
+import 'package:jabook/core/di/providers/simple_player_providers.dart';
 import 'package:jabook/core/library/cover_fallback_service.dart';
 import 'package:jabook/core/performance/performance_service.dart';
 import 'package:jabook/core/player/native_audio_player.dart';
 import 'package:jabook/core/player/player_state_provider.dart';
+import 'package:jabook/core/player/simple_player_provider.dart';
 
 /// Mini player widget displayed at the bottom of the screen.
 ///
@@ -211,8 +213,8 @@ class _MiniPlayerWidgetState extends ConsumerState<MiniPlayerWidget>
     }
 
     try {
-      // Fallback 1: Get currentCoverPath from playerState (updated by player_state_provider)
-      final playerState = ref.read(playerStateProvider);
+      // Fallback 1: Get currentCoverPath from playerState (updated by simple_player_provider)
+      final playerState = ref.read(simplePlayerProvider);
       if (playerState.currentCoverPath != null) {
         final coverFile = File(playerState.currentCoverPath!);
         if (coverFile.existsSync()) {
@@ -259,11 +261,11 @@ class _MiniPlayerWidgetState extends ConsumerState<MiniPlayerWidget>
 
   @override
   Widget build(BuildContext context) {
-    final playerState = ref.watch(playerStateProvider);
+    final playerState = ref.watch(simplePlayerProvider);
 
     // Listen to track changes and group changes
     ref
-      ..listen(playerStateProvider, (previous, next) {
+      ..listen(simplePlayerProvider, (previous, next) {
         // When playback starts (transitions from idle to ready/playing), load artwork
         if (previous?.playbackState == 0 && next.playbackState != 0) {
           // Player just started - load group artwork and check embedded artwork
@@ -272,7 +274,7 @@ class _MiniPlayerWidgetState extends ConsumerState<MiniPlayerWidget>
               const Duration(milliseconds: 100), _checkEmbeddedArtwork);
         }
         // Check if track index changed (new track)
-        if (previous?.currentIndex != next.currentIndex) {
+        if (previous?.currentTrackIndex != next.currentTrackIndex) {
           _debouncedCheckEmbeddedArtwork();
         }
         // Update if cover path changed (but prioritize group artwork)
@@ -324,7 +326,7 @@ class _MiniPlayerWidgetState extends ConsumerState<MiniPlayerWidget>
   }
 
   Widget _buildPlayerContent(
-      BuildContext context, PlayerStateModel playerState, bool isLowEnd) {
+      BuildContext context, SimplePlayerState playerState, bool isLowEnd) {
     final coverPath = _groupArtworkPath ??
         _embeddedArtworkPath ??
         playerState.currentCoverPath;
@@ -332,7 +334,7 @@ class _MiniPlayerWidgetState extends ConsumerState<MiniPlayerWidget>
     return GestureDetector(
       onTap: () {
         HapticFeedback.selectionClick();
-        _openFullPlayer(context, ref, playerState);
+        _openFullPlayer(context, ref);
       },
       onVerticalDragStart: (details) {
         // Visual feedback: start swipe animation
@@ -366,7 +368,7 @@ class _MiniPlayerWidgetState extends ConsumerState<MiniPlayerWidget>
           if (details.primaryVelocity! < -500) {
             // Swipe up to expand to full player
             HapticFeedback.mediumImpact();
-            _openFullPlayer(context, ref, playerState);
+            _openFullPlayer(context, ref);
           } else if (details.primaryVelocity! > 500) {
             // Swipe down to stop playback
             HapticFeedback.mediumImpact();
@@ -455,7 +457,7 @@ class _MiniPlayerWidgetState extends ConsumerState<MiniPlayerWidget>
 
   Widget _buildMainContent(
     BuildContext context,
-    PlayerStateModel playerState,
+    SimplePlayerState playerState,
     String? coverPath,
     bool isLowEnd,
   ) =>
@@ -740,7 +742,7 @@ class _MiniPlayerWidgetState extends ConsumerState<MiniPlayerWidget>
         child: const Icon(Icons.audiotrack, size: 32, color: Colors.grey),
       );
 
-  Widget _buildProgressBar(BuildContext context, PlayerStateModel state) {
+  Widget _buildProgressBar(BuildContext context, SimplePlayerState state) {
     final progress =
         state.duration > 0 ? state.currentPosition / state.duration : 0.0;
 
@@ -758,8 +760,8 @@ class _MiniPlayerWidgetState extends ConsumerState<MiniPlayerWidget>
   }
 
   void _togglePlayPause(WidgetRef ref) {
-    final playerNotifier = ref.read(playerStateProvider.notifier);
-    final state = ref.read(playerStateProvider);
+    final playerNotifier = ref.read(simplePlayerProvider.notifier);
+    final state = ref.read(simplePlayerProvider);
     if (state.isPlaying) {
       playerNotifier.pause();
     } else {
@@ -768,19 +770,18 @@ class _MiniPlayerWidgetState extends ConsumerState<MiniPlayerWidget>
   }
 
   void _skipPrevious(WidgetRef ref) {
-    ref.read(playerStateProvider.notifier).previous();
+    ref.read(simplePlayerProvider.notifier).previous();
   }
 
   void _skipNext(WidgetRef ref) {
-    ref.read(playerStateProvider.notifier).next();
+    ref.read(simplePlayerProvider.notifier).next();
   }
 
   void _stopPlayback(WidgetRef ref) {
-    ref.read(playerStateProvider.notifier).stop();
+    ref.read(simplePlayerProvider.notifier).stop();
   }
 
-  void _openFullPlayer(
-      BuildContext context, WidgetRef ref, PlayerStateModel state) {
+  void _openFullPlayer(BuildContext context, WidgetRef ref) {
     final currentGroup = ref.read(currentAudiobookGroupProvider);
     if (currentGroup != null) {
       context.push('/local-player', extra: currentGroup);

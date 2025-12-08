@@ -289,3 +289,47 @@ object MediaModule {
     private const val KEEP_FREE_BYTES = 20L * 1024 * 1024 // 20 MB
     private const val MIN_CACHE_BYTES = 10L * 1024 * 1024 // 10 MB
 }
+
+/**
+ * Hilt module for providing audio database and preferences.
+ */
+@Module
+@InstallIn(SingletonComponent::class)
+object AudioDataModule {
+    @Provides
+    @Singleton
+    fun provideAudioDatabase(
+        @ApplicationContext context: Context,
+    ): com.jabook.app.jabook.audio.data.local.database.AudioDatabase =
+        androidx.room.Room
+            .databaseBuilder(
+                context,
+                com.jabook.app.jabook.audio.data.local.database.AudioDatabase::class.java,
+                "audio_database",
+            ).build()
+
+    @Provides
+    @Singleton
+    fun provideAudioPreferences(
+        @ApplicationContext context: Context,
+    ): com.jabook.app.jabook.audio.data.local.datastore.AudioPreferences =
+        com.jabook.app.jabook.audio.data.local.datastore
+            .AudioPreferences(context)
+}
+
+/**
+ * Hilt module for providing audio data repositories.
+ */
+@Module
+@InstallIn(SingletonComponent::class)
+object AudioRepositoryModule {
+    @Provides
+    @Singleton
+    fun provideSavedPlayerStateRepository(
+        database: com.jabook.app.jabook.audio.data.local.database.AudioDatabase,
+    ): com.jabook.app.jabook.audio.data.repository.SavedPlayerStateRepository {
+        val dao = database.savedPlayerStateDao()
+        return com.jabook.app.jabook.audio.data.repository
+            .SavedPlayerStateRepository(dao)
+    }
+}

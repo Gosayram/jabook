@@ -14,8 +14,8 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:jabook/core/di/providers/simple_player_providers.dart';
 import 'package:jabook/core/domain/library/entities/local_audiobook_group.dart';
-import 'package:jabook/core/player/player_state_provider.dart';
 import 'package:jabook/l10n/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -120,7 +120,7 @@ class _TracksBottomSheetState extends ConsumerState<TracksBottomSheet> {
   void _scrollToCurrentTrack() {
     if (!_listScrollController.hasClients) return;
 
-    final currentIndex = ref.read(playerStateProvider).currentIndex;
+    final currentIndex = ref.read(simplePlayerProvider).currentTrackIndex;
     if (currentIndex >= 0 && currentIndex < widget.group.files.length) {
       // Reset filters to show all tracks
       setState(() {
@@ -251,7 +251,7 @@ class _TracksBottomSheetState extends ConsumerState<TracksBottomSheet> {
 
     // Filter by mode
     if (_filterMode == 'current') {
-      final currentIndex = ref.read(playerStateProvider).currentIndex;
+      final currentIndex = ref.read(simplePlayerProvider).currentTrackIndex;
       if (currentIndex >= 0 && currentIndex < files.length) {
         indices = [currentIndex];
       } else {
@@ -315,8 +315,8 @@ class _TracksBottomSheetState extends ConsumerState<TracksBottomSheet> {
   @override
   Widget build(BuildContext context) {
     final localizations = AppLocalizations.of(context);
-    final playerState = ref.watch(playerStateProvider);
-    final currentIndex = playerState.currentIndex;
+    final playerState = ref.watch(simplePlayerProvider);
+    final currentIndex = playerState.currentTrackIndex;
 
     return DecoratedBox(
       decoration: BoxDecoration(

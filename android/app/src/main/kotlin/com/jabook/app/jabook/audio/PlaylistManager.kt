@@ -141,6 +141,17 @@ internal class PlaylistManager(
         currentMetadata = metadata
         currentGroupPath = groupPath
 
+        // Log file paths order for debugging
+        android.util.Log.d(
+            "AudioPlayerService",
+            "Stored filePaths (first 5): ${filePaths.take(5).mapIndexed {
+                i,
+                path,
+                ->
+                "$i=${path.substringAfterLast('/')}"
+            }.joinToString(", ")}",
+        )
+
         // Save groupPath to SharedPreferences for fallback position saving
         if (groupPath != null) {
             playerPersistenceManager.saveGroupPathToSharedPreferences(groupPath)
@@ -352,11 +363,13 @@ internal class PlaylistManager(
                                     )
 
                                 // Wait for all previous indices to be added before adding this one
-                                // Do this outside Main thread to avoid blocking
+                                // CRITICAL: We must wait for all previous indices to be in addedIndices
+                                // This ensures that ExoPlayer has all previous items before we add the next one
                                 var waitAttempts = 0
-                                while (waitAttempts < 100) { // Max 10 seconds wait
+                                while (waitAttempts < 200) { // Max 20 seconds wait
                                     val allPreviousAdded =
                                         addMutex.withLock {
+                                            // Check if all previous indices (except firstTrackIndex) are in addedIndices
                                             (0 until index).all { it == firstTrackIndex || it in addedIndices }
                                         }
                                     if (allPreviousAdded) {
@@ -370,11 +383,10 @@ internal class PlaylistManager(
                                 withContext(Dispatchers.Main) {
                                     addMutex.withLock {
                                         // CRITICAL: Check if already added BEFORE getting player (prevent duplicates)
-                                        // This must be done atomically with the add operation
                                         if (index in addedIndices) {
                                             android.util.Log.w(
                                                 "AudioPlayerService",
-                                                "MediaItem at index $index already added, skipping duplicate (playlist size: ${getActivePlayer().mediaItemCount})",
+                                                "MediaItem at index $index already added, skipping duplicate",
                                             )
                                             return@withContext
                                         }
@@ -401,13 +413,14 @@ internal class PlaylistManager(
                                             }
                                         }
 
-                                        // CRITICAL: Use index parameter to insert at correct position
-                                        // This ensures tracks are added in the correct order, not at the end
+                                        // All checks passed, add the MediaItem
+                                        val filePath = filePaths[index]
+                                        val fileName = filePath.substringAfterLast('/')
                                         activePlayer.addMediaSource(index, mediaSource)
                                         addedIndices.add(index)
-                                        android.util.Log.v(
+                                        android.util.Log.d(
                                             "AudioPlayerService",
-                                            "Added $priority MediaItem at index $index (playlist size: ${activePlayer.mediaItemCount})",
+                                            "Added $priority MediaItem at index $index: $fileName (playlist size: ${activePlayer.mediaItemCount})",
                                         )
                                     }
                                 }
