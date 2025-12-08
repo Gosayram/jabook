@@ -29,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix playback position restoration and prevent playlist loading conflicts
 - HttpCache validation
 - Player validation
+- Resolve Kotlin 2.2.0 compilation errors and update dependencies
 
 ## [1.2.6] - 2025-12-06
 
