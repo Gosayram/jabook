@@ -59,13 +59,11 @@ subprojects {
                             }
                         }
                     
+                    // packageName is always non-null due to fallback above
                     setNamespace.invoke(android, packageName)
-                    // Only log if namespace was set (not if it was already set)
-                    if (packageName != null) {
-                        // Suppress log for known plugins to reduce noise
-                        if (project.name !in knownNamespaces.keys) {
-                            println("Set namespace for ${project.name} to $packageName")
-                        }
+                    // Suppress log for known plugins to reduce noise
+                    if (project.name !in knownNamespaces.keys) {
+                        println("Set namespace for ${project.name} to $packageName")
                     }
                 }
             } catch (e: Exception) {

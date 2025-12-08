@@ -246,8 +246,7 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
 
     // Room database for local storage
-    // Updated to 2.8.5 for better kotlinx-serialization compatibility
-    val roomVersion = "2.8.5"
+    val roomVersion = "2.8.4"
     implementation("androidx.room:room-runtime:$roomVersion")
     implementation("androidx.room:room-ktx:$roomVersion")
     kapt("androidx.room:room-compiler:$roomVersion")
