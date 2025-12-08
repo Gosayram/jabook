@@ -203,8 +203,7 @@ internal class PlayerConfigurator(
             if (savedStateForRestore != null &&
                 filePathsForRestore != null &&
                 filePathsForRestore.isNotEmpty() &&
-                !isPlaylistLoading &&
-                !wasRecentlyLoaded
+                !isPlaylistLoading
             ) {
                 android.util.Log.d(
                     "AudioPlayerService",
@@ -283,12 +282,12 @@ internal class PlayerConfigurator(
                     }
                 }
             } else if (wasRecentlyLoaded) {
+                // Only log if we have state but chose not to restore it (which shouldn't happen now as we restore if state exists)
+                // But if savedStateForRestore is null, we might still log this context
                 android.util.Log.d(
                     "AudioPlayerService",
-                    "Skipping state restoration: playlist was loaded recently " +
-                        "(${timeSinceLastLoad}ms ago), using Flutter-provided position instead",
+                    "No saved state to restore (playlist loaded ${timeSinceLastLoad}ms ago), using Flutter-provided position",
                 )
-                playlistManager?.savedPlaybackState = null // Clear stale state
             }
         } catch (e: Exception) {
             android.util.Log.e("AudioPlayerService", "Failed to configure ExoPlayer with processors", e)

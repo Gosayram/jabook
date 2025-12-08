@@ -16,18 +16,23 @@ package com.jabook.app.jabook.audio
 
 import androidx.media3.common.C
 import androidx.media3.exoplayer.ExoPlayer
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 /**
  * Helper class for getting player state information.
  */
 internal class PlayerStateHelper(
     private val getActivePlayer: () -> ExoPlayer,
-    private val getDurationCache: () -> MutableMap<String, Long>,
+    private val getCachedDuration: (String) -> Long?,
+    private val saveDurationToCache: (String, Long) -> Unit,
     private val getDurationForFile: ((String) -> Long?)? = null,
     private val getLastCompletedTrackIndex: (() -> Int)? = null,
-    private val getActualPlaylistSize: (() -> Int)? = null, // Get actual playlist size from filePaths
-    private val getActualTrackIndex: (() -> Int)? = null, // Get actual track index from onMediaItemTransition
-    private val getCurrentFilePaths: (() -> List<String>?)? = null, // Get current file paths to match by URI
+    private val getActualPlaylistSize: (() -> Int)? = null,
+    private val getActualTrackIndex: (() -> Int)? = null,
+    private val getCurrentFilePaths: (() -> List<String>?)? = null,
+    private val coroutineScope: CoroutineScope? = null, // Injected scope for async tasks
 ) {
     /**
      * Gets current playback position.
@@ -93,7 +98,7 @@ internal class PlayerStateHelper(
                 val filePath = uri.path
                 if (filePath != null) {
                     // Check cache first (cached from previous player.duration or MediaMetadataRetriever)
-                    val cachedDuration = getDurationCache()[filePath]
+                    val cachedDuration = getCachedDuration(filePath)
                     if (cachedDuration != null && cachedDuration > 0) {
                         duration = cachedDuration
                         android.util.Log.d("AudioPlayerService", "Using cached duration for $filePath: ${duration}ms")
@@ -103,15 +108,54 @@ internal class PlayerStateHelper(
                         if (dbDuration != null && dbDuration > 0) {
                             duration = dbDuration
                             // Cache it for future use
-                            getDurationCache()[filePath] = duration
+                            saveDurationToCache(filePath, duration)
                             android.util.Log.d("AudioPlayerService", "Got duration from database for $filePath: ${duration}ms")
                         } else {
-                            // Database miss - do NOT use MediaMetadataRetriever on main thread
-                            // It causes ANRs and UI freezes. rely on player.duration or 0.
-                            android.util.Log.w(
-                                "AudioPlayerService",
-                                "Duration missing for $filePath, skipping synchronous MediaMetadataRetriever to avoid freeze",
-                            )
+                            // Database miss - fetch from MediaMetadataRetriever in BACKGROUND
+                            if (coroutineScope != null) {
+                                coroutineScope.launch(Dispatchers.IO) {
+                                    val retriever = android.media.MediaMetadataRetriever()
+                                    try {
+                                        retriever.setDataSource(filePath)
+                                        val retrieverDuration =
+                                            retriever.extractMetadata(
+                                                android.media.MediaMetadataRetriever.METADATA_KEY_DURATION,
+                                            )
+
+                                        if (retrieverDuration != null) {
+                                            val parsedDuration = retrieverDuration.toLongOrNull()
+                                            if (parsedDuration != null && parsedDuration > 0) {
+                                                // Update cache safely
+                                                saveDurationToCache(filePath, parsedDuration)
+                                                android.util.Log.d(
+                                                    "AudioPlayerService",
+                                                    "Async duration fetch success for $filePath: ${parsedDuration}ms",
+                                                )
+                                            }
+                                        }
+                                    } catch (e: Exception) {
+                                        android.util.Log.w(
+                                            "AudioPlayerService",
+                                            "Async duration fetch failed for $filePath: ${e.message}",
+                                        )
+                                    } finally {
+                                        try {
+                                            retriever.release()
+                                        } catch (e: Exception) {
+                                            // Ignore errors during release
+                                        }
+                                    }
+                                }
+                                android.util.Log.v(
+                                    "AudioPlayerService",
+                                    "Triggered async duration fetch for $filePath",
+                                )
+                            } else {
+                                android.util.Log.w(
+                                    "AudioPlayerService",
+                                    "CoroutineScope not provided, cannot fetch duration async for $filePath",
+                                )
+                            }
                         }
                     }
                 }
@@ -124,7 +168,7 @@ internal class PlayerStateHelper(
                 val filePath = uri.path
                 if (filePath != null) {
                     // Cache duration from player (most reliable source)
-                    getDurationCache()[filePath] = duration
+                    saveDurationToCache(filePath, duration)
                     android.util.Log.i(
                         "AudioPlayerService",
                         "Cached duration from player for $filePath: ${duration}ms (${duration / 1000}s)",
@@ -167,8 +211,8 @@ internal class PlayerStateHelper(
                         filePaths.indexOfFirst { filePath ->
                             // Compare paths (handle both absolute and relative paths)
                             filePath == currentPath ||
-                                filePath.endsWith(currentPath) ||
-                                currentPath.endsWith(filePath)
+                            filePath.endsWith(currentPath) ||
+                            currentPath.endsWith(filePath)
                         }
 
                     if (realIndex >= 0 && realIndex != currentIndex) {
@@ -240,7 +284,7 @@ internal class PlayerStateHelper(
 
         android.util.Log.v(
             "AudioPlayerService",
-            "PlayerStateHelper: final currentIndex=$currentIndex, chapterNumber=$chapterNumber",
+            "PlayerStateHelper: final currentIndex=$currentIndex, chapterNumber=$chapterNumber, playbackState=${player.playbackState}",
         )
 
         return mapOf(

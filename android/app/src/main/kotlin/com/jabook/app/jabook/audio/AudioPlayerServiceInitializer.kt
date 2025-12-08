@@ -409,12 +409,14 @@ class AudioPlayerServiceInitializer(
             service.playerStateHelper =
                 PlayerStateHelper(
                     getActivePlayer = { service.getActivePlayer() },
-                    getDurationCache = { service.durationManager.getDurationCacheMap().toMutableMap() },
+                    getCachedDuration = { filePath -> service.durationManager.getCachedDuration(filePath) },
+                    saveDurationToCache = { filePath, duration -> service.durationManager.saveDurationToCache(filePath, duration) },
                     getDurationForFile = { filePath -> service.getDurationForFile(filePath) },
                     getLastCompletedTrackIndex = { service.playlistManager?.lastCompletedTrackIndex ?: -1 },
                     getActualPlaylistSize = { service.playlistManager?.currentFilePaths?.size ?: 0 },
                     getActualTrackIndex = { service.playlistManager?.actualTrackIndex ?: 0 },
                     getCurrentFilePaths = { service.playlistManager?.currentFilePaths },
+                    coroutineScope = service.playerServiceScope,
                 )
 
             // Try to get MethodChannel from MainActivity if not set yet

@@ -22,6 +22,7 @@ import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DefaultDataSource
+import androidx.media3.datasource.FileDataSource
 import androidx.media3.datasource.cache.Cache
 import androidx.media3.datasource.cache.CacheDataSink
 import androidx.media3.datasource.cache.CacheDataSource
@@ -127,6 +128,7 @@ internal class PlaylistManager(
         lastCompletedTrackIndex = -1 // Reset saved index for new book
 
         // Initialize actualTrackIndex from initialTrackIndex or default to 0
+        // Initialize actualTrackIndex from initialTrackIndex or default to 0
         actualTrackIndex = initialTrackIndex?.coerceIn(0, filePaths.size - 1) ?: 0
         android.util.Log.d(
             "AudioPlayerService",
@@ -137,16 +139,27 @@ internal class PlaylistManager(
         durationManager.clearCache()
 
         // Store file paths and groupPath
-        currentFilePaths = filePaths
+        // CRITICAL: Sort file paths by numeric prefix to ensure correct playback order
+        // This fixes the issue where "10.mp3" might come before "2.mp3" in simple string sort
+        // or where the UI chapter list order doesn't match the file list order
+        val sortedFilePaths = sortFilesByNumericPrefix(filePaths)
+        currentFilePaths = sortedFilePaths
+
+        android.util.Log.i(
+            "AudioPlayerService",
+            "Sorted ${sortedFilePaths.size} files by numeric prefix. " +
+                "Original[0]: ${filePaths.firstOrNull()?.substringAfterLast('/')}, " +
+                "Sorted[0]: ${sortedFilePaths.firstOrNull()?.substringAfterLast('/')}",
+        )
         currentMetadata = metadata
         currentGroupPath = groupPath
 
         // Log file paths order for debugging
         android.util.Log.d(
             "AudioPlayerService",
-            "Stored filePaths (first 5): ${filePaths.take(5).mapIndexed {
-                i,
-                path,
+            "Stored filePaths (first 5): ${sortedFilePaths.take(5).mapIndexed {
+                i: Int,
+                path: String,
                 ->
                 "$i=${path.substringAfterLast('/')}"
             }.joinToString(", ")}",
@@ -164,12 +177,12 @@ internal class PlaylistManager(
 
         // Mark as loading and record load time
         isPlaylistLoading = true
-        currentLoadingPlaylist = filePaths
+        currentLoadingPlaylist = sortedFilePaths
         lastPlaylistLoadTime = System.currentTimeMillis()
 
         playerServiceScope.launch {
             try {
-                preparePlaybackOptimized(filePaths, metadata, initialTrackIndex, initialPosition)
+                preparePlaybackOptimized(sortedFilePaths, metadata, initialTrackIndex, initialPosition)
                 android.util.Log.d("AudioPlayerService", "Playlist prepared successfully")
 
                 // Call callback first to unblock Flutter
@@ -834,6 +847,41 @@ internal class PlaylistManager(
     }
 
     /**
+     * Sorts file paths based on numeric prefix in the filename.
+     *
+     * Extracts number from start of filename (e.g. "01.mp3" -> 1, "10 Chapter.mp3" -> 10).
+     * Falls back to standard string sorting if no number found.
+     */
+    private fun sortFilesByNumericPrefix(filePaths: List<String>): List<String> {
+        val numericPrefixRegex = Regex("^(\\d+)")
+
+        return filePaths.sortedWith(
+            Comparator { path1, path2 ->
+                val name1 = path1.substringAfterLast('/')
+                val name2 = path2.substringAfterLast('/')
+
+                val match1 = numericPrefixRegex.find(name1)
+                val match2 = numericPrefixRegex.find(name2)
+
+                if (match1 != null && match2 != null) {
+                    // Both have numeric prefix - compare as numbers
+                    val num1 = match1.groupValues[1].toLongOrNull() ?: 0L
+                    val num2 = match2.groupValues[1].toLongOrNull() ?: 0L
+
+                    val defaultComparison = num1.compareTo(num2)
+                    if (defaultComparison != 0) {
+                        return@Comparator defaultComparison
+                    }
+                }
+
+                // Fallback: mixed or no numbers, or equal numbers - compare as strings
+                // Use natural sort order logic or simple string compare
+                name1.compareTo(name2, ignoreCase = true)
+            },
+        )
+    }
+
+    /**
      * DataSource factory for media playback with caching and network support.
      * Private inner class to avoid build duplication issues.
      */
@@ -869,6 +917,10 @@ internal class PlaylistManager(
                 ).setFlags(CacheDataSource.FLAG_BLOCK_ON_CACHE or CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
         }
 
+        private val fileDataSourceFactory by lazy {
+            FileDataSource.Factory()
+        }
+
         override fun createDataSource(): DataSource = defaultFactory.createDataSource()
 
         fun createDataSourceFactoryForUri(uri: Uri): DataSource.Factory {
@@ -877,7 +929,7 @@ internal class PlaylistManager(
 
             return when {
                 isNetworkUri -> cacheFactory
-                isLocalFile -> defaultFactory
+                isLocalFile -> fileDataSourceFactory
                 else -> defaultFactory
             }
         }
