@@ -2,9 +2,10 @@ import java.util.Properties
 
 plugins {
     id("com.android.application")
-    id("kotlin-android")
+    id("org.jetbrains.kotlin.android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+    id("com.google.devtools.ksp")
     id("com.google.dagger.hilt.android")
     id("kotlin-kapt")
     id("org.jlleitschuh.gradle.ktlint")
@@ -16,14 +17,14 @@ android {
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
+        sourceCompatibility = JavaVersion.VERSION_21
+        targetCompatibility = JavaVersion.VERSION_21
         // Enable core library desugaring for flutter_local_notifications
         isCoreLibraryDesugaringEnabled = true
     }
 
     kotlin {
-        jvmToolchain(17)
+        jvmToolchain(21)
 
         compilerOptions {
             // Kotlin compilation optimization
@@ -198,18 +199,15 @@ afterEvaluate {
         }
 }
 
-// Configure kapt for Dagger Hilt and Room
-// Note: Some kapt options may show warnings if not used by processors.
-// This is normal and doesn't affect functionality.
+// Configure kapt for Dagger Hilt only
 kapt {
     correctErrorTypes = true
     useBuildCache = true
-    // Room schema export location
-    arguments {
-        arg("room.schemaLocation", "$projectDir/schemas")
-    }
-    // These options are set automatically by Hilt plugin
-    // Warnings about unrecognized options can be safely ignored
+}
+
+// Configure KSP for Room
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
 }
 
 dependencies {
@@ -243,20 +241,16 @@ dependencies {
 
     // Kotlinx serialization (required by Room 2.8.4+)
     // Room uses setClassDiscriminatorMode which requires kotlinx.serialization 1.6.0+
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
+    val kotlinxSerializationVersion = "1.9.0"
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:$kotlinxSerializationVersion")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-core:$kotlinxSerializationVersion")
 
     // Room database for local storage
     val roomVersion = "2.8.4"
     implementation("androidx.room:room-runtime:$roomVersion")
     implementation("androidx.room:room-ktx:$roomVersion")
-    kapt("androidx.room:room-compiler:$roomVersion") {
-        // Exclude any old kotlinx-serialization versions that Room might bring transitively
-        exclude(group = "org.jetbrains.kotlinx", module = "kotlinx-serialization-json")
-        exclude(group = "org.jetbrains.kotlinx", module = "kotlinx-serialization-core")
-    }
-    // Add kotlinx-serialization to kapt compile classpath for Room compiler
-    // This must be added after Room compiler to ensure correct version is used
-    kapt("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
+    // Use KSP instead of kapt for Room (recommended by Google)
+    ksp("androidx.room:room-compiler:$roomVersion")
 
     // DataStore for preferences
     implementation("androidx.datastore:datastore-preferences:1.1.7")
@@ -275,49 +269,6 @@ dependencies {
     // Note: Google Play Core is NOT needed as a dependency
     // Flutter references these classes but they're not actually used
     // ProGuard rules in proguard-rules.pro handle R8 warnings with -dontwarn
-}
-
-// Force kotlinx-serialization version for all configurations (including kapt)
-// This is required because Room 2.8.4+ uses setClassDiscriminatorMode which requires kotlinx.serialization 1.6.0+
-val kotlinxSerializationVersion = "1.9.0"
-configurations.all {
-    resolutionStrategy {
-        force("org.jetbrains.kotlinx:kotlinx-serialization-json:$kotlinxSerializationVersion")
-        force("org.jetbrains.kotlinx:kotlinx-serialization-core:$kotlinxSerializationVersion")
-        // Also force transitive dependencies
-        eachDependency {
-            if (requested.group == "org.jetbrains.kotlinx" && requested.name.startsWith("kotlinx-serialization")) {
-                useVersion(kotlinxSerializationVersion)
-            }
-        }
-    }
-}
-
-// Explicitly configure kapt to use the correct kotlinx-serialization version
-// This is needed because kapt uses a separate classpath that may not respect resolutionStrategy
-afterEvaluate {
-    // Force version for all kapt-related configurations
-    configurations.matching { it.name.startsWith("kapt") || it.name.contains("kapt") }.configureEach {
-        resolutionStrategy {
-            force("org.jetbrains.kotlinx:kotlinx-serialization-json:$kotlinxSerializationVersion")
-            force("org.jetbrains.kotlinx:kotlinx-serialization-core:$kotlinxSerializationVersion")
-            eachDependency {
-                if (requested.group == "org.jetbrains.kotlinx" && requested.name.startsWith("kotlinx-serialization")) {
-                    useVersion(kotlinxSerializationVersion)
-                }
-            }
-        }
-    }
-
-    // Also explicitly add kotlinx-serialization to kapt classpath as a dependency
-    // This ensures it's available even if resolutionStrategy doesn't work
-    try {
-        configurations.findByName("kapt")?.dependencies?.add(
-            project.dependencies.create("org.jetbrains.kotlinx:kotlinx-serialization-json:$kotlinxSerializationVersion"),
-        )
-    } catch (e: Exception) {
-        // Ignore if configuration doesn't exist or is already configured
-    }
 }
 
 // ktlint configuration

@@ -67,7 +67,6 @@
     <!-- <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" /> -->
 
     <application
-        android:label="jabook"
         android:name=".JabookApplication"
         android:icon="@mipmap/ic_launcher"
         android:usesCleartextTraffic="true"
@@ -80,8 +79,7 @@
         android:fullBackupContent="@xml/backup_rules"
         android:manageSpaceActivity=".DataManagementActivity"
         tools:targetApi="34"
-        tools:replace="android:label"
-        tools:ignore="NamespaceTypo">
+        tools:ignore="NamespaceTypo,MissingClass">
         
         <!-- requestLegacyExternalStorage removed: not supported on Android 11+ (API 30+) -->
         <!-- App uses app-specific directory which doesn't require this attribute -->
