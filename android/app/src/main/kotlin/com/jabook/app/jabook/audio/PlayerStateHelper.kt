@@ -167,8 +167,15 @@ internal class PlayerStateHelper(
         // Use actual playlist size from filePaths if available, otherwise use player.mediaItemCount
         val totalTracks = getActualPlaylistSize?.invoke() ?: player.mediaItemCount
 
-        // CRITICAL: If currentIndex seems wrong (e.g., 0 but playing file 7), try to find real index by URI
-        // This handles cases where ExoPlayer's currentMediaItemIndex doesn't match the actual playing file
+        // CRITICAL: URI-based index correction has been DISABLED
+        // This correction was causing issues because it assumed files are in sorted order,
+        // but the playlist is actually built from chapters array using chapter.fileIndex.
+        // The real fix for chapter selection is in player_screen.dart (_seekToChapter)
+        // where we now use chapter.fileIndex instead of chapters.indexOf(chapter).
+        //
+        // Keeping this code commented for reference, but it should NOT be used:
+
+        /*
         if (currentIndex == 0 && totalTracks > 1) {
             val currentItem = player.currentMediaItem
             val currentUri = currentItem?.localConfiguration?.uri
@@ -197,31 +204,7 @@ internal class PlayerStateHelper(
                 }
             }
         }
-
-        // CRITICAL: Try to extract chapter number from filename if available
-        // This handles cases where file order doesn't match chapter numbers (e.g., 08.mp3 at index 8 should be chapter 8, not 9)
-        var chapterNumberFromFilename: Int? = null
-        val currentItem = player.currentMediaItem
-        val currentUri = currentItem?.localConfiguration?.uri
-        if (currentUri != null) {
-            val currentPath = currentUri.path
-            if (currentPath != null) {
-                val fileName = currentPath.substringAfterLast('/')
-                // Try to extract number from filename (e.g., "08.mp3" -> 8, "01.mp3" -> 1)
-                val numberMatch = Regex("""^(\d+)""").find(fileName)
-                if (numberMatch != null) {
-                    val numberStr = numberMatch.groupValues[1]
-                    val number = numberStr.toIntOrNull()
-                    if (number != null && number > 0) {
-                        chapterNumberFromFilename = number
-                        android.util.Log.d(
-                            "AudioPlayerService",
-                            "Extracted chapter number from filename: file=$fileName, chapterNumber=$chapterNumberFromFilename",
-                        )
-                    }
-                }
-            }
-        }
+         */
 
         // Log current state for debugging
         android.util.Log.v(
@@ -261,15 +244,12 @@ internal class PlayerStateHelper(
             currentIndex = 0
         }
 
-        // Calculate chapter number (1-based) - single source of truth
-        // CRITICAL: Prefer chapter number from filename if available, otherwise use index-based calculation
-        // This handles cases where file order doesn't match chapter numbers (e.g., 08.mp3 at index 8 should be chapter 8, not 9)
+        // Calculate chapter number (1-based) from current playlist position
+        // CRITICAL: Use index-based calculation only (currentIndex + 1)
+        // This ensures consistency with Dart code where chapters are ordered by array position
         val chapterNumber =
-            if (chapterNumberFromFilename != null) {
-                // Use chapter number extracted from filename (most accurate)
-                chapterNumberFromFilename!!
-            } else if (currentIndex >= 0 && currentIndex < totalTracks) {
-                // Fallback to index-based calculation (currentIndex + 1)
+            if (currentIndex >= 0 && currentIndex < totalTracks) {
+                // Use index-based calculation (currentIndex + 1)
                 currentIndex + 1
             } else {
                 // Fallback to 1 if index is invalid

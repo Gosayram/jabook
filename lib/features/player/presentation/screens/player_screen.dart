@@ -80,21 +80,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       final playerNotifier = ref.read(playerStateProvider.notifier);
       final currentState = ref.read(playerStateProvider);
 
-      // Check if player is already initialized and playing the same book
-      // If yes, skip reinitialization to avoid interrupting playback
-      if (currentState.currentGroupPath == widget.bookId &&
-          currentState.playbackState != 0) {
-        // Player is already playing this book - load audiobook data for UI
-        // Wait for it to load so UI can display chapters
-        await _loadAudiobookFromRutracker();
-        // Mark as initialized after audiobook is loaded
-        setState(() {
-          _isInitialized = true;
-          _hasError = false;
-          _errorMessage = null;
-        });
-        return;
-      }
+      // ALWAYS recreate playlist to ensure mapping is correct
+      // (removed check for existing player state)
 
       // Mark as loading immediately to show UI
       setState(() {
@@ -122,16 +109,18 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 
       // Validate saved position if available
       // Note: restorePosition already validates, but we do additional checks here
+      int? initialTrackIndex;
+      int? initialPositionMs;
       if (savedPosition != null) {
         final trackIndex = savedPosition['trackIndex'];
         final positionMs = savedPosition['positionMs'];
-        if (trackIndex == null ||
-            positionMs == null ||
-            trackIndex < 0 ||
-            trackIndex >= (_audiobook?.chapters.length ?? 0) ||
-            positionMs < 0) {
-          // Invalid saved position - will start from beginning
-          // restorePosition should have cleared it, but we handle it here too
+        if (trackIndex != null &&
+            positionMs != null &&
+            trackIndex >= 0 &&
+            trackIndex < (_audiobook?.chapters.length ?? 0) &&
+            positionMs >= 0) {
+          initialTrackIndex = trackIndex;
+          initialPositionMs = positionMs;
         }
       }
 
@@ -140,8 +129,11 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         await _streamServer.start();
       }
 
-      // Load audio sources
-      await _loadAudioSource();
+      // Load audio sources with initial position
+      await _loadAudioSource(
+        initialTrackIndex: initialTrackIndex,
+        initialPosition: initialPositionMs,
+      );
 
       // Update metadata immediately (non-blocking for UI)
       _updateMetadata();
@@ -153,9 +145,16 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         _errorMessage = null;
       });
 
-      // Restore position and start playback in background (non-blocking)
+      // Start playback in background (non-blocking)
+      // Note: Position is already restored via initialTrackIndex/initialPosition in setPlaylist
       if (savedPosition != null && mounted) {
-        unawaited(_restorePositionAndPlay(savedPosition));
+        unawaited(
+          Future.delayed(const Duration(milliseconds: 300), () {
+            if (mounted) {
+              playerNotifier.play();
+            }
+          }),
+        );
       } else {
         // If no saved position, start playback from beginning
         unawaited(
@@ -172,56 +171,6 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         _hasError = true;
         _errorMessage = e.toString();
       });
-    }
-  }
-
-  /// Restores position and starts playback asynchronously (non-blocking).
-  Future<void> _restorePositionAndPlay(Map<String, int> savedPosition) async {
-    if (!mounted) return;
-
-    final playerNotifier = ref.read(playerStateProvider.notifier);
-    final trackIndex = savedPosition['trackIndex']!;
-    final positionMs = savedPosition['positionMs']!;
-
-    if (trackIndex >= 0 &&
-        trackIndex < (_audiobook?.chapters.length ?? 0) &&
-        positionMs > 0) {
-      // Wait for player to be ready (with timeout)
-      var attempts = 0;
-      while (attempts < 30 && mounted) {
-        final state = ref.read(playerStateProvider);
-        if (state.playbackState == 2) {
-          // 2 = ready
-          break;
-        }
-        await Future.delayed(const Duration(milliseconds: 100));
-        attempts++;
-      }
-
-      if (mounted) {
-        try {
-          await playerNotifier.seekToTrackAndPosition(
-            trackIndex,
-            Duration(milliseconds: positionMs),
-          );
-
-          // Start playback automatically
-          final currentState = ref.read(playerStateProvider);
-          if (!currentState.isPlaying) {
-            await playerNotifier.play();
-          }
-        } on Exception {
-          // If restore fails, start from beginning
-          if (mounted) {
-            unawaited(playerNotifier.play());
-          }
-        }
-      }
-    } else {
-      // Invalid saved position, start from beginning
-      if (mounted) {
-        unawaited(playerNotifier.play());
-      }
     }
   }
 
@@ -279,7 +228,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     }
   }
 
-  Future<void> _loadAudioSource() async {
+  Future<void> _loadAudioSource({
+    int? initialTrackIndex,
+    int? initialPosition,
+  }) async {
     if (_audiobook == null || _audiobook!.chapters.isEmpty) {
       // Fallback to demo audio if no chapters available
       final playerNotifier = ref.read(playerStateProvider.notifier);
@@ -324,7 +276,11 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         await _streamServer.start();
       }
 
-      // Create URLs for all chapters
+      // Create playlist from chapters in their array order
+      // Chapter navigation uses array index (position in chapters array)
+      // which corresponds to position in the playlist
+
+      // Create URLs for all chapters in original order
       final streamUrls = _audiobook!.chapters
           .map((chapter) =>
               _streamServer.getStreamUrl(widget.bookId, chapter.fileIndex))
@@ -348,11 +304,14 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       };
 
       // Set playlist with all chapters
+      // Use initialTrackIndex and initialPosition to immediately load the saved track
       final playerNotifier = ref.read(playerStateProvider.notifier);
       await playerNotifier.setPlaylist(
         streamUrls,
         metadata: metadata,
         groupPath: widget.bookId,
+        initialTrackIndex: initialTrackIndex,
+        initialPosition: initialPosition,
       );
     } on StreamFailure catch (e) {
       // Log the specific stream failure
@@ -446,14 +405,22 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 
     final playerNotifier = ref.read(playerStateProvider.notifier);
 
-    // For playlist: seek to chapter index
+    // For playlist: find chapter position in chapters array
+    // The playlist is created in the same order as the chapters array,
+    // so array index = playlist index
     if (_audiobook!.chapters.length > 1) {
+      // Find the chapter in the chapters array
       final chapterIndex = _audiobook!.chapters.indexOf(chapter);
-      if (chapterIndex >= 0) {
-        playerNotifier
-          ..seekToTrack(chapterIndex)
-          ..seek(Duration.zero);
+
+      if (chapterIndex < 0 || chapterIndex >= _audiobook!.chapters.length) {
+        // Chapter not found, abort
+        return;
       }
+
+      // Perform the seek using array index (which equals playlist index)
+      playerNotifier
+        ..seekToTrack(chapterIndex)
+        ..seek(Duration.zero);
     } else {
       // For single file: seek to chapter start position
       final target = Duration(
@@ -861,7 +828,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    '${AppLocalizations.of(context)?.chaptersLabel ?? 'Chapter'} ${playerState.chapterNumberValue} / ${_audiobook!.chapters.length}',
+                                    '${AppLocalizations.of(context)?.chaptersLabel ?? 'Chapter'} ${playerState.currentIndex + 1} / ${_audiobook!.chapters.length}',
                                     style:
                                         Theme.of(context).textTheme.bodySmall,
                                   ),
@@ -912,7 +879,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                           playerState.currentIndex > 0 ? _prevChapter : null,
                       tooltip: _audiobook != null &&
                               playerState.currentIndex > 0 &&
-                              playerState.currentIndex <=
+                              playerState.currentIndex - 1 >= 0 &&
+                              playerState.currentIndex - 1 <
                                   _audiobook!.chapters.length
                           ? _audiobook!
                               .chapters[playerState.currentIndex - 1].title
@@ -965,8 +933,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                       onPressed: _nextChapter,
                       tooltip: _audiobook != null &&
                               playerState.currentIndex >= 0 &&
-                              playerState.currentIndex <
-                                  _audiobook!.chapters.length - 1
+                              playerState.currentIndex + 1 >= 0 &&
+                              playerState.currentIndex + 1 <
+                                  _audiobook!.chapters.length
                           ? _audiobook!
                               .chapters[playerState.currentIndex + 1].title
                           : 'Next chapter',
@@ -1001,6 +970,11 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 16.0),
                       itemCount: _audiobook!.chapters.length,
                       itemBuilder: (context, index) {
+                        // DEFENSIVE: Validate index is in bounds
+                        if (index < 0 || index >= _audiobook!.chapters.length) {
+                          return const SizedBox.shrink();
+                        }
+
                         final chapter = _audiobook!.chapters[index];
                         final isCurrent = index == playerState.currentIndex;
                         final distance =

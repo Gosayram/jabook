@@ -1783,7 +1783,8 @@ class RuTrackerParser {
       for (final match in pattern1.allMatches(chapterText)) {
         final title = match.group(2)?.trim() ?? '';
         final duration = match.group(3)?.trim() ?? '0:00';
-        chapters.add(_createChapterFromDuration(title, duration));
+        chapters
+            .add(_createChapterFromDuration(title, duration, chapters.length));
       }
 
       // Pattern 2: "01 - Название [1:23:45]"
@@ -1793,7 +1794,8 @@ class RuTrackerParser {
         for (final match in pattern2.allMatches(chapterText)) {
           final title = match.group(2)?.trim() ?? '';
           final duration = match.group(3)?.trim() ?? '0:00';
-          chapters.add(_createChapterFromDuration(title, duration));
+          chapters.add(
+              _createChapterFromDuration(title, duration, chapters.length));
         }
       }
 
@@ -1806,7 +1808,8 @@ class RuTrackerParser {
         for (final match in pattern3.allMatches(chapterText)) {
           final title = match.group(1)?.trim() ?? '';
           final duration = match.group(2)?.trim() ?? '0:00';
-          chapters.add(_createChapterFromDuration(title, duration));
+          chapters.add(
+              _createChapterFromDuration(title, duration, chapters.length));
         }
       }
 
@@ -1817,7 +1820,8 @@ class RuTrackerParser {
         for (final match in pattern4.allMatches(chapterText)) {
           final title = match.group(1)?.trim() ?? '';
           final duration = match.group(2)?.trim() ?? '0:00';
-          chapters.add(_createChapterFromDuration(title, duration));
+          chapters.add(
+              _createChapterFromDuration(title, duration, chapters.length));
         }
       }
 
@@ -2700,7 +2704,8 @@ DateTime? _parseAttachTableDate(
 }
 
 /// Creates a Chapter from title and duration string.
-Chapter _createChapterFromDuration(String title, String duration) {
+Chapter _createChapterFromDuration(
+    String title, String duration, int fileIndex) {
   final durationParts = duration.split(':');
   var durationMs = 0;
   if (durationParts.length == 2) {
@@ -2716,7 +2721,7 @@ Chapter _createChapterFromDuration(String title, String duration) {
   return Chapter(
     title: title,
     durationMs: durationMs,
-    fileIndex: 0,
+    fileIndex: fileIndex,
     startByte: 0,
     endByte: 0,
   );
