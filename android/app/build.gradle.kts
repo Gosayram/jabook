@@ -241,11 +241,18 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-guava:1.10.2")
 
+    // Kotlinx serialization (required by Room 2.8.4+)
+    // Room uses setClassDiscriminatorMode which requires kotlinx.serialization 1.6.0+
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
+
     // Room database for local storage
-    val roomVersion = "2.8.4"
+    // Updated to 2.8.5 for better kotlinx-serialization compatibility
+    val roomVersion = "2.8.5"
     implementation("androidx.room:room-runtime:$roomVersion")
     implementation("androidx.room:room-ktx:$roomVersion")
     kapt("androidx.room:room-compiler:$roomVersion")
+    // Add kotlinx-serialization to kapt compile classpath for Room compiler
+    kapt("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
 
     // DataStore for preferences
     implementation("androidx.datastore:datastore-preferences:1.1.7")
@@ -264,6 +271,22 @@ dependencies {
     // Note: Google Play Core is NOT needed as a dependency
     // Flutter references these classes but they're not actually used
     // ProGuard rules in proguard-rules.pro handle R8 warnings with -dontwarn
+}
+
+// Force kotlinx-serialization version for all configurations (including kapt)
+// This is required because Room 2.8.4+ uses setClassDiscriminatorMode which requires kotlinx.serialization 1.6.0+
+val kotlinxSerializationVersion = "1.9.0"
+configurations.all {
+    resolutionStrategy {
+        force("org.jetbrains.kotlinx:kotlinx-serialization-json:$kotlinxSerializationVersion")
+        force("org.jetbrains.kotlinx:kotlinx-serialization-core:$kotlinxSerializationVersion")
+        // Also force transitive dependencies
+        eachDependency {
+            if (requested.group == "org.jetbrains.kotlinx" && requested.name.startsWith("kotlinx-serialization")) {
+                useVersion(kotlinxSerializationVersion)
+            }
+        }
+    }
 }
 
 // ktlint configuration
