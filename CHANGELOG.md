@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add swipe gestures and notification controls to mini player
 
 ### Changed
+- Bump packages
 - Exclude test_results folder for copyright heads
 - Migrate player to new bridge API with Kotlin state persistence
 - Refactor audio player service architecture
@@ -29,7 +30,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix playback position restoration and prevent playlist loading conflicts
 - HttpCache validation
 - Player validation
+- Resolve compilation warnings and deprecated API usage
 - Resolve Kotlin 2.2.0 compilation errors and update dependencies
+- Room version and build namespace for validation
 
 ## [1.2.6] - 2025-12-06
 
