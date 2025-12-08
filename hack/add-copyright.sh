@@ -29,6 +29,7 @@ find . -name "*.dart" \
     -not -path "./build/*" \
     -not -path "./lib/l10n/*" \
     -not -path "./.flutter-plugins*" \
+    -not -path "./test_results/*" \
     -not -path "./.packages" | while read -r file; do
     # Check if file already has correct copyright
     if grep -q "$COPYRIGHT" "$file" 2>/dev/null; then
