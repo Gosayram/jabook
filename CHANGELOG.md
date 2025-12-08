@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Refactor audio player service architecture
 
 ### Fixed
+- Fix chapter mismatch, player freeze, and local playback
 - Fix compilation errors and improve playback position saving
 - Fix playback position restoration and prevent playlist loading conflicts
 - HttpCache validation
