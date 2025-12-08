@@ -16,6 +16,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Add swipe gestures and notification controls to mini player
+
+### Changed
+- Exclude test_results folder for copyright heads
+- Migrate player to new bridge API with Kotlin state persistence
+- Refactor audio player service architecture
+
+### Fixed
+- Fix compilation errors and improve playback position saving
+- Fix playback position restoration and prevent playlist loading conflicts
+- HttpCache validation
+- Player validation
+
+## [1.2.6] - 2025-12-06
+
 ### Changed
 - Add dynamic app name support based on build flavor (#43)
 - Bump softprops/action-gh-release from 2.4.2 to 2.5.0 (#44)
@@ -186,7 +202,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Security params
 
 
-[Unreleased]: https://github.com/Gosayram/jabook/compare/1.2.5...HEAD
+[Unreleased]: https://github.com/Gosayram/jabook/compare/1.2.6...HEAD
+[1.2.6]: https://github.com/Gosayram/jabook/compare/1.2.5...1.2.6
 [1.2.5]: https://github.com/Gosayram/jabook/compare/1.2.4...1.2.5
 [1.2.4]: https://github.com/Gosayram/jabook/compare/1.2.0...1.2.4
 [1.2.0]: https://github.com/Gosayram/jabook/compare/1.1.4+9...1.2.0
