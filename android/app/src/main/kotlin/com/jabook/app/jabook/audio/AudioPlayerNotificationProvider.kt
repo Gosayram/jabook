@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION") // BitmapLoader is deprecated in Media3 but still required
+
 package com.jabook.app.jabook.audio
 
 import android.graphics.Bitmap
@@ -6,7 +8,7 @@ import androidx.annotation.OptIn
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSourceBitmapLoader
-import androidx.media3.session.BitmapLoader
+import androidx.media3.session.BitmapLoader // Deprecated but still used in Media3 1.8.0
 import androidx.media3.session.CommandButton
 import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.media3.session.MediaNotification
@@ -28,6 +30,8 @@ class AudioPlayerNotificationProvider(
     private val defaultBitmapLoader = DataSourceBitmapLoader(service)
 
     // Create a custom BitmapLoader that conditionally fails/skips loading
+    // Note: BitmapLoader is deprecated in Media3 but still required for compatibility
+    @Suppress("DEPRECATION")
     private val minimalBitmapLoader =
         object : BitmapLoader {
             override fun loadBitmap(uri: android.net.Uri): ListenableFuture<Bitmap> {

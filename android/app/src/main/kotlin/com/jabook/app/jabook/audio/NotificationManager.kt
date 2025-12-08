@@ -616,7 +616,8 @@ class NotificationManager(
 
                     // Try to set MediaStyle using reflection for better integration
                     // This is needed for proper small icon display in expanded notification
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP && mediaSession != null) {
+                    // Note: minSdk is above LOLLIPOP, so version check is always true
+                    if (mediaSession != null) {
                         try {
                             android.util.Log.d("NotificationManager", "Attempting to set MediaStyle on Notification.Builder via reflection")
                             val setStyleMethod = builder.javaClass.getMethod("setStyle", android.app.Notification.Style::class.java)
@@ -635,53 +636,52 @@ class NotificationManager(
                             setShowActionsInCompactViewMethod.invoke(nativeMediaStyle, intArrayOf(1, 2, 3))
 
                             // Set media session token for system integration (CRITICAL for Quick Settings)
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP && mediaSession != null) {
-                                try {
-                                    // Media3 MediaSession: use public getToken() method to get SessionToken
-                                    // Reference: https://developer.android.com/reference/kotlin/androidx/media3/session/SessionToken
-                                    val sessionToken = mediaSession.getToken()
+                            // Note: mediaSession is already checked above (line 620)
+                            try {
+                                // Media3 MediaSession: use public getToken() method to get SessionToken
+                                // Reference: https://developer.android.com/reference/kotlin/androidx/media3/session/SessionToken
+                                val sessionToken = mediaSession!!.getToken()
 
-                                    // Get the underlying android.media.session.MediaSession.Token
-                                    // Media3 SessionToken wraps the native token - use reflection to get native token
-                                    // for native MediaStyle which requires android.media.session.MediaSession.Token
+                                // Get the underlying android.media.session.MediaSession.Token
+                                // Media3 SessionToken wraps the native token - use reflection to get native token
+                                // for native MediaStyle which requires android.media.session.MediaSession.Token
+                                val setMediaSessionMethod =
+                                    mediaStyleClass.getMethod(
+                                        "setMediaSession",
+                                        android.media.session.MediaSession.Token::class.java,
+                                    )
+
+                                // Media3 SessionToken has a getToken() method that returns the native token
+                                // This requires reflection as it's an internal API
+                                val sessionTokenClass = sessionToken.javaClass
+                                val getNativeTokenMethod = sessionTokenClass.getMethod("getToken")
+                                val nativeToken = getNativeTokenMethod.invoke(sessionToken)
+                                setMediaSessionMethod.invoke(nativeMediaStyle, nativeToken)
+
+                                android.util.Log.d("NotificationManager", "MediaSession token set successfully for native MediaStyle")
+                            } catch (e: Exception) {
+                                android.util.Log.w(
+                                    "NotificationManager",
+                                    "Failed to set MediaSession token in native MediaStyle: ${e.message}",
+                                    e,
+                                )
+                                // Try alternative approach: try to use SessionToken directly
+                                try {
+                                    // Alternative: try to use SessionToken as-is (may work in some cases)
+                                    val sessionToken = mediaSession.getToken()
                                     val setMediaSessionMethod =
                                         mediaStyleClass.getMethod(
                                             "setMediaSession",
                                             android.media.session.MediaSession.Token::class.java,
                                         )
-
-                                    // Media3 SessionToken has a getToken() method that returns the native token
-                                    // This requires reflection as it's an internal API
-                                    val sessionTokenClass = sessionToken.javaClass
-                                    val getNativeTokenMethod = sessionTokenClass.getMethod("getToken")
-                                    val nativeToken = getNativeTokenMethod.invoke(sessionToken)
-                                    setMediaSessionMethod.invoke(nativeMediaStyle, nativeToken)
-
-                                    android.util.Log.d("NotificationManager", "MediaSession token set successfully for native MediaStyle")
-                                } catch (e: Exception) {
+                                    // This will likely fail, but worth trying
+                                    setMediaSessionMethod.invoke(nativeMediaStyle, sessionToken)
+                                    android.util.Log.d("NotificationManager", "MediaSession token set using alternative method")
+                                } catch (e2: Exception) {
                                     android.util.Log.w(
                                         "NotificationManager",
-                                        "Failed to set MediaSession token in native MediaStyle: ${e.message}",
-                                        e,
+                                        "Alternative MediaSession token method also failed: ${e2.message}",
                                     )
-                                    // Try alternative approach: try to use SessionToken directly
-                                    try {
-                                        // Alternative: try to use SessionToken as-is (may work in some cases)
-                                        val sessionToken = mediaSession.getToken()
-                                        val setMediaSessionMethod =
-                                            mediaStyleClass.getMethod(
-                                                "setMediaSession",
-                                                android.media.session.MediaSession.Token::class.java,
-                                            )
-                                        // This will likely fail, but worth trying
-                                        setMediaSessionMethod.invoke(nativeMediaStyle, sessionToken)
-                                        android.util.Log.d("NotificationManager", "MediaSession token set using alternative method")
-                                    } catch (e2: Exception) {
-                                        android.util.Log.w(
-                                            "NotificationManager",
-                                            "Alternative MediaSession token method also failed: ${e2.message}",
-                                        )
-                                    }
                                 }
                             }
 
@@ -984,6 +984,7 @@ class NotificationManager(
                 .setOnlyAlertOnce(true)
                 .setShowWhen(false)
                 .addAction(
+                    @Suppress("DEPRECATION")
                     Notification.Action
                         .Builder(
                             if (shouldShowPlay) android.R.drawable.ic_media_play else android.R.drawable.ic_media_pause,

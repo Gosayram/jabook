@@ -75,20 +75,12 @@ class DownloadForegroundService : Service() {
             try {
                 // Create notification BEFORE calling startForeground() (required)
                 val tempNotification = createMinimalNotification()
-
-                // Verify notification is not null before starting foreground
-                if (tempNotification != null) {
-                    startForeground(NOTIFICATION_ID, tempNotification)
-                    android.util.Log.d(
-                        "DownloadForegroundService",
-                        "startForeground() called immediately in onCreate() for Android ${Build.VERSION.SDK_INT} (critical fix)",
-                    )
-                } else {
-                    android.util.Log.e(
-                        "DownloadForegroundService",
-                        "Failed to create minimal notification for startForeground()",
-                    )
-                }
+                // Note: createMinimalNotification() always returns non-null
+                startForeground(NOTIFICATION_ID, tempNotification)
+                android.util.Log.d(
+                    "DownloadForegroundService",
+                    "startForeground() called immediately in onCreate() for Android ${Build.VERSION.SDK_INT} (critical fix)",
+                )
             } catch (e: Exception) {
                 android.util.Log.w(
                     "DownloadForegroundService",
@@ -113,13 +105,12 @@ class DownloadForegroundService : Service() {
                 // Ensure notification is created and service is in foreground
                 if (!isServiceRunning) {
                     val minimalNotification = createMinimalNotification()
-                    if (minimalNotification != null) {
-                        startForeground(NOTIFICATION_ID, minimalNotification)
-                        android.util.Log.d(
-                            "DownloadForegroundService",
-                            "startForeground() called in onStartCommand for Android ${Build.VERSION.SDK_INT}",
-                        )
-                    }
+                    // Note: createMinimalNotification() always returns non-null
+                    startForeground(NOTIFICATION_ID, minimalNotification)
+                    android.util.Log.d(
+                        "DownloadForegroundService",
+                        "startForeground() called in onStartCommand for Android ${Build.VERSION.SDK_INT}",
+                    )
                 }
             } catch (e: Exception) {
                 android.util.Log.w(
@@ -138,16 +129,15 @@ class DownloadForegroundService : Service() {
                     // Create minimal notification only for foreground service
                     // Individual download notifications are handled by DownloadNotificationService
                     val minimalNotification = createMinimalNotification()
-                    if (minimalNotification != null) {
-                        try {
-                            startForeground(NOTIFICATION_ID, minimalNotification)
-                        } catch (e: Exception) {
-                            android.util.Log.e(
-                                "DownloadForegroundService",
-                                "Failed to start foreground service",
-                                e,
-                            )
-                        }
+                    // Note: createMinimalNotification() always returns non-null
+                    try {
+                        startForeground(NOTIFICATION_ID, minimalNotification)
+                    } catch (e: Exception) {
+                        android.util.Log.e(
+                            "DownloadForegroundService",
+                            "Failed to start foreground service",
+                            e,
+                        )
                     }
                 }
             }

@@ -30,7 +30,7 @@ import kotlin.math.pow
  *   - If level > -16 LUFS (loud): apply soft limiter
  * - Smooth gain changes (slew rate: 0.5 dB/s) to avoid artifacts
  */
-@OptIn(UnstableApi::class)
+@UnstableApi
 class AutoVolumeLeveler : AudioProcessor {
     private var inputAudioFormat: AudioProcessor.AudioFormat? = null
     private var outputAudioFormat: AudioProcessor.AudioFormat? = null

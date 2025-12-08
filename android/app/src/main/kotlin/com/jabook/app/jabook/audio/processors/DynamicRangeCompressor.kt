@@ -33,7 +33,7 @@ import kotlin.math.sqrt
  * - Medium: threshold -24 dB, ratio 3:1, attack 5 ms, release 60 ms
  * - Strong: threshold -18 dB, ratio 4:1, attack 3 ms, release 40 ms
  */
-@OptIn(UnstableApi::class)
+@UnstableApi
 class DynamicRangeCompressor(
     private val drcLevel: DRCLevel,
 ) : AudioProcessor {

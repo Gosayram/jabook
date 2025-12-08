@@ -93,11 +93,8 @@ class AudioPlayerMethodHandler(
 
         // CRITICAL: Check if service is fully initialized before returning
         // This prevents using service before it's ready (race condition fix)
-        if (service == null) {
-            return null
-        }
-
-        if (!service.isFullyInitialized()) {
+        // Note: service is guaranteed to be non-null here due to checks above
+        if (!service!!.isFullyInitialized()) {
             android.util.Log.w(
                 "AudioPlayerMethodHandler",
                 "Service exists but not fully initialized yet. initialized=${service.isFullyInitialized()}. Flutter should retry.",

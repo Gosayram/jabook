@@ -29,7 +29,7 @@ import kotlin.math.pow
  * - DeEsser (4-8 kHz, dynamic suppression) - reduces sibilance
  * - Gentle compression (threshold -28 dB, ratio 2:1) - stabilizes level
  */
-@OptIn(UnstableApi::class)
+@UnstableApi
 class SpeechEnhancer : AudioProcessor {
     private var inputAudioFormat: AudioProcessor.AudioFormat? = null
     private var outputAudioFormat: AudioProcessor.AudioFormat? = null

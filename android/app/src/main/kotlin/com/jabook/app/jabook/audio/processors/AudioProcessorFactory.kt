@@ -24,7 +24,7 @@ import androidx.media3.common.util.UnstableApi
  * for ExoPlayer. Processors are applied in a specific order to ensure
  * optimal audio quality.
  */
-@OptIn(UnstableApi::class)
+@UnstableApi
 object AudioProcessorFactory {
     /**
      * Creates a chain of AudioProcessors based on the provided settings.
