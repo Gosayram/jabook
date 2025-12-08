@@ -36,6 +36,7 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import java.io.File
+import javax.inject.Named
 import javax.inject.Singleton
 
 /**
@@ -54,7 +55,7 @@ object MediaModule {
     @Singleton
     fun provideMediaCache(
         @ApplicationContext context: Context,
-    ): Cache {
+    ): androidx.media3.datasource.cache.Cache {
         val initStart = System.currentTimeMillis()
 
         // CRITICAL OPTIMIZATION: Minimize blocking operations during cache creation
@@ -117,6 +118,21 @@ object MediaModule {
         }
 
         return cache
+    }
+
+    @Provides
+    @Singleton
+    @Named("okhttp")
+    fun provideOkHttpCache(
+        @ApplicationContext context: Context,
+    ): okhttp3.Cache {
+        val cacheDir = File(context.cacheDir, "okhttp_cache")
+        val cacheSize = 50L * 1024 * 1024 // 50 MB
+        android.util.Log.d(
+            "MediaModule",
+            "Providing OkHttp Cache: ${cacheDir.absolutePath}, size: ${cacheSize / (1024 * 1024)} MB",
+        )
+        return okhttp3.Cache(cacheDir, cacheSize)
     }
 
     @OptIn(UnstableApi::class)
