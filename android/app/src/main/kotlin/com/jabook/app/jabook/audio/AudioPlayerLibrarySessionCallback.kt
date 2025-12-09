@@ -21,20 +21,49 @@ import kotlinx.coroutines.guava.future
 import java.io.File
 
 class AudioPlayerLibrarySessionCallback(
+    private val service: AudioPlayerService,
     private val playerPersistenceManager: PlayerPersistenceManager,
     private val getDurationForFile: (String) -> Long?,
 ) : MediaLibraryService.MediaLibrarySession.Callback {
     // TODO: Implement library operations (onGetLibraryRoot, onGetItem, onGetChildren)
     // For now, these are not needed as we're not using library browsing features
 
+    private val customCommands =
+        listOf(
+            androidx.media3.session.CommandButton
+                .Builder()
+                .setDisplayName("Rewind 15s")
+                .setIconResId(android.R.drawable.ic_media_rew)
+                .setSessionCommand(
+                    androidx.media3.session.SessionCommand(CUSTOM_COMMAND_REWIND, Bundle.EMPTY),
+                ).build(),
+            androidx.media3.session.CommandButton
+                .Builder()
+                .setDisplayName("Forward 30s")
+                .setIconResId(android.R.drawable.ic_media_ff)
+                .setSessionCommand(
+                    androidx.media3.session.SessionCommand(CUSTOM_COMMAND_FORWARD, Bundle.EMPTY),
+                ).build(),
+        )
+
     @OptIn(UnstableApi::class)
     override fun onConnect(
         session: MediaSession,
         controller: MediaSession.ControllerInfo,
     ): MediaSession.ConnectionResult {
-        // Use existing logic from MediaSessionManager for custom commands (rewind/forward)
-        // This will be migrated from MediaSessionManager later
-        return MediaSession.ConnectionResult.AcceptedResultBuilder(session).build()
+        val connectionResult =
+            MediaSession.ConnectionResult
+                .AcceptedResultBuilder(session)
+                .setAvailableSessionCommands(
+                    MediaSession.ConnectionResult.DEFAULT_SESSION_AND_LIBRARY_COMMANDS
+                        .buildUpon()
+                        .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_REWIND, Bundle.EMPTY))
+                        .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_FORWARD, Bundle.EMPTY))
+                        .build(),
+                ).setMediaButtonPreferences(customCommands)
+                .build()
+
+        return connectionResult
     }
 
     override fun onCustomCommand(
@@ -43,11 +72,24 @@ class AudioPlayerLibrarySessionCallback(
         customCommand: androidx.media3.session.SessionCommand,
         args: Bundle,
     ): ListenableFuture<SessionResult> {
-        // Use existing logic from MediaSessionManager
-        // This will be migrated from MediaSessionManager later
-        return Futures.immediateFuture(
-            SessionResult(SessionResult.RESULT_SUCCESS),
-        )
+        when (customCommand.customAction) {
+            CUSTOM_COMMAND_REWIND -> {
+                val rewindSeconds = service.mediaSessionManager?.getRewindDuration()?.toInt() ?: 15
+                service.rewind(rewindSeconds)
+                return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
+            }
+            CUSTOM_COMMAND_FORWARD -> {
+                val forwardSeconds = service.mediaSessionManager?.getForwardDuration()?.toInt() ?: 30
+                service.forward(forwardSeconds)
+                return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
+            }
+        }
+        return Futures.immediateFuture(SessionResult(SessionError.ERROR_NOT_SUPPORTED))
+    }
+
+    companion object {
+        private const val CUSTOM_COMMAND_REWIND = "com.jabook.app.jabook.rewind"
+        private const val CUSTOM_COMMAND_FORWARD = "com.jabook.app.jabook.forward"
     }
 
     // Minimal implementation for library operations (required by MediaLibrarySession.Callback)

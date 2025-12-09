@@ -174,14 +174,17 @@ class AudioPlayerServiceInitializer(
                 // - Update notification when Player state changes (play/pause, track change, etc.)
                 // - Update notification when MediaMetadata changes
                 // - Handle notification actions (play/pause/next/previous) through MediaSession
+                val sessionCallback =
+                    AudioPlayerLibrarySessionCallback(
+                        service,
+                        service.playerPersistenceManager ?: throw IllegalStateException("PlayerPersistenceManager not initialized"),
+                        getDurationForFile = { filePath -> service.getDurationForFile(filePath) },
+                    )
                 val mediaLibrarySessionBuilder =
                     MediaLibrarySession.Builder(
                         service,
                         service.getActivePlayer(), // ExoPlayer is properly connected - notifications will be created automatically
-                        AudioPlayerLibrarySessionCallback(
-                            service.playerPersistenceManager,
-                            { filePath -> service.getDurationForFile(filePath) },
-                        ),
+                        sessionCallback,
                     )
 
                 // Build MediaLibrarySession (Media3 automatically generates unique session ID)
@@ -297,6 +300,8 @@ class AudioPlayerServiceInitializer(
             // Create NotificationManager only for minimal notification at start (if needed)
             // MediaLibraryService will automatically create full notification after MediaLibrarySession is ready
             // TODO: Remove NotificationManager completely once migration is complete
+
+            /*
             service.notificationManager =
                 NotificationManager(
                     context = service,
@@ -307,6 +312,7 @@ class AudioPlayerServiceInitializer(
                     rewindSeconds = currentRewindSeconds,
                     forwardSeconds = currentForwardSeconds,
                 )
+             */
 
             android.util.Log.d(
                 "AudioPlayerService",

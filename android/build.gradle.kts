@@ -66,6 +66,19 @@ subprojects {
                         println("Set namespace for ${project.name} to $packageName")
                     }
                 }
+                // FORCE compileSdk to 34 for all plugins to fix mismatch with AndroidX dependencies
+                val getCompileSdk = android.javaClass.getMethod("getCompileSdkVersion")
+                val currentCompileSdk = getCompileSdk.invoke(android) as? String // e.g., "android-34"
+                
+                // Parse version number
+                val sdkVersion = currentCompileSdk?.substringAfter("android-")?.toIntOrNull()
+                
+                if (sdkVersion != null && sdkVersion < 34) {
+                     val setCompileSdkVersion = android.javaClass.getMethod("setCompileSdkVersion", Int::class.javaPrimitiveType)
+                     setCompileSdkVersion.invoke(android, 34)
+                     println("Forced compileSdk for ${project.name} from $sdkVersion to 34")
+                }
+
             } catch (e: Exception) {
                 // Ignore if method not found
             }

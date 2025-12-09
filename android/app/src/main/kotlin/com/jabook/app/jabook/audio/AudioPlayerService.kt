@@ -403,7 +403,12 @@ class AudioPlayerService : MediaLibraryService() {
         intent: Intent?,
         flags: Int,
         startId: Int,
-    ): Int = intentHandler?.onStartCommand(intent, flags, startId) ?: super.onStartCommand(intent, flags, startId)
+    ): Int {
+        if (intentHandler?.handleStartCommand(intent, flags, startId) == true) {
+            return START_STICKY
+        }
+        return super.onStartCommand(intent, flags, startId)
+    }
 
     /**
      * Starts sleep timer.
