@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Introduce Jetpack Compose UI with new data layer for books and refactor audio player components: phase 1 and 2
 
 ### Changed
+- Added ignore packages for copyright validation
 - Bump packages
 - Bump pub build
 - Enhance foreground service initialization for Android 14+ and standardize notification ID
