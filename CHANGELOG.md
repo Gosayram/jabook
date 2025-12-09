@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Bump packages
 - Exclude test_results folder for copyright heads
+- Implement jumpToTrack functionality, increase playback position saving frequency, and add extensive logging for audio bridge events
 - Migrate player to new bridge API with Kotlin state persistence
 - Migrate to Java 21 and replace kapt with KSP for Room
 - Refactor audio player service architecture
