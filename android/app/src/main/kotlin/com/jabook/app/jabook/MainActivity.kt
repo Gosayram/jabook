@@ -214,7 +214,10 @@ class MainActivity : FlutterFragmentActivity() {
             KeyEvent.KEYCODE_MEDIA_FAST_FORWARD,
             KeyEvent.KEYCODE_MEDIA_REWIND,
             -> {
-                android.util.Log.d("MainActivity", "Media button pressed (keyCode=$keyCode), delegating to MediaSession")
+                android.util.Log.d(
+                    "MainActivity",
+                    "Media button pressed (keyCode=$keyCode), delegating to MediaSession",
+                )
                 return false
             }
         }
@@ -235,7 +238,10 @@ class MainActivity : FlutterFragmentActivity() {
             KeyEvent.KEYCODE_MEDIA_FAST_FORWARD,
             KeyEvent.KEYCODE_MEDIA_REWIND,
             -> {
-                android.util.Log.d("MainActivity", "Media button released (keyCode=$keyCode), delegating to MediaSession")
+                android.util.Log.d(
+                    "MainActivity",
+                    "Media button released (keyCode=$keyCode), delegating to MediaSession",
+                )
                 return false
             }
         }
@@ -255,7 +261,10 @@ class MainActivity : FlutterFragmentActivity() {
                     if (intent.action == PositionConstants.ACTION_SAVE_POSITION_BEFORE_UNLOAD) {
                         val trackIndex = intent.getIntExtra(PositionConstants.EXTRA_TRACK_INDEX, -1)
                         val positionMs = intent.getLongExtra(PositionConstants.EXTRA_POSITION_MS, -1L)
-                        android.util.Log.d("MainActivity", "Received position save broadcast: track=$trackIndex, position=${positionMs}ms")
+                        android.util.Log.d(
+                            "MainActivity",
+                            "Received position save broadcast: track=$trackIndex, position=${positionMs}ms",
+                        )
 
                         try {
                             val messenger = flutterEngine.dartExecutor.binaryMessenger

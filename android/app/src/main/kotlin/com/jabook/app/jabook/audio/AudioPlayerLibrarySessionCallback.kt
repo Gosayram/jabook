@@ -380,7 +380,10 @@ class AudioPlayerLibrarySessionCallback(
                                 )
                                 metadataBuilder.setExtras(extras)
 
-                                android.util.Log.d("AudioPlayerService", "Added completion extras: ${completionPercentage * 100}%")
+                                android.util.Log.d(
+                                    "AudioPlayerService",
+                                    "Added completion extras: ${completionPercentage * 100}%",
+                                )
                             }
 
                             // Add metadata if available
@@ -418,7 +421,10 @@ class AudioPlayerLibrarySessionCallback(
                                 .build(),
                         )
                     } else {
-                        android.util.Log.w("AudioPlayerService", "Skipping missing file in restored playlist: $filePath")
+                        android.util.Log.w(
+                            "AudioPlayerService",
+                            "Skipping missing file in restored playlist: $filePath",
+                        )
                     }
                 }
 
@@ -438,7 +444,10 @@ class AudioPlayerLibrarySessionCallback(
 
                     correctedIndex = correctedIndex.coerceIn(0, playlist.size - 1)
 
-                    android.util.Log.i("AudioPlayerService", "Restoring full playlist: ${playlist.size} items, index=$correctedIndex")
+                    android.util.Log.i(
+                        "AudioPlayerService",
+                        "Restoring full playlist: ${playlist.size} items, index=$correctedIndex",
+                    )
 
                     return@future MediaSession.MediaItemsWithStartPosition(
                         playlist,
@@ -477,7 +486,11 @@ class AudioPlayerLibrarySessionCallback(
                     MediaConstants.EXTRAS_KEY_COMPLETION_STATUS,
                     MediaConstants.EXTRAS_VALUE_COMPLETION_STATUS_PARTIALLY_PLAYED,
                 )
-                val completionPercentage = kotlin.math.max(0.0, kotlin.math.min(1.0, positionMs.toDouble() / durationMs))
+                val completionPercentage =
+                    kotlin.math.max(
+                        0.0,
+                        kotlin.math.min(1.0, positionMs.toDouble() / durationMs),
+                    )
                 extras.putDouble(
                     MediaConstants.EXTRAS_KEY_COMPLETION_PERCENTAGE,
                     completionPercentage,

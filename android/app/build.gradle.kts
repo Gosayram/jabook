@@ -9,6 +9,10 @@ plugins {
     id("com.google.dagger.hilt.android")
     id("kotlin-kapt")
     id("org.jlleitschuh.gradle.ktlint")
+    // Kotlinx serialization for type-safe navigation
+    id("org.jetbrains.kotlin.plugin.serialization")
+    // Compose Compiler (required for Kotlin 2.0+)
+    id("org.jetbrains.kotlin.plugin.compose")
 }
 
 android {
@@ -79,6 +83,15 @@ android {
             isMinifyEnabled = false
             isShrinkResources = false
         }
+    }
+
+    // Enable Jetpack Compose
+    buildFeatures {
+        compose = true
+    }
+
+    composeOptions {
+        kotlinCompilerExtensionVersion = "1.5.15"
     }
 
     defaultConfig {
@@ -266,6 +279,31 @@ dependencies {
     // OkHttp for network requests in MediaDataSourceFactory
     implementation("com.squareup.okhttp3:okhttp:5.3.2")
 
+    // Jetpack Compose - Modern UI toolkit
+    implementation(platform("androidx.compose:compose-bom:2025.12.00"))
+    implementation("androidx.compose.ui:ui")
+    implementation("androidx.compose.material3:material3")
+    implementation("androidx.compose.ui:ui-tooling-preview")
+    implementation("androidx.compose.material:material-icons-extended")
+    debugImplementation("androidx.compose.ui:ui-tooling")
+    debugImplementation("androidx.compose.ui:ui-test-manifest")
+
+    // Compose Navigation
+    implementation("androidx.navigation:navigation-compose:2.9.6")
+    implementation("androidx.hilt:hilt-navigation-compose:1.3.0")
+    // Navigation with kotlinx.serialization for type-safe routing
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
+
+    // Lifecycle & ViewModel for Compose
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.10.0")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.10.0")
+
+    // Activity Compose
+    implementation("androidx.activity:activity-compose:1.12.1")
+
+    // Coil3 for async image loading in Compose
+    implementation("io.coil-kt.coil3:coil-compose:3.3.0")
+
     // Note: Google Play Core is NOT needed as a dependency
     // Flutter references these classes but they're not actually used
     // ProGuard rules in proguard-rules.pro handle R8 warnings with -dontwarn
@@ -273,6 +311,7 @@ dependencies {
 
 // ktlint configuration
 // Plugin version 14.0.1 will use its default ktlint version
+// Rules are configured via .editorconfig file
 ktlint {
     debug.set(false)
     verbose.set(true)
@@ -281,6 +320,7 @@ ktlint {
     outputColorName.set("RED")
     ignoreFailures.set(false)
     enableExperimentalRules.set(true)
+
     filter {
         exclude("**/generated/**")
         exclude("**/build/**")

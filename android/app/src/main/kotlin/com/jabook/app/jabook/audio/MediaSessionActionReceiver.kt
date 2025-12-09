@@ -122,7 +122,11 @@ class MediaSessionActionReceiver : BroadcastReceiver() {
             fallbackToServiceIntent(context, NotificationManager.ACTION_PLAY)
             controllerFuture?.let { MediaController.releaseFuture(it) }
         } catch (e: Exception) {
-            android.util.Log.w(TAG, "Failed to handle PLAY command through MediaController, using service intent fallback", e)
+            android.util.Log.w(
+                TAG,
+                "Failed to handle PLAY command through MediaController, using service intent fallback",
+                e,
+            )
             // Fallback to service intent
             fallbackToServiceIntent(context, NotificationManager.ACTION_PLAY)
             controllerFuture?.let { MediaController.releaseFuture(it) }
@@ -181,7 +185,11 @@ class MediaSessionActionReceiver : BroadcastReceiver() {
             fallbackToServiceIntent(context, NotificationManager.ACTION_PAUSE)
             controllerFuture?.let { MediaController.releaseFuture(it) }
         } catch (e: Exception) {
-            android.util.Log.w(TAG, "Failed to handle PAUSE command through MediaController, using service intent fallback", e)
+            android.util.Log.w(
+                TAG,
+                "Failed to handle PAUSE command through MediaController, using service intent fallback",
+                e,
+            )
             // Fallback to service intent
             fallbackToServiceIntent(context, NotificationManager.ACTION_PAUSE)
             controllerFuture?.let { MediaController.releaseFuture(it) }

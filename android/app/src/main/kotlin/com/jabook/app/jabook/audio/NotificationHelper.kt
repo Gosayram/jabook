@@ -105,7 +105,10 @@ internal class NotificationHelper(
                         description = "Audio playback controls"
                         setShowBadge(false)
                     }
-                val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as AndroidNotificationManager
+                val notificationManager =
+                    context.getSystemService(
+                        Context.NOTIFICATION_SERVICE,
+                    ) as AndroidNotificationManager
                 notificationManager.createNotificationChannel(channel)
             } catch (e: Exception) {
                 android.util.Log.e("AudioPlayerService", "Failed to create notification channel", e)

@@ -109,7 +109,10 @@ internal class PlayerStateHelper(
                             duration = dbDuration
                             // Cache it for future use
                             saveDurationToCache(filePath, duration)
-                            android.util.Log.d("AudioPlayerService", "Got duration from database for $filePath: ${duration}ms")
+                            android.util.Log.d(
+                                "AudioPlayerService",
+                                "Got duration from database for $filePath: ${duration}ms",
+                            )
                         } else {
                             // Database miss - fetch from MediaMetadataRetriever in BACKGROUND
                             if (coroutineScope != null) {

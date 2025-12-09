@@ -92,7 +92,9 @@ class ContentUriMethodHandler(
                                     .firstOrNull { perm ->
                                         DocumentsContract.isTreeUri(perm.uri) &&
                                             (
-                                                documentId.startsWith("${DocumentsContract.getTreeDocumentId(perm.uri)}/") ||
+                                                documentId.startsWith(
+                                                    "${DocumentsContract.getTreeDocumentId(perm.uri)}/",
+                                                ) ||
                                                     documentId == DocumentsContract.getTreeDocumentId(perm.uri)
                                             )
                                     }?.uri

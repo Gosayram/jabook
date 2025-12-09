@@ -24,7 +24,10 @@ class DeviceInfoMethodHandler(
             "getAppStandbyBucket" -> {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                     try {
-                        val usageStatsManager = context.getSystemService(Context.USAGE_STATS_SERVICE) as android.app.usage.UsageStatsManager
+                        val usageStatsManager =
+                            context.getSystemService(
+                                Context.USAGE_STATS_SERVICE,
+                            ) as android.app.usage.UsageStatsManager
                         val bucket = usageStatsManager.appStandbyBucket
                         result.success(bucket)
                     } catch (e: Exception) {
@@ -104,7 +107,11 @@ class DeviceInfoMethodHandler(
                     if (oneUiVersion != null) {
                         val isValidVersion =
                             oneUiVersion.contains(".") ||
-                                (oneUiVersion.length <= 3 && oneUiVersion.toIntOrNull() != null && oneUiVersion.toInt() < 100)
+                                (
+                                    oneUiVersion.length <= 3 &&
+                                        oneUiVersion.toIntOrNull() != null &&
+                                        oneUiVersion.toInt() < 100
+                                )
 
                         if (isValidVersion) {
                             val majorVersion = oneUiVersion.split(".").firstOrNull()?.toIntOrNull()

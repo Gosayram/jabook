@@ -43,8 +43,13 @@ internal class ServiceIntentHandler(
                         "AudioPlayerService",
                         "ACTION_EXIT_APP received: isFullyInitialized=${service.isFullyInitializedFlag}, mediaSession=${service.mediaSession != null}",
                     )
-                    if (service.isFullyInitializedFlag && (service.mediaSession != null || service.mediaLibrarySession != null)) {
-                        android.util.Log.i("AudioPlayerService", "Exit app requested by sleep timer, service is initialized, proceeding")
+                    if (service.isFullyInitializedFlag &&
+                        (service.mediaSession != null || service.mediaLibrarySession != null)
+                    ) {
+                        android.util.Log.i(
+                            "AudioPlayerService",
+                            "Exit app requested by sleep timer, service is initialized, proceeding",
+                        )
                         try {
                             service.stopAndCleanup()
 

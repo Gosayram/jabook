@@ -59,7 +59,10 @@ object AudioProcessorFactory {
                 try {
                     val boostProcessor = VolumeBoostProcessor(settings.volumeBoostLevel)
                     processors.add(boostProcessor)
-                    android.util.Log.d("AudioProcessorFactory", "Added VolumeBoostProcessor (${settings.volumeBoostLevel}) to chain")
+                    android.util.Log.d(
+                        "AudioProcessorFactory",
+                        "Added VolumeBoostProcessor (${settings.volumeBoostLevel}) to chain",
+                    )
                 } catch (e: Exception) {
                     android.util.Log.e("AudioProcessorFactory", "Failed to create VolumeBoostProcessor", e)
                 }
@@ -70,7 +73,10 @@ object AudioProcessorFactory {
                 try {
                     val compressor = DynamicRangeCompressor(settings.drcLevel)
                     processors.add(compressor)
-                    android.util.Log.d("AudioProcessorFactory", "Added DynamicRangeCompressor (${settings.drcLevel}) to chain")
+                    android.util.Log.d(
+                        "AudioProcessorFactory",
+                        "Added DynamicRangeCompressor (${settings.drcLevel}) to chain",
+                    )
                 } catch (e: Exception) {
                     android.util.Log.e("AudioProcessorFactory", "Failed to create DynamicRangeCompressor", e)
                 }

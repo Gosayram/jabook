@@ -40,7 +40,10 @@ class PermissionMethodHandler(
                             }
                         if (intent.resolveActivity(context.packageManager) != null) {
                             context.startActivity(intent)
-                            android.util.Log.d("PermissionHandler", "Opened MANAGE_APP_ALL_FILES_ACCESS_PERMISSION settings")
+                            android.util.Log.d(
+                                "PermissionHandler",
+                                "Opened MANAGE_APP_ALL_FILES_ACCESS_PERMISSION settings",
+                            )
                             success = true
                         }
                     } catch (e: Exception) {
@@ -56,7 +59,10 @@ class PermissionMethodHandler(
                                 }
                             if (intent.resolveActivity(context.packageManager) != null) {
                                 context.startActivity(intent)
-                                android.util.Log.d("PermissionHandler", "Opened ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION settings")
+                                android.util.Log.d(
+                                    "PermissionHandler",
+                                    "Opened ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION settings",
+                                )
                                 success = true
                             }
                         } catch (e: Exception) {

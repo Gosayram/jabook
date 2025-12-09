@@ -24,6 +24,10 @@ plugins {
     id("com.google.devtools.ksp") version "2.3.3" apply false
     id("com.google.dagger.hilt.android") version "2.57.2" apply false
     id("org.jlleitschuh.gradle.ktlint") version "14.0.1" apply false
+    // Kotlinx serialization for type-safe navigation
+    id("org.jetbrains.kotlin.plugin.serialization") version "2.2.21" apply false
+    // Compose Compiler (required for Kotlin 2.0+)
+    id("org.jetbrains.kotlin.plugin.compose") version "2.2.21" apply false
 }
 
 include(":app")

@@ -54,7 +54,10 @@ class PlayerPersistenceManager
                     .putString(KEY_RESUMPTION_ARTIST, artist)
                     .putString(KEY_RESUMPTION_GROUP_PATH, groupPath)
                     .apply()
-                android.util.Log.v("PlayerPersistence", "Stored current media item for resumption: $mediaId, position=${positionMs}ms")
+                android.util.Log.v(
+                    "PlayerPersistence",
+                    "Stored current media item for resumption: $mediaId, position=${positionMs}ms",
+                )
             } catch (e: Exception) {
                 android.util.Log.w("PlayerPersistence", "Failed to store current media item for resumption", e)
             }

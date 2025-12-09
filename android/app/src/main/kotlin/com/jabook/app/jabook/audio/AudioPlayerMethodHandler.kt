@@ -131,7 +131,10 @@ class AudioPlayerMethodHandler(
             try {
                 val service = getService()
                 if (service != null && service.isFullyInitialized()) {
-                    android.util.Log.d("AudioPlayerMethodHandler", "Service ready, executing action (attempt ${retryCount + 1})")
+                    android.util.Log.d(
+                        "AudioPlayerMethodHandler",
+                        "Service ready, executing action (attempt ${retryCount + 1})",
+                    )
                     action()
                     return
                 }
@@ -149,7 +152,11 @@ class AudioPlayerMethodHandler(
                 }
                 retryCount++
             } catch (e: Exception) {
-                android.util.Log.e("AudioPlayerMethodHandler", "Exception in executeWithRetry (attempt ${retryCount + 1}): ${e.message}", e)
+                android.util.Log.e(
+                    "AudioPlayerMethodHandler",
+                    "Exception in executeWithRetry (attempt ${retryCount + 1}): ${e.message}",
+                    e,
+                )
                 retryCount++
                 if (retryCount >= maxRetries) {
                     android.util.Log.e("AudioPlayerMethodHandler", "Max retries ($maxRetries) reached, giving up")
@@ -236,7 +243,13 @@ class AudioPlayerMethodHandler(
                         return
                     }
 
-                    service.setPlaylist(filePaths, metadata, initialTrackIndex, initialPosition, groupPath) { success, exception ->
+                    service.setPlaylist(
+                        filePaths,
+                        metadata,
+                        initialTrackIndex,
+                        initialPosition,
+                        groupPath,
+                    ) { success, exception ->
                         if (success) {
                             android.util.Log.d(
                                 "AudioPlayerMethodHandler",
@@ -245,7 +258,11 @@ class AudioPlayerMethodHandler(
                             result.success(true)
                         } else {
                             val errorMessage = exception?.message ?: "Failed to set playlist"
-                            android.util.Log.e("AudioPlayerMethodHandler", "Failed to set playlist: $errorMessage", exception)
+                            android.util.Log.e(
+                                "AudioPlayerMethodHandler",
+                                "Failed to set playlist: $errorMessage",
+                                exception,
+                            )
                             result.error("EXCEPTION", errorMessage, null)
                         }
                     }
@@ -657,7 +674,11 @@ class AudioPlayerMethodHandler(
                             result.success(true)
                         },
                         onError = { e ->
-                            android.util.Log.w("AudioPlayerMethodHandler", "Failed to acknowledge saveCurrentPosition", e)
+                            android.util.Log.w(
+                                "AudioPlayerMethodHandler",
+                                "Failed to acknowledge saveCurrentPosition",
+                                e,
+                            )
                             // Not critical - position is already saved periodically
                             result.success(true) // Still return success as position saving is not critical
                         },
@@ -676,7 +697,10 @@ class AudioPlayerMethodHandler(
                         try {
                             VolumeBoostLevel.valueOf(volumeBoostLevelStr)
                         } catch (e: Exception) {
-                            android.util.Log.w("AudioPlayerMethodHandler", "Invalid volumeBoostLevel: $volumeBoostLevelStr, using Off")
+                            android.util.Log.w(
+                                "AudioPlayerMethodHandler",
+                                "Invalid volumeBoostLevel: $volumeBoostLevelStr, using Off",
+                            )
                             VolumeBoostLevel.Off
                         }
 

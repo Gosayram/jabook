@@ -35,7 +35,11 @@ class ManufacturerSettingsMethodHandler(
                     val success = ManufacturerSettingsHelper.openBatteryOptimizationSettings(context, packageName)
                     result.success(success)
                 } catch (e: Exception) {
-                    result.error("OPEN_BATTERY_ERROR", "Failed to open battery optimization settings: ${e.message}", null)
+                    result.error(
+                        "OPEN_BATTERY_ERROR",
+                        "Failed to open battery optimization settings: ${e.message}",
+                        null,
+                    )
                 }
             }
             "openBackgroundRestrictionsSettings" -> {
@@ -43,7 +47,11 @@ class ManufacturerSettingsMethodHandler(
                     val success = ManufacturerSettingsHelper.openBackgroundRestrictionsSettings(context, packageName)
                     result.success(success)
                 } catch (e: Exception) {
-                    result.error("OPEN_BACKGROUND_ERROR", "Failed to open background restrictions settings: ${e.message}", null)
+                    result.error(
+                        "OPEN_BACKGROUND_ERROR",
+                        "Failed to open background restrictions settings: ${e.message}",
+                        null,
+                    )
                 }
             }
             "checkAutostartEnabled" -> {

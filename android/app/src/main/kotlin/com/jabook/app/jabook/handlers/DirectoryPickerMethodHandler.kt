@@ -78,13 +78,21 @@ class DirectoryPickerMethodHandler(
                             activity.contentResolver.takePersistableUriPermission(treeUri, flags)
                             android.util.Log.d("DirectoryPicker", "Persistable URI permission taken successfully")
                         } catch (e: SecurityException) {
-                            android.util.Log.e("DirectoryPicker", "SecurityException taking permission: ${e.message}", e)
+                            android.util.Log.e(
+                                "DirectoryPicker",
+                                "SecurityException taking permission: ${e.message}",
+                                e,
+                            )
                             val errorMessage = "Please check the 'Allow access to this folder' checkbox. "
                             directoryPickerResult?.error("PERMISSION_DENIED", errorMessage, null)
                             return
                         } catch (e: Exception) {
                             android.util.Log.e("DirectoryPicker", "Exception taking permission: ${e.message}", e)
-                            directoryPickerResult?.error("PERMISSION_ERROR", "Failed to save permission: ${e.message}", null)
+                            directoryPickerResult?.error(
+                                "PERMISSION_ERROR",
+                                "Failed to save permission: ${e.message}",
+                                null,
+                            )
                             return
                         }
 

@@ -153,7 +153,10 @@ internal class SleepTimerManager(
                         val currentTime = System.currentTimeMillis()
                         val remaining = ((sleepTimerEndTime - currentTime) / 1000).toInt()
                         if (currentTime >= sleepTimerEndTime) {
-                            android.util.Log.d("AudioPlayerService", "Sleep timer expired (fixed duration), pausing playback")
+                            android.util.Log.d(
+                                "AudioPlayerService",
+                                "Sleep timer expired (fixed duration), pausing playback",
+                            )
                             player.playWhenReady = false
                             cancelSleepTimer()
                             sendTimerExpiredEvent()
@@ -161,7 +164,10 @@ internal class SleepTimerManager(
                         }
                     } else if (!player.isPlaying || sleepTimerEndTime == 0L) {
                         // Player stopped or timer cancelled, stop checking
-                        android.util.Log.d("AudioPlayerService", "Sleep timer check stopped: player not playing or timer cancelled")
+                        android.util.Log.d(
+                            "AudioPlayerService",
+                            "Sleep timer check stopped: player not playing or timer cancelled",
+                        )
                         break
                     }
                 }

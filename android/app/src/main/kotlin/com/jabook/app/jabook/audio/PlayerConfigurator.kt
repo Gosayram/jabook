@@ -212,7 +212,8 @@ internal class PlayerConfigurator(
 
                 // CRITICAL: Initialize actualTrackIndex from saved state
                 // We access playlistManager.actualTrackIndex directly or via service method if needed, but safer via manager
-                playlistManager?.actualTrackIndex = savedStateForRestore.currentIndex.coerceIn(0, filePathsForRestore.size - 1)
+                playlistManager?.actualTrackIndex =
+                    savedStateForRestore.currentIndex.coerceIn(0, filePathsForRestore.size - 1)
                 android.util.Log.d(
                     "AudioPlayerService",
                     "Initialized actualTrackIndex to ${playlistManager?.actualTrackIndex} (from savedState.currentIndex=${savedStateForRestore.currentIndex})",
@@ -237,7 +238,9 @@ internal class PlayerConfigurator(
                         var attempts = 0
                         while (attempts < 50) {
                             val newPlayer = service.getActivePlayer()
-                            if (newPlayer.playbackState == Player.STATE_READY || newPlayer.playbackState == Player.STATE_BUFFERING) {
+                            if (newPlayer.playbackState == Player.STATE_READY ||
+                                newPlayer.playbackState == Player.STATE_BUFFERING
+                            ) {
                                 break
                             }
                             delay(100)
@@ -246,7 +249,11 @@ internal class PlayerConfigurator(
 
                         // Check if position needs to be applied (if target track differs from first loaded track)
                         val newPlayer = service.getActivePlayer()
-                        val firstTrackIndex = savedStateForRestore.currentIndex.coerceIn(0, filePathsForRestore.size - 1)
+                        val firstTrackIndex =
+                            savedStateForRestore.currentIndex.coerceIn(
+                                0,
+                                filePathsForRestore.size - 1,
+                            )
                         if (firstTrackIndex != savedStateForRestore.currentIndex &&
                             newPlayer.mediaItemCount > savedStateForRestore.currentIndex
                         ) {
@@ -273,7 +280,11 @@ internal class PlayerConfigurator(
 
                         // MediaLibraryService automatically updates notification when Player state changes
                     } catch (e: Exception) {
-                        android.util.Log.e("AudioPlayerService", "Failed to restore playlist after player recreation", e)
+                        android.util.Log.e(
+                            "AudioPlayerService",
+                            "Failed to restore playlist after player recreation",
+                            e,
+                        )
                         playlistManager?.savedPlaybackState = null
                     } finally {
                         // Clear loading flag when done

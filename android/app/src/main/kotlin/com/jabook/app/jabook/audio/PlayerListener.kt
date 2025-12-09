@@ -464,7 +464,10 @@ internal class PlayerListener(
         // Handle playback parameters changes (speed, pitch, etc.)
         if (events.contains(Player.EVENT_PLAYBACK_PARAMETERS_CHANGED)) {
             val params = player.playbackParameters
-            android.util.Log.d("AudioPlayerService", "Playback parameters changed: speed=${params.speed}, pitch=${params.pitch}")
+            android.util.Log.d(
+                "AudioPlayerService",
+                "Playback parameters changed: speed=${params.speed}, pitch=${params.pitch}",
+            )
         }
 
         // Handle repeat mode changes
@@ -549,7 +552,10 @@ internal class PlayerListener(
                     // Network errors - try to retry automatically
                     if (retryCount < maxRetries) {
                         retryCount++
-                        android.util.Log.w("AudioPlayerService", "Network connection failed, retrying ($retryCount/$maxRetries)...")
+                        android.util.Log.w(
+                            "AudioPlayerService",
+                            "Network connection failed, retrying ($retryCount/$maxRetries)...",
+                        )
 
                         // Retry after delay with exponential backoff
                         val backoffDelay = retryDelayMs * retryCount
@@ -568,7 +574,10 @@ internal class PlayerListener(
                 androidx.media3.common.PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT -> {
                     if (retryCount < maxRetries) {
                         retryCount++
-                        android.util.Log.w("AudioPlayerService", "Network timeout, retrying ($retryCount/$maxRetries)...")
+                        android.util.Log.w(
+                            "AudioPlayerService",
+                            "Network timeout, retrying ($retryCount/$maxRetries)...",
+                        )
                         val backoffDelay = retryDelayMs * retryCount
                         android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
                             getActivePlayer().prepare()
@@ -644,7 +653,10 @@ internal class PlayerListener(
         // Try to skip to next track (not using modulo to prevent circular navigation)
         val nextIndex = currentIndex + 1
         if (nextIndex < totalTracks) {
-            android.util.Log.w("AudioPlayerService", "File not found at index $currentIndex, skipping to next track $nextIndex")
+            android.util.Log.w(
+                "AudioPlayerService",
+                "File not found at index $currentIndex, skipping to next track $nextIndex",
+            )
             try {
                 player.seekTo(nextIndex, 0L)
                 // Auto-play next track if player was playing
@@ -675,7 +687,10 @@ internal class PlayerListener(
     ) {
         // This is also handled in onEvents, but kept for explicit handling if needed
         val currentIndex = getActivePlayer().currentMediaItemIndex
-        android.util.Log.d("AudioPlayerService", "Media item transition (explicit): index=$currentIndex, reason=$reason")
+        android.util.Log.d(
+            "AudioPlayerService",
+            "Media item transition (explicit): index=$currentIndex, reason=$reason",
+        )
 
         // CRITICAL: Update actual track index from onMediaItemTransition event
         // This is the single source of truth for current track index
@@ -721,7 +736,10 @@ internal class PlayerListener(
         // Check sleep timer "end of chapter" mode (inspired by EasyBook)
         // Trigger when track transitions automatically (not manual seek)
         if (getSleepTimerEndOfChapter() && reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO) {
-            android.util.Log.d("AudioPlayerService", "Sleep timer expired (end of chapter on auto transition), pausing playback")
+            android.util.Log.d(
+                "AudioPlayerService",
+                "Sleep timer expired (end of chapter on auto transition), pausing playback",
+            )
             val player = getActivePlayer()
             player.playWhenReady = false
             cancelSleepTimer()
@@ -1110,7 +1128,9 @@ internal class PlayerListener(
                                 )
 
                                 // If position stopped for threshold checks OR for max time, consider file ended
-                                if (positionStoppedCount >= positionStoppedThreshold || stoppedTimeMs >= maxPositionStoppedTimeMs) {
+                                if (positionStoppedCount >= positionStoppedThreshold ||
+                                    stoppedTimeMs >= maxPositionStoppedTimeMs
+                                ) {
                                     // Position hasn't changed for multiple checks or max time - file definitely ended
                                     // This works even if duration is incorrect!
                                     android.util.Log.i(

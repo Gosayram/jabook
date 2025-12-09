@@ -59,7 +59,10 @@ internal class PlaybackController(
                 // Match lissen-android: simply set playWhenReady=true
                 // ExoPlayer manages AudioFocus automatically when handleAudioFocus=true
                 player.playWhenReady = true
-                android.util.Log.d("AudioPlayerService", "play() - set playWhenReady=true, letting ExoPlayer handle AudioFocus")
+                android.util.Log.d(
+                    "AudioPlayerService",
+                    "play() - set playWhenReady=true, letting ExoPlayer handle AudioFocus",
+                )
 
                 // Reset inactivity timer (user action)
                 resetInactivityTimer()
@@ -266,7 +269,10 @@ internal class PlaybackController(
         val player = getActivePlayer()
 
         if (trackIndex < 0 || trackIndex >= player.mediaItemCount) {
-            android.util.Log.w("AudioPlayerService", "Invalid track index: $trackIndex (mediaItemCount: ${player.mediaItemCount})")
+            android.util.Log.w(
+                "AudioPlayerService",
+                "Invalid track index: $trackIndex (mediaItemCount: ${player.mediaItemCount})",
+            )
             return
         }
 
@@ -328,7 +334,10 @@ internal class PlaybackController(
         if (duration != C.TIME_UNSET) {
             val newPosition = (currentPosition + seconds * 1000L).coerceAtMost(duration)
             player.seekTo(newPosition)
-            android.util.Log.d("AudioPlayerService", "Forward: ${seconds}s (from ${currentPosition}ms to ${newPosition}ms)")
+            android.util.Log.d(
+                "AudioPlayerService",
+                "Forward: ${seconds}s (from ${currentPosition}ms to ${newPosition}ms)",
+            )
             // Reset inactivity timer (user action)
             resetInactivityTimer()
         }

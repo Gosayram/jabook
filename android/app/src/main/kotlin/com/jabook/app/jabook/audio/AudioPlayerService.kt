@@ -609,7 +609,10 @@ class AudioPlayerService : MediaLibraryService() {
         // Use PlaybackPositionSaver if available (preferred), otherwise fallback to PositionManager
         playbackPositionSaver?.savePosition("manual") ?: run {
             positionManager?.saveCurrentPosition() ?: run {
-                android.util.Log.e("AudioPlayerService", "Neither PlaybackPositionSaver nor PositionManager initialized")
+                android.util.Log.e(
+                    "AudioPlayerService",
+                    "Neither PlaybackPositionSaver nor PositionManager initialized",
+                )
             }
         }
     }
@@ -693,7 +696,10 @@ class AudioPlayerService : MediaLibraryService() {
     fun next() {
         // Reset book completion flag on manual track switch
         if (isBookCompleted) {
-            android.util.Log.i("AudioPlayerService", "Manual next() called after book completion, resetting completion flag")
+            android.util.Log.i(
+                "AudioPlayerService",
+                "Manual next() called after book completion, resetting completion flag",
+            )
             isBookCompleted = false
             lastCompletedTrackIndex = -1
         }
@@ -705,7 +711,10 @@ class AudioPlayerService : MediaLibraryService() {
     fun previous() {
         // Reset book completion flag on manual track switch
         if (isBookCompleted) {
-            android.util.Log.i("AudioPlayerService", "Manual previous() called after book completion, resetting completion flag")
+            android.util.Log.i(
+                "AudioPlayerService",
+                "Manual previous() called after book completion, resetting completion flag",
+            )
             isBookCompleted = false
             lastCompletedTrackIndex = -1
         }
@@ -717,7 +726,10 @@ class AudioPlayerService : MediaLibraryService() {
     fun seekToTrack(index: Int) {
         // Reset book completion flag on manual track switch
         if (isBookCompleted) {
-            android.util.Log.i("AudioPlayerService", "Manual seekToTrack($index) called after book completion, resetting completion flag")
+            android.util.Log.i(
+                "AudioPlayerService",
+                "Manual seekToTrack($index) called after book completion, resetting completion flag",
+            )
             isBookCompleted = false
             lastCompletedTrackIndex = -1
         }

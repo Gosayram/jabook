@@ -162,7 +162,8 @@ class NotificationManager(
         }
         val intent =
             Intent(context, MainActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
+                flags =
+                    Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
                 // Add extra to indicate we want to open player
                 putExtra("open_player", true)
             }
@@ -227,7 +228,10 @@ class NotificationManager(
         if (largeIcon == null && embeddedArtworkPath != null) {
             try {
                 val artworkFile = java.io.File(embeddedArtworkPath!!)
-                android.util.Log.d("NotificationManager", "Artwork file exists: ${artworkFile.exists()}, size: ${artworkFile.length()}")
+                android.util.Log.d(
+                    "NotificationManager",
+                    "Artwork file exists: ${artworkFile.exists()}, size: ${artworkFile.length()}",
+                )
                 if (artworkFile.exists() && artworkFile.length() > 0) {
                     largeIcon = BitmapFactory.decodeFile(artworkFile.absolutePath)
                     if (largeIcon != null) {
@@ -236,13 +240,23 @@ class NotificationManager(
                             "Loaded cover image from embeddedArtworkPath: $embeddedArtworkPath (${largeIcon.width}x${largeIcon.height})",
                         )
                     } else {
-                        android.util.Log.w("NotificationManager", "Failed to decode bitmap from embeddedArtworkPath: $embeddedArtworkPath")
+                        android.util.Log.w(
+                            "NotificationManager",
+                            "Failed to decode bitmap from embeddedArtworkPath: $embeddedArtworkPath",
+                        )
                     }
                 } else {
-                    android.util.Log.w("NotificationManager", "Artwork file does not exist or is empty: $embeddedArtworkPath")
+                    android.util.Log.w(
+                        "NotificationManager",
+                        "Artwork file does not exist or is empty: $embeddedArtworkPath",
+                    )
                 }
             } catch (e: Exception) {
-                android.util.Log.e("NotificationManager", "Failed to load cover image from embeddedArtworkPath: $embeddedArtworkPath", e)
+                android.util.Log.e(
+                    "NotificationManager",
+                    "Failed to load cover image from embeddedArtworkPath: $embeddedArtworkPath",
+                    e,
+                )
             }
         } else if (embeddedArtworkPath == null) {
             android.util.Log.d("NotificationManager", "embeddedArtworkPath is null")
@@ -263,7 +277,10 @@ class NotificationManager(
                                 if (filePath != null) {
                                     largeIcon = BitmapFactory.decodeFile(filePath)
                                     if (largeIcon != null) {
-                                        android.util.Log.d("NotificationManager", "Loaded cover image from artworkUri file: $filePath")
+                                        android.util.Log.d(
+                                            "NotificationManager",
+                                            "Loaded cover image from artworkUri file: $filePath",
+                                        )
                                     }
                                 }
                             } else {
@@ -273,12 +290,19 @@ class NotificationManager(
                                     largeIcon = BitmapFactory.decodeStream(inputStream)
                                     inputStream.close()
                                     if (largeIcon != null) {
-                                        android.util.Log.d("NotificationManager", "Loaded cover image from artworkUri: $artworkUri")
+                                        android.util.Log.d(
+                                            "NotificationManager",
+                                            "Loaded cover image from artworkUri: $artworkUri",
+                                        )
                                     }
                                 }
                             }
                         } catch (e: Exception) {
-                            android.util.Log.w("NotificationManager", "Failed to load cover image from artworkUri: $artworkUri", e)
+                            android.util.Log.w(
+                                "NotificationManager",
+                                "Failed to load cover image from artworkUri: $artworkUri",
+                                e,
+                            )
                         }
                     }
                 }
@@ -295,7 +319,10 @@ class NotificationManager(
                                 "Loaded cover image from MediaMetadata.artworkData: ${artworkData.size} bytes",
                             )
                         } else {
-                            android.util.Log.w("NotificationManager", "Failed to decode artworkData (${artworkData.size} bytes)")
+                            android.util.Log.w(
+                                "NotificationManager",
+                                "Failed to decode artworkData (${artworkData.size} bytes)",
+                            )
                         }
                     }
                 }
@@ -351,11 +378,22 @@ class NotificationManager(
                             val compatToken = fromTokenMethod.invoke(null, nativeToken)
                             // Use reflection to call setMediaSession() with MediaSessionCompat.Token
                             // This is needed because reflection returns Any! but setMediaSession expects MediaSessionCompat.Token!
-                            val setMediaSessionMethod = mediaStyle.javaClass.getMethod("setMediaSession", compatTokenClass)
+                            val setMediaSessionMethod =
+                                mediaStyle.javaClass.getMethod(
+                                    "setMediaSession",
+                                    compatTokenClass,
+                                )
                             setMediaSessionMethod.invoke(mediaStyle, compatToken)
-                            android.util.Log.d("NotificationManager", "MediaStyle configured with MediaSession token for system controls")
+                            android.util.Log.d(
+                                "NotificationManager",
+                                "MediaStyle configured with MediaSession token for system controls",
+                            )
                         } catch (e: Exception) {
-                            android.util.Log.e("NotificationManager", "Failed to create or set MediaSessionCompat.Token: ${e.message}", e)
+                            android.util.Log.e(
+                                "NotificationManager",
+                                "Failed to create or set MediaSessionCompat.Token: ${e.message}",
+                                e,
+                            )
                             // Fallback: try to set native token directly (may not work but worth trying)
                             try {
                                 val setMediaSessionMethod =
@@ -376,23 +414,36 @@ class NotificationManager(
                         android.util.Log.w("NotificationManager", "Failed to get native token from SessionToken")
                     }
                 } catch (e: Exception) {
-                    android.util.Log.w("NotificationManager", "Failed to extract native token, trying direct approach: ${e.message}")
+                    android.util.Log.w(
+                        "NotificationManager",
+                        "Failed to extract native token, trying direct approach: ${e.message}",
+                    )
                     // Fallback: try to use SessionToken directly (may work in some Media3 versions)
                     // This will likely fail but worth trying
                     try {
                         val sessionTokenField = mediaStyle.javaClass.getDeclaredField("mToken")
                         sessionTokenField.isAccessible = true
                         sessionTokenField.set(mediaStyle, sessionToken)
-                        android.util.Log.d("NotificationManager", "MediaStyle configured with SessionToken using reflection")
+                        android.util.Log.d(
+                            "NotificationManager",
+                            "MediaStyle configured with SessionToken using reflection",
+                        )
                     } catch (e2: Exception) {
                         android.util.Log.e("NotificationManager", "Failed to set MediaSession token: ${e2.message}")
                     }
                 }
             } catch (e: Exception) {
-                android.util.Log.e("NotificationManager", "Failed to set MediaSession token in MediaStyle: ${e.message}", e)
+                android.util.Log.e(
+                    "NotificationManager",
+                    "Failed to set MediaSession token in MediaStyle: ${e.message}",
+                    e,
+                )
             }
         } else {
-            android.util.Log.w("NotificationManager", "MediaSession is null, MediaStyle won't work with system controls")
+            android.util.Log.w(
+                "NotificationManager",
+                "MediaSession is null, MediaStyle won't work with system controls",
+            )
         }
 
         // For Android 13+ (API 33+), SeekBar in notification appears automatically
@@ -414,7 +465,10 @@ class NotificationManager(
                 // Create a small icon from the cover image for the status bar
                 // Scale down the large icon to a small icon size (typically 24dp = ~72px on xxxhdpi)
                 val smallIconSize = (24 * context.resources.displayMetrics.density).toInt()
-                android.util.Log.d("NotificationManager", "Scaling bitmap to small icon size: ${smallIconSize}x$smallIconSize")
+                android.util.Log.d(
+                    "NotificationManager",
+                    "Scaling bitmap to small icon size: ${smallIconSize}x$smallIconSize",
+                )
                 val smallIconBitmap =
                     android.graphics.Bitmap.createScaledBitmap(
                         largeIcon,
@@ -436,7 +490,10 @@ class NotificationManager(
             if (largeIcon == null) {
                 android.util.Log.d("NotificationManager", "largeIcon is null, cannot create custom small icon")
             } else {
-                android.util.Log.d("NotificationManager", "Android version ${Build.VERSION.SDK_INT} < 24, cannot use Icon API")
+                android.util.Log.d(
+                    "NotificationManager",
+                    "Android version ${Build.VERSION.SDK_INT} < 24, cannot use Icon API",
+                )
             }
         }
 
@@ -459,7 +516,10 @@ class NotificationManager(
         val notification =
             if (smallIcon != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                 try {
-                    android.util.Log.d("NotificationManager", "Creating notification with Notification.Builder and custom Icon")
+                    android.util.Log.d(
+                        "NotificationManager",
+                        "Creating notification with Notification.Builder and custom Icon",
+                    )
                     // Use Notification.Builder which supports Icon directly
                     val builder =
                         Notification
@@ -540,7 +600,8 @@ class NotificationManager(
                             .Builder(
                                 previousIcon,
                                 previousActionCompat.title ?: "Previous",
-                                previousActionCompat.actionIntent ?: createPlaybackAction(NotificationManager.ACTION_PREVIOUS),
+                                previousActionCompat.actionIntent
+                                    ?: createPlaybackAction(NotificationManager.ACTION_PREVIOUS),
                             ).build()
 
                     // Use Media3 Util.shouldShowPlayButton() for correct Play/Pause button determination
@@ -581,7 +642,8 @@ class NotificationManager(
                             .Builder(
                                 rewindIcon,
                                 rewindActionCompat.title ?: "Rewind",
-                                rewindActionCompat.actionIntent ?: createPlaybackAction(NotificationManager.ACTION_REWIND),
+                                rewindActionCompat.actionIntent
+                                    ?: createPlaybackAction(NotificationManager.ACTION_REWIND),
                             ).build()
 
                     val forwardIcon =
@@ -592,7 +654,8 @@ class NotificationManager(
                             .Builder(
                                 forwardIcon,
                                 forwardActionCompat.title ?: "Forward",
-                                forwardActionCompat.actionIntent ?: createPlaybackAction(NotificationManager.ACTION_FORWARD),
+                                forwardActionCompat.actionIntent
+                                    ?: createPlaybackAction(NotificationManager.ACTION_FORWARD),
                             ).build()
 
                     val stopIcon =
@@ -619,8 +682,15 @@ class NotificationManager(
                     // Note: minSdk is above LOLLIPOP, so version check is always true
                     if (mediaSession != null) {
                         try {
-                            android.util.Log.d("NotificationManager", "Attempting to set MediaStyle on Notification.Builder via reflection")
-                            val setStyleMethod = builder.javaClass.getMethod("setStyle", android.app.Notification.Style::class.java)
+                            android.util.Log.d(
+                                "NotificationManager",
+                                "Attempting to set MediaStyle on Notification.Builder via reflection",
+                            )
+                            val setStyleMethod =
+                                builder.javaClass.getMethod(
+                                    "setStyle",
+                                    android.app.Notification.Style::class.java,
+                                )
 
                             // Create Notification.MediaStyle (available from API 21+)
                             val mediaStyleClass = Class.forName("android.app.Notification\$MediaStyle")
@@ -658,7 +728,10 @@ class NotificationManager(
                                 val nativeToken = getNativeTokenMethod.invoke(sessionToken)
                                 setMediaSessionMethod.invoke(nativeMediaStyle, nativeToken)
 
-                                android.util.Log.d("NotificationManager", "MediaSession token set successfully for native MediaStyle")
+                                android.util.Log.d(
+                                    "NotificationManager",
+                                    "MediaSession token set successfully for native MediaStyle",
+                                )
                             } catch (e: Exception) {
                                 android.util.Log.w(
                                     "NotificationManager",
@@ -676,7 +749,10 @@ class NotificationManager(
                                         )
                                     // This will likely fail, but worth trying
                                     setMediaSessionMethod.invoke(nativeMediaStyle, sessionToken)
-                                    android.util.Log.d("NotificationManager", "MediaSession token set using alternative method")
+                                    android.util.Log.d(
+                                        "NotificationManager",
+                                        "MediaSession token set using alternative method",
+                                    )
                                 } catch (e2: Exception) {
                                     android.util.Log.w(
                                         "NotificationManager",
@@ -686,7 +762,10 @@ class NotificationManager(
                             }
 
                             setStyleMethod.invoke(builder, nativeMediaStyle)
-                            android.util.Log.i("NotificationManager", "Successfully set MediaStyle on Notification.Builder via reflection")
+                            android.util.Log.i(
+                                "NotificationManager",
+                                "Successfully set MediaStyle on Notification.Builder via reflection",
+                            )
                         } catch (e: Exception) {
                             android.util.Log.w(
                                 "NotificationManager",
@@ -696,11 +775,17 @@ class NotificationManager(
                             // Continue without MediaStyle - notification will still work
                         }
                     } else {
-                        android.util.Log.d("NotificationManager", "MediaSession not available or Android version < 21, skipping MediaStyle")
+                        android.util.Log.d(
+                            "NotificationManager",
+                            "MediaSession not available or Android version < 21, skipping MediaStyle",
+                        )
                     }
 
                     val builtNotification = builder.build()
-                    android.util.Log.i("NotificationManager", "Successfully created notification with custom Icon and Notification.Builder")
+                    android.util.Log.i(
+                        "NotificationManager",
+                        "Successfully created notification with custom Icon and Notification.Builder",
+                    )
                     builtNotification
                 } catch (e: Exception) {
                     android.util.Log.e(
@@ -819,7 +904,8 @@ class NotificationManager(
     private fun createMinimalMediaNotification(): Notification {
         val intent =
             Intent(context, MainActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
+                flags =
+                    Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
                 putExtra("open_player", true)
             }
         val pendingIntent =
@@ -953,11 +1039,22 @@ class NotificationManager(
                             val compatTokenClass = Class.forName("androidx.media.session.MediaSessionCompat\$Token")
                             val fromTokenMethod = compatTokenClass.getMethod("fromToken", Any::class.java)
                             val compatToken = fromTokenMethod.invoke(null, nativeToken)
-                            val setMediaSessionMethod = mediaStyle.javaClass.getMethod("setMediaSession", compatTokenClass)
+                            val setMediaSessionMethod =
+                                mediaStyle.javaClass.getMethod(
+                                    "setMediaSession",
+                                    compatTokenClass,
+                                )
                             setMediaSessionMethod.invoke(mediaStyle, compatToken)
-                            android.util.Log.d("NotificationManager", "Minimal notification: MediaStyle configured with MediaSession token")
+                            android.util.Log.d(
+                                "NotificationManager",
+                                "Minimal notification: MediaStyle configured with MediaSession token",
+                            )
                         } catch (e: Exception) {
-                            android.util.Log.e("NotificationManager", "Failed to set MediaSession token in minimal notification", e)
+                            android.util.Log.e(
+                                "NotificationManager",
+                                "Failed to set MediaSession token in minimal notification",
+                                e,
+                            )
                         }
                     }
                 } catch (e: Exception) {
@@ -1001,7 +1098,10 @@ class NotificationManager(
                                     val sessionToken = mediaSession.getToken()
                                     val sessionTokenClass = sessionToken.javaClass
                                     val getTokenMethod = sessionTokenClass.getMethod("getToken")
-                                    val nativeToken = getTokenMethod.invoke(sessionToken) as? android.media.session.MediaSession.Token
+                                    val nativeToken =
+                                        getTokenMethod.invoke(
+                                            sessionToken,
+                                        ) as? android.media.session.MediaSession.Token
                                     nativeToken
                                 } catch (e: Exception) {
                                     null
@@ -1063,7 +1163,10 @@ class NotificationManager(
                 embeddedArtworkPath = newEmbeddedArtworkPath
                 android.util.Log.i("NotificationManager", "Updated embeddedArtworkPath to: $embeddedArtworkPath")
             } else {
-                android.util.Log.d("NotificationManager", "newEmbeddedArtworkPath is null, keeping existing: $embeddedArtworkPath")
+                android.util.Log.d(
+                    "NotificationManager",
+                    "newEmbeddedArtworkPath is null, keeping existing: $embeddedArtworkPath",
+                )
             }
             updateNotification()
         } catch (e: Exception) {

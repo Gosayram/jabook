@@ -78,7 +78,9 @@ class AudioPlayerServiceInitializer(
                 playerServiceScope = service.playerServiceScope,
                 mediaItemDispatcher = service.mediaItemDispatcher,
                 getFlavorSuffix = { AudioPlayerService.getFlavorSuffix(service) },
-                setPendingTrackSwitchDeferred = { deferred -> service.playerListener?.setPendingTrackSwitchDeferred(deferred) },
+                setPendingTrackSwitchDeferred = { deferred ->
+                    service.playerListener?.setPendingTrackSwitchDeferred(deferred)
+                },
                 durationManager = service.durationManager,
                 playerPersistenceManager = service.playerPersistenceManager,
                 playbackController = service.playbackController!!,
@@ -221,7 +223,10 @@ class AudioPlayerServiceInitializer(
             // Assign to legacy field for compatibility
             service.mediaSession = service.mediaLibrarySession
 
-            android.util.Log.i("AudioPlayerService", "MediaLibrarySession created successfully: ${service.mediaLibrarySession?.token}")
+            android.util.Log.i(
+                "AudioPlayerService",
+                "MediaLibrarySession created successfully: ${service.mediaLibrarySession?.token}",
+            )
 
             // Create MediaSessionManager (wraps MediaSequencer)
             service.mediaSessionManager =

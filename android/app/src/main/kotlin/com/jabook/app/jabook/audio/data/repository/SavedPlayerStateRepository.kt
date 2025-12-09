@@ -112,7 +112,8 @@ class SavedPlayerStateRepository
                     val updatedEntity =
                         existingState.copy(
                             repeatMode = repeatMode ?: existingState.repeatMode,
-                            sleepTimerRemainingSeconds = sleepTimerRemainingSeconds ?: existingState.sleepTimerRemainingSeconds,
+                            sleepTimerRemainingSeconds =
+                                sleepTimerRemainingSeconds ?: existingState.sleepTimerRemainingSeconds,
                             lastUpdated = System.currentTimeMillis(),
                         )
                     stateDao.upsertState(updatedEntity)
