@@ -37,7 +37,7 @@ class SavedPlayerStateRepository
         /**
          * Gets the saved player state for a group path.
          */
-        suspend fun getState(groupPath: String): Result<SavedPlayerStateEntity?> =
+        suspend fun getSavedState(groupPath: String): Result<SavedPlayerStateEntity?> =
             try {
                 val entity = stateDao.getState(groupPath)
                 Result.Success(entity)
@@ -101,7 +101,7 @@ class SavedPlayerStateRepository
         /**
          * Updates saved state settings (repeat mode and sleep timer).
          */
-        suspend fun updateStateSettings(
+        suspend fun updateSettings(
             groupPath: String,
             repeatMode: Int? = null,
             sleepTimerRemainingSeconds: Int? = null,

@@ -79,6 +79,25 @@ class MethodChannelHandler
                 "previous" -> handlePrevious(call, result)
                 "stop" -> handleStop(call, result)
                 "stopServiceAndExit" -> handleStopServiceAndExit(call, result)
+                "restoreFullState" -> handleRestoreFullState(call, result)
+                "updateSavedStateSettings" -> handleUpdateSavedStateSettings(call, result)
+
+                // Missing methods from NativeAudioPlayer.dart
+                "setNotificationType" -> handleSetNotificationType(call, result)
+                "updateSkipDurations" -> handleUpdateSkipDurations(call, result)
+                "setInactivityTimeoutMinutes" -> handleSetInactivityTimeoutMinutes(call, result)
+                "setSleepTimerMinutes" -> handleSetSleepTimerMinutes(call, result)
+                "setSleepTimerEndOfChapter" -> handleSetSleepTimerEndOfChapter(call, result)
+                "cancelSleepTimer" -> handleCancelSleepTimer(call, result)
+                "getSleepTimerRemainingSeconds" -> handleGetSleepTimerRemainingSeconds(call, result)
+                "isSleepTimerActive" -> handleIsSleepTimerActive(call, result)
+                "configureAudioProcessing" -> handleConfigureAudioProcessing(call, result)
+                "getPosition" -> handleGetPosition(call, result)
+                "getDuration" -> handleGetDuration(call, result)
+                "seekToTrackAndPosition" -> handleSeekToTrackAndPosition(call, result)
+                "extractArtworkFromFile" -> handleExtractArtworkFromFile(call, result)
+                "getCurrentMediaItemInfo" -> handleGetCurrentMediaItemInfo(call, result)
+                "getState" -> handleGetState(call, result)
 
                 else -> {
                     android.util.Log.w("MethodChannelHandler", "Method not implemented: ${call.method}")
@@ -653,6 +672,316 @@ class MethodChannelHandler
             } catch (e: Exception) {
                 android.util.Log.e("MethodChannelHandler", "Error in stopServiceAndExit: ${e.message}", e)
                 result.error("EXCEPTION", e.message ?: "Failed to stop service and exit", null)
+            }
+        }
+
+        private fun handleRestoreFullState(
+            call: MethodCall,
+            result: MethodChannel.Result,
+        ) {
+            val groupPath = call.argument<String?>("groupPath")
+            if (groupPath == null) {
+                result.error("INVALID_ARGUMENT", "groupPath is required", null)
+                return
+            }
+
+            coroutineScope.launch(Dispatchers.IO) {
+                try {
+                    val stateResult = savedPlayerStateRepository.getSavedState(groupPath)
+                    withContext(Dispatchers.Main) {
+                        when (stateResult) {
+                            is com.jabook.app.jabook.audio.core.result.Result.Success -> {
+                                val savedState = stateResult.data
+                                if (savedState != null) {
+                                    result.success(
+                                        mapOf<String, Any?>(
+                                            "bookId" to savedState.groupPath, // Using groupPath as bookId
+                                            "trackIndex" to savedState.currentIndex,
+                                            "position" to savedState.currentPosition,
+                                            "totalDuration" to 0L, // Not persisted
+                                            "speed" to savedState.playbackSpeed,
+                                            "timestamp" to savedState.lastUpdated,
+                                            "groupPath" to savedState.groupPath,
+                                            "repeatMode" to savedState.repeatMode,
+                                            "sleepTimerRemainingSeconds" to savedState.sleepTimerRemainingSeconds,
+                                        ),
+                                    )
+                                } else {
+                                    result.success(null)
+                                }
+                            }
+                            is com.jabook.app.jabook.audio.core.result.Result.Error -> {
+                                result.error("RESTORE_ERROR", stateResult.exception.message, null)
+                            }
+                            is com.jabook.app.jabook.audio.core.result.Result.Loading -> {
+                                // Should not happen for this repository call
+                                result.error("LOADING", "Loading...", null)
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    withContext(Dispatchers.Main) {
+                        result.error("RESTORE_ERROR", e.message, null)
+                    }
+                }
+            }
+        }
+
+        private fun handleUpdateSavedStateSettings(
+            call: MethodCall,
+            result: MethodChannel.Result,
+        ) {
+            val groupPath =
+                call.argument<String>("groupPath")
+                    ?: return result.error("INVALID_ARGUMENT", "groupPath is required", null)
+            val repeatMode = call.argument<Int?>("repeatMode")
+            val sleepTimerRemainingSeconds = call.argument<Int?>("sleepTimerRemainingSeconds")
+
+            coroutineScope.launch(Dispatchers.IO) {
+                try {
+                    savedPlayerStateRepository.updateSettings(
+                        groupPath,
+                        repeatMode,
+                        sleepTimerRemainingSeconds,
+                    )
+                    withContext(Dispatchers.Main) {
+                        result.success(true)
+                    }
+                } catch (e: Exception) {
+                    withContext(Dispatchers.Main) {
+                        result.error("UPDATE_ERROR", e.message, null)
+                    }
+                }
+            }
+        }
+
+        private fun handleSetNotificationType(
+            call: MethodCall,
+            result: MethodChannel.Result,
+        ) {
+            val isMinimal = call.argument<Boolean>("isMinimal") ?: false
+            val service = AudioPlayerService.getInstance()
+            if (service != null) {
+                service.setNotificationType(isMinimal)
+                result.success(true)
+            } else {
+                result.error("SERVICE_UNAVAILABLE", "Service is not available", null)
+            }
+        }
+
+        private fun handleUpdateSkipDurations(
+            call: MethodCall,
+            result: MethodChannel.Result,
+        ) {
+            val rewindSeconds = call.argument<Int>("rewindSeconds") ?: 15
+            val forwardSeconds = call.argument<Int>("forwardSeconds") ?: 30
+            val service = AudioPlayerService.getInstance()
+            if (service != null) {
+                service.updateSkipDurations(rewindSeconds, forwardSeconds)
+                result.success(true)
+            } else {
+                result.error("SERVICE_UNAVAILABLE", "Service is not available", null)
+            }
+        }
+
+        private fun handleSetInactivityTimeoutMinutes(
+            call: MethodCall,
+            result: MethodChannel.Result,
+        ) {
+            val minutes = call.argument<Int>("minutes") ?: 15
+            val service = AudioPlayerService.getInstance()
+            if (service != null) {
+                service.setInactivityTimeoutMinutes(minutes)
+                result.success(true)
+            } else {
+                result.error("SERVICE_UNAVAILABLE", "Service is not available", null)
+            }
+        }
+
+        private fun handleSetSleepTimerMinutes(
+            call: MethodCall,
+            result: MethodChannel.Result,
+        ) {
+            val minutes = call.argument<Int>("minutes") ?: 0
+            val service = AudioPlayerService.getInstance()
+            if (service != null) {
+                service.setSleepTimerMinutes(minutes)
+                result.success(true)
+            } else {
+                result.error("SERVICE_UNAVAILABLE", "Service is not available", null)
+            }
+        }
+
+        private fun handleSetSleepTimerEndOfChapter(
+            call: MethodCall,
+            result: MethodChannel.Result,
+        ) {
+            val service = AudioPlayerService.getInstance()
+            if (service != null) {
+                service.setSleepTimerEndOfChapter()
+                result.success(true)
+            } else {
+                result.error("SERVICE_UNAVAILABLE", "Service is not available", null)
+            }
+        }
+
+        private fun handleCancelSleepTimer(
+            call: MethodCall,
+            result: MethodChannel.Result,
+        ) {
+            val service = AudioPlayerService.getInstance()
+            if (service != null) {
+                service.cancelSleepTimer()
+                result.success(true)
+            } else {
+                result.error("SERVICE_UNAVAILABLE", "Service is not available", null)
+            }
+        }
+
+        private fun handleGetSleepTimerRemainingSeconds(
+            call: MethodCall,
+            result: MethodChannel.Result,
+        ) {
+            val service = AudioPlayerService.getInstance()
+            if (service != null) {
+                val remaining = service.getSleepTimerRemainingSeconds()
+                result.success(remaining)
+            } else {
+                result.error("SERVICE_UNAVAILABLE", "Service is not available", null)
+            }
+        }
+
+        private fun handleIsSleepTimerActive(
+            call: MethodCall,
+            result: MethodChannel.Result,
+        ) {
+            val service = AudioPlayerService.getInstance()
+            if (service != null) {
+                val isActive = service.isSleepTimerActive()
+                result.success(isActive)
+            } else {
+                result.error("SERVICE_UNAVAILABLE", "Service is not available", null)
+            }
+        }
+
+        private fun handleGetPosition(
+            call: MethodCall,
+            result: MethodChannel.Result,
+        ) {
+            val service = AudioPlayerService.getInstance()
+            if (service != null) {
+                result.success(service.getCurrentPosition())
+            } else {
+                result.success(0L)
+            }
+        }
+
+        private fun handleGetDuration(
+            call: MethodCall,
+            result: MethodChannel.Result,
+        ) {
+            val service = AudioPlayerService.getInstance()
+            if (service != null) {
+                result.success(service.getDuration())
+            } else {
+                result.success(0L)
+            }
+        }
+
+        private fun handleSeekToTrackAndPosition(
+            call: MethodCall,
+            result: MethodChannel.Result,
+        ) {
+            val trackIndex = call.argument<Int>("trackIndex")
+            val positionMs = call.argument<Long>("position") ?: call.argument<Int>("position")?.toLong()
+
+            if (trackIndex == null || positionMs == null) {
+                result.error("INVALID_ARGUMENT", "trackIndex and position are required", null)
+                return
+            }
+
+            val service = AudioPlayerService.getInstance()
+            if (service != null) {
+                service.seekToTrackAndPosition(trackIndex, positionMs)
+                result.success(true)
+            } else {
+                result.error("SERVICE_UNAVAILABLE", "Service is not available", null)
+            }
+        }
+
+        // Placeholder for configureAudioProcessing - to be verified
+        private fun handleConfigureAudioProcessing(
+            call: MethodCall,
+            result: MethodChannel.Result,
+        ) {
+            val enabled = call.argument<Boolean>("enabled") ?: false
+            val pitch = call.argument<Double>("pitch") ?: 1.0
+            val speed = call.argument<Double>("speed") ?: 1.0
+            val skipSilence = call.argument<Boolean>("skipSilence") ?: false
+
+            val service = AudioPlayerService.getInstance()
+            if (service != null) {
+                // 1. Set Speed
+                service.setSpeed(speed.toFloat())
+
+                // 2. Configure Audio Processing
+                // Map legacy parameters to new AudioProcessingSettings
+                // 'enabled' roughly maps to speech enhancement or normalization in the new engine
+                val settings =
+                    com.jabook.app.jabook.audio.processors.AudioProcessingSettings(
+                        speechEnhancer = enabled,
+                        normalizeVolume = enabled, // Enable normalization when processing is enabled
+                    )
+                service.configureExoPlayer(settings)
+
+                result.success(true)
+            } else {
+                result.error("SERVICE_UNAVAILABLE", "Service is not available", null)
+            }
+        }
+
+        private fun handleExtractArtworkFromFile(
+            call: MethodCall,
+            result: MethodChannel.Result,
+        ) {
+            val filePath = call.argument<String>("filePath")
+            if (filePath == null) {
+                result.error("INVALID_ARGUMENT", "filePath is required", null)
+                return
+            }
+            val service = AudioPlayerService.getInstance()
+            if (service != null) {
+                // AudioPlayerService has extractArtworkFromFile method
+                val artworkPath = service.extractArtworkFromFile(filePath)
+                result.success(artworkPath)
+            } else {
+                result.error("SERVICE_UNAVAILABLE", "Service is not available", null)
+            }
+        }
+
+        private fun handleGetCurrentMediaItemInfo(
+            call: MethodCall,
+            result: MethodChannel.Result,
+        ) {
+            val service = AudioPlayerService.getInstance()
+            if (service != null) {
+                // AudioPlayerService has getCurrentMediaItemInfo method
+                result.success(service.getCurrentMediaItemInfo())
+            } else {
+                result.success(emptyMap<String, Any?>())
+            }
+        }
+
+        private fun handleGetState(
+            call: MethodCall,
+            result: MethodChannel.Result,
+        ) {
+            val service = AudioPlayerService.getInstance()
+            if (service != null) {
+                // AudioPlayerService has getPlayerState method
+                result.success(service.getPlayerState())
+            } else {
+                result.success(emptyMap<String, Any>())
             }
         }
     }
