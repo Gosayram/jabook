@@ -98,6 +98,11 @@ class AudioPlayerService : MediaLibraryService() {
     internal var playbackController: PlaybackController? = null
     internal var positionManager: PositionManager? = null
     internal var metadataManager: MetadataManager? = null
+
+    // Store the custom provider to access it in onUpdateNotification
+    internal var customMediaNotificationProvider: AudioPlayerNotificationProvider? = null
+
+    // Helper for player state
     internal var playerStateHelper: PlayerStateHelper? = null
     internal var unloadManager: UnloadManager? = null
     internal var playbackPositionSaver: PlaybackPositionSaver? = null
@@ -191,34 +196,8 @@ class AudioPlayerService : MediaLibraryService() {
             "setMethodChannel called: channel=${channel != null}, service instance=${instance != null}",
         )
         methodChannel = channel
-        // Update PlaybackPositionSaver if already initialized
-        playbackPositionSaver?.let { saver ->
-            android.util.Log.d(
-                "AudioPlayerService",
-                "Recreating PlaybackPositionSaver with MethodChannel: channel=${channel != null}",
-            )
-            // Recreate with new MethodChannel
-            playbackPositionSaver =
-                PlaybackPositionSaver(
-                    getActivePlayer = { getActivePlayer() },
-                    methodChannel = channel,
-                    context = this,
-                    getGroupPath = { currentGroupPath },
-                    isPlaylistLoading = { isPlaylistLoading },
-                    getActualTrackIndex = { actualTrackIndex },
-                    getCurrentFilePaths = { currentFilePaths },
-                    getDurationForFile = { filePath -> getDurationForFile(filePath) },
-                )
-            android.util.Log.i(
-                "AudioPlayerService",
-                "PlaybackPositionSaver recreated with MethodChannel: ${playbackPositionSaver != null}",
-            )
-        } ?: run {
-            android.util.Log.d(
-                "AudioPlayerService",
-                "PlaybackPositionSaver not yet initialized, will use MethodChannel when created",
-            )
-        }
+        // methodChannel is updated, PlaybackPositionSaver will pick it up via provider lambda
+        android.util.Log.i("AudioPlayerService", "MethodChannel updated")
     }
 
     /**
@@ -384,7 +363,11 @@ class AudioPlayerService : MediaLibraryService() {
 
         // Set custom MediaNotification.Provider to handle "Minimal Notification" mode
         // We use the DefaultMediaNotificationProvider but intercept Bitmap loading
-        setMediaNotificationProvider(AudioPlayerNotificationProvider(this))
+        // Set custom MediaNotification.Provider to handle "Minimal Notification" mode
+        // We use the DefaultMediaNotificationProvider but intercept Bitmap loading
+        val provider = AudioPlayerNotificationProvider(this)
+        customMediaNotificationProvider = provider
+        setMediaNotificationProvider(provider)
 
         // Initialize service components using extracted initializer
         // This handles all complex logic previously directly in onCreate

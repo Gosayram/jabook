@@ -37,7 +37,7 @@ import kotlinx.coroutines.launch
  */
 internal class PlaybackPositionSaver(
     private val getActivePlayer: () -> ExoPlayer,
-    private val methodChannel: MethodChannel?,
+    private val getMethodChannel: () -> MethodChannel?,
     private val context: Context,
     private val getGroupPath: (() -> String?)? = null,
     private val isPlaylistLoading: (() -> Boolean)? = null,
@@ -393,6 +393,7 @@ internal class PlaybackPositionSaver(
         currentIndex: Int,
         currentPosition: Long,
     ): Boolean {
+        val methodChannel = getMethodChannel()
         if (methodChannel == null) {
             android.util.Log.d("PlaybackPositionSaver", "MethodChannel is null, cannot save via MethodChannel")
             return false

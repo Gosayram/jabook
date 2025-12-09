@@ -77,11 +77,21 @@ class AudioPlayerNotificationProvider(
     ): MediaNotification {
         // We just delegate to the default provider, but because of our custom BitmapLoader,
         // it will skip artwork if isMinimalNotification is true.
-        return defaultProvider.createNotification(
-            mediaSession,
-            customLayout,
-            actionFactory,
-            onNotificationChangedCallback,
+        // We just delegate to the default provider, but because of our custom BitmapLoader,
+        // it will skip artwork if isMinimalNotification is true.
+        val mediaNotification =
+            defaultProvider.createNotification(
+                mediaSession,
+                customLayout,
+                actionFactory,
+                onNotificationChangedCallback,
+            )
+
+        // CRITICAL: Force use of NotificationHelper.NOTIFICATION_ID (1) to match startForeground
+        // This prevents creating a second notification with a different ID (default is 1001)
+        return MediaNotification(
+            NotificationHelper.NOTIFICATION_ID,
+            mediaNotification.notification,
         )
     }
 
