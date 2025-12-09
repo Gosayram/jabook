@@ -54,6 +54,12 @@ class MethodChannelHandler
             call: MethodCall,
             result: MethodChannel.Result,
         ) {
+            try {
+                logCommand(call.method, call.arguments)
+            } catch (e: Exception) {
+                // Ignore logging errors
+            }
+
             when (call.method) {
                 "loadPlaylist" -> handleLoadPlaylist(call, result)
                 "setPlaylist" -> handleSetPlaylist(call, result)
@@ -73,10 +79,19 @@ class MethodChannelHandler
                 "previous" -> handlePrevious(call, result)
                 "stop" -> handleStop(call, result)
                 "stopServiceAndExit" -> handleStopServiceAndExit(call, result)
-                // Note: restoreFullState and updateSavedStateSettings are not implemented
-                // These methods may be added in the future if needed
-                else -> result.notImplemented()
+
+                else -> {
+                    android.util.Log.w("MethodChannelHandler", "Method not implemented: ${call.method}")
+                    result.notImplemented()
+                }
             }
+        }
+
+        private fun logCommand(
+            method: String,
+            args: Any? = null,
+        ) {
+            android.util.Log.d("MethodChannelHandler", "Received command: $method, args=$args")
         }
 
         private fun handleLoadPlaylist(
@@ -195,9 +210,26 @@ class MethodChannelHandler
             call: MethodCall,
             result: MethodChannel.Result,
         ) {
-            // This would require the current playlist, which should be passed or retrieved
-            // For now, this is a placeholder that will be implemented during integration
-            result.notImplemented()
+            val trackIndex =
+                call.argument<Int>("trackIndex")
+                    ?: return result.error("INVALID_ARGUMENT", "trackIndex is required", null)
+
+            val service = AudioPlayerService.getInstance()
+            if (service == null) {
+                result.error("SERVICE_UNAVAILABLE", "Service is not available", null)
+                return
+            }
+
+            try {
+                // NavigateTrackUseCase logic could be here, but direct service call is faster for now
+                // or use navigateTrackUseCase if it's ready.
+                // Given the context, we should use the service directly for consistency with other methods
+                // until we fully migrate to useCases.
+                service.seekToTrack(trackIndex)
+                result.success(true)
+            } catch (e: Exception) {
+                result.error("EXCEPTION", e.message, null)
+            }
         }
 
         private fun handleSyncChapters(

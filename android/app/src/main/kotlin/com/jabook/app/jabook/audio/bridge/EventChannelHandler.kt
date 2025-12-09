@@ -51,6 +51,10 @@ class EventChannelHandler(
                 "playbackState" to playbackState.playbackState, // 0 = idle, 1 = buffering, 2 = ready, 3 = ended
             ),
         )
+        android.util.Log.d(
+            "EventChannelHandler",
+            "Dispatched playback state to Flutter: isPlaying=${playbackState.isPlaying}, sink=${eventSink != null}",
+        )
     }
 
     /**
@@ -93,6 +97,7 @@ class EventChannelHandler(
      * Sets the event sink (called by Flutter when listening).
      */
     fun setEventSink(sink: EventChannel.EventSink?) {
+        android.util.Log.i("EventChannelHandler", "setEventSink called: sink=${sink != null}")
         this.eventSink = sink
     }
 

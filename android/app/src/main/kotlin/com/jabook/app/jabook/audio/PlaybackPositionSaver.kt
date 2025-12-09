@@ -53,7 +53,7 @@ internal class PlaybackPositionSaver(
         context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
 
     private var lastSaveTime: Long = 0
-    private val minSaveIntervalMs = 2000L // Minimum 2 seconds between saves
+    private val minSaveIntervalMs = 1000L // Minimum 1 second between saves (High precision)
 
     // Periodic position saving
     private var positionSaveJob: Job? = null
@@ -347,8 +347,8 @@ internal class PlaybackPositionSaver(
                         // - In middle and 30+ seconds passed (less frequent)
                         val shouldSave =
                             when {
-                                isNearStart || isNearEnd -> timeSinceLastSave >= 5000L // 5 seconds
-                                else -> timeSinceLastSave >= 30000L // 30 seconds
+                                isNearStart || isNearEnd -> timeSinceLastSave >= 2000L // 2 seconds (High Precision)
+                                else -> timeSinceLastSave >= 5000L // 5 seconds (High Precision)
                             }
 
                         if (shouldSave || lastPeriodicSaveTime == 0L) {
@@ -361,8 +361,8 @@ internal class PlaybackPositionSaver(
                         // Wait before next check (adaptive delay)
                         val delayMs =
                             when {
-                                isNearStart || isNearEnd -> 5000L // Check every 5 seconds
-                                else -> 10000L // Check every 10 seconds
+                                isNearStart || isNearEnd -> 2000L // Check every 2 seconds
+                                else -> 5000L // Check every 5 seconds
                             }
                         delay(delayMs)
                     } catch (e: Exception) {

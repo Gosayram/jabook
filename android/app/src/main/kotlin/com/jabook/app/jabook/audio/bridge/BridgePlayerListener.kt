@@ -86,6 +86,10 @@ class BridgePlayerListener(
                     playbackState = player.playbackState,
                 )
             eventChannelHandler.sendPlaybackState(state)
+            android.util.Log.d(
+                "BridgePlayerListener",
+                "Sent state update: isPlaying=${player.isPlaying}, currentPosition=${player.currentPosition}, state=${player.playbackState}",
+            )
         } catch (e: Exception) {
             android.util.Log.e("BridgePlayerListener", "Error sending state update", e)
         }
