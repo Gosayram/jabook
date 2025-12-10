@@ -14,13 +14,24 @@
 
 package com.jabook.app.jabook.compose.di
 
+import android.content.Context
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.preferencesDataStore
 import com.jabook.app.jabook.compose.data.repository.BooksRepository
+import com.jabook.app.jabook.compose.data.repository.DataStoreUserPreferencesRepository
 import com.jabook.app.jabook.compose.data.repository.OfflineFirstBooksRepository
+import com.jabook.app.jabook.compose.data.repository.UserPreferencesRepository
 import dagger.Binds
 import dagger.Module
+import dagger.Provides
 import dagger.hilt.InstallIn
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
+
+// Extension property for DataStore
+private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "jabook_preferences")
 
 /**
  * Hilt module for data layer dependencies.
@@ -36,4 +47,22 @@ abstract class DataModule {
     @Binds
     @Singleton
     abstract fun bindBooksRepository(repository: OfflineFirstBooksRepository): BooksRepository
+
+    /**
+     * Binds the DataStoreUserPreferencesRepository implementation to the UserPreferencesRepository interface.
+     */
+    @Binds
+    @Singleton
+    abstract fun bindUserPreferencesRepository(repository: DataStoreUserPreferencesRepository): UserPreferencesRepository
+
+    companion object {
+        /**
+         * Provides DataStore<Preferences> for user preferences.
+         */
+        @Provides
+        @Singleton
+        fun provideDataStore(
+            @ApplicationContext context: Context,
+        ): DataStore<Preferences> = context.dataStore
+    }
 }

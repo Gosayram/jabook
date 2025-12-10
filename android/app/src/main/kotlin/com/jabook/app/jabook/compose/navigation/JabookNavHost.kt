@@ -23,6 +23,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.toRoute
+import com.jabook.app.jabook.compose.feature.library.LibraryScreen
+import com.jabook.app.jabook.compose.feature.player.PlayerScreen
+import com.jabook.app.jabook.compose.feature.settings.SettingsScreen
+import com.jabook.app.jabook.compose.feature.webview.WebViewScreen
 
 /**
  * Jabook app navigation graph.
@@ -46,27 +51,61 @@ fun JabookNavHost(
         modifier = modifier,
     ) {
         // Library screen - shows list of audiobooks
-        composable<LibraryRoute> {
-            // TODO: Replace with actual LibraryScreen when implemented
-            PlaceholderScreen(text = "Library Screen\n(Coming in Phase 3)")
+        composable<LibraryRoute>(
+            deepLinks =
+                listOf(
+                    androidx.navigation.navDeepLink { uriPattern = "jabook://library" },
+                ),
+        ) {
+            LibraryScreen(
+                onBookClick = { bookId ->
+                    navController.navigate(PlayerRoute(bookId = bookId))
+                },
+            )
         }
 
         // Player screen - shows audio player
-        composable<PlayerRoute> { backStackEntry ->
-            // TODO: Replace with actual PlayerScreen when implemented
-            PlaceholderScreen(text = "Player Screen\n(Coming in Phase 4)")
+        composable<PlayerRoute>(
+            deepLinks =
+                listOf(
+                    androidx.navigation.navDeepLink { uriPattern = "jabook://player/{bookId}" },
+                ),
+        ) { backStackEntry ->
+            PlayerScreen(
+                onNavigateBack = {
+                    navController.popBackStack()
+                },
+            )
         }
 
         // WebView screen - shows web content
-        composable<WebViewRoute> { backStackEntry ->
-            // TODO: Replace with actual WebViewScreen when implemented
-            PlaceholderScreen(text = "WebView Screen\n(Coming in Phase 5)")
+        composable<WebViewRoute>(
+            deepLinks =
+                listOf(
+                    androidx.navigation.navDeepLink { uriPattern = "jabook://webview?url={url}" },
+                ),
+        ) { backStackEntry ->
+            val route = backStackEntry.toRoute<WebViewRoute>()
+            WebViewScreen(
+                route = route,
+                onNavigateBack = {
+                    navController.popBackStack()
+                },
+                onMagnetLinkDetected = { magnetUrl ->
+                    // TODO: Handle magnet link - start download
+                    // For now, just log or show toast
+                },
+            )
         }
 
         // Settings screen - shows app settings
-        composable<SettingsRoute> {
-            // TODO: Replace with actual SettingsScreen when implemented
-            PlaceholderScreen(text = "Settings Screen\n(Coming in Phase 6)")
+        composable<SettingsRoute>(
+            deepLinks =
+                listOf(
+                    androidx.navigation.navDeepLink { uriPattern = "jabook://settings" },
+                ),
+        ) {
+            SettingsScreen()
         }
     }
 }

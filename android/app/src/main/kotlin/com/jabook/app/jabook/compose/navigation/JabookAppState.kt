@@ -30,9 +30,12 @@ import androidx.navigation.navOptions
  * @param navController Navigation controller for the app
  */
 @Composable
-fun rememberJabookAppState(navController: NavHostController = rememberNavController()): JabookAppState =
-    remember(navController) {
-        JabookAppState(navController)
+fun rememberJabookAppState(
+    navController: NavHostController = rememberNavController(),
+    snackbarHostState: androidx.compose.material3.SnackbarHostState = remember { androidx.compose.material3.SnackbarHostState() },
+): JabookAppState =
+    remember(navController, snackbarHostState) {
+        JabookAppState(navController, snackbarHostState)
     }
 
 /**
@@ -48,6 +51,7 @@ fun rememberJabookAppState(navController: NavHostController = rememberNavControl
 @Stable
 class JabookAppState(
     val navController: NavHostController,
+    val snackbarHostState: androidx.compose.material3.SnackbarHostState,
 ) {
     /**
      * Current navigation destination.

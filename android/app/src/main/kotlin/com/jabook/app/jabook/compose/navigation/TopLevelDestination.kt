@@ -20,29 +20,32 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.ui.graphics.vector.ImageVector
+import com.jabook.app.jabook.compose.l10n.Strings
 
 /**
  * Top-level destinations in the Jabook app.
  * These appear in the bottom navigation bar.
  *
  * Based on Now in Android's TopLevelDestination pattern.
+ *
+ * Note: Uses lambda-based string accessors for Lyricist localization.
  */
 enum class TopLevelDestination(
     val selectedIcon: ImageVector,
     val unselectedIcon: ImageVector,
-    val iconTextId: String,
-    val titleTextId: String,
+    val iconText: (Strings) -> String,
+    val titleText: (Strings) -> String,
 ) {
     LIBRARY(
         selectedIcon = Icons.Filled.Home,
         unselectedIcon = Icons.Outlined.Home,
-        iconTextId = "Library",
-        titleTextId = "Library",
+        iconText = { it.navLibrary },
+        titleText = { it.navLibrary },
     ),
     SETTINGS(
         selectedIcon = Icons.Filled.Settings,
         unselectedIcon = Icons.Outlined.Settings,
-        iconTextId = "Settings",
-        titleTextId = "Settings",
+        iconText = { it.navSettings },
+        titleText = { it.navSettings },
     ),
 }

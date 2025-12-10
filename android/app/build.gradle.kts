@@ -230,6 +230,9 @@ dependencies {
     // AppCompat for AppCompatActivity and AlertDialog
     implementation("androidx.appcompat:appcompat:1.7.1")
 
+    // Splash Screen API
+    implementation("androidx.core:core-splashscreen:1.2.0")
+
     // Dagger Hilt - Dependency Injection (version 2.57.2, same as lissen-android)
     implementation("com.google.dagger:hilt-android:2.57.2")
     kapt("com.google.dagger:hilt-android-compiler:2.57.2")
@@ -303,6 +306,10 @@ dependencies {
 
     // Coil3 for async image loading in Compose
     implementation("io.coil-kt.coil3:coil-compose:3.3.0")
+
+    // Lyricist - Type-safe i18n for Compose
+    implementation("cafe.adriel.lyricist:lyricist:1.8.0")
+    ksp("cafe.adriel.lyricist:lyricist-processor:1.8.0")
 
     // Note: Google Play Core is NOT needed as a dependency
     // Flutter references these classes but they're not actually used
