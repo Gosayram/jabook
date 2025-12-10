@@ -26,10 +26,10 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@fd55f4c5af5b953cc57a2be44cb082c8f6635e8e # v2.21.0
         with:
-          flutter-version: '3.38.3'
+          flutter-version: '3.38.4'
           channel: 'stable'
           cache: true
-          cache-key: 'flutter-sdk-3.38.3-stable-x64'
+          cache-key: 'flutter-sdk-3.38.4-stable-x64'
           pub-cache-key: 'flutter-pub-cache-v1'
 
       - name: Verify Flutter installation
