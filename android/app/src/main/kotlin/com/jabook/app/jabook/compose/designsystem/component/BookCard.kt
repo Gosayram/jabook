@@ -64,7 +64,7 @@ fun BookCard(
             // Cover image with 2:3 aspect ratio (standard book cover)
             AsyncImage(
                 model = coverUrl,
-                contentDescription = title,
+                contentDescription = null, // Decorative, title is read from Text below
                 modifier =
                     Modifier
                         .fillMaxWidth()

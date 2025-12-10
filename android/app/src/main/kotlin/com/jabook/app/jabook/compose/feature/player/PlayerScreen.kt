@@ -56,6 +56,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import coil3.compose.AsyncImage
 import com.jabook.app.jabook.compose.designsystem.component.ErrorScreen
 import com.jabook.app.jabook.compose.designsystem.component.LoadingScreen
@@ -211,7 +213,13 @@ private fun PlayerContent(
                             onSeek((newProgress * chapter.duration).toLong())
                         }
                     },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .semantics {
+                            val current = formatDuration(state.currentPosition)
+                            val total = formatDuration(state.currentChapter?.duration ?: 0)
+                            stateDescription = "$current of $total"
+                        },
                 )
 
                 // Time labels

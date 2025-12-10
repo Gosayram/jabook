@@ -17,6 +17,9 @@ package com.jabook.app.jabook.compose.feature.settings
 import android.content.Context
 import android.content.pm.PackageManager
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -217,7 +220,11 @@ private fun SettingsSwitchItem(
         modifier =
             modifier
                 .fillMaxWidth()
-                .clickable { onCheckedChange(!checked) }
+                .toggleable(
+                    value = checked,
+                    onValueChange = onCheckedChange,
+                    role = Role.Switch,
+                )
                 .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -239,7 +246,7 @@ private fun SettingsSwitchItem(
 
         Switch(
             checked = checked,
-            onCheckedChange = onCheckedChange,
+            onCheckedChange = null, // Handled by parent Row
         )
     }
 }
@@ -335,13 +342,17 @@ private fun ThemeOption(
         modifier =
             modifier
                 .fillMaxWidth()
-                .clickable(onClick = onSelected)
+                .selectable(
+                    selected = selected,
+                    onClick = onSelected,
+                    role = Role.RadioButton,
+                )
                 .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         RadioButton(
             selected = selected,
-            onClick = onSelected,
+            onClick = null, // Handled by parent Row
         )
 
         Text(
