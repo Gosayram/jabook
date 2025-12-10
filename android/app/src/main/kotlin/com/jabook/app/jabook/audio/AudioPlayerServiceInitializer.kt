@@ -145,15 +145,8 @@ class AudioPlayerServiceInitializer(
                 setEmbeddedArtworkPath = { service.embeddedArtworkPath = it },
                 saveCurrentPosition = { service.saveCurrentPosition() },
                 stopForeground = { removeNotification ->
-                    if (Build.VERSION.SDK_INT >= 24) {
-                        service.stopForeground(removeNotification)
-                    } else {
-                        // Compat mapping
-                        val shouldRemove =
-                            removeNotification == android.app.Service.STOP_FOREGROUND_REMOVE ||
-                                removeNotification == 1
-                        service.stopForeground(shouldRemove)
-                    }
+                    @Suppress("DEPRECATION")
+                    service.stopForeground(removeNotification)
                 },
                 stopSelf = { service.stopSelf() },
             )

@@ -49,6 +49,58 @@ fun JabookNavHost(
         navController = navController,
         startDestination = LibraryRoute,
         modifier = modifier,
+        enterTransition = {
+            slideIntoContainer(
+                androidx.compose.animation.AnimatedContentTransitionScope.SlideDirection.Left,
+                animationSpec =
+                    androidx.compose.animation.core
+                        .tween(300),
+            ) +
+                androidx.compose.animation.fadeIn(
+                    animationSpec =
+                        androidx.compose.animation.core
+                            .tween(300),
+                )
+        },
+        exitTransition = {
+            slideOutOfContainer(
+                androidx.compose.animation.AnimatedContentTransitionScope.SlideDirection.Left,
+                animationSpec =
+                    androidx.compose.animation.core
+                        .tween(300),
+            ) +
+                androidx.compose.animation.fadeOut(
+                    animationSpec =
+                        androidx.compose.animation.core
+                            .tween(300),
+                )
+        },
+        popEnterTransition = {
+            slideIntoContainer(
+                androidx.compose.animation.AnimatedContentTransitionScope.SlideDirection.Right,
+                animationSpec =
+                    androidx.compose.animation.core
+                        .tween(300),
+            ) +
+                androidx.compose.animation.fadeIn(
+                    animationSpec =
+                        androidx.compose.animation.core
+                            .tween(300),
+                )
+        },
+        popExitTransition = {
+            slideOutOfContainer(
+                androidx.compose.animation.AnimatedContentTransitionScope.SlideDirection.Right,
+                animationSpec =
+                    androidx.compose.animation.core
+                        .tween(300),
+            ) +
+                androidx.compose.animation.fadeOut(
+                    animationSpec =
+                        androidx.compose.animation.core
+                            .tween(300),
+                )
+        },
     ) {
         // Library screen - shows list of audiobooks
         composable<LibraryRoute>(

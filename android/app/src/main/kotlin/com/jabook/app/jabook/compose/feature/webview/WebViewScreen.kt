@@ -207,7 +207,7 @@ fun WebViewScreen(
                         settings.apply {
                             javaScriptEnabled = true
                             domStorageEnabled = true
-                            databaseEnabled = true
+                            // databaseEnabled is deprecated and usually defaults to true or is handled by domStorageEnabled in modern WebViews
                             setSupportZoom(true)
                             builtInZoomControls = true
                             displayZoomControls = false
