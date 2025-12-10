@@ -22,7 +22,10 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.jabook.app.jabook.compose.l10n.LocalStrings
 import com.jabook.app.jabook.compose.navigation.JabookAppState
 import com.jabook.app.jabook.compose.navigation.JabookNavHost
@@ -46,11 +49,9 @@ import com.jabook.app.jabook.ui.theme.JabookTheme
 fun JabookApp(
     intent: android.content.Intent? = null,
     appState: JabookAppState = rememberJabookAppState(),
-    viewModel: MainViewModel =
-        androidx.hilt.navigation.compose
-            .hiltViewModel(),
+    viewModel: MainViewModel = hiltViewModel(),
 ) {
-    val uiState by androidx.lifecycle.compose.collectAsStateWithLifecycle(viewModel.uiState)
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     // Handle deep links when intent changes
     androidx.compose.runtime.LaunchedEffect(intent) {
