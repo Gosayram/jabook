@@ -32,6 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Extract MainActivity logic to handlers and fix missing methods
 - Implement custom rewind/forward media session commands, force Android compile SDK to 34, and update flutter_media_metadata to a path dependency
 - Implement jumpToTrack functionality, increase playback position saving frequency, and add extensive logging for audio bridge events
+- Improve code formatting and organize imports
 - Migrate player to new bridge API with Kotlin state persistence
 - Migrate to Java 21 and replace kapt with KSP for Room
 - Polish navigation UI and resolve deprecations
