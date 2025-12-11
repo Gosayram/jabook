@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Add online audiobook search via Rutracker
 - Add swipe gestures and notification controls to mini player
 - Implement main navigation and integrate core screens
 - Implement native streaming torrent downloads
