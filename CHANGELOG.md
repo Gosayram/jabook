@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Add swipe gestures and notification controls to mini player
 - Implement main navigation and integrate core screens
+- Implement native streaming torrent downloads
 - Introduce Jetpack Compose UI with new data layer for books and refactor audio player components: phase 1 and 2
 - Migrate to Gradle 9 for comprehensive building experience
 
