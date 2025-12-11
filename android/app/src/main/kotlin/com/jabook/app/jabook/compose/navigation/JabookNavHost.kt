@@ -24,6 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
+import com.jabook.app.jabook.compose.feature.downloads.DownloadsScreen
 import com.jabook.app.jabook.compose.feature.library.LibraryScreen
 import com.jabook.app.jabook.compose.feature.player.PlayerScreen
 import com.jabook.app.jabook.compose.feature.search.SearchScreen
@@ -117,6 +118,9 @@ fun JabookNavHost(
                 onNavigateToSearch = {
                     navController.navigate(SearchRoute)
                 },
+                onNavigateToDownloads = {
+                    navController.navigate(DownloadsRoute)
+                },
             )
         }
 
@@ -177,6 +181,20 @@ fun JabookNavHost(
                 },
                 onBookClick = { bookId ->
                     navController.navigate(PlayerRoute(bookId = bookId))
+                },
+            )
+        }
+
+        // Downloads screen - shows active downloads
+        composable<DownloadsRoute>(
+            deepLinks =
+                listOf(
+                    androidx.navigation.navDeepLink { uriPattern = "jabook://downloads" },
+                ),
+        ) {
+            DownloadsScreen(
+                onNavigateBack = {
+                    navController.popBackStack()
                 },
             )
         }

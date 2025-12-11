@@ -14,7 +14,7 @@
 
 package com.jabook.app.jabook.compose.di
 
-import com.jabook.app.jabook.compose.data.download.StubTorrentDownloader
+import com.jabook.app.jabook.compose.data.download.LibTorrentDownloader
 import com.jabook.app.jabook.compose.data.download.TorrentDownloader
 import com.jabook.app.jabook.compose.data.repository.DownloadRepository
 import com.jabook.app.jabook.compose.data.repository.WorkManagerDownloadRepository
@@ -40,9 +40,9 @@ abstract class DownloadModule {
     /**
      * Bind TorrentDownloader implementation.
      *
-     * For MVP, uses stub. Replace with real implementation later.
+     * Uses production LibTorrentDownloader with libtorrent4j.
      */
     @Binds
     @Singleton
-    abstract fun bindTorrentDownloader(impl: StubTorrentDownloader): TorrentDownloader
+    abstract fun bindTorrentDownloader(impl: LibTorrentDownloader): TorrentDownloader
 }

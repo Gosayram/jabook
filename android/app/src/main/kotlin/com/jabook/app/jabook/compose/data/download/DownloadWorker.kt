@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+@file:Suppress("UnusedImport")
+
 package com.jabook.app.jabook.compose.data.download
 
 import android.content.Context
@@ -20,6 +22,10 @@ import androidx.work.CoroutineWorker
 import androidx.work.ForegroundInfo
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
+import dagger.hilt.EntryPoint
+import dagger.hilt.InstallIn
+import dagger.hilt.android.EntryPointAccessors
+import dagger.hilt.components.SingletonComponent
 
 /**
  * WorkManager worker for downloading books via torrent.
@@ -34,6 +40,19 @@ class DownloadWorker(
     context: Context,
     params: WorkerParameters,
 ) : CoroutineWorker(context, params) {
+    @EntryPoint
+    @InstallIn(SingletonComponent::class)
+    interface DownloadWorkerEntryPoint {
+        fun getTorrentDownloader(): LibTorrentDownloader
+    }
+
+    private val torrentDownloader =
+        EntryPointAccessors
+            .fromApplication(
+                applicationContext,
+                DownloadWorkerEntryPoint::class.java,
+            ).getTorrentDownloader()
+
     companion object {
         private const val TAG = "DownloadWorker"
         const val KEY_BOOK_ID = "book_id"
@@ -42,10 +61,6 @@ class DownloadWorker(
         const val KEY_PROGRESS = "progress"
         const val NOTIFICATION_ID = 1001
     }
-
-    // For MVP, use stub downloader directly
-    // TODO: Inject via Hilt in production
-    private val torrentDownloader: TorrentDownloader = StubTorrentDownloader()
 
     override suspend fun doWork(): Result {
         val bookId = inputData.getString(KEY_BOOK_ID) ?: return Result.failure()

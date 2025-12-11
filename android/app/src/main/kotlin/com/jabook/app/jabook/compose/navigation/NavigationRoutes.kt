@@ -61,3 +61,9 @@ object SettingsRoute
  */
 @Serializable
 object SearchRoute
+
+/**
+ * Downloads screen route - shows active downloads.
+ */
+@Serializable
+object DownloadsRoute

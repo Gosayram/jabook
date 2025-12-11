@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -49,6 +50,7 @@ import com.jabook.app.jabook.compose.l10n.LocalStrings
 fun LibraryScreen(
     onBookClick: (String) -> Unit,
     onNavigateToSearch: () -> Unit,
+    onNavigateToDownloads: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: LibraryViewModel = hiltViewModel(),
 ) {
@@ -61,12 +63,20 @@ fun LibraryScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(strings.screenLibrary) },
+                title = { Text("Library") },
                 actions = {
+                    // Search button
                     IconButton(onClick = onNavigateToSearch) {
                         Icon(
-                            imageVector = Icons.Filled.Search,
+                            imageVector = Icons.Default.Search,
                             contentDescription = "Search",
+                        )
+                    }
+                    // Downloads button
+                    IconButton(onClick = onNavigateToDownloads) {
+                        Icon(
+                            imageVector = Icons.Default.Download,
+                            contentDescription = "Downloads",
                         )
                     }
                 },

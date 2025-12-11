@@ -286,6 +286,20 @@ dependencies {
     // OkHttp for network requests in MediaDataSourceFactory
     implementation("com.squareup.okhttp3:okhttp:5.3.2")
 
+    // Retrofit for REST API calls
+    val retrofitVersion = "3.0.0"
+    implementation("com.squareup.retrofit2:retrofit:$retrofitVersion")
+    implementation("com.squareup.retrofit2:converter-kotlinx-serialization:$retrofitVersion")
+
+    // OkHttp logging interceptor for debugging
+    implementation("com.squareup.okhttp3:logging-interceptor:5.3.2")
+
+    // libtorrent4j for torrent downloads
+    implementation("org.libtorrent4j:libtorrent4j:2.1.0-38")
+    implementation("org.libtorrent4j:libtorrent4j-android-arm64:2.1.0-38")
+    implementation("org.libtorrent4j:libtorrent4j-android-arm:2.1.0-38")
+    implementation("org.libtorrent4j:libtorrent4j-android-x86:2.1.0-38")
+
     // Jetpack Compose - Modern UI toolkit
     implementation(platform("androidx.compose:compose-bom:2025.12.00"))
     implementation("androidx.compose.ui:ui")

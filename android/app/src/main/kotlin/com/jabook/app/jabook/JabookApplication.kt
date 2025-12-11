@@ -15,18 +15,35 @@
 package com.jabook.app.jabook
 
 import android.app.Application
+import com.jabook.app.jabook.compose.infrastructure.notification.NotificationHelper
 import dagger.hilt.android.HiltAndroidApp
 
 /**
  * Application class for Jabook with Dagger Hilt support.
  *
- * This class initializes Dagger Hilt for dependency injection.
- * Inspired by lissen-android implementation.
+ * This class initializes Dagger Hilt for dependency injection
+ * and creates notification channels.
  */
 @HiltAndroidApp
-class JabookApplication : Application() {
+class JabookApplication :
+    Application(),
+    androidx.work.Configuration.Provider {
+    @javax.inject.Inject
+    lateinit var workerFactory: androidx.hilt.work.HiltWorkerFactory
+
+    override val workManagerConfiguration: androidx.work.Configuration
+        get() =
+            androidx.work.Configuration
+                .Builder()
+                .setWorkerFactory(workerFactory)
+                .build()
+
     override fun onCreate() {
         super.onCreate()
+
+        // Create notification channels for downloads and player
+        NotificationHelper.createNotificationChannels(this)
+
         android.util.Log.d("JabookApplication", "Application created with Hilt support")
     }
 }
