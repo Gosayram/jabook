@@ -53,10 +53,66 @@ interface BooksDao {
     fun getBookFlow(bookId: String): Flow<BookEntity?>
 
     /**
+     * Gets a book by ID (one-shot, not Flow).
+     */
+    @Query("SELECT * FROM books WHERE id = :bookId")
+    suspend fun getBookById(bookId: String): BookEntity?
+
+    /**
      * Get all chapters for a book, ordered by chapter index.
      */
     @Query("SELECT * FROM chapters WHERE book_id = :bookId ORDER BY chapter_index ASC")
     fun getChaptersForBookFlow(bookId: String): Flow<List<ChapterEntity>>
+
+    /**
+     * Observes favorite books, ordered by title.
+     */
+    @Query("SELECT * FROM books WHERE is_favorite = 1 ORDER BY title ASC")
+    fun getFavoriteBooksFlow(): Flow<List<BookEntity>>
+
+    /**
+     * Observes books by download status.
+     *
+     * @param status Download status string (e.g., "DOWNLOADED", "DOWNLOADING")
+     */
+    @Query("SELECT * FROM books WHERE download_status = :status ORDER BY title ASC")
+    fun getBooksByDownloadStatusFlow(status: String): Flow<List<BookEntity>>
+
+    /**
+     * Observes recently played books, ordered by last played date (most recent first).
+     *
+     * @param limit Maximum number of books to return
+     */
+    @Query(
+        """
+        SELECT * FROM books 
+        WHERE last_played_date IS NOT NULL 
+        ORDER BY last_played_date DESC 
+        LIMIT :limit
+        """,
+    )
+    fun getRecentlyPlayedBooksFlow(limit: Int = 10): Flow<List<BookEntity>>
+
+    /**
+     * Observes books that have been started but not completed.
+     */
+    @Query(
+        """
+        SELECT * FROM books 
+        WHERE current_position > 0 AND total_progress < 0.98
+        ORDER BY last_played_date DESC
+        """,
+    )
+    fun getInProgressBooksFlow(): Flow<List<BookEntity>>
+
+    /**
+     * Updates the favorite status of a book.
+     */
+    @Query("UPDATE books SET is_favorite = :isFavorite WHERE id = :bookId")
+    suspend fun updateFavoriteStatus(
+        bookId: String,
+        isFavorite: Boolean,
+    )
 
     /**
      * Insert or replace a book.
@@ -95,50 +151,71 @@ interface BooksDao {
         """
         UPDATE books 
         SET current_position = :position,
+            total_progress = :progress,
             current_chapter_index = :chapterIndex,
             last_played_date = :timestamp
         WHERE id = :bookId
-    """,
+        """,
     )
-    suspend fun updatePlaybackPosition(
+    suspend fun updatePlaybackProgress(
         bookId: String,
         position: Long,
-        chapterIndex: Int,
-        timestamp: Long = System.currentTimeMillis(),
-    )
-
-    /**
-     * Update download progress for a book.
-     */
-    @Query("UPDATE books SET download_progress = :progress, is_downloaded = :isComplete WHERE id = :bookId")
-    suspend fun updateDownloadProgress(
-        bookId: String,
         progress: Float,
-        isComplete: Boolean,
+        chapterIndex: Int,
+        timestamp: Long,
     )
 
     /**
-     * Delete a book (chapters will be cascade deleted).
+     * Updates download status and progress.
      */
-    @Query("DELETE FROM books WHERE id = :bookId")
-    suspend fun deleteBook(bookId: String)
+    @Query(
+        """
+        UPDATE books 
+        SET download_status = :status,
+            download_progress = :progress,
+            is_downloaded = :isDownloaded
+        WHERE id = :bookId
+        """,
+    )
+    suspend fun updateDownloadStatus(
+        bookId: String,
+        status: String,
+        progress: Float,
+        isDownloaded: Boolean,
+    )
 
     /**
-     * Delete all books.
+     * Sets the local path where book files are stored.
      */
-    @Query("DELETE FROM books")
-    suspend fun deleteAllBooks()
+    @Query("UPDATE books SET local_path = :path WHERE id = :bookId")
+    suspend fun updateLocalPath(
+        bookId: String,
+        path: String,
+    )
 
     /**
-     * Search books by title or author.
+     * Counts total number of books.
+     */
+    @Query("SELECT COUNT(*) FROM books")
+    suspend fun getBookCount(): Int
+
+    /**
+     * Searches books by title or author.
      */
     @Query(
         """
         SELECT * FROM books 
         WHERE title LIKE '%' || :query || '%' 
-        OR author LIKE '%' || :query || '%'
-        ORDER BY last_played_date DESC
-    """,
+           OR author LIKE '%' || :query || '%'
+        ORDER BY title ASC
+        """,
     )
-    fun searchBooks(query: String): Flow<List<BookEntity>>
+    fun searchBooksFlow(query: String): Flow<List<BookEntity>>
+
+    /**
+     * Deletes a book by ID.
+     * Chapters will be cascade deleted due to foreign key constraint.
+     */
+    @Query("DELETE FROM books WHERE id = :bookId")
+    suspend fun deleteById(bookId: String)
 }

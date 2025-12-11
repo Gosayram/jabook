@@ -18,9 +18,10 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
-import com.jabook.app.jabook.compose.data.model.Book
-import com.jabook.app.jabook.compose.data.model.Chapter
-import com.jabook.app.jabook.compose.data.repository.BooksRepository
+import com.jabook.app.jabook.compose.domain.model.Book
+import com.jabook.app.jabook.compose.domain.model.Chapter
+import com.jabook.app.jabook.compose.domain.usecase.library.GetBookDetailsUseCase
+import com.jabook.app.jabook.compose.domain.usecase.player.GetChaptersUseCase
 import com.jabook.app.jabook.compose.navigation.PlayerRoute
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
@@ -32,18 +33,24 @@ import javax.inject.Inject
 /**
  * ViewModel for the Player screen.
  *
+ * Uses domain layer use cases to manage player state following
+ * Clean Architecture principles.
+ *
  * Manages player state and integrates with AudioPlayerService.
  * For MVP, we show the UI structure without full AudioPlayerService integration.
  *
  * @param savedStateHandle Navigation arguments containing bookId
- * @param booksRepository Repository for book data
+ * @param getBookDetailsUseCase Use case for retrieving book details
+ * @param getChaptersUseCase Use case for retrieving book chapters
+ * @param playerController Controller for audio playback
  */
 @HiltViewModel
 class PlayerViewModel
     @Inject
     constructor(
         savedStateHandle: SavedStateHandle,
-        private val booksRepository: BooksRepository,
+        private val getBookDetailsUseCase: GetBookDetailsUseCase,
+        private val getChaptersUseCase: GetChaptersUseCase,
         private val playerController: com.jabook.app.jabook.compose.feature.player.controller.AudioPlayerController,
     ) : ViewModel() {
         // Get bookId from navigation arguments
@@ -55,20 +62,22 @@ class PlayerViewModel
          */
         val uiState: StateFlow<PlayerUiState> =
             combine(
-                booksRepository.getBook(bookId),
+                getBookDetailsUseCase(bookId),
+                getChaptersUseCase(bookId),
                 playerController.isPlaying,
                 playerController.currentPosition,
                 playerController.currentChapterIndex,
-            ) { book, playing, position, chapterIndex ->
+            ) { book, chapters, playing, position, chapterIndex ->
                 if (book == null) {
                     PlayerUiState.Error("Book not found")
                 } else {
                     PlayerUiState.Success(
                         book = book,
+                        chapters = chapters,
                         isPlaying = playing,
                         currentPosition = position,
                         currentChapterIndex = chapterIndex,
-                        currentChapter = book.chapters.getOrNull(chapterIndex),
+                        currentChapter = chapters.getOrNull(chapterIndex),
                     )
                 }
             }.stateIn(
@@ -115,7 +124,7 @@ class PlayerViewModel
             if (state is PlayerUiState.Success && state.currentChapter != null) {
                 val newPosition =
                     (playerController.currentPosition.value + seconds * 1000)
-                        .coerceAtMost(state.currentChapter.duration)
+                        .coerceAtMost(state.currentChapter.duration.inWholeMilliseconds)
                 seekTo(newPosition)
             }
         }
@@ -157,6 +166,7 @@ sealed interface PlayerUiState {
      */
     data class Success(
         val book: Book,
+        val chapters: List<Chapter>,
         val isPlaying: Boolean,
         val currentPosition: Long, // milliseconds
         val currentChapterIndex: Int,

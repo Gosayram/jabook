@@ -14,6 +14,8 @@
 
 package com.jabook.app.jabook.compose.designsystem.component
 
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -36,14 +38,15 @@ import coil3.compose.AsyncImage
  * Book card component for displaying audiobook information.
  *
  * This will be used in the Library screen to show books in a grid or list.
- * For now, it's a placeholder that will be fully implemented in Phase 3.
  *
  * @param title Book title
  * @param author Book author
  * @param coverUrl URL to book cover image
  * @param onClick Callback when card is clicked
+ * @param onLongClick Callback when card is long-pressed (optional, defaults to null)
  * @param modifier Modifier to be applied to the card
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun BookCard(
     title: String,
@@ -51,10 +54,21 @@ fun BookCard(
     coverUrl: String?,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    onLongClick: (() -> Unit)? = null,
 ) {
     Card(
         onClick = onClick,
-        modifier = modifier,
+        modifier =
+            modifier.then(
+                if (onLongClick != null) {
+                    Modifier.combinedClickable(
+                        onClick = onClick,
+                        onLongClick = onLongClick,
+                    )
+                } else {
+                    Modifier
+                },
+            ),
         colors =
             CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surfaceVariant,

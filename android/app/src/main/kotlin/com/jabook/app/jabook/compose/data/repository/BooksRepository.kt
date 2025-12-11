@@ -14,8 +14,8 @@
 
 package com.jabook.app.jabook.compose.data.repository
 
-import com.jabook.app.jabook.compose.data.model.Book
-import com.jabook.app.jabook.compose.data.model.Chapter
+import com.jabook.app.jabook.compose.domain.model.Book
+import com.jabook.app.jabook.compose.domain.model.Chapter
 import kotlinx.coroutines.flow.Flow
 
 /**

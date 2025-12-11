@@ -23,8 +23,8 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.jabook.app.jabook.compose.data.model.Book
 import com.jabook.app.jabook.compose.designsystem.component.BookCard
+import com.jabook.app.jabook.compose.domain.model.Book
 
 /**
  * Grid list of books using Material3 LazyVerticalGrid.

@@ -55,3 +55,9 @@ data class WebViewRoute(
  */
 @Serializable
 object SettingsRoute
+
+/**
+ * Search screen route - search for books by title or author.
+ */
+@Serializable
+object SearchRoute

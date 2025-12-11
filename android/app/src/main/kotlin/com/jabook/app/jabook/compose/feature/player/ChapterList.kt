@@ -32,8 +32,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.jabook.app.jabook.compose.data.model.Chapter
-import kotlin.time.Duration.Companion.milliseconds
+import com.jabook.app.jabook.compose.domain.model.Chapter
 
 /**
  * List of chapters for the player screen.
@@ -105,17 +104,10 @@ internal fun ChapterItem(
         }
 
         Text(
-            text = formatDuration(chapter.duration),
+            text = formatDuration(chapter.duration.inWholeMilliseconds),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(start = 8.dp),
         )
     }
-}
-
-private fun formatDuration(durationMs: Long): String {
-    val duration = durationMs.milliseconds
-    val minutes = duration.inWholeMinutes
-    val seconds = duration.inWholeSeconds % 60
-    return String.format("%d:%02d", minutes, seconds)
 }

@@ -15,12 +15,13 @@
 package com.jabook.app.jabook.compose.data.repository
 
 import com.jabook.app.jabook.compose.data.local.dao.BooksDao
-import com.jabook.app.jabook.compose.data.local.toDomainModel
-import com.jabook.app.jabook.compose.data.local.toEntity
-import com.jabook.app.jabook.compose.data.model.Book
-import com.jabook.app.jabook.compose.data.model.Chapter
+import com.jabook.app.jabook.compose.domain.model.Book
+import com.jabook.app.jabook.compose.domain.model.Chapter
+import com.jabook.app.jabook.compose.domain.model.toBook
+import com.jabook.app.jabook.compose.domain.model.toBooks
+import com.jabook.app.jabook.compose.domain.model.toChapters
+import com.jabook.app.jabook.compose.domain.model.toEntity
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -41,45 +42,16 @@ class OfflineFirstBooksRepository
     constructor(
         private val booksDao: BooksDao,
     ) : BooksRepository {
-        override fun getAllBooks(): Flow<List<Book>> =
-            booksDao.getAllBooksFlow().map { bookEntities ->
-                // For each book, get its chapters and combine
-                bookEntities.map { bookEntity ->
-                    // Get chapters for this book (this will be executed for each book)
-                    // In production, consider optimizing with a single query
-                    val chapters = booksDao.getChaptersForBookFlow(bookEntity.id)
+        override fun getAllBooks(): Flow<List<Book>> = booksDao.getAllBooksFlow().map { it.toBooks() }
 
-                    // For now, return book with empty chapters
-                    // In a real implementation, you'd combine these flows
-                    bookEntity.toDomainModel(emptyList())
-                }
-            }
+        override fun getBook(bookId: String): Flow<Book?> = booksDao.getBookFlow(bookId).map { it?.toBook() }
 
-        override fun getBook(bookId: String): Flow<Book?> =
-            combine(
-                booksDao.getBookFlow(bookId),
-                booksDao.getChaptersForBookFlow(bookId),
-            ) { bookEntity, chapterEntities ->
-                bookEntity?.toDomainModel(chapterEntities)
-            }
+        override fun getChapters(bookId: String): Flow<List<Chapter>> = booksDao.getChaptersForBookFlow(bookId).map { it.toChapters() }
 
-        override fun getChapters(bookId: String): Flow<List<Chapter>> =
-            booksDao.getChaptersForBookFlow(bookId).map { entities ->
-                entities.map { it.toDomainModel() }
-            }
-
-        override fun searchBooks(query: String): Flow<List<Book>> =
-            booksDao.searchBooks(query).map { bookEntities ->
-                bookEntities.map { it.toDomainModel(emptyList()) }
-            }
+        override fun searchBooks(query: String): Flow<List<Book>> = booksDao.searchBooksFlow(query).map { it.toBooks() }
 
         override suspend fun addBook(book: Book) {
-            // Insert book entity
             booksDao.insertBook(book.toEntity())
-
-            // Insert chapter entities
-            val chapterEntities = book.chapters.map { it.toEntity() }
-            booksDao.insertChapters(chapterEntities)
         }
 
         override suspend fun updateBook(book: Book) {
@@ -91,10 +63,21 @@ class OfflineFirstBooksRepository
             position: Long,
             chapterIndex: Int,
         ) {
-            booksDao.updatePlaybackPosition(
+            // Calculate progress based on total duration
+            val book = booksDao.getBookById(bookId)
+            val progress =
+                if (book != null && book.totalDuration > 0) {
+                    (position.toFloat() / book.totalDuration.toFloat()).coerceIn(0f, 1f)
+                } else {
+                    0f
+                }
+
+            booksDao.updatePlaybackProgress(
                 bookId = bookId,
                 position = position,
+                progress = progress,
                 chapterIndex = chapterIndex,
+                timestamp = System.currentTimeMillis(),
             )
         }
 
@@ -103,15 +86,22 @@ class OfflineFirstBooksRepository
             progress: Float,
             isComplete: Boolean,
         ) {
-            booksDao.updateDownloadProgress(
+            val status =
+                when {
+                    isComplete -> "DOWNLOADED"
+                    progress > 0 -> "DOWNLOADING"
+                    else -> "NOT_DOWNLOADED"
+                }
+            booksDao.updateDownloadStatus(
                 bookId = bookId,
+                status = status,
                 progress = progress,
-                isComplete = isComplete,
+                isDownloaded = isComplete,
             )
         }
 
         override suspend fun deleteBook(bookId: String) {
-            booksDao.deleteBook(bookId)
+            booksDao.deleteById(bookId)
         }
 
         override suspend fun refresh() {

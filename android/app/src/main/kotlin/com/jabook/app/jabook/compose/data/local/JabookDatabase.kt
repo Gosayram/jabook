@@ -17,17 +17,23 @@ package com.jabook.app.jabook.compose.data.local
 import androidx.room.Database
 import androidx.room.RoomDatabase
 import com.jabook.app.jabook.compose.data.local.dao.BooksDao
+import com.jabook.app.jabook.compose.data.local.dao.ChaptersDao
 import com.jabook.app.jabook.compose.data.local.entity.BookEntity
 import com.jabook.app.jabook.compose.data.local.entity.ChapterEntity
 
 /**
  * The Room database for this app.
+ *
+ * Version 2: Added new fields to BookEntity and ChapterEntity for
+ * enhanced library and playback features.
  */
 @Database(
     entities = [BookEntity::class, ChapterEntity::class],
-    version = 1,
-    exportSchema = false,
+    version = 2,
+    exportSchema = true,
 )
 abstract class JabookDatabase : RoomDatabase() {
     abstract fun booksDao(): BooksDao
+
+    abstract fun chaptersDao(): ChaptersDao
 }

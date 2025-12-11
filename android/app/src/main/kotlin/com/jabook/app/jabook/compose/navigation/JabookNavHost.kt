@@ -26,6 +26,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
 import com.jabook.app.jabook.compose.feature.library.LibraryScreen
 import com.jabook.app.jabook.compose.feature.player.PlayerScreen
+import com.jabook.app.jabook.compose.feature.search.SearchScreen
 import com.jabook.app.jabook.compose.feature.settings.SettingsScreen
 import com.jabook.app.jabook.compose.feature.webview.WebViewScreen
 
@@ -113,6 +114,9 @@ fun JabookNavHost(
                 onBookClick = { bookId ->
                     navController.navigate(PlayerRoute(bookId = bookId))
                 },
+                onNavigateToSearch = {
+                    navController.navigate(SearchRoute)
+                },
             )
         }
 
@@ -158,6 +162,23 @@ fun JabookNavHost(
                 ),
         ) {
             SettingsScreen()
+        }
+
+        // Search screen - search for books
+        composable<SearchRoute>(
+            deepLinks =
+                listOf(
+                    androidx.navigation.navDeepLink { uriPattern = "jabook://search" },
+                ),
+        ) {
+            SearchScreen(
+                onNavigateBack = {
+                    navController.popBackStack()
+                },
+                onBookClick = { bookId ->
+                    navController.navigate(PlayerRoute(bookId = bookId))
+                },
+            )
         }
     }
 }

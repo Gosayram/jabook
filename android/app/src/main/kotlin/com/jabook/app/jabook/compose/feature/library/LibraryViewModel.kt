@@ -16,9 +16,15 @@ package com.jabook.app.jabook.compose.feature.library
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.jabook.app.jabook.compose.data.model.Book
 import com.jabook.app.jabook.compose.data.model.BookSortOrder
-import com.jabook.app.jabook.compose.data.repository.BooksRepository
+import com.jabook.app.jabook.compose.domain.model.Book
+import com.jabook.app.jabook.compose.domain.usecase.library.DeleteBookUseCase
+import com.jabook.app.jabook.compose.domain.usecase.library.GetFavoriteBooksUseCase
+import com.jabook.app.jabook.compose.domain.usecase.library.GetInProgressBooksUseCase
+import com.jabook.app.jabook.compose.domain.usecase.library.GetLibraryUseCase
+import com.jabook.app.jabook.compose.domain.usecase.library.GetRecentlyPlayedBooksUseCase
+import com.jabook.app.jabook.compose.domain.usecase.library.SearchBooksUseCase
+import com.jabook.app.jabook.compose.domain.usecase.library.ToggleFavoriteUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -31,17 +37,25 @@ import javax.inject.Inject
 /**
  * ViewModel for the Library screen.
  *
- * Manages the state of the book library, including:
- * - List of books from repository
- * - Search query
- * - Sort order
- * - Loading and error states
+ * Uses domain layer use cases to manage library state following
+ * Clean Architecture principles.
+ *
+ * Manages:
+ * - Book list via GetLibraryUseCase
+ * - Search and sorting (in-memory)
+ * - Book deletion via DeleteBookUseCase
  */
 @HiltViewModel
 class LibraryViewModel
     @Inject
     constructor(
-        private val booksRepository: BooksRepository,
+        private val getLibraryUseCase: GetLibraryUseCase,
+        private val searchBooksUseCase: SearchBooksUseCase,
+        private val getFavoriteBooksUseCase: GetFavoriteBooksUseCase,
+        private val getRecentlyPlayedBooksUseCase: GetRecentlyPlayedBooksUseCase,
+        private val getInProgressBooksUseCase: GetInProgressBooksUseCase,
+        private val toggleFavoriteUseCase: ToggleFavoriteUseCase,
+        private val deleteBookUseCase: DeleteBookUseCase,
     ) : ViewModel() {
         // Search query state
         private val _searchQuery = MutableStateFlow("")
@@ -51,16 +65,12 @@ class LibraryViewModel
         private val _sortOrder = MutableStateFlow(BookSortOrder.RECENTLY_PLAYED)
         val sortOrder: StateFlow<BookSortOrder> = _sortOrder
 
-        // Is refreshing state
-        private val _isRefreshing = MutableStateFlow(false)
-        val isRefreshing: StateFlow<Boolean> = _isRefreshing
-
         /**
          * UI state combining books data with loading/error states.
          */
         val uiState: StateFlow<LibraryUiState> =
             combine(
-                booksRepository.getAllBooks(),
+                getLibraryUseCase(),
                 _searchQuery,
                 _sortOrder,
             ) { books, query, order ->
@@ -115,16 +125,47 @@ class LibraryViewModel
         }
 
         /**
-         * Refresh the library.
+         * Get favorite books reactively.
          */
-        fun refresh() {
+        val favoriteBooks: StateFlow<List<Book>> =
+            getFavoriteBooksUseCase()
+                .stateIn(
+                    scope = viewModelScope,
+                    started = SharingStarted.WhileSubscribed(5000),
+                    initialValue = emptyList(),
+                )
+
+        /**
+         * Get recently played books.
+         */
+        val recentlyPlayed: StateFlow<List<Book>> =
+            getRecentlyPlayedBooksUseCase(limit = 10)
+                .stateIn(
+                    scope = viewModelScope,
+                    started = SharingStarted.WhileSubscribed(5000),
+                    initialValue = emptyList(),
+                )
+
+        /**
+         * Get in-progress books.
+         */
+        val inProgress: StateFlow<List<Book>> =
+            getInProgressBooksUseCase()
+                .stateIn(
+                    scope = viewModelScope,
+                    started = SharingStarted.WhileSubscribed(5000),
+                    initialValue = emptyList(),
+                )
+
+        /**
+         * Toggle favorite status of a book.
+         */
+        fun toggleFavorite(
+            bookId: String,
+            isFavorite: Boolean,
+        ) {
             viewModelScope.launch {
-                _isRefreshing.value = true
-                try {
-                    booksRepository.refresh()
-                } finally {
-                    _isRefreshing.value = false
-                }
+                toggleFavoriteUseCase(bookId, isFavorite)
             }
         }
 
@@ -133,7 +174,8 @@ class LibraryViewModel
          */
         fun deleteBook(bookId: String) {
             viewModelScope.launch {
-                booksRepository.deleteBook(bookId)
+                deleteBookUseCase(bookId)
+                // Result handling can be added if needed for user feedback
             }
         }
     }

@@ -16,8 +16,11 @@ package com.jabook.app.jabook.compose.di
 
 import android.content.Context
 import androidx.room.Room
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import com.jabook.app.jabook.compose.data.local.JabookDatabase
 import com.jabook.app.jabook.compose.data.local.dao.BooksDao
+import com.jabook.app.jabook.compose.data.local.dao.ChaptersDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -28,6 +31,38 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 object DatabaseModule {
+    /**
+     * Database migration from version 1 to version 2.
+     *
+     * Adds new columns to books and chapters tables for enhanced functionality.
+     */
+    private val MIGRATION_1_2 =
+        object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Add new columns to books table
+                db.execSQL("ALTER TABLE books ADD COLUMN total_progress REAL NOT NULL DEFAULT 0.0")
+                db.execSQL("ALTER TABLE books ADD COLUMN download_status TEXT NOT NULL DEFAULT 'NOT_DOWNLOADED'")
+                db.execSQL("ALTER TABLE books ADD COLUMN local_path TEXT")
+                db.execSQL("ALTER TABLE books ADD COLUMN is_favorite INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE books ADD COLUMN source_url TEXT")
+
+                // Add new columns to chapters table
+                db.execSQL("ALTER TABLE chapters ADD COLUMN position INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE chapters ADD COLUMN is_completed INTEGER NOT NULL DEFAULT 0")
+
+                // Update download_status based on is_downloaded for backwards compatibility
+                db.execSQL(
+                    """
+                    UPDATE books 
+                    SET download_status = CASE 
+                        WHEN is_downloaded = 1 THEN 'DOWNLOADED' 
+                        ELSE 'NOT_DOWNLOADED' 
+                    END
+                    """.trimIndent(),
+                )
+            }
+        }
+
     @Provides
     @Singleton
     fun provideJabookDatabase(
@@ -38,8 +73,12 @@ object DatabaseModule {
                 context,
                 JabookDatabase::class.java,
                 "jabook-database",
-            ).build()
+            ).addMigrations(MIGRATION_1_2)
+            .build()
 
     @Provides
     fun provideBooksDao(database: JabookDatabase): BooksDao = database.booksDao()
+
+    @Provides
+    fun provideChaptersDao(database: JabookDatabase): ChaptersDao = database.chaptersDao()
 }

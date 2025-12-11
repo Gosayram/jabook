@@ -51,13 +51,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.stateDescription
 import coil3.compose.AsyncImage
 import com.jabook.app.jabook.compose.designsystem.component.ErrorScreen
 import com.jabook.app.jabook.compose.designsystem.component.LoadingScreen
@@ -203,23 +203,25 @@ private fun PlayerContent(
                 // Progress bar
                 val progress =
                     state.currentChapter?.let {
-                        if (it.duration > 0) state.currentPosition.toFloat() / it.duration else 0f
+                        val durationMs = it.duration.inWholeMilliseconds
+                        if (durationMs > 0) state.currentPosition.toFloat() / durationMs.toFloat() else 0f
                     } ?: 0f
 
                 Slider(
                     value = progress,
                     onValueChange = { newProgress ->
                         state.currentChapter?.let { chapter ->
-                            onSeek((newProgress * chapter.duration).toLong())
+                            onSeek((newProgress * chapter.duration.inWholeMilliseconds.toFloat()).toLong())
                         }
                     },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .semantics {
-                            val current = formatDuration(state.currentPosition)
-                            val total = formatDuration(state.currentChapter?.duration ?: 0)
-                            stateDescription = "$current of $total"
-                        },
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .semantics {
+                                val current = formatDuration(state.currentPosition)
+                                val total = formatDuration(state.currentChapter?.duration?.inWholeMilliseconds ?: 0)
+                                stateDescription = "$current of $total"
+                            },
                 )
 
                 // Time labels
@@ -234,7 +236,7 @@ private fun PlayerContent(
                     )
 
                     Text(
-                        text = formatDuration(state.currentChapter?.duration ?: 0),
+                        text = formatDuration(state.currentChapter?.duration?.inWholeMilliseconds ?: 0),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -297,7 +299,7 @@ private fun PlayerContent(
         }
 
         // Chapter List Header
-        if (state.book.chapters.isNotEmpty()) {
+        if (state.chapters.isNotEmpty()) {
             item {
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
@@ -308,8 +310,8 @@ private fun PlayerContent(
             }
 
             // Chapter List Items
-            items(state.book.chapters.size) { index ->
-                val chapter = state.book.chapters[index]
+            items(state.chapters.size) { index ->
+                val chapter = state.chapters[index]
                 com.jabook.app.jabook.compose.feature.player.ChapterItem(
                     chapter = chapter,
                     index = index + 1,
@@ -324,7 +326,7 @@ private fun PlayerContent(
 /**
  * Format duration in milliseconds to MM:SS format.
  */
-private fun formatDuration(durationMs: Long): String {
+internal fun formatDuration(durationMs: Long): String {
     val duration = durationMs.milliseconds
     val minutes = duration.inWholeMinutes
     val seconds = duration.inWholeSeconds % 60

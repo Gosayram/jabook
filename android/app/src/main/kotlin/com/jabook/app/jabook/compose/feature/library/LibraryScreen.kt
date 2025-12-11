@@ -25,7 +25,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
@@ -49,11 +48,14 @@ import com.jabook.app.jabook.compose.l10n.LocalStrings
 @Composable
 fun LibraryScreen(
     onBookClick: (String) -> Unit,
+    onNavigateToSearch: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: LibraryViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
+    val recentlyPlayed by viewModel.recentlyPlayed.collectAsStateWithLifecycle()
+    val inProgress by viewModel.inProgress.collectAsStateWithLifecycle()
+    val favorites by viewModel.favoriteBooks.collectAsStateWithLifecycle()
     val strings = LocalStrings.current
 
     Scaffold(
@@ -61,7 +63,7 @@ fun LibraryScreen(
             TopAppBar(
                 title = { Text(strings.screenLibrary) },
                 actions = {
-                    IconButton(onClick = { /* TODO: Open search */ }) {
+                    IconButton(onClick = onNavigateToSearch) {
                         Icon(
                             imageVector = Icons.Filled.Search,
                             contentDescription = "Search",
@@ -72,29 +74,48 @@ fun LibraryScreen(
         },
         modifier = modifier,
     ) { padding ->
-        PullToRefreshBox(
-            isRefreshing = isRefreshing,
-            onRefresh = viewModel::refresh,
-            modifier = Modifier.padding(padding),
-        ) {
-            LibraryContent(
-                uiState = uiState,
-                onBookClick = onBookClick,
-                onRetry = viewModel::refresh,
-                modifier = Modifier.fillMaxSize(),
-            )
+        Box(modifier = Modifier.padding(padding).fillMaxSize()) {
+            when (uiState) {
+                is LibraryUiState.Loading -> {
+                    LoadingScreen(message = "Loading library...")
+                }
+
+                is LibraryUiState.Success -> {
+                    EnhancedLibraryContent(
+                        allBooks = (uiState as LibraryUiState.Success).books,
+                        recentlyPlayed = recentlyPlayed,
+                        inProgress = inProgress,
+                        favorites = favorites,
+                        onBookClick = onBookClick,
+                        onToggleFavorite = viewModel::toggleFavorite,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
+
+                is LibraryUiState.Empty -> {
+                    EmptyState(
+                        message = "No books in your library yet.\nAdd books to get started!",
+                    )
+                }
+
+                is LibraryUiState.Error -> {
+                    ErrorScreen(
+                        message = (uiState as LibraryUiState.Error).message,
+                    )
+                }
+            }
         }
     }
 }
 
 /**
  * Content composable that handles different UI states.
+ * @deprecated Use EnhancedLibraryContent directly from LibraryScreen
  */
 @Composable
 private fun LibraryContent(
     uiState: LibraryUiState,
     onBookClick: (String) -> Unit,
-    onRetry: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Box(modifier = modifier) {
@@ -119,7 +140,6 @@ private fun LibraryContent(
             is LibraryUiState.Error -> {
                 ErrorScreen(
                     message = uiState.message,
-                    onRetry = onRetry,
                 )
             }
         }
