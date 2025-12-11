@@ -16,22 +16,46 @@ package com.jabook.app.jabook.compose.feature.search
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.jabook.app.jabook.compose.data.remote.model.SearchResult
 import com.jabook.app.jabook.compose.domain.model.Book
+import com.jabook.app.jabook.compose.domain.model.Result
 import com.jabook.app.jabook.compose.domain.usecase.library.SearchBooksUseCase
+import com.jabook.app.jabook.compose.domain.usecase.search.SearchRutrackerUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import javax.inject.Inject
+
+/**
+ * UI state for search.
+ */
+sealed interface SearchUiState {
+    data object Idle : SearchUiState
+
+    data object Loading : SearchUiState
+
+    data class Success(
+        val localResults: List<Book>,
+        val onlineResults: List<SearchResult>,
+    ) : SearchUiState
+
+    data class Error(
+        val message: String,
+    ) : SearchUiState
+}
 
 /**
  * ViewModel for the Search screen.
  *
- * Manages search query state and results using SearchBooksUseCase.
+ * Manages search query state and results from both local database
+ * and online Rutracker search.
  * Implements debouncing to avoid excessive searches while typing.
  */
 @OptIn(FlowPreview::class, kotlinx.coroutines.ExperimentalCoroutinesApi::class)
@@ -40,20 +64,22 @@ class SearchViewModel
     @Inject
     constructor(
         private val searchBooksUseCase: SearchBooksUseCase,
+        private val searchRutrackerUseCase: SearchRutrackerUseCase,
     ) : ViewModel() {
         // Search query state
         private val _searchQuery = MutableStateFlow("")
-        val searchQuery: StateFlow<String> = _searchQuery
+        val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
+
+        // UI state
+        private val _uiState = MutableStateFlow<SearchUiState>(SearchUiState.Idle)
+        val uiState: StateFlow<SearchUiState> = _uiState.asStateFlow()
 
         /**
-         * Search results with debouncing (300ms).
-         *
-         * Only triggers search after user stops typing for 300ms
-         * to avoid excessive database queries.
+         * Local search results with debouncing (300ms).
          */
-        val searchResults: StateFlow<List<Book>> =
+        val localResults: StateFlow<List<Book>> =
             _searchQuery
-                .debounce(300) // Wait 300ms after user stops typing
+                .debounce(300)
                 .flatMapLatest { query ->
                     if (query.isBlank()) {
                         kotlinx.coroutines.flow.flowOf(emptyList())
@@ -78,5 +104,37 @@ class SearchViewModel
          */
         fun clearSearch() {
             _searchQuery.value = ""
+            _uiState.value = SearchUiState.Idle
+        }
+
+        /**
+         * Perform online search on Rutracker.
+         */
+        fun searchOnline() {
+            val query = _searchQuery.value
+            if (query.isBlank()) return
+
+            viewModelScope.launch {
+                _uiState.value = SearchUiState.Loading
+
+                when (val result = searchRutrackerUseCase(query)) {
+                    is Result.Success -> {
+                        _uiState.value =
+                            SearchUiState.Success(
+                                localResults = localResults.value,
+                                onlineResults = result.data,
+                            )
+                    }
+                    is Result.Error -> {
+                        _uiState.value =
+                            SearchUiState.Error(
+                                result.exception.message ?: "Unknown error",
+                            )
+                    }
+                    is Result.Loading -> {
+                        // Already in loading state, nothing to do
+                    }
+                }
+            }
         }
     }

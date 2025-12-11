@@ -55,6 +55,15 @@ abstract class DataModule {
     @Singleton
     abstract fun bindUserPreferencesRepository(repository: DataStoreUserPreferencesRepository): UserPreferencesRepository
 
+    /**
+     * Binds the RutrackerRepositoryImpl implementation to the RutrackerRepository interface.
+     */
+    @Binds
+    @Singleton
+    abstract fun bindRutrackerRepository(
+        repository: com.jabook.app.jabook.compose.data.repository.RutrackerRepositoryImpl,
+    ): com.jabook.app.jabook.compose.data.repository.RutrackerRepository
+
     companion object {
         /**
          * Provides DataStore<Preferences> for user preferences.

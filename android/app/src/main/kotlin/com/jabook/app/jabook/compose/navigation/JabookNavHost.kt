@@ -169,18 +169,17 @@ fun JabookNavHost(
         }
 
         // Search screen - search for books
-        composable<SearchRoute>(
-            deepLinks =
-                listOf(
-                    androidx.navigation.navDeepLink { uriPattern = "jabook://search" },
-                ),
-        ) {
+        composable<SearchRoute> {
             SearchScreen(
                 onNavigateBack = {
-                    navController.popBackStack()
+                    navController.navigateUp()
                 },
                 onBookClick = { bookId ->
                     navController.navigate(PlayerRoute(bookId = bookId))
+                },
+                onOnlineBookClick = { searchResult ->
+                    // TODO: Handle online search result click
+                    // Could navigate to details screen or start download
                 },
             )
         }

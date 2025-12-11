@@ -294,6 +294,12 @@ dependencies {
     // OkHttp logging interceptor for debugging
     implementation("com.squareup.okhttp3:logging-interceptor:5.3.2")
 
+    // Jsoup for HTML parsing (Rutracker scraping)
+    implementation("org.jsoup:jsoup:1.21.2")
+
+    // Retrofit scalar converter for HTML responses
+    implementation("com.squareup.retrofit2:converter-scalars:$retrofitVersion")
+
     // libtorrent4j for torrent downloads
     implementation("org.libtorrent4j:libtorrent4j:2.1.0-38")
     implementation("org.libtorrent4j:libtorrent4j-android-arm64:2.1.0-38")

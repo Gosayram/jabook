@@ -24,7 +24,6 @@ import org.libtorrent4j.Priority
 import org.libtorrent4j.SessionManager
 import org.libtorrent4j.Sha1Hash
 import org.libtorrent4j.TorrentHandle
-import org.libtorrent4j.swig.add_torrent_params
 import org.libtorrent4j.swig.error_code
 import org.libtorrent4j.swig.libtorrent
 import org.libtorrent4j.swig.torrent_flags_t

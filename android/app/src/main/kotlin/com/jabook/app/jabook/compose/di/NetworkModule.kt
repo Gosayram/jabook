@@ -14,7 +14,8 @@
 
 package com.jabook.app.jabook.compose.di
 
-import com.jabook.app.jabook.compose.data.network.RutrackerApi
+import com.jabook.app.jabook.compose.data.remote.api.RutrackerApi
+import com.jabook.app.jabook.compose.data.remote.network.PersistentCookieJar
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -25,6 +26,7 @@ import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
+import retrofit2.converter.scalars.ScalarsConverterFactory
 import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
 
@@ -49,24 +51,32 @@ object NetworkModule {
         }
 
     /**
-     * Provide OkHttp client with logging interceptor.
+     * Provide logging interceptor.
      */
     @Provides
     @Singleton
-    fun provideOkHttpClient(): OkHttpClient {
-        val loggingInterceptor =
-            HttpLoggingInterceptor().apply {
-                level = HttpLoggingInterceptor.Level.BODY
-            }
+    fun provideLoggingInterceptor(): HttpLoggingInterceptor =
+        HttpLoggingInterceptor().apply {
+            level = HttpLoggingInterceptor.Level.BODY
+        }
 
-        return OkHttpClient
+    /**
+     * Provide OkHttp client with cookie persistence and logging.
+     */
+    @Provides
+    @Singleton
+    fun provideOkHttpClient(
+        cookieJar: PersistentCookieJar,
+        loggingInterceptor: HttpLoggingInterceptor,
+    ): OkHttpClient =
+        OkHttpClient
             .Builder()
+            .cookieJar(cookieJar)
             .addInterceptor(loggingInterceptor)
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .writeTimeout(30, TimeUnit.SECONDS)
             .build()
-    }
 
     /**
      * Provide Retrofit instance.
@@ -81,8 +91,11 @@ object NetworkModule {
 
         return Retrofit
             .Builder()
-            .baseUrl(RutrackerApi.BASE_URL)
+            .baseUrl("https://rutracker.org/forum/")
             .client(okHttpClient)
+            // Scalar converter first for HTML responses
+            .addConverterFactory(ScalarsConverterFactory.create())
+            // JSON converter for any JSON responses
             .addConverterFactory(json.asConverterFactory(contentType))
             .build()
     }
