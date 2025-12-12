@@ -2,62 +2,96 @@ package com.jabook.app.jabook.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Light Theme Colors
-val md_theme_light_primary = Color(0xFF6750A4)
-val md_theme_light_onPrimary = Color(0xFFFFFFFF)
-val md_theme_light_primaryContainer = Color(0xFFE9DDFF)
-val md_theme_light_onPrimaryContainer = Color(0xFF22005D)
-val md_theme_light_secondary = Color(0xFF625B71)
-val md_theme_light_onSecondary = Color(0xFFFFFFFF)
-val md_theme_light_secondaryContainer = Color(0xFFE8DEF8)
-val md_theme_light_onSecondaryContainer = Color(0xFF1E192B)
-val md_theme_light_tertiary = Color(0xFF7D5260)
-val md_theme_light_onTertiary = Color(0xFFFFFFFF)
-val md_theme_light_tertiaryContainer = Color(0xFFFFD8E4)
-val md_theme_light_onTertiaryContainer = Color(0xFF370B1E)
-val md_theme_light_error = Color(0xFFBA1A1A)
-val md_theme_light_onError = Color(0xFFFFFFFF)
-val md_theme_light_errorContainer = Color(0xFFFFDAD6)
-val md_theme_light_onErrorContainer = Color(0xFF410002)
-val md_theme_light_background = Color(0xFFFFFBFF)
-val md_theme_light_onBackground = Color(0xFF1C1B1E)
-val md_theme_light_surface = Color(0xFFFFFBFF)
-val md_theme_light_onSurface = Color(0xFF1C1B1E)
-val md_theme_light_surfaceVariant = Color(0xFFE7E0EB)
-val md_theme_light_onSurfaceVariant = Color(0xFF49454E)
-val md_theme_light_outline = Color(0xFF7A757F)
-val md_theme_light_outlineVariant = Color(0xFFCAC4CF)
-val md_theme_light_scrim = Color(0xFF000000)
-val md_theme_light_inverseSurface = Color(0xFF313033)
-val md_theme_light_inverseOnSurface = Color(0xFFF3EFF4)
-val md_theme_light_inversePrimary = Color(0xFFCFBDFE)
+// ====================
+// BETA THEME COLORS (Green theme)
+// ====================
+// Background: Olive-green, soft "warm beta-background"
+val beta_light_background = Color(0xFFB6C36A)
+val beta_light_onBackground = Color(0xFF1F3E5A) // Dark blue text on green
 
-// Dark Theme Colors
-val md_theme_dark_primary = Color(0xFFCFBDFE)
-val md_theme_dark_onPrimary = Color(0xFF381E72)
-val md_theme_dark_primaryContainer = Color(0xFF4F378A)
-val md_theme_dark_onPrimaryContainer = Color(0xFFE9DDFF)
-val md_theme_dark_secondary = Color(0xFFCBC2DB)
-val md_theme_dark_onSecondary = Color(0xFF332D41)
-val md_theme_dark_secondaryContainer = Color(0xFF4A4458)
-val md_theme_dark_onSecondaryContainer = Color(0xFFE8DEF8)
-val md_theme_dark_tertiary = Color(0xFFEFB8C8)
-val md_theme_dark_onTertiary = Color(0xFF4A2532)
-val md_theme_dark_tertiaryContainer = Color(0xFF633B48)
-val md_theme_dark_onTertiaryContainer = Color(0xFFFFD8E4)
-val md_theme_dark_error = Color(0xFFFFB4AB)
-val md_theme_dark_onError = Color(0xFF690005)
-val md_theme_dark_errorContainer = Color(0xFF93000A)
-val md_theme_dark_onErrorContainer = Color(0xFFFFDAD6)
-val md_theme_dark_background = Color(0xFF1C1B1E)
-val md_theme_dark_onBackground = Color(0xFFE5E1E6)
-val md_theme_dark_surface = Color(0xFF1C1B1E)
-val md_theme_dark_onSurface = Color(0xFFE5E1E6)
-val md_theme_dark_surfaceVariant = Color(0xFF49454E)
-val md_theme_dark_onSurfaceVariant = Color(0xFFCAC4CF)
-val md_theme_dark_outline = Color(0xFF948F99)
-val md_theme_dark_outlineVariant = Color(0xFF49454E)
-val md_theme_dark_scrim = Color(0xFF000000)
-val md_theme_dark_inverseSurface = Color(0xFFE5E1E6)
-val md_theme_dark_inverseOnSurface = Color(0xFF313033)
-val md_theme_dark_inversePrimary = Color(0xFF6750A4)
+// Primary: Dark blue with cool tone (book icon, main color)
+val beta_light_primary = Color(0xFF1F3E5A)
+val beta_light_onPrimary = Color(0xFFF3E7CF) // Milky-cream text on blue
+
+// Surface: Use light cream for cards/surfaces
+val beta_light_surface = Color(0xFFF3E7CF)
+val beta_light_onSurface = Color(0xFF1F3E5A)
+
+// Secondary: Red for Beta badge
+val beta_light_secondary = Color(0xFFE6453A)
+val beta_light_onSecondary = Color(0xFFFFFFFF)
+
+// Container colors
+val beta_light_primaryContainer = Color(0xFF2A5A7F) // Slightly lighter blue
+val beta_light_onPrimaryContainer = Color(0xFFF3E7CF)
+val beta_light_secondaryContainer = Color(0xFFFF6B5E)
+val beta_light_onSecondaryContainer = Color(0xFFFFFFFF)
+
+// Other colors
+val beta_light_tertiary = Color(0xFFB6C36A)
+val beta_light_onTertiary = Color(0xFF1F3E5A)
+val beta_light_error = Color(0xFFBA1A1A)
+val beta_light_onError = Color(0xFFFFFFFF)
+val beta_light_outline = Color(0xFF7A8F6A)
+val beta_light_surfaceVariant = Color(0xFFE8E3D8)
+val beta_light_onSurfaceVariant = Color(0xFF4A4E42)
+
+// Dark theme for beta (if needed - inverse colors)
+val beta_dark_background = Color(0xFF1F3E5A)
+val beta_dark_onBackground = Color(0xFFF3E7CF)
+val beta_dark_primary = Color(0xFFB6C36A)
+val beta_dark_onPrimary = Color(0xFF1F3E5A)
+val beta_dark_surface = Color(0xFF2A3E52)
+val beta_dark_onSurface = Color(0xFFF3E7CF)
+val beta_dark_secondary = Color(0xFFE6453A)
+val beta_dark_onSecondary = Color(0xFFFFFFFF)
+
+// ====================
+// PROD THEME COLORS (Purple theme)
+// ====================
+// Background: Deep dark purple with gradient
+val prod_light_background = Color(0xFF3B2452)
+val prod_light_onBackground = Color(0xFFF6EAD7) // Creamy-white text on purple
+
+// Primary: Saturated warm orange-yellow (book icon, accent)
+val prod_light_primary = Color(0xFFF5A623)
+val prod_light_onPrimary = Color(0xFF3B2452) // Purple text on orange
+
+// Surface: Use cream for cards/surfaces
+val prod_light_surface = Color(0xFFF6EAD7)
+val prod_light_onSurface = Color(0xFF3B2452)
+
+// Secondary: Keep purple theme consistent
+val prod_light_secondary = Color(0xFF6B4C87)
+val prod_light_onSecondary = Color(0xFFF6EAD7)
+
+// Container colors
+val prod_light_primaryContainer = Color(0xFFFFB84D) // Lighter orange
+val prod_light_onPrimaryContainer = Color(0xFF3B2452)
+val prod_light_secondaryContainer = Color(0xFF8B6CA8)
+val prod_light_onSecondaryContainer = Color(0xFFF6EAD7)
+
+// Other colors
+val prod_light_tertiary = Color(0xFFF5A623)
+val prod_light_onTertiary = Color(0xFF3B2452)
+val prod_light_error = Color(0xFFBA1A1A)
+val prod_light_onError = Color(0xFFFFFFFF)
+val prod_light_outline = Color(0xFF8B7A9B)
+val prod_light_surfaceVariant = Color(0xFFEBE1D7)
+val prod_light_onSurfaceVariant = Color(0xFF4E4452)
+
+// Dark theme for prod (lighter purple background)
+val prod_dark_background = Color(0xFF2B1A3A)
+val prod_dark_onBackground = Color(0xFFF6EAD7)
+val prod_dark_primary = Color(0xFFF5A623)
+val prod_dark_onPrimary = Color(0xFF3B2452)
+val prod_dark_surface = Color(0xFF3B2452)
+val prod_dark_onSurface = Color(0xFFF6EAD7)
+val prod_dark_secondary = Color(0xFF8B6CA8)
+val prod_dark_onSecondary = Color(0xFFF6EAD7)
+
+// ====================
+// DEV/STAGE THEME (Use standard Material colors or beta theme)
+// ====================
+// For dev and stage, we can reuse beta colors or use standard Material theme
+// Using beta colors as default for dev/stage

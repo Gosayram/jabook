@@ -49,8 +49,8 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.jabook.app.jabook.compose.data.model.AppTheme
 import cafe.adriel.lyricist.LocalStrings
+import com.jabook.app.jabook.compose.data.model.AppTheme
 
 /**
  * Settings screen for app configuration.

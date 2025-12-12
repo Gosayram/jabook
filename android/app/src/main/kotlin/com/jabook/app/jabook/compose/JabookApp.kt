@@ -24,6 +24,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import cafe.adriel.lyricist.LocalStrings
@@ -54,6 +55,12 @@ fun JabookApp(
     viewModel: MainViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    
+    // Detect if this is a beta/dev/stage flavor by checking package name
+    // Beta: com.jabook.app.jabook.beta, Dev: .dev, Stage: .stage, Prod: com.jabook.app.jabook
+    val context = LocalContext.current
+    val packageName = context.packageName
+    val isBetaFlavor = packageName.endsWith(".beta") || packageName.endsWith(".dev") || packageName.endsWith(".stage")
 
     // Handle deep links when intent changes
     androidx.compose.runtime.LaunchedEffect(intent) {
@@ -80,6 +87,7 @@ fun JabookApp(
     ProvideStrings(rememberStrings()) {
         JabookTheme(
             darkTheme = darkTheme,
+            isBetaFlavor = isBetaFlavor,
         ) {
             Scaffold(
                 modifier = Modifier.fillMaxSize(),

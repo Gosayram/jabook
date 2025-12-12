@@ -1,116 +1,120 @@
 package com.jabook.app.jabook.ui.theme
 
 import android.app.Activity
-import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
-private val LightColorScheme =
+// Beta Light Color Scheme (Green theme)
+private val BetaLightColorScheme =
     lightColorScheme(
-        primary = md_theme_light_primary,
-        onPrimary = md_theme_light_onPrimary,
-        primaryContainer = md_theme_light_primaryContainer,
-        onPrimaryContainer = md_theme_light_onPrimaryContainer,
-        secondary = md_theme_light_secondary,
-        onSecondary = md_theme_light_onSecondary,
-        secondaryContainer = md_theme_light_secondaryContainer,
-        onSecondaryContainer = md_theme_light_onSecondaryContainer,
-        tertiary = md_theme_light_tertiary,
-        onTertiary = md_theme_light_onTertiary,
-        tertiaryContainer = md_theme_light_tertiaryContainer,
-        onTertiaryContainer = md_theme_light_onTertiaryContainer,
-        error = md_theme_light_error,
-        onError = md_theme_light_onError,
-        errorContainer = md_theme_light_errorContainer,
-        onErrorContainer = md_theme_light_onErrorContainer,
-        background = md_theme_light_background,
-        onBackground = md_theme_light_onBackground,
-        surface = md_theme_light_surface,
-        onSurface = md_theme_light_onSurface,
-        surfaceVariant = md_theme_light_surfaceVariant,
-        onSurfaceVariant = md_theme_light_onSurfaceVariant,
-        outline = md_theme_light_outline,
-        outlineVariant = md_theme_light_outlineVariant,
-        scrim = md_theme_light_scrim,
-        inverseSurface = md_theme_light_inverseSurface,
-        inverseOnSurface = md_theme_light_inverseOnSurface,
-        inversePrimary = md_theme_light_inversePrimary,
+        primary = beta_light_primary,
+        onPrimary = beta_light_onPrimary,
+        primaryContainer = beta_light_primaryContainer,
+        onPrimaryContainer = beta_light_onPrimaryContainer,
+        secondary = beta_light_secondary,
+        onSecondary = beta_light_onSecondary,
+        secondaryContainer = beta_light_secondaryContainer,
+        onSecondaryContainer = beta_light_onSecondaryContainer,
+        tertiary = beta_light_tertiary,
+        onTertiary = beta_light_onTertiary,
+        error = beta_light_error,
+        onError = beta_light_onError,
+        background = beta_light_background,
+        onBackground = beta_light_onBackground,
+        surface = beta_light_surface,
+        onSurface = beta_light_onSurface,
+        surfaceVariant = beta_light_surfaceVariant,
+        onSurfaceVariant = beta_light_onSurfaceVariant,
+        outline = beta_light_outline,
     )
 
-private val DarkColorScheme =
+// Beta Dark Color Scheme
+private val BetaDarkColorScheme =
     darkColorScheme(
-        primary = md_theme_dark_primary,
-        onPrimary = md_theme_dark_onPrimary,
-        primaryContainer = md_theme_dark_primaryContainer,
-        onPrimaryContainer = md_theme_dark_onPrimaryContainer,
-        secondary = md_theme_dark_secondary,
-        onSecondary = md_theme_dark_onSecondary,
-        secondaryContainer = md_theme_dark_secondaryContainer,
-        onSecondaryContainer = md_theme_dark_onSecondaryContainer,
-        tertiary = md_theme_dark_tertiary,
-        onTertiary = md_theme_dark_onTertiary,
-        tertiaryContainer = md_theme_dark_tertiaryContainer,
-        onTertiaryContainer = md_theme_dark_onTertiaryContainer,
-        error = md_theme_dark_error,
-        onError = md_theme_dark_onError,
-        errorContainer = md_theme_dark_errorContainer,
-        onErrorContainer = md_theme_dark_onErrorContainer,
-        background = md_theme_dark_background,
-        onBackground = md_theme_dark_onBackground,
-        surface = md_theme_dark_surface,
-        onSurface = md_theme_dark_onSurface,
-        surfaceVariant = md_theme_dark_surfaceVariant,
-        onSurfaceVariant = md_theme_dark_onSurfaceVariant,
-        outline = md_theme_dark_outline,
-        outlineVariant = md_theme_dark_outlineVariant,
-        scrim = md_theme_dark_scrim,
-        inverseSurface = md_theme_dark_inverseSurface,
-        inverseOnSurface = md_theme_dark_inverseOnSurface,
-        inversePrimary = md_theme_dark_inversePrimary,
+        primary = beta_dark_primary,
+        onPrimary = beta_dark_onPrimary,
+        secondary = beta_dark_secondary,
+        onSecondary = beta_dark_onSecondary,
+        background = beta_dark_background,
+        onBackground = beta_dark_onBackground,
+        surface = beta_dark_surface,
+        onSurface = beta_dark_onSurface,
+    )
+
+// Prod Light Color Scheme (Purple theme)
+private val ProdLightColorScheme =
+    lightColorScheme(
+        primary = prod_light_primary,
+        onPrimary = prod_light_onPrimary,
+        primaryContainer = prod_light_primaryContainer,
+        onPrimaryContainer = prod_light_onPrimaryContainer,
+        secondary = prod_light_secondary,
+        onSecondary = prod_light_onSecondary,
+        secondaryContainer = prod_light_secondaryContainer,
+        onSecondaryContainer = prod_light_onSecondaryContainer,
+        tertiary = prod_light_tertiary,
+        onTertiary = prod_light_onTertiary,
+        error = prod_light_error,
+        onError = prod_light_onError,
+        background = prod_light_background,
+        onBackground = prod_light_onBackground,
+        surface = prod_light_surface,
+        onSurface = prod_light_onSurface,
+        surfaceVariant = prod_light_surfaceVariant,
+        onSurfaceVariant = prod_light_onSurfaceVariant,
+        outline = prod_light_outline,
+    )
+
+// Prod Dark Color Scheme
+private val ProdDarkColorScheme =
+    darkColorScheme(
+        primary = prod_dark_primary,
+        onPrimary = prod_dark_onPrimary,
+        secondary = prod_dark_secondary,
+        onSecondary = prod_dark_onSecondary,
+        background = prod_dark_background,
+        onBackground = prod_dark_onBackground,
+        surface = prod_dark_surface,
+        onSurface = prod_dark_onSurface,
     )
 
 /**
- * Jabook application theme with Material 3 design system.
+ * Jabook application theme with flavor-specific branding.
  *
- * Supports:
- * - Light/Dark themes
- * - Dynamic colors (Android 12+)
- * - Edge-to-edge UI with proper system bars handling
+ * Beta flavor: Green theme with dark blue accents
+ * Prod flavor: Purple theme with orange-yellow accents
+ * Dev/Stage flavors: Use beta theme
  *
  * @param darkTheme Whether to use dark theme. Defaults to system setting.
- * @param dynamicColor Whether to use dynamic color (Android 12+). Defaults to true.
+ * @param isBetaFlavor Whether this is beta/dev/stage flavor (true) or prod (false). Defaults to true.
  * @param content The composable content to be themed.
  */
 @Composable
 fun JabookTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = true,
+    isBetaFlavor: Boolean = true,
     content: @Composable () -> Unit,
 ) {
+    // Select color scheme based on build flavor and theme
     val colorScheme =
         when {
-            dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-                val context = LocalContext.current
-                if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-            }
-            darkTheme -> DarkColorScheme
-            else -> LightColorScheme
+            isBetaFlavor && darkTheme -> BetaDarkColorScheme
+            isBetaFlavor && !darkTheme -> BetaLightColorScheme
+            !isBetaFlavor && darkTheme -> ProdDarkColorScheme
+            else -> ProdLightColorScheme
         }
 
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            // Edges-to-edge is enabled in Activity, so we just need to ensure
+            // Edge-to-edge is enabled in Activity, so we just need to ensure
             // the system bars contrast matches the theme.
             WindowCompat.getInsetsController(window, view).apply {
                 isAppearanceLightStatusBars = !darkTheme
