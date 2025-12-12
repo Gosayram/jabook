@@ -34,7 +34,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.jabook.app.jabook.compose.designsystem.component.EmptyState
 import com.jabook.app.jabook.compose.designsystem.component.ErrorScreen
 import com.jabook.app.jabook.compose.designsystem.component.LoadingScreen
-import com.jabook.app.jabook.compose.l10n.LocalStrings
+import cafe.adriel.lyricist.LocalStrings
 
 /**
  * Library screen - displays the user's audiobook collection.

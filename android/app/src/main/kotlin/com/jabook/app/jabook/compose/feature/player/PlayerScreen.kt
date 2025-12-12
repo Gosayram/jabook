@@ -61,7 +61,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.jabook.app.jabook.compose.designsystem.component.ErrorScreen
 import com.jabook.app.jabook.compose.designsystem.component.LoadingScreen
-import com.jabook.app.jabook.compose.l10n.LocalStrings
+import cafe.adriel.lyricist.LocalStrings
 import kotlin.time.Duration.Companion.milliseconds
 
 /**

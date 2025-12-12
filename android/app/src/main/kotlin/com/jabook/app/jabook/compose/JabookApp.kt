@@ -26,7 +26,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.jabook.app.jabook.compose.l10n.LocalStrings
+import cafe.adriel.lyricist.LocalStrings
+import cafe.adriel.lyricist.ProvideStrings
+import cafe.adriel.lyricist.rememberStrings
 import com.jabook.app.jabook.compose.navigation.JabookAppState
 import com.jabook.app.jabook.compose.navigation.JabookNavHost
 import com.jabook.app.jabook.compose.navigation.TopLevelDestination
@@ -73,26 +75,30 @@ fun JabookApp(
             }
         }
 
-    JabookTheme(
-        darkTheme = darkTheme,
-    ) {
-        Scaffold(
-            modifier = Modifier.fillMaxSize(),
-            snackbarHost = { androidx.compose.material3.SnackbarHost(appState.snackbarHostState) },
-            bottomBar = {
-                JabookBottomBar(
-                    destinations = appState.topLevelDestinations,
-                    currentDestination = appState.currentDestination,
-                    onNavigateToDestination = { destination ->
-                        appState.navigateToTopLevelDestination(destination)
-                    },
+    // Setup Lyricist for type-safe localization
+    // This must wrap the theme/content so LocalStrings is available in all subcompositions
+    ProvideStrings(rememberStrings()) {
+        JabookTheme(
+            darkTheme = darkTheme,
+        ) {
+            Scaffold(
+                modifier = Modifier.fillMaxSize(),
+                snackbarHost = { androidx.compose.material3.SnackbarHost(appState.snackbarHostState) },
+                bottomBar = {
+                    JabookBottomBar(
+                        destinations = appState.topLevelDestinations,
+                        currentDestination = appState.currentDestination,
+                        onNavigateToDestination = { destination ->
+                            appState.navigateToTopLevelDestination(destination)
+                        },
+                    )
+                },
+            ) { padding ->
+                JabookNavHost(
+                    appState = appState,
+                    modifier = Modifier.padding(padding),
                 )
-            },
-        ) { padding ->
-            JabookNavHost(
-                appState = appState,
-                modifier = Modifier.padding(padding),
-            )
+            }
         }
     }
 }
