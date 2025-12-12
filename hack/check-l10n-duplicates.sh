@@ -1,60 +1,69 @@
 #!/bin/bash
-# Check for duplicate top-level keys in ARB localization files
+# Check for duplicate string resource keys in Android strings.xml files
 
 set -e
 
-EN_FILE="lib/l10n/app_en.arb"
-RU_FILE="lib/l10n/app_ru.arb"
+# Android strings.xml locations
+DEFAULT_STRINGS="android/app/src/main/res/values/strings.xml"
+RU_STRINGS="android/app/src/main/res/values-ru/strings.xml"
 
 EXIT_CODE=0
 
-echo "Checking for duplicate top-level keys in ARB files..."
+echo "Checking for duplicate string resource keys in Android XML files..."
 echo ""
 
-# Function to find duplicates in a file
+# Function to find duplicates in a strings.xml file
 check_duplicates() {
     local file=$1
     local file_name=$(basename "$file")
+    local dir=$(dirname "$file")
+    local locale=$(basename "$dir")
     
     if [ ! -f "$file" ]; then
-        echo "⚠️  $file_name not found"
+        echo "ℹ️  $file not found (locale: $locale) - skipping"
         return
     fi
     
-    echo "Checking $file_name..."
+    echo "Checking $file_name (locale: $locale)..."
     
-    # Extract top-level keys (keys at root level, indent <= 2 spaces)
-    # Match pattern: "key": or "@key": at the beginning of line (after optional spaces)
+    # Extract string resource names from <string name="key"> tags
     local duplicates=$(awk '
     BEGIN {
         duplicates = ""
     }
     {
         # Skip comments and empty lines
-        if ($0 ~ /^[[:space:]]*\/\// || $0 ~ /^[[:space:]]*$/) {
+        if ($0 ~ /^[[:space:]]*<!--/ || $0 ~ /^[[:space:]]*$/) {
             next
         }
         
-        # Check if line has <= 2 spaces indent (root level)
-        match($0, /^[[:space:]]*/)
-        indent = RLENGTH
-        
-        if (indent <= 2) {
-            # Match "key": or "@key": pattern
-            if (match($0, /^[[:space:]]*"(@?[^"]+)":/)) {
-                key = substr($0, RSTART + indent, RLENGTH - indent)
-                gsub(/^[[:space:]]*"/, "", key)
-                gsub(/":.*$/, "", key)
-                
-                if (key in seen) {
-                    if (!(key in dups)) {
-                        dups[key] = seen[key] "," NR
-                    } else {
-                        dups[key] = dups[key] "," NR
-                    }
+        # Match <string name="key"> pattern
+        if (match($0, /<string[^>]+name="([^"]+)"/, arr)) {
+            key = arr[1]
+            
+            if (key in seen) {
+                if (!(key in dups)) {
+                    dups[key] = seen[key] "," NR
                 } else {
-                    seen[key] = NR
+                    dups[key] = dups[key] "," NR
                 }
+            } else {
+                seen[key] = NR
+            }
+        }
+        
+        # Also check <string-array name="key"> and <plurals name="key">
+        if (match($0, /<(string-array|plurals)[^>]+name="([^"]+)"/, arr)) {
+            key = arr[2]
+            
+            if (key in seen) {
+                if (!(key in dups)) {
+                    dups[key] = seen[key] "," NR
+                } else {
+                    dups[key] = dups[key] "," NR
+                }
+            } else {
+                seen[key] = NR
             }
         }
     }
@@ -66,7 +75,7 @@ check_duplicates() {
     ' "$file")
     
     if [ -n "$duplicates" ]; then
-        echo "❌ Found duplicate top-level keys in $file_name:"
+        echo "❌ Found duplicate string resource keys in $file_name (locale: $locale):"
         echo "$duplicates" | while IFS=: read -r key lines; do
             echo "  - $key (lines: $lines)"
             # Show the actual lines
@@ -76,22 +85,42 @@ check_duplicates() {
         done
         EXIT_CODE=1
     else
-        echo "✅ No duplicate top-level keys found in $file_name"
+        echo "✅ No duplicate string resource keys found in $file_name (locale: $locale)"
     fi
 }
 
-# Check both files
-check_duplicates "$EN_FILE"
-echo ""
-check_duplicates "$RU_FILE"
+# Check default strings.xml
+check_duplicates "$DEFAULT_STRINGS"
 echo ""
 
-if [ $EXIT_CODE -eq 1 ]; then
-    echo "❌ Duplicate top-level keys detected! Please fix them before committing."
-    echo "   Note: JSON parsers automatically use the last value for duplicate keys."
-    echo "   This can cause unexpected behavior, so duplicates should be removed."
-    exit 1
-else
-    echo "✅ All ARB files are clean - no duplicate top-level keys found."
+# Check Russian strings.xml
+check_duplicates "$RU_STRINGS"
+echo ""
+
+# Check if there are any other values-* directories
+echo "Searching for additional locale strings.xml files..."
+FOUND_ADDITIONAL=false
+for values_dir in android/app/src/main/res/values-*/; do
+    if [ -d "$values_dir" ]; then
+        strings_file="${values_dir}strings.xml"
+        locale=$(basename "$values_dir")
+        if [ -f "$strings_file" ] && [ "$locale" != "values-ru" ]; then
+            FOUND_ADDITIONAL=true
+            check_duplicates "$strings_file"
+            echo ""
+        fi
+    fi
+done
+
+if [ "$FOUND_ADDITIONAL" = false ]; then
+    echo "ℹ️  No additional locale strings.xml files found"
+    echo ""
 fi
 
+if [ $EXIT_CODE -eq 1 ]; then
+    echo "❌ Duplicate string resource keys detected! Please fix them before committing."
+    echo "   Android will use the last value for duplicate keys, which can cause unexpected behavior."
+    exit 1
+else
+    echo "✅ All strings.xml files are clean - no duplicate resource keys found."
+fi
