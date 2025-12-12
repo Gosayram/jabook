@@ -8,7 +8,7 @@ SIGNING_SCRIPT = scripts/signing.sh
 # Extract version from .release-version (format: version+build -> version)
 VERSION = $(shell cat .release-version 2>/dev/null | cut -d+ -f1 || echo "0.0.1")
 FULL_VERSION = $(shell cat .release-version 2>/dev/null || echo "0.0.1+1")
-APK_DEST_DIR = ~/Downloads/Jabook
+APK_DEST_DIR = $(HOME)/Downloads/Jabook
 
 # Default target
 .PHONY: help
@@ -225,7 +225,7 @@ copy-apk:
 	@echo "Copying prod APK files with version $(VERSION)..."
 	@mkdir -p $(APK_DEST_DIR)
 	@# Find and copy all prod release APKs
-	@for apk in android/app/build/outputs/apk/prod/release/*.apk; do \
+	@for apk in build/app/outputs/apk/prod/release/*.apk; do \
 		if [ -f "$$apk" ]; then \
 			filename=$$(basename "$$apk"); \
 			newname="Jabook_$(VERSION)_$${filename#app-prod-release-}"; \
@@ -235,20 +235,29 @@ copy-apk:
 	done
 	@echo "✅ Prod APK files copied to $(APK_DEST_DIR)/"
 
+
 .PHONY: copy-apk-beta
 copy-apk-beta:
 	@echo "Copying beta APK files with version $(VERSION)..."
 	@mkdir -p $(APK_DEST_DIR)
-	@# Find and copy all beta release APKs
-	@for apk in android/app/build/outputs/apk/beta/release/*.apk; do \
-		if [ -f "$$apk" ]; then \
-			filename=$$(basename "$$apk"); \
-			newname="Jabook_$(VERSION)_beta_$${filename#app-beta-release-}"; \
-			cp -f "$$apk" "$(APK_DEST_DIR)/$$newname" && \
-			echo "✅ Copied: $$newname"; \
-		fi \
-	done
+	@# Check if we have split APKs or universal APK
+	@if [ -f "build/app/outputs/apk/beta/release/app-beta-release.apk" ]; then \
+		cp -f "build/app/outputs/apk/beta/release/app-beta-release.apk" "$(APK_DEST_DIR)/Jabook_$(VERSION)_beta.apk" && \
+		echo "✅ Copied: Jabook_$(VERSION)_beta.apk"; \
+	else \
+		for apk in build/app/outputs/apk/beta/release/app-beta-*.apk; do \
+			if [ -f "$$apk" ]; then \
+				filename=$$(basename "$$apk"); \
+				arch=$${filename#app-beta-}; \
+				arch=$${arch%.apk}; \
+				newname="Jabook_$(VERSION)_beta_$$arch.apk"; \
+				cp -f "$$apk" "$(APK_DEST_DIR)/$$newname" && \
+				echo "✅ Copied: $$newname"; \
+			fi \
+		done \
+	fi
 	@echo "✅ Beta APK files copied to $(APK_DEST_DIR)/"
+
 
 .PHONY: build-and-copy
 build-and-copy: build-signed-apk copy-apk

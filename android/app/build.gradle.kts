@@ -26,8 +26,6 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_21
         targetCompatibility = JavaVersion.VERSION_21
-        // Enable core library desugaring for flutter_local_notifications
-        isCoreLibraryDesugaringEnabled = true
     }
 
     kotlin {
@@ -93,14 +91,13 @@ android {
         compose = true
     }
 
-    composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.15"
-    }
+    // Compose Compiler configuration moved to plugin (line 16)
+    // No need for composeOptions with Kotlin 2.0+ and org.jetbrains.kotlin.plugin.compose
 
     defaultConfig {
         applicationId = "com.jabook.app.jabook"
-        minSdk = 24 // Android 7.0
-        targetSdk = 35 // Android 15
+        minSdk = 30 // Android 11
+        targetSdk = 36 // Android 16
 
         // Read version from .release-version file (format: version+build, e.g. "1.2.7+127")
         val versionFile = rootProject.file("../.release-version")
@@ -155,6 +152,16 @@ android {
             resValue("string", "app_name", "JaBook")
         }
     }
+
+    // Generate separate APKs per architecture + universal APK
+    splits {
+        abi {
+            isEnable = true
+            reset()
+            include("armeabi-v7a", "arm64-v8a", "x86_64")
+            isUniversalApk = true // Also build a universal APK
+        }
+    }
 }
 
 // REMOVED: Flutter configuration block - no longer needed
@@ -168,9 +175,6 @@ ksp {
 }
 
 dependencies {
-    // Desugaring for flutter_local_notifications
-    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
-
     // AppCompat for AppCompatActivity and AlertDialog
     implementation("androidx.appcompat:appcompat:1.7.1")
 
