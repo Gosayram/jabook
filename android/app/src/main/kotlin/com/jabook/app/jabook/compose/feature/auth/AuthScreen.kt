@@ -66,6 +66,7 @@ import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.domain.model.AuthStatus
 import com.jabook.app.jabook.compose.domain.model.CaptchaData
 
+@Suppress("DEPRECATION") // hiltViewModel is from correct package but marked deprecated in some versions
 @Composable
 fun AuthScreen(
     onNavigateBack: () -> Unit,

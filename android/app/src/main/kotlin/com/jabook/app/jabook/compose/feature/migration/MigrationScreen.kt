@@ -39,6 +39,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
  *
  * Displays migration progress and prevents user interaction during migration.
  */
+@Suppress("DEPRECATION") // hiltViewModel is from correct package but marked deprecated in some versions
 @Composable
 fun MigrationScreen(
     onMigrationComplete: () -> Unit,

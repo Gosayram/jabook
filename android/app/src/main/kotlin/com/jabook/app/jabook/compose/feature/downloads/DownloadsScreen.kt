@@ -54,6 +54,7 @@ import com.jabook.app.jabook.compose.domain.model.DownloadState
  * @param viewModel ViewModel for the screen
  */
 @OptIn(ExperimentalMaterial3Api::class)
+@Suppress("DEPRECATION") // hiltViewModel is from correct package but marked deprecated in some versions
 @Composable
 fun DownloadsScreen(
     onNavigateBack: () -> Unit,
