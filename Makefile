@@ -423,7 +423,7 @@ install-beta:
 .PHONY: run-beta
 run-beta: build-signed-apk-beta
 	@echo "Installing and launching beta on device..."
-	@adb install -r build/app/outputs/apk/beta/release/app-beta-release.apk
+	@adb install -r build/app/outputs/apk/beta/release/app-beta-arm64-v8a-release.apk
 	@echo "Clearing logcat..."
 	@adb logcat -c
 	@echo "Launching Jabook Beta..."
@@ -437,7 +437,7 @@ run-beta: build-signed-apk-beta
 .PHONY: run-beta-debug
 run-beta-debug: build-signed-apk-beta
 	@echo "Installing and launching beta with debug logging..."
-	@adb install -r build/app/outputs/apk/beta/release/app-beta-release.apk
+	@adb install -r build/app/outputs/apk/beta/release/app-beta-arm64-v8a-release.apk
 	@echo "Clearing logcat..."
 	@adb logcat -c
 	@echo "Launching Jabook Beta with debug flags..."
