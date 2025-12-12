@@ -163,4 +163,50 @@ class RutrackerAuthService
                 val data: CaptchaData,
             ) : AuthResult
         }
+
+        /**
+         * Validate authentication by checking profile page access.
+         *
+         * @return true if authenticated, false otherwise
+         */
+        suspend fun validateAuth(): Boolean {
+            return withContext(Dispatchers.IO) {
+                try {
+                    val response = api.getProfile()
+
+                    if (!response.isSuccessful) return@withContext false
+
+                    val rawBody = response.body()?.bytes() ?: return@withContext false
+                    val bodyString = String(rawBody, CP1251)
+
+                    // Check for redirect to login or login form presence
+                    // If Retrofit follows redirects, we check the final URL or body content
+                    val finalUrl =
+                        response
+                            .raw()
+                            .request.url
+                            .toString()
+                    if (finalUrl.contains("login.php")) {
+                        return@withContext false
+                    }
+
+                    // Strict check: if body contains login input fields or "guest" markers
+                    // "login_username" input field is present on login page
+                    if (bodyString.contains("name=\"login_username\"", ignoreCase = true)) {
+                        return@withContext false
+                    }
+
+                    // "Профиль" or "Profile" should be present for logged in user
+                    // "Выход" (Logout) link should be present
+                    val hasLogout =
+                        bodyString.contains("login.php?logout=1") ||
+                            bodyString.contains("mode=logout")
+
+                    return@withContext hasLogout
+                } catch (e: Exception) {
+                    Log.e(TAG, "Validation failed", e)
+                    return@withContext false
+                }
+            }
+        }
     }

@@ -70,6 +70,12 @@ interface AuthRepository {
     suspend fun syncCookiesFromWebView()
 
     /**
+     * Sync cookies from PersistentCookieJar to system WebView.
+     * Should be called on app start or before WebView navigation.
+     */
+    suspend fun syncCookiesToWebView()
+
+    /**
      * Clear stored credentials.
      */
     suspend fun clearStoredCredentials()

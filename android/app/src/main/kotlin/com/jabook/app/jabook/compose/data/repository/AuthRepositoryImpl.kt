@@ -25,6 +25,7 @@ import com.jabook.app.jabook.compose.domain.repository.CaptchaRequiredException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -44,26 +45,30 @@ class AuthRepositoryImpl
         override val authStatus: StateFlow<AuthStatus> = _authStatus.asStateFlow()
 
         private val rutrackerUrl = "https://rutracker.org".toHttpUrl()
+        private val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.IO)
 
         init {
-            // Note: Ideally checkAuthStatus should be called from a coroutine scope,
-            // but for backward compatibility we use runBlocking in init.
-            // In production, this should be refactored to init from ViewModel.
-            kotlinx.coroutines.runBlocking {
+            scope.launch {
                 checkAuthStatus()
             }
         }
 
-        private suspend fun checkAuthStatus() { // Made suspend
+        private suspend fun checkAuthStatus() {
             val cookies = cookieJar.loadForRequest(rutrackerUrl)
             val hasSession = cookies.any { it.name == "bb_session" }
 
             if (hasSession) {
-                // We don't know the username from cookies easily unless we parse profile
-                // For now, check if we have stored credentials to get username
-                val stored = secureStorage.getCredentials()
-                val username = stored?.username ?: "User"
-                _authStatus.value = AuthStatus.Authenticated(username)
+                // Validate with server (strict check)
+                val isValid = authService.validateAuth()
+                if (isValid) {
+                    val stored = secureStorage.getCredentials()
+                    val username = stored?.username ?: "User"
+                    _authStatus.value = AuthStatus.Authenticated(username)
+                    syncCookiesToWebView()
+                } else {
+                    // Cookies present but invalid (expired or guest mode), clear them
+                    logout()
+                }
             } else {
                 _authStatus.value = AuthStatus.Unauthenticated
             }
@@ -148,6 +153,32 @@ class AuthRepositoryImpl
                 // Refresh status immediately
                 checkAuthStatus()
             }
+        }
+
+        override suspend fun syncCookiesToWebView() {
+            val cookies = cookieJar.loadForRequest(rutrackerUrl)
+            if (cookies.isEmpty()) return
+
+            val cookieManager = android.webkit.CookieManager.getInstance()
+            cookieManager.setAcceptCookie(true)
+
+            val url = rutrackerUrl.toString()
+            cookies.forEach { cookie ->
+                val cookieString =
+                    buildString {
+                        append("${cookie.name}=${cookie.value}")
+                        // Note: setCookie expects "name=value", domain/path attributes are optional hints
+                        // If we set Domain explicitly, it might fail if it doesn't match URL strictly?
+                        // Safe approach: set for the specific URL without forcing domain if it matches host.
+                        // But to share across subdomains, Domain is needed.
+                        if (cookie.domain.isNotEmpty()) append("; Domain=${cookie.domain}")
+                        if (cookie.path.isNotEmpty()) append("; Path=${cookie.path}")
+                        if (cookie.secure) append("; Secure")
+                        if (cookie.httpOnly) append("; HttpOnly")
+                    }
+                cookieManager.setCookie(url, cookieString)
+            }
+            cookieManager.flush()
         }
 
         private fun parseCookieString(

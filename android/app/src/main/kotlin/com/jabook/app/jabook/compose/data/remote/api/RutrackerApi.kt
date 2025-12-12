@@ -83,4 +83,12 @@ interface RutrackerApi {
     suspend fun login(
         @Body body: RequestBody,
     ): Response<ResponseBody>
+
+    /**
+     * Get profile page to validate authentication.
+     *
+     * @return HTML response of profile page
+     */
+    @GET("profile.php?mode=viewprofile")
+    suspend fun getProfile(): Response<ResponseBody>
 }

@@ -55,44 +55,109 @@ fun JabookApp(
     viewModel: MainViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    
+
     // Detect if this is a beta/dev/stage flavor by checking package name
     // Beta: com.jabook.app.jabook.beta, Dev: .dev, Stage: .stage, Prod: com.jabook.app.jabook
     val context = LocalContext.current
     val packageName = context.packageName
     val isBetaFlavor = packageName.endsWith(".beta") || packageName.endsWith(".dev") || packageName.endsWith(".stage")
 
-    // Request necessary permissions on launch
-    val permissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
-        contract = androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions(),
-        onResult = { /* Permissions handled by system, app will adapt */ }
-    )
+    // State for permission dialogs
+    var showStoragePermissionDialog by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+
+    // Launcher for "Manage All Files" settings intent (Android 11+)
+    val manageExternalStorageLauncher =
+        androidx.activity.compose.rememberLauncherForActivityResult(
+            contract =
+                androidx.activity.result.contract.ActivityResultContracts
+                    .StartActivityForResult(),
+        ) {
+            // Re-check permission on return (not guaranteed to be granted)
+            // Ideally trigger a re-composition or check via ViewModel
+        }
+
+    // Launcher for standard runtime permissions
+    val permissionLauncher =
+        androidx.activity.compose.rememberLauncherForActivityResult(
+            contract =
+                androidx.activity.result.contract.ActivityResultContracts
+                    .RequestMultiplePermissions(),
+            onResult = { /* Permissions handled by system, app will adapt */ },
+        )
 
     androidx.compose.runtime.LaunchedEffect(Unit) {
-        val permissionsToRequest = mutableListOf<String>()
-        
-        // Notification permission for Android 13+
-        if (android.os.Build.VERSION.SDK_INT >= 33) {
-            permissionsToRequest.add(android.Manifest.permission.POST_NOTIFICATIONS)
-            permissionsToRequest.add(android.Manifest.permission.READ_MEDIA_AUDIO)
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+            // Android 11+ (API 30+): Check MANAGE_EXTERNAL_STORAGE
+            if (!android.os.Environment.isExternalStorageManager()) {
+                showStoragePermissionDialog = true
+            } else {
+                // Already have storage, check Notifications (Android 13+)
+                if (android.os.Build.VERSION.SDK_INT >= 33) {
+                    if (androidx.core.content.ContextCompat.checkSelfPermission(
+                            context,
+                            android.Manifest.permission.POST_NOTIFICATIONS,
+                        ) != android.content.pm.PackageManager.PERMISSION_GRANTED
+                    ) {
+                        permissionLauncher.launch(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS))
+                    }
+                }
+            }
         } else {
-            // Legacy storage permission
-            permissionsToRequest.add(android.Manifest.permission.READ_EXTERNAL_STORAGE)
-            if (android.os.Build.VERSION.SDK_INT <= 29) {
-                permissionsToRequest.add(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
+            // Android < 11: Request legacy storage permissions
+            val permissions = mutableListOf<String>()
+            permissions.add(android.Manifest.permission.READ_EXTERNAL_STORAGE)
+            permissions.add(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
+
+            val needed =
+                permissions.filter {
+                    androidx.core.content.ContextCompat
+                        .checkSelfPermission(context, it) != android.content.pm.PackageManager.PERMISSION_GRANTED
+                }
+
+            if (needed.isNotEmpty()) {
+                permissionLauncher.launch(needed.toTypedArray())
             }
         }
+    }
 
-        val permissionsNeeded = permissionsToRequest.filter {
-            androidx.core.content.ContextCompat.checkSelfPermission(
-                context,
-                it
-            ) != android.content.pm.PackageManager.PERMISSION_GRANTED
-        }
-
-        if (permissionsNeeded.isNotEmpty()) {
-            permissionLauncher.launch(permissionsNeeded.toTypedArray())
-        }
+    if (showStoragePermissionDialog) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = {
+                // Don't allow dismissing without decision for now, or assume denied
+                showStoragePermissionDialog = false
+            },
+            title = { Text("Permission Required") },
+            text = {
+                Text(
+                    "This app needs full file access to download and manage audiobooks in your folders. Please grant 'All files access' in the next screen.",
+                )
+            },
+            confirmButton = {
+                androidx.compose.material3.TextButton(
+                    onClick = {
+                        showStoragePermissionDialog = false
+                        try {
+                            val intent = android.content.Intent(android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
+                            intent.data = android.net.Uri.parse("package:$packageName")
+                            manageExternalStorageLauncher.launch(intent)
+                        } catch (e: Exception) {
+                            // Fallback for some devices
+                            val intent = android.content.Intent(android.provider.Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
+                            manageExternalStorageLauncher.launch(intent)
+                        }
+                    },
+                ) {
+                    Text("Grant Access")
+                }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(
+                    onClick = { showStoragePermissionDialog = false },
+                ) {
+                    Text("Cancel")
+                }
+            },
+        )
     }
 
     // Handle deep links when intent changes
