@@ -1,42 +1,13 @@
-# ProGuard rules for JaBook Flutter application
-# Optimized for code shrinking, obfuscation, and APK size reduction
-
-# ============================================================================
-# Flutter Framework
-# ============================================================================
--keep class io.flutter.app.** { *; }
--keep class io.flutter.plugin.** { *; }
--keep class io.flutter.util.** { *; }
--keep class io.flutter.view.** { *; }
--keep class io.flutter.** { *; }
--keep class io.flutter.embedding.** { *; }
-
-# Flutter MethodChannel and Platform channels
--keep class io.flutter.plugin.common.** { *; }
--keep class io.flutter.plugin.platform.** { *; }
-
-# ============================================================================
-# Google Play Core (for deferred components - optional dependency)
-# ============================================================================
-# These classes are referenced by Flutter but may not be included in the APK
--dontwarn com.google.android.play.core.splitcompat.**
--dontwarn com.google.android.play.core.splitinstall.**
--dontwarn com.google.android.play.core.tasks.**
--keep class com.google.android.play.core.splitcompat.** { *; }
--keep class com.google.android.play.core.splitinstall.** { *; }
--keep class com.google.android.play.core.tasks.** { *; }
+# ProGuard rules for JaBook Kotlin/Android Application
+# Optimized for R8, code shrinking, obfuscation, and APK size reduction
+# Removed Flutter-specific rules, added Compose + modern AndroidX rules
 
 # ============================================================================
 # Kotlin Language
 # ============================================================================
--keep class kotlin.** { *; }
 -keep class kotlin.Metadata { *; }
--dontwarn kotlin.**
 -keepclassmembers class **$WhenMappings {
     <fields>;
-}
--keepclassmembers class kotlin.Metadata {
-    public <methods>;
 }
 
 # Kotlin coroutines
@@ -44,275 +15,217 @@
 -keepnames class kotlinx.coroutines.CoroutineExceptionHandler {}
 -keepnames class kotlinx.coroutines.android.AndroidExceptionPreHandler {}
 -keepnames class kotlinx.coroutines.android.AndroidDispatcherFactory {}
--keep class kotlinx.coroutines.** { *; }
--dontwarn kotlinx.coroutines.**
 
-# Kotlin serialization (if used)
+# Kotlin serialization
 -keepattributes *Annotation*, InnerClasses
 -dontnote kotlinx.serialization.AnnotationsKt
+-keep,includedescriptorclasses class com.jabook.app.jabook.**$$serializer { *; }
+-keepclassmembers class com.jabook.app.jabook.** {
+    *** Companion;
+}
+-keepclasseswithmembers class com.jabook.app.jabook.** {
+    kotlinx.serialization.KSerializer serializer(...);
+}
 
 # ============================================================================
-# Dagger Hilt - Dependency Injection
+# Jetpack Compose
+# ============================================================================
+-keep class androidx.compose.** { *; }
+-keep class androidx.compose.runtime.** { *; }
+-keep class androidx.compose.ui.** { *; }
+-keep class androidx.compose.material3.** { *; }
+-keep class androidx.compose.animation.** { *; }
+
+# Compose Navigation
+-keep class androidx.navigation.compose.** { *; }
+
+# Compose compiler generates classes we need to keep
+-keep class **.*$Companion { *; }
+-keepclassmembers class **.*$Companion { *; }
+
+# ============================================================================
+# Hilt - Dependency Injection
 # ============================================================================
 -keep class dagger.hilt.** { *; }
 -keep class javax.inject.** { *; }
 -keep class * extends dagger.hilt.android.HiltAndroidApp
+-keep @dagger.hilt.android.AndroidEntryPoint class *
+-keep @dagger.hilt.android.HiltAndroidApp class *
 -keepclasseswithmembers class * {
     @dagger.hilt.android.AndroidEntryPoint <methods>;
 }
--keep @dagger.hilt.android.AndroidEntryPoint class *
 -keepclassmembers class * {
     @dagger.hilt.android.lifecycle.HiltViewModel <init>(...);
 }
+
+# Keep Hilt generated components
+-keep class **_HiltComponents { *; }
+-keep class **_HiltModules* { *; }
+-keep class **_Factory { *; }
+-keep class **_MembersInjector { *; }
+
+# ============================================================================
+# Room Database
+# ============================================================================
+-keep class * extends androidx.room.RoomDatabase
+-keep @androidx.room.Entity class *
+-dontwarn androidx.room.paging.**
+
+# Keep Room-generated Kotlin code
+-keep class **.*_Impl { *; }
+-keep class **.*$Creator { *; }
+
+# ============================================================================
+# DataStore (Preferences + Proto)
+# ============================================================================
+-keep class androidx.datastore.** { *; }
+-keep class androidx.datastore.preferences.** { *; }
+-keepclassmembers class * extends androidx.datastore.preferences.protobuf.GeneratedMessageLite {
+    <fields>;
+}
+
+# Proto DataStore generated classes
+-keep class com.jabook.app.jabook.compose.data.preferences.UserPreferences { *; }
+-keep class **.*$Builder { *; }
+
+# ============================================================================
+# Google Tink - Encryption
+# ============================================================================
+-keep class com.google.crypto.tink.** { *; }
+-dontwarn com.google.crypto.tink.**
 
 # ============================================================================
 # Media3 ExoPlayer - Native Audio Player
 # ============================================================================
 -keep class androidx.media3.** { *; }
--keep class com.google.android.exoplayer2.** { *; }
+-keep interface androidx.media3.** { *; }
 -dontwarn androidx.media3.**
 
-# Media3-session uses legacy support library classes for backward compatibility
-# Jetifier will handle the migration automatically, suppress warnings
--keep class androidx.media3.session.legacy.** { *; }
-# Keep legacy classes that are used by Media3 for compatibility
--keep class android.support.v4.media.MediaDescriptionCompat { *; }
+# Media3 Extractors (needed for audio formats)
+-keep class androidx.media3.extractor.** { *; }
+-keep class androidx.media3.decoder.** { *; }
+
+# ============================================================================
+# WorkManager
+# ============================================================================
+-keep class androidx.work.** { *; }
+-keep class * extends androidx.work.Worker
+-keep class * extends androidx.work.CoroutineWorker
+-keepclassmembers class * extends androidx.work.Worker {
+    public <init>(android.content.Context,androidx.work.WorkerParameters);
+}
 
 # ============================================================================
 # Network Libraries
 # ============================================================================
-# OkHttp
--keep class okhttp3.** { *; }
--keep interface okhttp3.** { *; }
+# OkHttp3
+-keep,allowobfuscation,allowshrinking class okhttp3.**
+-keep,allowobfuscation,allowshrinking interface okhttp3.**
 -dontwarn okhttp3.**
 -dontwarn okio.**
--keepnames class okhttp3.internal.publicsuffix.PublicSuffixDatabase
+-dontwarn org.bouncycastle.jsse.**
+-dontwarn org.conscrypt.**
+-dontwarn org.openjsse.**
 
-# Dio (Flutter HTTP client)
--keep class dio.** { *; }
--dontwarn dio.**
-
-# Retrofit (if used)
--keep class retrofit2.** { *; }
+# Retrofit2
+-keep,allowobfuscation,allowshrinking class retrofit2.**
+-keep,allowobfuscation,allowshrinking interface retrofit2.**
 -keepattributes Signature, Exceptions
 -keepclasseswithmembers class * {
     @retrofit2.http.* <methods>;
 }
 
-# ============================================================================
-# Flutter Plugins - WebView
-# ============================================================================
-# webview_flutter
--keep class io.flutter.plugins.webviewflutter.** { *; }
--keep class android.webkit.** { *; }
+# Gson (for JSON)
+-keep class com.google.gson.** { *; }
+-keep class * implements com.google.gson.TypeAdapter
+-keep class * implements com.google.gson.TypeAdapterFactory
+-keep class * implements com.google.gson.JsonSerializer
+-keep class * implements com.google.gson.JsonDeserializer
 
-# flutter_inappwebview
--keep class com.pichillilorenzo.flutter_inappwebview.** { *; }
--keep class android.webkit.** { *; }
-
-# ============================================================================
-# Flutter Plugins - Storage & Security
-# ============================================================================
-# flutter_secure_storage
--keep class com.it_nomads.fluttersecurestorage.** { *; }
--keep class androidx.security.crypto.** { *; }
-
-# shared_preferences
--keep class io.flutter.plugins.sharedpreferences.** { *; }
-
-# path_provider
--keep class io.flutter.plugins.pathprovider.** { *; }
-
-# sembast (NoSQL database)
--keep class sembast.** { *; }
--keep class dart.io.** { *; }
-
-# ============================================================================
-# Flutter Plugins - Authentication & Permissions
-# ============================================================================
-# local_auth
--keep class io.flutter.plugins.localauth.** { *; }
-
-# permission_handler
--keep class com.baseflow.permissionhandler.** { *; }
-
-# ============================================================================
-# Flutter Plugins - File & Media
-# ============================================================================
-# file_picker
--keep class com.mr.flutter.plugin.filepicker.** { *; }
-
-# image_picker
--keep class io.flutter.plugins.imagepicker.** { *; }
-
-# ============================================================================
-# Flutter Plugins - Notifications & Background
-# ============================================================================
-# flutter_local_notifications
--keep class com.dexterous.flutterlocalnotifications.** { *; }
--keep class androidx.work.** { *; }
-
-# workmanager
--keep class be.tramckrijte.workmanager.** { *; }
--keep class androidx.work.** { *; }
-
-# ============================================================================
-# Flutter Plugins - Other
-# ============================================================================
-# url_launcher
--keep class io.flutter.plugins.urllauncher.** { *; }
-
-# share_plus
--keep class dev.fluttercommunity.plus.share.** { *; }
-
-# integration_test - dev dependency, not available in release builds
--dontwarn dev.flutter.plugins.integration_test.**
--keep class dev.flutter.plugins.integration_test.** { *; }
-
-# device_info_plus
--keep class dev.fluttercommunity.plus.deviceinfo.** { *; }
-
-# package_info_plus
--keep class dev.fluttercommunity.plus.packageinfo.** { *; }
-
-# connectivity_plus
--keep class dev.fluttercommunity.plus.connectivity.** { *; }
-
-# android_intent_plus
--keep class dev.fluttercommunity.plus.androidintent.** { *; }
-
-# ============================================================================
-# Custom Application Classes
-# ============================================================================
-# Keep custom Kotlin classes used by Flutter
--keep class com.jabook.app.jabook.** { *; }
--keep class com.jabook.app.jabook.audio.** { *; }
--keep class com.jabook.app.jabook.download.** { *; }
-
-# Keep MainActivity and Application class
--keep class com.jabook.app.jabook.MainActivity { *; }
--keep class com.jabook.app.jabook.JabookApplication { *; }
-
-# ============================================================================
-# JSON Serialization (json_serializable, freezed)
-# ============================================================================
-# Keep classes with @JsonSerializable annotation
--keep @com.google.gson.annotations.SerializedName class * { *; }
+# Keep data classes for Gson
 -keepclassmembers,allowobfuscation class * {
     @com.google.gson.annotations.SerializedName <fields>;
 }
 
-# Keep freezed generated classes
--keep class **$* { *; }
--keep class **$*$* { *; }
-
-# Keep classes with @freezed annotation
--keep @freezed.union.Union class * { *; }
--keepclassmembers class * {
-    @freezed.** *;
-}
-
-# Keep JSON serialization methods
--keepclassmembers class * {
-    <fields>;
-}
-
 # ============================================================================
-# Riverpod & State Management
+# Torrent Libraries
 # ============================================================================
--keep class riverpod.** { *; }
--keep class flutter_riverpod.** { *; }
-
-# ============================================================================
-# GoRouter
-# ============================================================================
--keep class go_router.** { *; }
-
-# ============================================================================
-# Torrent Libraries (if any native components)
-# ============================================================================
+# jlibtorrent
 -keep class com.frostwire.jlibtorrent.** { *; }
 -keep class org.libtorrent4j.** { *; }
--dontwarn com.frostwire.jlibtorrent.**
--dontwarn org.libtorrent4j.**
-
-# ============================================================================
-# AndroidX Libraries
-# ============================================================================
-# Keep AndroidX classes that might be used via reflection
--keep class androidx.** { *; }
--dontwarn androidx.**
-
-# Keep Android Support Library classes
-# Media3-session and other libraries may reference old support library classes
-# Jetifier automatically migrates these, suppress warnings
--keep class android.support.** { *; }
--dontwarn android.support.**
-# Specifically suppress warnings for media support library classes used by Media3
--dontwarn android.support.v4.media.**
--dontwarn android.support.v4.media.MediaDescriptionCompat
-
-# ============================================================================
-# Android Platform Classes
-# ============================================================================
-# Keep Android classes used by plugins
--keep class android.app.** { *; }
--keep class android.content.** { *; }
--keep class android.os.** { *; }
--keep class android.net.** { *; }
--keep class android.webkit.** { *; }
--keep class android.media.** { *; }
--keep class android.provider.** { *; }
-
-# ============================================================================
-# Optimization Settings
-# ============================================================================
-# Aggressive optimization for smaller APK size
--optimizations !code/simplification/arithmetic,!code/simplification/cast,!field/*,!class/merging/*
--optimizationpasses 5
--allowaccessmodification
--dontpreverify
-
-# Remove logging in release builds (reduces APK size)
--assumenosideeffects class android.util.Log {
-    public static boolean isLoggable(java.lang.String, int);
-    public static int v(...);
-    public static int i(...);
-    public static int w(...);
-    public static int d(...);
-    public static int e(...);
-}
-
-# Remove debug logging from Kotlin
--assumenosideeffects class kotlin.io.ConsoleKt {
-    public static void println(...);
-}
-
-# ============================================================================
-# Keep Native Methods
-# ============================================================================
 -keepclasseswithmembernames class * {
     native <methods>;
 }
 
 # ============================================================================
-# Keep Enums
+# AndroidX Libraries
 # ============================================================================
+# Core AndroidX
+-keep class androidx.core.** { *; }
+-keep class androidx.appcompat.** { *; }
+-keep class androidx.fragment.** { *; }
+-keep class androidx.lifecycle.** { *; }
+
+# Android Support for backward compatibility
+-dontwarn android.support.**
+
+# ============================================================================
+# Custom Application Classes
+# ============================================================================
+# Keep all app classes (adjust if using obfuscation)
+-keep class com.jabook.app.jabook.** { *; }
+
+# Keep MainActivity and Application
+-keep class com.jabook.app.jabook.MainActivity { *; }
+-keep class com.jabook.app.jabook.JabookApplication { *; }
+-keep class com.jabook.app.jabook.compose.ComposeMainActivity { *; }
+
+# Keep data models (for JSON/serialization)
+-keep class com.jabook.app.jabook.compose.domain.model.** { *; }
+-keep class com.jabook.app.jabook.compose.data.local.entity.** { *; }
+
+# ============================================================================
+# R8 Optimization Settings
+# ============================================================================
+# Enable aggressive optimization
+-optimizationpasses 5
+-allowaccessmodification
+-repackageclasses ''
+
+# Remove all logging in release builds
+-assumenosideeffects class android.util.Log {
+    public static *** v(...);
+    public static *** d(...);
+    public static *** i(...);
+    public static *** w(...);
+    public static *** e(...);
+}
+
+# Remove Kotlin logging
+-assumenosideeffects class kotlin.io.ConsoleKt {
+    public static *** println(...);
+}
+
+# ============================================================================
+# Keep Standard Android Classes
+# ============================================================================
+# Native methods
+-keepclasseswithmembernames,includedescriptorclasses class * {
+    native <methods>;
+}
+
+# Enums
 -keepclassmembers enum * {
     public static **[] values();
     public static ** valueOf(java.lang.String);
 }
 
-# ============================================================================
-# Keep Parcelable
-# ============================================================================
+# Parcelable
 -keep class * implements android.os.Parcelable {
     public static final android.os.Parcelable$Creator *;
 }
 
-# ============================================================================
-# Keep Serializable
-# ============================================================================
+# Serializable
 -keepclassmembers class * implements java.io.Serializable {
     static final long serialVersionUID;
     private static final java.io.ObjectStreamField[] serialPersistentFields;
@@ -322,16 +235,7 @@
     java.lang.Object readResolve();
 }
 
-# ============================================================================
-# Keep R classes (but allow obfuscation of resource names)
-# ============================================================================
--keepclassmembers class **.R$* {
-    public static <fields>;
-}
-
-# ============================================================================
 # Keep View constructors for XML layouts
-# ============================================================================
 -keepclasseswithmembers class * {
     public <init>(android.content.Context, android.util.AttributeSet);
 }
@@ -339,33 +243,29 @@
     public <init>(android.content.Context, android.util.AttributeSet, int);
 }
 
-# ============================================================================
 # WebView JavaScript Interface
-# ============================================================================
 -keepclassmembers class * {
     @android.webkit.JavascriptInterface <methods>;
 }
 
 # ============================================================================
-# Keep annotations (needed for reflection-based libraries)
+# Keep Attributes
 # ============================================================================
 -keepattributes *Annotation*
 -keepattributes Signature
 -keepattributes Exceptions
 -keepattributes InnerClasses
 -keepattributes EnclosingMethod
+-keepattributes SourceFile
+-keepattributes LineNumberTable
 
 # ============================================================================
-# Suppress warnings for optional dependencies
+# Suppress Warnings
 # ============================================================================
 -dontwarn javax.annotation.**
 -dontwarn javax.inject.**
 -dontwarn org.checkerframework.**
--dontwarn org.codehaus.mojo.animal_sniffer.IgnoreJRERequirement
-
-# ============================================================================
-# Apache Tika / javax.xml.stream (optional dependencies)
-# ============================================================================
-# These classes are referenced by some libraries but not available on Android
+-dontwarn org.codehaus.mojo.animal_sniffer.**
 -dontwarn javax.xml.stream.**
 -dontwarn org.apache.tika.**
+-dontwarn edu.umd.cs.findbugs.annotations.**
