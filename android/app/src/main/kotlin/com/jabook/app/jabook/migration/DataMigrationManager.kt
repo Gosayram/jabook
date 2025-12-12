@@ -17,8 +17,8 @@ package com.jabook.app.jabook.migration
 import android.content.Context
 import android.util.Log
 import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
 import com.jabook.app.jabook.compose.data.local.JabookDatabase
-import com.jabook.app.jabook.compose.data.preferences.UserPreferences
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -35,7 +35,7 @@ class DataMigrationManager
     constructor(
         @param:ApplicationContext private val context: Context,
         private val jabookDatabase: JabookDatabase,
-        private val userPreferencesDataStore: DataStore<UserPreferences>,
+        private val preferencesDataStore: DataStore<Preferences>,
     ) {
         companion object {
             private const val TAG = "DataMigrationManager"

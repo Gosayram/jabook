@@ -183,6 +183,19 @@
             </intent-filter>
         </receiver>
 
+        <!-- Disable default WorkManager initialization -->
+        <!-- App uses on-demand initialization via Configuration.Provider -->
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            android:exported="false"
+            tools:node="merge">
+            <meta-data
+                android:name="androidx.work.WorkManagerInitializer"
+                android:value="androidx.startup"
+                tools:node="remove" />
+        </provider>
+
         <!-- Required for Flutter engine -->
         <meta-data
             android:name="flutterEmbedding"

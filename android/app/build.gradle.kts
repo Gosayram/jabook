@@ -158,75 +158,9 @@ android {
 }
 
 // REMOVED: Flutter configuration block - no longer needed
+// REMOVED: fixIntegrationTestPlugin task - GeneratedPluginRegistrant.java no longer exists
 
-// Task to fix integration_test plugin registration in GeneratedPluginRegistrant.java
-// This is needed because integration_test is a dev dependency but Flutter still generates
-// its registration, causing compilation errors in release builds
-tasks.register("fixIntegrationTestPlugin") {
-    group = "flutter"
-    description = "Fix integration_test plugin registration to use reflection"
-
-    doLast {
-        val generatedFile = file("src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java")
-        if (!generatedFile.exists()) {
-            logger.warn("GeneratedPluginRegistrant.java not found, skipping fix")
-            return@doLast
-        }
-
-        var content = generatedFile.readText()
-
-        // Check if already fixed
-        if (content.contains("Class.forName(\"dev.flutter.plugins.integration_test")) {
-            logger.info("integration_test plugin already fixed, skipping")
-            return@doLast
-        }
-
-        // Check if integration_test registration exists
-        if (!content.contains("integration_test.IntegrationTestPlugin")) {
-            logger.info("integration_test plugin not found, skipping fix")
-            return@doLast
-        }
-
-        // Replace direct instantiation with reflection-based approach
-        // Match the try-catch block for integration_test plugin registration
-        val oldPattern = """try \{
-      flutterEngine\.getPlugins\(\)\.add\(new dev\.flutter\.plugins\.integration_test\.IntegrationTestPlugin\(\)\);
-    \} catch \(Exception e\) \{
-      Log\.e\(TAG, "Error registering plugin integration_test, dev\.flutter\.plugins\.integration_test\.IntegrationTestPlugin", e\);
-    \}"""
-
-        val newCode = """// integration_test is a dev dependency - use reflection to avoid compilation errors in release
-    try {
-      Class<?> integrationTestClass = Class.forName("dev.flutter.plugins.integration_test.IntegrationTestPlugin");
-      Object plugin = integrationTestClass.getDeclaredConstructor().newInstance();
-      flutterEngine.getPlugins().add((io.flutter.embedding.engine.plugins.FlutterPlugin) plugin);
-    } catch (ClassNotFoundException e) {
-      // Silently ignore - integration_test is not available in release builds
-    } catch (Exception e) {
-      Log.e(TAG, "Error registering plugin integration_test, dev.flutter.plugins.integration_test.IntegrationTestPlugin", e);
-    }"""
-
-        content = content.replace(Regex(oldPattern, RegexOption.MULTILINE), newCode)
-        generatedFile.writeText(content)
-        logger.info("Fixed integration_test plugin registration in GeneratedPluginRegistrant.java")
-    }
-}
-
-// Automatically run fix task before Java compilation for all release build types
-afterEvaluate {
-    tasks
-        .matching { it.name.startsWith("compile") && it.name.contains("Release") && it.name.contains("Java") }
-        .configureEach {
-            dependsOn("fixIntegrationTestPlugin")
-        }
-
-    // Also run for all build variants
-    tasks
-        .matching { it.name.contains("compileReleaseJavaWithJavac") }
-        .configureEach {
-            dependsOn("fixIntegrationTestPlugin")
-        }
-}
+// REMOVED: afterEvaluate block for fixIntegrationTestPlugin - task no longer needed
 
 // Configure KSP for Room and Hilt
 ksp {
