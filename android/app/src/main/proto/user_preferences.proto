@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+option java_package = "com.jabook.app.jabook.compose.data.preferences";
+option java_multiple_files = true;
+
+// User preferences stored in Proto DataStore
+message UserPreferences {
+  // Theme settings
+  ThemeMode theme_mode = 1;
+  bool use_dynamic_colors = 2;
+  
+  // Audio settings
+  float playback_speed = 3;
+  int32 rewind_duration_seconds = 4;
+  int32 forward_duration_seconds = 5;
+  string volume_boost_level = 6;  // "Off", "Boost50", "Boost100", "Boost200", "Auto"
+  string drc_level = 7;  // "Off", "Gentle", "Medium", "Strong"
+  bool speech_enhancer = 8;
+  bool auto_volume_leveling = 9;
+  bool normalize_volume = 10;
+  
+  // Language
+  string language_code = 11;  // "ru", "en"
+  
+  // Notifications
+  bool notifications_enabled = 12;
+  bool download_notifications = 13;
+  bool player_notifications = 14;
+}
+
+// Theme mode enum
+enum ThemeMode {
+  SYSTEM = 0;
+  LIGHT = 1;
+  DARK = 2;
+}

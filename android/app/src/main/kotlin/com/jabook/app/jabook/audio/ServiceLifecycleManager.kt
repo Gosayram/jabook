@@ -38,12 +38,10 @@ internal class ServiceLifecycleManager(
     fun onDestroy() {
         android.util.Log.d("AudioPlayerService", "onDestroy called")
 
-        // Stop periodic position saving
-        service.playbackPositionSaver?.stopPeriodicPositionSaving()
-
-        // Save position before destroying (critical - process may terminate)
+        // TODO: Flutter bridge removed
+        // playbackPositionSaver?.savePosition("service_destroyed")
         try {
-            service.playbackPositionSaver?.savePosition("service_destroyed")
+            // TODO: Implement Kotlin-based position saving if needed
         } catch (e: Exception) {
             android.util.Log.e("AudioPlayerService", "Failed to save position in onDestroy", e)
         }

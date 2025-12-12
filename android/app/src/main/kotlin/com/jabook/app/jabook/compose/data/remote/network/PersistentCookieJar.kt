@@ -39,7 +39,7 @@ import javax.inject.Singleton
 class PersistentCookieJar
     @Inject
     constructor(
-        @ApplicationContext private val context: Context,
+        @param:ApplicationContext private val context: Context,
     ) : CookieJar {
         companion object {
             private const val DATASTORE_NAME = "cookies"

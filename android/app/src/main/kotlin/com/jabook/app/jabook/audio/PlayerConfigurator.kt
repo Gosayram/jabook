@@ -78,10 +78,10 @@ internal class PlayerConfigurator(
                     }, // Delegated to PlaylistManager via Service property
                     getLastCompletedTrackIndex = { service.lastCompletedTrackIndex }, // Delegated
                     getActualPlaylistSize = { service.playlistManager?.currentFilePaths?.size ?: 0 },
-                    playbackPositionSaver = service.playbackPositionSaver,
+                    // playbackPositionSaver removed - Flutter bridge no longer needed
                     updateActualTrackIndex = { index -> service.updateActualTrackIndex(index) },
                     isPlaylistLoading = { service.playlistManager?.isPlaylistLoading ?: false },
-                    storeCurrentMediaItem = { service.playbackPositionSaver?.storeCurrentMediaItem() }, // For playback resumption
+                    storeCurrentMediaItem = { }, // TODO: Flutter bridge removed
                 )
 
             activePlayer.addListener(playerListener!!)
@@ -172,7 +172,7 @@ internal class PlayerConfigurator(
 
                 // Copy listener from singleton player (using instance from this class)
                 playerListener?.let { customExoPlayer?.addListener(it) }
-                service.bridgePlayerListener?.let { customExoPlayer?.addListener(it) }
+                // TODO: Flutter bridge removed - bridgePlayerListener not needed
 
                 android.util.Log.i(
                     "AudioPlayerService",

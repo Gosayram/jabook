@@ -3,22 +3,25 @@ import java.util.Properties
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
-    // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
-    id("dev.flutter.flutter-gradle-plugin")
+    // REMOVED: Flutter Gradle Plugin - no longer needed
+    // id("dev.flutter.flutter-gradle-plugin")
     id("com.google.devtools.ksp")
     id("com.google.dagger.hilt.android")
-    id("kotlin-kapt")
+    // REMOVED: kotlin-kapt - migrated to KSP for Kotlin 2.0+ compatibility
+    // id("kotlin-kapt")
     id("org.jlleitschuh.gradle.ktlint")
     // Kotlinx serialization for type-safe navigation
     id("org.jetbrains.kotlin.plugin.serialization")
     // Compose Compiler (required for Kotlin 2.0+)
     id("org.jetbrains.kotlin.plugin.compose")
+    // Protobuf for Proto DataStore
+    id("com.google.protobuf") version "0.9.5"
 }
 
 android {
     namespace = "com.jabook.app.jabook"
-    compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    compileSdk = 36 // Android 16 (required by androidx.activity:1.12.1)
+    // ndkVersion no longer needed without Flutter
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_21
@@ -95,14 +98,29 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.jabook.app.jabook"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
-        targetSdk = flutter.targetSdkVersion
-        versionCode = flutter.versionCode
-        versionName = flutter.versionName
+        minSdk = 24 // Android 7.0
+        targetSdk = 35 // Android 15
+
+        // Read version from .release-version file (format: version+build, e.g. "1.2.7+127")
+        val versionFile = rootProject.file("../.release-version")
+        val fullVersion =
+            if (versionFile.exists()) {
+                versionFile.readText().trim()
+            } else {
+                "0.0.1+1"
+            }
+
+        // Parse version and build number
+        val parts = fullVersion.split("+")
+        versionName = parts[0] // e.g. "1.2.7"
+        versionCode =
+            if (parts.size > 1) {
+                parts[1].toIntOrNull() ?: 1 // e.g. 127
+            } else {
+                // Fallback: generate from version (1.2.7 -> 127)
+                parts[0].replace(".", "").toIntOrNull() ?: 1
+            }
 
         // Android 14+ specific configurations
         // Ensure proper foreground service type for media playback
@@ -139,9 +157,7 @@ android {
     }
 }
 
-flutter {
-    source = "../.."
-}
+// REMOVED: Flutter configuration block - no longer needed
 
 // Task to fix integration_test plugin registration in GeneratedPluginRegistrant.java
 // This is needed because integration_test is a dev dependency but Flutter still generates
@@ -212,13 +228,7 @@ afterEvaluate {
         }
 }
 
-// Configure kapt for Dagger Hilt only
-kapt {
-    correctErrorTypes = true
-    useBuildCache = true
-}
-
-// Configure KSP for Room
+// Configure KSP for Room and Hilt
 ksp {
     arg("room.schemaLocation", "$projectDir/schemas")
 }
@@ -233,13 +243,13 @@ dependencies {
     // Splash Screen API
     implementation("androidx.core:core-splashscreen:1.2.0")
 
-    // Dagger Hilt - Dependency Injection (version 2.57.2, same as lissen-android)
+    // Dagger Hilt - Dependency Injection (using KSP instead of KAPT for Kotlin 2.0+)
     implementation("com.google.dagger:hilt-android:2.57.2")
-    kapt("com.google.dagger:hilt-android-compiler:2.57.2")
+    ksp("com.google.dagger:hilt-android-compiler:2.57.2")
 
-    // Hilt WorkManager integration
+    // Hilt WorkManager integration (using KSP)
     implementation("androidx.hilt:hilt-work:1.2.0")
-    kapt("androidx.hilt:hilt-compiler:1.2.0")
+    ksp("androidx.hilt:hilt-compiler:1.2.0")
 
     // Media3 - Native audio player (using 1.8.0 version, same as lissen-android)
     implementation("androidx.media3:media3-exoplayer:1.8.0")
@@ -274,7 +284,12 @@ dependencies {
 
     // DataStore for preferences
     implementation("androidx.datastore:datastore-preferences:1.1.7")
+    // Proto DataStore for typed preferences
+    implementation("androidx.datastore:datastore:1.2.0")
+    implementation("com.google.protobuf:protobuf-javalite:4.33.2")
 
+    // Security & Encryption - Modern approach with Tink (replaces deprecated EncryptedSharedPreferences)
+    implementation("com.google.crypto.tink:tink-android:1.20.0")
     // Note: Media3 1.8.0 is the current stable version with full Android 14+ support
     // Previous alpha/beta versions (1.3.0, 1.4.0) had compatibility issues
     // Version 1.8.0 includes all Android 14+ fixes and is production-ready
@@ -356,5 +371,20 @@ ktlint {
         exclude("**/generated/**")
         exclude("**/build/**")
         include("**/kotlin/**")
+    }
+}
+// Protobuf configuration for Proto DataStore
+protobuf {
+    protoc {
+        artifact = "com.google.protobuf:protoc:4.33.2"
+    }
+    generateProtoTasks {
+        all().forEach { task ->
+            task.builtins {
+                create("java") {
+                    option("lite")
+                }
+            }
+        }
     }
 }

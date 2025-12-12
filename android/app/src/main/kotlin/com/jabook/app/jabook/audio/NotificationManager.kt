@@ -26,8 +26,8 @@ import androidx.media.app.NotificationCompat.MediaStyle
 import androidx.media3.common.util.Util
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaSession
-import com.jabook.app.jabook.MainActivity
 import com.jabook.app.jabook.audio.AudioPlayerService
+import com.jabook.app.jabook.compose.ComposeMainActivity
 import android.app.NotificationManager as AndroidNotificationManager
 
 /**
@@ -161,7 +161,7 @@ class NotificationManager(
             return createMinimalMediaNotification()
         }
         val intent =
-            Intent(context, MainActivity::class.java).apply {
+            Intent(context, ComposeMainActivity::class.java).apply {
                 flags =
                     Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
                 // Add extra to indicate we want to open player
@@ -903,7 +903,7 @@ class NotificationManager(
      */
     private fun createMinimalMediaNotification(): Notification {
         val intent =
-            Intent(context, MainActivity::class.java).apply {
+            Intent(context, ComposeMainActivity::class.java).apply {
                 flags =
                     Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
                 putExtra("open_player", true)

@@ -48,7 +48,7 @@ internal class PlayerListener(
     private val setLastCompletedTrackIndex: ((Int) -> Unit)? = null,
     private val getLastCompletedTrackIndex: (() -> Int)? = null,
     private val getActualPlaylistSize: (() -> Int)? = null, // Get actual playlist size from filePaths
-    private val playbackPositionSaver: PlaybackPositionSaver? = null,
+    // private val playbackPositionSaver: PlaybackPositionSaver? = null, // TODO: Flutter bridge removed
     private val updateActualTrackIndex: ((Int) -> Unit)? = null, // Callback to update actual track index
     private val isPlaylistLoading: (() -> Boolean)? = null, // Check if playlist is currently loading
     private val storeCurrentMediaItem: (() -> Unit)? = null, // Callback to store current media item for playback resumption
@@ -303,7 +303,7 @@ internal class PlayerListener(
                 // Playback stopped but player is still ready (not ended)
                 // This might be due to system events, save position
                 android.util.Log.d("AudioPlayerService", "Playback stopped (not by user), saving position")
-                playbackPositionSaver?.savePosition("playback_stopped")
+                // playbackPositionSaver?.savePosition("playback_stopped")
             }
 
             // Save position when playback starts (critical event)
@@ -410,7 +410,7 @@ internal class PlayerListener(
 
             // Save position of previous track before transitioning
             // This ensures position is saved even during rapid track changes
-            playbackPositionSaver?.savePosition("track_changed")
+            // playbackPositionSaver?.savePosition("track_changed")
 
             // Track changed - restart position check for new track
             stopPositionCheck()
@@ -520,11 +520,11 @@ internal class PlayerListener(
             when (reason) {
                 Player.PLAY_WHEN_READY_CHANGE_REASON_AUDIO_FOCUS_LOSS -> {
                     android.util.Log.i("AudioPlayerService", "Audio focus lost, saving position")
-                    playbackPositionSaver?.savePosition("audio_focus_lost")
+                    // playbackPositionSaver?.savePosition("audio_focus_lost")
                 }
                 Player.PLAY_WHEN_READY_CHANGE_REASON_AUDIO_BECOMING_NOISY -> {
                     android.util.Log.i("AudioPlayerService", "Audio becoming noisy, saving position")
-                    playbackPositionSaver?.savePosition("audio_becoming_noisy")
+                    // playbackPositionSaver?.savePosition("audio_becoming_noisy")
                 }
             }
         }

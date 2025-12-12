@@ -44,7 +44,7 @@ import javax.inject.Singleton
 class LibTorrentDownloader
     @Inject
     constructor(
-        @ApplicationContext private val context: Context,
+        @param:ApplicationContext private val context: Context,
     ) : TorrentDownloader {
         companion object {
             private const val TAG = "LibTorrentDownloader"

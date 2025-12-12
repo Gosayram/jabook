@@ -63,6 +63,27 @@ object DatabaseModule {
             }
         }
 
+    /**
+     * Database migration from version 2 to version 3.
+     *
+     * Adds search_history table.
+     */
+    private val MIGRATION_2_3 =
+        object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `search_history` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, 
+                        `query` TEXT NOT NULL, 
+                        `timestamp` INTEGER NOT NULL, 
+                        `result_count` INTEGER NOT NULL
+                    )
+                    """.trimIndent(),
+                )
+            }
+        }
+
     @Provides
     @Singleton
     fun provideJabookDatabase(
@@ -73,7 +94,7 @@ object DatabaseModule {
                 context,
                 JabookDatabase::class.java,
                 "jabook-database",
-            ).addMigrations(MIGRATION_1_2)
+            ).addMigrations(MIGRATION_1_2, MIGRATION_2_3)
             .build()
 
     @Provides
@@ -81,4 +102,8 @@ object DatabaseModule {
 
     @Provides
     fun provideChaptersDao(database: JabookDatabase): ChaptersDao = database.chaptersDao()
+
+    @Provides
+    fun provideSearchHistoryDao(database: JabookDatabase): com.jabook.app.jabook.compose.data.local.dao.SearchHistoryDao =
+        database.searchHistoryDao()
 }

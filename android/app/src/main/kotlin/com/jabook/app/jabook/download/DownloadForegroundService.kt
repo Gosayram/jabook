@@ -21,73 +21,112 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.os.Build
-import android.os.Handler
 import android.os.IBinder
-import android.os.Looper
+import android.util.Log
 import androidx.core.app.NotificationCompat
-import com.jabook.app.jabook.MainActivity
+import com.jabook.app.jabook.compose.ComposeMainActivity
+import com.jabook.app.jabook.torrent.TorrentManager
+import com.jabook.app.jabook.torrent.data.TorrentState
+import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.launch
+import javax.inject.Inject
 import android.app.NotificationManager as AndroidNotificationManager
 
 /**
  * Foreground service for managing torrent downloads.
  *
- * This service keeps the download process alive when the app is in the background,
- * ensuring continuous download progress. It displays a notification with download progress.
+ * This service:
+ * - Keeps torrent downloads alive in the background
+ * - Integrates with TorrentManager for torrent operations
+ * - Shows notifications with download progress
+ * - Handles magnet links from deep links
  */
+@AndroidEntryPoint
 class DownloadForegroundService : Service() {
-    private var notificationManager: AndroidNotificationManager? = null
-    private var updateHandler: Handler? = null
-    private var updateRunnable: Runnable? = null
-    private var isServiceRunning = false
-
     companion object {
+        private const val TAG = "DownloadForegroundService"
         private const val CHANNEL_ID = "jabook_downloads"
-        private const val CHANNEL_NAME = "JaBook Downloads"
+        private const val CHANNEL_NAME = "Downloads"
         private const val NOTIFICATION_ID = 2
+        private const val UPDATE_INTERVAL_MS = 1000L // Update notification every second
 
         const val ACTION_START = "com.jabook.app.jabook.download.START"
         const val ACTION_STOP = "com.jabook.app.jabook.download.STOP"
-        const val ACTION_UPDATE_PROGRESS = "com.jabook.app.jabook.download.UPDATE_PROGRESS"
+        const val ACTION_ADD_MAGNET = "com.jabook.app.jabook.download.ADD_MAGNET"
+        const val ACTION_PAUSE = "com.jabook.app.jabook.download.PAUSE"
+        const val ACTION_RESUME = "com.jabook.app.jabook.download.RESUME"
+        const val ACTION_REMOVE = "com.jabook.app.jabook.download.REMOVE"
+
+        const val EXTRA_MAGNET_URI = "magnet_uri"
+        const val EXTRA_SAVE_PATH = "save_path"
+        const val EXTRA_INFO_HASH = "info_hash"
 
         @Volatile
         private var instance: DownloadForegroundService? = null
 
         fun getInstance(): DownloadForegroundService? = instance
+
+        /**
+         * Start the download service and add a magnet link.
+         */
+        fun startDownload(
+            context: Context,
+            magnetUri: String,
+            savePath: String,
+        ) {
+            val intent =
+                Intent(context, DownloadForegroundService::class.java).apply {
+                    action = ACTION_ADD_MAGNET
+                    putExtra(EXTRA_MAGNET_URI, magnetUri)
+                    putExtra(EXTRA_SAVE_PATH, savePath)
+                }
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startForegroundService(intent)
+            } else {
+                context.startService(intent)
+            }
+        }
     }
+
+    @Inject
+    lateinit var torrentManager: TorrentManager
+
+    private var notificationManager: AndroidNotificationManager? = null
+    private var isServiceRunning = false
+
+    // Coroutine scope for background work
+    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+
+    // Active downloads: infoHash -> magnetUri
+    private val activeDownloads = mutableMapOf<String, String>()
 
     override fun onCreate() {
         super.onCreate()
         instance = this
         notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as AndroidNotificationManager
-        updateHandler = Handler(Looper.getMainLooper())
         createNotificationChannel()
 
-        // CRITICAL FIX for Android 11+ and 14+: Call startForeground() immediately if possible
-        // Android 14+ requires startForeground() within 5 seconds or service will be killed
-        // Android 11+ on problematic devices (especially Xiaomi) also needs immediate startForeground()
-        // This prevents crash: "Context.startForegroundService() did not then call Service.startForeground()"
-        val needsImmediateStartForeground =
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.R ||
-                // Android 11+
-                Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE // Android 14+
+        // Initialize TorrentManager
+        torrentManager.initialize()
 
-        if (needsImmediateStartForeground) {
+        // Start notification updates
+        startNotificationUpdates()
+
+        // CRITICAL FIX: Start foreground immediately for Android 11+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             try {
-                // Create notification BEFORE calling startForeground() (required)
-                val tempNotification = createMinimalNotification()
-                // Note: createMinimalNotification() always returns non-null
-                startForeground(NOTIFICATION_ID, tempNotification)
-                android.util.Log.d(
-                    "DownloadForegroundService",
-                    "startForeground() called immediately in onCreate() for Android ${Build.VERSION.SDK_INT} (critical fix)",
-                )
+                val notification = createDownloadNotification("Initializing downloads...", 0f)
+                startForeground(NOTIFICATION_ID, notification)
+                Log.d(TAG, "startForeground() called in onCreate()")
             } catch (e: Exception) {
-                android.util.Log.w(
-                    "DownloadForegroundService",
-                    "Failed to call startForeground() in onCreate(), will try in onStartCommand",
-                    e,
-                )
-                // Continue - will try again in onStartCommand
+                Log.w(TAG, "Failed to call startForeground() in onCreate()", e)
             }
         }
     }
@@ -97,61 +136,50 @@ class DownloadForegroundService : Service() {
         flags: Int,
         startId: Int,
     ): Int {
-        // CRITICAL: For Android 11+ and 14+, ensure startForeground() is called
-        // This is especially important for problematic devices (Xiaomi, etc.)
-        // If onCreate() didn't call it (e.g., service was restarted), call it here
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) { // Android 11+
+        // Ensure foreground for Android 11+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && !isServiceRunning) {
             try {
-                // Ensure notification is created and service is in foreground
-                if (!isServiceRunning) {
-                    val minimalNotification = createMinimalNotification()
-                    // Note: createMinimalNotification() always returns non-null
-                    startForeground(NOTIFICATION_ID, minimalNotification)
-                    android.util.Log.d(
-                        "DownloadForegroundService",
-                        "startForeground() called in onStartCommand for Android ${Build.VERSION.SDK_INT}",
-                    )
-                }
+                val notification = createDownloadNotification("Downloads ready", 0f)
+                startForeground(NOTIFICATION_ID, notification)
+                Log.d(TAG, "startForeground() called in onStartCommand()")
             } catch (e: Exception) {
-                android.util.Log.w(
-                    "DownloadForegroundService",
-                    "Failed to ensure startForeground() in onStartCommand",
-                    e,
-                )
-                // Continue - service might still work
+                Log.w(TAG, "Failed to ensure startForeground()", e)
             }
         }
 
         when (intent?.action) {
             ACTION_START -> {
-                if (!isServiceRunning) {
-                    isServiceRunning = true
-                    // Create minimal notification only for foreground service
-                    // Individual download notifications are handled by DownloadNotificationService
-                    val minimalNotification = createMinimalNotification()
-                    // Note: createMinimalNotification() always returns non-null
-                    try {
-                        startForeground(NOTIFICATION_ID, minimalNotification)
-                    } catch (e: Exception) {
-                        android.util.Log.e(
-                            "DownloadForegroundService",
-                            "Failed to start foreground service",
-                            e,
-                        )
-                    }
+                isServiceRunning = true
+                Log.d(TAG, "Download service started")
+            }
+            ACTION_ADD_MAGNET -> {
+                val magnetUri = intent.getStringExtra(EXTRA_MAGNET_URI)
+                val savePath = intent.getStringExtra(EXTRA_SAVE_PATH)
+
+                if (magnetUri != null && savePath != null) {
+                    addMagnetLink(magnetUri, savePath)
+                } else {
+                    Log.w(TAG, "Invalid magnet link or save path")
                 }
+            }
+            ACTION_PAUSE -> {
+                val infoHash = intent.getStringExtra(EXTRA_INFO_HASH)
+                infoHash?.let { pauseDownload(it) }
+            }
+            ACTION_RESUME -> {
+                val infoHash = intent.getStringExtra(EXTRA_INFO_HASH)
+                infoHash?.let { resumeDownload(it) }
+            }
+            ACTION_REMOVE -> {
+                val infoHash = intent.getStringExtra(EXTRA_INFO_HASH)
+                val deleteFiles = intent.getBooleanExtra("delete_files", false)
+                infoHash?.let { removeDownload(it, deleteFiles) }
             }
             ACTION_STOP -> {
                 stopSelf()
             }
-            ACTION_UPDATE_PROGRESS -> {
-                // Don't update notification here - individual notifications are handled by DownloadNotificationService
-                // This service is only used to keep downloads alive in background
-            }
         }
 
-        // Return START_STICKY to restart service if killed by system
-        // This is important for problematic devices that kill background services
         return START_STICKY
     }
 
@@ -160,17 +188,125 @@ class DownloadForegroundService : Service() {
     override fun onDestroy() {
         instance = null
         isServiceRunning = false
-        updateRunnable?.let { updateHandler?.removeCallbacks(it) }
-        updateHandler = null
+
+        // Shutdown TorrentManager
+        torrentManager.shutdown()
+
+        // Cancel coroutine scope
+        serviceScope.cancel()
+
         super.onDestroy()
+        Log.d(TAG, "Download service destroyed")
     }
 
     /**
-     * Creates notification channel for Android O+.
-     *
-     * This channel is used for a silent foreground service notification.
-     * Individual download notifications are handled by DownloadNotificationService.
-     * This notification is completely hidden from the user to avoid duplicates.
+     * Add a magnet link and start downloading.
+     */
+    private fun addMagnetLink(
+        magnetUri: String,
+        savePath: String,
+    ) {
+        serviceScope.launch {
+            try {
+                Log.d(TAG, "Adding magnet link: $magnetUri")
+                val infoHash = torrentManager.addMagnetLink(magnetUri, savePath, sequential = true)
+                activeDownloads[infoHash] = magnetUri
+                Log.i(TAG, "Started download: $infoHash")
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to add magnet link", e)
+            }
+        }
+    }
+
+    /**
+     * Pause a download.
+     */
+    private fun pauseDownload(infoHash: String) {
+        serviceScope.launch {
+            try {
+                torrentManager.pauseDownload(infoHash)
+                Log.d(TAG, "Paused download: $infoHash")
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to pause download", e)
+            }
+        }
+    }
+
+    /**
+     * Resume a download.
+     */
+    private fun resumeDownload(infoHash: String) {
+        serviceScope.launch {
+            try {
+                torrentManager.resumeDownload(infoHash)
+                Log.d(TAG, "Resumed download: $infoHash")
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to resume download", e)
+            }
+        }
+    }
+
+    /**
+     * Remove a download.
+     */
+    private fun removeDownload(
+        infoHash: String,
+        deleteFiles: Boolean,
+    ) {
+        serviceScope.launch {
+            try {
+                torrentManager.removeDownload(infoHash, deleteFiles)
+                activeDownloads.remove(infoHash)
+                Log.d(TAG, "Removed download: $infoHash")
+
+                // Stop service if no active downloads
+                if (activeDownloads.isEmpty()) {
+                    stopSelf()
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to remove download", e)
+            }
+        }
+    }
+
+    /**
+     * Start periodic notification updates.
+     */
+    private fun startNotificationUpdates() {
+        torrentManager.downloads
+            .onEach { downloads ->
+                if (downloads.isNotEmpty()) {
+                    // Update notification with first active download
+                    val firstDownload = downloads.values.first()
+                    val notification =
+                        when (firstDownload.state) {
+                            TorrentState.DOWNLOADING -> {
+                                createDownloadNotification(
+                                    "Downloading (${downloads.size} active)",
+                                    firstDownload.percentage,
+                                )
+                            }
+                            TorrentState.FINISHED -> {
+                                createDownloadNotification("Download complete", 100f)
+                            }
+                            else -> {
+                                createDownloadNotification(
+                                    firstDownload.state.name,
+                                    firstDownload.percentage,
+                                )
+                            }
+                        }
+                    notificationManager?.notify(NOTIFICATION_ID, notification)
+                } else {
+                    // No active downloads, show idle notification
+                    val notification = createDownloadNotification("No active downloads", 0f)
+                    notificationManager?.notify(NOTIFICATION_ID, notification)
+                }
+            }.launchIn(serviceScope)
+    }
+
+    /**
+     * Create notification channel for Android O+.
      */
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -178,36 +314,26 @@ class DownloadForegroundService : Service() {
                 NotificationChannel(
                     CHANNEL_ID,
                     CHANNEL_NAME,
-                    AndroidNotificationManager.IMPORTANCE_MIN, // MIN importance = silent, hidden from tray
+                    AndroidNotificationManager.IMPORTANCE_LOW,
                 ).apply {
-                    description = "Silent foreground service notification (completely hidden from user)"
-                    setShowBadge(false)
+                    description = "Download progress notifications"
+                    setShowBadge(true)
                     enableLights(false)
                     enableVibration(false)
-                    setSound(null, null)
-                    // Additional settings to ensure notification is completely hidden
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) { // Android 10+
-                        setShowBadge(false)
-                        setBypassDnd(false)
-                    }
-                    // Lock screen visibility - hide completely
-                    lockscreenVisibility = Notification.VISIBILITY_SECRET
                 }
             notificationManager?.createNotificationChannel(channel)
         }
     }
 
     /**
-     * Creates silent notification for foreground service.
-     *
-     * This notification is required for foreground service but is completely hidden from user.
-     * It uses IMPORTANCE_MIN channel which makes it silent and not shown in tray.
-     * Individual download notifications are handled by DownloadNotificationService.
-     * This prevents duplicate notifications - only DownloadNotificationService shows user-visible notifications.
+     * Create download notification with progress.
      */
-    private fun createMinimalNotification(): Notification {
+    private fun createDownloadNotification(
+        title: String,
+        progress: Float,
+    ): Notification {
         val intent =
-            Intent(this, MainActivity::class.java).apply {
+            Intent(this, ComposeMainActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
             }
         val pendingIntent =
@@ -221,17 +347,14 @@ class DownloadForegroundService : Service() {
         return NotificationCompat
             .Builder(this, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.stat_sys_download)
-            .setContentTitle("JaBook Downloads")
-            .setContentText("Downloads in progress")
+            .setContentTitle(title)
+            .setContentText("${progress.toInt()}% complete")
+            .setProgress(100, progress.toInt(), false)
             .setContentIntent(pendingIntent)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
-            .setPriority(NotificationCompat.PRIORITY_MIN) // MIN priority = silent, hidden
-            .setSilent(true) // Explicitly mark as silent
-            .setShowWhen(false) // Don't show timestamp
+            .setPriority(NotificationCompat.PRIORITY_LOW)
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
-            .setVisibility(NotificationCompat.VISIBILITY_SECRET) // Hide from lock screen completely
-            .setLocalOnly(true) // Don't show on connected devices
             .build()
     }
 }

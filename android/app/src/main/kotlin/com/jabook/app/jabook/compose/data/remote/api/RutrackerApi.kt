@@ -14,9 +14,12 @@
 
 package com.jabook.app.jabook.compose.data.remote.api
 
+import okhttp3.RequestBody
 import okhttp3.ResponseBody
 import retrofit2.Response
+import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.POST
 import retrofit2.http.Query
 
 /**
@@ -69,10 +72,15 @@ interface RutrackerApi {
      * @param password Password
      * @return HTML response (will set cookies on success)
      */
-    @GET("login.php")
+
+    /**
+     * Login to Rutracker.
+     *
+     * @param body Form-url-encoded body with CP1251 encoded credentials
+     * @return Response body (raw bytes for CP1251 decoding)
+     */
+    @POST("login.php")
     suspend fun login(
-        @Query("login_username") username: String,
-        @Query("login_password") password: String,
-        @Query("login") login: String = "Вход",
-    ): Response<String>
+        @Body body: RequestBody,
+    ): Response<ResponseBody>
 }

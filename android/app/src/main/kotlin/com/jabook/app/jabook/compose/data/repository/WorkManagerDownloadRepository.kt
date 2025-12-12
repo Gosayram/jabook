@@ -41,7 +41,7 @@ import javax.inject.Singleton
 class WorkManagerDownloadRepository
     @Inject
     constructor(
-        @ApplicationContext private val context: Context,
+        @param:ApplicationContext private val context: Context,
     ) : DownloadRepository {
         private val workManager = WorkManager.getInstance(context)
 

@@ -22,7 +22,7 @@ import androidx.media3.common.MediaMetadata
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaSession
-import com.jabook.app.jabook.MainActivity
+import com.jabook.app.jabook.compose.ComposeMainActivity
 import javax.inject.Inject
 
 /**
@@ -73,7 +73,7 @@ class MediaSessionManager
                 PendingIntent.getActivity(
                     context,
                     0,
-                    Intent(context, MainActivity::class.java),
+                    Intent(context, ComposeMainActivity::class.java),
                     PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
                 )
 

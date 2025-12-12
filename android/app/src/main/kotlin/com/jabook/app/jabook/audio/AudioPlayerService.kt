@@ -26,8 +26,8 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaLibraryService.MediaLibrarySession
 import androidx.media3.session.MediaSession
-import com.jabook.app.jabook.MainActivity
 import com.jabook.app.jabook.audio.processors.AudioProcessingSettings
+import com.jabook.app.jabook.compose.ComposeMainActivity
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -66,11 +66,6 @@ class AudioPlayerService : MediaLibraryService() {
     @Inject
     lateinit var playerPersistenceManager: PlayerPersistenceManager
 
-    @Inject
-    lateinit var eventChannelHandler: com.jabook.app.jabook.audio.bridge.EventChannelHandler
-
-    internal var bridgePlayerListener: com.jabook.app.jabook.audio.bridge.BridgePlayerListener? = null
-
     internal var mediaLibrarySession: MediaLibrarySession? = null
 
     // Keep mediaSession for backward compatibility during migration
@@ -105,7 +100,6 @@ class AudioPlayerService : MediaLibraryService() {
     // Helper for player state
     internal var playerStateHelper: PlayerStateHelper? = null
     internal var unloadManager: UnloadManager? = null
-    internal var playbackPositionSaver: PlaybackPositionSaver? = null
 
     // Sleep timer manager
     internal var sleepTimerManager: SleepTimerManager? = null
@@ -171,33 +165,21 @@ class AudioPlayerService : MediaLibraryService() {
     // DurationManager handles caching and database retrieval
     internal val durationManager = DurationManager()
 
-    // MethodChannel for communication with Flutter (set from MainActivity)
-    internal var methodChannel: io.flutter.plugin.common.MethodChannel? = null
+    // TODO: Flutter MethodChannel removed - implement Kotlin-based position persistence if needed
+    // internal var methodChannel: io.flutter.plugin.common.MethodChannel? = null
 
     /**
-     * Sets callback for getting duration from database.
-     * This is called from Flutter via MethodChannel to enable database lookup.
-     *
-     * @param callback Callback that takes file path and returns duration in ms, or null
+     * TODO: Flutter callback removed - implement Kotlin-based duration retrieval if needed.
      */
     fun setGetDurationFromDbCallback(callback: ((String) -> Long?)?) {
         durationManager.setGetDurationFromDbCallback(callback)
     }
 
     /**
-     * Sets MethodChannel for communication with Flutter.
-     * This is called from MainActivity to enable position saving via MethodChannel.
-     *
-     * @param channel MethodChannel instance
+     * TODO: Flutter MethodChannel removed - no longer needed in pure Kotlin app.
      */
-    fun setMethodChannel(channel: io.flutter.plugin.common.MethodChannel?) {
-        android.util.Log.i(
-            "AudioPlayerService",
-            "setMethodChannel called: channel=${channel != null}, service instance=${instance != null}",
-        )
-        methodChannel = channel
-        // methodChannel is updated, PlaybackPositionSaver will pick it up via provider lambda
-        android.util.Log.i("AudioPlayerService", "MethodChannel updated")
+    fun setMethodChannel(channel: Any?) {
+        // No-op: Flutter bridge removed
     }
 
     /**
@@ -314,7 +296,7 @@ class AudioPlayerService : MediaLibraryService() {
         return PendingIntent.getActivity(
             this,
             0,
-            Intent(this, MainActivity::class.java).apply {
+            Intent(this, ComposeMainActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
                 putExtra("open_player", true) // Signal to Flutter to open player screen
             },
@@ -344,7 +326,7 @@ class AudioPlayerService : MediaLibraryService() {
         return TaskStackBuilder.create(this).run {
             // Add MainActivity to back stack
             addNextIntent(
-                Intent(this@AudioPlayerService, MainActivity::class.java),
+                Intent(this@AudioPlayerService, ComposeMainActivity::class.java),
             )
             // MainActivity will handle opening player screen via Flutter (open_player flag)
             // Flutter navigation is handled in MainActivity.onNewIntent() and onResume()
@@ -372,14 +354,6 @@ class AudioPlayerService : MediaLibraryService() {
         // Initialize service components using extracted initializer
         // This handles all complex logic previously directly in onCreate
         AudioPlayerServiceInitializer(this).initialize()
-
-        // Setup Bridge Listener for EventChannel updates
-        // This connects the player events to the Flutter V2 EventChannel
-        bridgePlayerListener =
-            com.jabook.app.jabook.audio.bridge
-                .BridgePlayerListener(eventChannelHandler) { getActivePlayer() }
-        exoPlayer.addListener(bridgePlayerListener!!)
-        android.util.Log.i("AudioPlayerService", "BridgePlayerListener attached to ExoPlayer")
     }
 
     override fun onStartCommand(
@@ -561,8 +535,8 @@ class AudioPlayerService : MediaLibraryService() {
             android.util.Log.e("AudioPlayerService", "PlaybackController not initialized")
             return
         }
-        // Start periodic position saving when playback starts
-        playbackPositionSaver?.startPeriodicPositionSaving()
+        // TODO: Implement position saving in Kotlin (Flutter bridge removed)
+        // playbackPositionSaver?.startPeriodicPositionSaving()
     }
 
     fun pause() {
@@ -570,12 +544,10 @@ class AudioPlayerService : MediaLibraryService() {
             android.util.Log.e("AudioPlayerService", "PlaybackController not initialized")
             return
         }
-        // Save position immediately when pausing (critical event)
-        playbackPositionSaver?.savePosition("pause")
-        // Store media item for playback resumption
-        storeCurrentMediaItem()
-        // Stop periodic saving when paused (will resume when playing again)
-        playbackPositionSaver?.stopPeriodicPositionSaving()
+        // TODO: Implement position saving in Kotlin (Flutter bridge removed)
+        // playbackPositionSaver?.savePosition("pause")
+        // storeCurrentMediaItem()
+        // playbackPositionSaver?.stopPeriodicPositionSaving()
     }
 
     fun stop() {
@@ -583,12 +555,10 @@ class AudioPlayerService : MediaLibraryService() {
             android.util.Log.e("AudioPlayerService", "PlaybackController not initialized")
             return
         }
-        // Save position immediately when stopping (critical event)
-        playbackPositionSaver?.savePosition("stop")
-        // Store media item for playback resumption
-        storeCurrentMediaItem()
-        // Stop periodic saving when stopped
-        playbackPositionSaver?.stopPeriodicPositionSaving()
+        // TODO: Implement position saving in Kotlin (Flutter bridge removed)
+        // playbackPositionSaver?.savePosition("stop")
+        // storeCurrentMediaItem()
+        // playbackPositionSaver?.stopPeriodicPositionSaving()
     }
 
     /**
@@ -606,26 +576,24 @@ class AudioPlayerService : MediaLibraryService() {
     }
 
     internal fun saveCurrentPosition() {
-        // Use PlaybackPositionSaver if available (preferred), otherwise fallback to PositionManager
-        playbackPositionSaver?.savePosition("manual") ?: run {
-            positionManager?.saveCurrentPosition() ?: run {
-                android.util.Log.e(
-                    "AudioPlayerService",
-                    "Neither PlaybackPositionSaver nor PositionManager initialized",
-                )
-            }
+        // TODO: Implement position saving in Kotlin (Flutter bridge removed)
+        positionManager?.saveCurrentPosition() ?: run {
+            android.util.Log.e(
+                "AudioPlayerService",
+                "PositionManager not initialized",
+            )
         }
     }
 
     /**
      * Stores current media item detailed state for persistence.
-     * Delegated to PlaybackPositionSaver.
+     * TODO: Implement in Kotlin (Flutter bridge removed).
      *
      * Based on Media3 DemoPlaybackService example.
      */
     @OptIn(UnstableApi::class) // Player.listen, BitmapLoader
     internal fun storeCurrentMediaItem() {
-        playbackPositionSaver?.storeCurrentMediaItem()
+        // TODO: Implement position saving in Kotlin
     }
 
     fun seekTo(positionMs: Long) =
@@ -838,9 +806,9 @@ class AudioPlayerService : MediaLibraryService() {
     }
 
     override fun onDestroy() {
-        // Release bridge listener
-        bridgePlayerListener?.release()
-        bridgePlayerListener = null
+        // TODO: Flutter bridge removed
+        // bridgePlayerListener?.release()
+        // bridgePlayerListener = null
 
         // Delegate to lifecycle manager
         lifecycleManager?.onDestroy()

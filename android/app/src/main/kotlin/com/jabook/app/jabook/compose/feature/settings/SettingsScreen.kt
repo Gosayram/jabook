@@ -63,6 +63,7 @@ import com.jabook.app.jabook.compose.l10n.LocalStrings
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
+    onNavigateToAuth: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
@@ -85,6 +86,29 @@ fun SettingsScreen(
                     .padding(padding)
                     .verticalScroll(rememberScrollState()),
         ) {
+            // Authentication Section
+            val authStatus by viewModel.authStatus.collectAsStateWithLifecycle()
+            SettingsSection(title = "Account")
+
+            when (val status = authStatus) {
+                is com.jabook.app.jabook.compose.domain.model.AuthStatus.Authenticated -> {
+                    SettingsItem(
+                        title = "Logged in as ${status.username}",
+                        subtitle = "Tap to logout",
+                        onClick = { viewModel.logout() },
+                    )
+                }
+                else -> {
+                    SettingsItem(
+                        title = "Login to Rutracker",
+                        subtitle = "Required to download torrents",
+                        onClick = { onNavigateToAuth() },
+                    )
+                }
+            }
+
+            HorizontalDivider()
+
             // Appearance Section
             SettingsSection(title = strings.settingsSectionAppearance)
 

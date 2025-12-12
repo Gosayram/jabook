@@ -115,16 +115,19 @@ class ComposeMainActivity : ComponentActivity() {
         val magnetUrl = uri.toString()
         Log.d(TAG, "Handling magnet link: $magnetUrl")
 
-        // TODO: Integrate with DownloadForegroundService
-        // For now, just log the magnet link
-        // In the future, this should:
-        // 1. Start DownloadForegroundService with the magnet URL
-        // 2. Optionally show a toast/snackbar confirming download started
-        // 3. Optionally navigate to a downloads screen
+        // Get default save path (app-specific storage)
+        val savePath = "${getExternalFilesDir(null)}/JabookAudio/downloads"
 
-        // Example future implementation:
-        // val downloadService = DownloadForegroundService.startDownload(this, magnetUrl)
-        // Toast.makeText(this, "Download started", Toast.LENGTH_SHORT).show()
+        // Start download service
+        com.jabook.app.jabook.download.DownloadForegroundService.startDownload(
+            context = this,
+            magnetUri = magnetUrl,
+            savePath = savePath,
+        )
+
+        Log.i(TAG, "Started torrent download: $magnetUrl")
+        // TODO: Show toast/snackbar confirming download started
+        // TODO: Optionally navigate to downloads screen
     }
 
     /**

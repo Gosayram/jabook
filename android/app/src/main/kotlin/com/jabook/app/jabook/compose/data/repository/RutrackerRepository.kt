@@ -19,6 +19,8 @@ import com.jabook.app.jabook.compose.data.remote.model.SearchResult
 import com.jabook.app.jabook.compose.data.remote.model.TopicDetails
 import com.jabook.app.jabook.compose.data.remote.parser.RutrackerParser
 import com.jabook.app.jabook.compose.domain.model.Result
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody.Companion.toRequestBody
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -108,7 +110,14 @@ class RutrackerRepositoryImpl
             password: String,
         ): Result<Unit> {
             return try {
-                val response = api.login(username, password)
+                // Create form-url-encoded request body with CP1251 encoding
+                val formBody = "login_username=$username&login_password=$password&login=%C2%F5%EE%E4"
+                val requestBody =
+                    formBody
+                        .toByteArray(charset("windows-1251"))
+                        .toRequestBody("application/x-www-form-urlencoded; charset=windows-1251".toMediaType())
+
+                val response = api.login(requestBody)
 
                 if (!response.isSuccessful) {
                     return Result.Error(Exception("Login failed: HTTP ${response.code()}"))

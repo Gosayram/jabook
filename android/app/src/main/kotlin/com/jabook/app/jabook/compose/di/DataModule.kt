@@ -64,6 +64,12 @@ abstract class DataModule {
         repository: com.jabook.app.jabook.compose.data.repository.RutrackerRepositoryImpl,
     ): com.jabook.app.jabook.compose.data.repository.RutrackerRepository
 
+    @Binds
+    @Singleton
+    abstract fun bindSettingsRepository(
+        impl: com.jabook.app.jabook.compose.data.preferences.ProtoSettingsRepository,
+    ): com.jabook.app.jabook.compose.data.preferences.SettingsRepository
+
     companion object {
         /**
          * Provides DataStore<Preferences> for user preferences.

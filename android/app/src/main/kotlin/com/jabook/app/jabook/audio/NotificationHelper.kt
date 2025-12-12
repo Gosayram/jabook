@@ -21,7 +21,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import androidx.core.app.NotificationCompat
-import com.jabook.app.jabook.MainActivity
+import com.jabook.app.jabook.compose.ComposeMainActivity
 import android.app.NotificationManager as AndroidNotificationManager
 
 /**
@@ -47,7 +47,7 @@ internal class NotificationHelper(
         ensureNotificationChannel(CHANNEL_ID)
 
         val intent =
-            Intent(context, MainActivity::class.java).apply {
+            Intent(context, ComposeMainActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
             }
         val pendingIntent =

@@ -165,7 +165,26 @@ fun JabookNavHost(
                     androidx.navigation.navDeepLink { uriPattern = "jabook://settings" },
                 ),
         ) {
-            SettingsScreen()
+            SettingsScreen(
+                onNavigateToAuth = {
+                    navController.navigate(com.jabook.app.jabook.compose.feature.auth.AuthRoute)
+                },
+            )
+        }
+
+        // Auth Screen
+        composable<com.jabook.app.jabook.compose.feature.auth.AuthRoute> {
+            com.jabook.app.jabook.compose.feature.auth.AuthScreen(
+                onNavigateBack = {
+                    navController.popBackStack()
+                },
+                onNavigateToWebView = { url ->
+                    navController.navigate(
+                        com.jabook.app.jabook.compose.navigation
+                            .WebViewRoute(url),
+                    )
+                },
+            )
         }
 
         // Search screen - search for books

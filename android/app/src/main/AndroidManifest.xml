@@ -88,7 +88,7 @@
 
         <activity
             android:name=".MainActivity"
-            android:exported="true"
+            android:exported="false"
             android:launchMode="singleTop"
             android:taskAffinity=""
             android:theme="@style/LaunchTheme"
@@ -102,14 +102,10 @@
                 android:name="io.flutter.embedding.android.NormalTheme"
                 android:resource="@style/NormalTheme" />
 
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
+            <!-- REMOVED: LAUNCHER intent-filter moved to ComposeMainActivity -->
         </activity>
 
-        <!-- Compose UI Activity (for testing parallel Compose implementation) -->
-        <!-- This activity will eventually replace MainActivity when migration is complete -->
+        <!-- Compose UI Activity - NOW THE MAIN LAUNCHER -->
         <activity
             android:name=".compose.ComposeMainActivity"
             android:exported="true"
@@ -118,6 +114,12 @@
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
             android:hardwareAccelerated="true"
             android:windowSoftInputMode="adjustResize">
+
+            <!-- MAIN LAUNCHER - App now starts with Compose, not Flutter -->
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
 
             <!-- Magnet link deep links for torrent downloads -->
             <intent-filter>

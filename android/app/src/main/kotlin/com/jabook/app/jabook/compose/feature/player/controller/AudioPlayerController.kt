@@ -43,7 +43,7 @@ import javax.inject.Singleton
 class AudioPlayerController
     @Inject
     constructor(
-        @ApplicationContext private val context: Context,
+        @param:ApplicationContext private val context: Context,
         private val exoPlayer: ExoPlayer,
         private val userPreferencesRepository: com.jabook.app.jabook.compose.data.repository.UserPreferencesRepository,
     ) {

@@ -18,9 +18,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jabook.app.jabook.compose.data.model.AppTheme
 import com.jabook.app.jabook.compose.data.model.BookSortOrder
+import com.jabook.app.jabook.compose.data.preferences.SettingsRepository
+import com.jabook.app.jabook.compose.data.preferences.ThemeMode
+import com.jabook.app.jabook.compose.data.preferences.UserPreferences
 import com.jabook.app.jabook.compose.data.repository.UserPreferencesRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -28,17 +32,33 @@ import javax.inject.Inject
 /**
  * ViewModel for the Settings screen.
  *
- * Manages user preferences and app settings.
+ * Manages both old preferences (UserPreferencesRepository) and new Proto DataStore settings.
+ * Gradually migrating to Proto DataStore.
  */
 @HiltViewModel
 class SettingsViewModel
     @Inject
     constructor(
-        private val userPreferencesRepository: UserPreferencesRepository,
+        private val settingsRepository: SettingsRepository,
+        private val userPreferencesRepository: UserPreferencesRepository, // Keep for migration
+        private val authRepository: com.jabook.app.jabook.compose.domain.repository.AuthRepository,
     ) : ViewModel() {
+        // Exposure of auth status for UI
+        val authStatus =
+            authRepository.authStatus.stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5000),
+                initialValue = com.jabook.app.jabook.compose.domain.model.AuthStatus.Unauthenticated,
+            )
+
+        fun logout() {
+            viewModelScope.launch {
+                authRepository.logout()
+            }
+        }
+
         /**
-         * User preferences as StateFlow.
-         * Automatically updates when preferences change.
+         * Old user preferences - for backward compatibility.
          */
         val userPreferences =
             userPreferencesRepository.userData.stateIn(
@@ -48,38 +68,102 @@ class SettingsViewModel
             )
 
         /**
-         * Update app theme preference.
+         * New Proto DataStore settings.
          */
+        val protoSettings: StateFlow<UserPreferences> =
+            settingsRepository.userPreferences.stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5000),
+                initialValue =
+                    com.jabook.app.jabook.compose.data.preferences
+                        .UserPreferencesSerializer.defaultValue,
+            )
+
+        // ===== Old preferences API (kept for compatibility) =====
+
         fun updateTheme(theme: AppTheme) {
             viewModelScope.launch {
                 userPreferencesRepository.setTheme(theme)
             }
         }
 
-        /**
-         * Update book sort order preference.
-         */
         fun updateSortOrder(sortOrder: BookSortOrder) {
             viewModelScope.launch {
                 userPreferencesRepository.setSortOrder(sortOrder)
             }
         }
 
-        /**
-         * Update auto-play next preference.
-         */
         fun updateAutoPlayNext(enabled: Boolean) {
             viewModelScope.launch {
                 userPreferencesRepository.setAutoPlayNext(enabled)
             }
         }
 
-        /**
-         * Update playback speed preference.
-         */
         fun updatePlaybackSpeed(speed: Float) {
             viewModelScope.launch {
                 userPreferencesRepository.setPlaybackSpeed(speed)
+                // Also update in Proto DataStore
+                settingsRepository.updatePlaybackSpeed(speed)
+            }
+        }
+
+        // ===== New Proto DataStore API =====
+
+        fun updateProtoTheme(themeMode: ThemeMode) {
+            viewModelScope.launch {
+                settingsRepository.updateThemeMode(themeMode)
+            }
+        }
+
+        fun updateDynamicColors(enabled: Boolean) {
+            viewModelScope.launch {
+                settingsRepository.updateDynamicColors(enabled)
+            }
+        }
+
+        fun updateAudioSettings(
+            rewindSeconds: Int? = null,
+            forwardSeconds: Int? = null,
+            volumeBoost: String? = null,
+            drcLevel: String? = null,
+            speechEnhancer: Boolean? = null,
+            normalizeVolume: Boolean? = null,
+        ) {
+            viewModelScope.launch {
+                settingsRepository.updateAudioSettings(
+                    rewindSeconds = rewindSeconds,
+                    forwardSeconds = forwardSeconds,
+                    volumeBoost = volumeBoost,
+                    drcLevel = drcLevel,
+                    speechEnhancer = speechEnhancer,
+                    normalizeVolume = normalizeVolume,
+                )
+            }
+        }
+
+        fun updateLanguage(languageCode: String) {
+            viewModelScope.launch {
+                settingsRepository.updateLanguage(languageCode)
+            }
+        }
+
+        fun updateNotifications(
+            enabled: Boolean? = null,
+            downloadNotifications: Boolean? = null,
+            playerNotifications: Boolean? = null,
+        ) {
+            viewModelScope.launch {
+                settingsRepository.updateNotificationSettings(
+                    notificationsEnabled = enabled,
+                    downloadNotifications = downloadNotifications,
+                    playerNotifications = playerNotifications,
+                )
+            }
+        }
+
+        fun resetToDefaults() {
+            viewModelScope.launch {
+                settingsRepository.resetToDefaults()
             }
         }
     }

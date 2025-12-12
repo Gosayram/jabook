@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.compose.feature.search
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,35 +24,52 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Sort
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.FilterList
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.jabook.app.jabook.compose.data.local.entity.SearchHistoryEntity
 import com.jabook.app.jabook.compose.data.remote.model.SearchResult
 import com.jabook.app.jabook.compose.designsystem.component.BookCard
 import com.jabook.app.jabook.compose.designsystem.component.EmptyState
+import com.jabook.app.jabook.compose.domain.model.SearchSortOrder
+import kotlinx.coroutines.launch
 
 /**
  * Search screen for finding audiobooks.
@@ -62,6 +80,7 @@ import com.jabook.app.jabook.compose.designsystem.component.EmptyState
  * - Search results in grid layout
  * - Clear search button
  * - Loading and error states
+ * - Search history
  *
  * @param onNavigateBack Callback to navigate back
  * @param onBookClick Callback when book is clicked (local Book)
@@ -69,6 +88,7 @@ import com.jabook.app.jabook.compose.designsystem.component.EmptyState
  * @param viewModel ViewModel provided by Hilt
  */
 @OptIn(ExperimentalMaterial3Api::class)
+@Suppress("DEPRECATION") // hiltViewModel is from correct package but marked deprecated in some versions
 @Composable
 fun SearchScreen(
     onNavigateBack: () -> Unit,
@@ -79,7 +99,30 @@ fun SearchScreen(
 ) {
     val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
     val localResults by viewModel.localResults.collectAsStateWithLifecycle()
+    val searchHistory by viewModel.searchHistory.collectAsStateWithLifecycle()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val filters by viewModel.filters.collectAsStateWithLifecycle()
+    val sortOrder by viewModel.sortOrder.collectAsStateWithLifecycle()
+
+    var showFiltersSheet by remember { mutableStateOf(false) }
+    var showSortMenu by remember { mutableStateOf(false) }
+    val sheetState = rememberModalBottomSheetState()
+    val scope = rememberCoroutineScope()
+
+    if (showFiltersSheet) {
+        SearchFiltersSheet(
+            filters = filters,
+            onApplyFilters = {
+                viewModel.updateFilters(it)
+            },
+            onDismiss = {
+                scope.launch { sheetState.hide() }.invokeOnCompletion {
+                    if (!sheetState.isVisible) showFiltersSheet = false
+                }
+            },
+            sheetState = sheetState,
+        )
+    }
 
     Scaffold(
         topBar = {
@@ -121,6 +164,39 @@ fun SearchScreen(
                         )
                     }
                 },
+                actions = {
+                    // Sort Button
+                    Box {
+                        IconButton(onClick = { showSortMenu = true }) {
+                            Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = "Sort")
+                        }
+                        DropdownMenu(
+                            expanded = showSortMenu,
+                            onDismissRequest = { showSortMenu = false },
+                        ) {
+                            SearchSortOrder.entries.forEach { order ->
+                                DropdownMenuItem(
+                                    text = { Text(order.name.replace("_", " ")) },
+                                    onClick = {
+                                        viewModel.updateSortOrder(order)
+                                        showSortMenu = false
+                                    },
+                                    leadingIcon =
+                                        if (order == sortOrder) {
+                                            { Icon(Icons.Filled.Check, contentDescription = null) }
+                                        } else {
+                                            null
+                                        },
+                                )
+                            }
+                        }
+                    }
+
+                    // Filter Button
+                    IconButton(onClick = { showFiltersSheet = true }) {
+                        Icon(Icons.Filled.FilterList, contentDescription = "Filters")
+                    }
+                },
             )
         },
         modifier = modifier,
@@ -153,7 +229,14 @@ fun SearchScreen(
                     LocalSearchResults(
                         query = searchQuery,
                         results = localResults,
+                        searchHistory = searchHistory,
                         onBookClick = onBookClick,
+                        onHistoryItemClick = { query ->
+                            viewModel.onSearchQueryChanged(query)
+                            // Optionally trigger online search automatically or just set query
+                        },
+                        onHistoryItemDelete = viewModel::deleteSearchHistoryItem,
+                        onClearHistory = viewModel::clearSearchHistory,
                     )
                 }
 
@@ -201,14 +284,28 @@ fun SearchScreen(
 private fun LocalSearchResults(
     query: String,
     results: List<com.jabook.app.jabook.compose.domain.model.Book>,
+    searchHistory: List<SearchHistoryEntity>,
     onBookClick: (String) -> Unit,
+    onHistoryItemClick: (String) -> Unit,
+    onHistoryItemDelete: (Long) -> Unit,
+    onClearHistory: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     when {
         query.isEmpty() -> {
-            EmptyState(
-                message = "Enter a search query to find books",
-            )
+            if (searchHistory.isNotEmpty()) {
+                SearchHistoryList(
+                    history = searchHistory,
+                    onItemClick = onHistoryItemClick,
+                    onItemDelete = onHistoryItemDelete,
+                    onClearHistory = onClearHistory,
+                    modifier = modifier,
+                )
+            } else {
+                EmptyState(
+                    message = "Enter a search query to find books",
+                )
+            }
         }
 
         results.isEmpty() -> {
@@ -236,6 +333,69 @@ private fun LocalSearchResults(
                         onClick = { onBookClick(book.id) },
                     )
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SearchHistoryList(
+    history: List<SearchHistoryEntity>,
+    onItemClick: (String) -> Unit,
+    onItemDelete: (Long) -> Unit,
+    onClearHistory: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier = modifier.fillMaxSize()) {
+        androidx.compose.foundation.layout.Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = "Recent Searches",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.primary,
+            )
+            androidx.compose.material3.TextButton(onClick = onClearHistory) {
+                Text("Clear All")
+            }
+        }
+
+        LazyColumn(
+            modifier = Modifier.weight(1f),
+            contentPadding = PaddingValues(bottom = 16.dp),
+        ) {
+            items(
+                items = history,
+                key = { it.id },
+            ) { item ->
+                ListItem(
+                    headlineContent = { Text(item.query) },
+                    leadingContent = {
+                        Icon(
+                            imageVector = Icons.Filled.History,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    },
+                    trailingContent = {
+                        IconButton(onClick = { onItemDelete(item.id) }) {
+                            Icon(
+                                imageVector = Icons.Filled.Clear,
+                                contentDescription = "Delete",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    },
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .clickable { onItemClick(item.query) },
+                )
             }
         }
     }
