@@ -84,6 +84,26 @@ interface SettingsRepository {
     )
 
     /**
+     * Update selected mirror domain.
+     */
+    suspend fun updateSelectedMirror(domain: String)
+
+    /**
+     * Add a custom mirror domain.
+     */
+    suspend fun addCustomMirror(domain: String)
+
+    /**
+     * Remove a custom mirror domain.
+     */
+    suspend fun removeCustomMirror(domain: String)
+
+    /**
+     * Update auto-switch mirror setting.
+     */
+    suspend fun updateAutoSwitchMirror(enabled: Boolean)
+
+    /**
      * Reset all settings to defaults.
      */
     suspend fun resetToDefaults()
@@ -167,6 +187,44 @@ class ProtoSettingsRepository
                 downloadNotifications?.let { builder.setDownloadNotifications(it) }
                 playerNotifications?.let { builder.setPlayerNotifications(it) }
                 builder.build()
+            }
+        }
+
+        override suspend fun updateSelectedMirror(domain: String) {
+            dataStore.updateData { preferences ->
+                preferences.toBuilder().setSelectedMirror(domain).build()
+            }
+        }
+
+        override suspend fun addCustomMirror(domain: String) {
+            dataStore.updateData { preferences ->
+                val currentMirrors = preferences.customMirrorsList.toMutableList()
+                if (!currentMirrors.contains(domain)) {
+                    currentMirrors.add(domain)
+                }
+                preferences
+                    .toBuilder()
+                    .clearCustomMirrors()
+                    .addAllCustomMirrors(currentMirrors)
+                    .build()
+            }
+        }
+
+        override suspend fun removeCustomMirror(domain: String) {
+            dataStore.updateData { preferences ->
+                val currentMirrors = preferences.customMirrorsList.toMutableList()
+                currentMirrors.remove(domain)
+                preferences
+                    .toBuilder()
+                    .clearCustomMirrors()
+                    .addAllCustomMirrors(currentMirrors)
+                    .build()
+            }
+        }
+
+        override suspend fun updateAutoSwitchMirror(enabled: Boolean) {
+            dataStore.updateData { preferences ->
+                preferences.toBuilder().setAutoSwitchMirror(enabled).build()
             }
         }
 

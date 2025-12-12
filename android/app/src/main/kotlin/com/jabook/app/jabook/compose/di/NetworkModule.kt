@@ -14,6 +14,9 @@
 
 package com.jabook.app.jabook.compose.di
 
+import com.jabook.app.jabook.compose.data.network.DynamicBaseUrlInterceptor
+import com.jabook.app.jabook.compose.data.network.MirrorManager
+import com.jabook.app.jabook.compose.data.preferences.SettingsRepository
 import com.jabook.app.jabook.compose.data.remote.api.RutrackerApi
 import com.jabook.app.jabook.compose.data.remote.network.PersistentCookieJar
 import dagger.Module
@@ -61,17 +64,49 @@ object NetworkModule {
         }
 
     /**
-     * Provide OkHttp client with cookie persistence and logging.
+     * Provide MirrorManager.
+     *
+     * Uses a lightweight OkHttpClient for health checks to avoid circular dependency.
+     */
+    @Provides
+    @Singleton
+    fun provideMirrorManager(
+        settingsRepository: SettingsRepository,
+        cookieJar: PersistentCookieJar,
+    ): MirrorManager {
+        // Lightweight OkHttpClient for health checks only
+        val healthCheckClient =
+            OkHttpClient
+                .Builder()
+                .cookieJar(cookieJar)
+                .connectTimeout(10, TimeUnit.SECONDS)
+                .readTimeout(10, TimeUnit.SECONDS)
+                .build()
+
+        return MirrorManager(settingsRepository, healthCheckClient)
+    }
+
+    /**
+     * Provide DynamicBaseUrlInterceptor.
+     */
+    @Provides
+    @Singleton
+    fun provideDynamicBaseUrlInterceptor(mirrorManager: MirrorManager): DynamicBaseUrlInterceptor = DynamicBaseUrlInterceptor(mirrorManager)
+
+    /**
+     * Provide OkHttp client with cookie persistence, dynamic base URL, and logging.
      */
     @Provides
     @Singleton
     fun provideOkHttpClient(
         cookieJar: PersistentCookieJar,
         loggingInterceptor: HttpLoggingInterceptor,
+        dynamicBaseUrlInterceptor: DynamicBaseUrlInterceptor,
     ): OkHttpClient =
         OkHttpClient
             .Builder()
             .cookieJar(cookieJar)
+            .addInterceptor(dynamicBaseUrlInterceptor) // Add BEFORE logging for cleaner logs
             .addInterceptor(loggingInterceptor)
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)

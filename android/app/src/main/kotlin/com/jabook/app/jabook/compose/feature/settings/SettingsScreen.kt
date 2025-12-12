@@ -109,6 +109,64 @@ fun SettingsScreen(
 
             HorizontalDivider()
 
+            // Network & Mirrors Section
+            val currentMirror by viewModel.currentMirror.collectAsStateWithLifecycle()
+            val availableMirrors by viewModel.availableMirrors.collectAsStateWithLifecycle()
+            val protoSettings by viewModel.protoSettings.collectAsStateWithLifecycle()
+
+            SettingsSection(title = "Сеть и Зеркала")
+
+            SettingsItem(
+                title = "Текущее зеркало",
+                subtitle = currentMirror,
+            )
+
+            // Mirror selection radio buttons
+            Column(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(start = 16.dp),
+            ) {
+                availableMirrors.forEach { mirror ->
+                    MirrorOption(
+                        domain = mirror,
+                        selected = mirror == currentMirror,
+                        onSelected = { viewModel.updateMirror(mirror) },
+                        onCheckHealth = {
+                            viewModel.checkMirrorHealth(mirror) { isHealthy ->
+                                val message = if (isHealthy) "✅ Зеркало доступно" else "❌ Зеркало недоступно"
+                                android.widget.Toast
+                                    .makeText(context, "$mirror: $message", android.widget.Toast.LENGTH_SHORT)
+                                    .show()
+                            }
+                        },
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            SettingsSwitchItem(
+                title = "Автопереключение",
+                subtitle = "Автоматически переключаться на рабочее зеркало при ошибках",
+                checked = protoSettings.autoSwitchMirror,
+                onCheckedChange = viewModel::updateAutoSwitch,
+            )
+
+            SettingsItem(
+                title = "Добавить свое зеркало",
+                subtitle = "Добавить кастомный URL",
+                onClick = {
+                    android.widget.Toast
+                        .makeText(context, "Custom mirror dialog placeholder", android.widget.Toast.LENGTH_SHORT)
+                        .show()
+                    // TODO: Implement dialog for custom mirror input
+                },
+            )
+
+            HorizontalDivider()
+
             // Appearance Section
             SettingsSection(title = strings.settingsSectionAppearance)
 
@@ -395,3 +453,46 @@ private fun getVersionName(context: Context): String =
     } catch (e: PackageManager.NameNotFoundException) {
         "Unknown"
     }
+
+/**
+ * Mirror selection option with health check button.
+ */
+@Composable
+private fun MirrorOption(
+    domain: String,
+    selected: Boolean,
+    onSelected: () -> Unit,
+    onCheckHealth: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .selectable(
+                    selected = selected,
+                    onClick = onSelected,
+                    role = Role.RadioButton,
+                ).padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        RadioButton(
+            selected = selected,
+            onClick = null, // Handled by parent Row
+        )
+
+        Text(
+            text = domain,
+            style = MaterialTheme.typography.bodyLarge,
+            modifier =
+                Modifier
+                    .padding(start = 8.dp)
+                    .weight(1f),
+        )
+
+        // Health check button
+        androidx.compose.material3.TextButton(onClick = onCheckHealth) {
+            Text("Проверить", style = MaterialTheme.typography.bodySmall)
+        }
+    }
+}

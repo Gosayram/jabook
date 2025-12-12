@@ -26,6 +26,11 @@ message UserPreferences {
   bool notifications_enabled = 12;
   bool download_notifications = 13;
   bool player_notifications = 14;
+  
+  // Network settings
+  string selected_mirror = 15;  // Selected mirror domain: "rutracker.org", "rutracker.net", "rutracker.me", or custom
+  repeated string custom_mirrors = 16;  // User-added custom mirrors
+  bool auto_switch_mirror = 17;  // Auto-switch to working mirror on failure
 }
 
 // Theme mode enum

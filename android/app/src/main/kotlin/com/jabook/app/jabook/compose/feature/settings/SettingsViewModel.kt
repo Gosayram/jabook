@@ -18,6 +18,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jabook.app.jabook.compose.data.model.AppTheme
 import com.jabook.app.jabook.compose.data.model.BookSortOrder
+import com.jabook.app.jabook.compose.data.network.MirrorManager
 import com.jabook.app.jabook.compose.data.preferences.SettingsRepository
 import com.jabook.app.jabook.compose.data.preferences.ThemeMode
 import com.jabook.app.jabook.compose.data.preferences.UserPreferences
@@ -42,6 +43,7 @@ class SettingsViewModel
         private val settingsRepository: SettingsRepository,
         private val userPreferencesRepository: UserPreferencesRepository, // Keep for migration
         private val authRepository: com.jabook.app.jabook.compose.domain.repository.AuthRepository,
+        private val mirrorManager: MirrorManager,
     ) : ViewModel() {
         // Exposure of auth status for UI
         val authStatus =
@@ -164,6 +166,67 @@ class SettingsViewModel
         fun resetToDefaults() {
             viewModelScope.launch {
                 settingsRepository.resetToDefaults()
+            }
+        }
+
+        // ===== Mirror Management =====
+
+        /**
+         * Current mirror domain from MirrorManager.
+         */
+        val currentMirror: StateFlow<String> = mirrorManager.currentMirror
+
+        /**
+         * Available mirrors (default + custom).
+         */
+        val availableMirrors: StateFlow<List<String>> = mirrorManager.availableMirrors
+
+        /**
+         * Update the selected mirror.
+         */
+        fun updateMirror(domain: String) {
+            viewModelScope.launch {
+                mirrorManager.setMirror(domain)
+            }
+        }
+
+        /**
+         * Check mirror health and invoke callback with result.
+         */
+        fun checkMirrorHealth(
+            domain: String,
+            onResult: (Boolean) -> Unit,
+        ) {
+            viewModelScope.launch {
+                val isHealthy = mirrorManager.checkMirrorHealth(domain)
+                onResult(isHealthy)
+            }
+        }
+
+        /**
+         * Add a custom mirror domain.
+         */
+        fun addCustomMirror(domain: String) {
+            viewModelScope.launch {
+                mirrorManager.addCustomMirror(domain)
+            }
+        }
+
+        /**
+         * Remove a custom mirror domain.
+         */
+        fun removeCustomMirror(domain: String) {
+            viewModelScope.launch {
+                mirrorManager.removeCustomMirror(domain)
+            }
+        }
+
+        /**
+         * Update auto-switch mirror setting.
+         */
+        fun updateAutoSwitch(enabled: Boolean) {
+            viewModelScope.launch {
+                settingsRepository.updateAutoSwitchMirror(enabled)
             }
         }
     }

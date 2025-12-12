@@ -16,6 +16,7 @@ package com.jabook.app.jabook.compose.data.repository
 
 import com.jabook.app.jabook.compose.data.auth.RutrackerAuthService
 import com.jabook.app.jabook.compose.data.auth.SecureCredentialStorage
+import com.jabook.app.jabook.compose.data.network.MirrorManager
 import com.jabook.app.jabook.compose.data.remote.network.PersistentCookieJar
 import com.jabook.app.jabook.compose.domain.model.AuthStatus
 import com.jabook.app.jabook.compose.domain.model.CaptchaData
@@ -40,12 +41,18 @@ class AuthRepositoryImpl
         private val authService: RutrackerAuthService,
         private val secureStorage: SecureCredentialStorage,
         private val cookieJar: PersistentCookieJar,
+        private val mirrorManager: MirrorManager,
     ) : AuthRepository {
         private val _authStatus = MutableStateFlow<AuthStatus>(AuthStatus.Unauthenticated)
         override val authStatus: StateFlow<AuthStatus> = _authStatus.asStateFlow()
 
-        private val rutrackerUrl = "https://rutracker.org".toHttpUrl()
         private val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.IO)
+
+        /**
+         * Current RuTracker URL based on selected mirror.
+         */
+        private val rutrackerUrl: okhttp3.HttpUrl
+            get() = "https://${mirrorManager.currentMirror.value}".toHttpUrl()
 
         init {
             scope.launch {
