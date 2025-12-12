@@ -62,6 +62,39 @@ fun JabookApp(
     val packageName = context.packageName
     val isBetaFlavor = packageName.endsWith(".beta") || packageName.endsWith(".dev") || packageName.endsWith(".stage")
 
+    // Request necessary permissions on launch
+    val permissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions(),
+        onResult = { /* Permissions handled by system, app will adapt */ }
+    )
+
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        val permissionsToRequest = mutableListOf<String>()
+        
+        // Notification permission for Android 13+
+        if (android.os.Build.VERSION.SDK_INT >= 33) {
+            permissionsToRequest.add(android.Manifest.permission.POST_NOTIFICATIONS)
+            permissionsToRequest.add(android.Manifest.permission.READ_MEDIA_AUDIO)
+        } else {
+            // Legacy storage permission
+            permissionsToRequest.add(android.Manifest.permission.READ_EXTERNAL_STORAGE)
+            if (android.os.Build.VERSION.SDK_INT <= 29) {
+                permissionsToRequest.add(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
+            }
+        }
+
+        val permissionsNeeded = permissionsToRequest.filter {
+            androidx.core.content.ContextCompat.checkSelfPermission(
+                context,
+                it
+            ) != android.content.pm.PackageManager.PERMISSION_GRANTED
+        }
+
+        if (permissionsNeeded.isNotEmpty()) {
+            permissionLauncher.launch(permissionsNeeded.toTypedArray())
+        }
+    }
+
     // Handle deep links when intent changes
     androidx.compose.runtime.LaunchedEffect(intent) {
         if (intent != null) {
