@@ -415,9 +415,38 @@ install-dev:
 # Install beta APK to connected device
 .PHONY: install-beta
 install-beta:
-	@echo "Installing beta release APK to device..."
-	@cd android && ./gradlew :app:installBetaRelease --no-daemon
+	@echo "Installing beta release APK on device..."
+	@adb install -r build/app/outputs/apk/beta/release/app-beta-release.apk
 	@echo "✅ Beta APK installed"
+
+# Run beta on device - builds, installs, launches and shows logs
+.PHONY: run-beta
+run-beta: build-signed-apk-beta
+	@echo "Installing and launching beta on device..."
+	@adb install -r build/app/outputs/apk/beta/release/app-beta-release.apk
+	@echo "Clearing logcat..."
+	@adb logcat -c
+	@echo "Launching Jabook Beta..."
+	@adb shell am start -n com.jabook.app.jabook.beta/com.jabook.app.jabook.compose.ComposeMainActivity
+	@echo ""
+	@echo "📱 App launched! Watching logs (Ctrl+C to stop)..."
+	@echo ""
+	@adb logcat | grep -E "(Jabook|jabook|FATAL|AndroidRuntime|DEBUG|ComposeMainActivity)"
+
+# Run beta debug - with verbose logging and startup profiling
+.PHONY: run-beta-debug
+run-beta-debug: build-signed-apk-beta
+	@echo "Installing and launching beta with debug logging..."
+	@adb install -r build/app/outputs/apk/beta/release/app-beta-release.apk
+	@echo "Clearing logcat..."
+	@adb logcat -c
+	@echo "Launching Jabook Beta with debug flags..."
+	@adb shell am start -n com.jabook.app.jabook.beta/com.jabook.app.jabook.compose.ComposeMainActivity
+	@echo ""
+	@echo "📱 App launched! Saving verbose logs to startup_profile.log..."
+	@echo "Press Ctrl+C to stop logging"
+	@echo ""
+	@adb logcat > startup_profile.log
 
 # Install prod APK to connected device
 .PHONY: install-prod
