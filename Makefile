@@ -40,6 +40,7 @@ help:
 	@echo "  make copy-apk-beta                 - Copy beta APK files to ~/Downloads/Jabook"
 	@echo "  make build-and-copy                - Build prod APK and copy to Downloads"
 	@echo "  make build-beta-and-copy           - Build beta APK and copy to Downloads"
+	@echo "  make build-android-signed-apk-beta-copy - Alias for build-beta-and-copy"
 	@echo ""
 	@echo "Version Management:"
 	@echo "  make version                       - Show current version from .release-version"
@@ -59,6 +60,17 @@ help:
 	@echo "Device Commands:"
 	@echo "  make run                           - Install and run APK on device"
 	@echo "  make devices                       - List connected devices"
+	@echo "  make logcat                        - Show logcat with jabook filter"
+	@echo "  make clear-logcat                  - Clear logcat buffer"
+	@echo "  make install-dev                   - Install dev APK to device"
+	@echo "  make install-beta                  - Install beta APK to device"
+	@echo "  make install-prod                  - Install prod APK to device"
+	@echo "  make uninstall                     - Uninstall app from device"
+	@echo ""
+	@echo "Quick Workflows:"
+	@echo "  make dev                           - Format + compile + install dev"
+	@echo "  make beta                          - Format + compile + install beta"
+	@echo "  make warnings                      - Count compiler warnings"
 	@echo ""
 
 # Clean build artifacts
@@ -246,6 +258,20 @@ build-and-copy: build-signed-apk copy-apk
 build-beta-and-copy: build-signed-apk-beta copy-apk-beta
 	@echo "✅ Beta build and copy complete!"
 
+# Aliases matching old Makefile naming
+.PHONY: build-signed-apk-copy
+build-signed-apk-copy: build-and-copy
+
+.PHONY: build-signed-apk-beta-copy
+build-signed-apk-beta-copy: build-beta-and-copy
+
+.PHONY: build-android-signed-apk-copy
+build-android-signed-apk-copy: build-and-copy
+
+.PHONY: build-android-signed-apk-beta-copy
+build-android-signed-apk-beta-copy: build-beta-and-copy
+
+
 # ========================================
 # Version Management
 # ========================================
@@ -352,3 +378,83 @@ add-copyright:
 check-l10n:
 	@echo "Checking for l10n duplicates..."
 	@bash hack/check-l10n-duplicates.sh
+
+# ========================================
+# Additional Android Development Commands
+# ========================================
+
+# Show logcat with filtering for jabook
+.PHONY: logcat
+logcat:
+	@echo "Showing logcat (Ctrl+C to stop)..."
+	@adb logcat | grep -i --color=auto -E "jabook|AndroidRuntime|FATAL"
+
+# Clear logcat buffer
+.PHONY: clear-logcat
+clear-logcat:
+	@echo "Clearing logcat buffer..."
+	@adb logcat -c
+	@echo "✅ Logcat cleared"
+
+# Install dev APK to connected device
+.PHONY: install-dev
+install-dev:
+	@echo "Installing dev debug APK to device..."
+	@cd android && ./gradlew :app:installDevDebug --no-daemon
+	@echo "✅ Dev APK installed"
+
+# Install beta APK to connected device
+.PHONY: install-beta
+install-beta:
+	@echo "Installing beta release APK to device..."
+	@cd android && ./gradlew :app:installBetaRelease --no-daemon
+	@echo "✅ Beta APK installed"
+
+# Install prod APK to connected device
+.PHONY: install-prod
+install-prod:
+	@echo "Installing prod release APK to device..."
+	@cd android && ./gradlew :app:installProdRelease --no-daemon
+	@echo "✅ Prod APK installed"
+
+# Uninstall app from device
+.PHONY: uninstall
+uninstall:
+	@echo "Uninstalling app from device..."
+	@adb uninstall com.jabook.app.jabook || echo "App not installed"
+	@echo "✅ App uninstalled"
+
+# Compile specific flavor only
+.PHONY: compile-dev
+compile-dev:
+	@echo "Compiling dev flavor..."
+	@cd android && ./gradlew :app:compileDevDebugKotlin --no-daemon
+	@echo "✅ Dev flavor compiled"
+
+.PHONY: compile-beta
+compile-beta:
+	@echo "Compiling beta flavor..."
+	@cd android && ./gradlew :app:compileBetaDebugKotlin --no-daemon
+	@echo "✅ Beta flavor compiled"
+
+.PHONY: compile-prod
+compile-prod:
+	@echo "Compiling prod flavor..."
+	@cd android && ./gradlew :app:compileProdDebugKotlin --no-daemon
+	@echo "✅ Prod flavor compiled"
+
+# Quick development workflow: format, compile, install dev
+.PHONY: dev
+dev: fmt-kotlin compile-dev install-dev
+	@echo "✅ Dev workflow complete - app installed and ready to run"
+
+# Quick beta testing workflow
+.PHONY: beta
+beta: fmt-kotlin compile-beta install-beta
+	@echo "✅ Beta workflow complete - app installed and ready to test"
+
+# Show warnings count
+.PHONY: warnings
+warnings:
+	@echo "Checking for compiler warnings..."
+	@cd android && ./gradlew :app:compileDevDebugKotlin --no-daemon 2>&1 | grep "^w:" | wc -l | xargs -I{} echo "Found {} warnings"
