@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    tags: [ '*' ]
+    tags: ['*']
 
 jobs:
   build:
@@ -11,56 +11,33 @@ jobs:
       contents: write
 
     steps:
-      - name: Checkout (with LFS)
-        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
+      - name: Checkout
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         with:
           fetch-depth: 0
-          lfs: true
 
-      - name: LFS ensure files present
+      - name: Extract version from .release-version
         run: |
-          git lfs install
-          git lfs fetch --all
-          git lfs checkout
-
-      - name: Set up Flutter
-        uses: subosito/flutter-action@fd55f4c5af5b953cc57a2be44cb082c8f6635e8e # v2.21.0
-        with:
-          flutter-version: '3.38.4'
-          channel: 'stable'
-          cache: true
-          cache-key: 'flutter-sdk-3.38.4-stable-x64'
-          pub-cache-key: 'flutter-pub-cache-v1'
-
-      - name: Verify Flutter installation
-        run: flutter doctor -v
-
-      - name: Install dependencies
-        run: make install
-
-      - name: Check localization files
-        run: make check-l10n
-
-      - name: Verify code formatting
-        run: make fmt-check
-
-      - name: Analyze code
-        run: make analyze
-
-      - name: Check copyright headers
-        run: make check-copyright
-
-      - name: Extract version from pubspec.yaml
-        run: |
-          VERSION=$(grep '^version:' pubspec.yaml | sed 's/version:[[:space:]]*//' | cut -d+ -f1)
+          FULL_VERSION=$(cat .release-version)
+          VERSION=$(echo "$FULL_VERSION" | cut -d+ -f1)
+          BUILD=$(echo "$FULL_VERSION" | cut -d+ -f2)
           echo "VERSION=${VERSION}" >> "$GITHUB_ENV"
-          echo "Extracted version from pubspec.yaml: ${VERSION}"
+          echo "BUILD=${BUILD}" >> "$GITHUB_ENV"
+          echo "FULL_VERSION=${FULL_VERSION}" >> "$GITHUB_ENV"
+          echo "Extracted version: ${VERSION}, build: ${BUILD}"
 
-      - name: Set up JDK 17
-        uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 # v5.0.0
+      - name: Set up JDK 21
+        uses: actions/setup-java@f2beeb24e141e01a676f977032f5a29d81c9e27e # v5.1.0
         with:
-          java-version: '17'
+          java-version: '21'
           distribution: 'temurin'
+          cache: 'gradle'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3.2.2
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x android/gradlew
 
       - name: Setup Android signing
         env:
@@ -80,8 +57,8 @@ jobs:
             exit 1
           fi
           
-          KEYSTORE_SIZE=$(stat -f%z "${KEYSTORE_PATH}" 2>/dev/null || stat -c%s "${KEYSTORE_PATH}" 2>/dev/null)
-          if [ "$KEYSTORE_SIZE" -lt 1000 ]; then
+          KEYSTORE_SIZE=$(stat -c%s "${KEYSTORE_PATH}" 2>/dev/null)
+         if [ "$KEYSTORE_SIZE" -lt 1000 ]; then
             echo "ERROR: Keystore file too small (${KEYSTORE_SIZE} bytes)"
             exit 1
           fi
@@ -98,100 +75,45 @@ jobs:
             printf 'keyAlias=%s\n' "${KEY_ALIAS}"
           } > android/key.properties
 
+      - name: Lint Kotlin code
+        run: make lint-kotlin
+
       - name: Build beta APK
         env:
           GRADLE_OPTS: "-Xmx4g -XX:MaxMetaspaceSize=1g -XX:ReservedCodeCacheSize=1g"
-        run: make build-android-beta-ci
+        run: make build-beta
 
-      - name: Verify APK files exist
-        id: verify-apk
-        run: |
-          UNIVERSAL_APK=""
-          SPLIT_APKS=""
-          
-          if [ -f "build/app/outputs/flutter-apk/app-beta-release.apk" ]; then
-            UNIVERSAL_APK="build/app/outputs/flutter-apk/app-beta-release.apk"
-          elif [ -f "build/app/outputs/apk/release/app-beta-release.apk" ]; then
-            UNIVERSAL_APK="build/app/outputs/apk/release/app-beta-release.apk"
-          fi
-          
-          for arch in arm64-v8a armeabi-v7a x86_64; do
-            if [ -f "build/app/outputs/flutter-apk/app-${arch}-beta-release.apk" ]; then
-              SPLIT_APKS="${SPLIT_APKS}build/app/outputs/flutter-apk/app-${arch}-beta-release.apk"$'\n'
-            elif [ -f "build/app/outputs/apk/release/app-${arch}-beta-release.apk" ]; then
-              SPLIT_APKS="${SPLIT_APKS}build/app/outputs/apk/release/app-${arch}-beta-release.apk"$'\n'
-            fi
-          done
-          
-          SPLIT_APKS=$(echo "$SPLIT_APKS" | sed '/^$/d')
-          
-          ALL_APKS=""
-          if [ -n "$UNIVERSAL_APK" ]; then
-            ALL_APKS="${UNIVERSAL_APK}"$'\n'
-          fi
-          if [ -n "$SPLIT_APKS" ]; then
-            ALL_APKS="${ALL_APKS}${SPLIT_APKS}"
-          fi
-          
-          ALL_APKS=$(echo "$ALL_APKS" | sed '/^$/d')
-          
-          if [ -z "$ALL_APKS" ]; then
-            echo "⚠️  Warning: No APK files found!"
-            echo "has_files=false" >> $GITHUB_OUTPUT
-          else
-            echo "✅ Found APK files:"
-            echo "$ALL_APKS"
-            echo "has_files=true" >> $GITHUB_OUTPUT
-            echo "files<<EOF" >> $GITHUB_OUTPUT
-            echo "$ALL_APKS" >> $GITHUB_OUTPUT
-            echo "EOF" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Rename APK files
-        if: steps.verify-apk.outputs.has_files == 'true'
+      - name: Verify and rename APK files
         id: rename-apk
         run: |
           mkdir -p release-apks
           RENAMED_APKS=""
           
-          # Rename universal APK
-          if [ -f "build/app/outputs/flutter-apk/app-beta-release.apk" ]; then
-            cp "build/app/outputs/flutter-apk/app-beta-release.apk" "release-apks/Jabook_${VERSION}_beta_universal.apk"
-            RENAMED_APKS="${RENAMED_APKS}release-apks/Jabook_${VERSION}_beta_universal.apk"$'\n'
-          elif [ -f "build/app/outputs/apk/release/app-beta-release.apk" ]; then
-            cp "build/app/outputs/apk/release/app-beta-release.apk" "release-apks/Jabook_${VERSION}_beta_universal.apk"
+          # Check for universal APK
+          if [ -f "android/app/build/outputs/apk/beta/release/app-beta-release.apk" ]; then
+            cp "android/app/build/outputs/apk/beta/release/app-beta-release.apk" "release-apks/Jabook_${VERSION}_beta_universal.apk"
             RENAMED_APKS="${RENAMED_APKS}release-apks/Jabook_${VERSION}_beta_universal.apk"$'\n'
           fi
           
-          # Rename architecture-specific APKs
-          if [ -f "build/app/outputs/flutter-apk/app-armeabi-v7a-beta-release.apk" ]; then
-            cp "build/app/outputs/flutter-apk/app-armeabi-v7a-beta-release.apk" "release-apks/Jabook_${VERSION}_beta_v7a.apk"
-            RENAMED_APKS="${RENAMED_APKS}release-apks/Jabook_${VERSION}_beta_v7a.apk"$'\n'
-          elif [ -f "build/app/outputs/apk/release/app-armeabi-v7a-beta-release.apk" ]; then
-            cp "build/app/outputs/apk/release/app-armeabi-v7a-beta-release.apk" "release-apks/Jabook_${VERSION}_beta_v7a.apk"
-            RENAMED_APKS="${RENAMED_APKS}release-apks/Jabook_${VERSION}_beta_v7a.apk"$'\n'
-          fi
-          
-          if [ -f "build/app/outputs/flutter-apk/app-arm64-v8a-beta-release.apk" ]; then
-            cp "build/app/outputs/flutter-apk/app-arm64-v8a-beta-release.apk" "release-apks/Jabook_${VERSION}_beta_v8a.apk"
-            RENAMED_APKS="${RENAMED_APKS}release-apks/Jabook_${VERSION}_beta_v8a.apk"$'\n'
-          elif [ -f "build/app/outputs/apk/release/app-arm64-v8a-beta-release.apk" ]; then
-            cp "build/app/outputs/apk/release/app-arm64-v8a-beta-release.apk" "release-apks/Jabook_${VERSION}_beta_v8a.apk"
-            RENAMED_APKS="${RENAMED_APKS}release-apks/Jabook_${VERSION}_beta_v8a.apk"$'\n'
-          fi
-          
-          if [ -f "build/app/outputs/flutter-apk/app-x86_64-beta-release.apk" ]; then
-            cp "build/app/outputs/flutter-apk/app-x86_64-beta-release.apk" "release-apks/Jabook_${VERSION}_beta_x86_64.apk"
-            RENAMED_APKS="${RENAMED_APKS}release-apks/Jabook_${VERSION}_beta_x86_64.apk"$'\n'
-          elif [ -f "build/app/outputs/apk/release/app-x86_64-beta-release.apk" ]; then
-            cp "build/app/outputs/apk/release/app-x86_64-beta-release.apk" "release-apks/Jabook_${VERSION}_beta_x86_64.apk"
-            RENAMED_APKS="${RENAMED_APKS}release-apks/Jabook_${VERSION}_beta_x86_64.apk"$'\n'
-          fi
+          # Check for architecture-specific APKs
+          for arch in arm64-v8a armeabi-v7a x86_64; do
+            APK_PATH="android/app/build/outputs/apk/beta/release/app-beta-${arch}-release.apk"
+            if [ -f "$APK_PATH" ]; then
+              ARCH_SUFFIX="${arch}"
+              if [ "$arch" = "arm64-v8a" ]; then
+                ARCH_SUFFIX="v8a"
+              elif [ "$arch" = "armeabi-v7a" ]; then
+                ARCH_SUFFIX="v7a"
+              fi
+              cp "$APK_PATH" "release-apks/Jabook_${VERSION}_beta_${ARCH_SUFFIX}.apk"
+              RENAMED_APKS="${RENAMED_APKS}release-apks/Jabook_${VERSION}_beta_${ARCH_SUFFIX}.apk"$'\n'
+            fi
+          done
           
           RENAMED_APKS=$(echo "$RENAMED_APKS" | sed '/^$/d')
           
           if [ -z "$RENAMED_APKS" ]; then
-            echo "⚠️  Warning: No APK files to rename!"
+            echo "⚠️  Warning: No APK files found!"
             echo "has_files=false" >> $GITHUB_OUTPUT
           else
             echo "✅ Renamed APK files:"
@@ -203,8 +125,12 @@ jobs:
           fi
 
       - name: Generate changelog
-        if: steps.verify-apk.outputs.has_files == 'true'
-        run: make changelog
+        if: steps.rename-apk.outputs.has_files == 'true'
+        run: |
+          # Simple changelog from recent commits
+          echo "# Changelog for ${FULL_VERSION}" > CHANGELOG.md
+          echo "" >> CHANGELOG.md
+          git log --pretty=format:"- %s (%h)" --since="1 week ago" >> CHANGELOG.md
 
       - name: Create GitHub Prerelease
         if: steps.rename-apk.outputs.has_files == 'true'
@@ -212,7 +138,7 @@ jobs:
         uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b # v2.5.0
         with:
           tag_name: ${{ github.ref_name }}
-          name: Release ${{ env.VERSION }}-beta
+          name: Release ${{ env.VERSION }}-beta (build ${{ env.BUILD }})
           body_path: CHANGELOG.md
           draft: false
           prerelease: true
@@ -223,15 +149,16 @@ jobs:
 
       - name: Send Telegram notification
         if: steps.release.outcome == 'success'
-        uses: appleboy/telegram-action@master
+        uses: appleboy/telegram-action@221e6b684967abe813051ee4a37dd61770a83ad3 # v1.0.1
         with:
           to: ${{ secrets.JABOOK_CHAT_ID }}
           token: ${{ secrets.TG_RELEASER_TOKEN }}
           format: html
           message: |
-            🚀 <b>Новый beta-релиз Jabook</b>
+            🚀 <b>Новый beta-релиз Jabook (Kotlin)</b>
 
             <b>Версия:</b> <code>${{ env.VERSION }}-beta</code>
+            <b>Build:</b> <code>${{ env.BUILD }}</code>
             <b>Тег:</b> <code>${{ github.ref_name }}</code>
             <b>Репозиторий:</b> <code>${{ github.repository }}</code>
             <b>Автор:</b> <code>${{ github.actor }}</code>
