@@ -58,7 +58,7 @@ jobs:
           fi
           
           KEYSTORE_SIZE=$(stat -c%s "${KEYSTORE_PATH}" 2>/dev/null)
-         if [ "$KEYSTORE_SIZE" -lt 1000 ]; then
+          if [ "$KEYSTORE_SIZE" -lt 1000 ]; then
             echo "ERROR: Keystore file too small (${KEYSTORE_SIZE} bytes)"
             exit 1
           fi
