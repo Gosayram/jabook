@@ -39,6 +39,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Migrate to Java 21 and replace kapt with KSP for Room
 - Polish navigation UI and resolve deprecations
 - Refactor audio player service architecture
+- Remove unused flutter collab code from Kotlin
+- Removed all flutter code from project; prepate to migrate native Kotlin code
 
 ### Fixed
 - Fix chapter mismatch, player freeze, and local playback
@@ -47,6 +49,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Flutter media start
 - HttpCache validation
 - Player validation
+- Removed unused flutter params
+- Removed unused flutter tests, implementations, libs
 - Resolve audio player bridging and playlist sorting issues
 - Resolve compilation warnings and deprecated API usage
 - Resolve Kotlin 2.2.0 compilation errors and update dependencies
