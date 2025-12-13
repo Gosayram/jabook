@@ -30,30 +30,28 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.TextButton
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -160,11 +158,12 @@ fun SettingsScreen(
                                 healthStatus.value = healthStatus.value + (mirror to isHealthy)
                             }
                         },
-                        onRemove = if (mirror !in com.jabook.app.jabook.compose.data.network.MirrorManager.DEFAULT_MIRRORS) {
-                            { viewModel.removeCustomMirror(mirror) }
-                        } else {
-                            null
-                        },
+                        onRemove =
+                            if (mirror !in com.jabook.app.jabook.compose.data.network.MirrorManager.DEFAULT_MIRRORS) {
+                                { viewModel.removeCustomMirror(mirror) }
+                            } else {
+                                null
+                            },
                     )
                 }
             }
@@ -537,9 +536,10 @@ private fun MirrorOption(
         when {
             isChecking -> {
                 CircularProgressIndicator(
-                    modifier = Modifier
-                        .padding(start = 8.dp)
-                        .size(16.dp),
+                    modifier =
+                        Modifier
+                            .padding(start = 8.dp)
+                            .size(16.dp),
                     strokeWidth = 2.dp,
                 )
             }
@@ -547,20 +547,28 @@ private fun MirrorOption(
                 Icon(
                     imageVector = Icons.Default.Check,
                     contentDescription = "Available",
-                    tint = androidx.compose.ui.graphics.Color(0xFF4CAF50), // Green
-                    modifier = Modifier
-                        .padding(start = 8.dp)
-                        .size(16.dp),
+                    tint =
+                        androidx.compose.ui.graphics
+                            .Color(0xFF4CAF50),
+                    // Green
+                    modifier =
+                        Modifier
+                            .padding(start = 8.dp)
+                            .size(16.dp),
                 )
             }
             healthStatus == false -> {
                 Icon(
                     imageVector = Icons.Default.Close,
                     contentDescription = "Unavailable",
-                    tint = androidx.compose.ui.graphics.Color(0xFFF44336), // Red
-                    modifier = Modifier
-                        .padding(start = 8.dp)
-                        .size(16.dp),
+                    tint =
+                        androidx.compose.ui.graphics
+                            .Color(0xFFF44336),
+                    // Red
+                    modifier =
+                        Modifier
+                            .padding(start = 8.dp)
+                            .size(16.dp),
                 )
             }
             else -> {
