@@ -229,4 +229,18 @@ class SettingsViewModel
                 settingsRepository.updateAutoSwitchMirror(enabled)
             }
         }
+
+        // ===== Download Settings =====
+
+        fun updateDownloadPath(path: String) {
+            viewModelScope.launch {
+                settingsRepository.updateDownloadPath(path)
+            }
+        }
+
+        fun updateWifiOnly(enabled: Boolean) {
+            viewModelScope.launch {
+                settingsRepository.updateWifiOnly(enabled)
+            }
+        }
     }

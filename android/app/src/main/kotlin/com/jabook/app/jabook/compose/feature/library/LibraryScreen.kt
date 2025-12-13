@@ -19,7 +19,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -58,7 +61,36 @@ fun LibraryScreen(
     val recentlyPlayed by viewModel.recentlyPlayed.collectAsStateWithLifecycle()
     val inProgress by viewModel.inProgress.collectAsStateWithLifecycle()
     val favorites by viewModel.favoriteBooks.collectAsStateWithLifecycle()
-    val strings = LocalStrings.current
+    val scanState by viewModel.scanState.collectAsStateWithLifecycle()
+    val snackbarHostState = androidx.compose.runtime.remember { androidx.compose.material3.SnackbarHostState() }
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+
+    // Permission launcher for scanning
+    val permissionLauncher =
+        androidx.activity.compose.rememberLauncherForActivityResult(
+            contract = androidx.activity.result.contract.ActivityResultContracts.RequestPermission(),
+        ) { isGranted ->
+            if (isGranted) {
+                viewModel.startLibraryScan()
+            } else {
+                scope.launch {
+                    snackbarHostState.showSnackbar("Storage permission required to scan books")
+                }
+            }
+        }
+
+    // Observe scan state changes
+    androidx.compose.runtime.LaunchedEffect(scanState) {
+        when (val state = scanState) {
+            is ScanState.Completed -> {
+                snackbarHostState.showSnackbar("Found ${state.booksFound} books")
+            }
+            is ScanState.Failed -> {
+                snackbarHostState.showSnackbar("Scan failed: ${state.error}")
+            }
+            else -> {}
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -82,6 +114,32 @@ fun LibraryScreen(
                 },
             )
         },
+        floatingActionButton = {
+            androidx.compose.material3.FloatingActionButton(
+                onClick = {
+                    val permission =
+                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                            android.Manifest.permission.READ_MEDIA_AUDIO
+                        } else {
+                            android.Manifest.permission.READ_EXTERNAL_STORAGE
+                        }
+                    permissionLauncher.launch(permission)
+                },
+            ) {
+                if (scanState is ScanState.Scanning) {
+                    androidx.compose.material3.CircularProgressIndicator(
+                        modifier = Modifier.padding(8.dp),
+                        color = androidx.compose.material3.MaterialTheme.colorScheme.onPrimaryContainer,
+                    )
+                } else {
+                    Icon(
+                        imageVector = androidx.compose.material.icons.Icons.Default.Refresh,
+                        contentDescription = "Scan Library",
+                    )
+                }
+            }
+        },
+        snackbarHost = { androidx.compose.material3.SnackbarHost(snackbarHostState) },
         modifier = modifier,
     ) { padding ->
         Box(modifier = Modifier.padding(padding).fillMaxSize()) {

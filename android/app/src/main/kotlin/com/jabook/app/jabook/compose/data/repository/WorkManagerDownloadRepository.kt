@@ -25,9 +25,11 @@ import androidx.work.WorkManager
 import com.jabook.app.jabook.compose.data.download.DownloadWorker
 import com.jabook.app.jabook.compose.domain.model.DownloadInfo
 import com.jabook.app.jabook.compose.domain.model.DownloadState
+import com.jabook.app.jabook.compose.data.preferences.UserPreferences
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -42,6 +44,7 @@ class WorkManagerDownloadRepository
     @Inject
     constructor(
         @param:ApplicationContext private val context: Context,
+        private val settingsRepository: com.jabook.app.jabook.compose.data.preferences.SettingsRepository,
     ) : DownloadRepository {
         private val workManager = WorkManager.getInstance(context)
 
@@ -49,18 +52,29 @@ class WorkManagerDownloadRepository
             bookId: String,
             torrentUrl: String,
         ): Flow<DownloadState> {
+            // Read settings synchronously (acceptable for DataStore latency)
+            val settings: UserPreferences = kotlinx.coroutines.runBlocking {
+                settingsRepository.userPreferences.first()
+            }
+            
+            val networkType = if (settings.wifiOnlyDownload) NetworkType.UNMETERED else NetworkType.CONNECTED
+            val downloadPath = if (settings.downloadPath.isNotEmpty()) "${settings.downloadPath}/$bookId" else null
+
+            val inputDataBuilder = Data.Builder()
+                .putString(DownloadWorker.KEY_BOOK_ID, bookId)
+                .putString(DownloadWorker.KEY_TORRENT_URL, torrentUrl)
+            
+            if (downloadPath != null) {
+                inputDataBuilder.putString(DownloadWorker.KEY_SAVE_PATH, downloadPath)
+            }
+
             val workRequest =
                 OneTimeWorkRequestBuilder<DownloadWorker>()
-                    .setInputData(
-                        Data
-                            .Builder()
-                            .putString(DownloadWorker.KEY_BOOK_ID, bookId)
-                            .putString(DownloadWorker.KEY_TORRENT_URL, torrentUrl)
-                            .build(),
-                    ).setConstraints(
+                    .setInputData(inputDataBuilder.build())
+                    .setConstraints(
                         Constraints
                             .Builder()
-                            .setRequiredNetworkType(NetworkType.CONNECTED)
+                            .setRequiredNetworkType(networkType)
                             .build(),
                     ).build()
 

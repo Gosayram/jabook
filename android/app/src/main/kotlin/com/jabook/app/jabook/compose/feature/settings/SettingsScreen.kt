@@ -214,6 +214,39 @@ fun SettingsScreen(
             }
 
             HorizontalDivider()
+            
+            // Downloads Section
+            SettingsSection(title = "Downloads")
+            
+            val folderLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+                contract = androidx.activity.result.contract.ActivityResultContracts.OpenDocumentTree()
+            ) { uri ->
+                uri?.let {
+                    val takeFlags = android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                            android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                    context.contentResolver.takePersistableUriPermission(it, takeFlags)
+                    viewModel.updateDownloadPath(it.toString())
+                }
+            }
+
+            SettingsItem(
+                title = "Download Location",
+                subtitle = if (protoSettings.downloadPath.isNotEmpty()) {
+                    android.net.Uri.parse(protoSettings.downloadPath).path ?: protoSettings.downloadPath
+                } else {
+                    "Internal App Storage (Default)"
+                },
+                onClick = { folderLauncher.launch(null) }
+            )
+            
+            SettingsSwitchItem(
+                title = "Wi-Fi Only",
+                subtitle = "Download only via Wi-Fi",
+                checked = protoSettings.wifiOnlyDownload,
+                onCheckedChange = viewModel::updateWifiOnly
+            )
+
+            HorizontalDivider()
 
             // Appearance Section
             SettingsSection(title = strings.settingsSectionAppearance)

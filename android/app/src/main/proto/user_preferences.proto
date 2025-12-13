@@ -31,6 +31,10 @@ message UserPreferences {
   string selected_mirror = 15;  // Selected mirror domain: "rutracker.org", "rutracker.net", "rutracker.me", or custom
   repeated string custom_mirrors = 16;  // User-added custom mirrors
   bool auto_switch_mirror = 17;  // Auto-switch to working mirror on failure
+  
+  // Download settings
+  string download_path = 18; // URI string for selected download folder
+  bool wifi_only_download = 19; // Restrict downloads to Wi-Fi only
 }
 
 // Theme mode enum

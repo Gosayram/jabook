@@ -97,5 +97,11 @@ abstract class DataModule {
         fun provideDataStore(
             @ApplicationContext context: Context,
         ): DataStore<Preferences> = context.dataStore
+
+        @Provides
+        @Singleton
+        fun provideWorkManager(
+            @ApplicationContext context: Context,
+        ): androidx.work.WorkManager = androidx.work.WorkManager.getInstance(context)
     }
 }

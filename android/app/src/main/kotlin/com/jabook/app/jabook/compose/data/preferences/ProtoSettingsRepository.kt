@@ -104,6 +104,16 @@ interface SettingsRepository {
     suspend fun updateAutoSwitchMirror(enabled: Boolean)
 
     /**
+     * Update download path.
+     */
+    suspend fun updateDownloadPath(path: String)
+
+    /**
+     * Update Wi-Fi only download setting.
+     */
+    suspend fun updateWifiOnly(enabled: Boolean)
+
+    /**
      * Reset all settings to defaults.
      */
     suspend fun resetToDefaults()
@@ -225,6 +235,18 @@ class ProtoSettingsRepository
         override suspend fun updateAutoSwitchMirror(enabled: Boolean) {
             dataStore.updateData { preferences ->
                 preferences.toBuilder().setAutoSwitchMirror(enabled).build()
+            }
+        }
+
+        override suspend fun updateDownloadPath(path: String) {
+            dataStore.updateData { preferences ->
+                preferences.toBuilder().setDownloadPath(path).build()
+            }
+        }
+
+        override suspend fun updateWifiOnly(enabled: Boolean) {
+            dataStore.updateData { preferences ->
+                preferences.toBuilder().setWifiOnlyDownload(enabled).build()
             }
         }
 
