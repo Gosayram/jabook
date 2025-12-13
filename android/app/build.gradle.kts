@@ -199,6 +199,9 @@ dependencies {
     // Media3 datasource for network streaming (OkHttp support)
     implementation("androidx.media3:media3-datasource-okhttp:1.8.0")
 
+    // Audio metadata parsing using KTagLib (TagLib Kotlin bindings)
+    implementation("com.github.timusus:KTagLib:1.6.1")
+
     // Android 14+ specific dependencies
     // Add support for Android 14+ foreground service types
     implementation("androidx.work:work-runtime:2.11.0")

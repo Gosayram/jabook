@@ -27,7 +27,9 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
@@ -52,6 +54,9 @@ class PlayerViewModel
         private val getBookDetailsUseCase: GetBookDetailsUseCase,
         private val getChaptersUseCase: GetChaptersUseCase,
         private val playerController: com.jabook.app.jabook.compose.feature.player.controller.AudioPlayerController,
+        private val settingsRepository: com.jabook.app.jabook.compose.data.preferences.ProtoSettingsRepository,
+        private val userPreferencesRepository: com.jabook.app.jabook.compose.data.repository.UserPreferencesRepository,
+        private val sleepTimerRepository: com.jabook.app.jabook.compose.data.repository.SleepTimerRepository,
     ) : ViewModel() {
         // Get bookId from navigation arguments
         private val args = savedStateHandle.toRoute<PlayerRoute>()
@@ -85,6 +90,24 @@ class PlayerViewModel
                 started = SharingStarted.WhileSubscribed(5000),
                 initialValue = PlayerUiState.Loading,
             )
+
+        /**
+         * Current playback speed from user preferences.
+         */
+        val playbackSpeed: StateFlow<Float> =
+            userPreferencesRepository.userData
+                .map { it.playbackSpeed }
+                .stateIn(
+                    scope = viewModelScope,
+                    started = SharingStarted.WhileSubscribed(5000),
+                    initialValue = 1.0f,
+                )
+
+        /**
+         * Current sleep timer state.
+         */
+        val sleepTimerState: StateFlow<com.jabook.app.jabook.compose.domain.model.SleepTimerState> =
+            sleepTimerRepository.timerState
 
         // Player control methods delegated to controller
 
@@ -135,7 +158,17 @@ class PlayerViewModel
         }
 
         fun setPlaybackSpeed(speed: Float) {
-            // TODO: Expose speed control in controller
+            viewModelScope.launch {
+                settingsRepository.updatePlaybackSpeed(speed)
+            }
+        }
+
+        fun startSleepTimer(minutes: Int) {
+            sleepTimerRepository.startTimer(minutes)
+        }
+
+        fun cancelSleepTimer() {
+            sleepTimerRepository.cancelTimer()
         }
 
         /**

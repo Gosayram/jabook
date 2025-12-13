@@ -33,8 +33,11 @@ import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material.icons.filled.Speed
+import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -46,6 +49,9 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -86,6 +92,30 @@ fun PlayerScreen(
 ) {
     val strings = LocalStrings.current
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val playbackSpeed by viewModel.playbackSpeed.collectAsStateWithLifecycle()
+    val sleepTimerState by viewModel.sleepTimerState.collectAsStateWithLifecycle()
+
+    var showSpeedSheet by remember { mutableStateOf(false) }
+    var showSleepTimerSheet by remember { mutableStateOf(false) }
+
+    // Playback Speed Sheet
+    if (showSpeedSheet) {
+        PlaybackSpeedSheet(
+            currentSpeed = playbackSpeed,
+            onSpeedSelected = viewModel::setPlaybackSpeed,
+            onDismiss = { showSpeedSheet = false },
+        )
+    }
+
+    // Sleep Timer Sheet
+    if (showSleepTimerSheet) {
+        SleepTimerSheet(
+            currentState = sleepTimerState,
+            onStartTimer = viewModel::startSleepTimer,
+            onCancelTimer = viewModel::cancelSleepTimer,
+            onDismiss = { showSleepTimerSheet = false },
+        )
+    }
 
     Scaffold(
         topBar = {
@@ -116,6 +146,8 @@ fun PlayerScreen(
                 is PlayerUiState.Success -> {
                     PlayerContent(
                         state = state,
+                        playbackSpeed = playbackSpeed,
+                        sleepTimerState = sleepTimerState,
                         onPlayPause = {
                             if (state.isPlaying) viewModel.pause() else viewModel.play()
                         },
@@ -123,6 +155,8 @@ fun PlayerScreen(
                         onSkipPrevious = viewModel::skipToPrevious,
                         onSeek = viewModel::seekTo,
                         onChapterClick = viewModel::skipToChapter,
+                        onSpeedClick = { showSpeedSheet = true },
+                        onSleepTimerClick = { showSleepTimerSheet = true },
                     )
                 }
 
@@ -140,11 +174,15 @@ fun PlayerScreen(
 @Composable
 private fun PlayerContent(
     state: PlayerUiState.Success,
+    playbackSpeed: Float,
+    sleepTimerState: com.jabook.app.jabook.compose.domain.model.SleepTimerState,
     onPlayPause: () -> Unit,
     onSkipNext: () -> Unit,
     onSkipPrevious: () -> Unit,
     onSeek: (Long) -> Unit,
     onChapterClick: (Int) -> Unit,
+    onSpeedClick: () -> Unit,
+    onSleepTimerClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     androidx.compose.foundation.lazy.LazyColumn(
@@ -293,6 +331,47 @@ private fun PlayerContent(
                         imageVector = Icons.Filled.SkipNext,
                         contentDescription = "Next chapter",
                         modifier = Modifier.size(48.dp),
+                    )
+                }
+            }
+        }
+
+        // Control Buttons Row (Speed & Sleep Timer)
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+            ) {
+                // Playback Speed Button
+                FilledTonalButton(
+                    onClick = onSpeedClick,
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Speed,
+                        contentDescription = "Playback Speed",
+                        modifier = Modifier.padding(end = 8.dp),
+                    )
+                    Text(text = "${playbackSpeed}x")
+                }
+
+                // Sleep Timer Button
+                FilledTonalButton(
+                    onClick = onSleepTimerClick,
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Timer,
+                        contentDescription = "Sleep Timer",
+                        modifier = Modifier.padding(end = 8.dp),
+                    )
+                    Text(
+                        text =
+                            when (sleepTimerState) {
+                                is com.jabook.app.jabook.compose.domain.model.SleepTimerState.Idle -> "Таймер"
+                                is com.jabook.app.jabook.compose.domain.model.SleepTimerState.Active ->
+                                    (sleepTimerState as com.jabook.app.jabook.compose.domain.model.SleepTimerState.Active).formattedTime
+                            },
                     )
                 }
             }

@@ -16,7 +16,12 @@ package com.jabook.app.jabook.compose.feature.library
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.work.Constraints
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkInfo
+import androidx.work.WorkManager
 import com.jabook.app.jabook.compose.data.model.BookSortOrder
+import com.jabook.app.jabook.compose.data.worker.LibraryScanWorker
 import com.jabook.app.jabook.compose.domain.model.Book
 import com.jabook.app.jabook.compose.domain.usecase.library.DeleteBookUseCase
 import com.jabook.app.jabook.compose.domain.usecase.library.GetFavoriteBooksUseCase
@@ -56,6 +61,7 @@ class LibraryViewModel
         private val getInProgressBooksUseCase: GetInProgressBooksUseCase,
         private val toggleFavoriteUseCase: ToggleFavoriteUseCase,
         private val deleteBookUseCase: DeleteBookUseCase,
+        private val workManager: WorkManager,
     ) : ViewModel() {
         // Search query state
         private val _searchQuery = MutableStateFlow("")
@@ -178,6 +184,48 @@ class LibraryViewModel
                 // Result handling can be added if needed for user feedback
             }
         }
+
+        // Library scan state
+        private val _scanState = MutableStateFlow<ScanState>(ScanState.Idle)
+        val scanState: StateFlow<ScanState> = _scanState
+
+        /**
+         * Start library scan for local audiobooks.
+         */
+        fun startLibraryScan() {
+            val scanRequest =
+                OneTimeWorkRequestBuilder<LibraryScanWorker>()
+                    .setConstraints(
+                        Constraints
+                            .Builder()
+                            .setRequiresStorageNotLow(true)
+                            .build(),
+                    ).build()
+
+            workManager.enqueue(scanRequest)
+
+            // Observe work progress
+            viewModelScope.launch {
+                workManager.getWorkInfoByIdFlow(scanRequest.id).collect { workInfo ->
+                    _scanState.value =
+                        when (workInfo?.state) {
+                            WorkInfo.State.RUNNING -> {
+                                val status = workInfo.progress.getString("status") ?: "Scanning..."
+                                ScanState.Scanning(status)
+                            }
+                            WorkInfo.State.SUCCEEDED -> {
+                                val count = workInfo.outputData.getInt("booksFound", 0)
+                                ScanState.Completed(count)
+                            }
+                            WorkInfo.State.FAILED -> {
+                                val error = workInfo.outputData.getString("error") ?: "Unknown error"
+                                ScanState.Failed(error)
+                            }
+                            else -> ScanState.Idle
+                        }
+                }
+            }
+        }
     }
 
 /**
@@ -207,4 +255,23 @@ sealed interface LibraryUiState {
     data class Error(
         val message: String,
     ) : LibraryUiState
+}
+
+/**
+ * State of library scanning operation.
+ */
+sealed interface ScanState {
+    data object Idle : ScanState
+
+    data class Scanning(
+        val message: String,
+    ) : ScanState
+
+    data class Completed(
+        val booksFound: Int,
+    ) : ScanState
+
+    data class Failed(
+        val error: String,
+    ) : ScanState
 }

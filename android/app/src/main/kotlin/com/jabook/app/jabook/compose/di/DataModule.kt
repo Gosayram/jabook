@@ -70,6 +70,24 @@ abstract class DataModule {
         impl: com.jabook.app.jabook.compose.data.preferences.ProtoSettingsRepository,
     ): com.jabook.app.jabook.compose.data.preferences.SettingsRepository
 
+    @Binds
+    @Singleton
+    abstract fun bindSleepTimerRepository(
+        impl: com.jabook.app.jabook.compose.data.repository.SleepTimerRepositoryImpl,
+    ): com.jabook.app.jabook.compose.data.repository.SleepTimerRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindLocalBookScanner(
+        impl: com.jabook.app.jabook.compose.data.local.scanner.MediaStoreBookScanner,
+    ): com.jabook.app.jabook.compose.data.local.scanner.LocalBookScanner
+
+    @Binds
+    @Singleton
+    abstract fun bindAudioMetadataParser(
+        impl: com.jabook.app.jabook.compose.data.local.parser.Media3MetadataParser,
+    ): com.jabook.app.jabook.compose.data.local.parser.AudioMetadataParser
+
     companion object {
         /**
          * Provides DataStore<Preferences> for user preferences.

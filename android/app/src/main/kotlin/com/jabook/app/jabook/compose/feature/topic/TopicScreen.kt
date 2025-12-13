@@ -41,10 +41,13 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -78,8 +81,20 @@ fun TopicScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val authStatus by viewModel.authStatus.collectAsStateWithLifecycle()
+    val downloadMessage by viewModel.downloadMessage.collectAsStateWithLifecycle()
+
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    // Show download message in Snackbar
+    LaunchedEffect(downloadMessage) {
+        downloadMessage?.let { message ->
+            snackbarHostState.showSnackbar(message)
+            viewModel.clearDownloadMessage()
+        }
+    }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text("Детали книги") },

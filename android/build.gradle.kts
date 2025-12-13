@@ -5,12 +5,7 @@ buildscript {
     }
 }
 
-allprojects {
-    repositories {
-        google()
-        mavenCentral()
-    }
-}
+
 
 val newBuildDir: Directory =
     rootProject.layout.buildDirectory
