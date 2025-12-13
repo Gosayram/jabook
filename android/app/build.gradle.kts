@@ -2,28 +2,34 @@ import java.util.Properties
 
 plugins {
     id("com.android.application")
-    id("kotlin-android")
-    // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
-    id("dev.flutter.flutter-gradle-plugin")
+    id("org.jetbrains.kotlin.android")
+    // REMOVED: Flutter Gradle Plugin - no longer needed
+    // id("dev.flutter.flutter-gradle-plugin")
+    id("com.google.devtools.ksp")
     id("com.google.dagger.hilt.android")
-    id("kotlin-kapt")
+    // REMOVED: kotlin-kapt - migrated to KSP for Kotlin 2.0+ compatibility
+    // id("kotlin-kapt")
     id("org.jlleitschuh.gradle.ktlint")
+    // Kotlinx serialization for type-safe navigation
+    id("org.jetbrains.kotlin.plugin.serialization")
+    // Compose Compiler (required for Kotlin 2.0+)
+    id("org.jetbrains.kotlin.plugin.compose")
+    // Protobuf for Proto DataStore
+    id("com.google.protobuf") version "0.9.5"
 }
 
 android {
     namespace = "com.jabook.app.jabook"
-    compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    compileSdk = 36 // Android 16 (required by androidx.activity:1.12.1)
+    // ndkVersion no longer needed without Flutter
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
-        // Enable core library desugaring for flutter_local_notifications
-        isCoreLibraryDesugaringEnabled = true
+        sourceCompatibility = JavaVersion.VERSION_21
+        targetCompatibility = JavaVersion.VERSION_21
     }
 
     kotlin {
-        jvmToolchain(17)
+        jvmToolchain(21)
 
         compilerOptions {
             // Kotlin compilation optimization
@@ -80,15 +86,38 @@ android {
         }
     }
 
+    // Enable Jetpack Compose
+    buildFeatures {
+        compose = true
+    }
+
+    // Compose Compiler configuration moved to plugin (line 16)
+    // No need for composeOptions with Kotlin 2.0+ and org.jetbrains.kotlin.plugin.compose
+
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.jabook.app.jabook"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
-        targetSdk = flutter.targetSdkVersion
-        versionCode = flutter.versionCode
-        versionName = flutter.versionName
+        minSdk = 30 // Android 11
+        targetSdk = 36 // Android 16
+
+        // Read version from .release-version file (format: version+build, e.g. "1.2.7+127")
+        val versionFile = rootProject.file("../.release-version")
+        val fullVersion =
+            if (versionFile.exists()) {
+                versionFile.readText().trim()
+            } else {
+                "0.0.1+1"
+            }
+
+        // Parse version and build number
+        val parts = fullVersion.split("+")
+        versionName = parts[0] // e.g. "1.2.7"
+        versionCode =
+            if (parts.size > 1) {
+                parts[1].toIntOrNull() ?: 1 // e.g. 127
+            } else {
+                // Fallback: generate from version (1.2.7 -> 127)
+                parts[0].replace(".", "").toIntOrNull() ?: 1
+            }
 
         // Android 14+ specific configurations
         // Ensure proper foreground service type for media playback
@@ -123,101 +152,42 @@ android {
             resValue("string", "app_name", "JaBook")
         }
     }
-}
 
-flutter {
-    source = "../.."
-}
-
-// Task to fix integration_test plugin registration in GeneratedPluginRegistrant.java
-// This is needed because integration_test is a dev dependency but Flutter still generates
-// its registration, causing compilation errors in release builds
-tasks.register("fixIntegrationTestPlugin") {
-    group = "flutter"
-    description = "Fix integration_test plugin registration to use reflection"
-
-    doLast {
-        val generatedFile = file("src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java")
-        if (!generatedFile.exists()) {
-            logger.warn("GeneratedPluginRegistrant.java not found, skipping fix")
-            return@doLast
+    // Generate separate APKs per architecture + universal APK
+    splits {
+        abi {
+            isEnable = true
+            reset()
+            include("armeabi-v7a", "arm64-v8a", "x86_64")
+            isUniversalApk = true // Also build a universal APK
         }
-
-        var content = generatedFile.readText()
-
-        // Check if already fixed
-        if (content.contains("Class.forName(\"dev.flutter.plugins.integration_test")) {
-            logger.info("integration_test plugin already fixed, skipping")
-            return@doLast
-        }
-
-        // Check if integration_test registration exists
-        if (!content.contains("integration_test.IntegrationTestPlugin")) {
-            logger.info("integration_test plugin not found, skipping fix")
-            return@doLast
-        }
-
-        // Replace direct instantiation with reflection-based approach
-        // Match the try-catch block for integration_test plugin registration
-        val oldPattern = """try \{
-      flutterEngine\.getPlugins\(\)\.add\(new dev\.flutter\.plugins\.integration_test\.IntegrationTestPlugin\(\)\);
-    \} catch \(Exception e\) \{
-      Log\.e\(TAG, "Error registering plugin integration_test, dev\.flutter\.plugins\.integration_test\.IntegrationTestPlugin", e\);
-    \}"""
-
-        val newCode = """// integration_test is a dev dependency - use reflection to avoid compilation errors in release
-    try {
-      Class<?> integrationTestClass = Class.forName("dev.flutter.plugins.integration_test.IntegrationTestPlugin");
-      Object plugin = integrationTestClass.getDeclaredConstructor().newInstance();
-      flutterEngine.getPlugins().add((io.flutter.embedding.engine.plugins.FlutterPlugin) plugin);
-    } catch (ClassNotFoundException e) {
-      // Silently ignore - integration_test is not available in release builds
-    } catch (Exception e) {
-      Log.e(TAG, "Error registering plugin integration_test, dev.flutter.plugins.integration_test.IntegrationTestPlugin", e);
-    }"""
-
-        content = content.replace(Regex(oldPattern, RegexOption.MULTILINE), newCode)
-        generatedFile.writeText(content)
-        logger.info("Fixed integration_test plugin registration in GeneratedPluginRegistrant.java")
     }
 }
 
-// Automatically run fix task before Java compilation for all release build types
-afterEvaluate {
-    tasks
-        .matching { it.name.startsWith("compile") && it.name.contains("Release") && it.name.contains("Java") }
-        .configureEach {
-            dependsOn("fixIntegrationTestPlugin")
-        }
+// REMOVED: Flutter configuration block - no longer needed
+// REMOVED: fixIntegrationTestPlugin task - GeneratedPluginRegistrant.java no longer exists
 
-    // Also run for all build variants
-    tasks
-        .matching { it.name.contains("compileReleaseJavaWithJavac") }
-        .configureEach {
-            dependsOn("fixIntegrationTestPlugin")
-        }
-}
+// REMOVED: afterEvaluate block for fixIntegrationTestPlugin - task no longer needed
 
-// Configure kapt for Dagger Hilt
-// Note: Some kapt options may show warnings if not used by processors.
-// This is normal and doesn't affect functionality.
-kapt {
-    correctErrorTypes = true
-    useBuildCache = true
-    // These options are set automatically by Hilt plugin
-    // Warnings about unrecognized options can be safely ignored
+// Configure KSP for Room and Hilt
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
 }
 
 dependencies {
-    // Desugaring for flutter_local_notifications
-    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
-
     // AppCompat for AppCompatActivity and AlertDialog
     implementation("androidx.appcompat:appcompat:1.7.1")
 
-    // Dagger Hilt - Dependency Injection (version 2.57.2, same as lissen-android)
+    // Splash Screen API
+    implementation("androidx.core:core-splashscreen:1.2.0")
+
+    // Dagger Hilt - Dependency Injection (using KSP instead of KAPT for Kotlin 2.0+)
     implementation("com.google.dagger:hilt-android:2.57.2")
-    kapt("com.google.dagger:hilt-android-compiler:2.57.2")
+    ksp("com.google.dagger:hilt-android-compiler:2.57.2")
+
+    // Hilt WorkManager integration (using KSP)
+    implementation("androidx.hilt:hilt-work:1.2.0")
+    ksp("androidx.hilt:hilt-compiler:1.2.0")
 
     // Media3 - Native audio player (using 1.8.0 version, same as lissen-android)
     implementation("androidx.media3:media3-exoplayer:1.8.0")
@@ -229,23 +199,97 @@ dependencies {
     // Media3 datasource for network streaming (OkHttp support)
     implementation("androidx.media3:media3-datasource-okhttp:1.8.0")
 
+    // Audio metadata parsing using KTagLib (TagLib Kotlin bindings)
+    implementation("com.github.timusus:KTagLib:1.6.1")
+
     // Android 14+ specific dependencies
     // Add support for Android 14+ foreground service types
-    implementation("androidx.work:work-runtime:2.9.0")
+    implementation("androidx.work:work-runtime:2.11.0")
 
     // Add coroutines support for proper async handling
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-guava:1.10.2")
 
+    // Kotlinx serialization (required by Room 2.8.4+)
+    // Room uses setClassDiscriminatorMode which requires kotlinx.serialization 1.6.0+
+    val kotlinxSerializationVersion = "1.9.0"
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:$kotlinxSerializationVersion")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-core:$kotlinxSerializationVersion")
+
+    // Room database for local storage
+    val roomVersion = "2.8.4"
+    implementation("androidx.room:room-runtime:$roomVersion")
+    implementation("androidx.room:room-ktx:$roomVersion")
+    // Use KSP instead of kapt for Room (recommended by Google)
+    ksp("androidx.room:room-compiler:$roomVersion")
+
+    // DataStore for preferences
+    implementation("androidx.datastore:datastore-preferences:1.1.7")
+    // Proto DataStore for typed preferences
+    implementation("androidx.datastore:datastore:1.2.0")
+    implementation("com.google.protobuf:protobuf-javalite:4.33.2")
+
+    // Security & Encryption - Modern approach with Tink (replaces deprecated EncryptedSharedPreferences)
+    implementation("com.google.crypto.tink:tink-android:1.20.0")
     // Note: Media3 1.8.0 is the current stable version with full Android 14+ support
     // Previous alpha/beta versions (1.3.0, 1.4.0) had compatibility issues
     // Version 1.8.0 includes all Android 14+ fixes and is production-ready
 
     // Media library for MediaStyle notification (required for MediaStyle class)
     // MediaStyle is part of androidx.media, not androidx.core
-    implementation("androidx.media:media:1.7.0")
+    implementation("androidx.media:media:1.7.1")
 
     // OkHttp for network requests in MediaDataSourceFactory
     implementation("com.squareup.okhttp3:okhttp:5.3.2")
+
+    // Retrofit for REST API calls
+    val retrofitVersion = "3.0.0"
+    implementation("com.squareup.retrofit2:retrofit:$retrofitVersion")
+    implementation("com.squareup.retrofit2:converter-kotlinx-serialization:$retrofitVersion")
+
+    // OkHttp logging interceptor for debugging
+    implementation("com.squareup.okhttp3:logging-interceptor:5.3.2")
+
+    // Jsoup for HTML parsing (Rutracker scraping)
+    implementation("org.jsoup:jsoup:1.21.2")
+
+    // Retrofit scalar converter for HTML responses
+    implementation("com.squareup.retrofit2:converter-scalars:$retrofitVersion")
+
+    // libtorrent4j for torrent downloads
+    implementation("org.libtorrent4j:libtorrent4j:2.1.0-38")
+    implementation("org.libtorrent4j:libtorrent4j-android-arm64:2.1.0-38")
+    implementation("org.libtorrent4j:libtorrent4j-android-arm:2.1.0-38")
+    implementation("org.libtorrent4j:libtorrent4j-android-x86:2.1.0-38")
+
+    // Jetpack Compose - Modern UI toolkit
+    implementation(platform("androidx.compose:compose-bom:2025.12.00"))
+    implementation("androidx.compose.ui:ui")
+    implementation("androidx.compose.material3:material3")
+    implementation("androidx.compose.ui:ui-tooling-preview")
+    implementation("androidx.compose.material:material-icons-extended")
+    debugImplementation("androidx.compose.ui:ui-tooling")
+    debugImplementation("androidx.compose.ui:ui-test-manifest")
+
+    // Compose Navigation
+    implementation("androidx.navigation:navigation-compose:2.9.6")
+    implementation("androidx.hilt:hilt-navigation-compose:1.3.0")
+    // Navigation with kotlinx.serialization for type-safe routing
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
+
+    // Lifecycle & ViewModel for Compose
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.10.0")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.10.0")
+
+    // Activity Compose
+    implementation("androidx.activity:activity-compose:1.12.1")
+
+    // Coil3 for async image loading in Compose
+    implementation("io.coil-kt.coil3:coil-compose:3.3.0")
+
+    // Lyricist - Type-safe i18n for Compose
+    implementation("cafe.adriel.lyricist:lyricist:1.8.0")
+    ksp("cafe.adriel.lyricist:lyricist-processor:1.8.0")
 
     // Note: Google Play Core is NOT needed as a dependency
     // Flutter references these classes but they're not actually used
@@ -254,6 +298,7 @@ dependencies {
 
 // ktlint configuration
 // Plugin version 14.0.1 will use its default ktlint version
+// Rules are configured via .editorconfig file
 ktlint {
     debug.set(false)
     verbose.set(true)
@@ -262,9 +307,25 @@ ktlint {
     outputColorName.set("RED")
     ignoreFailures.set(false)
     enableExperimentalRules.set(true)
+
     filter {
         exclude("**/generated/**")
         exclude("**/build/**")
         include("**/kotlin/**")
+    }
+}
+// Protobuf configuration for Proto DataStore
+protobuf {
+    protoc {
+        artifact = "com.google.protobuf:protoc:4.33.2"
+    }
+    generateProtoTasks {
+        all().forEach { task ->
+            task.builtins {
+                create("java") {
+                    option("lite")
+                }
+            }
+        }
     }
 }

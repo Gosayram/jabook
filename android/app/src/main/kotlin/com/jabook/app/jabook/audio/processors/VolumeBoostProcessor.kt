@@ -32,7 +32,7 @@ import kotlin.math.pow
  * - Look-ahead limiter (5-10 ms) for preventing artifacts
  * - 32-bit float processing for quality
  */
-@OptIn(UnstableApi::class)
+@UnstableApi
 class VolumeBoostProcessor(
     private val boostLevel: VolumeBoostLevel,
 ) : AudioProcessor {

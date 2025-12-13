@@ -1,6 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
-    package="com.jabook.app.jabook">
+    android:installLocation="auto">
 
     <!-- Network permissions (API 21+) -->
     <uses-permission android:name="android.permission.INTERNET" />
@@ -9,23 +9,21 @@
     <!-- Required only if your app modifies network configuration -->
     <!-- <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" /> -->
 
-    <!-- Legacy external storage permissions -->
-    <!-- READ_EXTERNAL_STORAGE: Required for reading files on external storage -->
-    <!-- Note: On Android 6.0+ (API 23+), this is a runtime permission -->
-    <!-- On Android 11+ (API 30+), this permission is mostly ignored, but some custom ROMs (Xiaomi/Oppo) still check it for backward compatibility -->
-    <!-- Keep without maxSdkVersion for compatibility with custom ROMs -->
+    <!-- Storage permissions for both internal and SD card access -->
+    <!-- READ_EXTERNAL_STORAGE: Required for reading files from internal storage and SD card -->
+    <!-- Works on Android 6.0+ (API 23+) as runtime permission -->
+    <!-- Keep without maxSdkVersion for SD card compatibility on all Android versions -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     
-    <!-- WRITE_EXTERNAL_STORAGE: Required for writing files on external storage -->
-    <!-- Note: On Android 6.0+ (API 23+), this is a runtime permission -->
-    <!-- On Android 10+ (API 29+), Scoped Storage limits this permission -->
-    <!-- On Android 11+ (API 30+), this permission is mostly ignored, but some custom ROMs (Xiaomi/Oppo) still check it for backward compatibility -->
-    <!-- Keep without maxSdkVersion for compatibility with custom ROMs -->
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <!-- WRITE_EXTERNAL_STORAGE: Required for writing files to internal storage and SD card -->
+    <!-- Works on Android 6.0+ (API 23+) as runtime permission -->
+    <!-- Keep without maxSdkVersion for SD card write access on all Android versions -->
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        tools:ignore="ScopedStorage" />
 
-    <!-- MANAGE_EXTERNAL_STORAGE: Required for accessing all files on Android 11+ (API 30+) -->
-    <!-- This permission is required to write to /storage/emulated/0/JabookAudio on Android 11+ -->
-    <!-- Note: This is a special permission that must be granted through Settings -->
+    <!-- MANAGE_EXTERNAL_STORAGE: Required for full filesystem access on Android 11+ (API 30+) -->
+    <!-- Allows access to all files on internal storage and SD card -->
     <uses-permission
         android:name="android.permission.MANAGE_EXTERNAL_STORAGE"
         tools:ignore="ScopedStorage" />
@@ -42,6 +40,13 @@
     <!-- Required for showing notifications on Android 13+ -->
     <!-- On Android 12 and below, notifications work without explicit permission -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- SCHEDULE_EXACT_ALARM: Required for exact alarm scheduling (background downloads, etc) -->
+    <!-- Android 12+ (API 31+) requires this for WorkManager and AlarmManager exact alarms -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+
+    <!-- VIBRATE: Allows notifications to vibrate -->
+    <uses-permission android:name="android.permission.VIBRATE" />
 
     <!-- Power and audio service permissions -->
     <!-- WAKE_LOCK: Prevents device from sleeping during audio playback (API 21+) -->
@@ -67,9 +72,18 @@
     <!-- This permission is rarely approved by Google Play and should be avoided -->
     <!-- <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" /> -->
 
+    <!-- Hardware features - mark as optional for better device compatibility -->
+    <!-- Allows app to run on Android TV, tablets without touchscreen, etc -->
+    <uses-feature
+        android:name="android.hardware.touchscreen"
+        android:required="false" />
+    <uses-feature
+        android:name="android.hardware.wifi"
+        android:required="false" />
+
     <application
-        android:label="jabook"
         android:name=".JabookApplication"
+        android:label="jabook"
         android:icon="@mipmap/ic_launcher"
         android:usesCleartextTraffic="true"
         android:networkSecurityConfig="@xml/network_security_config"
@@ -77,10 +91,12 @@
         android:hasFragileUserData="true"
         android:enableOnBackInvokedCallback="true"
         android:largeHeap="true"
+        android:supportsRtl="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
         android:manageSpaceActivity=".DataManagementActivity"
-        tools:targetApi="34">
+        tools:targetApi="34"
+        tools:ignore="NamespaceTypo,MissingClass">
         
         <!-- requestLegacyExternalStorage removed: not supported on Android 11+ (API 30+) -->
         <!-- App uses app-specific directory which doesn't require this attribute -->
@@ -88,7 +104,7 @@
 
         <activity
             android:name=".MainActivity"
-            android:exported="true"
+            android:exported="false"
             android:launchMode="singleTop"
             android:taskAffinity=""
             android:theme="@style/LaunchTheme"
@@ -102,9 +118,42 @@
                 android:name="io.flutter.embedding.android.NormalTheme"
                 android:resource="@style/NormalTheme" />
 
+            <!-- REMOVED: LAUNCHER intent-filter moved to ComposeMainActivity -->
+        </activity>
+
+        <!-- Compose UI Activity - NOW THE MAIN LAUNCHER -->
+        <activity
+            android:name=".compose.ComposeMainActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:theme="@style/Theme.App.Starting"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+            android:hardwareAccelerated="true"
+            android:windowSoftInputMode="adjustResize">
+
+            <!-- MAIN LAUNCHER - App now starts with Compose, not Flutter -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+            <!-- Magnet link deep links for torrent downloads -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="magnet" />
+            </intent-filter>
+
+            <!-- Custom jabook:// scheme for app-specific deep links -->
+            <!-- Examples: jabook://library, jabook://player/bookId, jabook://settings -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="jabook"
+                    android:host="*" />
             </intent-filter>
         </activity>
 
@@ -149,6 +198,31 @@
                 <action android:name="com.jabook.app.jabook.audio.MEDIA_SESSION_PAUSE" />
             </intent-filter>
         </receiver>
+
+        <!-- Disable default WorkManager initialization -->
+        <!-- App uses on-demand initialization via Configuration.Provider -->
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            android:exported="false"
+            tools:node="merge">
+            <meta-data
+                android:name="androidx.work.WorkManagerInitializer"
+                android:value="androidx.startup"
+                tools:node="remove" />
+        </provider>
+
+        <!-- FileProvider for secure file sharing -->
+        <!-- Allows sharing torrent files, APKs, and audiobooks with other apps -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.provider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/provider_paths" />
+        </provider>
 
         <!-- Required for Flutter engine -->
         <meta-data

@@ -23,16 +23,20 @@ import androidx.media3.database.StandaloneDatabaseProvider
 import androidx.media3.datasource.cache.Cache
 import androidx.media3.datasource.cache.LeastRecentlyUsedCacheEvictor
 import androidx.media3.datasource.cache.SimpleCache
+import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.RenderersFactory
 import com.jabook.app.jabook.audio.processors.AudioProcessingSettings
+import com.jabook.app.jabook.utils.PerformanceClass
+import com.jabook.app.jabook.utils.PerformanceUtils
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import java.io.File
+import javax.inject.Named
 import javax.inject.Singleton
 
 /**
@@ -51,7 +55,7 @@ object MediaModule {
     @Singleton
     fun provideMediaCache(
         @ApplicationContext context: Context,
-    ): Cache {
+    ): androidx.media3.datasource.cache.Cache {
         val initStart = System.currentTimeMillis()
 
         // CRITICAL OPTIMIZATION: Minimize blocking operations during cache creation
@@ -116,6 +120,21 @@ object MediaModule {
         return cache
     }
 
+    @Provides
+    @Singleton
+    @Named("okhttp")
+    fun provideOkHttpCache(
+        @ApplicationContext context: Context,
+    ): okhttp3.Cache {
+        val cacheDir = File(context.cacheDir, "okhttp_cache")
+        val cacheSize = 50L * 1024 * 1024 // 50 MB
+        android.util.Log.d(
+            "MediaModule",
+            "Providing OkHttp Cache: ${cacheDir.absolutePath}, size: ${cacheSize / (1024 * 1024)} MB",
+        )
+        return okhttp3.Cache(cacheDir, cacheSize)
+    }
+
     @OptIn(UnstableApi::class)
     @Provides
     @Singleton
@@ -129,10 +148,14 @@ object MediaModule {
         // Match lissen-android configuration exactly
         // Note: AudioProcessors are configured dynamically in AudioPlayerService
         // based on user settings, not here in the singleton
+        // Create optimized LoadControl
+        val loadControl = createOptimizedLoadControl(context)
+
         val player =
             try {
                 ExoPlayer
                     .Builder(context)
+                    .setLoadControl(loadControl)
                     .setHandleAudioBecomingNoisy(true)
                     .setAudioAttributes(
                         AudioAttributes
@@ -197,6 +220,7 @@ object MediaModule {
                     ExoPlayer
                         .Builder(context)
                         .setRenderersFactory(renderersFactory)
+                        .setLoadControl(createOptimizedLoadControl(context))
                         .setHandleAudioBecomingNoisy(true)
                         .setAudioAttributes(
                             AudioAttributes
@@ -223,6 +247,23 @@ object MediaModule {
         return player
     }
 
+    private fun createOptimizedLoadControl(context: Context): androidx.media3.exoplayer.LoadControl {
+        val performanceClass = PerformanceUtils.getPerformanceClass(context)
+        val loadControlBuilder = DefaultLoadControl.Builder()
+
+        if (performanceClass == PerformanceClass.LOW) {
+            // For low-end devices, reduce buffer sizes to save memory
+            loadControlBuilder
+                .setBufferDurationsMs(
+                    15000,
+                    30000,
+                    1500,
+                    3000,
+                ).setTargetBufferBytes(32 * 1024 * 1024)
+        }
+        return loadControlBuilder.build()
+    }
+
     /**
      * Calculates optimal cache size limit based on available storage.
      *
@@ -247,4 +288,48 @@ object MediaModule {
     private const val DEFAULT_CACHE_BYTES = 200L * 1024 * 1024 // 200 MB (fallback if StatFs fails)
     private const val KEEP_FREE_BYTES = 20L * 1024 * 1024 // 20 MB
     private const val MIN_CACHE_BYTES = 10L * 1024 * 1024 // 10 MB
+}
+
+/**
+ * Hilt module for providing audio database and preferences.
+ */
+@Module
+@InstallIn(SingletonComponent::class)
+object AudioDataModule {
+    @Provides
+    @Singleton
+    fun provideAudioDatabase(
+        @ApplicationContext context: Context,
+    ): com.jabook.app.jabook.audio.data.local.database.AudioDatabase =
+        androidx.room.Room
+            .databaseBuilder(
+                context,
+                com.jabook.app.jabook.audio.data.local.database.AudioDatabase::class.java,
+                "audio_database",
+            ).build()
+
+    @Provides
+    @Singleton
+    fun provideAudioPreferences(
+        @ApplicationContext context: Context,
+    ): com.jabook.app.jabook.audio.data.local.datastore.AudioPreferences =
+        com.jabook.app.jabook.audio.data.local.datastore
+            .AudioPreferences(context)
+}
+
+/**
+ * Hilt module for providing audio data repositories.
+ */
+@Module
+@InstallIn(SingletonComponent::class)
+object AudioRepositoryModule {
+    @Provides
+    @Singleton
+    fun provideSavedPlayerStateRepository(
+        database: com.jabook.app.jabook.audio.data.local.database.AudioDatabase,
+    ): com.jabook.app.jabook.audio.data.repository.SavedPlayerStateRepository {
+        val dao = database.savedPlayerStateDao()
+        return com.jabook.app.jabook.audio.data.repository
+            .SavedPlayerStateRepository(dao)
+    }
 }

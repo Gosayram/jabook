@@ -1,0 +1,94 @@
+package com.jabook.app.jabook.data.local.entity
+
+import com.jabook.app.jabook.data.model.Book
+import com.jabook.app.jabook.data.model.Chapter
+import com.jabook.app.jabook.data.model.PlaybackPosition
+
+/**
+ * Converts BookEntity to domain Book model.
+ */
+fun BookEntity.asExternalModel(chapters: List<ChapterEntity>): Book {
+    return Book(
+        id = id,
+        title = title,
+        author = author,
+        coverUrl = coverUrl,
+        description = description,
+        duration = duration,
+        addedDate = addedDate,
+        lastPlayedDate = lastPlayedDate,
+        isDownloaded = isDownloaded,
+        downloadProgress = downloadProgress,
+        chapters = chapters.map { it.asExternalModel() },
+    )
+}
+
+/**
+ * Converts ChapterEntity to domain Chapter model.
+ */
+fun ChapterEntity.asExternalModel(): Chapter {
+    return Chapter(
+        id = id,
+        bookId = bookId,
+        title = title,
+        fileIndex = fileIndex,
+        duration = duration,
+        fileUrl = fileUrl,
+    )
+}
+
+/**
+ * Converts PlaybackPositionEntity to domain PlaybackPosition model.
+ */
+fun PlaybackPositionEntity.asExternalModel(): PlaybackPosition {
+    return PlaybackPosition(
+        bookId = bookId,
+        chapterIndex = chapterIndex,
+        positionMs = positionMs,
+        lastUpdated = lastUpdated,
+    )
+}
+
+/**
+ * Converts domain Book to BookEntity for database storage.
+ */
+fun Book.asEntity(): BookEntity {
+    return BookEntity(
+        id = id,
+        title = title,
+        author = author,
+        coverUrl = coverUrl,
+        description = description,
+        duration = duration,
+        addedDate = addedDate,
+        lastPlayedDate = lastPlayedDate,
+        isDownloaded = isDownloaded,
+        downloadProgress = downloadProgress,
+    )
+}
+
+/**
+ * Converts domain Chapter to ChapterEntity for database storage.
+ */
+fun Chapter.asEntity(): ChapterEntity {
+    return ChapterEntity(
+        id = id,
+        bookId = bookId,
+        title = title,
+        fileIndex = fileIndex,
+        duration = duration,
+        fileUrl = fileUrl,
+    )
+}
+
+/**
+ * Converts domain PlaybackPosition to PlaybackPositionEntity for database storage.
+ */
+fun PlaybackPosition.asEntity(): PlaybackPositionEntity {
+    return PlaybackPositionEntity(
+        bookId = bookId,
+        chapterIndex = chapterIndex,
+        positionMs = positionMs,
+        lastUpdated = lastUpdated,
+    )
+}

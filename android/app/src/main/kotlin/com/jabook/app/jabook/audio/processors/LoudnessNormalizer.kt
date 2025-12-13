@@ -34,7 +34,7 @@ import kotlin.math.pow
  * psychoacoustic filtering. This implementation uses RMS as a simpler
  * but effective alternative for speech content.
  */
-@OptIn(UnstableApi::class)
+@UnstableApi
 class LoudnessNormalizer(
     private val settings: AudioProcessingSettings,
 ) : AudioProcessor {

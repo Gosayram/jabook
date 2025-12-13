@@ -9,6 +9,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import com.jabook.app.jabook.compose.ComposeMainActivity
 import java.io.File
 
 /**
@@ -49,7 +50,7 @@ class DataManagementActivity : AppCompatActivity() {
         }
 
         openAppButton.setOnClickListener {
-            val intent = Intent(this, MainActivity::class.java)
+            val intent = Intent(this, ComposeMainActivity::class.java)
             startActivity(intent)
             finish()
         }

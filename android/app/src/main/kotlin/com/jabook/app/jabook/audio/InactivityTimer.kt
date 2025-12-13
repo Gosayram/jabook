@@ -99,11 +99,17 @@ class InactivityTimer(
             override fun onIsPlayingChanged(isPlaying: Boolean) {
                 if (isPlaying) {
                     // Playback started - reset timer
-                    android.util.Log.d("InactivityTimer", "Playback started (isPlaying=true), resetting inactivity timer")
+                    android.util.Log.d(
+                        "InactivityTimer",
+                        "Playback started (isPlaying=true), resetting inactivity timer",
+                    )
                     resetTimer()
                 } else {
                     // Playback paused/stopped - start timer if conditions are met
-                    android.util.Log.d("InactivityTimer", "Playback paused/stopped (isPlaying=false), checking if should start timer")
+                    android.util.Log.d(
+                        "InactivityTimer",
+                        "Playback paused/stopped (isPlaying=false), checking if should start timer",
+                    )
                     checkAndStartTimer()
                 }
             }
@@ -136,7 +142,10 @@ class InactivityTimer(
                 reason: Int,
             ) {
                 // Track changed - reset timer (user action)
-                android.util.Log.d("InactivityTimer", "Media item transition detected (user action), resetting inactivity timer")
+                android.util.Log.d(
+                    "InactivityTimer",
+                    "Media item transition detected (user action), resetting inactivity timer",
+                )
                 resetTimer()
             }
 

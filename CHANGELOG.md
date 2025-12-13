@@ -16,6 +16,69 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Add online audiobook search via Rutracker
+- Add swipe gestures and notification controls to mini player
+- Implement main navigation and integrate core screens
+- Implement native streaming torrent downloads
+- Improve authentication with strict validation and WebView cookie synchronization, and update Android runtime permission requests
+- Introduce Jetpack Compose UI with new data layer for books and refactor audio player components: phase 1 and 2
+- Migrate to Gradle 9 for comprehensive building experience
+- Mirror management with dynamic base URL, health checks, and persistent settings
+
+### Changed
+- Add `run-beta` and `run-beta-debug` Makefile targets and update `install-beta` to use `adb`
+- Add deprecation suppression for hiltViewModel in feature screens
+- Add logic to request necessary permissions on app launch based on Android version
+- Add topic details screen with its viewmodel and navigation route
+- Added ignore packages for copyright validation
+- Bump Android SDK versions, enable ABI splits with universal APK generation, remove desugaring, and adapt Makefile for new APK output structure
+- Bump Makefile
+- Bump packages
+- Bump pub build
+- Clean up unused imports and apply minor formatting to settings and topic screens
+- Enhance foreground service initialization for Android 14+ and standardize notification ID
+- Enhance screen reader experience by adding semantic descriptions and roles to various UI components
+- Exclude test_results folder for copyright heads
+- Extract MainActivity logic to handlers and fix missing methods
+- Implement custom rewind/forward media session commands, force Android compile SDK to 34, and update flutter_media_metadata to a path dependency
+- Implement environment-specific beta and production color themes, replacing the default Material 3 color schemes
+- Implement jumpToTrack functionality, increase playback position saving frequency, and add extensive logging for audio bridge events
+- Improve code formatting and organize imports
+- Migrate player to new bridge API with Kotlin state persistence
+- Migrate to DataStore + Tink encryption for credentials
+- Migrate to Java 21 and replace kapt with KSP for Room
+- Polish navigation UI and resolve deprecations
+- Refactor audio player service architecture
+- Remove unused flutter collab code from Kotlin
+- Removed all flutter code from project; prepate to migrate native Kotlin code
+- Reorganize makefile automation and fix hack scripts
+- Streamline Gradle configuration, enable build caching, remove integration test plugin workaround, disable default WorkManager initialization, and generalize DataMigrationManager's DataStore usage
+- Update ProGuard rules by removing Flutter configurations and adding rules for Compose, Hilt, Room, DataStore, Media3, and WorkManager
+
+### Fixed
+- Fix chapter mismatch, player freeze, and local playback
+- Fix compilation errors and improve playback position saving
+- Fix playback position restoration and prevent playlist loading conflicts
+- Flutter media start
+- HttpCache validation
+- Move Lyricist's `ProvideStrings` to `JabookApp` and update `LocalStrings` imports
+- Player validation
+- Remove old BridgeModule between Kotlin and Flutter
+- Removed unused flutter params
+- Removed unused flutter tests, implementations, libs
+- Resolve audio player bridging and playlist sorting issues
+- Resolve compilation warnings and deprecated API usage
+- Resolve Kotlin 2.2.0 compilation errors and update dependencies
+- Resolve kotlinx-serialization version conflict in kapt and suppress manifest warnings
+- Room version and build namespace for validation
+- Update beta APK installation to use arm64-v8a specific build
+
+### Security
+- FileProvider for secure file sharing, new permissions, and manifest compatibility adjustments
+
+## [1.2.6] - 2025-12-06
+
 ### Changed
 - Add dynamic app name support based on build flavor (#43)
 - Bump softprops/action-gh-release from 2.4.2 to 2.5.0 (#44)
@@ -186,7 +249,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Security params
 
 
-[Unreleased]: https://github.com/Gosayram/jabook/compare/1.2.5...HEAD
+[Unreleased]: https://github.com/Gosayram/jabook/compare/1.2.6...HEAD
+[1.2.6]: https://github.com/Gosayram/jabook/compare/1.2.5...1.2.6
 [1.2.5]: https://github.com/Gosayram/jabook/compare/1.2.4...1.2.5
 [1.2.4]: https://github.com/Gosayram/jabook/compare/1.2.0...1.2.4
 [1.2.0]: https://github.com/Gosayram/jabook/compare/1.1.4+9...1.2.0

@@ -250,3 +250,6 @@ test_results/**
 
 # Issue docs
 issue*.md
+
+# Room database schemas
+android/app/schemas/
