@@ -30,11 +30,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `run-beta` and `run-beta-debug` Makefile targets and update `install-beta` to use `adb`
 - Add deprecation suppression for hiltViewModel in feature screens
 - Add logic to request necessary permissions on app launch based on Android version
+- Add topic details screen with its viewmodel and navigation route
 - Added ignore packages for copyright validation
 - Bump Android SDK versions, enable ABI splits with universal APK generation, remove desugaring, and adapt Makefile for new APK output structure
 - Bump Makefile
 - Bump packages
 - Bump pub build
+- Clean up unused imports and apply minor formatting to settings and topic screens
 - Enhance foreground service initialization for Android 14+ and standardize notification ID
 - Enhance screen reader experience by adding semantic descriptions and roles to various UI components
 - Exclude test_results folder for copyright heads
