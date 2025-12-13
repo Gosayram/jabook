@@ -24,6 +24,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.toggleable
@@ -42,6 +44,16 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.TextButton
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -114,6 +126,12 @@ fun SettingsScreen(
             val availableMirrors by viewModel.availableMirrors.collectAsStateWithLifecycle()
             val protoSettings by viewModel.protoSettings.collectAsStateWithLifecycle()
 
+            // State for health checks and dialog
+            var showAddMirrorDialog by remember { mutableStateOf(false) }
+            var customMirrorUrl by remember { mutableStateOf("") }
+            var healthCheckInProgress by remember { mutableStateOf<String?>(null) }
+            val healthStatus = remember { mutableStateOf<Map<String, Boolean?>>(emptyMap()) }
+
             SettingsSection(title = "Сеть и Зеркала")
 
             SettingsItem(
@@ -132,14 +150,20 @@ fun SettingsScreen(
                     MirrorOption(
                         domain = mirror,
                         selected = mirror == currentMirror,
+                        healthStatus = healthStatus.value[mirror],
+                        isChecking = healthCheckInProgress == mirror,
                         onSelected = { viewModel.updateMirror(mirror) },
                         onCheckHealth = {
+                            healthCheckInProgress = mirror
                             viewModel.checkMirrorHealth(mirror) { isHealthy ->
-                                val message = if (isHealthy) "✅ Зеркало доступно" else "❌ Зеркало недоступно"
-                                android.widget.Toast
-                                    .makeText(context, "$mirror: $message", android.widget.Toast.LENGTH_SHORT)
-                                    .show()
+                                healthCheckInProgress = null
+                                healthStatus.value = healthStatus.value + (mirror to isHealthy)
                             }
+                        },
+                        onRemove = if (mirror !in com.jabook.app.jabook.compose.data.network.MirrorManager.DEFAULT_MIRRORS) {
+                            { viewModel.removeCustomMirror(mirror) }
+                        } else {
+                            null
                         },
                     )
                 }
@@ -156,14 +180,39 @@ fun SettingsScreen(
 
             SettingsItem(
                 title = "Добавить свое зеркало",
-                subtitle = "Добавить кастомный URL",
+                subtitle = "Введите URL зеркала",
                 onClick = {
-                    android.widget.Toast
-                        .makeText(context, "Custom mirror dialog placeholder", android.widget.Toast.LENGTH_SHORT)
-                        .show()
-                    // TODO: Implement dialog for custom mirror input
+                    customMirrorUrl = ""
+                    showAddMirrorDialog = true
                 },
             )
+
+            // Custom mirror dialog
+            if (showAddMirrorDialog) {
+                AddMirrorDialog(
+                    currentValue = customMirrorUrl,
+                    onValueChange = { customMirrorUrl = it },
+                    onDismiss = { showAddMirrorDialog = false },
+                    onConfirm = {
+                        val domain = extractDomain(customMirrorUrl)
+                        if (domain != null && domain !in availableMirrors) {
+                            viewModel.addCustomMirror(domain)
+                            showAddMirrorDialog = false
+                            android.widget.Toast
+                                .makeText(context, "Зеркало $domain добавлено", android.widget.Toast.LENGTH_SHORT)
+                                .show()
+                        } else if (domain in availableMirrors) {
+                            android.widget.Toast
+                                .makeText(context, "Это зеркало уже добавлено", android.widget.Toast.LENGTH_SHORT)
+                                .show()
+                        } else {
+                            android.widget.Toast
+                                .makeText(context, "Неверный URL. Используйте формат: rutracker.example", android.widget.Toast.LENGTH_SHORT)
+                                .show()
+                        }
+                    },
+                )
+            }
 
             HorizontalDivider()
 
@@ -461,8 +510,11 @@ private fun getVersionName(context: Context): String =
 private fun MirrorOption(
     domain: String,
     selected: Boolean,
+    healthStatus: Boolean?,
+    isChecking: Boolean,
     onSelected: () -> Unit,
     onCheckHealth: () -> Unit,
+    onRemove: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -481,6 +533,42 @@ private fun MirrorOption(
             onClick = null, // Handled by parent Row
         )
 
+        // Health status icon
+        when {
+            isChecking -> {
+                CircularProgressIndicator(
+                    modifier = Modifier
+                        .padding(start = 8.dp)
+                        .size(16.dp),
+                    strokeWidth = 2.dp,
+                )
+            }
+            healthStatus == true -> {
+                Icon(
+                    imageVector = Icons.Default.Check,
+                    contentDescription = "Available",
+                    tint = androidx.compose.ui.graphics.Color(0xFF4CAF50), // Green
+                    modifier = Modifier
+                        .padding(start = 8.dp)
+                        .size(16.dp),
+                )
+            }
+            healthStatus == false -> {
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = "Unavailable",
+                    tint = androidx.compose.ui.graphics.Color(0xFFF44336), // Red
+                    modifier = Modifier
+                        .padding(start = 8.dp)
+                        .size(16.dp),
+                )
+            }
+            else -> {
+                // Unknown status - show nothing or a subtle indicator
+                Spacer(modifier = Modifier.width(24.dp))
+            }
+        }
+
         Text(
             text = domain,
             style = MaterialTheme.typography.bodyLarge,
@@ -491,8 +579,91 @@ private fun MirrorOption(
         )
 
         // Health check button
-        androidx.compose.material3.TextButton(onClick = onCheckHealth) {
+        TextButton(
+            onClick = onCheckHealth,
+            enabled = !isChecking,
+        ) {
             Text("Проверить", style = MaterialTheme.typography.bodySmall)
         }
+
+        // Remove button for custom mirrors
+        if (onRemove != null) {
+            TextButton(onClick = onRemove) {
+                Text("Удалить", style = MaterialTheme.typography.bodySmall)
+            }
+        }
+    }
+}
+
+/**
+ * Dialog for adding a custom mirror.
+ */
+@Composable
+private fun AddMirrorDialog(
+    currentValue: String,
+    onValueChange: (String) -> Unit,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Добавить зеркало") },
+        text = {
+            Column {
+                Text(
+                    "Введите домен зеркала RuTracker",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = currentValue,
+                    onValueChange = onValueChange,
+                    label = { Text("Домен") },
+                    placeholder = { Text("rutracker.nl") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    "Примеры: rutracker.nl, rutracker.ru, rutracker.net.ru",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text("Добавить")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Отмена")
+            }
+        },
+    )
+}
+
+/**
+ * Extract domain from URL or domain string.
+ *
+ * Accepts: "rutracker.nl", "https://rutracker.nl", "rutracker.nl/forum"
+ * Returns: "rutracker.nl" or null if invalid
+ */
+private fun extractDomain(input: String): String? {
+    val trimmed = input.trim()
+    if (trimmed.isBlank()) return null
+
+    // Remove protocol
+    val withoutProtocol = trimmed.removePrefix("https://").removePrefix("http://")
+
+    // Remove path
+    val domain = withoutProtocol.substringBefore("/")
+
+    // Basic validation: must contain at least one dot and no spaces
+    return if (domain.contains(".") && !domain.contains(" ")) {
+        domain
+    } else {
+        null
     }
 }

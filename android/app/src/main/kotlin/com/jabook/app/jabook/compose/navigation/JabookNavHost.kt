@@ -30,6 +30,7 @@ import com.jabook.app.jabook.compose.feature.player.PlayerScreen
 import com.jabook.app.jabook.compose.feature.search.SearchScreen
 import com.jabook.app.jabook.compose.feature.settings.SettingsScreen
 import com.jabook.app.jabook.compose.feature.webview.WebViewScreen
+import com.jabook.app.jabook.compose.feature.topic.TopicScreen
 
 /**
  * Jabook app navigation graph.
@@ -197,8 +198,8 @@ fun JabookNavHost(
                     navController.navigate(PlayerRoute(bookId = bookId))
                 },
                 onOnlineBookClick = { searchResult ->
-                    // TODO: Handle online search result click
-                    // Could navigate to details screen or start download
+                    // Navigate to Topic Screen
+                    navController.navigate(TopicRoute(topicId = searchResult.topicId))
                 },
             )
         }
@@ -211,6 +212,17 @@ fun JabookNavHost(
                 ),
         ) {
             DownloadsScreen(
+                onNavigateBack = {
+                    navController.popBackStack()
+                },
+            )
+        }
+
+        // Topic details screen - shows RuTracker topic information
+        composable<TopicRoute> { backStackEntry ->
+            val route = backStackEntry.toRoute<TopicRoute>()
+            TopicScreen(
+                topicId = route.topicId,
                 onNavigateBack = {
                     navController.popBackStack()
                 },
